@@ -121,6 +121,30 @@ async function main() {
     const dailySave = await fetch(`${BASE}/api/daily`, { method: 'PUT', headers: authHeaders, body: JSON.stringify({ date: today(), bestMoment: 'coffee', gratitude: 'sunshine', tomorrowPlan: 'ship it' }) }).then(r => r.json());
     check('daily journal keeps bestMoment/gratitude/tomorrowPlan', dailySave.bestMoment === 'coffee' && dailySave.gratitude === 'sunshine' && dailySave.tomorrowPlan === 'ship it');
 
+    console.log('\n[9] live timer + Pomodoro backend');
+    const noTimer = await fetch(`${BASE}/api/timer`, { headers: authHeaders }).then(r => r.json());
+    check('no active timer initially', noTimer.timer === null);
+    const started = await fetch(`${BASE}/api/timer/start`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'deep work' }) }).then(r => r.json());
+    check('start timer -> got startedAt', !!started.startedAt);
+    const doubleStart = await fetch(`${BASE}/api/timer/start`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'other' }) });
+    check('starting a second timer while one runs -> 409', doubleStart.status === 409);
+    const runningNow = await fetch(`${BASE}/api/timer`, { headers: authHeaders }).then(r => r.json());
+    check('GET /api/timer reflects the running timer across a fresh request', runningNow.timer && runningNow.timer.id === started.id);
+    await new Promise(r => setTimeout(r, 1100));
+    const stopped = await fetch(`${BASE}/api/timer/stop`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ date: '2026-03-03' }) }).then(r => r.json());
+    check('stopping the timer creates a real time entry with minutes >= 1', stopped.minutes >= 1 && stopped.title === 'deep work');
+    check('stop respects a client-supplied date instead of always using server today() (guards the UTC/local-midnight mismatch bug)', stopped.date === '2026-03-03');
+    const afterStop = await fetch(`${BASE}/api/timer`, { headers: authHeaders }).then(r => r.json());
+    check('no active timer after stop', afterStop.timer === null);
+    const stopAgain = await fetch(`${BASE}/api/timer/stop`, { method: 'POST', headers: authHeaders });
+    check('stopping with nothing running -> 404, not a crash', stopAgain.status === 404);
+
+    const pomodoro = await fetch(`${BASE}/api/timer/start`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'pomodoro session', deadlineAt: Date.now() + 60000 }) }).then(r => r.json());
+    check('pomodoro-style start persists a deadlineAt', !!pomodoro.deadlineAt);
+    await fetch(`${BASE}/api/timer/cancel`, { method: 'POST', headers: authHeaders });
+    const afterCancel = await fetch(`${BASE}/api/timer`, { headers: authHeaders }).then(r => r.json());
+    check('cancel discards the timer without logging time', afterCancel.timer === null);
+
   } finally {
     child.kill();
     fs.writeFileSync(DB_PATH, JSON.stringify(EMPTY_DB, null, 2));
