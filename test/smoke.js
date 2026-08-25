@@ -14,6 +14,7 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const EMPTY_DB = { users: [], sessions: [], transactions: [], tasks: [], inbox: [], daily: [], investments: [], accounts: [], budgets: [], projects: [], timeEntries: [], habits: [], habitLogs: [], subscriptions: [], debts: [], footballTeams: [], matches: [], news: [], movies: [] };
 
 let pass = 0, fail = 0;
+function today() { return new Date().toISOString().slice(0, 10); }
 function check(name, cond) {
   if (cond) { pass++; console.log(`  ok  - ${name}`); }
   else { fail++; console.log(`  FAIL- ${name}`); }
@@ -82,6 +83,43 @@ async function main() {
     check('create project -> got id', !!proj.id);
     const delProj = await fetch(`${BASE}/api/projects/${proj.id}`, { method: 'DELETE', headers: authHeaders });
     check('delete project -> 200', delProj.status === 200);
+
+    console.log('\n[5] recurring task auto-next');
+    const recurring = await fetch(`${BASE}/api/tasks`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'daily standup', recurrence: 'daily', date: '2026-01-01' }) }).then(r => r.json());
+    await fetch(`${BASE}/api/tasks/${recurring.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ done: true }) });
+    const dashboard2 = JSON.parse(fs.readFileSync(DB_PATH, 'utf8')).tasks.filter(t => t.title === 'daily standup');
+    check('completing a recurring task creates exactly one next instance', dashboard2.length === 2);
+    check('next instance is scheduled the following day, not done', dashboard2.some(t => t.date === '2026-01-02' && !t.done));
+    const recurring2 = await fetch(`${BASE}/api/tasks/${recurring.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ note: 'noop' }) });
+    const dashboard3 = JSON.parse(fs.readFileSync(DB_PATH, 'utf8')).tasks.filter(t => t.title === 'daily standup');
+    check('re-patching an already-done recurring task does not duplicate it', dashboard3.length === 2);
+
+    console.log('\n[6] time entry edit');
+    const timeEntry = await fetch(`${BASE}/api/time`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'writing', minutes: 30 }) }).then(r => r.json());
+    const timeEdit = await fetch(`${BASE}/api/time/${timeEntry.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ minutes: 90 }) });
+    check('PATCH time entry -> 200', timeEdit.status === 200);
+    const timeEdited = await timeEdit.json();
+    check('time entry minutes updated', timeEdited.minutes === 90);
+
+    console.log('\n[7] habit edit / archive / delete');
+    const habit = await fetch(`${BASE}/api/habits`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'water' }) }).then(r => r.json());
+    await fetch(`${BASE}/api/habits/${habit.id}/toggle`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ date: today() }) });
+    const loggedDb = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+    check('first-ever toggle actually persists a habitLog row', loggedDb.habitLogs.some(l => l.habitId === habit.id && l.done));
+    const habitEdit = await fetch(`${BASE}/api/habits/${habit.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ name: 'drink water' }) });
+    check('PATCH habit -> 200', habitEdit.status === 200);
+    const habitArchive = await fetch(`${BASE}/api/habits/${habit.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ archived: true }) });
+    check('archive habit -> 200', habitArchive.status === 200);
+    const habitsAfterArchive = await fetch(`${BASE}/api/habits?date=${today()}`, { headers: authHeaders }).then(r => r.json());
+    check('archived habit no longer listed', !habitsAfterArchive.items.some(h => h.id === habit.id));
+    const habitDelete = await fetch(`${BASE}/api/habits/${habit.id}`, { method: 'DELETE', headers: authHeaders });
+    check('delete habit -> 200', habitDelete.status === 200);
+    const dbAfterHabitDelete = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+    check('deleted habit and its logs are gone', !dbAfterHabitDelete.habits.some(h => h.id === habit.id) && !dbAfterHabitDelete.habitLogs.some(l => l.habitId === habit.id));
+
+    console.log('\n[8] daily journal extra fields round-trip');
+    const dailySave = await fetch(`${BASE}/api/daily`, { method: 'PUT', headers: authHeaders, body: JSON.stringify({ date: today(), bestMoment: 'coffee', gratitude: 'sunshine', tomorrowPlan: 'ship it' }) }).then(r => r.json());
+    check('daily journal keeps bestMoment/gratitude/tomorrowPlan', dailySave.bestMoment === 'coffee' && dailySave.gratitude === 'sunshine' && dailySave.tomorrowPlan === 'ship it');
 
   } finally {
     child.kill();
