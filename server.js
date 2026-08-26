@@ -1,5 +1,5 @@
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto');
-const PORT=process.env.PORT||3000, ROOT=__dirname, DB=path.join(ROOT,'data','db.json');
+const PORT=process.env.PORT||3000, ROOT=__dirname, DB=process.env.DB_PATH?path.resolve(process.env.DB_PATH):path.join(ROOT,'data','db.json');
 // Loads local secrets if a .env file exists. On production, use host environment variables instead.
 const envFile=path.join(ROOT,'.env');if(fs.existsSync(envFile))for(const line of fs.readFileSync(envFile,'utf8').split(/\r?\n/)){let m=line.match(/^([A-Z0-9_]+)=(.*)$/);if(m&&!process.env[m[1]])process.env[m[1]]=m[2].trim()}
 const GOOGLE_CLIENT_ID=process.env.GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET=process.env.GOOGLE_CLIENT_SECRET,GOOGLE_REDIRECT_URI=process.env.GOOGLE_REDIRECT_URI,API_FOOTBALL_KEY=process.env.API_FOOTBALL_KEY;

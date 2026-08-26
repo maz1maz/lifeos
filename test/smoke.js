@@ -5,9 +5,13 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 const ROOT = path.join(__dirname, '..');
-const DB_PATH = path.join(ROOT, 'data', 'db.json');
+// Isolated from the real app's data/db.json on purpose: this file is reset to empty
+// at the start AND end of every run. It must NEVER be the same file the dev server
+// or a tunnel-exposed production instance is using, or a test run wipes real user data.
+const DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lifeos-smoke-')), 'db.json');
 const PORT = 3979;
 const BASE = `http://127.0.0.1:${PORT}`;
 
@@ -29,7 +33,7 @@ async function waitForServer() {
 
 async function main() {
   fs.writeFileSync(DB_PATH, JSON.stringify(EMPTY_DB, null, 2));
-  const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT), DB_PATH }, stdio: ['ignore', 'pipe', 'pipe'] });
   let crashed = false;
   child.on('exit', (code, signal) => { if (code !== null && code !== 0) crashed = true; });
   child.stderr.on('data', d => process.stderr.write(`[server] ${d}`));
@@ -147,7 +151,7 @@ async function main() {
 
   } finally {
     child.kill();
-    fs.writeFileSync(DB_PATH, JSON.stringify(EMPTY_DB, null, 2));
+    fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);
