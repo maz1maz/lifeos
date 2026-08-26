@@ -149,6 +149,25 @@ async function main() {
     const afterCancel = await fetch(`${BASE}/api/timer`, { headers: authHeaders }).then(r => r.json());
     check('cancel discards the timer without logging time', afterCancel.timer === null);
 
+    console.log('\n[10] exercise logging');
+    const ex = await fetch(`${BASE}/api/exercise`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'دویدن', minutes: 30 }) }).then(r => r.json());
+    check('log exercise -> got id', !!ex.id);
+    const exList = await fetch(`${BASE}/api/exercise?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json());
+    check('exercise shows up in today range', exList.items.some(i => i.id === ex.id));
+    const exDel = await fetch(`${BASE}/api/exercise/${ex.id}`, { method: 'DELETE', headers: authHeaders });
+    check('delete exercise -> 200', exDel.status === 200);
+
+    console.log('\n[11] daily journal water/weight/meds fields');
+    const dailyHealth = await fetch(`${BASE}/api/daily`, { method: 'PUT', headers: authHeaders, body: JSON.stringify({ date: today(), water: 1500, weight: 74.2, meds: 'ویتامین D' }) }).then(r => r.json());
+    check('daily journal keeps water/weight/meds', dailyHealth.water === 1500 && dailyHealth.weight === 74.2 && dailyHealth.meds === 'ویتامین D');
+
+    console.log('\n[12] habit history for charting');
+    const habit2 = await fetch(`${BASE}/api/habits`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'مطالعه' }) }).then(r => r.json());
+    await fetch(`${BASE}/api/habits/${habit2.id}/toggle`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ date: today() }) });
+    const hist = await fetch(`${BASE}/api/habits/history?from=2026-01-01&to=2026-12-31`, { headers: authHeaders }).then(r => r.json());
+    check('habit history includes the habit', hist.habits.some(h => h.id === habit2.id));
+    check('habit history includes today\'s completed log', hist.logs.some(l => l.habitId === habit2.id && l.date === today()));
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
