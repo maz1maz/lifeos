@@ -168,6 +168,24 @@ async function main() {
     check('habit history includes the habit', hist.habits.some(h => h.id === habit2.id));
     check('habit history includes today\'s completed log', hist.logs.some(l => l.habitId === habit2.id && l.date === today()));
 
+    console.log('\n[13] task time-blocking fields');
+    const scheduled = await fetch(`${BASE}/api/tasks`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'جلسه تیم', startTime: '14:00', durationMinutes: 45, date: today() }) }).then(r => r.json());
+    check('task keeps startTime/durationMinutes on create', scheduled.startTime === '14:00' && scheduled.durationMinutes === 45);
+    const unscheduled = await fetch(`${BASE}/api/tasks/${scheduled.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ startTime: null }) }).then(r => r.json());
+    check('clearing startTime via PATCH works', unscheduled.startTime === null);
+
+    console.log('\n[14] weekly review');
+    const overdueTask = await fetch(`${BASE}/api/tasks`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'overdue thing', date: '2020-01-01', deadline: '2020-01-01' }) }).then(r => r.json());
+    const doneTask = await fetch(`${BASE}/api/tasks`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'won this week', date: today() }) }).then(r => r.json());
+    await fetch(`${BASE}/api/tasks/${doneTask.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ done: true }) });
+    const weekReview = await fetch(`${BASE}/api/weekly-review?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json());
+    check('weekly review lists the completed task as a win', weekReview.wins.some(t => t.id === doneTask.id));
+    check('weekly review lists the overdue task regardless of range', weekReview.overdue.some(t => t.id === overdueTask.id));
+    const savedPriority = await fetch(`${BASE}/api/weekly-review`, { method: 'PUT', headers: authHeaders, body: JSON.stringify({ weekStart: today(), priority: 'ship the redesign' }) });
+    check('save weekly priority -> 200', savedPriority.status === 200);
+    const reReadReview = await fetch(`${BASE}/api/weekly-review?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json());
+    check('weekly priority round-trips back on GET', reReadReview.priority === 'ship the redesign');
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
