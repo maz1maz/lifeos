@@ -186,6 +186,77 @@ async function main() {
     const reReadReview = await fetch(`${BASE}/api/weekly-review?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json());
     check('weekly priority round-trips back on GET', reReadReview.priority === 'ship the redesign');
 
+    console.log('\n[15] accounts: edit, archive, transfer');
+    const accA = await fetch(`${BASE}/api/accounts`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'Card A', openingBalance: 1000000 }) }).then(r => r.json());
+    const accB = await fetch(`${BASE}/api/accounts`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'Card B', openingBalance: 0 }) }).then(r => r.json());
+    const accEdit = await fetch(`${BASE}/api/accounts/${accB.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ name: 'Card B Renamed' }) });
+    check('PATCH account rename -> 200', accEdit.status === 200);
+    const transfer = await fetch(`${BASE}/api/transfers`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ fromAccount: 'Card A', toAccount: 'Card B Renamed', amount: 200000 }) });
+    check('create transfer -> 201', transfer.status === 201);
+    const accountsAfter = await fetch(`${BASE}/api/accounts`, { headers: authHeaders }).then(r => r.json());
+    const cardA = accountsAfter.accounts.find(a => a.id === accA.id);
+    const cardB = accountsAfter.accounts.find(a => a.id === accB.id);
+    check('transfer debits source account', cardA.balance === 800000);
+    check('transfer credits destination account', cardB.balance === 200000);
+    const financeAfterTransfer = await fetch(`${BASE}/api/finance?month=${today().slice(0, 7)}`, { headers: authHeaders }).then(r => r.json());
+    check('transfer does not count as expense in finance summary', financeAfterTransfer.expense === 0);
+    const archiveAcc = await fetch(`${BASE}/api/accounts/${accB.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ archived: true }) });
+    check('archive account -> 200', archiveAcc.status === 200);
+    const accountsAfterArchive = await fetch(`${BASE}/api/accounts`, { headers: authHeaders }).then(r => r.json());
+    check('archived account no longer listed', !accountsAfterArchive.accounts.some(a => a.id === accB.id));
+
+    console.log('\n[16] recurring transactions auto-generate next instance');
+    const pastDate = '2020-01-01';
+    const recurTx = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'Rent', amount: 5000000, kind: 'expense', date: pastDate, recurrence: 'monthly' }) }).then(r => r.json());
+    const afterAdvance = await fetch(`${BASE}/api/transactions?from=2020-01-01&to=2020-03-01`, { headers: authHeaders }).then(r => r.json());
+    const chain = afterAdvance.items.filter(x => x.recurrenceId === recurTx.recurrenceId);
+    check('recurring transaction generated at least one next instance', chain.length >= 2);
+    check('generated instance is exactly one period after the source', chain.some(x => x.date === '2020-02-01'));
+
+    console.log('\n[17] total monthly budget');
+    const totalBudgetMonth = '2025-06';
+    await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'groceries', amount: 300000, kind: 'expense', category: 'خوراک', date: totalBudgetMonth + '-05' }) });
+    const totalBudgetSave = await fetch(`${BASE}/api/budgets`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ category: '__total__', limit: 10000000, month: totalBudgetMonth }) });
+    check('save total budget -> 201', totalBudgetSave.status === 201);
+    const budgetsGet = await fetch(`${BASE}/api/budgets?month=${totalBudgetMonth}`, { headers: authHeaders }).then(r => r.json());
+    check('totalBudget returned separately from per-category budgets', budgetsGet.totalBudget === 10000000);
+    check('__total__ excluded from the regular budgets list', !budgetsGet.budgets.some(b => b.category === '__total__'));
+    check('totalSpent reflects all expenses that month', budgetsGet.totalSpent === 300000);
+
+    console.log('\n[18] settling a debt records a real transaction');
+    const debt = await fetch(`${BASE}/api/debts`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ person: 'Ali', amount: 150000, type: 'payable' }) }).then(r => r.json());
+    const settled = await fetch(`${BASE}/api/debts/${debt.id}/settle`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ account: 'Card A' }) }).then(r => r.json());
+    check('settling a payable debt creates an expense transaction', settled.transaction && settled.transaction.kind === 'expense' && settled.transaction.amount === 150000);
+
+    console.log('\n[19] transaction filters');
+    await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'big one', amount: 9000000, kind: 'expense', category: 'حمل‌ونقل', account: 'Card A', date: today() }) });
+    const filtered = await fetch(`${BASE}/api/transactions?from=1900-01-01&to=2100-01-01&category=حمل‌ونقل&minAmount=5000000`, { headers: authHeaders }).then(r => r.json());
+    check('filter by category+minAmount returns only matching rows', filtered.items.length > 0 && filtered.items.every(x => x.category === 'حمل‌ونقل' && x.amount >= 5000000));
+
+    console.log('\n[20] CSV export');
+    const csvRes = await fetch(`${BASE}/api/transactions/export?from=1900-01-01&to=2100-01-01`, { headers: authHeaders });
+    const csvText = await csvRes.text();
+    check('CSV export -> 200 with csv content-type', csvRes.status === 200 && (csvRes.headers.get('content-type') || '').includes('csv'));
+    check('CSV export includes a known row', csvText.includes('big one'));
+
+    console.log('\n[21] receipt photo attach');
+    const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    const receiptTx = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'with receipt', amount: 10000, date: today() }) }).then(r => r.json());
+    const receiptSave = await fetch(`${BASE}/api/transactions/${receiptTx.id}/receipt`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ image: tinyPng }) }).then(r => r.json());
+    check('receipt upload sets a /uploads path', !!(receiptSave.receipt && receiptSave.receipt.startsWith('/uploads/')));
+    const uploadedFileExists = fs.existsSync(path.join(ROOT, 'public', receiptSave.receipt));
+    check('receipt file actually written to disk', uploadedFileExists);
+    if (uploadedFileExists) fs.unlinkSync(path.join(ROOT, 'public', receiptSave.receipt));
+
+    console.log('\n[22] insights: debt/subscription due-soon reminders');
+    const soon = new Date(); soon.setDate(soon.getDate() + 1);
+    const soonStr = soon.toISOString().slice(0, 10);
+    await fetch(`${BASE}/api/debts`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ person: 'Sara', amount: 50000, type: 'receivable', dueDate: soonStr }) });
+    await fetch(`${BASE}/api/subscriptions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'Spotify', amount: 100000, nextDate: soonStr }) });
+    const insightsRes = await fetch(`${BASE}/api/insights`, { headers: authHeaders }).then(r => r.json());
+    check('insights mentions a due-soon subscription', insightsRes.items.some(i => i.text.includes('اشتراک') && i.text.includes('روز')));
+    check('insights mentions a due-soon debt', insightsRes.items.some(i => i.text.includes('بدهی/طلب')));
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
