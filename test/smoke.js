@@ -65,6 +65,10 @@ async function main() {
       ['GET', '/api/football/remote/1xbet/matches?sportId=1&leagueId=1'], ['GET', '/api/football/remote/1xbet/odds?matchId=1'],
       ['GET', '/api/football/remote/sofascore/event?eventId=1'], ['GET', '/api/football/remote/sofascore/event/stats?eventId=1'],
       ['GET', '/api/football/remote/sofascore/event/incidents?eventId=1'],
+      ['GET', '/api/portfolio'], ['GET', '/api/portfolio/history'], ['POST', '/api/investments/tx'],
+      ['GET', '/api/investments/tx'], ['PATCH', '/api/investments/tx/x'], ['DELETE', '/api/investments/tx/x'],
+      ['POST', '/api/investments/price'], ['POST', '/api/investments/price/refresh'],
+      ['GET', '/api/investments/alerts'], ['POST', '/api/investments/alerts'], ['DELETE', '/api/investments/alerts/x'],
     ];
     for (const [method, p] of routes) {
       const r = await fetch(BASE + p, { method, headers: badCookie });
@@ -407,6 +411,77 @@ async function main() {
     check('sofascore event requires eventId -> 400', sofaEventNoId.status === 400);
     const sofaEventNoKey = await fetch(`${BASE}/api/football/remote/sofascore/event?eventId=1`, { headers: authHeaders });
     check('sofascore event -> 503 with no RAPIDAPI_KEY configured', sofaEventNoKey.status === 503);
+
+    console.log('\n[32] portfolio rebuild: transaction-based holdings, weighted-average cost, alerts, history');
+    await fetch(`${BASE}/api/portfolio`, { headers: authHeaders }); // simulate opening the portfolio before any holdings exist (regression: this used to permanently freeze today's snapshot at empty)
+    const buyNoQty = await fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'BTC', type: 'buy', price: 100 }) });
+    check('buy without quantity -> 400', buyNoQty.status === 400);
+    const dividendNoAmount = await fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'BTC', type: 'dividend' }) });
+    check('dividend without amount -> 400', dividendNoAmount.status === 400);
+
+    const buy1 = await fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'btc', assetType: 'crypto', type: 'buy', quantity: 1, price: 100, fee: 10, date: today() }) }).then(r => r.json());
+    check('symbol is normalized to uppercase', buy1.symbol === 'BTC');
+    let portfolio = await fetch(`${BASE}/api/portfolio`, { headers: authHeaders }).then(r => r.json());
+    let btc = portfolio.items.find(x => x.symbol === 'BTC');
+    check('first buy seeds the current price at the buy price', btc.currentPrice === 100);
+    check('first buy sets average cost including the fee', Math.abs(btc.avgCost - 110) < 1e-9);
+
+    await fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'BTC', assetType: 'crypto', type: 'buy', quantity: 1, price: 130, date: today() }) });
+    portfolio = await fetch(`${BASE}/api/portfolio`, { headers: authHeaders }).then(r => r.json());
+    btc = portfolio.items.find(x => x.symbol === 'BTC');
+    check('second buy recomputes a correct weighted-average cost', Math.abs(btc.avgCost - 120) < 1e-9);
+    check('quantity accumulates across buys', btc.quantity === 2);
+
+    const sell1 = await fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'BTC', assetType: 'crypto', type: 'sell', quantity: 1, price: 150, fee: 5, date: today() }) }).then(r => r.json());
+    portfolio = await fetch(`${BASE}/api/portfolio`, { headers: authHeaders }).then(r => r.json());
+    btc = portfolio.items.find(x => x.symbol === 'BTC');
+    check('sell reduces quantity but leaves average cost untouched', btc.quantity === 1 && Math.abs(btc.avgCost - 120) < 1e-9);
+    check('sell realizes P&L at (sell price - avg cost) * qty - fee', Math.abs(btc.realizedPnl - 25) < 1e-9);
+
+    await fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'BTC', assetType: 'crypto', type: 'dividend', amount: 50, date: today() }) });
+    const feeTx = await fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'BTC', assetType: 'crypto', type: 'fee', amount: 15, date: today() }) }).then(r => r.json());
+    portfolio = await fetch(`${BASE}/api/portfolio`, { headers: authHeaders }).then(r => r.json());
+    btc = portfolio.items.find(x => x.symbol === 'BTC');
+    check('standalone dividend and fee transactions are tracked separately from trades', btc.dividends === 50 && btc.fees === 15);
+
+    const txList = await fetch(`${BASE}/api/investments/tx?symbol=BTC`, { headers: authHeaders }).then(r => r.json());
+    check('transaction list returns all 5 BTC transactions', txList.items.length === 5);
+
+    const editFee = await fetch(`${BASE}/api/investments/tx/${feeTx.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ amount: 20 }) });
+    check('editing a transaction -> 200', editFee.status === 200);
+    portfolio = await fetch(`${BASE}/api/portfolio`, { headers: authHeaders }).then(r => r.json());
+    btc = portfolio.items.find(x => x.symbol === 'BTC');
+    check('holdings recompute after editing a transaction', btc.fees === 20);
+
+    const manualPrice = await fetch(`${BASE}/api/investments/price`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'BTC', assetType: 'crypto', price: 200 }) });
+    check('manual price override -> 200', manualPrice.status === 200);
+    portfolio = await fetch(`${BASE}/api/portfolio`, { headers: authHeaders }).then(r => r.json());
+    btc = portfolio.items.find(x => x.symbol === 'BTC');
+    check('manual price override changes current price and market value', btc.currentPrice === 200 && btc.marketValue === 200);
+    check('portfolio totals are grouped by currency, not force-merged', portfolio.totals.USD && portfolio.totals.USD.value === 200);
+
+    const refreshUnknownCrypto = await fetch(`${BASE}/api/investments/price/refresh`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'NOTACOIN', assetType: 'crypto' }) });
+    check('refreshing an unsupported crypto symbol -> 503 (no network call made)', refreshUnknownCrypto.status === 503);
+    const refreshStockNoKey = await fetch(`${BASE}/api/investments/price/refresh`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'AAPL', assetType: 'stock' }) });
+    check('refreshing a stock -> 503 with no STOCK_API_KEY configured (no network call made)', refreshStockNoKey.status === 503);
+
+    const alertNoValue = await fetch(`${BASE}/api/investments/alerts`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'BTC', condition: 'price_above' }) });
+    check('alert without a value -> 400', alertNoValue.status === 400);
+    const alert = await fetch(`${BASE}/api/investments/alerts`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ symbol: 'BTC', condition: 'price_above', value: 150 }) }).then(r => r.json());
+    const insightsWithAlert = await fetch(`${BASE}/api/insights`, { headers: authHeaders }).then(r => r.json());
+    check('a met price alert shows up in insights', insightsWithAlert.items.some(i => i.text.includes('BTC') && i.text.includes('۱۵۰')));
+    const deleteAlert = await fetch(`${BASE}/api/investments/alerts/${alert.id}`, { method: 'DELETE', headers: authHeaders });
+    check('delete alert -> 200', deleteAlert.status === 200);
+
+    const deleteDividend = await fetch(`${BASE}/api/investments/tx?symbol=BTC`, { headers: authHeaders }).then(r => r.json()).then(x => x.items.find(t => t.type === 'dividend'));
+    await fetch(`${BASE}/api/investments/tx/${deleteDividend.id}`, { method: 'DELETE', headers: authHeaders });
+    portfolio = await fetch(`${BASE}/api/portfolio`, { headers: authHeaders }).then(r => r.json());
+    btc = portfolio.items.find(x => x.symbol === 'BTC');
+    check('deleting a transaction recomputes holdings', btc.dividends === 0);
+
+    const history = await fetch(`${BASE}/api/portfolio/history?days=30`, { headers: authHeaders }).then(r => r.json());
+    check('portfolio GET creates a snapshot for today', history.items.some(s => s.date === today() && s.totals.USD));
+    check("today's snapshot keeps updating as holdings change, not frozen at the first (empty) call", history.items.filter(s => s.date === today()).length === 1 && history.items.find(s => s.date === today()).totals.USD.value === btc.marketValue);
 
   } finally {
     child.kill();
