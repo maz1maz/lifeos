@@ -280,6 +280,23 @@ async function main() {
     const weeklyWithFootball = await fetch(`${BASE}/api/weekly-review?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json());
     check('weekly review football totals reflect this week\'s finished predictions', weeklyWithFootball.football.total === 2 && weeklyWithFootball.football.correct === 1);
 
+    console.log('\n[26] movies: extended fields, stats, and calendar/dashboard surfacing');
+    const movie1 = await fetch(`${BASE}/api/movies`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'Inception', type: 'movie', status: 'completed', rating: 5, genre: 'Sci-Fi', director: 'Christopher Nolan', durationMinutes: 148, platform: 'Netflix', tags: 'mind-bending, must-watch', date: today() }) }).then(r => r.json());
+    check('movie keeps extended metadata fields', movie1.genre === 'Sci-Fi' && movie1.director === 'Christopher Nolan' && movie1.durationMinutes === 148);
+    const movie2 = await fetch(`${BASE}/api/movies`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'Interstellar', type: 'movie', status: 'completed', rating: 4, genre: 'Sci-Fi', director: 'Christopher Nolan', durationMinutes: 169, date: today() }) }).then(r => r.json());
+    const series = await fetch(`${BASE}/api/movies`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'Dark', type: 'series', status: 'watching', currentEpisode: 3, totalEpisodes: 10, date: today() }) }).then(r => r.json());
+    check('series keeps episode progress fields', series.currentEpisode === 3 && series.totalEpisodes === 10);
+    const movieStats = await fetch(`${BASE}/api/movies/stats`, { headers: authHeaders }).then(r => r.json());
+    check('movie stats sums total watched minutes', movieStats.totalMinutes === 148 + 169);
+    check('movie stats picks the most common genre', movieStats.topGenre === 'Sci-Fi');
+    check('movie stats picks the most common director', movieStats.topDirector === 'Christopher Nolan');
+    check('movie stats averages rating across completed items', movieStats.avgRating === 4.5);
+    const daysWithMovies = await fetch(`${BASE}/api/days?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json());
+    check('a day with a completed movie shows up on the calendar', daysWithMovies.dates.includes(today()));
+    const dashboardWithMovies = await fetch(`${BASE}/api/dashboard?date=${today()}`, { headers: authHeaders }).then(r => r.json());
+    check('dashboard surfaces today\'s watched movies', dashboardWithMovies.moviesWatched.some(m => m.id === movie1.id) && dashboardWithMovies.moviesWatched.some(m => m.id === movie2.id));
+    check('dashboard does not include the still-watching series as watched', !dashboardWithMovies.moviesWatched.some(m => m.id === series.id));
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
