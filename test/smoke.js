@@ -276,6 +276,10 @@ async function main() {
     const insightsWithMatch = await fetch(`${BASE}/api/insights`, { headers: authHeaders }).then(r => r.json());
     check('insights reminds about today\'s upcoming match', insightsWithMatch.items.some(i => i.text.includes('Persepolis') && i.text.includes('Esteghlal')));
 
+    console.log('\n[25] weekly review includes football accuracy for the week');
+    const weeklyWithFootball = await fetch(`${BASE}/api/weekly-review?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json());
+    check('weekly review football totals reflect this week\'s finished predictions', weeklyWithFootball.football.total === 2 && weeklyWithFootball.football.correct === 1);
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
