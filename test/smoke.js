@@ -246,6 +246,8 @@ async function main() {
     check('receipt upload sets a /uploads path', !!(receiptSave.receipt && receiptSave.receipt.startsWith('/uploads/')));
     const uploadedFileExists = fs.existsSync(path.join(ROOT, 'public', receiptSave.receipt));
     check('receipt file actually written to disk', uploadedFileExists);
+    const receiptServed = await fetch(`${BASE}${receiptSave.receipt}`);
+    check('uploaded receipt is served with an image content-type, not text/plain', (receiptServed.headers.get('content-type') || '').startsWith('image/'));
     if (uploadedFileExists) fs.unlinkSync(path.join(ROOT, 'public', receiptSave.receipt));
 
     console.log('\n[22] insights: debt/subscription due-soon reminders');
