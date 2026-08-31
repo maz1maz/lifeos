@@ -259,6 +259,23 @@ async function main() {
     check('insights mentions a due-soon subscription', insightsRes.items.some(i => i.text.includes('اشتراک') && i.text.includes('روز')));
     check('insights mentions a due-soon debt', insightsRes.items.some(i => i.text.includes('بدهی/طلب')));
 
+    console.log('\n[23] football prediction accuracy');
+    const correctMatch = await fetch(`${BASE}/api/football/matches`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ home: 'Real Madrid', away: 'Barcelona', league: 'LaLiga', date: today(), predictionOutcome: 'home' }) }).then(r => r.json());
+    const wrongMatch = await fetch(`${BASE}/api/football/matches`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ home: 'City', away: 'Liverpool', league: 'EPL', date: today(), predictionOutcome: 'away' }) }).then(r => r.json());
+    const finishCorrect = await fetch(`${BASE}/api/football/matches/${correctMatch.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ status: 'finished', homeScore: 2, awayScore: 1 }) }).then(r => r.json());
+    check('finishing a match computes outcome from scores', finishCorrect.outcome === 'home');
+    check('correct prediction is flagged true', finishCorrect.predictionCorrect === true);
+    const finishWrong = await fetch(`${BASE}/api/football/matches/${wrongMatch.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ status: 'finished', homeScore: 1, awayScore: 1 }) }).then(r => r.json());
+    check('wrong prediction (draw vs predicted away) is flagged false', finishWrong.outcome === 'draw' && finishWrong.predictionCorrect === false);
+    const accuracy = await fetch(`${BASE}/api/football/accuracy`, { headers: authHeaders }).then(r => r.json());
+    check('accuracy overall counts both finished predictions', accuracy.overall.total === 2 && accuracy.overall.correct === 1);
+    check('accuracy broken down by league', accuracy.byLeague['LaLiga'].correct === 1 && accuracy.byLeague['EPL'].correct === 0);
+
+    console.log('\n[24] pre-match reminder in insights');
+    await fetch(`${BASE}/api/football/matches`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ home: 'Persepolis', away: 'Esteghlal', date: today(), time: '20:00' }) });
+    const insightsWithMatch = await fetch(`${BASE}/api/insights`, { headers: authHeaders }).then(r => r.json());
+    check('insights reminds about today\'s upcoming match', insightsWithMatch.items.some(i => i.text.includes('Persepolis') && i.text.includes('Esteghlal')));
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
