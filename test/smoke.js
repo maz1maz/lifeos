@@ -19,6 +19,7 @@ const EMPTY_DB = { users: [], sessions: [], transactions: [], tasks: [], inbox: 
 
 let pass = 0, fail = 0;
 function today() { return new Date().toISOString().slice(0, 10); }
+function daysAgo(n) { let dt = new Date(); dt.setUTCDate(dt.getUTCDate() - n); return dt.toISOString().slice(0, 10); }
 function check(name, cond) {
   if (cond) { pass++; console.log(`  ok  - ${name}`); }
   else { fail++; console.log(`  FAIL- ${name}`); }
@@ -56,6 +57,9 @@ async function main() {
       ['GET', '/api/integrations/spotify/recent'], ['GET', '/api/integrations/youtube/playlists'],
       ['GET', '/api/integrations/youtube/playlist-items?playlistId=x'],
       ['POST', '/api/media-log'], ['GET', '/api/media-log'],
+      ['POST', '/api/ai/chat'], ['GET', '/api/ai/report'],
+      ['GET', '/api/ai/correlations'], ['GET', '/api/ai/tomorrow-priorities'],
+      ['POST', '/api/ai/suggest-category'],
     ];
     for (const [method, p] of routes) {
       const r = await fetch(BASE + p, { method, headers: badCookie });
@@ -347,6 +351,37 @@ async function main() {
     console.log('\n[29] telegram free-text parsing reused from /api/ai/process (same parser the bot uses)');
     const tgLikeProcess = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: 'امروز ۲ ساعت کار کردم و ۵۰۰۰۰ تومان ناهار خرج کردم' }) });
     check('shared free-text parser still parses time + spend (Telegram bot depends on this)', tgLikeProcess.status === 200);
+
+    console.log('\n[30] AI features: deterministic parts work with no AI key configured, AI-gated parts fail gracefully');
+    const catFood = await fetch(`${BASE}/api/ai/suggest-category`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'ناهار رستوران' }) }).then(r => r.json());
+    check('keyword category suggestion recognizes food words', catFood.category === 'خوراک' && catFood.source === 'keyword');
+    const catEmpty = await fetch(`${BASE}/api/ai/suggest-category`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: '' }) });
+    check('category suggestion requires a title -> 400', catEmpty.status === 400);
+    const catUnknown = await fetch(`${BASE}/api/ai/suggest-category`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'xyzzy plugh قفلمهر' }) }).then(r => r.json());
+    check('unmatched title falls back to متفرقه with no AI key configured', catUnknown.category === 'متفرقه' && catUnknown.source === 'default');
+
+    for (let i = 0; i <= 3; i++) {
+      await fetch(`${BASE}/api/daily`, { method: 'PUT', headers: authHeaders, body: JSON.stringify({ date: daysAgo(i), mood: 4 + i, energy: 5, sleep: `${4 + i} ساعت` }) });
+    }
+    const correlations = await fetch(`${BASE}/api/ai/correlations?days=30`, { headers: authHeaders }).then(r => r.json());
+    const sleepMood = correlations.correlations.find(c => c.pair === 'sleep_mood');
+    check('correlation endpoint returns a strong positive sleep/mood link for perfectly linear test data', sleepMood && Math.abs(sleepMood.r - 1) < 0.05 && sleepMood.direction === 'مثبت' && sleepMood.strength === 'قوی');
+    check('correlation sample size reflects the 4 seeded days', correlations.sampleSize === 4);
+
+    const overdueTaskAi = await fetch(`${BASE}/api/tasks`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'تسک عقب‌افتاده برای تست', deadline: daysAgo(1) }) }).then(r => r.json());
+    const tomorrowDate = (() => { const dt = new Date(); dt.setUTCDate(dt.getUTCDate() + 1); return dt.toISOString().slice(0, 10); })();
+    const dueTomorrowTask = await fetch(`${BASE}/api/tasks`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'تسک فردا برای تست', deadline: tomorrowDate }) }).then(r => r.json());
+    const habitForTomorrow = await fetch(`${BASE}/api/habits`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'عادت تست فردا' }) }).then(r => r.json());
+    const tomorrowPriorities = await fetch(`${BASE}/api/ai/tomorrow-priorities`, { headers: authHeaders }).then(r => r.json());
+    check('tomorrow-priorities lists the overdue task', tomorrowPriorities.overdueTasks.some(t => t.id === overdueTaskAi.id));
+    check('tomorrow-priorities lists the task due tomorrow', tomorrowPriorities.dueTomorrowTasks.some(t => t.id === dueTomorrowTask.id));
+    check('tomorrow-priorities lists the not-yet-done-today habit', tomorrowPriorities.pendingHabits.some(h => h.id === habitForTomorrow.id));
+    check('tomorrow-priorities narrative is null with no AI key configured (structured list still works)', tomorrowPriorities.narrative === null);
+
+    const aiChatNoKey = await fetch(`${BASE}/api/ai/chat`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ message: 'سلام' }) });
+    check('AI chat -> 503 with no AI_PROVIDER_API_KEY configured (not a crash)', aiChatNoKey.status === 503);
+    const aiReportNoKey = await fetch(`${BASE}/api/ai/report?period=daily`, { headers: authHeaders });
+    check('AI report -> 503 with no AI_PROVIDER_API_KEY configured (not a crash)', aiReportNoKey.status === 503);
 
   } finally {
     child.kill();
