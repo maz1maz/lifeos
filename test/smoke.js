@@ -50,6 +50,12 @@ async function main() {
       ['POST', '/api/debts/x/settle'], ['POST', '/api/subscriptions/x/pay'],
       ['DELETE', '/api/projects/x'], ['DELETE', '/api/time/x'],
       ['GET', '/api/search?q=x'],
+      ['PATCH', '/api/me'], ['GET', '/api/integrations'],
+      ['POST', '/api/integrations/spotify/disconnect'], ['POST', '/api/integrations/youtube/disconnect'],
+      ['GET', '/api/integrations/spotify/connect'], ['GET', '/api/integrations/youtube/connect'],
+      ['GET', '/api/integrations/spotify/recent'], ['GET', '/api/integrations/youtube/playlists'],
+      ['GET', '/api/integrations/youtube/playlist-items?playlistId=x'],
+      ['POST', '/api/media-log'], ['GET', '/api/media-log'],
     ];
     for (const [method, p] of routes) {
       const r = await fetch(BASE + p, { method, headers: badCookie });
@@ -296,6 +302,51 @@ async function main() {
     const dashboardWithMovies = await fetch(`${BASE}/api/dashboard?date=${today()}`, { headers: authHeaders }).then(r => r.json());
     check('dashboard surfaces today\'s watched movies', dashboardWithMovies.moviesWatched.some(m => m.id === movie1.id) && dashboardWithMovies.moviesWatched.some(m => m.id === movie2.id));
     check('dashboard does not include the still-watching series as watched', !dashboardWithMovies.moviesWatched.some(m => m.id === series.id));
+
+    console.log('\n[27] service connections: telegram link + spotify/youtube integration surface');
+    const integrationsBefore = await fetch(`${BASE}/api/integrations`, { headers: authHeaders }).then(r => r.json());
+    check('telegram starts unlinked', integrationsBefore.telegram.connected === false);
+    check('spotify starts unconnected', integrationsBefore.spotify.connected === false);
+    check('youtube starts unconnected', integrationsBefore.youtube.connected === false);
+    check('spotify/youtube report unconfigured with no credentials in test env', integrationsBefore.spotify.configured === false && integrationsBefore.youtube.configured === false);
+
+    const linkTg = await fetch(`${BASE}/api/me`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ telegramUserId: '987654321' }) });
+    check('link telegram user id -> 200', linkTg.status === 200);
+    const meAfterLink = await fetch(`${BASE}/api/me`, { headers: authHeaders }).then(r => r.json());
+    check('telegramUserId round-trips on /api/me', meAfterLink.user.telegramUserId === '987654321');
+    const integrationsAfterLink = await fetch(`${BASE}/api/integrations`, { headers: authHeaders }).then(r => r.json());
+    check('telegram shows connected after linking', integrationsAfterLink.telegram.connected === true && integrationsAfterLink.telegram.userId === '987654321');
+
+    const unlinkTg = await fetch(`${BASE}/api/me`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ telegramUserId: null }) });
+    check('unlink telegram user id -> 200', unlinkTg.status === 200);
+    const meAfterUnlink = await fetch(`${BASE}/api/me`, { headers: authHeaders }).then(r => r.json());
+    check('telegramUserId clears on /api/me', meAfterUnlink.user.telegramUserId === null);
+
+    const spotifyConnectNotConfigured = await fetch(`${BASE}/api/integrations/spotify/connect`, { headers: authHeaders, redirect: 'manual' });
+    check('spotify connect -> 503 when server has no credentials', spotifyConnectNotConfigured.status === 503);
+    const youtubeConnectNotConfigured = await fetch(`${BASE}/api/integrations/youtube/connect`, { headers: authHeaders, redirect: 'manual' });
+    check('youtube connect -> 503 when server has no credentials', youtubeConnectNotConfigured.status === 503);
+    const spotifyRecentNotConnected = await fetch(`${BASE}/api/integrations/spotify/recent`, { headers: authHeaders });
+    check('spotify recent -> 400 when not connected', spotifyRecentNotConnected.status === 400);
+    const youtubePlaylistsNotConnected = await fetch(`${BASE}/api/integrations/youtube/playlists`, { headers: authHeaders });
+    check('youtube playlists -> 400 when not connected', youtubePlaylistsNotConnected.status === 400);
+
+    const spotifyDisconnectNoop = await fetch(`${BASE}/api/integrations/spotify/disconnect`, { method: 'POST', headers: authHeaders });
+    check('spotify disconnect is a safe no-op when never connected', spotifyDisconnectNoop.status === 200);
+    const youtubeDisconnectNoop = await fetch(`${BASE}/api/integrations/youtube/disconnect`, { method: 'POST', headers: authHeaders });
+    check('youtube disconnect is a safe no-op when never connected', youtubeDisconnectNoop.status === 200);
+
+    console.log('\n[28] media activity log (manual save, backs the future Spotify/YouTube "save to today" action)');
+    const mediaSave = await fetch(`${BASE}/api/media-log`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ source: 'spotify', title: 'Test Track', meta: 'Test Artist', date: today() }) });
+    check('save media log entry -> 201', mediaSave.status === 201);
+    const mediaList = await fetch(`${BASE}/api/media-log?date=${today()}`, { headers: authHeaders }).then(r => r.json());
+    check('media log entry shows up for today', mediaList.items.some(i => i.title === 'Test Track' && i.source === 'spotify'));
+    const mediaMissingFields = await fetch(`${BASE}/api/media-log`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ source: 'spotify' }) });
+    check('media log requires a title -> 400', mediaMissingFields.status === 400);
+
+    console.log('\n[29] telegram free-text parsing reused from /api/ai/process (same parser the bot uses)');
+    const tgLikeProcess = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: 'امروز ۲ ساعت کار کردم و ۵۰۰۰۰ تومان ناهار خرج کردم' }) });
+    check('shared free-text parser still parses time + spend (Telegram bot depends on this)', tgLikeProcess.status === 200);
 
   } finally {
     child.kill();
