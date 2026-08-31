@@ -60,6 +60,11 @@ async function main() {
       ['POST', '/api/ai/chat'], ['GET', '/api/ai/report'],
       ['GET', '/api/ai/correlations'], ['GET', '/api/ai/tomorrow-priorities'],
       ['POST', '/api/ai/suggest-category'],
+      ['GET', '/api/football/remote/fixtures'], ['GET', '/api/football/remote/odds?fixture=1'],
+      ['GET', '/api/football/remote/1xbet/sports'], ['GET', '/api/football/remote/1xbet/leagues?sportId=1'],
+      ['GET', '/api/football/remote/1xbet/matches?sportId=1&leagueId=1'], ['GET', '/api/football/remote/1xbet/odds?matchId=1'],
+      ['GET', '/api/football/remote/sofascore/event?eventId=1'], ['GET', '/api/football/remote/sofascore/event/stats?eventId=1'],
+      ['GET', '/api/football/remote/sofascore/event/incidents?eventId=1'],
     ];
     for (const [method, p] of routes) {
       const r = await fetch(BASE + p, { method, headers: badCookie });
@@ -382,6 +387,26 @@ async function main() {
     check('AI chat -> 503 with no AI_PROVIDER_API_KEY configured (not a crash)', aiChatNoKey.status === 503);
     const aiReportNoKey = await fetch(`${BASE}/api/ai/report?period=daily`, { headers: authHeaders });
     check('AI report -> 503 with no AI_PROVIDER_API_KEY configured (not a crash)', aiReportNoKey.status === 503);
+
+    console.log('\n[31] football data sources: RapidAPI-backed routes (API-FOOTBALL fallback, 1xbet-api, sportapi7) degrade gracefully with no key');
+    const fixturesNoKey = await fetch(`${BASE}/api/football/remote/fixtures`, { headers: authHeaders });
+    check('fixtures -> 503 with neither API_FOOTBALL_KEY nor RAPIDAPI_KEY configured', fixturesNoKey.status === 503);
+    const oddsNoFixture = await fetch(`${BASE}/api/football/remote/odds`, { headers: authHeaders });
+    check('odds requires a fixture id -> 400', oddsNoFixture.status === 400);
+    const oddsNoKey = await fetch(`${BASE}/api/football/remote/odds?fixture=1`, { headers: authHeaders });
+    check('odds -> 503 with no key configured', oddsNoKey.status === 503);
+    const xbetSportsNoKey = await fetch(`${BASE}/api/football/remote/1xbet/sports`, { headers: authHeaders });
+    check('1xbet sports -> 503 with no RAPIDAPI_KEY configured', xbetSportsNoKey.status === 503);
+    const xbetLeaguesNoId = await fetch(`${BASE}/api/football/remote/1xbet/leagues`, { headers: authHeaders });
+    check('1xbet leagues requires sportId -> 400', xbetLeaguesNoId.status === 400);
+    const xbetMatchesNoId = await fetch(`${BASE}/api/football/remote/1xbet/matches?sportId=1`, { headers: authHeaders });
+    check('1xbet matches requires leagueId -> 400', xbetMatchesNoId.status === 400);
+    const xbetOddsNoId = await fetch(`${BASE}/api/football/remote/1xbet/odds`, { headers: authHeaders });
+    check('1xbet odds requires matchId -> 400', xbetOddsNoId.status === 400);
+    const sofaEventNoId = await fetch(`${BASE}/api/football/remote/sofascore/event`, { headers: authHeaders });
+    check('sofascore event requires eventId -> 400', sofaEventNoId.status === 400);
+    const sofaEventNoKey = await fetch(`${BASE}/api/football/remote/sofascore/event?eventId=1`, { headers: authHeaders });
+    check('sofascore event -> 503 with no RAPIDAPI_KEY configured', sofaEventNoKey.status === 503);
 
   } finally {
     child.kill();
