@@ -45,7 +45,8 @@ async function runScheduled(env) {
   const db = await H.read();
   const changed1 = await H.tgCheckReports(db);
   const changed2 = await H.refreshPricesAndAlerts(db);
-  if (changed1 || changed2) await H.write(db);
+  const { changed: changed3 } = await H.syncAllNewsSources(db).catch(() => ({ changed: false }));
+  if (changed1 || changed2 || changed3) await H.write(db);
 }
 
 export default {

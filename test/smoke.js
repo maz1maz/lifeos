@@ -6,6 +6,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const http = require('http');
 
 const ROOT = path.join(__dirname, '..');
 // Isolated from the real app's data/db.json on purpose: this file is reset to empty
@@ -20,6 +21,12 @@ const EMPTY_DB = { users: [], sessions: [], transactions: [], tasks: [], inbox: 
 let pass = 0, fail = 0;
 function today() { return new Date().toISOString().slice(0, 10); }
 function daysAgo(n) { let dt = new Date(); dt.setUTCDate(dt.getUTCDate() - n); return dt.toISOString().slice(0, 10); }
+function startFixtureFeedServer(xml) {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'application/xml' }); res.end(xml); });
+    server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
+  });
+}
 function check(name, cond) {
   if (cond) { pass++; console.log(`  ok  - ${name}`); }
   else { fail++; console.log(`  FAIL- ${name}`); }
@@ -69,6 +76,9 @@ async function main() {
       ['GET', '/api/investments/tx'], ['PATCH', '/api/investments/tx/x'], ['DELETE', '/api/investments/tx/x'],
       ['POST', '/api/investments/price'], ['POST', '/api/investments/price/refresh'],
       ['GET', '/api/investments/alerts'], ['POST', '/api/investments/alerts'], ['DELETE', '/api/investments/alerts/x'],
+      ['GET', '/api/news/x/related'], ['POST', '/api/news/x/summarize'], ['POST', '/api/news/x/translate'],
+      ['GET', '/api/news/sources'], ['POST', '/api/news/sources'], ['PATCH', '/api/news/sources/x'], ['DELETE', '/api/news/sources/x'],
+      ['POST', '/api/news/sync'], ['GET', '/api/news/weekly-summary'], ['DELETE', '/api/news/x'],
     ];
     for (const [method, p] of routes) {
       const r = await fetch(BASE + p, { method, headers: badCookie });
@@ -482,6 +492,68 @@ async function main() {
     const history = await fetch(`${BASE}/api/portfolio/history?days=30`, { headers: authHeaders }).then(r => r.json());
     check('portfolio GET creates a snapshot for today', history.items.some(s => s.date === today() && s.totals.USD));
     check("today's snapshot keeps updating as holdings change, not frozen at the first (empty) call", history.items.filter(s => s.date === today()).length === 1 && history.items.find(s => s.date === today()).totals.USD.value === btc.marketValue);
+
+    console.log('\n[33] news: RSS sources, real feed parsing against a local fixture, filters, related, weekly summary');
+    const sourceNoUrl = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'بی‌بی‌سی' }) });
+    check('news source requires a url -> 400', sourceNoUrl.status === 400);
+
+    const fixtureRss = `<?xml version="1.0" encoding="UTF-8"?><rss><channel>
+      <item><title>خبر تست یک</title><link>https://example.com/1</link><description>این یک توضیح نسبتاً طولانی برای خبر تست شماره یک است که برای بررسی رفتار خلاصه‌سازی و ذخیره‌سازی صحیح متن خبر در سیستم نوشته شده و باید حداقل چند صد کاراکتر داشته باشد تا آزمون خلاصه‌سازی هوشمند هم قابل بررسی باشد و به اندازهٔ کافی طولانی به نظر برسد برای این تست خودکار.</description><guid>fixture-guid-1</guid><pubDate>Tue, 01 Sep 2026 08:00:00 GMT</pubDate></item>
+      <item><title>خبر تست دو دربارهٔ تست یک</title><link>https://example.com/2</link><description>توضیح کوتاه خبر دو.</description><guid>fixture-guid-2</guid></item>
+    </channel></rss>`;
+    const fixture = await startFixtureFeedServer(fixtureRss);
+    try {
+      const source = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'فید تست', url: `http://127.0.0.1:${fixture.port}/feed.xml`, category: 'تکنولوژی' }) }).then(r => r.json());
+      const sync1 = await fetch(`${BASE}/api/news/sync`, { method: 'POST', headers: authHeaders }).then(r => r.json());
+      check('sync against a real (local fixture) feed parses both RSS items', sync1.added === 2);
+      check('sync records a per-source success result', sync1.results[0].ok === true && sync1.results[0].found === 2);
+
+      const newsItems = await fetch(`${BASE}/api/news?category=تکنولوژی`, { headers: authHeaders }).then(r => r.json());
+      const item1 = newsItems.items.find(x => x.guid === 'fixture-guid-1');
+      const item2 = newsItems.items.find(x => x.guid === 'fixture-guid-2');
+      check('RSS item title/link/guid parsed correctly', item1 && item1.title === 'خبر تست یک' && item1.url === 'https://example.com/1');
+      check('RSS item is tagged with the source name and its configured category', item1.source === 'فید تست' && item1.category === 'تکنولوژی');
+
+      const sync2 = await fetch(`${BASE}/api/news/sync`, { method: 'POST', headers: authHeaders }).then(r => r.json());
+      check('re-syncing the same feed does not duplicate items (dedup by guid)', sync2.added === 0);
+
+      const bySource = await fetch(`${BASE}/api/news?source=${encodeURIComponent('فید تست')}`, { headers: authHeaders }).then(r => r.json());
+      check('filtering news by source works', bySource.items.length === 2);
+
+      const related = await fetch(`${BASE}/api/news/${item1.id}/related`, { headers: authHeaders }).then(r => r.json());
+      check('related news finds the other item via shared category + title word overlap', related.items.some(x => x.id === item2.id));
+
+      const summarizeShort = await fetch(`${BASE}/api/news/${item2.id}/summarize`, { method: 'POST', headers: authHeaders });
+      check('summarizing -> 503 with no AI key configured, checked before the length validation (not a crash)', summarizeShort.status === 503);
+      const summarizeLong = await fetch(`${BASE}/api/news/${item1.id}/summarize`, { method: 'POST', headers: authHeaders });
+      check('summarizing a long item -> 503 with no AI key configured (not a crash)', summarizeLong.status === 503);
+      const translate = await fetch(`${BASE}/api/news/${item1.id}/translate`, { method: 'POST', headers: authHeaders });
+      check('translate -> 503 with no AI key configured (not a crash)', translate.status === 503);
+
+      const savedFilter = await fetch(`${BASE}/api/news?saved=true`, { headers: authHeaders }).then(r => r.json());
+      check('saved=true filter excludes freshly-synced (unsaved) items', !savedFilter.items.some(x => x.id === item1.id));
+      const markSaved = await fetch(`${BASE}/api/news/${item1.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ saved: true }) });
+      check('marking a news item saved -> 200', markSaved.status === 200);
+      const savedFilter2 = await fetch(`${BASE}/api/news?saved=true`, { headers: authHeaders }).then(r => r.json());
+      check('saved=true filter includes it after marking saved', savedFilter2.items.some(x => x.id === item1.id));
+
+      const weekly = await fetch(`${BASE}/api/news/weekly-summary`, { headers: authHeaders }).then(r => r.json());
+      check('weekly summary counts synced items and buckets by category/source', weekly.stats.total >= 2 && weekly.stats.byCategory['تکنولوژی'] >= 2 && weekly.stats.bySource['فید تست'] >= 2);
+      check('weekly summary narrative is null with no AI key configured', weekly.narrative === null);
+
+      const deleteNews = await fetch(`${BASE}/api/news/${item2.id}`, { method: 'DELETE', headers: authHeaders });
+      check('delete a news item -> 200', deleteNews.status === 200);
+
+      const deleteSource = await fetch(`${BASE}/api/news/sources/${source.id}`, { method: 'DELETE', headers: authHeaders });
+      check('delete a news source -> 200', deleteSource.status === 200);
+      const sourcesAfterDelete = await fetch(`${BASE}/api/news/sources`, { headers: authHeaders }).then(r => r.json());
+      check('deleted source no longer listed', !sourcesAfterDelete.items.some(x => x.id === source.id));
+    } finally {
+      fixture.server.close();
+    }
+
+    const syncNoSources = await fetch(`${BASE}/api/news/sync`, { method: 'POST', headers: authHeaders }).then(r => r.json());
+    check('sync with zero active sources is a safe no-op', syncNoSources.added === 0 && syncNoSources.results.length === 0);
 
   } finally {
     child.kill();

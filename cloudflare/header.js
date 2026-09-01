@@ -17,7 +17,7 @@ function makeHelpers(env) {
     let x = row ? JSON.parse(row.value) : { users: [], sessions: [], transactions: [], tasks: [], inbox: [], daily: [] };
     x.investments ??= []; x.accounts ??= []; x.budgets ??= []; x.projects ??= []; x.timeEntries ??= []; x.habits ??= []; x.habitLogs ??= [];
     x.subscriptions ??= []; x.debts ??= []; x.footballTeams ??= []; x.matches ??= []; x.news ??= []; x.movies ??= []; x.timers ??= [];
-    x.exercise ??= []; x.weeklyNotes ??= []; x.mediaLog ??= []; x.investmentTx ??= []; x.assetPrices ??= []; x.priceAlerts ??= []; x.portfolioSnapshots ??= [];
+    x.exercise ??= []; x.weeklyNotes ??= []; x.mediaLog ??= []; x.investmentTx ??= []; x.assetPrices ??= []; x.priceAlerts ??= []; x.portfolioSnapshots ??= []; x.newsSources ??= [];
     return x;
   }
   async function write(db) {
@@ -61,6 +61,14 @@ function makeHelpers(env) {
   function parseSleepHours(v){if(!v)return null;let m=String(v).match(/(\d+(?:\.\d+)?)/);return m?Number(m[1]):null}
   const CATEGORY_KEYWORDS=[['خوراک',/نان|رستوران|شام|ناهار|صبحانه|غذا|کافه|سوپرمارکت|میوه|قصاب|نانوایی|فست\s?فود/],['حمل‌ونقل',/تاکسی|اسنپ|تپسی|بنزین|پمپ\s?بنزین|مترو|اتوبوس|پارکینگ|تعمیر\s?ماشین|بلیط|مسافرت/],['قبض',/قبض|برق|آب و فاضلاب|گاز|اینترنت|تلفن|شارژ\s?خط|بیمه/],['سلامت',/دکتر|پزشک|دارو|داروخانه|بیمارستان|درمانگاه|دندانپزشک|آزمایشگاه/],['تفریح',/سینما|کنسرت|بازی|فیلم|پارک|تفریح|بولینگ|بیلیارد/],['پوشاک',/لباس|کفش|پوشاک|مانتو|شلوار|کاپشن/],['آموزش',/کتاب|دوره|کلاس|آموزش|شهریه|دانشگاه/],['مسکن',/اجاره|رهن|شارژ\s?ساختمان|مسکن/]];
   function suggestCategoryKeyword(title){let t=String(title||'');for(const[cat,re]of CATEGORY_KEYWORDS)if(re.test(t))return cat;return null}
+  function decodeXmlEntities(s){return String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<[^>]+>/g,' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#0?39;/g,"'").replace(/&apos;/g,"'").replace(/\s+/g,' ').trim()}
+  function extractTag(block,tag){let m=block.match(new RegExp('<'+tag+'[^>]*>([\\s\\S]*?)<\\/'+tag+'>','i'));return m?m[1]:''}
+  function extractAttr(block,tag,attr){let m=block.match(new RegExp('<'+tag+'[^>]*\\b'+attr+'=["\']([^"\']*)["\']','i'));return m?m[1]:''}
+  function parseFeed(xml){let itemBlocks=xml.match(/<item\b[\s\S]*?<\/item>/gi),isAtom=false;if(!itemBlocks){itemBlocks=xml.match(/<entry\b[\s\S]*?<\/entry>/gi)||[];isAtom=true}let items=[];for(const block of itemBlocks){let title=decodeXmlEntities(extractTag(block,'title'));let link=isAtom?(extractAttr(block,'link','href')||decodeXmlEntities(extractTag(block,'link'))):decodeXmlEntities(extractTag(block,'link'));let summaryRaw=extractTag(block,'description')||extractTag(block,'summary')||extractTag(block,'content:encoded')||extractTag(block,'content');let summary=decodeXmlEntities(summaryRaw).slice(0,600);let pubDate=decodeXmlEntities(extractTag(block,'pubDate')||extractTag(block,'published')||extractTag(block,'updated'));let guid=decodeXmlEntities(extractTag(block,'guid')||extractTag(block,'id'))||link;if(title)items.push({title,link,summary,pubDate,guid:guid||link||title})}return items}
+  function isMostlyLatin(text){let t=String(text||'').replace(/[^A-Za-z؀-ۿ]/g,'');if(!t)return false;let latin=(t.match(/[A-Za-z]/g)||[]).length;return latin/t.length>0.6}
+  function textSimilarityScore(a,b){let wa=new Set(String(a||'').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(w=>w.length>2)),wb=new Set(String(b||'').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(w=>w.length>2));let common=0;for(const w of wa)if(wb.has(w))common++;return common}
+  async function syncOneNewsSource(db,userId,src){let added=0;try{let r=await fetch(src.url,{headers:{'User-Agent':'Mozilla/5.0 (compatible; HasteRSS/1.0)'}});if(!r.ok)throw new Error('HTTP '+r.status);let xml=await r.text(),parsed=parseFeed(xml);let existingGuids=new Set(db.news.filter(x=>x.userId===userId&&x.source===src.name).map(x=>x.guid).filter(Boolean));for(const it of parsed.slice(0,30)){if(!it.guid||existingGuids.has(it.guid))continue;db.news.push({id:id(),userId,title:it.title,source:src.name,category:src.category,url:it.link||'',summary:it.summary||'',date:today(),saved:false,guid:it.guid,createdAt:Date.now()});existingGuids.add(it.guid);added++}src.lastSyncAt=Date.now();src.lastError=null;return{source:src.name,ok:true,found:parsed.length,added}}catch(e){src.lastError=e.message;return{source:src.name,ok:false,error:e.message,added:0}}}
+  async function syncAllNewsSources(db){let results=[],changed=false;for(const user of db.users){for(const src of db.newsSources.filter(x=>x.userId===user.id&&x.active)){let r=await syncOneNewsSource(db,user.id,src);if(r.added)changed=true;results.push(r)}}return{changed,results}}
   async function rapidApiGet(host,path){if(!RAPIDAPI_KEY)return null;let r=await fetch('https://'+host+path,{headers:{'x-rapidapi-key':RAPIDAPI_KEY,'x-rapidapi-host':host}}),data=await r.json();if(!r.ok)throw new Error((data&&(data.message||data.error))||'خطا در دریافت داده از RapidAPI');return data}
   async function apiFootballFetch(path,params){let qs='?'+new URLSearchParams(params||{});if(API_FOOTBALL_KEY){let r=await fetch('https://v3.football.api-sports.io'+path+qs,{headers:{'x-apisports-key':API_FOOTBALL_KEY}}),data=await r.json();if(!r.ok)throw new Error(data.message||'خطا در دریافت داده از API-Football');return data}if(RAPIDAPI_KEY)return rapidApiGet('api-football-v1.p.rapidapi.com','/v3'+path+qs);return null}
   async function xbetGet(path,params){if(!RAPIDAPI_KEY)return null;return rapidApiGet('1xbet-api.p.rapidapi.com',path+'?'+new URLSearchParams({mode:'line',lng:'en',...params}))}
@@ -89,7 +97,7 @@ function makeHelpers(env) {
 
   return { read, write, json, body, cookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, today, AuthError, auth, me,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, parseLifeText, aiComplete, aiExtractActions, pearson, correlationLabel,
-    parseSleepHours, suggestCategoryKeyword, rapidApiGet, apiFootballFetch, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd,
+    parseSleepHours, suggestCategoryKeyword, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, rapidApiGet, apiFootballFetch, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd,
     refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, tgApi, tgSend, handleTelegramMessage, tgCheckReports, refreshPricesAndAlerts,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
     SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI, AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY };
@@ -99,7 +107,7 @@ async function handleApi(request, env) {
   const H = makeHelpers(env);
   const { read, write, json, body, cookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, today, AuthError, auth, me,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, parseLifeText, aiComplete, aiExtractActions, pearson, correlationLabel,
-    parseSleepHours, suggestCategoryKeyword, rapidApiGet, apiFootballFetch, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd,
+    parseSleepHours, suggestCategoryKeyword, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, rapidApiGet, apiFootballFetch, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd,
     refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, tgApi, tgSend, handleTelegramMessage, tgCheckReports, refreshPricesAndAlerts,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
     SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI, AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY } = H;
