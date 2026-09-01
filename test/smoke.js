@@ -79,6 +79,18 @@ async function main() {
       ['GET', '/api/news/x/related'], ['POST', '/api/news/x/summarize'], ['POST', '/api/news/x/translate'],
       ['GET', '/api/news/sources'], ['POST', '/api/news/sources'], ['PATCH', '/api/news/sources/x'], ['DELETE', '/api/news/sources/x'],
       ['POST', '/api/news/sync'], ['GET', '/api/news/weekly-summary'], ['DELETE', '/api/news/x'],
+      ['GET', '/api/contacts'], ['POST', '/api/contacts'], ['PATCH', '/api/contacts/x'], ['DELETE', '/api/contacts/x'],
+      ['POST', '/api/contacts/x/log'], ['GET', '/api/contacts/x/log'],
+      ['GET', '/api/learning'], ['POST', '/api/learning'], ['PATCH', '/api/learning/x'], ['DELETE', '/api/learning/x'],
+      ['GET', '/api/bookmarks'], ['POST', '/api/bookmarks'], ['PATCH', '/api/bookmarks/x'], ['DELETE', '/api/bookmarks/x'],
+      ['GET', '/api/shopping'], ['POST', '/api/shopping'], ['POST', '/api/shopping/x/buy'], ['PATCH', '/api/shopping/x'], ['DELETE', '/api/shopping/x'],
+      ['GET', '/api/trips'], ['POST', '/api/trips'], ['PATCH', '/api/trips/x'], ['DELETE', '/api/trips/x'],
+      ['GET', '/api/trips/x/checklist'], ['POST', '/api/trips/x/checklist'], ['PATCH', '/api/trips/x/checklist/y'], ['DELETE', '/api/trips/x/checklist/y'],
+      ['GET', '/api/documents'], ['POST', '/api/documents'], ['POST', '/api/documents/x/attach'], ['PATCH', '/api/documents/x'], ['DELETE', '/api/documents/x'],
+      ['GET', '/api/goals'], ['POST', '/api/goals'], ['PATCH', '/api/goals/x'], ['DELETE', '/api/goals/x'],
+      ['GET', '/api/wins'], ['POST', '/api/wins'], ['DELETE', '/api/wins/x'],
+      ['GET', '/api/decisions'], ['POST', '/api/decisions'], ['PATCH', '/api/decisions/x'], ['DELETE', '/api/decisions/x'],
+      ['GET', '/api/life-review'], ['PUT', '/api/life-review'], ['GET', '/api/one-year-ago'],
     ];
     for (const [method, p] of routes) {
       const r = await fetch(BASE + p, { method, headers: badCookie });
@@ -554,6 +566,134 @@ async function main() {
 
     const syncNoSources = await fetch(`${BASE}/api/news/sync`, { method: 'POST', headers: authHeaders }).then(r => r.json());
     check('sync with zero active sources is a safe no-op', syncNoSources.added === 0 && syncNoSources.results.length === 0);
+
+    console.log('\n[34] contacts / relationships: CRUD, interaction log, birthday + follow-up reminders in insights');
+    const contactNoName = await fetch(`${BASE}/api/contacts`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ relationship: 'friend' }) });
+    check('contact requires a name -> 400', contactNoName.status === 400);
+    const futureBirthday = daysAgo(-2);
+    const contact = await fetch(`${BASE}/api/contacts`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'علی رضایی', relationship: 'friend', birthday: '1990-' + futureBirthday.slice(5), followUpDate: daysAgo(-1) }) }).then(r => r.json());
+    const contactsList = await fetch(`${BASE}/api/contacts`, { headers: authHeaders }).then(r => r.json());
+    check('contact created and listed', contactsList.items.some(c => c.id === contact.id));
+    const logEntry = await fetch(`${BASE}/api/contacts/${contact.id}/log`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'call', note: 'تماس تلفنی دربارهٔ پروژه' }) }).then(r => r.json());
+    const contactAfterLog = await fetch(`${BASE}/api/contacts`, { headers: authHeaders }).then(r => r.json()).then(x => x.items.find(c => c.id === contact.id));
+    check('logging an interaction sets lastContactDate', contactAfterLog.lastContactDate === today());
+    const logsList = await fetch(`${BASE}/api/contacts/${contact.id}/log`, { headers: authHeaders }).then(r => r.json());
+    check('interaction log is retrievable', logsList.items.some(l => l.id === logEntry.id));
+    const insightsWithContact = await fetch(`${BASE}/api/insights`, { headers: authHeaders }).then(r => r.json());
+    check('upcoming birthday shows up in insights', insightsWithContact.items.some(i => i.text.includes('علی رضایی') && i.icon === '🎂'));
+    check('follow-up reminder shows up in insights', insightsWithContact.items.some(i => i.text.includes('علی رضایی') && i.icon === '🤝'));
+    const editContact = await fetch(`${BASE}/api/contacts/${contact.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ phone: '09120000000' }) });
+    check('editing a contact -> 200', editContact.status === 200);
+    const deleteContact = await fetch(`${BASE}/api/contacts/${contact.id}`, { method: 'DELETE', headers: authHeaders });
+    check('deleting a contact -> 200', deleteContact.status === 200);
+    const logsAfterDelete = await fetch(`${BASE}/api/contacts/${contact.id}/log`, { headers: authHeaders }).then(r => r.json());
+    check('deleting a contact cascades its interaction logs', logsAfterDelete.items.length === 0);
+
+    console.log('\n[35] learning tracker + bookmarks');
+    const learnNoTitle = await fetch(`${BASE}/api/learning`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'book' }) });
+    check('learning item requires a title -> 400', learnNoTitle.status === 400);
+    const book = await fetch(`${BASE}/api/learning`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'Atomic Habits', type: 'book', progressTotal: 250 }) }).then(r => r.json());
+    check('new learning item has no startedAt until in_progress', book.startedAt === null);
+    const bookInProgress = await fetch(`${BASE}/api/learning/${book.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ status: 'in_progress', progressCurrent: 40 }) }).then(r => r.json());
+    check('moving to in_progress sets startedAt', bookInProgress.startedAt === today());
+    const bookCompleted = await fetch(`${BASE}/api/learning/${book.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ status: 'completed', progressCurrent: 250 }) }).then(r => r.json());
+    check('moving to completed sets completedAt', bookCompleted.completedAt === today());
+    const learningFiltered = await fetch(`${BASE}/api/learning?status=completed`, { headers: authHeaders }).then(r => r.json());
+    check('filtering learning items by status works', learningFiltered.items.some(x => x.id === book.id));
+    const deleteLearning = await fetch(`${BASE}/api/learning/${book.id}`, { method: 'DELETE', headers: authHeaders });
+    check('deleting a learning item -> 200', deleteLearning.status === 200);
+
+    const bookmarkNoUrl = await fetch(`${BASE}/api/bookmarks`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'یک لینک' }) });
+    check('bookmark requires a url -> 400', bookmarkNoUrl.status === 400);
+    const bookmark = await fetch(`${BASE}/api/bookmarks`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'مقالهٔ خوب', url: 'https://example.com/article' }) }).then(r => r.json());
+    check('bookmark defaults to read-later', bookmark.readLater === true);
+    const readLaterFiltered = await fetch(`${BASE}/api/bookmarks?readLater=true`, { headers: authHeaders }).then(r => r.json());
+    check('filtering bookmarks by readLater works', readLaterFiltered.items.some(x => x.id === bookmark.id));
+    const markRead = await fetch(`${BASE}/api/bookmarks/${bookmark.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ readLater: false }) });
+    check('marking a bookmark as read -> 200', markRead.status === 200);
+    const deleteBookmark = await fetch(`${BASE}/api/bookmarks/${bookmark.id}`, { method: 'DELETE', headers: authHeaders });
+    check('deleting a bookmark -> 200', deleteBookmark.status === 200);
+
+    console.log('\n[36] shopping list -> transaction conversion, trips + checklist + linked spend, documents + expiry reminder');
+    const shopNoTitle = await fetch(`${BASE}/api/shopping`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ quantity: 2 }) });
+    check('shopping item requires a title -> 400', shopNoTitle.status === 400);
+    const shopItem = await fetch(`${BASE}/api/shopping`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'کفش دویدن', category: 'پوشاک' }) }).then(r => r.json());
+    const buyNoPrice = await fetch(`${BASE}/api/shopping/${shopItem.id}/buy`, { method: 'POST', headers: authHeaders, body: JSON.stringify({}) });
+    check('buying without a price -> 400', buyNoPrice.status === 400);
+    const buyResult = await fetch(`${BASE}/api/shopping/${shopItem.id}/buy`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ price: 850000 }) }).then(r => r.json());
+    check('buying a shopping item creates a real expense transaction', buyResult.transaction.amount === 850000 && buyResult.transaction.category === 'پوشاک');
+    check('bought shopping item is marked bought with the actual price', buyResult.item.bought === true && buyResult.item.price === 850000);
+    const boughtFilter = await fetch(`${BASE}/api/shopping?bought=true`, { headers: authHeaders }).then(r => r.json());
+    check('filtering shopping list by bought works', boughtFilter.items.some(x => x.id === shopItem.id));
+
+    const tripNoDestination = await fetch(`${BASE}/api/trips`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ budget: 1000 }) });
+    check('trip requires a destination -> 400', tripNoDestination.status === 400);
+    const trip = await fetch(`${BASE}/api/trips`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ destination: 'استانبول', startDate: today(), budget: 5000000 }) }).then(r => r.json());
+    await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'بلیط پرواز', amount: 3000000, kind: 'expense', tripId: trip.id, date: today() }) });
+    const tripsList = await fetch(`${BASE}/api/trips`, { headers: authHeaders }).then(r => r.json());
+    check('trip spend is computed from transactions tagged with its tripId', tripsList.items.find(t => t.id === trip.id).spent === 3000000);
+    const checklistItem = await fetch(`${BASE}/api/trips/${trip.id}/checklist`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: 'گرفتن ویزا' }) }).then(r => r.json());
+    const checklistList = await fetch(`${BASE}/api/trips/${trip.id}/checklist`, { headers: authHeaders }).then(r => r.json());
+    check('trip checklist item created and listed', checklistList.items.some(x => x.id === checklistItem.id));
+    const checkOffItem = await fetch(`${BASE}/api/trips/${trip.id}/checklist/${checklistItem.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ done: true }) });
+    check('checking off a checklist item -> 200', checkOffItem.status === 200);
+    const deleteTrip = await fetch(`${BASE}/api/trips/${trip.id}`, { method: 'DELETE', headers: authHeaders });
+    check('deleting a trip -> 200', deleteTrip.status === 200);
+    const checklistAfterTripDelete = await fetch(`${BASE}/api/trips/${trip.id}/checklist`, { headers: authHeaders }).then(r => r.json());
+    check('deleting a trip cascades its checklist', checklistAfterTripDelete.items.length === 0);
+
+    const docNoTitle = await fetch(`${BASE}/api/documents`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'warranty' }) });
+    check('document requires a title -> 400', docNoTitle.status === 400);
+    const doc = await fetch(`${BASE}/api/documents`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'گارانتی یخچال', type: 'warranty', expiryDate: daysAgo(-2) }) }).then(r => r.json());
+    const tinyPngB64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    const attachDoc = await fetch(`${BASE}/api/documents/${doc.id}/attach`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ image: 'data:image/png;base64,' + tinyPngB64 }) }).then(r => r.json());
+    check('attaching a file to a document sets fileUrl', attachDoc.fileUrl && attachDoc.fileUrl.startsWith('/uploads/'));
+    const insightsWithDoc = await fetch(`${BASE}/api/insights`, { headers: authHeaders }).then(r => r.json());
+    check('soon-to-expire document shows up in insights', insightsWithDoc.items.some(i => i.icon === '📄'));
+    const deleteDoc = await fetch(`${BASE}/api/documents/${doc.id}`, { method: 'DELETE', headers: authHeaders });
+    check('deleting a document -> 200', deleteDoc.status === 200);
+
+    console.log('\n[37] goals linked to real data, wins, decision journal, life review, one-year-ago');
+    const habitForGoal = await fetch(`${BASE}/api/habits`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'عادت هدف‌دار' }) }).then(r => r.json());
+    await fetch(`${BASE}/api/habits/${habitForGoal.id}/toggle`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ date: today() }) });
+    const monthKey = today().slice(0, 7);
+    const goalNoPeriodKey = await fetch(`${BASE}/api/goals`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'بدون بازه' }) });
+    check('goal requires a periodKey -> 400', goalNoPeriodKey.status === 400);
+    const habitGoal = await fetch(`${BASE}/api/goals`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'انجام عادت ۲۰ روز', period: 'monthly', periodKey: monthKey, linkedType: 'habit', linkedId: habitForGoal.id, targetValue: 20 }) }).then(r => r.json());
+    const goalsList = await fetch(`${BASE}/api/goals?period=monthly`, { headers: authHeaders }).then(r => r.json());
+    check('goal linked to a habit computes currentValue from real habit logs', goalsList.items.find(g => g.id === habitGoal.id).currentValue === 1);
+    const editGoal = await fetch(`${BASE}/api/goals/${habitGoal.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ status: 'done' }) });
+    check('editing a goal -> 200', editGoal.status === 200);
+    const deleteGoal = await fetch(`${BASE}/api/goals/${habitGoal.id}`, { method: 'DELETE', headers: authHeaders });
+    check('deleting a goal -> 200', deleteGoal.status === 200);
+
+    const winNoText = await fetch(`${BASE}/api/wins`, { method: 'POST', headers: authHeaders, body: JSON.stringify({}) });
+    check('win requires text -> 400', winNoText.status === 400);
+    const win = await fetch(`${BASE}/api/wins`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: 'اولین قرارداد مشتری جدید را بستم' }) }).then(r => r.json());
+    const winsList = await fetch(`${BASE}/api/wins`, { headers: authHeaders }).then(r => r.json());
+    check('win created and listed', winsList.items.some(w => w.id === win.id));
+
+    const decisionNoTitle = await fetch(`${BASE}/api/decisions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({}) });
+    check('decision requires a title -> 400', decisionNoTitle.status === 400);
+    const decision = await fetch(`${BASE}/api/decisions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'تغییر شغل؟', options: 'ماندن / رفتن', reasoning: 'رشد بیشتر' }) }).then(r => r.json());
+    const decisionWithOutcome = await fetch(`${BASE}/api/decisions/${decision.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ outcome: 'رفتم و راضی بودم' }) }).then(r => r.json());
+    check('recording a decision outcome later works', decisionWithOutcome.outcome === 'رفتم و راضی بودم');
+    const deleteDecision = await fetch(`${BASE}/api/decisions/${decision.id}`, { method: 'DELETE', headers: authHeaders });
+    check('deleting a decision -> 200', deleteDecision.status === 200);
+
+    const lifeReviewGet = await fetch(`${BASE}/api/life-review?period=monthly&key=${monthKey}`, { headers: authHeaders }).then(r => r.json());
+    check('life review stats are computed deterministically (winsCount includes the win above)', lifeReviewGet.stats.winsCount >= 1);
+    check('life review narrative is null with no AI key configured', lifeReviewGet.narrative === null);
+    const saveReflection = await fetch(`${BASE}/api/life-review`, { method: 'PUT', headers: authHeaders, body: JSON.stringify({ period: 'monthly', periodKey: monthKey, reflection: 'ماه پرکاری بود.' }) });
+    check('saving a reflection -> 200', saveReflection.status === 200);
+    const lifeReviewGet2 = await fetch(`${BASE}/api/life-review?period=monthly&key=${monthKey}`, { headers: authHeaders }).then(r => r.json());
+    check('saved reflection round-trips back', lifeReviewGet2.reflection === 'ماه پرکاری بود.');
+
+    const oneYearAgoDate = (() => { const dt = new Date(); dt.setFullYear(dt.getFullYear() - 1); return dt.toISOString().slice(0, 10); })();
+    await fetch(`${BASE}/api/daily`, { method: 'PUT', headers: authHeaders, body: JSON.stringify({ date: oneYearAgoDate, mood: 9, note: 'روز خیلی خوبی بود' }) });
+    const oneYearAgo = await fetch(`${BASE}/api/one-year-ago`, { headers: authHeaders }).then(r => r.json());
+    check('one-year-ago pulls the real daily journal entry from exactly a year back', oneYearAgo.date === oneYearAgoDate && oneYearAgo.daily && oneYearAgo.daily.note === 'روز خیلی خوبی بود');
+    check('one-year-ago flags that there is something to show', oneYearAgo.hasAnything === true);
 
   } finally {
     child.kill();
