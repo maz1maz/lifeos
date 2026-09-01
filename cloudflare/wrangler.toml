@@ -1,0 +1,35 @@
+name = "pdmaz"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+[assets]
+directory = "../public"
+run_worker_first = ["/api/*", "/uploads/*"]
+# Note: /public/uploads/ locally holds user-uploaded receipts; those are
+# runtime data, not build-time assets, so they are NOT deployed here.
+# Uploaded receipts live in R2 instead (see [[r2_buckets]] below) and are
+# served by the Worker at /uploads/*.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pdmaz-db"
+database_id = "6f725d4a-9d22-43f4-a58f-297c8d2ece34"
+
+# R2 needs to be enabled once in the Cloudflare dashboard (Storage & Databases
+# > R2) before this binding will work — the API can't do that step. Until
+# then, leave this block commented out so `wrangler deploy` doesn't fail on
+# a bucket that doesn't exist yet; receipt upload/serving returns a clear
+# "not configured" error in the meantime.
+# [[r2_buckets]]
+# binding = "UPLOADS"
+# bucket_name = "pdmaz-uploads"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+# Secrets (never put real values here — this file is committed to git).
+# Set each with: wrangler secret put NAME
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
+#   API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN
+#   SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI
+#   AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY

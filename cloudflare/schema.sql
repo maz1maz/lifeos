@@ -1,5 +1,12 @@
--- Haste / هسته — Cloudflare D1 production schema
--- Apply with: wrangler d1 execute haste-db --file=cloudflare/schema.sql --remote
+-- Haste / هسته — Cloudflare D1 production schema (NOT currently applied)
+--
+-- The deployed worker.js does NOT use this schema. It stores the whole
+-- database as one JSON blob in a simple `kv` table instead (see
+-- cloudflare/README.md for why) — this file documents the eventual
+-- fully-normalized schema for when/if that migration happens, and is stale
+-- relative to the current db.json shape (missing a sessions table, the
+-- investments rebuild from Priority 3, AI/portfolio-alert tables, etc.).
+-- Apply with: wrangler d1 execute pdmaz-db --file=cloudflare/schema.sql --remote
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
