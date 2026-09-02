@@ -85,7 +85,8 @@
 - [x] ذخیرهٔ فعالیت رسانه‌ای در صفحهٔ روز — از طریق `/api/media-log` (بک‌اند و تست کامل است؛ دکمهٔ «ذخیره در امروز» روی هر آیتم Spotify/YouTube هنوز به رابط کاربری اضافه نشده)
 - [x] صفحهٔ اتصال‌ها و دکمهٔ قطع اتصال — بخش «اتصال‌ها» در تنظیمات، برای هر سه سرویس
 - [x] اسپاتیفای وصل شد — `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET`/`SPOTIFY_REDIRECT_URI` گرفته و روی `.env` و Cloudflare (`wrangler secret put`) تنظیم شدند؛ مسیر اتصال زنده تست شد (ریدایرکت واقعی به Spotify با پارامترهای درست تأیید شد). خودِ تبادل کد→توکن هنوز end-to-end تست نشده چون نیاز به تأیید واقعی کاربر روی صفحهٔ Spotify داره
-- [ ] یوتیوب — *نیازمند اقدام خود کاربر: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` از Google Cloud Console (OAuth client, نوع Web application) با Redirect URI برابر `https://pdmaz.hamidreza-mazlaghani.workers.dev/api/integrations/youtube/callback`؛ همون Client ID/Secret هم‌زمان «ورود با Google» رو هم فعال می‌کنه*
+- [x] یوتیوب وصل شد — `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`YOUTUBE_REDIRECT_URI` گرفته و روی `.env` و Cloudflare تنظیم شدند؛ مسیر اتصال زنده تست شد (ریدایرکت واقعی به Google با اسکوپ `youtube.readonly` تأیید شد)
+- [x] ورود با Google (اولویت ۱۰) وصل شد — `GOOGLE_REDIRECT_URI` هم تنظیم شد؛ ریدایرکت واقعی به Google تأیید شد. خودِ ورود کامل (تا صفحهٔ داشبورد بعد از تأیید گوگل) هنوز end-to-end تست نشده، چون نیاز به تأیید واقعی حساب گوگل کاربره
 
 ---
 
@@ -192,7 +193,7 @@
 - [x] استقرار رابط روی Cloudflare — به‌جای Pages جدا، از قابلیت Static Assets خودِ Workers استفاده شد (همون `public/index.html`، بدون نیاز به پروژهٔ دوم)
 - [x] اتصال دامنه یا زیردامنه — طبق تصمیم خودت، زیردامنهٔ رایگان `*.workers.dev` (نه دامنهٔ اختصاصی)
 - [ ] HTTPS و تنظیم Redirect URIهای OAuth — HTTPS روی `workers.dev` خودکاره؛ Redirect URIهای گوگل/اسپاتیفای/یوتیوب باید بعد از اولین `deploy` (وقتی آدرس نهایی مشخص شد) در کنسول همون سرویس‌ها ثبت بشن
-- [ ] Google Login واقعی — کد آماده است، وابسته به دو مورد بالا (deploy + ثبت Redirect URI)
+- [x] Google Login واقعی — کلید و Redirect URI تنظیم شد؛ توضیح کامل و لینک تست در اولویت ۵/بخش اتصال سرویس‌ها بالاتر
 - [ ] فراموشی رمز و بازیابی رمز — *ساخته نشده؛ نیاز به یک سرویس ارسال ایمیل داره که هنوز انتخاب نشده. یک محدودیت واقعی هم پیدا شد: چون Workers سقف تکرار PBKDF2 رو ۱۰۰٬۰۰۰ گذاشته (server.js از ۱۳۰٬۰۰۰ استفاده می‌کنه)، رمزهای هش‌شدهٔ قدیمی روی این دیپلوی جواب نمی‌دن — یعنی حساب واقعی‌ات هم برای اولین ورود به یک رمز جدید نیاز داره*
 - [ ] تأیید ایمیل — وابسته به همون سرویس ایمیل بالا
 - [ ] Rate Limit، مدیریت Session و لاگ امنیتی — Rate Limiting Rule آمادهٔ Cloudflare از داشبورد قابل فعال‌سازیه؛ لاگ امنیتی سفارشی هنوز نوشته نشده
