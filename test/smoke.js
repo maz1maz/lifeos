@@ -91,6 +91,7 @@ async function main() {
       ['GET', '/api/wins'], ['POST', '/api/wins'], ['DELETE', '/api/wins/x'],
       ['GET', '/api/decisions'], ['POST', '/api/decisions'], ['PATCH', '/api/decisions/x'], ['DELETE', '/api/decisions/x'],
       ['GET', '/api/life-review'], ['PUT', '/api/life-review'], ['GET', '/api/one-year-ago'],
+      ['GET', '/api/movies/tmdb/search'], ['POST', '/api/movies/from-tmdb'],
     ];
     for (const [method, p] of routes) {
       const r = await fetch(BASE + p, { method, headers: badCookie });
@@ -694,6 +695,12 @@ async function main() {
     const oneYearAgo = await fetch(`${BASE}/api/one-year-ago`, { headers: authHeaders }).then(r => r.json());
     check('one-year-ago pulls the real daily journal entry from exactly a year back', oneYearAgo.date === oneYearAgoDate && oneYearAgo.daily && oneYearAgo.daily.note === 'روز خیلی خوبی بود');
     check('one-year-ago flags that there is something to show', oneYearAgo.hasAnything === true);
+
+    console.log('\n[38] TMDB integration: validation only (a real key may be present in .env, so no live network calls here - see manual QA for the real search/import flow)');
+    const tmdbSearchNoQuery = await fetch(`${BASE}/api/movies/tmdb/search`, { headers: authHeaders });
+    check('TMDB search requires a query -> 400 before any network call', tmdbSearchNoQuery.status === 400);
+    const tmdbImportNoId = await fetch(`${BASE}/api/movies/from-tmdb`, { method: 'POST', headers: authHeaders, body: JSON.stringify({}) });
+    check('TMDB import requires tmdbId + mediaType -> 400 before any network call', tmdbImportNoId.status === 400);
 
   } finally {
     child.kill();
