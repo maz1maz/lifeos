@@ -84,7 +84,8 @@
 - [x] خواندن ویدیوهای Playlist — با کلیک روی هر پلی‌لیست
 - [x] ذخیرهٔ فعالیت رسانه‌ای در صفحهٔ روز — از طریق `/api/media-log` (بک‌اند و تست کامل است؛ دکمهٔ «ذخیره در امروز» روی هر آیتم Spotify/YouTube هنوز به رابط کاربری اضافه نشده)
 - [x] صفحهٔ اتصال‌ها و دکمهٔ قطع اتصال — بخش «اتصال‌ها» در تنظیمات، برای هر سه سرویس
-- [ ] **نیازمند اقدام خود کاربر:** گرفتن `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET`/`SPOTIFY_REDIRECT_URI` از developer.spotify.com و `YOUTUBE_REDIRECT_URI` از Google Cloud Console (روی همان پروژهٔ Google Login فعلی، با یک Redirect URI جدید)، سپس افزودن به `.env`. کد OAuth کامل نوشته و با تست خودکار (حالت «وصل نیست»/«تنظیم نشده») پوشش داده شده، ولی چون کلید واقعی این دو سرویس هنوز موجود نیست، فلوی واقعی تبادل کد با توکن هرگز end-to-end تست نشده و ممکن است در اولین اجرای واقعی نیاز به یک اصلاح کوچک داشته باشد
+- [x] اسپاتیفای وصل شد — `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET`/`SPOTIFY_REDIRECT_URI` گرفته و روی `.env` و Cloudflare (`wrangler secret put`) تنظیم شدند؛ مسیر اتصال زنده تست شد (ریدایرکت واقعی به Spotify با پارامترهای درست تأیید شد). خودِ تبادل کد→توکن هنوز end-to-end تست نشده چون نیاز به تأیید واقعی کاربر روی صفحهٔ Spotify داره
+- [ ] یوتیوب — *نیازمند اقدام خود کاربر: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` از Google Cloud Console (OAuth client, نوع Web application) با Redirect URI برابر `https://pdmaz.hamidreza-mazlaghani.workers.dev/api/integrations/youtube/callback`؛ همون Client ID/Secret هم‌زمان «ورود با Google» رو هم فعال می‌کنه*
 
 ---
 
