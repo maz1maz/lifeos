@@ -29,11 +29,11 @@ const specialCases = [
   [`Buffer.from(SPOTIFY_CLIENT_ID+':'+SPOTIFY_CLIENT_SECRET).toString('base64')`, `b64(SPOTIFY_CLIENT_ID+':'+SPOTIFY_CLIENT_SECRET)`],
   [
     `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),Buffer.from(m[2],'base64'));r.receipt='/uploads/'+filename;write(db);return json(res,200,r)}`,
-    `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]}});r.receipt='/uploads/'+filename;await write(env,db);return json(res,200,r)}`,
+    `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]}});r.receipt='/uploads/'+filename;await write(db);return json(res,200,r)}`,
   ],
   [
     `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),Buffer.from(m[2],'base64'));r.fileUrl='/uploads/'+filename;write(db);return json(res,200,r)}`,
-    `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]}});r.fileUrl='/uploads/'+filename;await write(env,db);return json(res,200,r)}`,
+    `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]}});r.fileUrl='/uploads/'+filename;await write(db);return json(res,200,r)}`,
   ],
 ];
 let specialCounts = [];
@@ -44,11 +44,15 @@ for (const [find, replace] of specialCases) {
 }
 
 // 2) Generic mechanical persistence-layer conversion.
+// header.js's read()/write(db) are closures over `env` (defined inside
+// makeHelpers(env)) and take NO env parameter of their own - read() ignores
+// any argument, but write(db) has exactly one declared parameter, so an
+// extra leading env argument silently shadows the real db object and gets
+// serialized instead. Do not pass env to either.
 const beforeReadCount = (block.match(/=read\(\)/g) || []).length;
 const beforeWriteCount = (block.match(/write\(db\)/g) || []).length;
-block = block.replace(/=read\(\)/g, '=await read(env)');
-// avoid double-prefixing the one write(db) already rewritten to await write(env,db) by the special case above
-block = block.replace(/(?<!await write\(env,)write\(db\)/g, 'await write(env,db)');
+block = block.replace(/=read\(\)/g, '=await read()');
+block = block.replace(/(?<!await )write\(db\)/g, 'await write(db)');
 
 const afterRouteCount = (block.match(/ if\(p===/g) || []).length + (block.match(/ if\(p\.startsWith/g) || []).length;
 
