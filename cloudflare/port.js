@@ -27,6 +27,10 @@ const specialCases = [
   [`hash(d.password||'',(user&&user.salt)||'0000000000000000000000000000000')`, `await hash(d.password||'',(user&&user.salt)||'0000000000000000000000000000000')`],
   [`crypto.timingSafeEqual(Buffer.from(candidate),Buffer.from(user.password))`, `timingSafeEqualHex(candidate,user.password)`],
   [`Buffer.from(SPOTIFY_CLIENT_ID+':'+SPOTIFY_CLIENT_SECRET).toString('base64')`, `b64(SPOTIFY_CLIENT_ID+':'+SPOTIFY_CLIENT_SECRET)`],
+  [`Buffer.from(d.fileBase64,'base64').toString('utf8')`, `textFromBase64(d.fileBase64)`],
+  [`XLSX.read(Buffer.from(d.fileBase64,'base64'),{type:'buffer'})`, `XLSX.read(bytesFromBase64(d.fileBase64),{type:'array'})`],
+  [`Buffer.from(d.libraryCsvBase64,'base64').toString('utf8')`, `textFromBase64(d.libraryCsvBase64)`],
+  [`Buffer.from(d.watchesCsvBase64,'base64').toString('utf8')`, `textFromBase64(d.watchesCsvBase64)`],
   [
     `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),Buffer.from(m[2],'base64'));r.receipt='/uploads/'+filename;write(db);return json(res,200,r)}`,
     `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]}});r.receipt='/uploads/'+filename;await write(db);return json(res,200,r)}`,

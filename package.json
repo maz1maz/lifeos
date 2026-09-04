@@ -1,7 +1,13 @@
 {
-  "name":"haste-lifeos",
-  "version":"0.1.0",
-  "private":true,
-  "scripts":{"start":"node server.js","test":"node test/smoke.js"},
-  "description":"Personal life dashboard MVP"
+  "name": "haste-lifeos",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/smoke.js"
+  },
+  "description": "Personal life dashboard MVP",
+  "dependencies": {
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
 }
