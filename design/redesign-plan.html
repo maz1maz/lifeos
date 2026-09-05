@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نقشه‌ی بازطراحی «هِسته» — نسخه‌ی تأیید</title>
+<style>
+  :root{
+    --bg:#0a0e17; --border:#1d2a44; --border2:#2a3a5c;
+    --text:#e6e8ee; --muted:#8fa1bd; --faint:#5c6f8d;
+    --acc:#a78bfa; --acc2:#22d3ee; --good:#34d399; --warn:#fbbf24; --bad:#f87171;
+    --card:rgba(255,255,255,.035);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Tahoma,sans-serif;color:var(--text);line-height:1.85;background:var(--bg);
+    background-image:radial-gradient(1000px 600px at 85% -10%, rgba(167,139,250,.12), transparent 60%);
+    background-attachment:fixed}
+  .wrap{max-width:900px;margin:0 auto;padding:30px 20px 90px}
+  h1{font-size:25px;margin:8px 0 2px;background:linear-gradient(90deg,var(--acc2),var(--acc));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{color:var(--muted);font-size:13.5px;margin-bottom:4px}
+  .meta{font-size:11.5px;color:var(--faint);margin-bottom:24px}
+  h2{font-size:18.5px;margin:36px 0 10px;color:var(--text)}
+  h2 .n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;margin-inline-end:8px;
+    background:linear-gradient(135deg,var(--acc2),var(--acc));color:#0a0e17;font-size:13px;font-weight:800}
+  p,li{font-size:13.5px}
+  .box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin:12px 0}
+  .box:hover{border-color:var(--border2)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0}
+  th{color:var(--faint);font-weight:600;text-align:right;font-size:11px;padding:7px 9px;border-bottom:1px solid var(--border)}
+  td{padding:8px 9px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:top}
+  tr:last-child td{border:none}
+  .pill{display:inline-block;font-size:10.5px;padding:2px 10px;border-radius:99px;border:1px solid;white-space:nowrap}
+  .p-new{color:var(--acc2);border-color:color-mix(in srgb,var(--acc2) 40%,transparent)}
+  .p-move{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 40%,transparent)}
+  .p-keep{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent)}
+  .p-drop{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
+  .arrow{color:var(--faint);font-size:11px}
+  .swatches{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+  .sw{width:120px;border-radius:14px;border:1px solid var(--border);overflow:hidden;font-size:10.5px}
+  .sw .c{height:52px;display:flex;align-items:flex-end;padding:6px 8px;color:#fff}
+  .sw .l{padding:6px 8px;color:var(--muted);background:rgba(255,255,255,.03)}
+  .wire{border:2px dashed var(--border2);border-radius:18px;padding:14px;margin:14px 0;background:rgba(255,255,255,.015)}
+  .wire .row{display:grid;gap:10px;margin-bottom:10px}
+  .wire .cell{border:1.5px solid var(--border2);border-radius:12px;padding:10px 12px;font-size:11.5px;color:var(--muted);min-height:44px}
+  .wire .cell b{display:block;color:var(--text);font-size:12px;margin-bottom:2px}
+  .wire .span2{grid-column:span 2}
+  .c12{grid-template-columns:repeat(4,1fr)}
+  .c6{grid-template-columns:repeat(2,1fr)}
+  .tag-sec{font-size:10px;color:var(--acc2);border:1px dashed color-mix(in srgb,var(--acc2) 40%,transparent);border-radius:8px;padding:1px 8px;display:inline-block;margin-top:4px}
+  .goal{border-inline-start:3px solid var(--acc);padding:10px 14px;background:rgba(167,139,250,.05);border-radius:8px;margin:8px 0;font-size:13px}
+  .phase{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .phase:last-child{border:none}
+  .phase .num{flex:none;width:34px;height:34px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:14px;
+    background:linear-gradient(135deg,var(--acc2),var(--acc));color:#0a0e17}
+  .phase b{font-size:13.5px}
+  .phase small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .check{color:var(--warn);font-size:12.5px;border:1px dashed color-mix(in srgb,var(--warn) 40%,transparent);border-radius:12px;padding:10px 14px;margin-top:14px}
+  code{background:rgba(255,255,255,.06);padding:1px 7px;border-radius:6px;font-size:11.5px;direction:ltr;display:inline-block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>🗺️ نقشه‌ی بازطراحی «هِسته»</h1>
+  <div class="lead">بک‌اند و داده‌ها دست نمی‌خورند — فقط پوسته‌ی کاربری (public/index.html) از نو ساخته می‌شود</div>
+  <div class="meta">نسخه‌ی ۱ · برای تأیید تو · سبک: الهام از داشبورد V2 (تیره + روشن) · دسکتاپ‌اول · «امروز» = حداقلی + کمی بیشتر</div>
+
+  <!-- ============ 1 ============ -->
+  <h2><span class="n">۱</span>۵ اصل طراحی</h2>
+  <div class="box">
+    <div class="goal">۱. <b>هر صفحه یک کار.</b> صفحه‌ی «امروز» فقط برای زندگیِ امروز است، نه کنترل‌پنل همه‌چیز.</div>
+    <div class="goal">۲. <b>سه کلیک حداکثر.</b> هر کاری (ثبت خرج، افزودن فیلم، تیک عادت) حداکثر ۳ کلیک فاصله دارد.</div>
+    <div class="goal">۳. <b>اول مهم، بعد کامل.</b> هر فرم با ۲-۳ فیلد شروع می‌شود؛ بقیه پشت دکمه‌ی «+ جزئیات».</div>
+    <div class="goal">۴. <b>چشم‌نواز ولی ساکت.</b> یک رنگ تأکیدی، کارت‌های یکدست، بدون گرادیان‌های نئونی و شلوغی. (سبک V2)</div>
+    <div class="goal">۵. <b>هیچ قابلیتی گم نمی‌شود.</b> همه‌ی ۱۸ بخش فعلی جایی می‌روند؛ نقشه‌ی دقیقش پایین است.</div>
+  </div>
+
+  <!-- ============ 2 ============ -->
+  <h2><span class="n">۲</span>نقشه‌ی جابه‌جایی: ۱۸ بخش ← ۶ مقصد</h2>
+  <table>
+    <tr><th>بخش فعلی (۱۸ تا)</th><th></th><th>مقصد جدید</th></tr>
+    <tr><td>▦ داشبورد</td><td class="arrow">←</td><td><b>① امروز</b> <span class="pill p-new">بازطراحی کامل</span></td></tr>
+    <tr><td>▣ تقویم</td><td class="arrow">←</td><td>① امروز (نمای کوچک) + ③ کارها (کامل + تایم‌بلاک)</td></tr>
+    <tr><td>▤ صندوق ورودی</td><td class="arrow">←</td><td>نوار همیشه‌بالای صفحه (در دسترس از همه‌جا) <span class="pill p-move">ارتقا</span></td></tr>
+    <tr><td>◈ مالی و خریدها</td><td class="arrow">←</td><td><b>② پول</b> <span class="pill p-new">بازطراحی</span></td></tr>
+    <tr><td>◉ پرتفوی</td><td class="arrow">←</td><td>② پول ← تب «پرتفوی»</td></tr>
+    <tr><td>✓ کارها و پروژه‌ها</td><td class="arrow">←</td><td><b>③ کارها</b> <span class="pill p-new">بازطراحی</span></td></tr>
+    <tr><td>🎯 اهداف و مرور</td><td class="arrow">←</td><td>③ کارها ← تب «اهداف و مرور»</td></tr>
+    <tr><td>☺ حال و سلامت</td><td class="arrow">←</td><td><b>④ زندگی</b> ← تب «سلامت و عادت‌ها» <span class="pill p-new">بازطراحی</span></td></tr>
+    <tr><td>👥 روابط</td><td class="arrow">←</td><td>④ زندگی ← تب «آدم‌ها»</td></tr>
+    <tr><td>📚 یادگیری</td><td class="arrow">←</td><td>④ زندگی ← تب «یادگیری»</td></tr>
+    <tr><td>🧳 خرید و سفر</td><td class="arrow">←</td><td>④ زندگی ← تب «خانه و سفر» (خرید + سفر + اسناد)</td></tr>
+    <tr><td>🎬 فیلم و سریال</td><td class="arrow">←</td><td><b>⑤ رسانه</b> ← تب «فیلم و سریال» <span class="pill p-new">بازطراحی</span></td></tr>
+    <tr><td>📰 اخبار</td><td class="arrow">←</td><td>⑤ رسانه ← تب «اخبار»</td></tr>
+    <tr><td>⚽ فوتبال</td><td class="arrow">←</td><td>⑤ رسانه ← تب «فوتبال»</td></tr>
+    <tr><td>🃏 پوکر</td><td class="arrow">←</td><td>⑤ رسانه ← تب «پوکر» <span class="check" style="display:inline;border:none;padding:0">❓ اگر استفاده نمی‌کنی بگو حذف شود</span></td></tr>
+    <tr><td>✦ دستیار هوشمند</td><td class="arrow">←</td><td><b>⑥ بیشتر</b> + دکمه‌ی شناور در «امروز»</td></tr>
+    <tr><td>⌕ جست‌وجو</td><td class="arrow">←</td><td>کلید میانبر <code>Ctrl+K</code> از هر جا + در ⑥</td></tr>
+    <tr><td>⚙ تنظیمات</td><td class="arrow">←</td><td>⑥ بیشتر (تنظیمات، اتصال‌ها، خروجی‌ها)</td></tr>
+  </table>
+  <p style="color:var(--muted);font-size:12px">منوی کنار از ۱۸ آیتم ← ۶ آیتم با آیکون و برچسب. هر مقصد، تب‌های داخلی خودش را دارد.</p>
+
+  <!-- ============ 3 ============ -->
+  <h2><span class="n">۳</span>صفحه‌ی «امروز» — حداقلی + کمی بیشتر</h2>
+  <p>بالایش (همیشه دیده می‌شود، بدون اسکرول در لپ‌تاپ):</p>
+  <div class="wire">
+    <div class="row c6">
+      <div class="cell" style="grid-column:span 2"><b>سلام + تاریخ دوگانه (شمسی/میلادی)</b>در یک خط، آرام — همان حس V2</div>
+    </div>
+    <div class="row c6">
+      <div class="cell" style="grid-column:span 2"><b>⚡ ثبت سریع (اینباکس)</b>یک فیلد همیشه آماده — با Ctrl+K هم از همه‌جا باز می‌شود</div>
+    </div>
+    <div class="row c6">
+      <div class="cell"><b>✅ کارهای امروز</b>چک‌لیست ساده + دکمه «+»</div>
+      <div class="cell"><b>😊 حال + 😴 خواب</b>دو انتخاب سریع (ایموجی + عدد) — همین<span class="tag-sec">+ جزئیات: انرژی، بهترین لحظه، شکرگزاری، یادداشت، برنامه‌ی فردا</span></div>
+    </div>
+    <div class="row c6">
+      <div class="cell"><b>🔔 یادآوری‌ها</b>یک نوار فشرده: سررسیدها، عقب‌افتاده، تولدها، انقضای اسناد</div>
+      <div class="cell"><b>✅ عادت‌های امروز</b>فقط تیک‌ها، یک ردیف فشرده</div>
+    </div>
+  </div>
+  <p>پایینیش («کمی بیشتر» — با یک اسکرول پایین):</p>
+  <div class="wire">
+    <div class="row c12">
+      <div class="cell"><b>◈ پول در یک خط</b>خرج امروز + مانده بودجه ماه</div>
+      <div class="cell"><b>⏳ نزدیک‌ترین رویداد</b>سفر/قرار/بازی فوتبال + شمارش معکوس</div>
+      <div class="cell"><b>🎬 ادامه‌ی تماشا</b>یک آیتم + دکمه پخش</div>
+      <div class="cell"><b>📆 تقویم کوچک</b>نمای ماه با نقاط رویداد</div>
+    </div>
+  </div>
+  <p style="color:var(--muted);font-size:12px">هر چیز دیگری (خلاصه‌ی هفتگی، این روز در تاریخ، قسمت‌های جدید، آخرین تراکنش‌ها...) به صفحه‌ی خودش می‌رود — از «امروز» با یک لینک قابل دستعست.</p>
+
+  <!-- ============ 4 ============ -->
+  <h2><span class="n">۴</span>الگوی فرم‌ها — «اول مهم، بعد کامل»</h2>
+  <table>
+    <tr><th>فرم</th><th>فیلدهای اصلی (همیشه نمایان)</th><th>پشت «+ جزئیات»</th></tr>
+    <tr><td>ثبت خرج/درآمد</td><td>مبلغ، عنوان، دسته (پیشنهاد خودکار)</td><td>حساب، تاریخ، تکرار، رسید، یادداشت</td></tr>
+    <tr><td>افزودن فیلم/سریال</td><td>جست‌وجوی TMDB → کلیک → تمام</td><td>پلتفرم، زبان، همراه، تگ، اسپویلر، یادداشت، امتیاز</td></tr>
+    <tr><td>تسک جدید</td><td>عنوان، امروز/فردا/تاریخ</td><td>اولویت، پروژه، تکرار، زمان‌بندی، زیرتسک</td></tr>
+    <tr><td>مخاطب</td><td>نام، نسبت</td><td>تولد، تلفن، ایمیل، یادآوری پیگیری، یادداشت</td></tr>
+    <tr><td>سفر</td><td>مقصد، تاریخ</td><td>بودجه، رزروها، چک‌لیست</td></tr>
+  </table>
+  <p><b>مودال‌های فعلی (۴۵ تا!):</b> فرم‌های بزرگ به <b>پنجره‌ی کناری (Drawer)</b> از لبه‌ی صفحه تبدیل می‌شوند — پشتش صفحه دیده می‌ماند و حس «گم شدم» نمی‌آید. چیزهای کوچک (حذف، تأیید) همان پاپ‌آپ کوچک می‌مانند. تعداد کل به ~۱۲ پنجره‌ی واقعی می‌رسد.</p>
+
+  <!-- ============ 5 ============ -->
+  <h2><span class="n">۵</span>سیستم بصری — الهام از V2</h2>
+  <div class="swatches">
+    <div class="sw"><div class="c" style="background:#0f1117">پس‌زمینه‌ی تیره</div><div class="l">تم تیره — پایه</div></div>
+    <div class="sw"><div class="c" style="background:#a78bfa">بنفش #a78bfa</div><div class="l">رنگ تأکیدی (هم‌خانواده‌ی فعلی)</div></div>
+    <div class="sw"><div class="c" style="background:#22d3ee">فیروزه‌ای</div><div class="l">رنگ دوم (نمودار/موفقیت)</div></div>
+    <div class="sw"><div class="c" style="background:#f7f7fb;color:#1a1d26">سفید #f7f7fb</div><div class="l">تم روشن — با یک کلیک</div></div>
+  </div>
+  <div class="box">
+    <ul>
+      <li><b>فونت:</b> وزیرمتن (مثل الان) ولی پایه‌ی <b>۱۵px</b> و هیچ متنی زیر ۱۲px — الان نصف متن‌ها ۱۱-۱۳px هستند</li>
+      <li><b>دکمه‌ها:</b> حداقل ۳۶px ارتفاع (الان خیلی‌ها ۲۰-۲۴px‌اند) — کلیک راحت، اشتباه کمتر</li>
+      <li><b>کارت‌ها:</b> تخت با حاشیه‌ی ظریف، گوشه‌ی ۱۶px، فاصله‌ی سخاوتمندانه — دقیقاً حال‌وهوای V2</li>
+      <li><b>تیره/روشن:</b> دکمه‌ی یک‌کلیکی ⚡ ذخیره در مرورگر — پیش‌فرض تیره</li>
+      <li><b>اعلان موفقیت:</b> توست کوچک پایین صفحه به‌جای هیچ/هرچیز</li>
+    </ul>
+  </div>
+
+  <!-- ============ 6 ============ -->
+  <h2><span class="n">۶</span>دسکتاپ‌اول + موبایل محترم</h2>
+  <ul>
+    <li><b>دسکتاپ:</b> منوی کنار جمع‌وجور (۶ آیتم)، نوار بالا با جست‌وجوی Ctrl+K و ثبت سریع و دکمه‌ی تم</li>
+    <li><b>موبایل (وقتی رسید):</b> تب‌بار پایین با همین ۶ مقصد + دکمه‌ی شناور «+» — اینباکس و همه‌ی دکمه‌ها همیشه در دسترس (برخلاف الان که مخفی می‌شوند)</li>
+  </ul>
+
+  <!-- ============ 7 ============ -->
+  <h2><span class="n">۷</span>فازهای اجرا — هر فاز با تأیید تو</h2>
+  <div class="box">
+    <div class="phase"><div class="num">۱</div><div><b>قاب + امروز</b> — سیستم طراحی، منو، تم تیره/روشن، صفحه‌ی «امروز» کامل وصل به API واقعی <small>تحویل: یک فایل index.html جدید که جایگزین می‌شود + پیش‌نمایش برای حس‌کردن</small></div></div>
+    <div class="phase"><div class="num">۲</div><div><b>پول + کارها</b> — تراکنش/حساب/بودجه/پرتفوی + تسک/پروژه/زمان/اهداف</div></div>
+    <div class="phase"><div class="num">۳</div><div><b>زندگی + رسانه</b> — سلامت/روابط/یادگیری/سفر + فیلم/اخبار/فوتبال</div></div>
+    <div class="phase"><div class="num">۴</div><div><b>بیشتر + جست‌وجو + دستیار</b> — تنظیمات، اتصال‌ها، Ctrl+K، چت هوشمند</div></div>
+    <div class="phase"><div class="num">۵</div><div><b>موبایل + پولیش</b> — تب‌بار پایین، آزمون همه‌ی مسیرها، رفع جزئیات</div></div>
+  </div>
+
+  <div class="check">✅ <b>چیزی که الان از تو می‌خواهم:</b><br>
+  ۱. این نقشه را تأیید کن (یا بگو کجایش عوض شود)<br>
+  ۲. پوکر بموند یا بره؟<br>
+  ۳. رنگ تأکیدی بنفش #a78bfa خوبه یا رنگ دیگری دوست داری؟<br>
+  ۴. اسم «هِسته» و لوگوی فعلی بمونه؟<br>
+  با تأییدت، فاز ۱ را می‌سازم — فقط قاب و صفحه‌ی «امروز»، وصل به APIهای واقعی خودت.
+  </div>
+
+  <p style="color:var(--faint);font-size:11px;margin-top:26px">🔒 یادآوری: بعد از پایان کار، توکن‌های GitHub فرستاده‌شده در چت را Revoke کن (Settings → Developer settings → Tokens).</p>
+
+</div>
+</body>
+</html>
