@@ -105,32 +105,35 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 /* ===== چیدمان امروز: ردیف‌های صریح ===== */
 .home{display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .home-row{display:grid;gap:14px;align-items:stretch;width:100%}
-.home-row.r1{grid-template-columns:minmax(0,1.55fr) minmax(240px,.85fr);align-items:stretch}
+.home-row.r1{grid-template-columns:minmax(0,1fr) 250px;align-items:start;gap:14px}
 .home-row.r2{grid-template-columns:repeat(4,minmax(0,1fr))}
 .home-row.r3{grid-template-columns:repeat(2,minmax(0,1fr))}
 .home-row.r4{grid-template-columns:repeat(3,minmax(0,1fr))}
 
 /* ردیف ۱: کارت تاریخ (راست) + مینی‌تقویم با دما (چپ) */
-.home-row.r1{grid-template-columns:minmax(0,1.55fr) minmax(240px,.85fr);align-items:stretch;gap:14px}
+.home-row.r1{grid-template-columns:minmax(0,1fr) 250px;align-items:start;gap:14px}
 .minical{
-  background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;
-  padding:14px 16px 12px;display:flex;flex-direction:column;min-width:0;height:100%;
+  /* هم‌اندازهٔ تقویم انتخاب روز کارها (calpop = 250px) */
+  width:250px;max-width:250px;box-sizing:border-box;
+  background:var(--bg);border:1px solid var(--border2);border-radius:15px;
+  padding:12px 14px;display:flex;flex-direction:column;min-width:0;height:auto;
   cursor:pointer;position:relative;overflow:hidden;
-  background-image:radial-gradient(420px 220px at 10% 0%, color-mix(in srgb,var(--acc) 10%,transparent), transparent 70%);
+  box-shadow:0 18px 44px -12px rgba(0,0,0,.65);
+  background-image:radial-gradient(280px 160px at 10% 0%, color-mix(in srgb,var(--acc) 10%,transparent), transparent 70%);
 }
 .minical:hover{border-color:color-mix(in srgb,var(--acc) 45%,var(--border2))}
-.minical .mchead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.minical .mchead b{flex:1;text-align:center;font-family:var(--fh);font-size:15.5px}
+.minical .mchead{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.minical .mchead b{flex:1;text-align:center;font-family:var(--fh);font-size:14.5px;font-weight:700}
 .minical .mchead button{
-  background:var(--panel2);border:1px solid var(--border);color:var(--text);
-  border-radius:10px;width:30px;height:30px;cursor:pointer;font-family:var(--fh);font-size:15px
+  background:var(--panel2);border:none;color:var(--text);
+  border-radius:9px;width:26px;height:26px;cursor:pointer;font-family:var(--fh);font-size:14px
 }
 .minical .mchead button:hover{border-color:var(--acc);color:var(--acc)}
 .minical .mcwd{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;direction:rtl}
 .minical .mcwd span{text-align:center;font-size:11px;color:var(--faint);font-family:var(--fh);padding:2px 0}
-.minical .mcgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;direction:rtl;flex:1}
+.minical .mcgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;direction:rtl;flex:none}
 .minical .mc{
-  aspect-ratio:1;max-height:36px;border-radius:9px;border:1.5px solid transparent;
+  aspect-ratio:1;max-height:30px;border-radius:8px;border:1.5px solid transparent;
   background:transparent;color:var(--text);font-family:var(--fh);font-size:12.5px;
   cursor:pointer;display:grid;place-items:center;padding:0
 }
@@ -147,14 +150,15 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .minical .mc.fri{color:var(--bad)}
 .minical .mc.hol{color:var(--bad);font-weight:700}
 .minical .mcfoot{
-  margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
-  display:flex;align-items:center;justify-content:center;gap:10px
+  margin-top:8px;padding-top:8px;border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;gap:8px
 }
-.minical .mcfoot .tic{font-size:28px;line-height:1}
-.minical .mcfoot .ttemp{font-family:var(--fh);font-size:28px;font-weight:800;color:var(--acc);line-height:1}
-.minical .mcfoot .ttemp small{font-size:14px;font-weight:600;color:var(--muted);margin-right:2px}
-.home-row.r1 .datecard{height:100%}
-.home-row.r1 .minical{height:100%}
+.minical .mcfoot .tic{font-size:20px;line-height:1}
+.minical .mcfoot .ttemp{font-family:var(--fh);font-size:20px;font-weight:800;color:var(--acc);line-height:1}
+.minical .mcfoot .ttemp small{font-size:12px;font-weight:600;color:var(--muted);margin-right:2px}
+.home-row.r1 .datecard{height:auto;min-height:100%}
+/* minical fixed size like calpop */
+.home-row.r1 .minical{height:auto;align-self:start}
 
 @media(max-width:1279px){
   .home-row.r2{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -377,6 +381,18 @@ body.zoom1{zoom:1.1111}
 .rem .rt b{color:var(--text);font-family:var(--fh);font-weight:700}
 .rem .rv{font-size:14px;color:var(--faint);white-space:nowrap}
 .rem.done .rt,.rem.done .rv{opacity:.5}
+
+/* یادآوری‌ها — افزودن */
+.remadd{margin-top:10px}
+#remList{min-height:8px}
+.rem{position:relative}
+.rem .rdel{background:none;border:none;color:var(--faint);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:8px;opacity:0;transition:.12s}
+.rem:hover .rdel{opacity:1}
+.rem .rdel:hover{color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.rem.done .rt b{text-decoration:line-through}
+.rem{cursor:pointer}
+.remfoot{margin-top:10px;font-size:12.5px;color:var(--faint);text-align:center}
+
 .remfoot{margin-top:10px;font-size:13.5px;color:var(--faint)}
 
 /* ================= MARKET CARD ================= */
@@ -510,8 +526,10 @@ body.nav-open .nav-backdrop{display:block}
   .home-row.r3>.mcard,.home-row.r3>.c3wrap{height:auto}
   .datecard .dnum{font-size:64px!important}
   .occrow{flex-wrap:wrap}
-  .minical .mc{max-height:40px;font-size:13px}
-  .minical .mcfoot .ttemp{font-size:24px}
+  .home-row.r1{grid-template-columns:1fr!important}
+  .minical{width:100%!important;max-width:100%!important}
+  .minical .mc{max-height:34px;font-size:13px}
+  .minical .mcfoot .ttemp{font-size:20px}
 }
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
@@ -605,14 +623,21 @@ body.nav-open .nav-backdrop{display:block}
       <div class="futureline" id="futureLine"></div>
     </div>
 <div class="rcard">
-      <div class="mhead"><h4>🔔 یادآوری‌ها</h4></div>
-      <div class="rem"><span class="rd" style="background:var(--bad)"></span><span class="rt"><b>۲ کار عقب‌افتاده</b> — تماس بیمه، فایل مشتری</span><span class="rv">برو ببین</span></div>
-      <div class="rem"><span class="rd" style="background:var(--warn)"></span><span class="rt"><b>سررسید بیمه</b></span><span class="rv">۳ روز</span></div>
-      <div class="rem"><span class="rd" style="background:var(--acc)"></span><span class="rt"><b>🎂 تولد مامان</b></span><span class="rv">۷ روز · هدیه!</span></div>
-      <div class="rem"><span class="rd" style="background:var(--warn)"></span><span class="rt"><b>تمدید نتفلیکس</b></span><span class="rv">فردا</span></div>
-      <div class="rem"><span class="rd" style="background:color-mix(in srgb,var(--faint) 60%,transparent)"></span><span class="rt"><b>🪪 کارت بانکی</b></span><span class="rv">۲ ماه</span></div>
-      <div class="rem done"><span class="rd" style="background:var(--good)"></span><span class="rt"><b>قسط وام</b></span><span class="rv">✓ پرداخت شد</span></div>
-      <div class="remfoot">خودکار از: کارها · بدهی‌ها · اسناد · تولدها · اشتراک‌ها</div>
+      <div class="mhead"><h4>🔔 یادآوری‌ها</h4><span class="cnt" id="remCnt">—</span></div>
+      <div id="remList"></div>
+      <div class="taskadd remadd">
+        <input type="text" id="remIn" placeholder="یادآوری جدید... بنویس و Enter بزن" autocomplete="off">
+        <button type="button" id="remAdd">افزودن</button>
+      </div>
+      <div class="daychips" id="remChips">
+        <span style="font-size:14px;color:var(--faint)">برای:</span>
+        <span class="dchip on" data-r="0">امروز</span>
+        <span class="dchip" data-r="1">فردا</span>
+        <span class="dchip" data-r="3">۳ روز</span>
+        <span class="dchip" data-r="7">۷ روز</span>
+        <span class="dchip" id="remMore">📅 روز دیگر</span>
+      </div>
+      <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
     </div>
 <div class="mcard navcard" id="mkSum">
     <div class="mhead"><h4>📈 بازارها</h4><span style="font-size:13px;color:var(--acc)">کامل ←</span></div>
@@ -1309,6 +1334,109 @@ function addTask(){
 document.getElementById('taskAdd').addEventListener('click',addTask);
 document.getElementById('taskIn').addEventListener('keydown',function(e){if(e.key==='Enter')addTask()});
 renderTasks();
+
+/* ===== یادآوری‌ها (قابل افزودن، localStorage) ===== */
+var REM_KEY='lifeos-reminders-v1';
+var REM_DEFAULTS=[
+  {t:'۲ کار عقب‌افتاده — تماس بیمه، فایل مشتری', when:'برو ببین', color:'bad', done:false},
+  {t:'سررسید بیمه', when:'۳ روز', color:'warn', done:false},
+  {t:'🎂 تولد مامان', when:'۷ روز · هدیه!', color:'acc', done:false},
+  {t:'تمدید نتفلیکس', when:'فردا', color:'warn', done:false},
+  {t:'🪪 کارت بانکی', when:'۲ ماه', color:'faint', done:false},
+  {t:'قسط وام', when:'✓ پرداخت شد', color:'good', done:true}
+];
+function loadRems(){
+  try{
+    var raw=localStorage.getItem(REM_KEY);
+    if(raw){var a=JSON.parse(raw); if(Array.isArray(a)) return a}
+  }catch(e){}
+  return REM_DEFAULTS.map(function(x){return Object.assign({},x)});
+}
+function saveRems(){ try{localStorage.setItem(REM_KEY, JSON.stringify(REMS))}catch(e){} }
+var REMS=loadRems();
+var remSelOff=0;
+function remColor(c){
+  if(c==='bad')return'var(--bad)';
+  if(c==='warn')return'var(--warn)';
+  if(c==='good')return'var(--good)';
+  if(c==='acc')return'var(--acc)';
+  return'color-mix(in srgb,var(--faint) 60%,transparent)';
+}
+function remWhenLabel(off){
+  if(off===0)return'امروز';
+  if(off===1)return'فردا';
+  if(off===3)return'۳ روز';
+  if(off===7)return'۷ روز';
+  if(typeof dayName==='function')return dayName(off);
+  return fa(off)+' روز دیگر';
+}
+function renderRems(){
+  var el=document.getElementById('remList'); if(!el)return;
+  var html='';
+  REMS.forEach(function(x,i){
+    html+='<div class="rem'+(x.done?' done':'')+'" data-i="'+i+'">'
+      +'<span class="rd" style="background:'+remColor(x.color||'acc')+'"></span>'
+      +'<span class="rt"><b>'+String(x.t||'').replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</b></span>'
+      +'<span class="rv">'+String(x.when||'').replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</span>'
+      +'<button type="button" class="rdel" data-di="'+i+'" title="حذف">✕</button>'
+      +'</div>';
+  });
+  el.innerHTML=html||'<div style="color:var(--faint);font-size:14px;padding:8px 2px">هنوز یادآوری‌ای نیست — پایین اضافه کن</div>';
+  var left=REMS.filter(function(x){return !x.done}).length;
+  var cnt=document.getElementById('remCnt');
+  if(cnt)cnt.textContent=fa(left)+' باز'+(REMS.length?(' · '+fa(REMS.length)):'');
+}
+function addRem(){
+  var inp=document.getElementById('remIn'); if(!inp)return;
+  var v=inp.value.trim(); if(!v)return;
+  var when=remWhenLabel(remSelOff);
+  var color=remSelOff===0?'acc':(remSelOff<=1?'warn':(remSelOff<=3?'warn':'faint'));
+  REMS.unshift({t:v, when:when, color:color, done:false, off:remSelOff, at:Date.now()});
+  saveRems(); inp.value=''; remSelOff=0;
+  document.querySelectorAll('#remChips .dchip').forEach(function(x){
+    x.classList.toggle('on', x.dataset.r==='0');
+  });
+  var rm=document.getElementById('remMore');
+  if(rm){rm.classList.remove('on');rm.textContent='📅 روز دیگر'}
+  renderRems();
+  if(typeof toast==='function')toast('یادآوری اضافه شد ✓');
+}
+(function initRems(){
+  var list=document.getElementById('remList');
+  if(!list)return;
+  list.addEventListener('click',function(e){
+    var del=e.target.closest('.rdel');
+    if(del){ REMS.splice(+del.dataset.di,1); saveRems(); renderRems(); if(typeof toast==='function')toast('حذف شد'); return; }
+    var row=e.target.closest('.rem'); if(!row)return;
+    var i=+row.dataset.i; if(isNaN(i)||!REMS[i])return;
+    REMS[i].done=!REMS[i].done;
+    if(REMS[i].done && !String(REMS[i].when||'').startsWith('✓')) REMS[i].when='✓ انجام شد';
+    saveRems(); renderRems();
+  });
+  var addBtn=document.getElementById('remAdd'), inp=document.getElementById('remIn');
+  if(addBtn)addBtn.addEventListener('click',addRem);
+  if(inp)inp.addEventListener('keydown',function(e){if(e.key==='Enter')addRem()});
+  document.querySelectorAll('#remChips .dchip[data-r]').forEach(function(c){
+    c.addEventListener('click',function(){
+      document.querySelectorAll('#remChips .dchip').forEach(function(x){x.classList.remove('on')});
+      c.classList.add('on'); remSelOff=+c.dataset.r;
+      var rm=document.getElementById('remMore');
+      if(rm){rm.classList.remove('on');rm.textContent='📅 روز دیگر'}
+    });
+  });
+  var rM=document.getElementById('remMore');
+  if(rM)rM.addEventListener('click',function(){
+    if(typeof openCal!=='function'){remSelOff=7;rM.classList.add('on');return}
+    openCal(rM,function(p){
+      var t=jToday(),off=j2d(p.jy,p.jm,p.jd)-j2d(t.jy,t.jm,t.jd);
+      if(off<0){if(typeof toast==='function')toast('تاریخ گذشته است');return}
+      document.querySelectorAll('#remChips .dchip').forEach(function(x){x.classList.remove('on')});
+      rM.classList.add('on'); remSelOff=off;
+      rM.textContent='📅 '+(off===0?'امروز':off===1?'فردا':fa(p.jd)+' '+CALMON[p.jm-1]);
+    });
+  });
+  renderRems();
+})();
 
 /* mode */
 var mb=document.getElementById('modeBtn');
