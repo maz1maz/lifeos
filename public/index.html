@@ -52,7 +52,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 
 /* ============ TX CARD ============ */
 .txform{display:flex;flex-direction:column;gap:9px;margin-top:10px}
-.txrow{display:flex;gap:8px;align-items:center}
+.txrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .kindseg{display:flex;border:1.5px solid var(--border);border-radius:11px;overflow:hidden;flex:none}
 .kindseg button{background:none;border:none;color:var(--muted);font:inherit;font-family:var(--fh);font-size:13.5px;padding:6px 13px;cursor:pointer}
 .kindseg button.on{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad);font-weight:700}
@@ -106,7 +106,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 /* کل بالای صفحه سه‌ستونه مثل بازار */
 .page3{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:stretch;margin-top:14px}
 .page3>.duo{display:contents}
-.page3 .epcard{margin-top:0;height:fit-content}
+.page3 .epcard{margin-top:0}
 
 /* ===== سوییچ ۳/۴ ستونه ===== */
 @media(max-width:1279px){.page3{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -114,6 +114,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .page3 .datecard{grid-column:1/-1}
 .dgreet{font-size:15px;color:var(--muted);margin:0 0 4px}
 .fullw{grid-column:1/-1}
+.span2{grid-column:span 2}
+@media(max-width:760px){.span2,.c3wrap{grid-column:span 2}}
 .daynav{margin-right:auto;display:flex;gap:6px;align-items:center;flex:none}
 .dnbtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer;font-family:var(--fh)}
 .dnbtn:hover{border-color:var(--acc);color:var(--acc)}
@@ -473,7 +475,7 @@ body.zoom1{zoom:1.1111}
   </div>
 
   <!-- ============ ثبت تراکنش ============ -->
-  <div class="mcard">
+  <div class="mcard span2">
     <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
     <div class="txform">
         <div class="txrow">
@@ -581,7 +583,7 @@ body.zoom1{zoom:1.1111}
 </div>
 
 <!-- ============ NEW EPISODES ============ -->
-  <div class="epcard">
+  <div class="epcard span2">
     <div class="mhead">
       <h4>🆕 قسمت‌های جدید</h4>
       <span class="cnt" id="epCnt">—</span>
@@ -593,7 +595,7 @@ body.zoom1{zoom:1.1111}
   </div>
 
   <!-- ============ بازی‌های امروز ============ -->
-  <div class="mcard" id="gamesCard">
+  <div class="mcard span2" id="gamesCard">
     <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ</span></div>
     <div class="gwrap" id="gamesList">در حال دریافت…</div>
     <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
