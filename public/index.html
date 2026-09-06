@@ -101,21 +101,30 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .bc .bar{flex:1;height:7px;background:var(--panel2);border-radius:99px;overflow:hidden}
 .bc .bar i{display:block;height:100%;border-radius:99px}
 .bc .v{width:76px;flex:none;text-align:left;font-family:var(--fh);font-size:12.5px;direction:ltr;color:var(--muted)}
-@media(max-width:760px){.duo{grid-template-columns:1fr}.page3{grid-template-columns:1fr}}
-.trio{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px;align-items:start}
-/* کل بالای صفحه سه‌ستونه مثل بازار */
-.page3{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:stretch;margin-top:14px}
-.page3>.duo{display:contents}
-.page3 .epcard{margin-top:0}
-
-/* ===== سوییچ ۳/۴ ستونه ===== */
-@media(max-width:1279px){.page3{grid-template-columns:repeat(2,minmax(0,1fr))}}
-
-.page3 .datecard{grid-column:1/-1}
+/* ===== چیدمان امروز: ردیف‌های صریح ===== */
+.home{display:flex;flex-direction:column;gap:14px;margin-top:14px}
+.home-row{display:grid;gap:14px;align-items:stretch;width:100%}
+.home-row.r1{grid-template-columns:1fr}
+.home-row.r2{grid-template-columns:repeat(4,minmax(0,1fr))}
+.home-row.r3{grid-template-columns:repeat(2,minmax(0,1fr))}
+.home-row.r4{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:1279px){
+  .home-row.r2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .home-row.r4{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .duo{grid-template-columns:1fr}
+  .home-row.r2,.home-row.r3,.home-row.r4{grid-template-columns:1fr}
+}
+.home .epcard{margin-top:0}
 .dgreet{font-size:15px;color:var(--muted);margin:0 0 4px}
 .fullw{grid-column:1/-1}
 .span2{grid-column:span 2}
-@media(max-width:760px){.span2,.c3wrap{grid-column:auto}}
+.c3wrap{min-width:0}
+.home .datecard,.home .wcard,.home .tcard,.home .rcard,.home .mcard,.home .epcard,.home .c3wrap{min-width:0;height:100%}
+/* سازگاری قدیمی */
+.page3,.trio{display:contents}
+.page3>.duo{display:contents}
 .daynav{display:flex;gap:6px;align-items:center;flex:none;flex-wrap:wrap}
 .dnbtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer;font-family:var(--fh)}
 .dnbtn:hover{border-color:var(--acc);color:var(--acc)}
@@ -144,9 +153,6 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .palrst{grid-column:1/-1;text-align:center;font-size:12.5px;color:var(--acc);cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);margin-top:2px}
 body.zoom1{zoom:1.1111}
 
-.c3wrap{grid-column:span 2}
-@media(max-width:760px){.page3{grid-template-columns:1fr}.c3wrap{grid-column:auto}}
-@media(max-width:760px){.trio{grid-template-columns:1fr}}
 .trio .epcard{margin-top:0}
 
 /* ================= CARD 3 ================= */
@@ -387,10 +393,11 @@ body.zoom1{zoom:1.1111}
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap">
 
-<div class="page3">
-  <!-- ============ هیرو: تاریخ + هوا ============ -->
-  <div class="duo hero-duo" style="grid-template-columns:1.05fr 1fr">
-    <div class="datecard">
+<div class="home">
+
+  <!-- ردیف ۱ — یک‌ستونه: تاریخ -->
+  <div class="home-row r1">
+<div class="datecard">
       <div class="dgreet" id="dayGreet">سلام حمیدرضا 👋</div>
       <div class="drow">
         <div class="dnum" id="dNum">—</div>
@@ -403,7 +410,11 @@ body.zoom1{zoom:1.1111}
       </div>
       <div class="occrow"><div class="daynav"><button type="button" class="dnbtn" id="dPrev" title="روز قبل">‹</button><button type="button" class="dntoday" id="dTodayBtn">امروز</button><button type="button" class="dnbtn" id="dNext" title="روز بعد">›</button></div><div class="occs" id="occs"></div></div>
     </div>
-    <div class="wcard">
+  </div>
+
+  <!-- ردیف ۲ — چهارستونه: هوا · کارها · یادآوری · بازار -->
+  <div class="home-row r2">
+<div class="wcard">
       <div class="wnow">
         <div class="wic" id="wIcon">—</div>
         <div class="wt"><span id="wTemp">—</span><small>°C</small></div>
@@ -432,12 +443,7 @@ body.zoom1{zoom:1.1111}
       <div class="wdays" id="wdays"></div>
       <div class="wfoot"><span>پیش‌بینی ۵ روز · Open-Meteo</span><span id="wUpd">—</span></div>
     </div>
-
-  </div>
-
-  <!-- ============ TASKS + REMINDERS ============ -->
-  <div class="duo" style="grid-template-columns:1.35fr 1fr;margin-top:14px">
-    <div class="tcard">
+<div class="tcard">
       <div class="mhead">
         <h4 id="taskH">✅ کارهای امروز</h4>
         <span class="cnt" id="taskCnt">—</span>
@@ -455,8 +461,7 @@ body.zoom1{zoom:1.1111}
       </div>
       <div class="futureline" id="futureLine"></div>
     </div>
-
-    <div class="rcard">
+<div class="rcard">
       <div class="mhead"><h4>🔔 یادآوری‌ها</h4></div>
       <div class="rem"><span class="rd" style="background:var(--bad)"></span><span class="rt"><b>۲ کار عقب‌افتاده</b> — تماس بیمه، فایل مشتری</span><span class="rv">برو ببین</span></div>
       <div class="rem"><span class="rd" style="background:var(--warn)"></span><span class="rt"><b>سررسید بیمه</b></span><span class="rv">۳ روز</span></div>
@@ -466,17 +471,16 @@ body.zoom1{zoom:1.1111}
       <div class="rem done"><span class="rd" style="background:var(--good)"></span><span class="rt"><b>قسط وام</b></span><span class="rv">✓ پرداخت شد</span></div>
       <div class="remfoot">خودکار از: کارها · بدهی‌ها · اسناد · تولدها · اشتراک‌ها</div>
     </div>
-  </div>
-
-    <!-- خلاصه بازارها — کلیک = صفحه‌ی کامل بازار -->
-  <div class="mcard navcard" id="mkSum">
+<div class="mcard navcard" id="mkSum">
     <div class="mhead"><h4>📈 بازارها</h4><span style="font-size:13px;color:var(--acc)">کامل ←</span></div>
     <div id="sumRows"><div class="mrow"><div class="nm"><b>…</b><small>در حال دریافت</small></div><div class="chg na">—</div><div class="pr">—</div></div></div>
     <div class="mfoot"><span id="sumTime">—</span><span class="src">کلیک → صفحه‌ی بازار</span></div>
   </div>
+  </div>
 
-  <!-- ============ ثبت تراکنش ============ -->
-  <div class="mcard span2">
+  <!-- ردیف ۳ — دوستونه: تراکنش · ثبت روزانه -->
+  <div class="home-row r3">
+<div class="mcard">
     <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
     <div class="txform">
         <div class="txrow">
@@ -495,9 +499,6 @@ body.zoom1{zoom:1.1111}
                 <div class="txlist" id="txList"></div>
     <div class="txsum"><span>جمع خرج امروز</span><b id="txSum">—</b></div>
               </div>
-
-  <!-- ============ ثبت روزانه + قسمت‌های جدید (نصف‌نصف) ============ -->
-<div class="duo" style="grid-template-columns:1fr 1fr;align-items:start">
 <div class="c3wrap">
 <div class="demo-bar">
     <button class="demo-btn" id="demoWeight">🗓 تست: ماه جدید شد (سوال وزن)</button>
@@ -582,36 +583,11 @@ body.zoom1{zoom:1.1111}
     </div>
   </div>
 </div>
-
   </div>
 
-  
-</div>
-
-  
-
-</div>
-
-<div class="trio">
-  <!-- ============ NEW EPISODES ============ -->
-  <div class="epcard">
-    <div class="mhead">
-      <h4>🆕 قسمت‌های جدید</h4>
-      <span class="cnt" id="epCnt">—</span>
-      <span style="font-size:14px;color:var(--acc);cursor:pointer" id="epGoAll">سریال‌های من ←</span>
-    </div>
-    <div id="epList"></div>
-    <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
-
-  <!-- ============ بازی‌های امروز ============ -->
-  <div class="mcard" id="gamesCard">
-    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ</span></div>
-    <div class="gwrap" id="gamesList">در حال دریافت…</div>
-    <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
-  </div>
-
-  <!-- ============ بودجه ماه ============ -->
-  <div class="mcard">
+  <!-- ردیف ۴ — سه‌ستونه: بودجه · بازی · سریال -->
+  <div class="home-row r4">
+<div class="mcard">
     <div class="mhead"><h4>📊 بودجه ماه</h4></div>
     <div class="budwrap">
         <div class="budbar"><i id="budFill" style="width:23%"></i></div>
@@ -619,9 +595,26 @@ body.zoom1{zoom:1.1111}
         <div class="budleft"><b id="budPct">—</b><small id="budDays">—</small></div>
         <div class="budcats" id="budCats"></div>
         <div class="txspec" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:12px">🔌 از <b>/api/finance?month=</b> و <b>/api/budgets</b> · ماکان گزارش ماه در صفحه‌ی پول</div>
-      </div>  </div>
-  </div>
+      </div>
 </div>
+<div class="mcard" id="gamesCard">
+    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ</span></div>
+    <div class="gwrap" id="gamesList">در حال دریافت…</div>
+    <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
+  </div>
+<div class="epcard">
+    <div class="mhead">
+      <h4>🆕 قسمت‌های جدید</h4>
+      <span class="cnt" id="epCnt">—</span>
+      <span style="font-size:14px;color:var(--acc);cursor:pointer" id="epGoAll">سریال‌های من ←</span>
+    </div>
+    <div id="epList"></div>
+    <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
+</div>
+  </div>
+
+</div>
+
 <script>
 /* ===== دروازه‌ی لاگین ===== */
 fetch('/api/me').then(function(r){return r.json()}).then(function(d){
@@ -1223,7 +1216,7 @@ renderAccChips();renderCatChips();renderTx();
 <script>
 /* ===== زوم 🔍 ===== */
 (function(){
-  var SEL='.page3 .datecard,.page3 .wcard,.page3 .tcard,.page3 .rcard,.page3 .mcard,.page3 .c3wrap,.page3 .epcard';
+  var SEL='.home .datecard,.home .wcard,.home .tcard,.home .rcard,.home .mcard,.home .c3wrap,.home .epcard';
   var NO='button,a,input,select,textarea,label,form,[contenteditable],.moodslider,.stepper,.chip,.daychips,.extradays,.futureline,.taskadd,.txform,.txrow,.txsum,.budwrap,.budcats,.moretoggle,.morebox,.qrow,.tags,.task,.rem,.eprow,.demo-bar,.weekline,.yearago,.collapsed,.occs,.askrow';
   var nav=document.querySelector('.navtools');
   if(nav){
