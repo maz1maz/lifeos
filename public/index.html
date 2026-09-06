@@ -204,7 +204,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .glive{color:#f87171;font-size:12px;white-space:nowrap}
 .gsc.live{color:#f87171;font-weight:800}
 .grow.is-live{background:color-mix(in srgb,#f87171 6%,transparent);border-radius:10px;padding:4px 6px;margin:2px 0}
-.gwrap{max-height:290px;overflow:auto}
+/* gwrap height → #gamesCard */
 /* ===== زوم 🔍 ===== */
 .navzoom{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:11px;
   padding:5px 10px;font-size:15px;cursor:pointer}
@@ -673,13 +673,82 @@ body.nav-open .nav-backdrop{display:block}
 .grow .gt{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
 .grow .gsc{font-family:var(--fh);font-weight:800;min-width:3.2em;text-align:center}
 .glg{font-family:var(--fh);font-size:12.5px;font-weight:800;color:var(--acc);margin:10px 2px 4px}
-#gamesCard .gwrap{max-height:340px;overflow:auto}
+#gamesCard /* gwrap height → #gamesCard */
 @media(max-width:1100px){
   .home-row.r2{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
 }
 @media(max-width:900px){
   .home-row.r2{grid-template-columns:1fr !important}
 }
+
+
+/* بازی‌های امروز — ارتفاع کامل + نتیجه واضح */
+#gamesCard{
+  display:flex;flex-direction:column;min-height:0;height:100% !important;
+  align-self:stretch;
+}
+#gamesCard .gwrap,
+#gamesCard #gamesList{
+  flex:1 1 auto !important;
+  max-height:none !important;
+  min-height:420px;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.home-row.r2 > #gamesCard{min-height:520px}
+.grow{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 6px;border-bottom:1px solid var(--border);
+  font-size:13.5px;
+}
+.grow.is-live{
+  background:color-mix(in srgb,#f87171 8%,transparent);
+  border-radius:12px;border-bottom-color:transparent;margin:3px 0;
+}
+.grow .gleft{flex:none;min-width:3.6em}
+.grow .glive{color:#f87171;font-size:11.5px;font-weight:800;white-space:nowrap}
+.grow .gdone{color:var(--good);font-size:11.5px;font-weight:700}
+.grow .gkick{font-family:var(--fh);font-size:12.5px;font-weight:800;color:var(--acc);direction:ltr;unicode-bidi:isolate;white-space:nowrap}
+.grow .gmain{
+  flex:1;min-width:0;
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;gap:8px;
+}
+.grow .gteam{
+  display:inline-flex;align-items:center;gap:6px;min-width:0;
+}
+.grow .gteam.home{justify-content:flex-end;text-align:left;direction:ltr}
+.grow .gteam.away{justify-content:flex-start;text-align:right;direction:ltr}
+.grow .gteam .gn{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  max-width:9em;font-size:13px;
+}
+.grow .glogo{
+  width:22px;height:22px;border-radius:50%;object-fit:cover;
+  background:var(--panel2);flex:none;
+}
+.grow .glogo.gph, .grow .gph{
+  display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--muted);
+  width:22px;height:22px;border-radius:50%;background:var(--panel2);
+}
+.grow .gscore{
+  direction:ltr;unicode-bidi:isolate;
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--fh);font-weight:800;font-size:15px;
+  min-width:3.8em;justify-content:center;
+  background:var(--panel2);border-radius:10px;padding:3px 8px;
+}
+.grow .gscore .gh, .grow .gscore .ga{color:var(--text);min-width:0.9em;text-align:center}
+.grow.is-live .gscore{color:#f87171;background:color-mix(in srgb,#f87171 12%,var(--panel2))}
+.grow .gscore .gx{color:var(--faint);font-size:12px;font-weight:600}
+.grow .gmid{
+  direction:ltr;unicode-bidi:isolate;text-align:center;
+  font-family:var(--fh);font-weight:800;font-size:13px;
+  min-width:3.8em;color:var(--acc);
+}
+.grow .gmid.live{color:#f87171;font-size:12px}
+.glg{font-family:var(--fh);font-size:12.5px;font-weight:800;color:var(--acc);margin:12px 2px 6px}
 
 /* page-mobile-extra */
 @media(max-width:900px){
@@ -1821,24 +1890,57 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
   function cl(x){return String(x==null?'':x).replace(/[<>&]/g,'')}
   function row(m){
     var tm='';
-    try{ if(m.date){ tm=new Date(m.date).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tehran'}); } }catch(e){}
+    try{
+      if(m.date){
+        tm=new Date(m.date).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Tehran'});
+      }
+    }catch(e){}
     var st=m.status||'upcoming';
-    var score=m.score;
-    if(!score || score==='— ' || score==='- - -' || score==='null - null') score='—';
-    if(st==='live' && (score==='—'||score==='0 - 0'||score==='0-0') && m.homeScore==null && m.awayScore==null) score='در جریان';
-    if(st==='live' && (score==='0 - 0'||score==='0-0') && m.homeScore==null) score='در جریان';
-    var badge=st==='live'?'<span class="glive">● زنده</span>':(st==='finished'?'✅':(tm?'<span class="gtime">'+cl(tm)+'</span>':'⏱'));
-    var scCls=st==='live'?'gsc live':'gsc';
+    // normalize scores
+    var hs = (m.homeScore!=null && m.homeScore!=='') ? Number(m.homeScore) : null;
+    var as = (m.awayScore!=null && m.awayScore!=='') ? Number(m.awayScore) : null;
+    if(hs==null && as==null && m.score && /[\d]/.test(String(m.score))){
+      var parts=String(m.score).replace(/–|—/g,'-').split(/\s*-\s*/);
+      if(parts.length>=2 && parts[0]!=='' && parts[1]!=='' && parts[0]!=='—' && parts[0]!=='-'){
+        var n0=Number(parts[0]), n1=Number(parts[1]);
+        if(!isNaN(n0)&&!isNaN(n1)){ hs=n0; as=n1; }
+      }
+    }
+    var hasScore = hs!=null && as!=null && !isNaN(hs) && !isNaN(as);
+    // upcoming / not started: NEVER show 0-0 — show kickoff time (Tehran)
+    if(st!=='live' && st!=='finished'){
+      hasScore=false;
+    }
+    // live without real scores
+    var mid;
+    if(st==='live' && !hasScore){
+      mid='<span class="gmid live">در جریان</span>';
+    } else if(hasScore){
+      // score beside each side: Home 0 × 1 Away  (clear who scored)
+      mid='<span class="gscore"><b class="gh">'+hs+'</b><span class="gx">×</span><b class="ga">'+as+'</b></span>';
+    } else {
+      mid='<span class="gmid time">'+(tm||'—')+'</span>';
+    }
+    var badge='';
+    if(st==='live') badge='<span class="glive">● زنده</span>';
+    else if(st==='finished') badge='<span class="gdone">پایان</span>';
+    else badge='<span class="gkick" title="به‌وقت تهران">'+cl(tm||'—')+'</span>';
+
     function logo(url,name){
       if(url) return '<img class="glogo" src="'+cl(url)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
       var ch=(name||'?').trim().charAt(0);
-      return '<span class="glogo" style="display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--muted)">'+cl(ch)+'</span>';
+      return '<span class="glogo gph">'+cl(ch)+'</span>';
     }
-    var home=logo(m.homeLogo,m.home)+'<span>'+cl(m.home)+'</span>';
-    var away=logo(m.awayLogo,m.away)+'<span>'+cl(m.away)+'</span>';
-    return '<div class="grow'+(st==='live'?' is-live':'')+'">'+badge
-      +'<span class="gt"><span class="gteam">'+home+'</span><span style="color:var(--faint);font-size:12px">×</span><span class="gteam">'+away+'</span></span>'
-      +'<span class="'+scCls+'">'+cl(score||'—')+'</span></div>';
+    // layout: [badge/time] [home logo+name] [score or kickoff] [away logo+name]
+    // direction LTR for score block so 0 is home, 1 is away always
+    return '<div class="grow'+(st==='live'?' is-live':'')+(st==='finished'?' is-done':'')+(st==='upcoming'||(!st)||(st!=='live'&&st!=='finished')?' is-up':'')+'">'
+      +'<div class="gleft">'+badge+'</div>'
+      +'<div class="gmain">'
+        +'<span class="gteam home">'+logo(m.homeLogo,m.home)+'<span class="gn">'+cl(m.home||'—')+'</span></span>'
+        +mid
+        +'<span class="gteam away">'+logo(m.awayLogo,m.away)+'<span class="gn">'+cl(m.away||'—')+'</span></span>'
+      +'</div>'
+      +'</div>';
   }
   function paintGames(d){
     var h='';

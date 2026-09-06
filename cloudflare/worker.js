@@ -219,9 +219,13 @@ function makeHelpers(env) {
       league:leagueName||'',
       date:ev.date,
       status:statusMap[state]||state||'upcoming',
-      score:hasScore?(String(hs)+' - '+String(as)):'—',
-      homeScore:hasScore?Number(hs):null,
-      awayScore:hasScore?Number(as):null
+      score:(function(){
+        let st=statusMap[state]||state||'upcoming';
+        if(st!=='live'&&st!=='finished') return '—';
+        return hasScore?(String(hs)+' - '+String(as)):'—';
+      })(),
+      homeScore:(function(){let st=statusMap[state]||state||'upcoming'; if(st!=='live'&&st!=='finished') return null; return hasScore?Number(hs):null})(),
+      awayScore:(function(){let st=statusMap[state]||state||'upcoming'; if(st!=='live'&&st!=='finished') return null; return hasScore?Number(as):null})()
     };
   }
   function mapTheSportsDbEvent(e){
@@ -236,8 +240,9 @@ function makeHelpers(env) {
       live=/LIVE|1H|2H|HT|ET|BREAK|INT|IN PLAY|KICK|HALF/.test(status) || (hasScore && status && !finished);
     }
     // scores: don't invent 0-0 when null
-    let score=hasScore?(String(hs)+' - '+String(as)):'—';
     let statusVal=finished?'finished':(live?'live':'upcoming');
+    let score=(statusVal==='live'||statusVal==='finished')&&hasScore?(String(hs)+' - '+String(as)):'—';
+    if(statusVal==='upcoming'){ hs=null; as=null; hasScore=false; score='—'; }
     return{fixtureId:e.idEvent,home:e.strHomeTeam||'',away:e.strAwayTeam||'',homeLogo:e.strHomeTeamBadge||e.strHomeBadge||'',awayLogo:e.strAwayTeamBadge||e.strAwayBadge||'',league:e.strLeague||'',date:e.strTimestamp||(e.dateEvent+'T'+(e.strTime||'00:00:00')),status:statusVal,score:score,homeScore:hasScore?Number(hs):null,awayScore:hasScore?Number(as):null,rawStatus:status}
   }
   async function xbetGet(path,params){if(!RAPIDAPI_KEY)return null;return rapidApiGet('1xbet-api.p.rapidapi.com',path+'?'+new URLSearchParams({mode:'line',lng:'en',...params}))}
