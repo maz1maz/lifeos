@@ -601,6 +601,44 @@ body.nav-open .nav-backdrop{display:block}
   .home-row.r1 > .r1-quick{grid-column:auto;width:100% !important;max-width:100% !important;height:auto !important}
 }
 
+
+/* ردیف ۲ — RTL: هوا | بازار | بازی‌ها | کار+یادآوری */
+.home-row.r2{
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0,1fr)) !important;
+  align-items:stretch;
+  gap:14px;
+}
+.home-row.r2 > .wcard,
+.home-row.r2 > .mcard,
+.home-row.r2 > #gamesCard,
+.home-row.r2 > .tr-combo{min-width:0;height:100%}
+.tr-combo{
+  display:flex;flex-direction:column;gap:12px;min-width:0;height:100%;
+}
+.tr-combo > .tcard,
+.tr-combo > .rcard{
+  flex:1 1 0;min-height:0;height:auto !important;
+  display:flex;flex-direction:column;
+}
+.tr-combo #taskList,
+.tr-combo #remList{flex:1;overflow:auto;max-height:220px}
+.grow .glogo{width:22px;height:22px;border-radius:50%;object-fit:cover;background:var(--panel2);flex:none}
+.grow .glogos{display:flex;align-items:center;gap:4px;flex:none}
+.grow .gteam{display:inline-flex;align-items:center;gap:6px;min-width:0}
+.grow .gteam span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:9.5em}
+.grow{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);font-size:13.5px}
+.grow .gt{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+.grow .gsc{font-family:var(--fh);font-weight:800;min-width:3.2em;text-align:center}
+.glg{font-family:var(--fh);font-size:12.5px;font-weight:800;color:var(--acc);margin:10px 2px 4px}
+#gamesCard .gwrap{max-height:340px;overflow:auto}
+@media(max-width:1100px){
+  .home-row.r2{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+}
+@media(max-width:900px){
+  .home-row.r2{grid-template-columns:1fr !important}
+}
+
 /* page-mobile-extra */
 @media(max-width:900px){
   .home-row.r1{grid-template-columns:1fr!important}
@@ -657,7 +695,7 @@ body.nav-open .nav-backdrop{display:block}
     <!-- ۲ ستون چپ: افزودن کار · یادآوری · تراکنش -->
     <div class="r1-quick" id="r1Quick">
       <div class="qblock" id="qTasks">
-        <div class="qhead"><span id="qTaskH">✅ کارهای امروز</span><span class="qsub" id="qTaskSub"></span></div>
+        <div class="qhead"><span id="qTaskH">✅ افزودن کارهای آینده</span><span class="qsub" id="qTaskSub"></span></div>
         <div class="taskadd">
           <input type="text" id="taskIn" placeholder="کار جدید... بنویس و Enter بزن" autocomplete="off">
           <button type="button" id="taskAdd">افزودن</button>
@@ -717,9 +755,20 @@ body.nav-open .nav-backdrop{display:block}
       <div class="wdays" id="wdays"></div>
       <div class="wfoot"><span>پیش‌بینی ۵ روز · Open-Meteo</span><span id="wUpd">—</span></div>
     </div>
+<div class="mcard navcard" id="mkSum">
+    <div class="mhead"><h4>📈 بازارها</h4><span style="font-size:13px;color:var(--acc)">کامل ←</span></div>
+    <div id="sumRows"><div class="mrow"><div class="nm"><b>…</b><small>در حال دریافت</small></div><div class="chg na">—</div><div class="pr">—</div></div></div>
+    <div class="mfoot"><span id="sumTime">—</span><span class="src">کلیک → صفحه‌ی بازار</span></div>
+  </div>
+<div class="mcard" id="gamesCard">
+    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ + ایران</span></div>
+    <div class="gwrap" id="gamesList">در حال دریافت…</div>
+    <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
+  </div>
+<div class="tr-combo" id="trCombo">
 <div class="tcard">
       <div class="mhead">
-        <h4 id="taskH">✅ کارهای امروز</h4>
+        <h4 id="taskH">✅ کارهای آینده</h4>
         <span class="cnt" id="taskCnt">—</span>
       </div>
       <div id="taskList"></div>
@@ -731,11 +780,7 @@ body.nav-open .nav-backdrop{display:block}
       <div id="remList"></div>
       <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
     </div>
-<div class="mcard navcard" id="mkSum">
-    <div class="mhead"><h4>📈 بازارها</h4><span style="font-size:13px;color:var(--acc)">کامل ←</span></div>
-    <div id="sumRows"><div class="mrow"><div class="nm"><b>…</b><small>در حال دریافت</small></div><div class="chg na">—</div><div class="pr">—</div></div></div>
-    <div class="mfoot"><span id="sumTime">—</span><span class="src">کلیک → صفحه‌ی بازار</span></div>
-  </div>
+</div>
   </div>
 
   <!-- ردیف ۳ — دوستونه: تراکنش · ثبت روزانه -->
@@ -861,11 +906,7 @@ body.nav-open .nav-backdrop{display:block}
         <div class="txspec" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:12px">🔌 از <b>/api/finance?month=</b> و <b>/api/budgets</b> · ماکان گزارش ماه در صفحه‌ی پول</div>
       </div>
 </div>
-<div class="mcard" id="gamesCard">
-    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ + ایران</span></div>
-    <div class="gwrap" id="gamesList">در حال دریافت…</div>
-    <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
-  </div>
+
 <div class="epcard">
     <div class="mhead">
       <h4>🆕 قسمت‌های جدید</h4>
@@ -913,7 +954,8 @@ function renderDay(off){
   var ds=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(now);
   var nm=off===0?'امروز':(off===1?'فردا':(off===-1?'دیروز':''));
   var dsm='<small style="font-size:12px;color:var(--faint)">'+(nm?nm+' ':'')+ds+'</small>';
-  var th=document.getElementById('taskH');if(th)th.innerHTML='✅ کارهای '+dsm;
+  var th=document.getElementById('taskH');if(th)th.innerHTML='✅ کارهای آینده <small style="color:var(--faint)">'+(nm?nm+' ':'')+ds+'</small>';
+  var qh=document.getElementById('qTaskH');if(qh)qh.textContent='✅ افزودن کارهای آینده';
   var xh=document.getElementById('txH');if(xh)xh.innerHTML='💸 تراکنش‌های '+dsm;
 }
 renderDay(0);
@@ -1674,7 +1716,7 @@ document.addEventListener('click',function(e){
 (function(){
   function syncQ(){
     var th=document.getElementById('taskH'), qh=document.getElementById('qTaskH');
-    if(th&&qh) qh.textContent=th.textContent.replace(/^✅\s*/,'✅ ');
+    if(qh) qh.textContent='✅ افزودن کارهای آینده';
     var tx=document.getElementById('txH'), qx=document.getElementById('qTxH');
     if(tx&&qx) qx.textContent=tx.textContent;
     var rc=document.getElementById('remCnt'), qs=document.getElementById('qRemSub');
@@ -1735,21 +1777,24 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
   function cl(x){return String(x==null?'':x).replace(/[<>&]/g,'')}
   function row(m){
     var tm='';
-    try{ if(m.date){ tm=new Date(m.date).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'}); } }catch(e){}
+    try{ if(m.date){ tm=new Date(m.date).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tehran'}); } }catch(e){}
     var st=m.status||'upcoming';
     var score=m.score;
-    // never show bogus live 0-0 / empty
     if(!score || score==='— ' || score==='- - -' || score==='null - null') score='—';
-    if(st==='live' && (score==='—'||score==='0 - 0'||score==='0-0') && m.homeScore==null && m.awayScore==null){
-      // keep live badge but show «در جریان» instead of fake 0-0 if we truly don't know — still allow real 0-0 when homeScore===0
-      score='در جریان';
-    }
-    if(st==='live' && (score==='0 - 0'||score==='0-0') && m.homeScore==null){
-      score='در جریان';
-    }
-    var badge=st==='live'?'<span class="glive">● زنده</span>':(st==='finished'?'✅':'⏱');
+    if(st==='live' && (score==='—'||score==='0 - 0'||score==='0-0') && m.homeScore==null && m.awayScore==null) score='در جریان';
+    if(st==='live' && (score==='0 - 0'||score==='0-0') && m.homeScore==null) score='در جریان';
+    var badge=st==='live'?'<span class="glive">● زنده</span>':(st==='finished'?'✅':(tm?'<span class="gtime">'+cl(tm)+'</span>':'⏱'));
     var scCls=st==='live'?'gsc live':'gsc';
-    return '<div class="grow'+(st==='live'?' is-live':'')+'">'+badge+'<span class="gt">'+cl(m.home)+' × '+cl(m.away)+'</span><span class="'+scCls+'">'+cl(score||'—')+'</span></div>';
+    function logo(url,name){
+      if(url) return '<img class="glogo" src="'+cl(url)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+      var ch=(name||'?').trim().charAt(0);
+      return '<span class="glogo" style="display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--muted)">'+cl(ch)+'</span>';
+    }
+    var home=logo(m.homeLogo,m.home)+'<span>'+cl(m.home)+'</span>';
+    var away=logo(m.awayLogo,m.away)+'<span>'+cl(m.away)+'</span>';
+    return '<div class="grow'+(st==='live'?' is-live':'')+'">'+badge
+      +'<span class="gt"><span class="gteam">'+home+'</span><span style="color:var(--faint);font-size:12px">×</span><span class="gteam">'+away+'</span></span>'
+      +'<span class="'+scCls+'">'+cl(score||'—')+'</span></div>';
   }
   function paintGames(d){
     var h='';
@@ -1758,8 +1803,16 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
       var ib=/ایران|خلیج فارس|persian|irn/i.test(b.name||b.id||'')?0:1;
       return ia-ib;
     });
-    leagues.forEach(function(lg){ if(!lg.items||!lg.items.length)return;
-      h+='<div class="glg">'+cl(lg.name)+'</div>'+lg.items.map(row).join(''); });
+    leagues.forEach(function(lg){
+      var isIr=/ایران|خلیج فارس|persian|irn/i.test(lg.name||lg.id||'');
+      if((!lg.items||!lg.items.length) && !isIr) return;
+      h+='<div class="glg">'+cl(lg.name||'لیگ')+'</div>';
+      if(!lg.items||!lg.items.length){
+        h+='<div style="padding:8px 4px;color:var(--faint);font-size:13px">امروز بازیی از این لیگ در منابع نیست</div>';
+      } else {
+        h+=lg.items.map(row).join('');
+      }
+    });
     L.innerHTML=h||'<div style="padding:14px 4px;color:var(--faint)">امروز بازی لیگ‌های بزرگ نیست ⚽</div>';
     var f=document.getElementById('gamesFoot');if(f)f.textContent='به‌وقت تهران · به‌روز'+(d._liveMerged?' + زنده':'');
     var gs=document.getElementById('gamesSub');if(gs)gs.textContent=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(new Date())+' · لیگ‌های بزرگ';

@@ -93,30 +93,49 @@ function makeHelpers(env) {
   async function fetchEspnScoreboard(espnCode,date){let q=(date?'?dates='+date.replace(/-/g,''):''),hosts=['https://site.api.espn.com','https://site.web.api.espn.com'],last=null;for(let h of hosts){try{let r=await fetch(h+'/apis/site/v2/sports/soccer/'+espnCode+'/scoreboard'+q,{headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36','Accept':'application/json'}});if(!r.ok){last='HTTP '+r.status;continue}let data=await r.json();if(data&&data.events)return data;last='خالی'}catch(e){last=e.message}}throw new Error('ESPN: '+(last||'ناموفق'))}
   const ESPN_LEAGUE_IDS=['eng.1','esp.1','ita.1','ger.1','fra.1','tur.1','irn.1','ksa.1'];
   async function fetchFreeLeagueDay(league,date){
-    // 1) ESPN scoreboard (includes Iran irn.1 when available)
-    if(ESPN_LEAGUE_IDS.includes(league.id)){
-      try{
-        let data=await fetchEspnScoreboard(league.id,date);
-        let items=(data.events||[]).map(ev=>mapEspnEvent(ev,league.name));
-        if(items.length)return items;
-      }catch(e){}
+    let codes = [league.id];
+    if(league.id==='irn.1') codes = ['irn.1','iran.1','ir.1'];
+    // 1) ESPN scoreboard
+    if(ESPN_LEAGUE_IDS.includes(league.id) || league.id==='irn.1'){
+      for(const code of codes){
+        try{
+          let data=await fetchEspnScoreboard(code,date);
+          let items=(data.events||[]).map(ev=>mapEspnEvent(ev,league.name));
+          if(items.length)return items;
+        }catch(e){}
+      }
+      // also try without date (current scoreboard)
+      if(league.id==='irn.1'){
+        for(const code of codes){
+          try{
+            let data=await fetchEspnScoreboard(code,null);
+            let items=(data.events||[]).map(ev=>mapEspnEvent(ev,league.name)).filter(x=>{
+              try{ return (x.date||'').slice(0,10)===date; }catch(e){ return true }
+            });
+            if(items.length)return items;
+            // if same-day filter empty, still return today's board when date is today
+            if(date===today() && (data.events||[]).length){
+              return (data.events||[]).map(ev=>mapEspnEvent(ev,league.name));
+            }
+          }catch(e){}
+        }
+      }
     }
-    // 2) TheSportsDB day lookup (better for "today" than full season dump)
+    // 2) TheSportsDB day lookup
     try{
       let day=await fetchTheSportsDb('/eventsday.php?d='+encodeURIComponent(date)+'&s=Soccer');
       let dayItems=(day.events||[]).filter(e=>{
         let lid=String(e.idLeague||'');
         let lname=(e.strLeague||'').toLowerCase();
         if(lid && String(league.tsdb)===lid) return true;
-        // Iran aliases
         if(league.id==='irn.1'){
-          return /persian gulf|iran|خلیج|برتر.*ایران|ipl|persian/.test(lname) || lid==='4742';
+          return /persian gulf|iran|ipl|pro league|خلیج|برتر/.test(lname) || lid==='4742' || lid==='4421';
         }
         return false;
       }).map(mapTheSportsDbEvent);
       if(dayItems.length)return dayItems;
     }catch(e){}
-    // 3) season dump — try current + nearby seasons
+    // 3) season dump
     let seasons=[league.season];
     if(league.id==='irn.1'){
       seasons=['2025-2026','2024-2025','2026-2027','2023-2024'];
@@ -125,14 +144,24 @@ function makeHelpers(env) {
       try{
         let data=await fetchTheSportsDb('/eventsseason.php?id='+league.tsdb+'&s='+season);
         let items=(data.events||[]).filter(e=>e.dateEvent===date).map(mapTheSportsDbEvent);
-        if(items.length){
-          league.season=season; // remember working season
-          return items;
-        }
+        if(items.length){ league.season=season; return items; }
       }catch(e){}
+    }
+    // alternate tsdb id for Iran
+    if(league.id==='irn.1'){
+      for(const alt of ['4421','4742']){
+        for(let season of seasons){
+          try{
+            let data=await fetchTheSportsDb('/eventsseason.php?id='+alt+'&s='+season);
+            let items=(data.events||[]).filter(e=>e.dateEvent===date).map(mapTheSportsDbEvent);
+            if(items.length)return items;
+          }catch(e){}
+        }
+      }
     }
     return [];
   }
+  
   async function fetchTheSportsDb(path){let r=await fetch('https://www.thesportsdb.com/api/v1/json/3'+path),data=await r.json();if(!r.ok)throw new Error('HTTP '+r.status);return data}
   function mapEspnEvent(ev,leagueName){
     let comp=(ev.competitions&&ev.competitions[0])||{};
@@ -146,6 +175,8 @@ function makeHelpers(env) {
       fixtureId:ev.id,
       home:(home.team&&home.team.displayName)||'',
       away:(away.team&&away.team.displayName)||'',
+      homeLogo:(home.team&&(home.team.logo||home.team.logos&&home.team.logos[0]&&home.team.logos[0].href))||home.logo||'',
+      awayLogo:(away.team&&(away.team.logo||away.team.logos&&away.team.logos[0]&&away.team.logos[0].href))||away.logo||'',
       league:leagueName||'',
       date:ev.date,
       status:statusMap[state]||state||'upcoming',
@@ -168,7 +199,7 @@ function makeHelpers(env) {
     // scores: don't invent 0-0 when null
     let score=hasScore?(String(hs)+' - '+String(as)):'—';
     let statusVal=finished?'finished':(live?'live':'upcoming');
-    return{fixtureId:e.idEvent,home:e.strHomeTeam||'',away:e.strAwayTeam||'',league:e.strLeague||'',date:e.strTimestamp||(e.dateEvent+'T'+(e.strTime||'00:00:00')),status:statusVal,score:score,homeScore:hasScore?Number(hs):null,awayScore:hasScore?Number(as):null,rawStatus:status}
+    return{fixtureId:e.idEvent,home:e.strHomeTeam||'',away:e.strAwayTeam||'',homeLogo:e.strHomeTeamBadge||e.strHomeBadge||'',awayLogo:e.strAwayTeamBadge||e.strAwayBadge||'',league:e.strLeague||'',date:e.strTimestamp||(e.dateEvent+'T'+(e.strTime||'00:00:00')),status:statusVal,score:score,homeScore:hasScore?Number(hs):null,awayScore:hasScore?Number(as):null,rawStatus:status}
   }
   async function xbetGet(path,params){if(!RAPIDAPI_KEY)return null;return rapidApiGet('1xbet-api.p.rapidapi.com',path+'?'+new URLSearchParams({mode:'line',lng:'en',...params}))}
   async function sofaGet(path){if(!RAPIDAPI_KEY)return null;return rapidApiGet('sportapi7.p.rapidapi.com',path)}
@@ -306,7 +337,16 @@ async function handleApi(request, env) {
         }
       })});
     }catch(e){}
-    return json(res,200,{date,leagues:results.filter(l=>l.items.length)})}
+    let leagues=results.filter(l=>l.items.length || l.id==='irn.1');
+    // ensure Iran label present
+    if(!leagues.some(l=>l.id==='irn.1')){
+      let ir=results.find(l=>l.id==='irn.1');
+      if(ir) leagues.unshift(ir); else leagues.unshift({id:'irn.1',name:'لیگ برتر خلیج فارس',country:'ایران',items:[]});
+    } else {
+      // pin Iran first
+      leagues.sort((a,b)=>(a.id==='irn.1'?0:1)-(b.id==='irn.1'?0:1));
+    }
+    return json(res,200,{date,leagues})}
  if(p==='/api/football/remote/free/table'&&req.method==='GET'){let db=await read();auth(req,res,db);let leagueId=u.searchParams.get('league')||'eng.1',league=FREE_LEAGUES.find(l=>l.id===leagueId);if(!league)return json(res,400,{error:'لیگ شناخته نشد.'});let data;try{data=await fetchTheSportsDb('/lookuptable.php?l='+league.tsdb+'&s='+league.season)}catch(e){return json(res,502,{error:'دریافت جدول '+league.name+' ناموفق بود.'})}return json(res,200,{items:(data.table||[]).map(r=>({rank:Number(r.intRank),name:r.strTeam,played:Number(r.intPlayed),win:Number(r.intWin),draw:Number(r.intDraw),loss:Number(r.intLoss),goalsFor:Number(r.intGoalsFor),goalsAgainst:Number(r.intGoalsAgainst),goalDiff:Number(r.intGoalDifference),points:Number(r.intPoints),form:r.strForm||''}))})}
  if(p==='/api/football/remote/free/live'&&req.method==='GET'){let db=await read();auth(req,res,db);let data;try{data=await fetchTheSportsDb('/livescore.php?s=Soccer')}catch(e){return json(res,502,{error:'دریافت بازی‌های زنده ناموفق بود.'})}return json(res,200,{items:(data.livescore||[]).map(mapTheSportsDbEvent)})}
  if(p==='/api/football/remote/1xbet/sports'&&req.method==='GET'){let db=await read();auth(req,res,db);let data;try{data=await xbetGet('/sports',{})}catch(e){return json(res,502,{error:e.message})}if(!data)return json(res,503,{error:'کلید RapidAPI هنوز در تنظیمات سرور وارد نشده است.'});return json(res,200,{items:data})}
