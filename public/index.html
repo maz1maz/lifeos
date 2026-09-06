@@ -107,6 +107,16 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .page3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:stretch;margin-top:14px}
 .page3>.duo{display:contents}
 .page3 .epcard{margin-top:0;height:fit-content}
+
+/* ===== سوییچ ۳/۴ ستونه ===== */
+.navcols{display:flex;background:var(--panel2);border:1px solid var(--border);border-radius:11px;overflow:hidden;flex:none}
+.navcols button{background:none;border:none;color:var(--muted);font-family:inherit;font-size:13px;padding:5px 11px;cursor:pointer}
+.navcols button.on{background:var(--acc);color:#04222b;font-weight:700}
+body.cols4 .wrap{max-width:1600px}
+body.cols4 .page3{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1279px){body.cols4 .wrap{max-width:1240px}body.cols4 .page3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){body.cols4 .page3{grid-template-columns:1fr}}
+
 /* ===== بزرگ‌شدن کارت با کلیک ===== */
 .xcard{position:relative}
 .xcard:hover{border-color:rgba(34,211,238,.45)}
@@ -1212,6 +1222,21 @@ renderAccChips();renderCatChips();renderTx();
     set(cur==='1');
     z.addEventListener('click',function(){set(!document.body.classList.contains('zoom1'))});
   }
+})();
+</script>
+
+<script>
+/* سوییچ ۳/۴ ستونه */
+(function(){var nav=document.querySelector('.navtools');if(!nav)return;
+var sw=document.createElement('span');sw.className='navcols';sw.title='تعداد ستون‌های صفحه‌ی امروز';
+sw.innerHTML='<button type="button" data-c="3">۳ ستون</button><button type="button" data-c="4">۴ ستون</button>';
+nav.insertBefore(sw,nav.firstChild);
+function set(c){document.body.classList.toggle('cols4',c==='4');
+  sw.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.c===c)});
+  try{localStorage.setItem('pcols',c)}catch(err){}}
+var cur=null;try{cur=localStorage.getItem('pcols')}catch(err){}
+set(cur==='4'?'4':'3');
+sw.addEventListener('click',function(e){var b=e.target.closest('button');if(b)set(b.dataset.c)});
 })();
 </script>
 
