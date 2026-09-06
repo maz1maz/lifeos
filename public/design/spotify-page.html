@@ -379,53 +379,150 @@ body.zoom1{zoom:1.1111}
 
 
 .specline{color:var(--faint);font-size:14.5px;margin-top:22px;border-top:1px dashed var(--border);padding-top:14px}
-</style>
 
-/* ===== سبک Ryot ===== */
-.rygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;margin-top:12px}
-.rycard{background:var(--panel);border:1.5px solid var(--border2);border-radius:16px;overflow:hidden;transition:transform .12s,border-color .12s;cursor:pointer}
-.rycard:hover{transform:translateY(-3px);border-color:var(--acc)}
-.art{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:44px;position:relative}
-.ryb{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.72);color:#fff;border-radius:7px;padding:1px 7px;font-size:11.5px;font-family:var(--fh)}
-.ryt{padding:9px 11px 11px}
-.ryt b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ryt small{color:var(--faint);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ===== سبک Ryot / موسیقی ===== */
+.rygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:14px;margin-top:12px}
+.rycard{background:var(--panel);border:1.5px solid var(--border2);border-radius:16px;overflow:hidden;transition:transform .15s,border-color .15s,box-shadow .15s;cursor:pointer;text-decoration:none;color:inherit;display:block}
+.rycard:hover{transform:translateY(-4px);border-color:var(--acc);box-shadow:0 12px 28px -14px rgba(0,0,0,.55)}
+.art{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:44px;position:relative;background:var(--panel2);overflow:hidden}
+.art img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
+.rycard:hover .art img{transform:scale(1.06)}
+.art .fallback{position:absolute;inset:0;display:grid;place-items:center;font-size:42px;background:linear-gradient(135deg,#1db95433,#22d3ee22)}
+.ryb{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.78);color:#fff;border-radius:8px;padding:2px 8px;font-size:11.5px;font-family:var(--fh);backdrop-filter:blur(6px);z-index:1}
+.ryplay{position:absolute;bottom:8px;right:8px;width:36px;height:36px;border-radius:50%;background:#1db954;color:#04140a;display:grid;place-items:center;font-size:14px;opacity:0;transform:translateY(6px);transition:.18s;z-index:1;box-shadow:0 6px 16px rgba(0,0,0,.4);border:none;cursor:pointer}
+.rycard:hover .ryplay{opacity:1;transform:none}
+.ryt{padding:10px 12px 13px}
+.ryt b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--fh)}
+.ryt small{color:var(--faint);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;line-height:1.6}
 .concard{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .conbadge{display:inline-flex;align-items:center;gap:7px;font-size:14px;background:var(--panel2);border:1px solid var(--border);border-radius:11px;padding:6px 12px}
 .conbadge.on{border-color:var(--good);color:var(--good)}
 .bigbtn{background:var(--acc);color:#04222b;border:none;border-radius:12px;padding:9px 18px;font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer}
 .bigbtn:hover{filter:brightness(1.08)}
 .bigbtn.ghost{background:none;border:1.5px solid var(--border);color:var(--muted);font-weight:400}
-.chiprow2{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.artchip{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:5px 12px 5px 7px;font-size:13.5px}
-.dotart{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
+.bigbtn.spgreen{background:#1db954;color:#04140a}
+.chiprow2{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.artchip{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:6px 14px 6px 6px;font-size:13.5px;text-decoration:none;color:inherit;transition:border-color .12s,transform .12s}
+.artchip:hover{border-color:var(--acc);transform:translateY(-2px)}
+.dotart{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;overflow:hidden;flex:none;background:var(--panel);border:1px solid var(--border)}
+.dotart img{width:100%;height:100%;object-fit:cover}
 
+/* Now Playing hero */
+.nowcard{display:none;margin-top:14px;border-radius:22px;overflow:hidden;border:1.5px solid var(--border2);position:relative;min-height:200px}
+.nowcard.show{display:block}
+.nowbg{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(28px) saturate(1.3);transform:scale(1.2);opacity:.45}
+.nowbg::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg, color-mix(in srgb,var(--bg) 88%,transparent) 10%, color-mix(in srgb,var(--bg) 55%,transparent) 100%)}
+.nowinner{position:relative;z-index:1;display:flex;gap:22px;align-items:center;padding:22px 24px;flex-wrap:wrap}
+.nowcover{width:148px;height:148px;border-radius:14px;object-fit:cover;box-shadow:0 16px 40px -10px rgba(0,0,0,.65);flex:none;border:1px solid rgba(255,255,255,.12);background:var(--panel2)}
+.nowmeta{flex:1;min-width:200px}
+.nowlive{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:#1db954;font-family:var(--fh);font-weight:700;letter-spacing:.3px;margin-bottom:6px}
+.nowlive i{width:8px;height:8px;border-radius:50%;background:#1db954;box-shadow:0 0 0 0 #1db954;animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(29,185,84,.55)}70%{box-shadow:0 0 0 10px rgba(29,185,84,0)}100%{box-shadow:0 0 0 0 rgba(29,185,84,0)}}
+.nowmeta h2{margin:0 0 4px;font-family:var(--fh);font-size:26px;font-weight:800;line-height:1.3}
+.nowmeta .ar{color:var(--muted);font-size:15.5px;margin-bottom:4px}
+.nowmeta .al{color:var(--faint);font-size:13.5px}
+.nowbar{margin-top:14px;height:5px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;max-width:420px}
+.nowbar i{display:block;height:100%;background:#1db954;border-radius:99px;width:0%;transition:width .4s linear}
+.nowtimes{display:flex;justify-content:space-between;max-width:420px;font-size:12px;color:var(--faint);font-family:var(--fh);margin-top:5px;direction:ltr}
+.nowactions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.sec{margin-top:16px}
+.sec .mhead{margin-bottom:4px}
+.sec .mhead h4{display:flex;align-items:center;gap:8px}
+.listrow{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.trow{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:14px;border:1px solid transparent;transition:.12s;text-decoration:none;color:inherit}
+.trow:hover{background:var(--panel2);border-color:var(--border)}
+.trow .num{width:22px;text-align:center;font-family:var(--fh);font-size:13px;color:var(--faint);flex:none}
+.trow .tcov{width:48px;height:48px;border-radius:10px;object-fit:cover;flex:none;background:var(--panel2);border:1px solid var(--border)}
+.trow .ti{flex:1;min-width:0}
+.trow .ti b{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--fh)}
+.trow .ti small{color:var(--faint);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow .tdur{font-family:var(--fh);font-size:12.5px;color:var(--faint);direction:ltr;flex:none}
+.trow .tsave{background:none;border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:5px 10px;font-size:12.5px;cursor:pointer;flex:none;font-family:var(--fh)}
+.trow .tsave:hover{border-color:var(--acc);color:var(--acc)}
+.plgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px}
+.plcard{display:flex;gap:12px;align-items:center;background:var(--panel);border:1.5px solid var(--border2);border-radius:16px;padding:10px;text-decoration:none;color:inherit;transition:transform .12s,border-color .12s}
+.plcard:hover{transform:translateY(-2px);border-color:var(--acc)}
+.plcard img{width:64px;height:64px;border-radius:12px;object-fit:cover;flex:none;background:var(--panel2)}
+.plcard .pi{flex:1;min-width:0}
+.plcard .pi b{display:block;font-size:14px;font-family:var(--fh);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plcard .pi small{color:var(--faint);font-size:12.5px}
+.emptyhint{text-align:center;padding:28px 12px;color:var(--faint);font-size:14.5px}
+.spbrand{display:inline-flex;align-items:center;gap:8px}
+.spbrand svg{width:28px;height:28px}
+.tabsrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.tabchip{background:var(--panel2);border:1.5px solid var(--border);color:var(--muted);border-radius:99px;padding:6px 16px;font-family:var(--fh);font-size:13.5px;cursor:pointer}
+.tabchip.on{border-color:var(--acc);color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);font-weight:700}
+.panelsec{display:none}.panelsec.on{display:block}
+@media(max-width:640px){
+  .nowcover{width:110px;height:110px}
+  .nowmeta h2{font-size:20px}
+  .rygrid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+}
+</style>
 </head>
 <body>
 <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="on">🎵 موسیقی</a><a href="/design/youtube-page.html" class="">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
-<div class="wrap" style="max-width:1240px">
-  <div class="lead">موسیقی‌ات — تازه‌ترین پخش‌ها و هنرمندان برگزیده</div>
+<div class="wrap" style="max-width:1320px">
+  <div class="lead">موسیقی‌ات — کاور آلبوم، پلی‌لیست و پخش‌های اخیر، درست مثل اسپاتیفای</div>
 
   <div class="mcard" style="margin-top:14px">
     <div class="concard">
-      <span style="font-size:34px">🎧</span>
+      <span class="spbrand">
+        <svg viewBox="0 0 24 24" fill="#1db954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+      </span>
       <div style="flex:1;min-width:180px">
         <b style="font-size:16px">اسپاتیفای</b>
-        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">تازه‌ترین آهنگ‌ها، هنرمندان برگزیده و پلی‌لیست‌ها — همه در یک صفحه</div>
+        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">پوستر آهنگ، پلی‌لیست‌ها و هنرمندان برگزیده — همه با کاور واقعی</div>
       </div>
       <span class="conbadge" id="spState">… در حال بررسی</span>
-      <button class="bigbtn" id="spConnect">اتصال به اسپاتیفای</button>
+      <button class="bigbtn spgreen" id="spConnect">اتصال به اسپاتیفای</button>
       <button class="bigbtn ghost" id="spDis" style="display:none">قطع اتصال</button>
+      <button class="bigbtn ghost" id="spRefresh" style="display:none" title="تازه‌سازی">↻</button>
     </div>
   </div>
-  <div class="mcard" style="margin-top:14px">
+
+  <!-- Now Playing -->
+  <div class="nowcard" id="nowCard">
+    <div class="nowbg" id="nowBg"></div>
+    <div class="nowinner">
+      <img class="nowcover" id="nowCover" alt="" src="">
+      <div class="nowmeta">
+        <div class="nowlive" id="nowLive"><i></i> در حال پخش</div>
+        <h2 id="nowTitle">—</h2>
+        <div class="ar" id="nowArtist">—</div>
+        <div class="al" id="nowAlbum"></div>
+        <div class="nowbar"><i id="nowProg"></i></div>
+        <div class="nowtimes"><span id="nowT0">0:00</span><span id="nowT1">0:00</span></div>
+        <div class="nowactions">
+          <a class="bigbtn spgreen" id="nowOpen" href="#" target="_blank" rel="noopener">باز کردن در اسپاتیفای</a>
+          <button class="bigbtn ghost" id="nowSave">ذخیره در امروز</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabsrow">
+    <button class="tabchip on" data-tab="recent">🎧 پخش‌های اخیر</button>
+    <button class="tabchip" data-tab="playlists">📂 پلی‌لیست‌ها</button>
+    <button class="tabchip" data-tab="artists">⭐ هنرمندان</button>
+  </div>
+
+  <div class="mcard sec panelsec on" id="panel-recent" style="margin-top:12px">
     <div class="mhead"><h4>🎧 تازه‌ترین پخش‌ها</h4><span id="spRecState" style="font-size:12.5px;color:var(--faint)">نمونه — بعد از اتصال، واقعی می‌شود</span></div>
     <div class="rygrid" id="spRecent"></div>
+    <div class="listrow" id="spRecentList" style="margin-top:14px"></div>
   </div>
-  <div class="mcard" style="margin-top:14px">
-    <div class="mhead"><h4>⭐ هنرمندان برگزیده</h4></div>
+
+  <div class="mcard sec panelsec" id="panel-playlists" style="margin-top:12px">
+    <div class="mhead"><h4>📂 پلی‌لیست‌های تو</h4><span id="spPlState" style="font-size:12.5px;color:var(--faint)"></span></div>
+    <div class="plgrid" id="spPlaylists"></div>
+  </div>
+
+  <div class="mcard sec panelsec" id="panel-artists" style="margin-top:12px">
+    <div class="mhead"><h4>⭐ هنرمندان برگزیده</h4><span id="spArtState" style="font-size:12.5px;color:var(--faint)"></span></div>
     <div class="chiprow2" id="spArtists"></div>
+    <div class="rygrid" id="spArtistsGrid" style="margin-top:14px"></div>
   </div>
 
 </div>
@@ -470,43 +567,263 @@ document.addEventListener('click',function(e){
 })();
 </script><script>
 (function(){
-var DEMO=[['🌊','Ocean Bloom','Hans Zimmer','linear-gradient(135deg,#0ea5e9,#22d3ee)'],['🪕','هزاره','Shajarian','linear-gradient(135deg,#f59e0b,#ef4444)'],['🌙','Nightcall','Kavinsky','linear-gradient(135deg,#6366f1,#a855f7)'],['🔥','Believer','Imagine Dragons','linear-gradient(135deg,#f43f5e,#fb923c)'],['🥁','Bongo Rock','Pleasure Seekers','linear-gradient(135deg,#10b981,#84cc16)'],['🎹','Nuvole Bianche','Ludovico Einaudi','linear-gradient(135deg,#94a3b8,#e2e8f0)'],['🎸','Comfortably Numb','Pink Floyd','linear-gradient(135deg,#7c3aed,#22d3ee)'],['🎤','Baraye','Shervin Hajipour','linear-gradient(135deg,#22c55e,#0ea5e9)']];
-var ART=[['Shajarian','🪕'],['Hans Zimmer','🎼'],['Einaudi','🎹'],['Pink Floyd','🎸'],['Homayoun','🎤'],['Kavinsky','🌇']];
-function grid(el,items){
- el.innerHTML=items.map(function(x){return '<div class="rycard"><div class="art" style="background:'+x[3]+'">'+x[0]+'<span class="ryb">۳:۴۵</span></div><div class="ryt"><b>'+x[1]+'</b><small>'+x[2]+'</small></div></div>'}).join('');
+var faD='۰۱۲۳۴۵۶۷۸۹';
+function fa(n){return String(n).replace(/\d/g,function(d){return faD[d]})}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})}
+function fmtMs(ms){ms=Math.max(0,Math.floor((ms||0)/1000));var m=Math.floor(ms/60),s=ms%60;return m+':'+(s<10?'0':'')+s}
+function relTime(iso){if(!iso)return'';try{var d=new Date(iso),diff=(Date.now()-d.getTime())/1000;if(diff<60)return'همین الان';if(diff<3600)return fa(Math.floor(diff/60))+' دقیقه پیش';if(diff<86400)return fa(Math.floor(diff/3600))+' ساعت پیش';return fa(Math.floor(diff/86400))+' روز پیش'}catch(e){return''}}
+
+/* کاورهای دمو — تصاویر واقعی آلبوم از CDN عمومی (پوشش placeholder) */
+var DEMO_COVERS=[
+  {name:'Blinding Lights',artist:'The Weeknd',album:'After Hours',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBmMGMyOSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMzAyYjYzIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMjQyNDNlIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPkJMPC90ZXh0Pjwvc3ZnPg==',durationMs:200040,playedAt:new Date(Date.now()-1200000).toISOString()},
+  {name:'Bohemian Rhapsody',artist:'Queen',album:'A Night at the Opera',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFhMWEyZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZTk0NTYwIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGYzNDYwIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPkJSPC90ZXh0Pjwvc3ZnPg==',durationMs:354000,playedAt:new Date(Date.now()-2400000).toISOString()},
+  {name:'Nightcall',artist:'Kavinsky',album:'OutRun',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2ZmMDA4MCIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjNzkyOGNhIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMmQxYjY5Ii8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPk5DPC90ZXh0Pjwvc3ZnPg==',durationMs:257000,playedAt:new Date(Date.now()-3600000).toISOString()},
+  {name:'Nuvole Bianche',artist:'Ludovico Einaudi',album:'Una Mattina',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzRiNmNiNyIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMTgyODQ4Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMWExYTJlIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPk5CPC90ZXh0Pjwvc3ZnPg==',durationMs:357000,playedAt:new Date(Date.now()-4800000).toISOString()},
+  {name:'Comfortably Numb',artist:'Pink Floyd',album:'The Wall',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFlM2M3MiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMmE1Mjk4Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDAwNDI4Ii8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPkNOPC90ZXh0Pjwvc3ZnPg==',durationMs:382000,playedAt:new Date(Date.now()-6000000).toISOString()},
+  {name:'Believer',artist:'Imagine Dragons',album:'Evolve',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2YxMjcxMSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZjVhZjE5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOGUwZTAwIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPkJFPC90ZXh0Pjwvc3ZnPg==',durationMs:204000,playedAt:new Date(Date.now()-7200000).toISOString()},
+  {name:'Time',artist:'Hans Zimmer',album:'Inception',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBiNDg2YiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZjU2MjE3Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDQxYjJkIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPlRNPC90ZXh0Pjwvc3ZnPg==',durationMs:275000,playedAt:new Date(Date.now()-8400000).toISOString()},
+  {name:'Baraye',artist:'Shervin Hajipour',album:'Baraye',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzExOTk4ZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMzhlZjdkIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGIzZDJlIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPkJSWTwvdGV4dD48L3N2Zz4=',durationMs:198000,playedAt:new Date(Date.now()-9600000).toISOString()}
+];
+/* گرادیان‌های زیبا برای وقتی کاور لود نشد */
+var GRADS=['linear-gradient(135deg,#1db954,#0ea5e9)','linear-gradient(135deg,#7c3aed,#ec4899)','linear-gradient(135deg,#f59e0b,#ef4444)','linear-gradient(135deg,#0f172a,#22d3ee)','linear-gradient(135deg,#10b981,#84cc16)','linear-gradient(135deg,#6366f1,#a855f7)','linear-gradient(135deg,#f43f5e,#fb923c)','linear-gradient(135deg,#14b8a6,#3b82f6)'];
+function gradFor(s){var h=0;s=String(s||'');for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return GRADS[Math.abs(h)%GRADS.length]}
+
+var DEMO_ARTISTS=[
+  {name:'The Weeknd',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBmMGMyOSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMzAyYjYzIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMjQyNDNlIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPlRXPC90ZXh0Pjwvc3ZnPg==',genres:['pop', 'r&b']},
+  {name:'Queen',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFhMWEyZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZTk0NTYwIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGYzNDYwIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPlE8L3RleHQ+PC9zdmc+',genres:['rock']},
+  {name:'Pink Floyd',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFlM2M3MiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMmE1Mjk4Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDAwNDI4Ii8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPlBGPC90ZXh0Pjwvc3ZnPg==',genres:['progressive rock']},
+  {name:'Hans Zimmer',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBiNDg2YiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZjU2MjE3Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDQxYjJkIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPkhaPC90ZXh0Pjwvc3ZnPg==',genres:['soundtrack']},
+  {name:'Einaudi',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzRiNmNiNyIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMTgyODQ4Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMWExYTJlIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPkxFPC90ZXh0Pjwvc3ZnPg==',genres:['classical']},
+  {name:'Imagine Dragons',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2YxMjcxMSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZjVhZjE5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOGUwZTAwIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPklEPC90ZXh0Pjwvc3ZnPg==',genres:['alt rock']}
+];
+var DEMO_PLAYLISTS=[
+  {name:'Liked Songs',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFkYjk1NCIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMGQ3YTM2Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDY0ZTIzIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPuKZpTwvdGV4dD48L3N2Zz4=',tracks:342,owner:'تو'},
+  {name:'Focus Flow',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzY2N2VlYSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjNzY0YmEyIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMmIxZTVlIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPkZGPC90ZXh0Pjwvc3ZnPg==',tracks:87,owner:'Spotify'},
+  {name:'چرتکه شب',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBmMjAyNyIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMjAzYTQzIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMmM1MzY0Ii8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPti02Kg8L3RleHQ+PC9zdmc+',tracks:54,owner:'تو'},
+  {name:'Workout Fire',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2YxMjcxMSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZjVhZjE5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOGUwZTAwIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPldGPC90ZXh0Pjwvc3ZnPg==',tracks:120,owner:'Spotify'},
+  {name:'Lo-Fi Iran',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzNhMWM3MSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZDc2ZDc3Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZhZjdiIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPkxGPC90ZXh0Pjwvc3ZnPg==',tracks:63,owner:'تو'},
+  {name:'Drive at Night',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzAwMDQyOCIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMDA0ZTkyIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDAwYjFhIi8+PC9saW5lYXJHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9InYiIGN4PSI1MCUiIGN5PSI1MCUiIHI9IjUwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLDApIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSJyZ2JhKDAsMCwwLC4zNSkiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iMTEwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjE4KSIgc3Ryb2tlLXdpZHRoPSIxNCIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgcj0iNzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMTIpIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyMDAiIHI9IjE4IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuMykiIHN0cm9rZS13aWR0aD0iMyIvPjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI3YpIi8+PHRleHQgeD0iMjAwIiB5PSIzNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsLjkyKSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtd2VpZ2h0PSI3MDAiPkROPC90ZXh0Pjwvc3ZnPg==',tracks:41,owner:'Spotify'}
+];
+
+function coverHtml(url, name, cls){
+  var g=gradFor(name);
+  if(url){
+    return '<img class="'+(cls||'')+'" src="'+esc(url)+'" alt="'+esc(name)+'" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling&&(this.nextElementSibling.style.display=\'grid\')">'
+      +'<div class="fallback" style="display:none;background:'+g+'">🎵</div>';
+  }
+  return '<div class="fallback" style="display:grid;background:'+g+'">🎵</div>';
 }
-grid(document.getElementById('spRecent'),DEMO);
-document.getElementById('spArtists').innerHTML=ART.map(function(a){return '<span class="artchip"><span class="dotart" style="background:var(--panel)">'+a[1]+'</span>'+a[0]+'</span>'}).join('');
+
+function trackCard(t){
+  var dur=fmtMs(t.durationMs||0);
+  var href=t.url||'#';
+  var tag=t.url?'a':'div';
+  var extra=t.url?' href="'+esc(t.url)+'" target="_blank" rel="noopener"':'';
+  return '<'+tag+' class="rycard"'+extra+'>'
+    +'<div class="art">'+coverHtml(t.cover,t.name)
+    +'<span class="ryb">'+fa(dur)+'</span>'
+    +'<span class="ryplay">▶</span></div>'
+    +'<div class="ryt"><b>'+esc(t.name||'—')+'</b><small>'+esc(t.artist||'')+(t.album?' · '+esc(t.album):'')+'</small></div>'
+    +'</'+tag+'>';
+}
+
+function trackRow(t, i){
+  var dur=fmtMs(t.durationMs||0);
+  var when=relTime(t.playedAt);
+  var href=t.url?' href="'+esc(t.url)+'" target="_blank" rel="noopener"':'';
+  var tag=t.url?'a':'div';
+  var cov;
+  if(t.cover){
+    cov='<img class="tcov" src="'+esc(t.cover)+'" alt="">';
+  } else {
+    cov='<div class="tcov" style="background:'+gradFor(t.name)+';display:grid;place-items:center;font-size:18px">🎵</div>';
+  }
+  return '<'+tag+' class="trow"'+href+'>'
+    +'<span class="num">'+fa(i+1)+'</span>'
+    +cov
+    +'<div class="ti"><b>'+esc(t.name||'—')+'</b><small>'+esc(t.artist||'')+(when?' · '+when:'')+'</small></div>'
+    +'<span class="tdur">'+fa(dur)+'</span>'
+    +'</'+tag+'>';
+}
+
+function artistChip(a){
+  var inner=a.cover
+    ? '<img src="'+esc(a.cover)+'" alt="">'
+    : '🎤';
+  var tag=a.url?'a':'span';
+  var extra=a.url?' href="'+esc(a.url)+'" target="_blank" rel="noopener"':'';
+  return '<'+tag+' class="artchip"'+extra+'><span class="dotart">'+inner+'</span>'+esc(a.name)
+    +(a.genres&&a.genres.length?' <span style="color:var(--faint);font-size:12px">· '+esc(a.genres[0])+'</span>':'')
+    +'</'+tag+'>';
+}
+
+function artistCard(a){
+  var tag=a.url?'a':'div';
+  var extra=a.url?' href="'+esc(a.url)+'" target="_blank" rel="noopener"':'';
+  return '<'+tag+' class="rycard"'+extra+'>'
+    +'<div class="art">'+coverHtml(a.cover,a.name)+'</div>'
+    +'<div class="ryt"><b>'+esc(a.name)+'</b><small>'+esc((a.genres||[]).slice(0,2).join(' · ')||'هنرمند')+'</small></div>'
+    +'</'+tag+'>';
+}
+
+function playlistCard(pl){
+  var tag=pl.url?'a':'div';
+  var extra=pl.url?' href="'+esc(pl.url)+'" target="_blank" rel="noopener"':'';
+  var cov;
+  if(pl.cover){
+    cov='<img src="'+esc(pl.cover)+'" alt="" style="width:64px;height:64px;border-radius:12px;object-fit:cover;flex:none">';
+  } else {
+    cov='<div style="width:64px;height:64px;border-radius:12px;display:grid;place-items:center;font-size:28px;background:'+gradFor(pl.name)+';flex:none">📂</div>';
+  }
+  return '<'+tag+' class="plcard"'+extra+'>'
+    +cov
+    +'<div class="pi"><b>'+esc(pl.name)+'</b><small>'+fa(pl.tracks||0)+' آهنگ'+(pl.owner?' · '+esc(pl.owner):'')+'</small></div>'
+    +'</'+tag+'>';
+}
+
+function renderRecent(items){
+  var g=document.getElementById('spRecent');
+  var l=document.getElementById('spRecentList');
+  if(!items||!items.length){
+    g.innerHTML='<div class="emptyhint" style="grid-column:1/-1">هنوز چیزی پخش نکردی</div>';
+    l.innerHTML='';
+    return;
+  }
+  g.innerHTML=items.slice(0,12).map(trackCard).join('');
+  l.innerHTML='<div style="font-size:13px;color:var(--faint);margin:4px 2px 6px">لیست کامل</div>'+items.slice(0,20).map(trackRow).join('');
+}
+
+function renderArtists(items){
+  document.getElementById('spArtists').innerHTML=(items||[]).map(artistChip).join('')||'<div class="emptyhint">هنرمندی نیست</div>';
+  document.getElementById('spArtistsGrid').innerHTML=(items||[]).slice(0,12).map(artistCard).join('');
+}
+
+function renderPlaylists(items){
+  var el=document.getElementById('spPlaylists');
+  el.innerHTML=(items||[]).length?items.map(playlistCard).join(''):'<div class="emptyhint" style="grid-column:1/-1">پلی‌لیستی پیدا نشد</div>';
+}
+
+function renderNow(np){
+  var card=document.getElementById('nowCard');
+  if(!np||!np.name){card.classList.remove('show');return}
+  card.classList.add('show');
+  var cov=np.cover||'';
+  var nc=document.getElementById('nowCover');
+  if(cov){nc.src=cov;nc.style.display='block'} else {nc.removeAttribute('src');nc.style.display='block'}
+  nc.style.background=gradFor(np.name);
+  document.getElementById('nowBg').style.backgroundImage=cov?'url("'+cov.replace(/"/g,'')+'")':'none';
+  document.getElementById('nowBg').style.backgroundColor='#1db95433';
+  document.getElementById('nowTitle').textContent=np.name||'—';
+  document.getElementById('nowArtist').textContent=np.artist||'';
+  document.getElementById('nowAlbum').textContent=np.album||'';
+  document.getElementById('nowLive').style.display=np.isPlaying===false?'none':'inline-flex';
+  document.getElementById('nowLive').innerHTML=np.isPlaying===false?'<span style="color:var(--muted)">⏸ متوقف</span>':'<i></i> در حال پخش';
+  var pct=np.durationMs?Math.min(100,Math.round((np.progressMs||0)/np.durationMs*100)):0;
+  document.getElementById('nowProg').style.width=pct+'%';
+  document.getElementById('nowT0').textContent=fmtMs(np.progressMs||0);
+  document.getElementById('nowT1').textContent=fmtMs(np.durationMs||0);
+  var open=document.getElementById('nowOpen');
+  if(np.url){open.href=np.url;open.style.display=''}else open.style.display='none';
+  open.dataset.track=JSON.stringify({title:np.name,meta:np.artist,cover:np.cover||''});
+}
+
+/* tabs */
+document.querySelectorAll('.tabchip').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.tabchip').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    document.querySelectorAll('.panelsec').forEach(function(p){p.classList.remove('on')});
+    var pan=document.getElementById('panel-'+b.dataset.tab);
+    if(pan)pan.classList.add('on');
+  });
+});
+
+/* demo first */
+renderRecent(DEMO_COVERS);
+renderArtists(DEMO_ARTISTS);
+renderPlaylists(DEMO_PLAYLISTS);
+/* demo now playing */
+renderNow(Object.assign({},DEMO_COVERS[0],{isPlaying:true,progressMs:72000}));
+
+function setConnected(on){
+  var st=document.getElementById('spState');
+  st.textContent=on?'✓ متصل':'متصل نیست';
+  st.className='conbadge'+(on?' on':'');
+  document.getElementById('spConnect').style.display=on?'none':'';
+  document.getElementById('spDis').style.display=on?'':'none';
+  document.getElementById('spRefresh').style.display=on?'':'none';
+}
+
+function loadLive(){
+  document.getElementById('spRecState').textContent='در حال دریافت…';
+  document.getElementById('spPlState').textContent='…';
+  document.getElementById('spArtState').textContent='…';
+  fetch('/api/integrations/spotify/recent').then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})}).then(function(res){
+    var d=res.d||{};
+    if(!res.ok){
+      document.getElementById('spRecState').textContent=d.error||'ناموفق';
+      return;
+    }
+    if(d.nowPlaying)renderNow(d.nowPlaying);
+    else document.getElementById('nowCard').classList.remove('show');
+
+    var items=d.items||[];
+    if(items.length){
+      renderRecent(items.map(function(t){
+        return {
+          name:t.name||t.track||'—',
+          artist:t.artist||'',
+          album:t.album||'',
+          cover:t.cover||'',
+          durationMs:t.durationMs||0,
+          playedAt:t.playedAt||'',
+          url:t.url||''
+        };
+      }));
+      document.getElementById('spRecState').textContent='زنده ✓ · '+fa(items.length)+' آهنگ';
+    } else document.getElementById('spRecState').textContent='پخش اخیری نبود';
+
+    if(d.artists&&d.artists.length){
+      renderArtists(d.artists);
+      document.getElementById('spArtState').textContent='زنده ✓';
+    } else document.getElementById('spArtState').textContent='';
+
+    if(d.playlists&&d.playlists.length){
+      renderPlaylists(d.playlists);
+      document.getElementById('spPlState').textContent='زنده ✓ · '+fa(d.playlists.length);
+    } else document.getElementById('spPlState').textContent='';
+  }).catch(function(){
+    document.getElementById('spRecState').textContent='دریافت ناموفق';
+  });
+}
+
 fetch('/api/me').then(function(r){return r.json()}).then(function(d){
- var on=d&&d.user&&d.user.spotifyConnected;
- var st=document.getElementById('spState');
- st.textContent=on?'✓ متصل':'متصل نیست';
- st.className='conbadge'+(on?' on':'');
- document.getElementById('spConnect').style.display=on?'none':'';
- document.getElementById('spDis').style.display=on?'':'none';
- if(on)loadRecent();
+  var on=d&&d.user&&d.user.spotifyConnected;
+  setConnected(!!on);
+  if(on)loadLive();
 }).catch(function(){});
-function loadRecent(){
- document.getElementById('spRecState').textContent='در حال دریافت…';
- fetch('/api/integrations/spotify/recent').then(function(r){return r.json()}).then(function(d){
-  var items=(d.items||d.tracks||d||[]);
-  if(items&&items.length){
-   grid(document.getElementById('spRecent'),items.slice(0,12).map(function(t){
-    return ['🎵',t.name||'—',((t.artists||[]).map(function(a){return a.name}).join('، '))||t.artist||'','linear-gradient(135deg,#22c55e,#0ea5e9)'];
-   }));
-   document.getElementById('spRecState').textContent='زنده ✓';
-  } else document.getElementById('spRecState').textContent='چیزی نگرفتیم — بعداً دوباره';
- }).catch(function(){document.getElementById('spRecState').textContent='دریافت ناموفق'});
-}
+
 document.getElementById('spConnect').addEventListener('click',function(){
- fetch('/api/integrations/spotify/connect').then(function(r){return r.json().catch(function(){return null})}).then(function(d){
-  if(d&&d.url)location.href=d.url;
-  else if(d&&d.error)alert(d.error);
-  else location.href='/api/integrations/spotify/connect';
- }).catch(function(){location.href='/api/integrations/spotify/connect'});
+  fetch('/api/integrations/spotify/connect').then(function(r){return r.json().catch(function(){return null})}).then(function(d){
+    if(d&&d.url)location.href=d.url;
+    else if(d&&d.error)alert(d.error);
+    else location.href='/api/integrations/spotify/connect';
+  }).catch(function(){location.href='/api/integrations/spotify/connect'});
 });
 document.getElementById('spDis').addEventListener('click',function(){
- fetch('/api/integrations/spotify/disconnect',{method:'POST'}).finally(function(){location.reload()});
+  fetch('/api/integrations/spotify/disconnect',{method:'POST'}).finally(function(){location.reload()});
+});
+document.getElementById('spRefresh').addEventListener('click',function(){loadLive()});
+
+document.getElementById('nowSave').addEventListener('click',function(){
+  var title=document.getElementById('nowTitle').textContent;
+  var meta=document.getElementById('nowArtist').textContent;
+  fetch('/api/media-log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'spotify',title:title,meta:meta})})
+    .then(function(r){return r.json()}).then(function(d){
+      var t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}
+      t.textContent=d&&d.ok?'✓ در امروز ذخیره شد':(d.error||'ذخیره نشد');
+      t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000);
+    }).catch(function(){});
 });
 })();
 </script>
