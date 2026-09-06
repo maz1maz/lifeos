@@ -121,7 +121,17 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .fullw{grid-column:1/-1}
 .span2{grid-column:span 2}
 .c3wrap{min-width:0}
-.home .datecard,.home .wcard,.home .tcard,.home .rcard,.home .mcard,.home .epcard,.home .c3wrap{min-width:0;height:100%}
+.home .datecard,.home .wcard,.home .tcard,.home .rcard,.home .mcard,.home .epcard,.home .c3wrap{min-width:0}
+.home-row.r1 .datecard,.home-row.r2>.wcard,.home-row.r2>.tcard,.home-row.r2>.rcard,.home-row.r2>.mcard,.home-row.r4>.mcard,.home-row.r4>.epcard{height:100%}
+.home-row.r3>.mcard,.home-row.r3>.c3wrap{height:auto;align-self:start}
+.home .txform .chiprow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px}
+.home .txform #catChips,.home .txform #accChips{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:0}
+.chipset{display:inline-flex!important;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:120px}
+.catrow{margin-top:2px}
+.txchip{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;line-height:1.4;background:var(--panel2)!important}
+.home-row.r3 .mcard{overflow:visible}
+.txform{overflow:visible}
+
 /* سازگاری قدیمی */
 .page3,.trio{display:contents}
 .page3>.duo{display:contents}
@@ -492,8 +502,12 @@ body.zoom1{zoom:1.1111}
           <input class="txtitle" id="txTitle" type="text" placeholder="شرح — مثلاً: اسنپ به محل کار">
           <button class="txgo" id="txGo">ثبت</button>
         </div>
-        <div class="chiprow"><span class="chiplab">از حساب:</span><span id="accChips"></span></div>
-        <div class="chiprow"><span class="chiplab">سرفصل:</span><span id="catChips"></span></div>
+        <div class="chiprow"><span class="chiplab">از حساب:</span><span id="accChips" class="chipset">
+          <button type="button" class="txchip on" data-acc="💳 کارت اصلی">💳 کارت اصلی</button>
+          <button type="button" class="txchip" data-acc="💵 نقدی">💵 نقدی</button>
+          <button type="button" class="txchip" data-acc="🏦 پس‌انداز">🏦 پس‌انداز</button>
+        </span></div>
+        <div class="chiprow catrow"><span class="chiplab">سرفصل:</span><span id="catChips" class="chipset"><button type="button" class="txchip" data-cat="خوراک">🍞 خوراک</button><button type="button" class="txchip" data-cat="حمل‌ونقل">🚕 حمل‌ونقل</button><button type="button" class="txchip" data-cat="قبض">🧾 قبض</button><button type="button" class="txchip" data-cat="سلامت">💊 سلامت</button><button type="button" class="txchip" data-cat="تفریح">🎬 تفریح</button><button type="button" class="txchip" data-cat="پوشاک">👕 پوشاک</button><button type="button" class="txchip" data-cat="آموزش">📚 آموزش</button><button type="button" class="txchip" data-cat="مسکن">🏠 مسکن</button><button type="button" class="txchip" data-cat="متفرقه">🔖 متفرقه</button><button type="button" class="txchip" data-cat="__custom">✏️ سرفصل خودم</button></span></div>
         <div class="smarthint" id="smartHint"></div>
       </div>
                 <div class="txlist" id="txList"></div>
@@ -1104,7 +1118,7 @@ var CATS=[
  ['متفرقه','🔖','var(--faint)',[]]
 ];
 var ACCS=['💳 کارت اصلی','💵 نقدی','🏦 پس‌انداز'];
-var TXKIND='expense',TXACC=ACCS[0],TXCAT=null,TXCATMANUAL=false;
+var TXKIND='expense',TXACC=ACCS[0],TXCAT=null,TXCATMANUAL=false,TXCATEDIT=false;
 var TODAYTX=[
  {t:'اسنپ به محل کار',a:85000,c:'حمل‌ونقل',k:'expense'},
  {t:'نانوازی',a:45000,c:'خوراک',k:'expense'}
@@ -1116,26 +1130,36 @@ function fmtT(n){return fmtFull(n)}
 function fmtFull(n){return fa(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,','))}
 function suggestCat(t){t=String(t||'');for(var i=0;i<CATS.length;i++){var kws=CATS[i][3];for(var j=0;j<kws.length;j++)if(t.indexOf(kws[j])>-1)return CATS[i][0]}return null}
 function renderAccChips(){
- document.getElementById('accChips').innerHTML=ACCS.map(function(a){
-  return '<button class="txchip'+(a===TXACC?' on':'')+'" data-acc="'+a+'">'+a+'</button>'}).join('');
+ var box=document.getElementById('accChips');if(!box)return;
+ box.innerHTML=ACCS.map(function(a){
+  return '<button type="button" class="txchip'+(a===TXACC?' on':'')+'" data-acc="'+a+'">'+a+'</button>'}).join('');
 }
 function renderCatChips(){
- var suggested=TXCATMANUAL?null:suggestCat(document.getElementById('txTitle').value);
+ var box=document.getElementById('catChips');
+ if(!box){return}
+ var titleEl=document.getElementById('txTitle');
+ var suggested=TXCATMANUAL?null:suggestCat(titleEl?titleEl.value:'');
  var active=TXCAT||(TXCATMANUAL?null:suggested);
- if(TXCATEDIT){document.getElementById('catChips').innerHTML='<input id="catCustomIn" placeholder="نام سرفصل + اینتر" style="background:var(--panel);border:1.5px solid var(--acc);border-radius:10px;color:var(--text);padding:6px 10px;font-family:inherit;font-size:13.5px;width:160px">';
-  var ip=document.getElementById('catCustomIn');ip.focus();
-  ip.addEventListener('keydown',function(ev){if(ev.key==='Enter'){var v=ip.value.trim();if(v){TXCAT=v;TXCATMANUAL=true;TXCATEDIT=false;renderCatChips()}}});
-  ip.addEventListener('blur',function(){if(TXCATEDIT){TXCATEDIT=false;renderCatChips()}});
+ if(TXCATEDIT){
+  box.innerHTML='<input id="catCustomIn" placeholder="نام سرفصل + اینتر" style="background:var(--panel);border:1.5px solid var(--acc);border-radius:10px;color:var(--text);padding:6px 10px;font-family:inherit;font-size:13.5px;min-width:160px;flex:1">';
+  var ip=document.getElementById('catCustomIn');
+  if(ip){setTimeout(function(){try{ip.focus()}catch(e){}},0);
+   ip.addEventListener('keydown',function(ev){if(ev.key==='Enter'){var v=ip.value.trim();if(v){TXCAT=v;TXCATMANUAL=true;TXCATEDIT=false;renderCatChips()}}});
+   ip.addEventListener('blur',function(){if(TXCATEDIT){TXCATEDIT=false;renderCatChips()}});}
  }else{
   var custom=TXCATMANUAL&&TXCAT&&!CATS.some(function(c){return c[0]===TXCAT});
-  document.getElementById('catChips').innerHTML=CATS.map(function(c){
+  var html=CATS.map(function(c){
    var on=active===c[0];
-   return '<button class="txchip'+(on?' on':'')+(suggested===c[0]&&!TXCATMANUAL?' smart':'')+'" data-cat="'+c[0]+'">'+c[1]+' '+c[0]+'</button>'}).join('')
-   +'<button class="txchip'+(custom?' on':'')+'" data-cat="__custom">✏‌ی '+(custom?TXCAT:'سرفصل خودم')+'</button>';
+   return '<button type="button" class="txchip'+(on?' on':'')+(suggested===c[0]&&!TXCATMANUAL?' smart':'')+'" data-cat="'+c[0]+'">'+c[1]+' '+c[0]+'</button>';
+  }).join('');
+  html+='<button type="button" class="txchip'+(custom?' on':'')+'" data-cat="__custom">✏️ '+(custom?TXCAT:'سرفصل خودم')+'</button>';
+  box.innerHTML=html;
  }
  var sh=document.getElementById('smartHint');
- if(suggested&&!TXCATMANUAL){var cm=catMeta(suggested);sh.innerHTML='✨ از روی شرح: <b>'+cm[1]+' '+suggested+'</b> — اگر اشتباه است، سرفصل دیگری را بزن'}
- else sh.innerHTML=TXCATMANUAL&&TXCAT?'سرفصل دستی: '+TXCAT:'';
+ if(sh){
+  if(suggested&&!TXCATMANUAL){var cm=catMeta(suggested);sh.innerHTML='✨ از روی شرح: <b>'+cm[1]+' '+suggested+'</b> — اگر اشتباه است، سرفصل دیگری را بزن'}
+  else sh.innerHTML=TXCATMANUAL&&TXCAT?'سرفصل دستی: '+TXCAT:'';
+ }
 }
 function renderTx(){
  var exp=TODAYTX.filter(function(x){return x.k==='expense'});
@@ -1201,7 +1225,19 @@ document.addEventListener('click',function(e){
  if(b=e.target.closest('[data-deltx]')){
   var i=parseInt(b.dataset.deltx,10);TODAYTX.splice(i,1);renderTx();return}
 });
-renderAccChips();renderCatChips();renderTx();
+(function initTxUI(){
+  function run(){
+    try{renderAccChips()}catch(e){console.error('acc',e)}
+    try{renderCatChips()}catch(e){console.error('cat',e)}
+    try{renderTx()}catch(e){console.error('tx',e)}
+    var c=document.getElementById('catChips');
+    if(c&&!c.querySelector('[data-cat]')){
+      try{renderCatChips()}catch(e){console.error('cat2',e)}
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);
+  else run();
+})();
 
 /* ===== nav auth ===== */
 (function(){fetch('/api/me').then(function(r){return r.json()}).then(function(d){
