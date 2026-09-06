@@ -33,6 +33,7 @@ html[data-mode="light"]{
 .navlinks a:hover{color:var(--text);background:var(--panel2)}
 .navlinks a.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);font-weight:700}
 .navtools{display:flex;gap:8px;align-items:center;flex:none}
+.ptools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px}
 /* ===== زوم 🔍 ===== */
 .navzoom{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:11px;
   padding:5px 10px;font-size:15px;cursor:pointer}
@@ -214,9 +215,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 </head>
 <body>
 <div class="wrap">
+  <div class="ptools"><button class="iconbtn" id="modeBtn">🌙</button><button class="btn" id="importBtn">📥 از Bingers</button></div>
 
-  <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/series-page.html" class="on">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button>
-      <button class="btn" id="importBtn">📥 از Bingers</button><span id="navAuth"></span></div></nav>
+  <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html" class="on">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><span id="navAuth"></span></div></nav>
   <p class="lead">قسمت دیده‌شده را همان‌جا با − و + عوض کن (روی عدد بزن تا دقیق تایپ کنی) · روی کارت بزن برای جزئیات</p>
 
   <div class="stats" id="stats"></div>
