@@ -431,18 +431,30 @@ function faNum(n){
 
 /* ===== بازار جهانی ===== */
 /* ================= MARKET (global, USD, with 24h change) ================= */
-var SNAP={"gold": {"p": 4433.03, "c": 0.02}, "silver": {"p": 66.15, "c": -0.62}, "alu": {"p": 2650, "c": null}, "btc": {"p": 79799, "c": 0.14}, "eth": {"p": 2479.51, "c": 1.02}, "sol": {"p": 103.15, "c": 1.85}};
+var SNAP={
+  gold:{p:4433.03,c:0.02},silver:{p:66.15,c:-0.62},alu:{p:2650,c:null},
+  btc:{p:79908,c:0.34},eth:{p:2500,c:1.88},sol:{p:106.5,c:4.1},
+  tether:{p:1.0,c:0.01},ripple:{p:0.62,c:1.2},dogecoin:{p:0.18,c:2.1},
+  binancecoin:{p:620,c:0.8},cardano:{p:0.72,c:1.5},'avalanche-2':{p:28.4,c:2.4},
+  litecoin:{p:95,c:0.5},polkadot:{p:6.2,c:1.1},chainlink:{p:14.5,c:0.9},
+  'matic-network':{p:0.42,c:1.0},tron:{p:0.16,c:0.4},'the-open-network':{p:5.8,c:1.3}
+};
 var MK={data:null};
 function chgHtml(c){
   if(c==null||isNaN(c)) return '<div class="chg na">—</div>';
   var up=c>=0;
   return '<div class="chg '+(up?'up':'dn')+'">'+(up?'▲':'▼')+' '+fa(Math.abs(c).toFixed(2).replace(/\.?0+$/,''))+'٪</div>';
 }
+function cgPick(r,id){
+  var x=r&&r[id];if(!x||x.usd==null)return null;
+  return{p:x.usd,c:x.usd_24h_change!=null?x.usd_24h_change:null};
+}
 function renderMarket(){
-  var d=MK.data;
+  var d=MK.data||SNAP;
   function mkrow(x){
-    var pr = x.v.p>=1000 ? faNum(Math.round(x.v.p)) : faNum(Math.round(x.v.p*100)/100);
-    return '<div class="mrow"><div class="ic">'+x.ic+'</div><div class="nm"><b>'+x.nm+'</b><small>'+x.sub+'</small></div>'+chgHtml(x.v.c)+'<div class="pr">'+pr+' <small>$</small></div></div>';
+    var v=x.v||{p:null,c:null};
+    var pr=(v.p==null||isNaN(v.p))?'—':(v.p>=1000?faNum(Math.round(v.p)):faNum(Math.round(v.p*100)/100));
+    return '<div class="mrow"><div class="ic">'+x.ic+'</div><div class="nm"><b>'+x.nm+'</b><small>'+x.sub+'</small></div>'+chgHtml(v.c)+'<div class="pr">'+pr+' <small>$</small></div></div>';
   }
   document.getElementById('mrows').innerHTML=[
     {ic:'🥇',nm:'طلا',sub:'اونس جهانی · XAU',v:d.gold||SNAP.gold},
@@ -454,29 +466,48 @@ function renderMarket(){
     {ic:'Ξ',nm:'اتریوم',sub:'ETH',v:d.eth||SNAP.eth},
     {ic:'◎',nm:'سولانا',sub:'SOL',v:d.sol||SNAP.sol}
   ].map(mkrow).join('');
-  document.getElementById('mTime').textContent=d.live?('زنده · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})):('آفلاین · '+d.t);if(window._renderX)window._renderX();
+  var tEl=document.getElementById('mTime');
+  if(tEl)tEl.textContent=(d&&d.live)?('زنده · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})):('آفلاین · '+((d&&d.t)||'اسنپ‌شات'));
+  if(window._renderX)window._renderX();
 }
 (function(){
   var cached=null;
-  try{cached=JSON.parse(localStorage.getItem('market-cache-v3')||'null')}catch(e){}
-  if(cached&&Date.now()-cached.at<9e5){MK.data=Object.assign({},cached.d,{live:true});renderMarket();return}
-  fetch('https://api.coingecko.com/api/v3/simple/price?ids=pax-gold,kinesis-silver,bitcoin,ethereum,solana,tether,ripple,dogecoin,binancecoin,cardano,avalanche-2&vs_currencies=usd&include_24hr_change=true')
-    .then(function(r){return r.json()})
+  try{cached=JSON.parse(localStorage.getItem('market-cache-v4')||'null')}catch(e){}
+  /* merge snapshot defaults so extra coins always have a price fallback */
+  function withSnap(d){return Object.assign({},SNAP,d||{})}
+  if(cached&&Date.now()-cached.at<9e5){MK.data=withSnap(Object.assign({},cached.d,{live:true}));renderMarket()}
+  else {MK.data=withSnap({live:false,t:'اسنپ‌شات'});renderMarket()}
+  var CG_IDS='pax-gold,kinesis-silver,bitcoin,ethereum,solana,tether,ripple,dogecoin,binancecoin,cardano,avalanche-2,litecoin,polkadot,chainlink,matic-network,tron,the-open-network';
+  fetch('https://api.coingecko.com/api/v3/simple/price?ids='+CG_IDS+'&vs_currencies=usd&include_24hr_change=true')
+    .then(function(r){if(!r.ok)throw new Error('cg '+r.status);return r.json()})
     .then(function(r){
-      MK.data={live:true,t:'',
-        gold:{p:r['pax-gold'].usd,c:r['pax-gold'].usd_24h_change},
-        silver:{p:r['kinesis-silver'].usd,c:r['kinesis-silver'].usd_24h_change},
+      var live={live:true,t:'',
+        gold:cgPick(r,'pax-gold')||SNAP.gold,
+        silver:cgPick(r,'kinesis-silver')||SNAP.silver,
         alu:SNAP.alu,
-        btc:{p:r.bitcoin.usd,c:r.bitcoin.usd_24h_change},
-        eth:{p:r.ethereum.usd,c:r.ethereum.usd_24h_change},
-        sol:{p:r.solana.usd,c:r.solana.usd_24h_change},
-        tether:{p:r.tether.usd,c:r.tether.usd_24h_change},ripple:{p:r.ripple.usd,c:r.ripple.usd_24h_change},dogecoin:{p:r.dogecoin.usd,c:r.dogecoin.usd_24h_change},binancecoin:{p:r.binancecoin.usd,c:r.binancecoin.usd_24h_change},cardano:{p:r.cardano.usd,c:r.cardano.usd_24h_change},'avalanche-2':{p:r['avalanche-2'].usd,c:r['avalanche-2'].usd_24h_change}};
-      try{localStorage.setItem('market-cache-v3',JSON.stringify({at:Date.now(),d:MK.data}))}catch(e){}
+        btc:cgPick(r,'bitcoin')||SNAP.btc,
+        eth:cgPick(r,'ethereum')||SNAP.eth,
+        sol:cgPick(r,'solana')||SNAP.sol,
+        tether:cgPick(r,'tether')||SNAP.tether,
+        ripple:cgPick(r,'ripple')||SNAP.ripple,
+        dogecoin:cgPick(r,'dogecoin')||SNAP.dogecoin,
+        binancecoin:cgPick(r,'binancecoin')||SNAP.binancecoin,
+        cardano:cgPick(r,'cardano')||SNAP.cardano,
+        'avalanche-2':cgPick(r,'avalanche-2')||SNAP['avalanche-2'],
+        litecoin:cgPick(r,'litecoin')||SNAP.litecoin,
+        polkadot:cgPick(r,'polkadot')||SNAP.polkadot,
+        chainlink:cgPick(r,'chainlink')||SNAP.chainlink,
+        'matic-network':cgPick(r,'matic-network')||SNAP['matic-network'],
+        tron:cgPick(r,'tron')||SNAP.tron,
+        'the-open-network':cgPick(r,'the-open-network')||SNAP['the-open-network']
+      };
+      MK.data=withSnap(live);
+      try{localStorage.setItem('market-cache-v4',JSON.stringify({at:Date.now(),d:MK.data}))}catch(e){}
       renderMarket();
     })
     .catch(function(){
-      MK.data=Object.assign({},SNAP,{live:false,t:'اسنپ‌شات امروز'});
-      if(cached&&Date.now()-cached.at<864e5*3){MK.data=Object.assign({},cached.d,{live:false,t:'کش محلی'})}
+      if(cached&&Date.now()-cached.at<864e5*3)MK.data=withSnap(Object.assign({},cached.d,{live:false,t:'کش محلی'}));
+      else MK.data=withSnap({live:false,t:'اسنپ‌شات امروز'});
       renderMarket();
     });
 })();
@@ -574,54 +605,91 @@ document.addEventListener('click',function(e){
 <script>
 /* ➕ نمادهای دلخواه بازار */
 (function(){
- var XTRA=[['rob','🪙','ربع سکه','tm'],['nim','🥈','نیم سکه','tm'],['sekeb','🌻','سکه بهار آزادی','tm'],['geram24','✨','گرم ۲۴','tm'],
+ var XTRA=[
+  /* تومان */
+  ['rob','🪙','ربع سکه','tm'],['nim','🥈','نیم سکه','tm'],['sekeb','🌻','سکه بهار آزادی','tm'],['geram24','✨','گرم ۲۴','tm'],
   ['price_gbp','💷','پوند','tm'],['price_try','🇹🇷','لیر','tm'],['price_aed','🇦🇪','درهم','tm'],
+  /* فلزات/کالا (TGJU keys if available) */
   ['oil_brent','🛢','نفت برنت','us'],['oil','🛢','نفت وتی','us'],['nickel','🔩','نیکل','us'],['platinum','⚪','پلاتین','us'],['copper','🟠','مس','us'],
-  ['tether','₮','تتر','cr'],['ripple','✕','ریپل','cr'],['dogecoin','Ð','دوج‌کوین','cr'],['binancecoin','🅑','بایننس‌کوین','cr'],['cardano','₳','کاردانو','cr'],['avalanche-2','🗻','آوالانچ','cr']];
+  /* کریپتو — id = کلید CoinGecko در MK.data */
+  ['tether','₮','تتر','cr'],['ripple','✕','ریپل','cr'],['dogecoin','Ð','دوج‌کوین','cr'],
+  ['binancecoin','🅑','بایننس‌کوین','cr'],['cardano','₳','کاردانو','cr'],['avalanche-2','🗻','آوالانچ','cr'],
+  ['litecoin','Ł','لایت‌کوین','cr'],['polkadot','●','پولکادات','cr'],['chainlink','⬡','چین‌لینک','cr'],
+  ['matic-network','🟣','پالیگان','cr'],['tron','T','ترون','cr'],['the-open-network','💎','تون','cr']
+ ];
  var TG=null;window._tgjuData=function(d){TG=d;renderX()};
  window._renderX=renderX;
  function picks(){try{return JSON.parse(localStorage.getItem('mkx')||'[]')}catch(e){return[]}}
  function savePicks(p){try{localStorage.setItem('mkx',JSON.stringify(p))}catch(e){}}
- function fmtTm(p){p=p/10;return p>=1e9?faNum((p/1e9).toFixed(2))+' میلیارد':(p>=1e6?faNum((p/1e6).toFixed(2))+' م':faNum(Math.round(p/1000))+' هزار')}
+ function fmtTm(p){p=Number(p)/10;if(!p)return '—';return p>=1e9?faNum((p/1e9).toFixed(2))+' میلیارد':(p>=1e6?faNum((p/1e6).toFixed(2))+' م':faNum(Math.round(p/1000))+' هزار')}
+ function host(cls){
+  return document.getElementById(cls==='cr'?'mrows2':(cls==='tm'?'trows':'mrows'));
+ }
  function renderX(){
   var p=picks();
   document.querySelectorAll('[data-xrow]').forEach(function(x){x.remove()});
   p.forEach(function(k){
    var m=XTRA.find(function(x){return x[0]===k});if(!m)return;
-   if(m[3]==='cr'){
-    var crv=(window.MK&&MK.data)?MK.data[k]:null;
-    if(!crv)return;
-    var cpr=crv.p>=1000?faNum(Math.round(crv.p)):faNum(Math.round(crv.p*100)/100);
-    var cch=(crv.c!=null&&!isNaN(crv.c))?'<div class="chg '+(crv.c>=0?'up':'dn')+'">'+(crv.c>=0?'▲':'▼')+' '+fa(Math.abs(crv.c).toFixed(2).replace(/\.?0+$/,''))+'٪</div>':'<div class="chg na">—</div>';
-    var row=document.createElement('div');row.className='mrow';row.setAttribute('data-xrow',k);
-    row.innerHTML='<div class="ic">'+m[1]+'</div><div class="nm"><b>'+m[2]+'</b><small>کریپتو · دلار</small></div>'+cch+'<div class="pr">'+cpr+' <small>$</small></div><span class="xdel" data-xdel="'+k+'">✕</span>';
-    document.getElementById('mrows2').appendChild(row);return;
-   }
-   var v=TG&&TG.items&&TG.items[k];if(!v)return;
-   var val=m[3]==='tm'?fmtTm(v.p)+' <small>تومان</small>':faNum(Math.round(v.p))+' <small>$</small>';
-   var chg=v.d?'<div class="chg '+(v.d>0?'up':'dn')+'">'+(v.d>0?'▲':'▼')+'</div>':'<div class="chg na">—</div>';
+   var h=host(m[3]);if(!h)return;
    var row=document.createElement('div');row.className='mrow';row.setAttribute('data-xrow',k);
+   if(m[3]==='cr'){
+    /* همیشه ردیف را بساز — قیمت از MK یا SNAP یا — */
+    var crv=((window.MK&&MK.data&&MK.data[k])||(typeof SNAP!=='undefined'&&SNAP[k])||null);
+    var cpr=(crv&&crv.p!=null&&!isNaN(crv.p))?(crv.p>=1000?faNum(Math.round(crv.p)):faNum(Math.round(crv.p*100)/100)):'—';
+    var cch=(crv&&crv.c!=null&&!isNaN(crv.c))?'<div class="chg '+(crv.c>=0?'up':'dn')+'">'+(crv.c>=0?'▲':'▼')+' '+fa(Math.abs(crv.c).toFixed(2).replace(/\.?0+$/,''))+'٪</div>':'<div class="chg na">—</div>';
+    row.innerHTML='<div class="ic">'+m[1]+'</div><div class="nm"><b>'+m[2]+'</b><small>کریپتو · دلار</small></div>'+cch+'<div class="pr">'+cpr+' <small>$</small></div><span class="xdel" data-xdel="'+k+'">✕</span>';
+    h.appendChild(row);return;
+   }
+   var v=TG&&TG.items&&TG.items[k];
+   var val,chg;
+   if(v){
+    val=m[3]==='tm'?fmtTm(v.p)+' <small>تومان</small>':faNum(Math.round(Number(v.p)||0))+' <small>$</small>';
+    chg=v.d?'<div class="chg '+(Number(v.d)>0?'up':'dn')+'">'+(Number(v.d)>0?'▲':'▼')+'</div>':'<div class="chg na">—</div>';
+   } else {
+    /* قیمت هنوز نیامده — ردیف را نگه دار تا بعد از /api/tgju پر شود */
+    val='—';
+    chg='<div class="chg na">—</div>';
+   }
    row.innerHTML='<div class="ic">'+m[1]+'</div><div class="nm"><b>'+m[2]+'</b><small>'+(m[3]==='tm'?'تومان':'جهانی · دلار')+'</small></div>'+chg+'<div class="pr">'+val+'</div><span class="xdel" data-xdel="'+k+'">✕</span>';
-   (m[3]==='tm'?document.getElementById('trows'):document.getElementById('mrows')).appendChild(row);
+   h.appendChild(row);
   });
  }
  document.addEventListener('click',function(e){
   var d=e.target.closest('[data-xdel]');
-  if(d){savePicks(picks().filter(function(k){return k!==d.dataset.xdel}));renderX();return}
+  if(d){
+   e.preventDefault();e.stopPropagation();
+   savePicks(picks().filter(function(k){return k!==d.dataset.xdel}));
+   renderX();return;
+  }
   var a=e.target.closest('[data-add]');if(!a)return;
-  var cls=a.dataset.add,p=picks();
+  e.preventDefault();e.stopPropagation();
+  /* بستن پاپ‌آپ قبلی */
+  document.querySelectorAll('.xpop').forEach(function(x){x.remove()});
+  var cls=a.dataset.add,p=picks().slice();
+  var avail=XTRA.filter(function(x){return x[3]===cls&&p.indexOf(x[0])<0});
   var pop=document.createElement('div');pop.className='xpop';
-  pop.innerHTML=XTRA.filter(function(x){return x[3]===cls&&p.indexOf(x[0])<0}).map(function(x){
-   return '<div class="xr" data-xadd="'+x[0]+'">'+x[1]+' '+x[2]+'<span style="margin-right:auto;color:var(--faint);font-size:12px">+</span></div>'
-  }).join('')||'<div style="color:var(--faint);font-size:13px;padding:8px 2px">همه اضافه شده ✓</div>';
+  pop.innerHTML=avail.length
+    ? avail.map(function(x){return '<div class="xr" data-xadd="'+x[0]+'">'+x[1]+' '+x[2]+'<span style="margin-right:auto;color:var(--faint);font-size:12px">+</span></div>'}).join('')
+    : '<div style="color:var(--faint);font-size:13px;padding:8px 2px">همه اضافه شده ✓</div>';
   document.body.appendChild(pop);
-  var r=a.getBoundingClientRect();pop.style.top=(r.bottom+8)+'px';pop.style.left=Math.max(10,r.left-220)+'px';
-  setTimeout(function(){
-   function close(ev){if(!ev.target.closest('.xpop')&&!ev.target.closest('[data-add]')){pop.remove();document.removeEventListener('click',close)}}
-   document.addEventListener('click',close);
-   pop.addEventListener('click',function(ev){var ad=ev.target.closest('[data-xadd]');
-    if(ad){p.push(ad.dataset.xadd);savePicks(p);renderX();pop.remove()}});
-  },0);
+  var r=a.getBoundingClientRect();
+  pop.style.top=(r.bottom+8)+'px';
+  pop.style.left=Math.max(10,Math.min(r.left-40,window.innerWidth-300))+'px';
+  function close(ev){
+   if(ev.target.closest('.xpop')||ev.target.closest('[data-add]'))return;
+   pop.remove();document.removeEventListener('click',close);
+  }
+  setTimeout(function(){document.addEventListener('click',close)},0);
+  pop.addEventListener('click',function(ev){
+   var ad=ev.target.closest('[data-xadd]');if(!ad)return;
+   ev.preventDefault();ev.stopPropagation();
+   var key=ad.dataset.xadd;
+   var cur=picks();
+   if(cur.indexOf(key)<0){cur.push(key);savePicks(cur)}
+   renderX();
+   pop.remove();
+   document.removeEventListener('click',close);
+  });
  });
  renderX();
 })();
