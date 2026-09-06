@@ -280,7 +280,8 @@ function makeHelpers(env) {
       tmrRems.slice(0,3).forEach(r=>lines.push('• '+(r.time?r.time+' · ':'')+r.title));
       tmrTasks.slice(0,3).forEach(t=>lines.push('• '+t.title));
     }
-    lines.push(''); lines.push('موفق باشی 💪 — /امروز برای جزئیات');
+    lines.push(''); let docsExp=(db.documents||[]).filter(x=>x.userId===user.id&&x.expiryDate&&x.expiryDate>=d&&x.expiryDate<=soon);if(docsExp.length){lines.push('');lines.push('📄 مدارک در حال انقضا:');docsExp.slice(0,5).forEach(x=>lines.push('• '+x.expiryDate+' — '+(x.title||'سند')));}
+    lines.push('موفق باشی 💪 — /امروز برای جزئیات');
     return lines.join('\n');
   }
   async function buildEveningReport(db,user,d){

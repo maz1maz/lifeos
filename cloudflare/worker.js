@@ -280,7 +280,8 @@ function makeHelpers(env) {
       tmrRems.slice(0,3).forEach(r=>lines.push('• '+(r.time?r.time+' · ':'')+r.title));
       tmrTasks.slice(0,3).forEach(t=>lines.push('• '+t.title));
     }
-    lines.push(''); lines.push('موفق باشی 💪 — /امروز برای جزئیات');
+    lines.push(''); let docsExp=(db.documents||[]).filter(x=>x.userId===user.id&&x.expiryDate&&x.expiryDate>=d&&x.expiryDate<=soon);if(docsExp.length){lines.push('');lines.push('📄 مدارک در حال انقضا:');docsExp.slice(0,5).forEach(x=>lines.push('• '+x.expiryDate+' — '+(x.title||'سند')));}
+    lines.push('موفق باشی 💪 — /امروز برای جزئیات');
     return lines.join('\n');
   }
   async function buildEveningReport(db,user,d){
@@ -372,10 +373,10 @@ async function handleApi(request, env) {
   // is always the real answer, regardless of what runRoutes() "returns".
   async function runRoutes() {
     let u = new URL(req.url), p = u.pathname;
- if(p==='/api/auth/signup'&&req.method==='POST'){let d=await body(req),db=await read();if(!d.name||!d.email||!d.password||d.password.length<6)return json(res,400,{error:'نام، ایمیل و رمز حداقل ۶ حرفی لازم است.'});if(db.users.some(x=>x.email===d.email.toLowerCase()))return json(res,409,{error:'این ایمیل قبلاً ثبت شده است.'});let salt=randHex(16),user={id:id(),name:d.name.trim(),email:d.email.toLowerCase(),salt,password:await hash(d.password,salt),createdAt:Date.now()};db.users.push(user);let sid=id();db.sessions.push({id:sid,userId:user.id});await write(db);res.writeHead(201,{'Content-Type':'application/json','Set-Cookie':`sid=${sid}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000`});return res.end(JSON.stringify({user:{name:user.name,email:user.email}}))}
- if(p==='/api/auth/login'&&req.method==='POST'){let d=await body(req),db=await read(),user=db.users.find(x=>x.email===String(d.email).toLowerCase()),candidate=await hash(d.password||'',(user&&user.salt)||'0000000000000000000000000000000'),valid=user&&user.password&&timingSafeEqualHex(candidate,user.password);if(!valid)return json(res,401,{error:'ایمیل یا رمز عبور صحیح نیست.'});let sid=id();db.sessions.push({id:sid,userId:user.id});await write(db);res.writeHead(200,{'Content-Type':'application/json','Set-Cookie':`sid=${sid}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000`});return res.end(JSON.stringify({user:{name:user.name,email:user.email}}))}
+ if(p==='/api/auth/signup'&&req.method==='POST'){let d=await body(req),db=await read();if(!d.name||!d.email||!d.password||d.password.length<6)return json(res,400,{error:'نام، ایمیل و رمز حداقل ۶ حرفی لازم است.'});if(db.users.some(x=>x.email===d.email.toLowerCase()))return json(res,409,{error:'این ایمیل قبلاً ثبت شده است.'});let salt=randHex(16),user={id:id(),name:d.name.trim(),email:d.email.toLowerCase(),salt,password:await hash(d.password,salt),createdAt:Date.now()};db.users.push(user);let sid=id();db.sessions.push({id:sid,userId:user.id});await write(db);res.writeHead(201,{'Content-Type':'application/json','Set-Cookie':sidCookie(sid)});return res.end(JSON.stringify({user:{name:user.name,email:user.email}}))}
+ if(p==='/api/auth/login'&&req.method==='POST'){let d=await body(req),db=await read(),user=db.users.find(x=>x.email===String(d.email).toLowerCase()),candidate=await hash(d.password||'',(user&&user.salt)||'0000000000000000000000000000000'),valid=user&&user.password&&timingSafeEqualHex(candidate,user.password);if(!valid)return json(res,401,{error:'ایمیل یا رمز عبور صحیح نیست.'});let sid=id();db.sessions.push({id:sid,userId:user.id});await write(db);res.writeHead(200,{'Content-Type':'application/json','Set-Cookie':sidCookie(sid)});return res.end(JSON.stringify({user:{name:user.name,email:user.email}}))}
  if(p==='/api/auth/google'&&req.method==='GET'){if(!GOOGLE_CLIENT_ID||!GOOGLE_CLIENT_SECRET||!GOOGLE_REDIRECT_URI)return json(res,503,{error:'ورود گوگل هنوز در تنظیمات سرور فعال نشده است.'});let state=randHex(24),q=new URLSearchParams({client_id:GOOGLE_CLIENT_ID,redirect_uri:GOOGLE_REDIRECT_URI,response_type:'code',scope:'openid email profile',state,prompt:'select_account'});res.writeHead(302,{'Location':'https://accounts.google.com/o/oauth2/v2/auth?'+q,'Set-Cookie':`google_state=${state}; HttpOnly; SameSite=Lax; Path=/; Max-Age=600`});return res.end()}
- if(p==='/api/auth/google/callback'&&req.method==='GET'){let db=await read(),code=u.searchParams.get('code'),state=u.searchParams.get('state');if(!code||!state||cookie(req).google_state!==state)return json(res,400,{error:'تأیید امنیتی ورود گوگل ناموفق بود. دوباره تلاش کن.'});if(!GOOGLE_CLIENT_ID||!GOOGLE_CLIENT_SECRET||!GOOGLE_REDIRECT_URI)return json(res,503,{error:'تنظیمات گوگل کامل نیست.'});let token=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:GOOGLE_CLIENT_ID,client_secret:GOOGLE_CLIENT_SECRET,redirect_uri:GOOGLE_REDIRECT_URI,grant_type:'authorization_code'})}).then(r=>r.json());if(!token.access_token)return json(res,401,{error:'دریافت مجوز گوگل ناموفق بود.'});let profile=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:'Bearer '+token.access_token}}).then(r=>r.json());if(!profile.email||!profile.sub)return json(res,401,{error:'اطلاعات حساب گوگل کامل نیست.'});let user=db.users.find(x=>x.googleId===profile.sub)||db.users.find(x=>x.email===profile.email.toLowerCase());if(!user){user={id:id(),name:profile.name||profile.email.split('@')[0],email:profile.email.toLowerCase(),googleId:profile.sub,createdAt:Date.now()};db.users.push(user)}else if(!user.googleId)user.googleId=profile.sub;let sid=id();db.sessions.push({id:sid,userId:user.id});await write(db);res.writeHead(302,{'Location':'/','Set-Cookie':[`sid=${sid}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000`,'google_state=; HttpOnly; Path=/; Max-Age=0']});return res.end()}
+ if(p==='/api/auth/google/callback'&&req.method==='GET'){let db=await read(),code=u.searchParams.get('code'),state=u.searchParams.get('state');if(!code||!state||cookie(req).google_state!==state)return json(res,400,{error:'تأیید امنیتی ورود گوگل ناموفق بود. دوباره تلاش کن.'});if(!GOOGLE_CLIENT_ID||!GOOGLE_CLIENT_SECRET||!GOOGLE_REDIRECT_URI)return json(res,503,{error:'تنظیمات گوگل کامل نیست.'});let token=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:GOOGLE_CLIENT_ID,client_secret:GOOGLE_CLIENT_SECRET,redirect_uri:GOOGLE_REDIRECT_URI,grant_type:'authorization_code'})}).then(r=>r.json());if(!token.access_token)return json(res,401,{error:'دریافت مجوز گوگل ناموفق بود.'});let profile=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:'Bearer '+token.access_token}}).then(r=>r.json());if(!profile.email||!profile.sub)return json(res,401,{error:'اطلاعات حساب گوگل کامل نیست.'});let user=db.users.find(x=>x.googleId===profile.sub)||db.users.find(x=>x.email===profile.email.toLowerCase());if(!user){user={id:id(),name:profile.name||profile.email.split('@')[0],email:profile.email.toLowerCase(),googleId:profile.sub,createdAt:Date.now()};db.users.push(user)}else if(!user.googleId)user.googleId=profile.sub;let sid=id();db.sessions.push({id:sid,userId:user.id});await write(db);res.writeHead(302,{'Location':'/','Set-Cookie':[sidCookie(sid),'google_state=; HttpOnly; Path=/; Max-Age=0']});return res.end()}
  if(p==='/api/auth/logout'&&req.method==='POST'){let db=await read(),sid=cookie(req).sid;db.sessions=db.sessions.filter(x=>x.id!==sid);await write(db);res.writeHead(200,{'Set-Cookie':'sid=; HttpOnly; Path=/; Max-Age=0'});return res.end('{}')}
  if(p==='/api/me'&&req.method==='GET'){let db=await read(),user=me(req,db);return json(res,200,{user:user&&{name:user.name,email:user.email,telegramUserId:user.telegramUserId||null,tgMorningHour:user.tgMorningHour!=null?user.tgMorningHour:9,tgEveningHour:user.tgEveningHour!=null?user.tgEveningHour:23,tgReports:user.tgReports!==false,spotifyConnected:!!user.spotifyRefreshToken,youtubeConnected:!!user.youtubeRefreshToken}})}
  if(p==='/api/me'&&req.method==='PATCH'){let db=await read(),user=auth(req,res,db),d=await body(req);if(d.telegramUserId!==undefined)user.telegramUserId=d.telegramUserId?String(d.telegramUserId).trim():null;if(d.tgMorningHour!==undefined){let h=Number(d.tgMorningHour);if(h>=0&&h<=23)user.tgMorningHour=h;}if(d.tgEveningHour!==undefined){let h=Number(d.tgEveningHour);if(h>=0&&h<=23)user.tgEveningHour=h;}if(d.tgReports!==undefined)user.tgReports=!!d.tgReports;await write(db);return json(res,200,{ok:true})}
@@ -404,7 +405,7 @@ async function handleApi(request, env) {
  if(p==='/api/calendar/on-this-day'&&req.method==='GET'){let db=await read();auth(req,res,db);let date=u.searchParams.get('date')||today(),d=new Date(date+'T12:00:00'),mm=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');try{let r=await fetch(`https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/${mm}/${dd}`,{headers:{'User-Agent':'Mozilla/5.0 (compatible; HasteCalendar/1.0; +https://workers.dev)'}});if(!r.ok)throw new Error('HTTP '+r.status);let data=await r.json(),events=(data.events||[]).filter(e=>e.year).sort((a,b)=>b.year-a.year).slice(0,6).map(e=>({year:e.year,text:e.text}));return json(res,200,{events})}catch(e){return json(res,502,{error:'دریافت رویدادهای تاریخی جهانی ناموفق بود.'})}}
  if(p==='/api/transactions/export'&&req.method==='GET'){let db=await read(),user=auth(req,res,db),items=filterTransactions(db,user.id,u),header=['تاریخ','شرح','دسته','نوع','حساب','مبلغ'],rows=items.map(x=>[x.date,x.title,x.category,x.kind==='income'?'درآمد':x.kind==='transfer'?'انتقال':'هزینه',x.account,x.amount]);let csv='﻿'+[header,...rows].map(r=>r.map(csvEscape).join(',')).join('\r\n');res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="tabarakat.csv"'});return res.end(csv)}
  if(p==='/api/transactions'&&req.method==='GET'){let db=await read(),user=auth(req,res,db);advanceRecurringTransactions(db,user.id)&&await write(db);return json(res,200,{items:filterTransactions(db,user.id,u)})}
- if(p.startsWith('/api/transactions/')&&p.endsWith('/receipt')&&req.method==='POST'){let db=await read(),user=auth(req,res,db),r=db.transactions.find(x=>x.id===p.split('/')[3]&&x.userId===user.id);if(!r)return json(res,404,{error:'تراکنش پیدا نشد.'});let d=await body(req),m=/^data:image\/(png|jpe?g|webp);base64,(.+)$/.exec(d.image||'');if(!m)return json(res,400,{error:'تصویر معتبر نیست.'});let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]}});r.receipt='/uploads/'+filename;await write(db);return json(res,200,r)}
+ if(p.startsWith('/api/transactions/')&&p.endsWith('/receipt')&&req.method==='POST'){let db=await read(),user=auth(req,res,db),r=db.transactions.find(x=>x.id===p.split('/')[3]&&x.userId===user.id);if(!r)return json(res,404,{error:'تراکنش پیدا نشد.'});let d=await body(req),m=/^data:image\/(png|jpe?g|webp);base64,(.+)$/.exec(d.image||'');if(!m)return json(res,400,{error:'تصویر معتبر نیست.'});let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]},customMetadata:{userId:user.id}});r.receipt='/uploads/'+filename;await write(db);return json(res,200,r)}
  if(p.startsWith('/api/transactions/')&&(req.method==='PATCH'||req.method==='DELETE')){let db=await read(),user=auth(req,res,db);let ix=db.transactions.findIndex(x=>x.id===p.split('/').pop()&&x.userId===user.id);if(ix<0)return json(res,404,{error:'تراکنش پیدا نشد.'});if(req.method==='DELETE'){db.transactions.splice(ix,1);await write(db);return json(res,200,{ok:true})}let d=await body(req),r=db.transactions[ix];for(const k of ['title','amount','category','kind','account','date','toAccount','recurrence'])if(d[k]!==undefined)r[k]=k==='amount'?Number(d[k]):d[k];await write(db);return json(res,200,r)}
  if(p==='/api/transactions'&&req.method==='POST'){let db=await read(),user=auth(req,res,db);let d=await body(req);if(!d.title||!Number(d.amount))return json(res,400,{error:'شرح و مبلغ الزامی است.'});let r={id:id(),userId:user.id,title:d.title.trim(),amount:Number(d.amount),category:d.category||'متفرقه',kind:d.kind||'expense',account:d.account||'بدون حساب',date:d.date||today(),recurrence:d.recurrence||null,recurrenceId:d.recurrence?id():null,receipt:null,tripId:d.tripId||null,createdAt:Date.now()};db.transactions.push(r);await write(db);return json(res,201,r)}
  if(p==='/api/transactions/import-bank/preview'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),d=await body(req);if(!d.fileBase64)return json(res,400,{error:'فایل لازم است.'});let rows;try{if(d.fileType==='csv'){let text=textFromBase64(d.fileBase64);rows=parseCsvRows(text)}else{let wb=XLSX.read(bytesFromBase64(d.fileBase64),{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]];rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''})}}catch(e){return json(res,400,{error:'خوندن فایل شکست خورد: '+e.message})}let parsed;try{parsed=parseBankStatementRows(rows)}catch(e){return json(res,400,{error:e.message})}if(!parsed.length)return json(res,400,{error:'هیچ تراکنشی توی فایل پیدا نشد. مطمئنی فرمتش با نمونه‌ای که قبلاً بررسی شد یکیه؟'});let existingRefs=new Set(db.transactions.filter(x=>x.userId===user.id&&x.bankRef).map(x=>x.bankRef)),items=parsed.map(x=>({...x,duplicate:x.bankRef?existingRefs.has(x.bankRef):false})),fresh=items.filter(x=>!x.duplicate);return json(res,200,{items,totalIncome:fresh.filter(x=>x.kind==='income').reduce((n,x)=>n+x.amount,0),totalExpense:fresh.filter(x=>x.kind==='expense').reduce((n,x)=>n+x.amount,0),totalTransfer:fresh.filter(x=>x.kind==='transfer').reduce((n,x)=>n+x.amount,0),duplicateCount:items.length-fresh.length})}
@@ -521,7 +522,7 @@ async function handleApi(request, env) {
  if(p.startsWith('/api/trips/')&&(req.method==='PATCH'||req.method==='DELETE')){let db=await read(),user=auth(req,res,db),ix=db.trips.findIndex(x=>x.id===p.split('/').pop()&&x.userId===user.id);if(ix<0)return json(res,404,{error:'سفر پیدا نشد.'});if(req.method==='DELETE'){let tid=db.trips[ix].id;db.trips.splice(ix,1);db.tripChecklist=db.tripChecklist.filter(x=>x.tripId!==tid);await write(db);return json(res,200,{ok:true})}let r=db.trips[ix],d=await body(req);for(const k of['destination','startDate','endDate','budget','notes'])if(d[k]!==undefined)r[k]=k==='budget'?Number(d[k]):d[k];await write(db);return json(res,200,r)}
  if(p==='/api/documents'&&req.method==='GET'){let db=await read(),user=auth(req,res,db),items=db.documents.filter(x=>x.userId===user.id).sort((a,b)=>(a.expiryDate||'9999').localeCompare(b.expiryDate||'9999'));return json(res,200,{items})}
  if(p==='/api/documents'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),d=await body(req);if(!d.title)return json(res,400,{error:'عنوان سند لازم است.'});let r={id:id(),userId:user.id,title:d.title.trim(),type:d.type||'other',expiryDate:d.expiryDate||null,fileUrl:null,notes:d.notes||'',createdAt:Date.now()};db.documents.push(r);await write(db);return json(res,201,r)}
- if(p.startsWith('/api/documents/')&&p.endsWith('/attach')&&req.method==='POST'){let db=await read(),user=auth(req,res,db),r=db.documents.find(x=>x.id===p.split('/')[3]&&x.userId===user.id);if(!r)return json(res,404,{error:'سند پیدا نشد.'});let d=await body(req),m=/^data:image\/(png|jpe?g|webp);base64,(.+)$/.exec(d.image||'');if(!m)return json(res,400,{error:'تصویر معتبر نیست.'});let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]}});r.fileUrl='/uploads/'+filename;await write(db);return json(res,200,r)}
+ if(p.startsWith('/api/documents/')&&p.endsWith('/attach')&&req.method==='POST'){let db=await read(),user=auth(req,res,db),r=db.documents.find(x=>x.id===p.split('/')[3]&&x.userId===user.id);if(!r)return json(res,404,{error:'سند پیدا نشد.'});let d=await body(req),raw=d.file||d.image||'';let m=/^data:(image\/(png|jpe?g|webp|gif)|application\/pdf);base64,(.+)$/i.exec(raw);if(!m)return json(res,400,{error:'فایل معتبر نیست (تصویر یا PDF).'});let mime=m[1].toLowerCase(),ext=mime==='application/pdf'?'pdf':(m[2].toLowerCase()==='jpeg'?'jpg':m[2].toLowerCase());let buf=bytesFromBase64(m[3]);if(buf.byteLength>12*1024*1024)return json(res,400,{error:'حجم فایل حداکثر ۱۲ مگابایت.'});let filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,buf,{httpMetadata:{contentType:mime},customMetadata:{userId:user.id}});r.fileUrl='/uploads/'+filename;r.fileMime=mime;r.fileName=d.fileName||filename;await write(db);return json(res,200,r)}
  if(p.startsWith('/api/documents/')&&(req.method==='PATCH'||req.method==='DELETE')){let db=await read(),user=auth(req,res,db),ix=db.documents.findIndex(x=>x.id===p.split('/').pop()&&x.userId===user.id);if(ix<0)return json(res,404,{error:'سند پیدا نشد.'});if(req.method==='DELETE'){db.documents.splice(ix,1);await write(db);return json(res,200,{ok:true})}let r=db.documents[ix],d=await body(req);for(const k of['title','type','expiryDate','notes'])if(d[k]!==undefined)r[k]=d[k];await write(db);return json(res,200,r)}
  if(p==='/api/goals'&&req.method==='GET'){let db=await read(),user=auth(req,res,db),period=u.searchParams.get('period'),items=db.goals.filter(x=>x.userId===user.id&&(!period||x.period===period)).map(g=>({...g,currentValue:computeGoalProgress(db,user.id,g)}));return json(res,200,{items})}
  if(p==='/api/goals'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),d=await body(req);if(!d.title||!d.periodKey)return json(res,400,{error:'عنوان و بازهٔ زمانی لازم است.'});let r={id:id(),userId:user.id,title:d.title.trim(),period:d.period||'monthly',periodKey:d.periodKey,linkedType:d.linkedType||null,linkedId:d.linkedId||null,targetValue:Number(d.targetValue)||0,manualValue:0,status:'active',createdAt:Date.now()};db.goals.push(r);await write(db);return json(res,201,r)}
@@ -551,18 +552,62 @@ function buildResponse(res) {
     if (Array.isArray(v)) { for (const vv of v) headers.append(k, vv) }
     else headers.set(k, v);
   }
+  if (!headers.has('X-Content-Type-Options')) headers.set('X-Content-Type-Options', 'nosniff');
+  if (!headers.has('X-Frame-Options')) headers.set('X-Frame-Options', 'SAMEORIGIN');
+  if (!headers.has('Referrer-Policy')) headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Secure cookie on HTTPS (Workers always HTTPS on *.workers.dev / custom)
+  const sc = headers.get('Set-Cookie');
+  if (sc && !/;\s*Secure/i.test(sc)) headers.set('Set-Cookie', sc + '; Secure');
   return new Response(res._body, { status: res._status, headers });
 }
 
-async function handleUploadGet(pathname, env) {
-  if (!env.UPLOADS) return new Response(JSON.stringify({ error: 'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.' }), { status: 404, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
-  const key = pathname.slice('/uploads/'.length);
+async function handleUploadGet(pathname, request, env) {
+  const J = { 'Content-Type': 'application/json; charset=utf-8' };
+  if (!env.UPLOADS) return new Response(JSON.stringify({ error: 'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.' }), { status: 404, headers: J });
+  let userId = null;
+  try {
+    const sid = (request.headers.get('cookie') || '').match(/(?:^|;\s*)sid=([^;]+)/);
+    if (sid) {
+      const row = await env.DB.prepare("SELECT value FROM kv WHERE key='db'").first();
+      if (row) {
+        const db = JSON.parse(row.value);
+        const s = (db.sessions || []).find(x => x.id === sid[1]);
+        const u = s && (db.users || []).find(x => x.id === s.userId);
+        if (u) userId = u.id;
+      }
+    }
+  } catch (e) {}
+  if (!userId) return new Response(JSON.stringify({ error: 'ابتدا وارد حساب شوید.' }), { status: 401, headers: J });
+  const key = pathname.slice('/uploads/'.length).replace(/\.\./g, '').replace(/^\/+/, '');
+  if (!key || key.includes('/')) return new Response('Not found', { status: 404 });
   const obj = await env.UPLOADS.get(key);
   if (!obj) return new Response('Not found', { status: 404 });
-  return new Response(obj.body, { headers: { 'Content-Type': (obj.httpMetadata && obj.httpMetadata.contentType) || 'application/octet-stream' } });
+  const owner = (obj.customMetadata && (obj.customMetadata.userId || obj.customMetadata.owner)) || null;
+  if (owner && owner !== userId) return new Response(JSON.stringify({ error: 'دسترسی مجاز نیست.' }), { status: 403, headers: J });
+  if (!owner) {
+    try {
+      const row = await env.DB.prepare("SELECT value FROM kv WHERE key='db'").first();
+      const db = row ? JSON.parse(row.value) : { documents: [], transactions: [] };
+      const url = '/uploads/' + key;
+      const mine = (db.documents || []).some(d => d.userId === userId && d.fileUrl === url)
+        || (db.transactions || []).some(t => t.userId === userId && t.receipt === url);
+      if (!mine) return new Response(JSON.stringify({ error: 'دسترسی مجاز نیست.' }), { status: 403, headers: J });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'دسترسی مجاز نیست.' }), { status: 403, headers: J });
+    }
+  }
+  return new Response(obj.body, { headers: {
+    'Content-Type': (obj.httpMetadata && obj.httpMetadata.contentType) || 'application/octet-stream',
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
+  }});
 }
 
 async function handleTelegramWebhook(request, env) {
+  if (env.TELEGRAM_WEBHOOK_SECRET) {
+    const got = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
+    if (got !== env.TELEGRAM_WEBHOOK_SECRET) return new Response('forbidden', { status: 403 });
+  }
   const H = makeHelpers(env);
   try {
     const update = await request.json();
@@ -616,7 +661,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/telegram/webhook' && request.method === 'POST') return handleTelegramWebhook(request, env);
     if (url.pathname === '/api/tgju') return handleTgju(request, env);
-    if (url.pathname.startsWith('/uploads/') && request.method === 'GET') return handleUploadGet(url.pathname, env);
+    if (url.pathname.startsWith('/uploads/') && request.method === 'GET') return handleUploadGet(url.pathname, request, env);
     if (!url.pathname.startsWith('/api/')) {
       // 🚧 دروازه‌ی لاگین: بدون نشست معتبر، هیچ محتوایی سرو نمی‌شود — فقط صفحه‌ی ورود
       const isPublic = /^\/design\/login-page(\.html)?$/.test(url.pathname);

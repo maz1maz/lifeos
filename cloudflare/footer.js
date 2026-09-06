@@ -15,18 +15,62 @@ function buildResponse(res) {
     if (Array.isArray(v)) { for (const vv of v) headers.append(k, vv) }
     else headers.set(k, v);
   }
+  if (!headers.has('X-Content-Type-Options')) headers.set('X-Content-Type-Options', 'nosniff');
+  if (!headers.has('X-Frame-Options')) headers.set('X-Frame-Options', 'SAMEORIGIN');
+  if (!headers.has('Referrer-Policy')) headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Secure cookie on HTTPS (Workers always HTTPS on *.workers.dev / custom)
+  const sc = headers.get('Set-Cookie');
+  if (sc && !/;\s*Secure/i.test(sc)) headers.set('Set-Cookie', sc + '; Secure');
   return new Response(res._body, { status: res._status, headers });
 }
 
-async function handleUploadGet(pathname, env) {
-  if (!env.UPLOADS) return new Response(JSON.stringify({ error: 'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.' }), { status: 404, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
-  const key = pathname.slice('/uploads/'.length);
+async function handleUploadGet(pathname, request, env) {
+  const J = { 'Content-Type': 'application/json; charset=utf-8' };
+  if (!env.UPLOADS) return new Response(JSON.stringify({ error: 'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.' }), { status: 404, headers: J });
+  let userId = null;
+  try {
+    const sid = (request.headers.get('cookie') || '').match(/(?:^|;\s*)sid=([^;]+)/);
+    if (sid) {
+      const row = await env.DB.prepare("SELECT value FROM kv WHERE key='db'").first();
+      if (row) {
+        const db = JSON.parse(row.value);
+        const s = (db.sessions || []).find(x => x.id === sid[1]);
+        const u = s && (db.users || []).find(x => x.id === s.userId);
+        if (u) userId = u.id;
+      }
+    }
+  } catch (e) {}
+  if (!userId) return new Response(JSON.stringify({ error: 'ابتدا وارد حساب شوید.' }), { status: 401, headers: J });
+  const key = pathname.slice('/uploads/'.length).replace(/\.\./g, '').replace(/^\/+/, '');
+  if (!key || key.includes('/')) return new Response('Not found', { status: 404 });
   const obj = await env.UPLOADS.get(key);
   if (!obj) return new Response('Not found', { status: 404 });
-  return new Response(obj.body, { headers: { 'Content-Type': (obj.httpMetadata && obj.httpMetadata.contentType) || 'application/octet-stream' } });
+  const owner = (obj.customMetadata && (obj.customMetadata.userId || obj.customMetadata.owner)) || null;
+  if (owner && owner !== userId) return new Response(JSON.stringify({ error: 'دسترسی مجاز نیست.' }), { status: 403, headers: J });
+  if (!owner) {
+    try {
+      const row = await env.DB.prepare("SELECT value FROM kv WHERE key='db'").first();
+      const db = row ? JSON.parse(row.value) : { documents: [], transactions: [] };
+      const url = '/uploads/' + key;
+      const mine = (db.documents || []).some(d => d.userId === userId && d.fileUrl === url)
+        || (db.transactions || []).some(t => t.userId === userId && t.receipt === url);
+      if (!mine) return new Response(JSON.stringify({ error: 'دسترسی مجاز نیست.' }), { status: 403, headers: J });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'دسترسی مجاز نیست.' }), { status: 403, headers: J });
+    }
+  }
+  return new Response(obj.body, { headers: {
+    'Content-Type': (obj.httpMetadata && obj.httpMetadata.contentType) || 'application/octet-stream',
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
+  }});
 }
 
 async function handleTelegramWebhook(request, env) {
+  if (env.TELEGRAM_WEBHOOK_SECRET) {
+    const got = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
+    if (got !== env.TELEGRAM_WEBHOOK_SECRET) return new Response('forbidden', { status: 403 });
+  }
   const H = makeHelpers(env);
   try {
     const update = await request.json();
@@ -80,7 +124,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/telegram/webhook' && request.method === 'POST') return handleTelegramWebhook(request, env);
     if (url.pathname === '/api/tgju') return handleTgju(request, env);
-    if (url.pathname.startsWith('/uploads/') && request.method === 'GET') return handleUploadGet(url.pathname, env);
+    if (url.pathname.startsWith('/uploads/') && request.method === 'GET') return handleUploadGet(url.pathname, request, env);
     if (!url.pathname.startsWith('/api/')) {
       // 🚧 دروازه‌ی لاگین: بدون نشست معتبر، هیچ محتوایی سرو نمی‌شود — فقط صفحه‌ی ورود
       const isPublic = /^\/design\/login-page(\.html)?$/.test(url.pathname);
