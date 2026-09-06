@@ -451,25 +451,8 @@ body.zoom1{zoom:1.1111}
 <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="">🎵 موسیقی</a><a href="/design/youtube-page.html" class="on">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap" style="max-width:1320px">
-  <div class="lead">یوتیوب تو — پلی‌لیست‌ها با thumbnail واقعی، ویدیوها و سابسکرایب‌ها</div>
 
-  <div class="mcard" style="margin-top:14px">
-    <div class="concard">
-      <span class="ytbrand">
-        <svg viewBox="0 0 48 34" fill="none"><rect width="48" height="34" rx="8" fill="#FF0000"/><path d="M19 9.5v15l13-7.5L19 9.5z" fill="#fff"/></svg>
-      </span>
-      <div style="flex:1;min-width:180px">
-        <b style="font-size:16px">یوتیوب</b>
-        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">پوستر پلی‌لیست، ویدیوها و کانال‌های دنبال‌شده — شبیه خود یوتیوب</div>
-      </div>
-      <span class="conbadge" id="ytState">… در حال بررسی</span>
-      <button class="bigbtn ytred" id="ytConnect">اتصال به یوتیوب</button>
-      <button class="bigbtn ghost" id="ytDis" style="display:none">قطع اتصال</button>
-      <button class="bigbtn ghost" id="ytRefresh" style="display:none" title="تازه‌سازی">↻</button>
-    </div>
-  </div>
-
-  <div class="tabsrow">
+  <div class="tabsrow" style="margin-top:14px">
     <button class="tabchip on" data-tab="playlists">📂 پلی‌لیست‌ها</button>
     <button class="tabchip" data-tab="subs">📺 سابسکرایب‌ها</button>
   </div>
@@ -483,6 +466,22 @@ body.zoom1{zoom:1.1111}
     <div class="mhead"><h4>📺 کانال‌های دنبال‌شده</h4><span id="ytSubState" style="font-size:12.5px;color:var(--faint)"></span></div>
     <div class="chiprow2" id="ytSubs"></div>
     <div class="rygrid" id="ytSubsGrid" style="margin-top:14px"></div>
+  </div>
+
+  <div class="mcard" style="margin-top:18px" id="ytConnCard">
+    <div class="concard">
+      <span class="ytbrand">
+        <svg viewBox="0 0 48 34" fill="none"><rect width="48" height="34" rx="8" fill="#FF0000"/><path d="M19 9.5v15l13-7.5L19 9.5z" fill="#fff"/></svg>
+      </span>
+      <div style="flex:1;min-width:180px">
+        <b style="font-size:16px">اتصال یوتیوب</b>
+        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">برای پلی‌لیست و سابسکرایب واقعی وصل شو</div>
+      </div>
+      <span class="conbadge" id="ytState">… در حال بررسی</span>
+      <button class="bigbtn ytred" id="ytConnect">اتصال به یوتیوب</button>
+      <button class="bigbtn ghost" id="ytDis" style="display:none">قطع اتصال</button>
+      <button class="bigbtn ghost" id="ytRefresh" style="display:none" title="تازه‌سازی">↻</button>
+    </div>
   </div>
 
 </div>

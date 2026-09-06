@@ -837,27 +837,41 @@ function renderSearch(items){
 function doSearch(){
   var q=(document.getElementById('spQ').value||'').trim();
   var st=document.getElementById('spSearchState');
+  var btn=document.getElementById('spSearchBtn');
   if(!q){st.textContent='چیزی بنویس';return}
-  if(!window.__spLive){
-    // offline demo filter
+  function demoFallback(msg){
     var hits=DEMO_COVERS.filter(function(t){
       var s=(t.name+' '+t.artist+' '+(t.album||'')).toLowerCase();
       return s.indexOf(q.toLowerCase())>=0;
     });
     if(!hits.length) hits=DEMO_COVERS.slice(0,6);
     renderSearch(hits);
-    st.textContent='نمونه (بعد از اتصال، جستجوی واقعی)';
-    return;
+    st.textContent=msg||'نمونه — برای جستجوی واقعی وصل شو';
   }
   st.textContent='در حال جستجو…';
+  if(btn){btn.disabled=true;btn.textContent='…'}
   fetch('/api/integrations/spotify/search?q='+encodeURIComponent(q))
-    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
     .then(function(res){
-      if(!res.ok){st.textContent=(res.d&&res.d.error)||'ناموفق';return}
+      if(btn){btn.disabled=false;btn.textContent='جستجو'}
+      if(!res.ok){
+        if(res.status===401||res.status===400){
+          window.__spLive=false;
+          demoFallback((res.d&&res.d.error)||'اول اسپاتیفای را وصل کن (پایین صفحه)');
+          return;
+        }
+        st.textContent=(res.d&&res.d.error)||('خطا '+res.status);
+        return;
+      }
+      window.__spLive=true;
       var items=res.d.items||[];
       renderSearch(items);
-      st.textContent=items.length?('زنده ✓ · '+fa(items.length)+' نتیجه'):'چیزی پیدا نشد';
-    }).catch(function(){st.textContent='جستجو ناموفق'});
+      st.textContent=items.length?('✓ '+fa(items.length)+' نتیجه'):'چیزی پیدا نشد';
+    }).catch(function(err){
+      if(btn){btn.disabled=false;btn.textContent='جستجو'}
+      if(window.__spLive){st.textContent='جستجو ناموفق — دوباره تلاش کن';return}
+      demoFallback('نمونه — اتصال لازم است');
+    });
 }
 document.getElementById('spSearchBtn').addEventListener('click',doSearch);
 document.getElementById('spQ').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch()}});
