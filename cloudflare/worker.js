@@ -418,13 +418,12 @@ async function handleApi(request, env) {
     }
     try{
       let data=await fetchTheSportsDb('/livescore.php?s=Soccer');
+      let major=/english premier|premier league|la liga|serie a|bundesliga|ligue 1|super lig|persian gulf|saudi|uefa|champions|europa|world cup|ایران|خلیج/i;
       for(const raw of (data.livescore||[])){
         let m=mapTheSportsDbEvent(raw);
         let k=(m.home+'|'+m.away).toLowerCase();
-        if(seen.has(k)){
-          // prefer ESPN item already there; skip
-          continue;
-        }
+        if(seen.has(k)) continue;
+        if(!major.test(m.league||raw.strLeague||'')) continue; // فقط لیگ‌های بزرگ
         seen.add(k); items.push(m);
       }
     }catch(e){}

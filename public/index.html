@@ -107,7 +107,7 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .home-row{display:grid;gap:14px;align-items:stretch;width:100%}
 /* r1 layout → pack CSS */
 .home-row.r2{grid-template-columns:repeat(4,minmax(0,1fr))}
-.home-row.r3{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* r3 4col */
 .home-row.r4{grid-template-columns:repeat(3,minmax(0,1fr))}
 
 /* ردیف ۱: کارت تاریخ (راست) + مینی‌تقویم با دما (چپ) */
@@ -770,82 +770,86 @@ body.nav-open .nav-backdrop{display:block}
 
 
 
-/* بازی‌ها — هم‌ارتفاع ردیف۲ (کارت هوا) + نتیجه LTR واضح */
+
+/* ردیف۲: بدون stretch — فقط لیست بازی اسکرول شود */
 .home-row.r2{
-  align-items:stretch !important;
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0,1fr)) !important;
+  align-items:start !important;
+  gap:14px;
 }
 .home-row.r2 > .wcard,
 .home-row.r2 > .mcard,
 .home-row.r2 > #gamesCard,
 .home-row.r2 > .tr-combo{
-  height:100%;
-  max-height:100%;
+  height:auto !important;
+  max-height:none !important;
   min-height:0 !important;
-  align-self:stretch;
-  box-sizing:border-box;
+  align-self:start !important;
+  min-width:0;
 }
 #gamesCard{
-  display:flex !important;flex-direction:column;min-height:0 !important;height:100% !important;
+  display:flex !important;
+  flex-direction:column;
+  height:auto !important;
+  max-height:none !important;
+  min-height:0 !important;
+  overflow:hidden;
 }
 #gamesCard .gwrap,
 #gamesCard #gamesList{
-  flex:1 1 auto !important;
-  max-height:none !important;
-  min-height:0 !important;
-  overflow:auto;
+  flex:none !important;
+  height:auto !important;
+  max-height:340px !important;
+  min-height:180px !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  -webkit-overflow-scrolling:touch;
 }
-.grow{
-  display:flex;flex-direction:column;gap:2px;
-  padding:7px 6px;border-bottom:1px solid var(--border);
-  font-size:13px;
+/* ردیف۳ — چهار ستون */
+.home-row.r3{
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0,1fr)) !important;
+  align-items:start !important;
+  gap:14px;
 }
-.grow.st-live{
-  background:color-mix(in srgb,#f87171 8%,transparent);
-  border-radius:12px;border-bottom-color:transparent;margin:3px 0;
+.home-row.r3 > .mcard,
+.home-row.r3 > .c3wrap,
+.home-row.r3 > .epcard{
+  min-width:0;
+  height:auto !important;
+  align-self:start;
+  background:var(--panel);
+  border:1.5px solid var(--border2);
+  border-radius:22px;
+  padding:14px 16px;
+  box-sizing:border-box;
 }
-.grow .gtag{line-height:1}
-.grow .glive{color:#f87171;font-size:11px;font-weight:800}
-.grow .gdone{color:var(--good);font-size:11px;font-weight:700}
-.grow .gline{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
-  align-items:center;gap:8px;
-  direction:ltr; unicode-bidi:isolate;
-  width:100%;
+.home-row.r3 > .mcard{padding:14px 16px}
+.home-row.r3 .demo-bar{display:none}
+.home-row.r3 .txlist{max-height:200px;overflow:auto}
+.home-row.r3 #epList{max-height:260px;overflow:auto}
+.home-row.r3 .card3{border:none;padding:0;background:transparent}
+.home-row.r3 .c3wrap .collapsed,
+.home-row.r3 .c3wrap .weekline,
+.home-row.r3 .c3wrap .yearago{margin-bottom:8px}
+@media(max-width:1200px){
+  .home-row.r3{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
 }
-.grow .gside{
-  display:inline-flex;align-items:center;gap:6px;min-width:0;
+@media(max-width:900px){
+  .home-row.r2,.home-row.r3{
+    grid-template-columns:1fr !important;
+    align-items:start !important;
+  }
+  .home-row.r2 > *, .home-row.r3 > *{
+    height:auto !important;
+    max-height:none !important;
+  }
+  #gamesCard .gwrap, #gamesCard #gamesList{
+    max-height:min(50vh, 380px) !important;
+    min-height:200px !important;
+  }
 }
-.grow .gside.home{justify-content:flex-end}
-.grow .gside.away{justify-content:flex-start}
-.grow .gn{
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  max-width:100%;font-size:12.5px;color:var(--text);
-}
-.grow .glogo{
-  width:20px;height:20px;border-radius:50%;object-fit:cover;
-  background:var(--panel2);flex:none;
-}
-.grow .gph{
-  display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--muted);
-  width:20px;height:20px;border-radius:50%;background:var(--panel2);flex:none;
-}
-.grow .gcenter{
-  font-family:var(--fh);font-weight:800;font-size:14px;
-  min-width:3.6em;text-align:center;justify-self:center;
-  direction:ltr;unicode-bidi:isolate;
-}
-.grow .gcenter.score{
-  display:inline-flex;align-items:center;justify-content:center;gap:5px;
-  background:var(--panel2);border-radius:9px;padding:2px 8px;
-}
-.grow .gcenter.score b{color:var(--text);font-size:15px}
-.grow .gcenter.score i{font-style:normal;color:var(--faint);font-weight:600}
-.grow.st-live .gcenter.score{background:color-mix(in srgb,#f87171 14%,var(--panel2))}
-.grow.st-live .gcenter.score b{color:#fecaca}
-.grow .gcenter.kick{color:var(--acc);font-size:13px}
-.grow .gcenter.live{color:#f87171;font-size:12px}
-.glg{font-family:var(--fh);font-size:12.5px;font-weight:800;color:var(--acc);margin:10px 2px 4px}
 
 /* page-mobile-extra */
 @media(max-width:900px){
@@ -1007,8 +1011,8 @@ body.nav-open .nav-backdrop{display:block}
     </div>
   </div>
 
-  <!-- ردیف ۳ — دوستونه: تراکنش · ثبت روزانه -->
-  <div class="home-row r3">
+    <!-- ردیف ۳ — چهارستونه: تراکنش · ثبت روزانه · بودجه · قسمت‌ها -->
+<div class="home-row r3">
 <div class="mcard">
     <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
     <div class="txform">
@@ -1116,10 +1120,6 @@ body.nav-open .nav-backdrop{display:block}
     </div>
   </div>
 </div>
-  </div>
-
-  <!-- ردیف ۴ — سه‌ستونه: بودجه · بازی · سریال -->
-  <div class="home-row r4">
 <div class="mcard">
     <div class="mhead"><h4>📊 بودجه ماه</h4></div>
     <div class="budwrap">
@@ -1130,7 +1130,6 @@ body.nav-open .nav-backdrop{display:block}
         <div class="txspec" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:12px">🔌 از <b>/api/finance?month=</b> و <b>/api/budgets</b> · ماکان گزارش ماه در صفحه‌ی پول</div>
       </div>
 </div>
-
 <div class="epcard">
     <div class="mhead">
       <h4>🆕 قسمت‌های جدید</h4>
@@ -1140,8 +1139,7 @@ body.nav-open .nav-backdrop{display:block}
     <div id="epList"></div>
     <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
 </div>
-  </div>
-
+</div>
 </div>
 
 <script>
@@ -2135,7 +2133,11 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
       });
       var seen={};
       (d.leagues||[]).forEach(function(lg){(lg.items||[]).forEach(function(m){seen[matchKey(m.home,m.away)]=1; seen[matchKey(m.away,m.home)]=1})});
-      var extra=(live.items||[]).filter(function(x){return !seen[matchKey(x.home,x.away)]});
+      var MAJOR=/انگلیس|لالیگا|سری آ|بوندس|لیگ ۱|ترکیه|عربستان|خلیج|ایران|premier|la liga|serie a|bundesliga|ligue|super lig|persian|champions|europa|uefa/i;
+      var extra=(live.items||[]).filter(function(x){
+        if(seen[matchKey(x.home,x.away)]) return false;
+        return !!(x.league && MAJOR.test(x.league));
+      });
       if(extra.length){
         d.leagues=d.leagues||[];
         d.leagues.unshift({id:'live', name:'🔴 زنده الآن', items:extra});
