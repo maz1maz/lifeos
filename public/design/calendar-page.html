@@ -364,6 +364,25 @@ html[data-mode="light"] .cell.sel{
 .cell .dot.n{background:#c084fc}
 .cell .dot.t{background:#f472b6}
 
+
+/* برچسب میلادی کنار عنوان — کلیک = تقویم میلادی */
+.cal-head .title b{font-family:var(--fh);font-size:22px;display:block}
+.cal-head .title .mon-row{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:8px 12px}
+.cal-head .title .greg-link{
+  font-family:var(--fh);font-size:15px;font-weight:700;color:var(--acc);
+  direction:ltr;cursor:pointer;border-bottom:1.5px dashed color-mix(in srgb,var(--acc) 55%,transparent);
+  padding:0 2px;user-select:none;letter-spacing:.2px
+}
+.cal-head .title .greg-link:hover{color:var(--text);border-bottom-color:var(--acc)}
+.cal-head .title .mode-hint{display:block;font-size:12px;color:var(--faint);margin-top:2px}
+.cal-head .title small#monSub{display:none} /* replaced by greg-link */
+.cal-head[data-mode="greg"] .todaybtn{/* same */}
+.mode-pill{
+  background:color-mix(in srgb,var(--acc) 14%,transparent);border:1px solid color-mix(in srgb,var(--acc) 40%,var(--border));
+  color:var(--acc);border-radius:99px;padding:6px 12px;font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer
+}
+.mode-pill:hover{background:color-mix(in srgb,var(--acc) 22%,transparent)}
+
 /* page-mobile-extra */
 
 @media(max-width:900px){
@@ -387,9 +406,14 @@ html[data-mode="light"] .cell.sel{
       <div class="cal-head">
         <button type="button" class="navb" id="prevM" title="ماه قبل">‹</button>
         <div class="title">
-          <b id="monTitle">—</b>
-          <small id="monSub">—</small>
+          <div class="mon-row">
+            <b id="monTitle">—</b>
+            <span class="greg-link" id="gregLink" title="کلیک → تقویم میلادی / شمسی">—</span>
+          </div>
+          <small id="monSub" hidden>—</small>
+          <span class="mode-hint" id="modeHint">کلیک روی Aug–Sep برای تقویم میلادی</span>
         </div>
+        <button type="button" class="mode-pill" id="calModeBtn" title="تعویض شمسی / میلادی">میلادی</button>
         <button type="button" class="navb" id="nextM" title="ماه بعد">›</button>
         <button type="button" class="sel" id="pickMon">ماه ▾</button>
         <button type="button" class="sel" id="pickYear">سال ▾</button>
@@ -549,46 +573,158 @@ function renderMonthList(){
   document.getElementById('stHol').textContent=fa(nHol);
   document.getElementById('stEv').textContent=fa(nEv);
 }
-function renderCal(){
-  var t=jToday(), len=monthLen(vy,vm), firstCol=(j2d(vy,vm,1)+2)%7;
-  document.getElementById('monTitle').textContent=CALMON[vm-1]+' '+fa(vy);
-  var g1=d2g(j2d(vy,vm,1)), g2=d2g(j2d(vy,vm,len));
-  document.getElementById('monSub').textContent=g1.gy+'/'+g1.gm+'/'+g1.gd+' — '+g2.gy+'/'+g2.gm+'/'+g2.gd+' · میلادی';
-  var html='';
-  for(var b=0;b<firstCol;b++)html+='<div class="cell empty"></div>';
-  for(var d=1;d<=len;d++){
-    var list=eventsFor(vy,vm,d);
-    var isT=d===t.jd&&vm===t.jm&&vy===t.jy;
-    var isSel=d===sel.jd&&vm===sel.jm&&vy===sel.jy;
-    var isFri=((firstCol+d-1)%7)===6;
-    var isHol=list.some(function(e){return e.h})||!!HOL[keyOf(vy,vm,d)];
-    var g=d2g(j2d(vy,vm,d));
-    var hasN=(typeof hasNote==='function'&&hasNote(vy,vm,d));
-    var cls='cell'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(isHol?' hol':'')+(hasN?' has-note':'');
-    var dots=list.slice(0,3).map(function(e){return '<span class="dot'+(e.h?' h':'')+'"></span>'}).join('');
-    if(hasNote(vy,vm,d)) dots+='<span class="dot n" title="یادداشت"></span>';
-    var evtxt=list.slice(0,2).map(function(e){return esc(e.t)}).join(' · ');
-    var wday=((firstCol+d-1)%7);
-    var tag=isSel?('<span class="tag-sel">'+esc(WK_ICO[wday]||'📌')+' انتخاب</span>'):'';
-    html+='<div class="'+cls+'" data-d="'+d+'" title="'+esc(list.map(function(e){return e.t}).join(' | '))+'" role="button" tabindex="0">'
-      +'<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="dn">'+fa(d)+'</span><span class="g">'+g.gd+'/'+g.gm+'</span></div>'
-      +tag
-      +(evtxt?'<div class="ev">'+evtxt+'</div>':'')
-      +(dots?'<div class="dots">'+dots+'</div>':'')
-      +'</div>';
+
+/* ===== حالت تقویم: jalali | greg ===== */
+var calMode = 'jalali'; // jalali | greg
+var GMON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var GMON_FA = ['ژانویه','فوریه','مارس','آوریل','مه','ژوئن','ژوئیه','اوت','سپتامبر','اکتبر','نوامبر','دسامبر'];
+var gy=null, gm=null; // current gregorian month view
+function gToday(){ var n=new Date(); return {gy:n.getFullYear(), gm:n.getMonth()+1, gd:n.getDate()}; }
+function gMonthLen(y,m){ return new Date(y, m, 0).getDate(); }
+function g2j(gy,gm,gd){ return d2j(g2d(gy,gm,gd)); }
+function ensureGregCursor(){
+  if(gy==null||gm==null){
+    var g=d2g(j2d(sel.jy,sel.jm,sel.jd));
+    gy=g.gy; gm=g.gm;
   }
+}
+function gregRangeLabel(jy,jm){
+  var len=monthLen(jy,jm);
+  var g1=d2g(j2d(jy,jm,1)), g2=d2g(j2d(jy,jm,len));
+  if(g1.gy===g2.gy && g1.gm===g2.gm) return GMON[g1.gm-1]+' '+g1.gy;
+  if(g1.gy===g2.gy) return GMON[g1.gm-1]+' – '+GMON[g2.gm-1]+' '+g1.gy;
+  return GMON[g1.gm-1]+' '+g1.gy+' – '+GMON[g2.gm-1]+' '+g2.gy;
+}
+function jalaliRangeLabel(gy,gm){
+  var len=gMonthLen(gy,gm);
+  var j1=g2j(gy,gm,1), j2=g2j(gy,gm,len);
+  if(j1.jy===j2.jy && j1.jm===j2.jm) return CALMON[j1.jm-1]+' '+fa(j1.jy);
+  if(j1.jy===j2.jy) return CALMON[j1.jm-1]+' – '+CALMON[j2.jm-1]+' '+fa(j1.jy);
+  return CALMON[j1.jm-1]+' '+fa(j1.jy)+' – '+CALMON[j2.jm-1]+' '+fa(j2.jy);
+}
+function setCalMode(mode){
+  calMode = mode==='greg' ? 'greg' : 'jalali';
+  var head=document.querySelector('.cal-head'); if(head) head.setAttribute('data-mode', calMode);
+  var btn=document.getElementById('calModeBtn');
+  var hint=document.getElementById('modeHint');
+  var link=document.getElementById('gregLink');
+  if(calMode==='greg'){
+    ensureGregCursor();
+    if(btn) btn.textContent='شمسی';
+    if(hint) hint.textContent='نمای میلادی — کلیک روی بازهٔ شمسی یا «شمسی» برای بازگشت';
+    // weekdays Sun-Sat for greg? Keep ش..ج (Sat-start) to match Iran week OR use western?
+    // Use Mon-start international: actually keep same ش-ج (Sat first) for consistency with Iranian week
+  } else {
+    if(btn) btn.textContent='میلادی';
+    if(hint) hint.textContent='کلیک روی Aug–Sep برای تقویم میلادی';
+  }
+  // pick buttons labels
+  var pm=document.getElementById('pickMon'), py=document.getElementById('pickYear');
+  if(pm) pm.textContent = calMode==='greg' ? 'Month ▾' : 'ماه ▾';
+  if(py) py.textContent = calMode==='greg' ? 'Year ▾' : 'سال ▾';
+  hidePicks();
+  renderCal();
+}
+function toggleCalMode(){ setCalMode(calMode==='greg'?'jalali':'greg'); }
+
+
+function renderCal(){
+  var t=jToday(), tg=gToday();
+  var link=document.getElementById('gregLink');
+  var monSub=document.getElementById('monSub');
+  var html='';
+
+  if(calMode==='greg'){
+    ensureGregCursor();
+    var len=gMonthLen(gy,gm);
+    // week start Saturday (Iran): JS getDay Sun=0..Sat=6 → col = (getDay+1)%7 with Sat=0
+    var firstDate=new Date(gy, gm-1, 1);
+    var firstCol=(firstDate.getDay()+1)%7; // Sat=0 ... Fri=6
+    document.getElementById('monTitle').textContent = GMON[gm-1]+' '+gy;
+    var jLab=jalaliRangeLabel(gy,gm);
+    if(link){ link.textContent=jLab; link.title='کلیک → تقویم شمسی ('+jLab+')'; }
+    if(monSub) monSub.textContent=jLab+' · شمسی';
+
+    for(var b=0;b<firstCol;b++) html+='<div class="cell empty"></div>';
+    for(var d=1;d<=len;d++){
+      var j=g2j(gy,gm,d);
+      var list=eventsFor(j.jy,j.jm,j.jd);
+      var isT=d===tg.gd&&gm===tg.gm&&gy===tg.gy;
+      var isSel=j.jd===sel.jd&&j.jm===sel.jm&&j.jy===sel.jy;
+      var isFri=((firstCol+d-1)%7)===6;
+      var isHol=list.some(function(e){return e.h})||!!HOL[keyOf(j.jy,j.jm,j.jd)];
+      var hasN=(typeof hasNote==='function'&&hasNote(j.jy,j.jm,j.jd));
+      var cls='cell'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(isHol?' hol':'')+(hasN?' has-note':'');
+      var dots=list.slice(0,3).map(function(e){return '<span class="dot'+(e.h?' h':'')+'"></span>'}).join('');
+      if(hasN) dots+='<span class="dot n" title="یادداشت"></span>';
+      var evtxt=list.slice(0,2).map(function(e){return esc(e.t)}).join(' · ');
+      var wday=((firstCol+d-1)%7);
+      var tag=isSel?('<span class="tag-sel">'+(typeof WK_ICO!=='undefined'&&WK_ICO[wday]?WK_ICO[wday]:'📌')+' انتخاب</span>'):'';
+      html+='<div class="'+cls+'" data-gd="'+d+'" data-d="'+j.jd+'" data-jy="'+j.jy+'" data-jm="'+j.jm+'" title="'+esc(list.map(function(e){return e.t}).join(' | '))+'" role="button" tabindex="0">'
+        +'<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="dn">'+d+'</span><span class="g">'+fa(j.jd)+'/'+fa(j.jm)+'</span></div>'
+        +tag
+        +(evtxt?'<div class="ev">'+evtxt+'</div>':'')
+        +(dots?'<div class="dots">'+dots+'</div>':'')
+        +'</div>';
+    }
+  } else {
+    var len=monthLen(vy,vm), firstCol=(j2d(vy,vm,1)+2)%7;
+    document.getElementById('monTitle').textContent=CALMON[vm-1]+' '+fa(vy);
+    var gLab=gregRangeLabel(vy,vm);
+    if(link){ link.textContent=gLab; link.title='کلیک → تقویم میلادی ('+gLab+')'; }
+    if(monSub) monSub.textContent=gLab+' · میلادی';
+    // sync gy/gm to selected for later toggle
+    var gs=d2g(j2d(sel.jy,sel.jm,sel.jd)); gy=gs.gy; gm=gs.gm;
+
+    for(var b=0;b<firstCol;b++)html+='<div class="cell empty"></div>';
+    for(var d=1;d<=len;d++){
+      var list=eventsFor(vy,vm,d);
+      var isT=d===t.jd&&vm===t.jm&&vy===t.jy;
+      var isSel=d===sel.jd&&vm===sel.jm&&vy===sel.jy;
+      var isFri=((firstCol+d-1)%7)===6;
+      var isHol=list.some(function(e){return e.h})||!!HOL[keyOf(vy,vm,d)];
+      var g=d2g(j2d(vy,vm,d));
+      var hasN=(typeof hasNote==='function'&&hasNote(vy,vm,d));
+      var cls='cell'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(isHol?' hol':'')+(hasN?' has-note':'');
+      var dots=list.slice(0,3).map(function(e){return '<span class="dot'+(e.h?' h':'')+'"></span>'}).join('');
+      if(hasNote(vy,vm,d)) dots+='<span class="dot n" title="یادداشت"></span>';
+      var evtxt=list.slice(0,2).map(function(e){return esc(e.t)}).join(' · ');
+      var wday=((firstCol+d-1)%7);
+      var tag=isSel?('<span class="tag-sel">'+esc(WK_ICO[wday]||'📌')+' انتخاب</span>'):'';
+      html+='<div class="'+cls+'" data-d="'+d+'" title="'+esc(list.map(function(e){return e.t}).join(' | '))+'" role="button" tabindex="0">'
+        +'<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="dn">'+fa(d)+'</span><span class="g">'+g.gd+'/'+g.gm+'</span></div>'
+        +tag
+        +(evtxt?'<div class="ev">'+evtxt+'</div>':'')
+        +(dots?'<div class="dots">'+dots+'</div>':'')
+        +'</div>';
+    }
+  }
+
   document.getElementById('calGrid').innerHTML=html;
   renderSide();
   renderMonthList();
   try{
     var u=new URL(location.href);
     u.searchParams.set('y',vy);u.searchParams.set('m',vm);u.searchParams.set('d',sel.jd);
+    u.searchParams.set('cal', calMode);
     history.replaceState(null,'',u.pathname+u.search);
   }catch(e){}
 }
 function shiftMonth(delta){
-  vm+=delta;if(vm<1){vm=12;vy--}if(vm>12){vm=1;vy++}
-  var len=monthLen(vy,vm);if(sel.jd>len)sel.jd=len;sel.jy=vy;sel.jm=vm;
+  if(calMode==='greg'){
+    ensureGregCursor();
+    gm+=delta;if(gm<1){gm=12;gy--}if(gm>12){gm=1;gy++}
+    var len=gMonthLen(gy,gm), gd=Math.min(sel.jd?d2g(j2d(sel.jy,sel.jm,sel.jd)).gd:1, len);
+    // keep sel on same approx day in new month
+    var curG=d2g(j2d(sel.jy,sel.jm,sel.jd));
+    var nd=Math.min(curG.gd, len);
+    var nj=g2j(gy,gm,nd);
+    sel={jy:nj.jy,jm:nj.jm,jd:nj.jd}; vy=sel.jy; vm=sel.jm;
+  } else {
+    vm+=delta;if(vm<1){vm=12;vy--}if(vm>12){vm=1;vy++}
+    var len=monthLen(vy,vm);if(sel.jd>len)sel.jd=len;sel.jy=vy;sel.jm=vm;
+    var gs=d2g(j2d(sel.jy,sel.jm,sel.jd)); gy=gs.gy; gm=gs.gm;
+  }
   hidePicks();renderCal();
 }
 function hidePicks(){
@@ -597,35 +733,95 @@ function hidePicks(){
 }
 function showMonPick(){
   var g=document.getElementById('monGrid');
-  g.innerHTML=CALMON.map(function(nm,i){
-    return '<button type="button" class="'+(i+1===vm?'on':'')+'" data-m="'+(i+1)+'">'+nm+'</button>';
-  }).join('');
+  if(calMode==='greg'){
+    ensureGregCursor();
+    g.innerHTML=GMON.map(function(nm,i){
+      return '<button type="button" class="'+(i+1===gm?'on':'')+'" data-m="'+(i+1)+'">'+nm+'</button>';
+    }).join('');
+  } else {
+    g.innerHTML=CALMON.map(function(nm,i){
+      return '<button type="button" class="'+(i+1===vm?'on':'')+'" data-m="'+(i+1)+'">'+nm+'</button>';
+    }).join('');
+  }
   document.getElementById('yearPick').classList.remove('show');
   document.getElementById('monPick').classList.toggle('show');
 }
 function showYearPick(){
   var g=document.getElementById('yearGrid'), html='';
-  for(var y=vy-6;y<=vy+5;y++)html+='<button type="button" class="'+(y===vy?'on':'')+'" data-y="'+y+'">'+fa(y)+'</button>';
+  if(calMode==='greg'){
+    ensureGregCursor();
+    for(var y=gy-6;y<=gy+5;y++)html+='<button type="button" class="'+(y===gy?'on':'')+'" data-y="'+y+'">'+y+'</button>';
+  } else {
+    for(var y=vy-6;y<=vy+5;y++)html+='<button type="button" class="'+(y===vy?'on':'')+'" data-y="'+y+'">'+fa(y)+'</button>';
+  }
   g.innerHTML=html;
   document.getElementById('monPick').classList.remove('show');
   document.getElementById('yearPick').classList.toggle('show');
 }
 document.getElementById('prevM').onclick=function(){shiftMonth(-1)};
 document.getElementById('nextM').onclick=function(){shiftMonth(1)};
-document.getElementById('goToday').onclick=function(){var t=jToday();vy=t.jy;vm=t.jm;sel={jy:t.jy,jm:t.jm,jd:t.jd};hidePicks();renderCal()};
+document.getElementById('goToday').onclick=function(){
+  var t=jToday(); vy=t.jy;vm=t.jm;sel={jy:t.jy,jm:t.jm,jd:t.jd};
+  var g=gToday(); gy=g.gy; gm=g.gm;
+  hidePicks();renderCal();
+};
 document.getElementById('pickMon').onclick=showMonPick;
 document.getElementById('pickYear').onclick=showYearPick;
+
+/* تعویض شمسی/میلادی */
+(function(){
+  var gl=document.getElementById('gregLink');
+  if(gl) gl.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();toggleCalMode();});
+  var mb=document.getElementById('calModeBtn');
+  if(mb) mb.addEventListener('click',function(e){e.preventDefault();toggleCalMode();});
+  try{
+    var u=new URL(location.href);
+    var m=u.searchParams.get('cal');
+    if(m==='greg'||m==='g'){ calMode='greg'; ensureGregCursor(); }
+  }catch(err){}
+  var head=document.querySelector('.cal-head'); if(head) head.setAttribute('data-mode', calMode);
+  var btn=document.getElementById('calModeBtn');
+  if(btn) btn.textContent = calMode==='greg'?'شمسی':'میلادی';
+  var hint=document.getElementById('modeHint');
+  if(hint) hint.textContent = calMode==='greg'?'نمای میلادی — کلیک برای بازگشت به شمسی':'کلیک روی Aug–Sep برای تقویم میلادی';
+})();
+
 document.getElementById('monGrid').addEventListener('click',function(e){
-  var b=e.target.closest('[data-m]');if(!b)return;vm=+b.dataset.m;sel.jm=vm;sel.jy=vy;
-  var len=monthLen(vy,vm);if(sel.jd>len)sel.jd=len;hidePicks();renderCal();
+  var b=e.target.closest('[data-m]');if(!b)return;
+  if(calMode==='greg'){
+    ensureGregCursor(); gm=+b.dataset.m;
+    var len=gMonthLen(gy,gm), curG=d2g(j2d(sel.jy,sel.jm,sel.jd)), nd=Math.min(curG.gd,len);
+    var nj=g2j(gy,gm,nd); sel={jy:nj.jy,jm:nj.jm,jd:nj.jd}; vy=sel.jy; vm=sel.jm;
+  } else {
+    vm=+b.dataset.m;sel.jm=vm;sel.jy=vy;
+    var len=monthLen(vy,vm);if(sel.jd>len)sel.jd=len;
+    var gs=d2g(j2d(sel.jy,sel.jm,sel.jd)); gy=gs.gy; gm=gs.gm;
+  }
+  hidePicks();renderCal();
 });
 document.getElementById('yearGrid').addEventListener('click',function(e){
-  var b=e.target.closest('[data-y]');if(!b)return;vy=+b.dataset.y;sel.jy=vy;sel.jm=vm;
-  var len=monthLen(vy,vm);if(sel.jd>len)sel.jd=len;hidePicks();renderCal();
+  var b=e.target.closest('[data-y]');if(!b)return;
+  if(calMode==='greg'){
+    ensureGregCursor(); gy=+b.dataset.y;
+    var len=gMonthLen(gy,gm), curG=d2g(j2d(sel.jy,sel.jm,sel.jd)), nd=Math.min(curG.gd,len);
+    var nj=g2j(gy,gm,nd); sel={jy:nj.jy,jm:nj.jm,jd:nj.jd}; vy=sel.jy; vm=sel.jm;
+  } else {
+    vy=+b.dataset.y;sel.jy=vy;sel.jm=vm;
+    var len=monthLen(vy,vm);if(sel.jd>len)sel.jd=len;
+    var gs=d2g(j2d(sel.jy,sel.jm,sel.jd)); gy=gs.gy; gm=gs.gm;
+  }
+  hidePicks();renderCal();
 });
 document.getElementById('calGrid').addEventListener('click',function(e){
-  var c=e.target.closest('[data-d]');if(!c)return;
-  sel={jy:vy,jm:vm,jd:+c.dataset.d};renderCal();
+  var cell=e.target.closest('[data-d]');if(!cell)return;
+  if(calMode==='greg' && cell.dataset.jy){
+    sel={jy:+cell.dataset.jy, jm:+cell.dataset.jm, jd:+cell.dataset.d};
+    vy=sel.jy; vm=sel.jm;
+    if(cell.dataset.gd){ /* stay on same greg month */ }
+  } else {
+    sel={jy:vy,jm:vm,jd:+cell.dataset.d};
+  }
+  renderCal();
 });
 document.getElementById('monthEvents').addEventListener('click',function(e){
   var r=e.target.closest('[data-goto]');if(!r)return;
