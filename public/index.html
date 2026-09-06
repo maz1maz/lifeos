@@ -606,7 +606,7 @@ body.zoom1{zoom:1.1111}
 
   <!-- ============ بازی‌های امروز ============ -->
   <div class="mcard" id="gamesCard">
-    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ</span></div>
+    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ</span></div>
     <div class="gwrap" id="gamesList">در حال دریافت…</div>
     <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
   </div>
@@ -653,7 +653,8 @@ function renderDay(off){
   document.getElementById('dMon').textContent=month+' '+year;
   document.getElementById('dGreg').textContent=new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(now)+' · '+new Intl.DateTimeFormat('en-GB',{weekday:'long'}).format(now);
   var hb=document.getElementById('holBadge');if(hb)hb.style.display=off?'none':'';
-  var dl=off===0?'امروز':(off===1?'فردا':(off===-1?'دیروز':wk));
+  var ds=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(now);
+  var dl=off===0?'امروز '+ds:(off===1?'فردا '+ds:(off===-1?'دیروز '+ds:ds));
   var th=document.getElementById('taskH');if(th)th.textContent='✅ کارهای '+dl;
   var xh=document.getElementById('txH');if(xh)xh.textContent='💸 تراکنش‌های '+dl;
 }
@@ -843,8 +844,8 @@ function renderToman(){
 renderToman();
 /* live attempt (CORS-blocked in preview -> snapshot stays) */
 (function(){
-  fetch('https://call.tgju.org/ajax.json').then(function(r){return r.json()}).then(function(d){
-    var cur=d.current||{}, hit=false;
+  fetch('/api/tgju').then(function(r){return r.json()}).then(function(d){
+    var cur=d.items||{}, hit=false;
     function num(x){return parseFloat(String(x).replace(/,/g,''))||0}
     TORDER.forEach(function(k){
       var v=cur[k]; if(!v)return; hit=true;
@@ -852,7 +853,7 @@ renderToman();
       var dd=num(v.d)/10, dp=num(v.dp);
       if(dd||dp) TOMAN[k].chg=[dd,dp];
     });
-    if(hit){renderToman();(document.getElementById('tTime')||{}).textContent='زنده · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})}
+    if(hit){renderToman();if(MK.data)renderMarket();(document.getElementById('tTime')||{}).textContent='زنده · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})}
   }).catch(function(){});
 })();
 if(MK.data)renderMarket();
@@ -1123,9 +1124,17 @@ function renderAccChips(){
 function renderCatChips(){
  var suggested=TXCATMANUAL?null:suggestCat(document.getElementById('txTitle').value);
  var active=TXCAT||(TXCATMANUAL?null:suggested);
- document.getElementById('catChips').innerHTML=CATS.map(function(c){
-  var on=active===c[0];
-  return '<button class="txchip'+(on?' on':'')+(suggested===c[0]&&!TXCATMANUAL?' smart':'')+'" data-cat="'+c[0]+'">'+c[1]+' '+c[0]+'</button>'}).join('');
+ if(TXCATEDIT){document.getElementById('catChips').innerHTML='<input id="catCustomIn" placeholder="نام سرفصل + اینتر" style="background:var(--panel);border:1.5px solid var(--acc);border-radius:10px;color:var(--text);padding:6px 10px;font-family:inherit;font-size:13.5px;width:160px">';
+  var ip=document.getElementById('catCustomIn');ip.focus();
+  ip.addEventListener('keydown',function(ev){if(ev.key==='Enter'){var v=ip.value.trim();if(v){TXCAT=v;TXCATMANUAL=true;TXCATEDIT=false;renderCatChips()}}});
+  ip.addEventListener('blur',function(){if(TXCATEDIT){TXCATEDIT=false;renderCatChips()}});
+ }else{
+  var custom=TXCATMANUAL&&TXCAT&&!CATS.some(function(c){return c[0]===TXCAT});
+  document.getElementById('catChips').innerHTML=CATS.map(function(c){
+   var on=active===c[0];
+   return '<button class="txchip'+(on?' on':'')+(suggested===c[0]&&!TXCATMANUAL?' smart':'')+'" data-cat="'+c[0]+'">'+c[1]+' '+c[0]+'</button>'}).join('')
+   +'<button class="txchip'+(custom?' on':'')+'" data-cat="__custom">✏‌ی '+(custom?TXCAT:'سرفصل خودم')+'</button>';
+ }
  var sh=document.getElementById('smartHint');
  if(suggested&&!TXCATMANUAL){var cm=catMeta(suggested);sh.innerHTML='✨ از روی شرح: <b>'+cm[1]+' '+suggested+'</b> — اگر اشتباه است، سرفصل دیگری را بزن'}
  else sh.innerHTML=TXCATMANUAL&&TXCAT?'سرفصل دستی: '+TXCAT:'';
@@ -1187,7 +1196,7 @@ document.getElementById('txTitle').addEventListener('input',function(){if(!TXCAT
 document.addEventListener('click',function(e){
  var b;
  if(b=e.target.closest('[data-acc]')){TXACC=b.dataset.acc;renderAccChips();return}
- if(b=e.target.closest('[data-cat]')){TXCAT=b.dataset.cat;TXCATMANUAL=true;renderCatChips();return}
+ if(b=e.target.closest('[data-cat]')){if(b.dataset.cat==='__custom'){TXCATEDIT=true;renderCatChips();return}TXCAT=b.dataset.cat;TXCATMANUAL=true;renderCatChips();return}
  if(b=e.target.closest('.kindseg button')){
   document.querySelectorAll('.kindseg button').forEach(function(x){x.classList.remove('on')});
   b.classList.add('on');TXKIND=b.dataset.kind;b.classList.toggle('inc',TXKIND==='income');return}
@@ -1234,8 +1243,9 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
   var L=document.getElementById('gamesList');if(!L)return;
   function cl(x){return String(x==null?'':x).replace(/[<>&]/g,'')}
   function row(m){
-    var t=m.date?new Date(m.date):null,tm=(t&&!isNaN(t))?fa(t.toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})):'';
-    var badge=m.status==='live'?'<span class="glive">● زنده</span>':(m.status==='finished'?'✅':'<span class="gtime">'+tm+'</span>');
+    var t=m.date?new Date(m.date):null,tm=(t&&!isNaN(t))?fa(t.toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tehran'})):'';
+    if(m.status!=='live'&&m.status!=='finished')return '<div class="grow"><span class="gt" style="flex:1">'+cl(m.home)+' × '+cl(m.away)+'</span><span class="gtime" style="font-family:var(--fh);white-space:nowrap">⏱ '+tm+' تهران</span></div>';
+    var badge=m.status==='live'?'<span class="glive">● زنده</span>':'✅';
     return '<div class="grow">'+badge+'<span class="gt">'+cl(m.home)+' × '+cl(m.away)+'</span><span class="gsc">'+cl(m.score||'—')+'</span></div>';
   }
   fetch('/api/football/remote/free/day').then(function(r){return r.json()}).then(function(d){
@@ -1243,7 +1253,8 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
     (d.leagues||[]).forEach(function(lg){ if(!lg.items||!lg.items.length)return;
       h+='<div class="glg">'+cl(lg.name)+'</div>'+lg.items.map(row).join(''); });
     L.innerHTML=h||'<div style="padding:14px 4px;color:var(--faint)">امروز بازی لیگ‌های بزرگ نیست ⚽</div>';
-    var f=document.getElementById('gamesFoot');if(f)f.textContent='به‌وقت دستگاه شما';
+    var f=document.getElementById('gamesFoot');if(f)f.textContent='به‌وقت تهران';
+    var gs=document.getElementById('gamesSub');if(gs)gs.textContent=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(new Date())+' · لیگ‌های بزرگ';
   }).catch(function(){L.innerHTML='<div style="padding:14px 4px;color:var(--faint)">دریافت بازی‌ها ناموفق بود</div>'});
 })();
 </script>

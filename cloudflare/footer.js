@@ -49,10 +49,37 @@ async function runScheduled(env) {
   if (changed1 || changed2 || changed3) await H.write(db);
 }
 
+let TGJU_CACHE = null;
+async function handleTgju(request, env) {
+  // دروازه‌ی لاگین — مثل بقیه‌ی APIها
+  let authed = false;
+  try {
+    const sid = (request.headers.get('cookie') || '').match(/(?:^|;\s*)sid=([^;]+)/);
+    if (sid) {
+      const row = await env.DB.prepare("SELECT value FROM kv WHERE key='db'").first();
+      if (row) { const db = JSON.parse(row.value); const s = (db.sessions || []).find(x => x.id === sid[1]); authed = !!(s && (db.users || []).find(u => u.id === s.userId)); }
+    }
+  } catch (e) { }
+  const J = { 'Content-Type': 'application/json; charset=utf-8' };
+  if (!authed) return new Response(JSON.stringify({ error: 'ابتدا وارد حساب شوید.' }), { status: 401, headers: J });
+  if (TGJU_CACHE && Date.now() - TGJU_CACHE.at < 300000) return new Response(TGJU_CACHE.body, { headers: Object.assign({}, J, { 'Cache-Control': 'public,max-age=300' }) });
+  const KEYS = 'price_dollar_rl,price_eur,price_gbp,price_aed,price_try,geram18,geram24,sekee,sekeb,rob,nim,mesghal,oil_brent,oil,nickel,platinum,copper,silver';
+  let items = {};
+  try {
+    const r = await fetch('https://call.tgju.org/ajax.json', { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36', 'Accept': 'application/json' } });
+    const d = await r.json(); const cur = d.current || {};
+    KEYS.split(',').forEach(k => { const v = cur[k]; if (v) items[k] = { p: parseFloat(String(v.p).replace(/,/g, '')) || 0, d: parseFloat(String(v.d).replace(/,/g, '')) || 0, dp: parseFloat(v.dp) || 0 }; });
+  } catch (e) { return new Response(JSON.stringify({ error: 'دریافت از TGJU ناموفق بود.' }), { status: 502, headers: J }); }
+  const body = JSON.stringify({ ts: Date.now(), items });
+  TGJU_CACHE = { at: Date.now(), body };
+  return new Response(body, { headers: Object.assign({}, J, { 'Cache-Control': 'public,max-age=300' }) });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/api/telegram/webhook' && request.method === 'POST') return handleTelegramWebhook(request, env);
+    if (url.pathname === '/api/tgju') return handleTgju(request, env);
     if (url.pathname.startsWith('/uploads/') && request.method === 'GET') return handleUploadGet(url.pathname, env);
     if (!url.pathname.startsWith('/api/')) {
       // 🚧 دروازه‌ی لاگین: بدون نشست معتبر، هیچ محتوایی سرو نمی‌شود — فقط صفحه‌ی ورود

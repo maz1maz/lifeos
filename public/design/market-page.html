@@ -139,6 +139,16 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
   padding:5px 10px;font-size:15px;cursor:pointer}
 .navzoom:hover{color:var(--text);border-color:var(--acc)}
 
+/* ➕ نماد دلخواه */
+.xadd{cursor:pointer;font-size:13px;color:var(--faint);border:1px dashed var(--border);border-radius:9px;padding:2px 9px}
+.xadd:hover{color:var(--acc);border-color:var(--acc)}
+.xpop{position:fixed;z-index:140;background:var(--bg);border:1px solid var(--border2);border-radius:15px;padding:12px 14px;max-width:280px;max-height:320px;overflow:auto;box-shadow:0 18px 44px -12px rgba(0,0,0,.6)}
+.xr{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px dashed var(--border);font-size:14px;cursor:pointer}
+.xr:last-child{border-bottom:none}
+.xr:hover{color:var(--acc)}
+.xdel{cursor:pointer;color:var(--faint);font-size:12px;flex:none;padding:0 2px}
+.xdel:hover{color:var(--bad)}
+
 /* ===== پالت رنگ 🎨 ===== */
 .palpop{position:fixed;z-index:140;background:var(--bg);border:1px solid var(--border2);border-radius:15px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;max-width:240px;box-shadow:0 18px 44px -12px rgba(0,0,0,.6)}
 .palsw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2.5px solid transparent}
@@ -392,7 +402,7 @@ body.zoom1{zoom:1.1111}
 <!-- ============ MARKET (سه‌ستونه) ============ -->
   <div class="trio">
     <div class="mcard">
-      <div class="mhead"><h4>🥇 فلزات و کالا</h4><span style="font-size:12.5px;color:var(--faint)">دلار $</span></div>
+      <div class="mhead"><h4>🥇 فلزات و کالا</h4><span class="xadd" data-add="us">➕</span><span style="font-size:12.5px;color:var(--faint)">دلار $</span></div>
       <div id="mrows"></div>
       <div class="mfoot"><span id="mTime">—</span><span class="src" id="mSrc">CoinGecko · PAXG≈XAU · KAG≈XAG</span></div>
     </div>
@@ -402,7 +412,7 @@ body.zoom1{zoom:1.1111}
       <div class="mfoot"><span>CoinGecko</span><span class="src">تغییر ۲۴ ساعته ▲▼</span></div>
     </div>
     <div class="mcard">
-      <div class="mhead"><h4>🇮🇷 بازار تومان</h4><span style="font-size:12.5px;color:var(--faint)">تومان</span></div>
+      <div class="mhead"><h4>🇮🇷 بازار تومان</h4><span class="xadd" data-add="tm">➕</span><span style="font-size:12.5px;color:var(--faint)">تومان</span></div>
       <div id="trows"></div>
       <div class="mfoot"><span id="tTime">۲۱:۰۳ · امروز</span><span class="src" id="tSrc">TGJU · نواسان</span></div>
     </div>
@@ -492,8 +502,8 @@ function renderToman(){
 renderToman();
 /* live attempt (CORS-blocked in preview -> snapshot stays) */
 (function(){
-  fetch('https://call.tgju.org/ajax.json').then(function(r){return r.json()}).then(function(d){
-    var cur=d.current||{}, hit=false;
+  fetch('/api/tgju').then(function(r){return r.json()}).then(function(d){
+    var cur=d.items||{}, hit=false;
     function num(x){return parseFloat(String(x).replace(/,/g,''))||0}
     TORDER.forEach(function(k){
       var v=cur[k]; if(!v)return; hit=true;
@@ -501,7 +511,7 @@ renderToman();
       var dd=num(v.d)/10, dp=num(v.dp);
       if(dd||dp) TOMAN[k].chg=[dd,dp];
     });
-    if(hit){renderToman();document.getElementById('tTime').textContent='زنده · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})}
+    if(hit){renderToman();if(window._tgjuData)window._tgjuData(d);document.getElementById('tTime').textContent='زنده · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})}
   }).catch(function(){});
 })();
 
@@ -560,5 +570,49 @@ document.addEventListener('click',function(e){
 });
 })();
 </script>
-</body>
+<script>
+/* ➕ نمادهای دلخواه بازار */
+(function(){
+ var XTRA=[['rob','🪙','ربع سکه','tm'],['nim','🥈','نیم سکه','tm'],['sekeb','🌻','سکه بهار آزادی','tm'],['geram24','✨','گرم ۲۴','tm'],
+  ['price_gbp','💷','پوند','tm'],['price_try','🇹🇷','لیر','tm'],['price_aed','🇦🇪','درهم','tm'],
+  ['oil_brent','🛢','نفت برنت','us'],['oil','🛢','نفت وتی','us'],['nickel','🔩','نیکل','us'],['platinum','⚪','پلاتین','us'],['copper','🟠','مس','us']];
+ var TG=null;window._tgjuData=function(d){TG=d;renderX()};
+ window._renderX=renderX;
+ function picks(){try{return JSON.parse(localStorage.getItem('mkx')||'[]')}catch(e){return[]}}
+ function savePicks(p){try{localStorage.setItem('mkx',JSON.stringify(p))}catch(e){}}
+ function fmtTm(p){p=p/10;return p>=1e9?faNum((p/1e9).toFixed(2))+' میلیارد':(p>=1e6?faNum((p/1e6).toFixed(2))+' م':faNum(Math.round(p/1000))+' هزار')}
+ function renderX(){
+  var p=picks();
+  document.querySelectorAll('[data-xrow]').forEach(function(x){x.remove()});
+  p.forEach(function(k){
+   var m=XTRA.find(function(x){return x[0]===k});if(!m)return;
+   var v=TG&&TG.items&&TG.items[k];if(!v)return;
+   var val=m[3]==='tm'?fmtTm(v.p)+' <small>تومان</small>':faNum(Math.round(v.p).toLocaleString('en-US'))+' <small>$</small>';
+   var chg=v.d?'<div class="chg '+(v.d>0?'up':'dn')+'">'+(v.d>0?'▲':'▼')+'</div>':'<div class="chg na">—</div>';
+   var row=document.createElement('div');row.className='mrow';row.setAttribute('data-xrow',k);
+   row.innerHTML='<div class="ic">'+m[1]+'</div><div class="nm"><b>'+m[2]+'</b><small>'+(m[3]==='tm'?'تومان':'جهانی · دلار')+'</small></div>'+chg+'<div class="pr">'+val+'</div><span class="xdel" data-xdel="'+k+'">✕</span>';
+   (m[3]==='tm'?document.getElementById('trows'):document.getElementById('mrows')).appendChild(row);
+  });
+ }
+ document.addEventListener('click',function(e){
+  var d=e.target.closest('[data-xdel]');
+  if(d){savePicks(picks().filter(function(k){return k!==d.dataset.xdel}));renderX();return}
+  var a=e.target.closest('[data-add]');if(!a)return;
+  var cls=a.dataset.add,p=picks();
+  var pop=document.createElement('div');pop.className='xpop';
+  pop.innerHTML=XTRA.filter(function(x){return x[3]===cls&&p.indexOf(x[0])<0}).map(function(x){
+   return '<div class="xr" data-xadd="'+x[0]+'">'+x[1]+' '+x[2]+'<span style="margin-right:auto;color:var(--faint);font-size:12px">+</span></div>'
+  }).join('')||'<div style="color:var(--faint);font-size:13px;padding:8px 2px">همه اضافه شده ✓</div>';
+  document.body.appendChild(pop);
+  var r=a.getBoundingClientRect();pop.style.top=(r.bottom+8)+'px';pop.style.left=Math.max(10,r.left-220)+'px';
+  setTimeout(function(){
+   function close(ev){if(!ev.target.closest('.xpop')&&!ev.target.closest('[data-add]')){pop.remove();document.removeEventListener('click',close)}}
+   document.addEventListener('click',close);
+   pop.addEventListener('click',function(ev){var ad=ev.target.closest('[data-xadd]');
+    if(ad){p.push(ad.dataset.xadd);savePicks(p);renderX();pop.remove()}});
+  },0);
+ });
+ renderX();
+})();
+</script></body>
 </html>
