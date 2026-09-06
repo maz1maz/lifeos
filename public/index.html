@@ -104,8 +104,37 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 /* ===== چیدمان امروز: ردیف‌های صریح ===== */
 .home{display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .home-row{display:grid;gap:14px;align-items:stretch;width:100%}
-.home-row.r1{grid-template-columns:1fr}
-.home-row.r2{grid-template-columns:repeat(4,minmax(0,1fr))}
+.home-row.r1{grid-template-columns:minmax(260px,0.95fr) minmax(180px,0.55fr);align-items:stretch}
+.home-row.r2{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:760px){.home-row.r1{grid-template-columns:1fr}}
+/* مینی‌تقویم ماه */
+.minical{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;min-width:0;height:100%;cursor:pointer}
+.minical:hover{border-color:color-mix(in srgb,var(--acc) 45%,var(--border2))}
+.minical .mchead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.minical .mchead b{flex:1;text-align:center;font-family:var(--fh);font-size:15.5px}
+.minical .mchead button{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:10px;width:30px;height:30px;cursor:pointer;font-family:var(--fh);font-size:15px}
+.minical .mchead button:hover{border-color:var(--acc);color:var(--acc)}
+.minical .mcwd{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;direction:rtl}
+.minical .mcwd span{text-align:center;font-size:11px;color:var(--faint);font-family:var(--fh);padding:2px 0}
+.minical .mcgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;direction:rtl;flex:1}
+.minical .mc{aspect-ratio:1;max-height:36px;border-radius:9px;border:1.5px solid transparent;background:transparent;color:var(--text);font-family:var(--fh);font-size:12.5px;cursor:pointer;display:grid;place-items:center;padding:0}
+.minical .mc:hover{background:var(--panel2)}
+.minical .mc.empty{cursor:default;pointer-events:none}
+.minical .mc.today{border-color:var(--acc);color:var(--acc);font-weight:800;background:color-mix(in srgb,var(--acc) 10%,transparent)}
+.minical .mc.sel{background:linear-gradient(135deg,#c084fc,#a78bfa);color:#1a0b2e;font-weight:800;border-color:transparent}
+.minical .mc.fri{color:var(--bad)}
+.minical .mc.hol{color:var(--bad);font-weight:700}
+.minical .mcfoot{margin-top:8px;font-size:12px;color:var(--acc);text-align:center}
+/* دمای روز — ساده */
+.tempcard{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:18px 20px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;min-width:0;height:100%;text-align:center;
+  background-image:linear-gradient(165deg,color-mix(in srgb,var(--acc) 12%,transparent),transparent 60%)}
+.tempcard .tic{font-size:42px;line-height:1}
+.tempcard .ttemp{font-family:var(--fh);font-size:56px;font-weight:800;line-height:1;color:var(--acc)}
+.tempcard .ttemp small{font-size:22px;font-weight:600;color:var(--muted);margin-right:2px}
+.tempcard .tdesc{font-family:var(--fh);font-size:16px;font-weight:700}
+.tempcard .tcity{color:var(--faint);font-size:13px}
+.tempcard .tfeel{color:var(--muted);font-size:13.5px;margin-top:4px}
+
 .home-row.r3{grid-template-columns:repeat(2,minmax(0,1fr))}
 .home-row.r4{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:1279px){
@@ -122,7 +151,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .span2{grid-column:span 2}
 .c3wrap{min-width:0}
 .home .datecard,.home .wcard,.home .tcard,.home .rcard,.home .mcard,.home .epcard,.home .c3wrap{min-width:0}
-.home-row.r1 .datecard,.home-row.r2>.wcard,.home-row.r2>.tcard,.home-row.r2>.rcard,.home-row.r2>.mcard,.home-row.r4>.mcard,.home-row.r4>.epcard{height:100%}
+.home-row.r1 .minical,.home-row.r1 .tempcard,.home-row.r2>.tcard,.home-row.r2>.rcard,.home-row.r2>.mcard,.home-row.r4>.mcard,.home-row.r4>.epcard{height:100%}
 .home-row.r3>.mcard,.home-row.r3>.c3wrap{height:auto;align-self:start}
 .home .txform .chiprow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px}
 .home .txform #catChips,.home .txform #accChips{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:0}
@@ -405,54 +434,51 @@ body.zoom1{zoom:1.1111}
 
 <div class="home">
 
-  <!-- ردیف ۱ — یک‌ستونه: تاریخ -->
+  <!-- ردیف ۱ — تقویم ماه‌نما + دمای روز -->
   <div class="home-row r1">
-<div class="datecard">
-      <div class="dgreet" id="dayGreet">سلام حمیدرضا 👋</div>
-      <div class="drow">
-        <div class="dnum" id="dNum">—</div>
-        <div class="dmeta">
-          <div class="dwk" id="dWk">—</div>
-          <div class="dmon" id="dMon">—</div>
-          <div class="dgreg" id="dGreg">—</div>
-        </div>
-        <span class="holbadge" id="holBadge">🎉 امروز تعطیله</span>
+    <div class="minical" id="miniCal" title="کلیک → تقویم کامل">
+      <div class="mchead">
+        <button type="button" id="mcPrev" title="ماه قبل">‹</button>
+        <b id="mcTitle">—</b>
+        <button type="button" id="mcNext" title="ماه بعد">›</button>
       </div>
-      <div class="occrow"><div class="daynav"><button type="button" class="dnbtn" id="dPrev" title="روز قبل">‹</button><button type="button" class="dntoday" id="dTodayBtn">امروز</button><button type="button" class="dnbtn" id="dNext" title="روز بعد">›</button></div><div class="occs" id="occs"></div></div>
+      <div class="mcwd"><span>ش</span><span>ی</span><span>د</span><span>س</span><span>چ</span><span>پ</span><span>ج</span></div>
+      <div class="mcgrid" id="mcGrid"></div>
+      <div class="mcfoot">📅 تقویم کامل ←</div>
+    </div>
+    <div class="tempcard" id="tempCard">
+      <div class="tic" id="wIcon">—</div>
+      <div class="ttemp"><span id="wTemp">—</span><small>°C</small></div>
+      <div class="tdesc" id="wDesc">—</div>
+      <div class="tcity" id="wCity">تهران · الان</div>
+      <div class="tfeel">احساسی <b id="wFeel">—</b>°</div>
+      <!-- hidden ids kept for weather JS compatibility -->
+      <span id="stWind" hidden>—</span>
+      <span id="wHum" hidden>—</span>
+      <span id="wUv" hidden>—</span>
+      <span id="wPop" hidden>—</span>
+      <span id="wSun" hidden>—</span>
+      <span id="aqiDot" hidden></span>
+      <span id="aqiVal" hidden>—</span>
+      <span id="aqiSub" hidden>—</span>
+      <span id="thunder" hidden></span>
+      <span id="wdays" hidden></span>
+      <span id="wUpd" hidden>—</span>
+      <span id="dayGreet" hidden>سلام</span>
+      <span id="dNum" hidden>—</span>
+      <span id="dWk" hidden>—</span>
+      <span id="dMon" hidden>—</span>
+      <span id="dGreg" hidden>—</span>
+      <span id="holBadge" hidden></span>
+      <span id="occs" hidden></span>
+      <button type="button" id="dPrev" hidden></button>
+      <button type="button" id="dTodayBtn" hidden></button>
+      <button type="button" id="dNext" hidden></button>
     </div>
   </div>
 
-  <!-- ردیف ۲ — چهارستونه: هوا · کارها · یادآوری · بازار -->
+  <!-- ردیف ۲ — سه‌ستونه: کارها · یادآوری · بازار -->
   <div class="home-row r2">
-<div class="wcard">
-      <div class="wnow">
-        <div class="wic" id="wIcon">—</div>
-        <div class="wt"><span id="wTemp">—</span><small>°C</small></div>
-        <div class="wd">
-          <b id="wDesc">—</b>
-          <small id="wCity">تهران، ایران · الان</small>
-        </div>
-      </div>
-
-      <div class="wstats">
-        <div class="wstat"><span class="wi">💨</span><div class="wv" id="stWind">—</div><div class="wl">باد (km/h)</div></div>
-        <div class="wstat"><span class="wi">💧</span><div class="wv" id="wHum">—</div><div class="wl">رطوبت</div></div>
-        <div class="wstat"><span class="wi">🌡</span><div class="wv" id="wFeel">—</div><div class="wl">دمای احساسی</div></div>
-        <div class="wstat"><span class="wi">☀️</span><div class="wv" id="wUv">—</div><div class="wl">شاخص UV امروز</div></div>
-        <div class="wstat"><span class="wi">☔</span><div class="wv" id="wPop">—</div><div class="wl">احتمال بارش</div></div>
-        <div class="wstat"><span class="wi">🌅</span><div class="wv" id="wSun">—</div><div class="wl">طلوع · غروب</div></div>
-      </div>
-
-      <div class="aqibar">
-        <span class="ad" id="aqiDot"></span>
-        <b>کیفیت هوا: <span id="aqiVal">—</span></b>
-        <small id="aqiSub">—</small>
-      </div>
-      <div class="thunder" id="thunder">⚡</div>
-
-      <div class="wdays" id="wdays"></div>
-      <div class="wfoot"><span>پیش‌بینی ۵ روز · Open-Meteo</span><span id="wUpd">—</span></div>
-    </div>
 <div class="tcard">
       <div class="mhead">
         <h4 id="taskH">✅ کارهای امروز</h4>
@@ -664,38 +690,65 @@ function renderDay(off){
   var dsm='<small style="font-size:12px;color:var(--faint)">'+(nm?nm+' ':'')+ds+'</small>';
   var th=document.getElementById('taskH');if(th)th.innerHTML='✅ کارهای '+dsm;
   var xh=document.getElementById('txH');if(xh)xh.innerHTML='💸 تراکنش‌های '+dsm;
+
+  try{if(typeof renderMiniCal==="function"){var c=currentJDay();if(c){mcY=c.jy;mcM=c.jm}renderMiniCal()}}catch(e){}
 }
 renderDay(0);
 try{var yst=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long'}).format(new Date(Date.now()-864e5));document.getElementById('aSub').textContent='درباره‌ی '+yst+' — فقط همین دو تا، ثانیه‌ای تمام می‌شود';}catch(e){}
 document.getElementById('dPrev').addEventListener('click',function(){renderDay(dayOff-1)});
 document.getElementById('dNext').addEventListener('click',function(){renderDay(dayOff+1)});
 document.getElementById('dTodayBtn').addEventListener('click',function(){renderDay(0)});
-(function(){
-  function goCal(e){
-    if(e && e.target && e.target.closest && e.target.closest('.daynav'))return;
-    var t=jToday();
-    // keep selected day offset if any
-    var off=(typeof dayOff==='number')?dayOff:0;
-    var d=d2j(g2d(new Date(Date.now()+off*864e5).getFullYear(), new Date(Date.now()+off*864e5).getMonth()+1, new Date(Date.now()+off*864e5).getDate()));
-    // simpler: jToday + dayOff via j2d
-    try{
-      var base=jToday();
-      var jdn=j2d(base.jy,base.jm,base.jd)+off;
-      d=d2j(jdn);
-    }catch(err){d=jToday()}
-    location.href='/design/calendar-page.html?y='+d.jy+'&m='+d.jm+'&d='+d.jd;
+/* ===== مینی‌تقویم ماه (ردیف ۱) ===== */
+var mcY=null, mcM=null;
+function mcKey(jy,jm,jd){return ''+jy+('0'+jm).slice(-2)+('0'+jd).slice(-2)}
+function mcMonthLen(jy,jm){var leap=jalCal(jy).leap;return jm<=6?31:(jm<12?30:(leap?30:29))}
+function currentJDay(){
+  var base=jToday(), off=(typeof dayOff==='number')?dayOff:0;
+  return d2j(j2d(base.jy,base.jm,base.jd)+off);
+}
+function renderMiniCal(){
+  if(typeof jToday!=='function'||typeof CALMON==='undefined')return;
+  var t=jToday(), cur=currentJDay();
+  if(mcY==null){mcY=cur.jy;mcM=cur.jm}
+  var title=document.getElementById('mcTitle'), grid=document.getElementById('mcGrid');
+  if(!title||!grid)return;
+  title.textContent=CALMON[mcM-1]+' '+fa(mcY);
+  var len=mcMonthLen(mcY,mcM), firstCol=(j2d(mcY,mcM,1)+2)%7, html='';
+  for(var b=0;b<firstCol;b++)html+='<button type="button" class="mc empty" tabindex="-1"></button>';
+  for(var d=1;d<=len;d++){
+    var isT=d===t.jd&&mcM===t.jm&&mcY===t.jy;
+    var isSel=d===cur.jd&&mcM===cur.jm&&mcY===cur.jy;
+    var isFri=((firstCol+d-1)%7)===6;
+    var hol=typeof HOL!=='undefined'&&HOL[mcKey(mcY,mcM,d)];
+    var cls='mc'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(hol?' hol':'');
+    html+='<button type="button" class="'+cls+'" data-md="'+d+'">'+fa(d)+'</button>';
   }
-  var dr=document.querySelector('.datecard .drow');
-  var card=document.querySelector('.datecard');
-  if(dr){dr.style.cursor='pointer';dr.title='کلیک → تقویم کامل';dr.addEventListener('click',goCal)}
-  if(card){
-    card.style.cursor='pointer';
-    var tip=document.createElement('div');
-    tip.style.cssText='margin-top:8px;font-size:12.5px;color:var(--acc)';
-    tip.textContent='📅 کلیک برای تقویم کامل ماه';
-    if(!card.querySelector('.cal-hint')){tip.className='cal-hint';card.appendChild(tip)}
+  grid.innerHTML=html;
+}
+function goFullCal(jy,jm,jd){location.href='/design/calendar-page.html?y='+jy+'&m='+jm+'&d='+jd}
+(function initMiniCal(){
+  function boot(){
+    if(typeof jToday!=='function'||typeof CALMON==='undefined'){setTimeout(boot,40);return}
+    var cur=currentJDay();mcY=cur.jy;mcM=cur.jm;
+    renderMiniCal();
+    var prev=document.getElementById('mcPrev'), next=document.getElementById('mcNext'), grid=document.getElementById('mcGrid'), box=document.getElementById('miniCal');
+    if(prev)prev.addEventListener('click',function(e){e.stopPropagation();mcM--;if(mcM<1){mcM=12;mcY--}renderMiniCal()});
+    if(next)next.addEventListener('click',function(e){e.stopPropagation();mcM++;if(mcM>12){mcM=1;mcY++}renderMiniCal()});
+    if(grid)grid.addEventListener('click',function(e){
+      e.stopPropagation();
+      var b=e.target.closest('[data-md]');if(!b)return;
+      var d=+b.dataset.md, base=jToday(), off=j2d(mcY,mcM,d)-j2d(base.jy,base.jm,base.jd);
+      if(typeof renderDay==='function')renderDay(off);
+      renderMiniCal();
+    });
+    if(box)box.addEventListener('click',function(e){
+      if(e.target.closest('button'))return;
+      var cur=currentJDay();goFullCal(cur.jy,cur.jm,cur.jd);
+    });
   }
+  boot();
 })();
+
 
 /* ---------- occasions ---------- */
 var EVENTS={"14050601": [{"t": "روز بزرگداشت ابوعلی سینا و روز پزشک"}], "14050602": [{"t": "آغاز هفته دولت"}], "14050603": [{"t": "میلاد رسول اکرم به روایت اهل سنت[ ۱۲ ربیع الاول ]"}], "14050604": [{"t": "زادروز کوروش بزرگ"}, {"t": "شهریور روز،جشن شهریورگان"}], "14050605": [{"t": "روز بزرگداشت محمدبن زکریای رازی و روز داروساز"}], "14050608": [{"t": "انفجار در دفتر نخست‌وزیری جمهوری اسلامی ایران، روز مبارزه با تروریسم"}, {"t": "میلاد رسول اکرم و امام جعفر صادق (ع)[ ۱۷ ربیع الاول ]", "h": 1}], "14050611": [{"t": "روز ملی صنعت چاپ"}], "14050612": [{"t": "سالروز شهادت رئیسعلی دلواری، سردار بزرگ میهن و فرمانده قیام جنوب علیه اشغالگران انگلیسی"}], "14050613": [{"t": "روز بزرگداشت ابوریحان بیرونی"}], "14050619": [{"t": "روز جهانی پیشگیری از خودکشی[ September 10 ]"}], "14050620": [{"t": "حمله به برج‌های دوقلوی مرکز تجارت جهانی[ September 11 ]"}], "14050621": [{"t": "روز سینما"}], "14050627": [{"t": "روز شعر و ادب پارسی و روز بزرگداشت استاد شهریار"}], "14050629": [{"t": "ولادت امام حسن عسکری (ع)[ ۸ ربیع الثانی ]"}], "14050630": [{"t": "روز جهانی صلح[ September 21 ]"}], "14050631": [{"t": "آغاز هفته دفاع مقدس"}, {"t": "وفات حضرت معصومه (س)[ ۱۰ ربیع الثانی ]"}], "14050701": [{"t": "آغاز حمله مغول به ایران در پاییز 598 خورشیدی"}], "14050704": [{"t": "روز گرامیداشت سربازان وطن"}], "14050705": [{"t": "روز جهانی جهانگردی[ September 27 ]"}], "14050707": [{"t": "روز آتش نشانی و ایمنی"}, {"t": "سقوط هواپیمای حامل جمعی از فرماندهان جنگ (کلاهدوز، نامجو، فلاحی، فکوری، جهان آرا) در سال 1360"}, {"t": "روز بزرگداشت شمس تبریزی"}], "14050708": [{"t": "روزبزرگداشت مولوی"}, {"t": "روز جهانی ناشنوایان[ September 30 ]"}, {"t": "روز جهانی ترجمه و مترجم[ September 30 ]"}], "14050709": [{"t": "روز جهانی سالمندان[ October 1 ]"}], "14050710": [{"t": "مهر روز،جشن مهرگان"}], "14050712": [{"t": "آغاز هفته جهانی فضا[ October 4 ]"}], "14050713": [{"t": "روز جهانی معلم[ October 5 ]"}], "14050714": [{"t": "روز دامپزشکی"}], "14050716": [{"t": "روز ملی کودک"}], "14050717": [{"t": "روز جهانی پست[ October 9 ]"}], "14050718": [{"t": "روز جهانی مبارزه با حکم اعدام[ October 10 ]"}], "14050719": [{"t": "روز جهانی دختر[ October 11 ]"}], "14050720": [{"t": "روز بزرگداشت حافظ"}], "14050721": [{"t": "روز پیروزی کاوه و فریدون بر ضحاک"}], "14050722": [{"t": "روز جهانی استاندارد[ October 14 ]"}], "14050723": [{"t": "روز جهانی عصای سفید[ October 15 ]"}], "14050724": [{"t": "ولادت حضرت زینب (س) و روز پرستار و بهورز[ ۵ جمادی الاول ]"}, {"t": "روز جهانی غذا[ October 16 ]"}], "14050725": [{"t": "روز جهانی ریشه کنی فقر[ October 17 ]"}], "14050726": [{"t": "روز تربیت بدنی و ورزش"}], "14050728": [{"t": "زادروز ستارخان ملقب به سردار ملی و از سرداران جنبش مشروطه ایران"}], "14050729": [{"t": "روز ملی کوهنورد"}]};
@@ -915,7 +968,7 @@ function renderWeather(d){
   document.getElementById('wIcon').textContent=c[1];
   document.getElementById('wTemp').textContent=fa(Math.round(d.current.temperature_2m));
   document.getElementById('wDesc').textContent=c[0];
-  document.getElementById('wFeel').textContent=fa(Math.round(d.current.apparent_temperature))+'°';
+  document.getElementById('wFeel').textContent=fa(Math.round(d.current.apparent_temperature));
   document.getElementById('wHum').textContent=fa(Math.round(d.current.relative_humidity_2m))+'٪';
   document.getElementById('stWind').innerHTML=fa(Math.round(d.current.wind_speed_10m))+' <small style="font-size:13px;color:var(--muted)">'+windDir(d.current.wind_direction_10m||0)+'</small>';
   var uv=d.daily.uv_index_max[0],ui=uvInfo(uv);
@@ -926,7 +979,7 @@ function renderWeather(d){
   document.getElementById('wSun').innerHTML='<small style="font-size:14px">'+fa(sr)+' · '+fa(ss)+'</small>';
   if(d.aqi){
     var ai=aqiInfo(d.aqi.eaqi);
-    document.getElementById('aqiDot').style.background=ai[1];
+    var _ad=document.getElementById('aqiDot');if(_ad)_ad.style.background=ai[1];
     document.getElementById('aqiVal').textContent=fa(Math.round(d.aqi.eaqi))+' ('+ai[0]+')';
     document.getElementById('aqiVal').style.color=ai[1];
     document.getElementById('aqiSub').textContent='ذرات معلق ۲.۵: '+fa(Math.round(d.aqi.pm25))+' µg/m³';
@@ -1273,7 +1326,7 @@ document.addEventListener('click',function(e){
 <script>
 /* ===== زوم 🔍 ===== */
 (function(){
-  var SEL='.home .datecard,.home .wcard,.home .tcard,.home .rcard,.home .mcard,.home .c3wrap,.home .epcard';
+  var SEL='.home .minical,.home .tempcard,.home .tcard,.home .rcard,.home .mcard,.home .c3wrap,.home .epcard';
   var NO='button,a,input,select,textarea,label,form,[contenteditable],.moodslider,.stepper,.chip,.daychips,.extradays,.futureline,.taskadd,.txform,.txrow,.txsum,.budwrap,.budcats,.moretoggle,.morebox,.qrow,.tags,.task,.rem,.eprow,.demo-bar,.weekline,.yearago,.collapsed,.occs,.askrow';
   var nav=document.querySelector('.navtools');
   if(nav){
