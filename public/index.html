@@ -105,13 +105,13 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 /* ===== چیدمان امروز: ردیف‌های صریح ===== */
 .home{display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .home-row{display:grid;gap:14px;align-items:stretch;width:100%}
-.home-row.r1{display:flex;flex-wrap:wrap;flex-direction:row;justify-content:flex-start;align-items:stretch;gap:14px;width:100%}
+/* r1 layout → pack CSS */
 .home-row.r2{grid-template-columns:repeat(4,minmax(0,1fr))}
 .home-row.r3{grid-template-columns:repeat(2,minmax(0,1fr))}
 .home-row.r4{grid-template-columns:repeat(3,minmax(0,1fr))}
 
 /* ردیف ۱: کارت تاریخ (راست) + مینی‌تقویم با دما (چپ) */
-.home-row.r1{display:flex;flex-wrap:wrap;flex-direction:row;justify-content:flex-start;align-items:stretch;gap:14px;width:100%}
+/* r1 layout → pack CSS */
 .minical{
   /* هم‌اندازهٔ تقویم انتخاب روز کارها (calpop = 250px) */
   width:100%;max-width:260px;box-sizing:border-box;
@@ -522,47 +522,83 @@ body.nav-open .nav-backdrop{display:block}
 }
 
 
-/* ردیف ۱ — تاریخ + مینی‌تقویم چسبیده (بدون فضای خالی وسط) */
+
+/* ردیف ۱ — ۴ ستون: تاریخ | مینی‌تقویم | افزودن‌ها (۲ ستون) */
 .home-row.r1{
-  display:flex !important;
-  flex-wrap:wrap;
-  flex-direction:row;
-  justify-content:flex-start; /* RTL: از راست می‌چسبد */
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0,1fr)) !important;
   align-items:stretch;
   gap:14px;
   width:100%;
 }
 .home-row.r1 > .datecard{
-  flex:0 1 420px;
-  width:max-content;
-  max-width:min(480px,100%);
-  min-width:min(300px,100%);
-  height:auto !important;
+  grid-column:span 1;
+  width:auto !important;
+  max-width:none !important;
+  min-width:0 !important;
+  flex:none !important;
+  height:100% !important;
   box-sizing:border-box;
 }
 .home-row.r1 > .minical{
-  flex:0 0 260px;
-  width:260px !important;
-  max-width:260px !important;
-  height:auto !important;
-  align-self:stretch;
+  grid-column:span 1;
+  width:auto !important;
+  max-width:none !important;
+  flex:none !important;
+  height:100% !important;
   box-sizing:border-box;
 }
-.home-row.r1 .datecard .drow{
-  flex:0 1 auto !important; /* نکش وسط کارت */
-  gap:16px !important;
+.home-row.r1 > .r1-quick{
+  grid-column:span 2;
+  min-width:0;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  background:var(--panel);
+  border:1.5px solid var(--border2);
+  border-radius:22px;
+  padding:14px 16px;
+  box-sizing:border-box;
+  background-image:linear-gradient(165deg,color-mix(in srgb,var(--acc) 6%,transparent),transparent 55%);
 }
-.home-row.r1 .datecard .dmeta{flex:0 1 auto}
-.home-row.r1 .datecard .dnum{font-size:72px}
-.home-row.r1 .datecard .occrow{margin-top:auto}
-@media(max-width:900px){
-  .home-row.r1{flex-direction:column !important}
+.r1-quick .qblock{display:flex;flex-direction:column;gap:8px;min-width:0}
+.r1-quick .qblock + .qblock{padding-top:10px;border-top:1px dashed var(--border)}
+.r1-quick .qhead{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-family:var(--fh);font-size:14.5px;font-weight:700;color:var(--text);
+}
+.r1-quick .qhead .qsub{font-size:12.5px;color:var(--faint);font-weight:500}
+.r1-quick .taskadd{margin-top:0}
+.r1-quick .daychips{margin-top:2px}
+.r1-quick .txform{margin-top:0;gap:8px}
+.r1-quick .txrow{gap:6px}
+.r1-quick .txamount{min-width:100px;flex:0 1 120px}
+.r1-quick .txtitle{flex:1;min-width:120px}
+.r1-quick .chiprow{gap:6px}
+.r1-quick .txchip{font-size:12px;padding:4px 9px}
+.r1-quick .chiplab{font-size:12.5px;color:var(--faint);white-space:nowrap}
+.home-row.r1 .datecard .drow{flex:0 1 auto !important;gap:14px !important}
+.home-row.r1 .datecard .dnum{font-size:clamp(48px,5.5vw,72px)}
+.home-row.r1 .minical{
+  background:var(--panel);
+  border:1.5px solid var(--border2);
+  border-radius:22px;
+  padding:12px 14px;
+  box-shadow:none;
+}
+@media(max-width:1100px){
+  .home-row.r1{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
   .home-row.r1 > .datecard,
-  .home-row.r1 > .minical{
-    flex:1 1 auto !important;
-    width:100% !important;
-    max-width:100% !important;
-  }
+  .home-row.r1 > .minical,
+  .home-row.r1 > .r1-quick{grid-column:span 1}
+  .home-row.r1 > .r1-quick{grid-column:1 / -1}
+}
+@media(max-width:900px){
+  .home-row.r1{grid-template-columns:1fr !important}
+  .home-row.r1 > .datecard,
+  .home-row.r1 > .minical,
+  .home-row.r1 > .r1-quick{grid-column:auto;width:100% !important;max-width:100% !important;height:auto !important}
 }
 
 /* page-mobile-extra */
@@ -618,6 +654,57 @@ body.nav-open .nav-backdrop{display:block}
         <span class="mcplace" id="mcPlace">امروز تهران</span>
       </div>
     </div>
+    <!-- ۲ ستون چپ: افزودن کار · یادآوری · تراکنش -->
+    <div class="r1-quick" id="r1Quick">
+      <div class="qblock" id="qTasks">
+        <div class="qhead"><span id="qTaskH">✅ کارهای امروز</span><span class="qsub" id="qTaskSub"></span></div>
+        <div class="taskadd">
+          <input type="text" id="taskIn" placeholder="کار جدید... بنویس و Enter بزن" autocomplete="off">
+          <button type="button" id="taskAdd">افزودن</button>
+        </div>
+        <div class="daychips" id="dayChips">
+          <span style="font-size:14px;color:var(--faint)">برای:</span>
+          <span class="dchip on" data-d="0">امروز</span>
+          <span class="dchip" data-d="1">فردا</span>
+          <span class="dchip" id="dMore">📅 روز دیگر</span>
+        </div>
+        <div class="futureline" id="futureLine"></div>
+      </div>
+      <div class="qblock" id="qRems">
+        <div class="qhead"><span>🔔 یادآوری‌ها</span><span class="qsub" id="qRemSub"></span></div>
+        <div class="taskadd remadd">
+          <input type="text" id="remIn" placeholder="یادآوری جدید... بنویس و Enter بزن" autocomplete="off">
+          <button type="button" id="remAdd">افزودن</button>
+        </div>
+        <div class="daychips" id="remChips">
+          <span style="font-size:14px;color:var(--faint)">برای:</span>
+          <span class="dchip on" data-r="0">امروز</span>
+          <span class="dchip" data-r="1">فردا</span>
+          <span class="dchip" id="remMore">📅 روز دیگر</span>
+        </div>
+      </div>
+      <div class="qblock" id="qTx">
+        <div class="qhead"><span id="qTxH">💸 تراکنش‌های امروز</span><span class="qsub" id="qTxSub"></span></div>
+        <div class="txform">
+          <div class="txrow">
+            <div class="kindseg">
+              <button type="button" class="on" data-kind="expense">خرج</button>
+              <button type="button" data-kind="income">دریافت</button>
+            </div>
+            <input class="txamount" id="txAmt" type="text" inputmode="numeric" placeholder="مبلغ ﷼">
+            <input class="txtitle" id="txTitle" type="text" placeholder="شرح — مثلاً: اسنپ به محل کار">
+            <button class="txgo" id="txGo" type="button">ثبت</button>
+          </div>
+          <div class="chiprow"><span class="chiplab">از حساب:</span><span id="accChips" class="chipset">
+            <button type="button" class="txchip on" data-acc="💳 کارت اصلی">💳 کارت اصلی</button>
+            <button type="button" class="txchip" data-acc="💵 نقدی">💵 نقدی</button>
+            <button type="button" class="txchip" data-acc="🏦 پس‌انداز">🏦 پس‌انداز</button>
+          </span></div>
+          <div class="chiprow catrow"><span class="chiplab">سرفصل:</span><span id="catChips" class="chipset"><button type="button" class="txchip" data-cat="خوراک">🍞 خوراک</button><button type="button" class="txchip" data-cat="حمل‌ونقل">🚕 حمل‌ونقل</button><button type="button" class="txchip" data-cat="قبض">🧾 قبض</button><button type="button" class="txchip" data-cat="سلامت">💊 سلامت</button><button type="button" class="txchip" data-cat="تفریح">🎬 تفریح</button><button type="button" class="txchip" data-cat="پوشاک">👕 پوشاک</button><button type="button" class="txchip" data-cat="آموزش">📚 آموزش</button><button type="button" class="txchip" data-cat="مسکن">🏠 مسکن</button><button type="button" class="txchip" data-cat="متفرقه">🔖 متفرقه</button><button type="button" class="txchip" data-cat="__custom">✏️ سرفصل خودم</button></span></div>
+          <div class="smarthint" id="smartHint"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ردیف ۲ —  چهارستونه: هوا · کارها · یادآوری · بازار -->
@@ -657,31 +744,12 @@ body.nav-open .nav-backdrop{display:block}
         <span class="cnt" id="taskCnt">—</span>
       </div>
       <div id="taskList"></div>
-      <div class="taskadd">
-        <input type="text" id="taskIn" placeholder="کار جدید... بنویس و Enter بزن">
-        <button id="taskAdd">افزودن</button>
-      </div>
-      <div class="daychips" id="dayChips">
-        <span style="font-size:14px;color:var(--faint)">برای:</span>
-        <span class="dchip on" data-d="0">امروز</span>
-        <span class="dchip" data-d="1">فردا</span>
-        <span class="dchip" id="dMore">📅 روز دیگر</span>
-      </div>
-      <div class="futureline" id="futureLine"></div>
+
+      <!-- افزودن کار به ردیف ۱ منتقل شد -->
     </div>
 <div class="rcard">
       <div class="mhead"><h4>🔔 یادآوری‌ها</h4><span class="cnt" id="remCnt">—</span></div>
       <div id="remList"></div>
-      <div class="taskadd remadd">
-        <input type="text" id="remIn" placeholder="یادآوری جدید... بنویس و Enter بزن" autocomplete="off">
-        <button type="button" id="remAdd">افزودن</button>
-      </div>
-      <div class="daychips" id="remChips">
-        <span style="font-size:14px;color:var(--faint)">برای:</span>
-        <span class="dchip on" data-r="0">امروز</span>
-        <span class="dchip" data-r="1">فردا</span>
-        <span class="dchip" id="remMore">📅 روز دیگر</span>
-      </div>
       <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
     </div>
 <div class="mcard navcard" id="mkSum">
@@ -695,25 +763,7 @@ body.nav-open .nav-backdrop{display:block}
   <div class="home-row r3">
 <div class="mcard">
     <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
-    <div class="txform">
-        <div class="txrow">
-          <div class="kindseg">
-            <button class="on" data-kind="expense">خرج</button>
-            <button data-kind="income">دریافت</button>
-          </div>
-          <input class="txamount" id="txAmt" type="text" inputmode="numeric" placeholder="مبلغ ﷼">
-          <input class="txtitle" id="txTitle" type="text" placeholder="شرح — مثلاً: اسنپ به محل کار">
-          <button class="txgo" id="txGo">ثبت</button>
-        </div>
-        <div class="chiprow"><span class="chiplab">از حساب:</span><span id="accChips" class="chipset">
-          <button type="button" class="txchip on" data-acc="💳 کارت اصلی">💳 کارت اصلی</button>
-          <button type="button" class="txchip" data-acc="💵 نقدی">💵 نقدی</button>
-          <button type="button" class="txchip" data-acc="🏦 پس‌انداز">🏦 پس‌انداز</button>
-        </span></div>
-        <div class="chiprow catrow"><span class="chiplab">سرفصل:</span><span id="catChips" class="chipset"><button type="button" class="txchip" data-cat="خوراک">🍞 خوراک</button><button type="button" class="txchip" data-cat="حمل‌ونقل">🚕 حمل‌ونقل</button><button type="button" class="txchip" data-cat="قبض">🧾 قبض</button><button type="button" class="txchip" data-cat="سلامت">💊 سلامت</button><button type="button" class="txchip" data-cat="تفریح">🎬 تفریح</button><button type="button" class="txchip" data-cat="پوشاک">👕 پوشاک</button><button type="button" class="txchip" data-cat="آموزش">📚 آموزش</button><button type="button" class="txchip" data-cat="مسکن">🏠 مسکن</button><button type="button" class="txchip" data-cat="متفرقه">🔖 متفرقه</button><button type="button" class="txchip" data-cat="__custom">✏️ سرفصل خودم</button></span></div>
-        <div class="smarthint" id="smartHint"></div>
-      </div>
-                <div class="txlist" id="txList"></div>
+    <div class="txlist" id="txList"></div>
     <div class="txsum"><span>جمع خرج امروز</span><b id="txSum">—</b></div>
               </div>
 <div class="c3wrap">
@@ -1620,6 +1670,33 @@ document.addEventListener('click',function(e){
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);
   else run();
+})();
+
+
+/* همگام عنوان‌های ردیف ۱ با کارت‌ها */
+(function(){
+  function syncQ(){
+    var th=document.getElementById('taskH'), qh=document.getElementById('qTaskH');
+    if(th&&qh) qh.textContent=th.textContent.replace(/^✅\s*/,'✅ ');
+    var tx=document.getElementById('txH'), qx=document.getElementById('qTxH');
+    if(tx&&qx) qx.textContent=tx.textContent;
+    var rc=document.getElementById('remCnt'), qs=document.getElementById('qRemSub');
+    if(rc&&qs) qs.textContent=rc.textContent||'';
+    var tc=document.getElementById('taskCnt'), qts=document.getElementById('qTaskSub');
+    if(tc&&qts) qts.textContent=tc.textContent||'';
+  }
+  var _rt=window.renderTasks;
+  if(typeof _rt==='function'){ window.renderTasks=function(){ var r=_rt.apply(this,arguments); try{syncQ()}catch(e){} return r; }; }
+  var _rr=window.renderRems;
+  // renderRems may be local - patch via periodic + after load
+  document.addEventListener('DOMContentLoaded', syncQ);
+  setInterval(syncQ, 2000);
+  // also patch renderDay end
+  var _rd=window.renderDay;
+  if(typeof renderDay==='function'){
+    var __rd=renderDay;
+    window.renderDay=function(off){ var r=__rd.apply(this,arguments); try{syncQ()}catch(e){} return r; };
+  }
 })();
 
 /* ===== nav auth ===== */
