@@ -359,6 +359,16 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/telegram/webhook' && request.method === 'POST') return handleTelegramWebhook(request, env);
     if (url.pathname.startsWith('/uploads/') && request.method === 'GET') return handleUploadGet(url.pathname, env);
+    if (!url.pathname.startsWith('/api/')) {
+      // 🚧 دروازه‌ی لاگین: بدون نشست معتبر، هیچ محتوایی سرو نمی‌شود — فقط صفحه‌ی ورود
+      const isPublic = /^\/design\/login-page(\.html)?$/.test(url.pathname);
+      if (!isPublic) {
+        let authed = false;
+        try { const db = await read(); authed = !!me(request, db); } catch (e) {}
+        if (!authed) return Response.redirect(new URL('/design/login-page.html', url).toString(), 302);
+      }
+      return env.ASSETS.fetch(request);
+    }
     return handleApi(request, env);
   },
   async scheduled(event, env, ctx) {
