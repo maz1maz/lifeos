@@ -399,7 +399,7 @@ body.zoom1{zoom:1.1111}
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
 <body>
-<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="on">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="">🎵 موسیقی</a><a href="/design/youtube-page.html" class="">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
+<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="on">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="">🎵 موسیقی</a><a href="/design/youtube-page.html" class="">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap">
 
@@ -670,10 +670,31 @@ try{var yst=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long'}).format
 document.getElementById('dPrev').addEventListener('click',function(){renderDay(dayOff-1)});
 document.getElementById('dNext').addEventListener('click',function(){renderDay(dayOff+1)});
 document.getElementById('dTodayBtn').addEventListener('click',function(){renderDay(0)});
-(function(){var dr=document.querySelector('.datecard .drow');if(!dr)return;
- dr.style.cursor='pointer';dr.title='کلیک → تقویم';
- dr.addEventListener('click',function(e){if(e.target.closest('.daynav'))return;
-  openCal(dr,function(p){var t=jToday();renderDay(j2d(p.jy,p.jm,p.jd)-j2d(t.jy,t.jm,t.jd))});});
+(function(){
+  function goCal(e){
+    if(e && e.target && e.target.closest && e.target.closest('.daynav'))return;
+    var t=jToday();
+    // keep selected day offset if any
+    var off=(typeof dayOff==='number')?dayOff:0;
+    var d=d2j(g2d(new Date(Date.now()+off*864e5).getFullYear(), new Date(Date.now()+off*864e5).getMonth()+1, new Date(Date.now()+off*864e5).getDate()));
+    // simpler: jToday + dayOff via j2d
+    try{
+      var base=jToday();
+      var jdn=j2d(base.jy,base.jm,base.jd)+off;
+      d=d2j(jdn);
+    }catch(err){d=jToday()}
+    location.href='/design/calendar-page.html?y='+d.jy+'&m='+d.jm+'&d='+d.jd;
+  }
+  var dr=document.querySelector('.datecard .drow');
+  var card=document.querySelector('.datecard');
+  if(dr){dr.style.cursor='pointer';dr.title='کلیک → تقویم کامل';dr.addEventListener('click',goCal)}
+  if(card){
+    card.style.cursor='pointer';
+    var tip=document.createElement('div');
+    tip.style.cssText='margin-top:8px;font-size:12.5px;color:var(--acc)';
+    tip.textContent='📅 کلیک برای تقویم کامل ماه';
+    if(!card.querySelector('.cal-hint')){tip.className='cal-hint';card.appendChild(tip)}
+  }
 })();
 
 /* ---------- occasions ---------- */
