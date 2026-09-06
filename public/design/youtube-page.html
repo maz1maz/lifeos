@@ -851,12 +851,13 @@ function doSearch(){
     .then(function(res){
       if(btn){btn.disabled=false;btn.textContent='جستجو'}
       if(!res.ok){
-        if(res.status===401||res.status===400){
+        var errMsg=(res.d&&res.d.error)||('خطا '+res.status);
+        document.getElementById('ytSearchResults').innerHTML='';
+        st.textContent=errMsg;
+        if(res.status===401||(res.status===400&&/وصل نیست/i.test(errMsg))){
           window.__ytLive=false;
-          demoFallback((res.d&&res.d.error)||'اول یوتیوب را وصل کن (پایین صفحه)');
-          return;
+          demoFallback(errMsg.indexOf('وصل')>=0?errMsg:'اول یوتیوب را وصل کن (پایین صفحه)');
         }
-        st.textContent=(res.d&&res.d.error)||('خطا '+res.status);
         return;
       }
       window.__ytLive=true;

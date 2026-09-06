@@ -856,14 +856,12 @@ function doSearch(){
       if(btn){btn.disabled=false;btn.textContent='جستجو'}
       if(!res.ok){
         var errMsg=(res.d&&res.d.error)||('خطا '+res.status);
-        /* scope/token issues: keep demo so UI never looks broken */
-        if(res.status===401||res.status===400||res.status===403){
-          demoFallback(errMsg.indexOf('scope')>=0||/Insufficient/i.test(errMsg)
-            ? 'جستجو نیاز به دسترسی اپ دارد — یک‌بار قطع و وصل کن'
-            : errMsg);
-          return;
-        }
+        document.getElementById('spSearchResults').innerHTML='';
         st.textContent=errMsg;
+        /* فقط وقتی واقعاً وصل نیست دمو نشان بده */
+        if(res.status===401||(res.status===400&&/وصل نیست|لاگین|نشست/i.test(errMsg))){
+          demoFallback(errMsg);
+        }
         return;
       }
       var items=res.d.items||[];
@@ -871,7 +869,8 @@ function doSearch(){
       st.textContent=items.length?('✓ '+fa(items.length)+' نتیجه'):'چیزی پیدا نشد';
     }).catch(function(err){
       if(btn){btn.disabled=false;btn.textContent='جستجو'}
-      demoFallback('جستجو ناموفق — دوباره تلاش کن');
+      st.textContent='جستجو ناموفق — دوباره تلاش کن';
+      document.getElementById('spSearchResults').innerHTML='';
     });
 }
 document.getElementById('spSearchBtn').addEventListener('click',doSearch);
