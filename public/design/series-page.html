@@ -33,6 +33,12 @@ html[data-mode="light"]{
 .navlinks a:hover{color:var(--text);background:var(--panel2)}
 .navlinks a.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);font-weight:700}
 .navtools{display:flex;gap:8px;align-items:center;flex:none}
+/* ===== زوم 🔍 ===== */
+.navzoom{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:11px;
+  padding:5px 10px;font-size:15px;cursor:pointer}
+.navzoom:hover{color:var(--text);border-color:var(--acc)}
+body.zoom1{zoom:1.1111}
+
 .navuser{font-size:14px;color:var(--muted);white-space:nowrap}
 .navout{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:11px;
   padding:6px 14px;font-family:var(--fh);font-size:13.5px;cursor:pointer}
@@ -603,5 +609,17 @@ document.getElementById('demoSeason').addEventListener('click',function(){rollSe
   }else b.innerHTML='<a class="navin" href="/design/login-page.html">ورود</a>';
 }).catch(function(){var b=document.getElementById('navAuth');if(b)b.innerHTML='<a class="navin" href="/design/login-page.html">ورود</a>'})})();
 </script>
+<script>
+/* 🔍 بزرگ‌نمایی صفحه */
+(function(){var nav=document.querySelector('.navtools');if(!nav)return;
+var z=document.createElement('button');z.type='button';z.className='navzoom';z.title='بزرگ‌نمایی صفحه';z.textContent='🔍';
+nav.insertBefore(z,nav.firstChild);
+function set(on){document.body.classList.toggle('zoom1',on);z.textContent=on?'🔎':'🔍';
+  try{localStorage.setItem('zoom1',on?'1':'0')}catch(err){}}
+var cur=null;try{cur=localStorage.getItem('zoom1')}catch(err){}
+set(cur==='1');
+z.addEventListener('click',function(){set(!document.body.classList.contains('zoom1'))});})();
+</script>
+
 </body>
 </html>
