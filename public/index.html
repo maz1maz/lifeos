@@ -24,7 +24,7 @@ html[data-mode="light"]{
 }
 
 /* ===== nav ===== */
-.nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:16px;padding:10px 22px;
+.nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;gap:16px;padding:10px 22px;
   background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(12px);
   border-bottom:1px solid var(--border)}
 .nav .brand{font-family:var(--fh);font-weight:800;font-size:22px;color:var(--acc);text-decoration:none;line-height:1.2}
@@ -113,6 +113,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 
 .page3 .datecard{grid-column:1/-1}
 .dgreet{font-size:15px;color:var(--muted);margin:0 0 4px}
+.fullw{grid-column:1/-1}
+.daynav{margin-right:auto;display:flex;gap:6px;align-items:center;flex:none}
+.dnbtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer;font-family:var(--fh)}
+.dnbtn:hover{border-color:var(--acc);color:var(--acc)}
+.dntoday{background:none;border:1px dashed var(--acc);color:var(--acc);border-radius:10px;height:32px;padding:0 12px;font-size:13px;cursor:pointer;font-family:inherit}
+.dntoday:hover{background:color-mix(in srgb,var(--acc) 10%,transparent)}
 .datecard .drow{flex:1;align-items:center;gap:28px}
 .navcard{cursor:pointer}
 .navcard:hover{border-color:rgba(34,211,238,.45)}
@@ -128,6 +134,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .navzoom{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:11px;
   padding:5px 10px;font-size:15px;cursor:pointer}
 .navzoom:hover{color:var(--text);border-color:var(--acc)}
+
+/* ===== پالت رنگ 🎨 ===== */
+.palpop{position:fixed;z-index:140;background:var(--bg);border:1px solid var(--border2);border-radius:15px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;max-width:240px;box-shadow:0 18px 44px -12px rgba(0,0,0,.6)}
+.palsw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2.5px solid transparent}
+.palsw.on{border-color:var(--text)}
+.palrst{flex-basis:100%;text-align:center;font-size:12.5px;color:var(--acc);cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);margin-top:2px}
 body.zoom1{zoom:1.1111}
 
 .c3wrap{grid-column:auto}
@@ -364,16 +376,18 @@ body.zoom1{zoom:1.1111}
 
 .specline{color:var(--faint);font-size:14.5px;margin-top:22px;border-top:1px dashed var(--border);padding-top:14px}
 </style>
+<script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
 <body>
 <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="on">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
+<script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap">
 
 <div class="page3">
   <!-- ============ هیرو: تاریخ + هوا ============ -->
   <div class="duo hero-duo" style="grid-template-columns:1.05fr 1fr">
     <div class="datecard">
-      <div class="dgreet" id="dayGreet">سلام حمیدرضا 👋 — تاریخ، هوا، روزمرگی و پولت، همه در یک نگاه · داده‌ها واقعی‌اند</div>
+      <div class="dgreet" id="dayGreet">سلام حمیدرضا 👋</div>
       <div class="drow">
         <div class="dnum" id="dNum">—</div>
         <div class="dmeta">
@@ -382,6 +396,7 @@ body.zoom1{zoom:1.1111}
           <div class="dgreg" id="dGreg">—</div>
         </div>
         <span class="holbadge" id="holBadge">🎉 امروز تعطیله</span>
+        <div class="daynav"><button type="button" class="dnbtn" id="dPrev" title="روز قبل">›</button><button type="button" class="dntoday" id="dTodayBtn">امروز</button><button type="button" class="dnbtn" id="dNext" title="روز بعد">‹</button></div>
       </div>
       <div class="occs" id="occs"></div>
     </div>
@@ -421,7 +436,7 @@ body.zoom1{zoom:1.1111}
   <div class="duo" style="grid-template-columns:1.35fr 1fr;margin-top:14px">
     <div class="tcard">
       <div class="mhead">
-        <h4>✅ کارهای امروز</h4>
+        <h4 id="taskH">✅ کارهای امروز</h4>
         <span class="cnt" id="taskCnt">—</span>
       </div>
       <div id="taskList"></div>
@@ -457,11 +472,10 @@ body.zoom1{zoom:1.1111}
     <div class="mfoot"><span id="sumTime">—</span><span class="src">کلیک → صفحه‌ی بازار</span></div>
   </div>
 
-  <!-- ============ ثبت تراکنش + بودجه ============ -->
-  <div class="duo">
-    <div class="mcard">
-      <div class="mhead"><h4>💸 ثبت تراکنش + بودجه ماه</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
-      <div class="txform">
+  <!-- ============ ثبت تراکنش ============ -->
+  <div class="mcard">
+    <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
+    <div class="txform">
         <div class="txrow">
           <div class="kindseg">
             <button class="on" data-kind="expense">خرج</button>
@@ -475,18 +489,9 @@ body.zoom1{zoom:1.1111}
         <div class="chiprow"><span class="chiplab">سرفصل:</span><span id="catChips"></span></div>
         <div class="smarthint" id="smartHint"></div>
       </div>
-            <div class="txlist" id="txList"></div>
-      <div class="txsum"><span>جمع خرج امروز</span><b id="txSum">—</b></div>
-            <div class="budwrap">
-        <div class="budbar"><i id="budFill" style="width:23%"></i></div>
-        <div class="budnums"><span><b id="budSpent">—</b> خرج شده</span><span>از <b id="budTotal">—</b></span></div>
-        <div class="budleft"><b id="budPct">—</b><small id="budDays">—</small></div>
-        <div class="budcats" id="budCats"></div>
-        <div class="txspec" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:12px">🔌 از <b>/api/finance?month=</b> و <b>/api/budgets</b> · ماکان گزارش ماه در صفحه‌ی پول</div>
-      </div>
-    </div>
-  </div>
-
+                <div class="txlist" id="txList"></div>
+    <div class="txsum"><span>جمع خرج امروز</span><b id="txSum">—</b></div>
+              </div>
 
   <!-- ============ ثبت روزانه + قسمت‌های جدید (نصف‌نصف) ============ -->
 <div class="duo" style="grid-template-columns:1fr 1fr;align-items:start">
@@ -595,13 +600,24 @@ body.zoom1{zoom:1.1111}
   </div>
 </div>
 
+  <!-- ============ بودجه ماه ============ -->
+  <div class="mcard fullw">
+    <div class="mhead"><h4>📊 بودجه ماه</h4></div>
+    <div class="budwrap">
+        <div class="budbar"><i id="budFill" style="width:23%"></i></div>
+        <div class="budnums"><span><b id="budSpent">—</b> خرج شده</span><span>از <b id="budTotal">—</b></span></div>
+        <div class="budleft"><b id="budPct">—</b><small id="budDays">—</small></div>
+        <div class="budcats" id="budCats"></div>
+        <div class="txspec" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:12px">🔌 از <b>/api/finance?month=</b> و <b>/api/budgets</b> · ماکان گزارش ماه در صفحه‌ی پول</div>
+      </div>  </div>
+
 </div>
 <script>
 /* ===== دروازه‌ی لاگین ===== */
 fetch('/api/me').then(function(r){return r.json()}).then(function(d){
   if(!d||!d.user)return;
   var el=document.getElementById('dayGreet');
-  if(el&&d.user.name)el.textContent='سلام '+d.user.name+' 👋 — تاریخ، هوا، روزمرگی و پولت، همه در یک نگاه · داده‌ها واقعی‌اند';
+  if(el&&d.user.name)el.textContent='سلام '+d.user.name+' 👋';
 }).catch(function(){});
 
 /* ---------- helpers ---------- */
@@ -613,18 +629,28 @@ function faNum(n){
 }
 
 /* ---------- date ---------- */
-try{
-  var now=new Date();
+var dayOff=0;
+function renderDay(off){
+  dayOff=off;
+  var now=new Date(Date.now()+off*864e5);
   var parts=new Intl.DateTimeFormat('fa-IR',{dateStyle:'full'}).formatToParts(now);
   var get=function(t){var p=parts.find(function(x){return x.type===t});return p?p.value:''};
   var dayNum=get('day'),month=get('month'),year=get('year'),wk=get('weekday').replace('،','').trim();
   document.getElementById('dNum').textContent=dayNum;
-  document.getElementById('dWk').textContent=wk;
+  var tag=off===0?'':(off===1?' · فردا':(off===-1?' · دیروز':(off>1?' · '+fa(off)+' روز بعد':' · '+fa(-off)+' روز قبل')));
+  document.getElementById('dWk').textContent=wk+tag;
   document.getElementById('dMon').textContent=month+' '+year;
   document.getElementById('dGreg').textContent=new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(now)+' · '+new Intl.DateTimeFormat('en-GB',{weekday:'long'}).format(now);
-  var yst=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long'}).format(new Date(now.getTime()-864e5));
-  document.getElementById('aSub').textContent='درباره‌ی '+yst+' — فقط همین دو تا، ثانیه‌ای تمام می‌شود';
-}catch(e){}
+  var hb=document.getElementById('holBadge');if(hb)hb.style.display=off?'none':'';
+  var dl=off===0?'امروز':(off===1?'فردا':(off===-1?'دیروز':wk));
+  var th=document.getElementById('taskH');if(th)th.textContent='✅ کارهای '+dl;
+  var xh=document.getElementById('txH');if(xh)xh.textContent='💸 تراکنش‌های '+dl;
+}
+renderDay(0);
+try{var yst=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long'}).format(new Date(Date.now()-864e5));document.getElementById('aSub').textContent='درباره‌ی '+yst+' — فقط همین دو تا، ثانیه‌ای تمام می‌شود';}catch(e){}
+document.getElementById('dPrev').addEventListener('click',function(){renderDay(dayOff-1)});
+document.getElementById('dNext').addEventListener('click',function(){renderDay(dayOff+1)});
+document.getElementById('dTodayBtn').addEventListener('click',function(){renderDay(0)});
 
 /* ---------- occasions ---------- */
 var EVENTS={"14050601": [{"t": "روز بزرگداشت ابوعلی سینا و روز پزشک"}], "14050602": [{"t": "آغاز هفته دولت"}], "14050603": [{"t": "میلاد رسول اکرم به روایت اهل سنت[ ۱۲ ربیع الاول ]"}], "14050604": [{"t": "زادروز کوروش بزرگ"}, {"t": "شهریور روز،جشن شهریورگان"}], "14050605": [{"t": "روز بزرگداشت محمدبن زکریای رازی و روز داروساز"}], "14050608": [{"t": "انفجار در دفتر نخست‌وزیری جمهوری اسلامی ایران، روز مبارزه با تروریسم"}, {"t": "میلاد رسول اکرم و امام جعفر صادق (ع)[ ۱۷ ربیع الاول ]", "h": 1}], "14050611": [{"t": "روز ملی صنعت چاپ"}], "14050612": [{"t": "سالروز شهادت رئیسعلی دلواری، سردار بزرگ میهن و فرمانده قیام جنوب علیه اشغالگران انگلیسی"}], "14050613": [{"t": "روز بزرگداشت ابوریحان بیرونی"}], "14050619": [{"t": "روز جهانی پیشگیری از خودکشی[ September 10 ]"}], "14050620": [{"t": "حمله به برج‌های دوقلوی مرکز تجارت جهانی[ September 11 ]"}], "14050621": [{"t": "روز سینما"}], "14050627": [{"t": "روز شعر و ادب پارسی و روز بزرگداشت استاد شهریار"}], "14050629": [{"t": "ولادت امام حسن عسکری (ع)[ ۸ ربیع الثانی ]"}], "14050630": [{"t": "روز جهانی صلح[ September 21 ]"}], "14050631": [{"t": "آغاز هفته دفاع مقدس"}, {"t": "وفات حضرت معصومه (س)[ ۱۰ ربیع الثانی ]"}], "14050701": [{"t": "آغاز حمله مغول به ایران در پاییز 598 خورشیدی"}], "14050704": [{"t": "روز گرامیداشت سربازان وطن"}], "14050705": [{"t": "روز جهانی جهانگردی[ September 27 ]"}], "14050707": [{"t": "روز آتش نشانی و ایمنی"}, {"t": "سقوط هواپیمای حامل جمعی از فرماندهان جنگ (کلاهدوز، نامجو، فلاحی، فکوری، جهان آرا) در سال 1360"}, {"t": "روز بزرگداشت شمس تبریزی"}], "14050708": [{"t": "روزبزرگداشت مولوی"}, {"t": "روز جهانی ناشنوایان[ September 30 ]"}, {"t": "روز جهانی ترجمه و مترجم[ September 30 ]"}], "14050709": [{"t": "روز جهانی سالمندان[ October 1 ]"}], "14050710": [{"t": "مهر روز،جشن مهرگان"}], "14050712": [{"t": "آغاز هفته جهانی فضا[ October 4 ]"}], "14050713": [{"t": "روز جهانی معلم[ October 5 ]"}], "14050714": [{"t": "روز دامپزشکی"}], "14050716": [{"t": "روز ملی کودک"}], "14050717": [{"t": "روز جهانی پست[ October 9 ]"}], "14050718": [{"t": "روز جهانی مبارزه با حکم اعدام[ October 10 ]"}], "14050719": [{"t": "روز جهانی دختر[ October 11 ]"}], "14050720": [{"t": "روز بزرگداشت حافظ"}], "14050721": [{"t": "روز پیروزی کاوه و فریدون بر ضحاک"}], "14050722": [{"t": "روز جهانی استاندارد[ October 14 ]"}], "14050723": [{"t": "روز جهانی عصای سفید[ October 15 ]"}], "14050724": [{"t": "ولادت حضرت زینب (س) و روز پرستار و بهورز[ ۵ جمادی الاول ]"}, {"t": "روز جهانی غذا[ October 16 ]"}], "14050725": [{"t": "روز جهانی ریشه کنی فقر[ October 17 ]"}], "14050726": [{"t": "روز تربیت بدنی و ورزش"}], "14050728": [{"t": "زادروز ستارخان ملقب به سردار ملی و از سرداران جنبش مشروطه ایران"}], "14050729": [{"t": "روز ملی کوهنورد"}]};
@@ -756,8 +782,7 @@ function renderMarket(){
        +row('₿','بیت‌کوین','BTC',prUSD(b.p),'$',b.c)
        +row('Ξ','اتریوم','ETH',prUSD(e.p),'$',e.c)
        +row('💵','دلار آزاد','تهران',faNum(Math.round((tm('price_dollar_rl')||{p:0}).p/1000))+' هزار','تومان',pc(tm('price_dollar_rl')))
-       +row('💶','یورو','تهران',faNum(Math.round((tm('price_eur')||{p:0}).p/1000))+' هزار','تومان',pc(tm('price_eur')))
-       +row('🟡','گرم ۱۸','طلا داخلی',faNum(Math.round((tm('geram18')||{p:0}).p/1e6))+' م','تومان',pc(tm('geram18')))
+              +row('🟡','گرم ۱۸','طلا داخلی',faNum(Math.round((tm('geram18')||{p:0}).p/1e6))+' م','تومان',pc(tm('geram18')))
        +row('🪙','سکه امامی','طرح جدید',faNum(Math.round((tm('sekee')||{p:0}).p/1e6))+' م','تومان',pc(tm('sekee')));
   var el=document.getElementById('sumRows');if(el)el.innerHTML=h;
   var st=document.getElementById('sumTime');if(st)st.textContent=d.live?'زنده ✓':('آفلاین · '+d.t);
@@ -1206,6 +1231,32 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
     L.innerHTML=h||'<div style="padding:14px 4px;color:var(--faint)">امروز بازی لیگ‌های بزرگ نیست ⚽</div>';
     var f=document.getElementById('gamesFoot');if(f)f.textContent='به‌وقت دستگاه شما';
   }).catch(function(){L.innerHTML='<div style="padding:14px 4px;color:var(--faint)">دریافت بازی‌ها ناموفق بود</div>'});
+})();
+</script>
+<script>
+/* 🎨 پالت رنگ */
+(function(){
+var COLS=[['#22d3ee','فیروزه‌ای'],['#34d399','سبز'],['#a78bfa','بنفش'],['#f472b6','صورتی'],['#fbbf24','طلایی'],['#fb923c','نارنجی'],['#60a5fa','آبی'],['#f87171','قرمز']];
+var nav=document.querySelector('.navtools');if(!nav)return;
+var b=document.createElement('button');b.type='button';b.className='navzoom';b.title='رنگ اصلی سایت';b.textContent='🎨';
+nav.insertBefore(b,nav.firstChild);
+var pop=null;
+function cur(){try{return localStorage.getItem('accent')}catch(e){return null}}
+b.addEventListener('click',function(e){e.stopPropagation();
+ if(pop){pop.remove();pop=null;return}
+ pop=document.createElement('div');pop.className='palpop';
+ var c=cur()||'#22d3ee';
+ pop.innerHTML=COLS.map(function(x){return '<div class="palsw'+(x[0]===c?' on':'')+'" data-c="'+x[0]+'" style="background:'+x[0]+'" title="'+x[1]+'"></div>'}).join('')+'<div class="palrst">بازگشت به فیروزه‌ای</div>';
+ document.body.appendChild(pop);
+ var r=b.getBoundingClientRect();pop.style.top=(r.bottom+8)+'px';pop.style.left=Math.max(10,r.left-180)+'px';
+});
+document.addEventListener('click',function(e){
+ if(pop&&!e.target.closest('.palpop')&&!e.target.closest('.navzoom')){pop.remove();pop=null;return}
+ if(!pop)return;
+ var s=e.target.closest('.palsw'),rs=e.target.closest('.palrst'),c=s?s.dataset.c:(rs?'#22d3ee':null);
+ if(c){document.documentElement.style.setProperty('--acc',c);try{localStorage.setItem('accent',c)}catch(err){}
+  pop.querySelectorAll('.palsw').forEach(function(x){x.classList.toggle('on',x.dataset.c===c)});}
+});
 })();
 </script>
 </body>

@@ -24,7 +24,7 @@ html[data-mode="light"]{
 }
 
 /* ===== nav ===== */
-.nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:16px;padding:10px 22px;
+.nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;gap:16px;padding:10px 22px;
   background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(12px);
   border-bottom:1px solid var(--border)}
 .nav .brand{font-family:var(--fh);font-weight:800;font-size:22px;color:var(--acc);text-decoration:none;line-height:1.2}
@@ -38,6 +38,12 @@ html[data-mode="light"]{
 .navzoom{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:11px;
   padding:5px 10px;font-size:15px;cursor:pointer}
 .navzoom:hover{color:var(--text);border-color:var(--acc)}
+
+/* ===== پالت رنگ 🎨 ===== */
+.palpop{position:fixed;z-index:140;background:var(--bg);border:1px solid var(--border2);border-radius:15px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;max-width:240px;box-shadow:0 18px 44px -12px rgba(0,0,0,.6)}
+.palsw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2.5px solid transparent}
+.palsw.on{border-color:var(--text)}
+.palrst{flex-basis:100%;text-align:center;font-size:12.5px;color:var(--acc);cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);margin-top:2px}
 body.zoom1{zoom:1.1111}
 
 .navuser{font-size:14px;color:var(--muted);white-space:nowrap}
@@ -239,12 +245,14 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .specline{color:var(--faint);font-size:14px;margin-top:24px;border-top:1px dashed var(--border);padding-top:14px}
 .empty{color:var(--faint);text-align:center;padding:26px 10px;font-size:15px}
 </style>
+<script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
 <body>
 <div class="wrap">
   <div class="ptools"><button class="iconbtn" id="eyeBtn">👁</button><button class="btn" id="impBtn">📥 درون‌ریزی اکسل بانک</button></div>
 
   <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="">🏠 امروز</a><a href="/design/finance-page.html" class="on">💰 پول</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
+<script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
   <p class="lead">حساب‌ها، تاریخچه‌ی کامل بانک، آمار ۲۴ ماه و پورتفو — همه در یک صفحه</p>
 
   <div class="hero" id="hero"></div>
@@ -899,5 +907,31 @@ set(cur==='1');
 z.addEventListener('click',function(){set(!document.body.classList.contains('zoom1'))});})();
 </script>
 
+<script>
+/* 🎨 پالت رنگ */
+(function(){
+var COLS=[['#22d3ee','فیروزه‌ای'],['#34d399','سبز'],['#a78bfa','بنفش'],['#f472b6','صورتی'],['#fbbf24','طلایی'],['#fb923c','نارنجی'],['#60a5fa','آبی'],['#f87171','قرمز']];
+var nav=document.querySelector('.navtools');if(!nav)return;
+var b=document.createElement('button');b.type='button';b.className='navzoom';b.title='رنگ اصلی سایت';b.textContent='🎨';
+nav.insertBefore(b,nav.firstChild);
+var pop=null;
+function cur(){try{return localStorage.getItem('accent')}catch(e){return null}}
+b.addEventListener('click',function(e){e.stopPropagation();
+ if(pop){pop.remove();pop=null;return}
+ pop=document.createElement('div');pop.className='palpop';
+ var c=cur()||'#22d3ee';
+ pop.innerHTML=COLS.map(function(x){return '<div class="palsw'+(x[0]===c?' on':'')+'" data-c="'+x[0]+'" style="background:'+x[0]+'" title="'+x[1]+'"></div>'}).join('')+'<div class="palrst">بازگشت به فیروزه‌ای</div>';
+ document.body.appendChild(pop);
+ var r=b.getBoundingClientRect();pop.style.top=(r.bottom+8)+'px';pop.style.left=Math.max(10,r.left-180)+'px';
+});
+document.addEventListener('click',function(e){
+ if(pop&&!e.target.closest('.palpop')&&!e.target.closest('.navzoom')){pop.remove();pop=null;return}
+ if(!pop)return;
+ var s=e.target.closest('.palsw'),rs=e.target.closest('.palrst'),c=s?s.dataset.c:(rs?'#22d3ee':null);
+ if(c){document.documentElement.style.setProperty('--acc',c);try{localStorage.setItem('accent',c)}catch(err){}
+  pop.querySelectorAll('.palsw').forEach(function(x){x.classList.toggle('on',x.dataset.c===c)});}
+});
+})();
+</script>
 </body>
 </html>
