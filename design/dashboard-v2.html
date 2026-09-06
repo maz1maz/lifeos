@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>زندگی‌من — نسخه ۲</title>
+<style>
+  :root{
+    --bg:#0a0e17; --card:rgba(255,255,255,.035); --border:#1c2740; --border2:#2a3a5c;
+    --text:#e6e8ee; --muted:#8fa1bd; --faint:#5c6f8d;
+    --acc:#a78bfa; --acc2:#22d3ee; --good:#34d399; --warn:#fbbf24; --bad:#f87171;
+  }
+  :root[data-theme="ocean"]{ --acc:#38bdf8; --acc2:#34d399; }
+  :root[data-theme="rose"]{ --acc:#f472b6; --acc2:#fb923c; }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:"Segoe UI",Tahoma,sans-serif; background:var(--bg); color:var(--text); line-height:1.75;
+    background-image:radial-gradient(1000px 600px at 85% -10%, color-mix(in srgb, var(--acc) 14%, transparent), transparent 60%);
+    background-attachment:fixed; transition:background .3s;
+  }
+  .app{display:flex;min-height:100vh}
+
+  /* ---------- slim sidebar ---------- */
+  .side{
+    width:76px;flex-shrink:0;position:sticky;top:0;height:100vh;
+    display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 0;
+    border-inline-end:1px solid var(--border);background:rgba(10,14,23,.7);z-index:5;
+  }
+  .logo{width:42px;height:42px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    font-size:20px;font-weight:900;color:#0a0e17;margin-bottom:10px;
+    background:linear-gradient(135deg,var(--acc2),var(--acc));
+  }
+  .nav-btn{width:52px;height:52px;border-radius:14px;border:1px solid transparent;background:none;
+    color:var(--faint);font-size:21px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .nav-btn:hover{color:var(--text);background:rgba(255,255,255,.05)}
+  .nav-btn.on{color:var(--acc);background:color-mix(in srgb, var(--acc) 12%, transparent);border-color:color-mix(in srgb, var(--acc) 35%, transparent)}
+  .nav-btn .tip{
+    position:absolute;top:50%;inset-inline-start:-4px;transform:translate(100%,-50%) translateX(-6px) ;
+    background:#141c2e;border:1px solid var(--border2);color:var(--text);font-size:11px;
+    padding:3px 10px;border-radius:8px;white-space:nowrap;opacity:0;pointer-events:none;transition:.15s;font-family:inherit}
+  .side:hover .nav-btn .tip{opacity:1;transform:translate(100%,-50%)}
+  .side .sp{flex:1}
+  .me{width:56px;text-align:center;padding:8px 4px;border:1px solid var(--border);border-radius:12px;background:var(--card)}
+  .me .lv{font-size:10px;color:var(--muted)}
+  .me .xn{font-size:11px;font-weight:800;color:var(--acc)}
+  .me .xb{height:4px;background:#1a2438;border-radius:99px;margin-top:4px;overflow:hidden}
+  .me .xb i{display:block;height:100%;background:linear-gradient(90deg,var(--acc2),var(--acc))}
+
+  /* ---------- main ---------- */
+  main{flex:1;min-width:0;padding:26px clamp(14px,3vw,34px) 70px;max-width:1160px;margin:0 auto}
+  .hello{font-size:22px;font-weight:800}
+  .hello span{background:linear-gradient(90deg,var(--acc2),var(--acc));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .date{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+
+  .panel{display:none}
+  .panel.on{display:block;animation:in .25s ease}
+  @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ---------- cards ---------- */
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .c{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;transition:.15s}
+  .c:hover{border-color:var(--border2)}
+  .c h4{margin:0 0 10px;font-size:12.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+  .c h4 .more{margin-inline-start:auto;font-size:10px;color:var(--faint);cursor:pointer}
+  .c h4 .more:hover{color:var(--acc)}
+  .big{font-size:26px;font-weight:800;letter-spacing:.3px}
+  .sub{font-size:11.5px;color:var(--muted)}
+  .up{color:var(--good)} .dn{color:var(--bad)} .wr{color:var(--warn)}
+  .ac{color:var(--acc)}
+
+  /* quick capture */
+  .qc{display:flex;gap:8px;margin-bottom:16px}
+  .qc input{flex:1;background:color-mix(in srgb, var(--acc) 6%, transparent);border:1px solid color-mix(in srgb, var(--acc) 25%, var(--border));
+    color:var(--text);border-radius:14px;padding:11px 16px;font:inherit;font-size:13.5px;outline:none}
+  .qc input:focus{border-color:var(--acc)}
+  .qc input::placeholder{color:var(--faint)}
+  .qc button{background:linear-gradient(90deg,var(--acc2),var(--acc));color:#0a0e17;border:none;border-radius:14px;
+    padding:0 20px;font:inherit;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;min-height:0}
+  .chip{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:99px;padding:4px 8px 4px 6px;font-size:12px;display:flex;align-items:center;gap:6px}
+  .chip b{font-weight:400}
+  .chip button{background:none;border:none;color:var(--faint);cursor:pointer;font-size:13px;padding:0 2px}
+  .chip button:hover{color:var(--bad)}
+
+  /* checklist */
+  .tk{display:flex;align-items:center;gap:9px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;cursor:pointer}
+  .tk:last-child{border:none}
+  .tk input{display:none}
+  .tk .bx{width:18px;height:18px;border-radius:6px;border:1.5px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#0a0e17;transition:.15s}
+  .tk input:checked + .bx{background:linear-gradient(135deg,var(--acc2),var(--acc));border-color:transparent}
+  .tk input:checked + .bx::after{content:"✓";font-weight:900}
+  .tk input:checked ~ .tt{text-decoration:line-through;opacity:.4}
+  .tk .pr{margin-inline-start:auto;font-size:10px;white-space:nowrap}
+
+  /* water */
+  .cups{display:flex;gap:5px;direction:rtl;flex-wrap:wrap}
+  .cup{width:30px;height:36px;border-radius:8px;border:1px solid var(--border2);background:none;cursor:pointer;font-size:14px;color:var(--faint);transition:.15s}
+  .cup.on{background:color-mix(in srgb, var(--acc2) 18%, transparent);border-color:var(--acc2);color:var(--acc2)}
+
+  /* mood */
+  .moods{display:flex;gap:6px;justify-content:space-between}
+  .mood{flex:1;aspect-ratio:1;max-height:44px;font-size:21px;border-radius:12px;border:1px solid var(--border);background:none;cursor:pointer;transition:.15s;filter:grayscale(.6);opacity:.55}
+  .mood:hover{filter:none;opacity:1}
+  .mood.on{filter:none;opacity:1;border-color:var(--acc);background:color-mix(in srgb, var(--acc) 13%, transparent);box-shadow:0 0 12px color-mix(in srgb, var(--acc) 25%, transparent)}
+
+  /* bars */
+  .bar{height:7px;background:#161f33;border-radius:99px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--acc2),var(--acc))}
+
+  /* heat */
+  .heat-wrap{overflow-x:auto;padding-bottom:6px}
+  .heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,11px);gap:3px;direction:ltr;width:max-content}
+  .heat i{width:11px;height:11px;border-radius:3px;background:#131c30}
+  .hleg{font-size:10px;color:var(--faint);display:flex;align-items:center;gap:4px;margin-top:8px}
+  .hleg b{width:9px;height:9px;border-radius:3px;display:inline-block}
+
+  /* bank card */
+  .bank{border-radius:20px;padding:20px 22px;position:relative;overflow:hidden;color:#fff;
+    background:linear-gradient(130deg,var(--acc),var(--acc2));min-height:150px;display:flex;flex-direction:column;justify-content:space-between}
+  .bank::after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.12);top:-70px;left:-60px}
+  .bank .rw{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+  .bank .bal{font-size:27px;font-weight:800;direction:ltr;text-align:right}
+  .bank .num{direction:ltr;font-size:12px;letter-spacing:2px;opacity:.85}
+
+  /* media */
+  .med{display:flex;align-items:center;gap:12px;padding:9px 2px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px}
+  .med:last-child{border:none}
+  .med .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;
+    background:color-mix(in srgb, var(--acc) 12%, transparent);border:1px solid color-mix(in srgb, var(--acc) 22%, transparent)}
+  .med .tt{flex:1;min-width:0}
+  .med .tt b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .med .tt span{font-size:10.5px;color:var(--faint)}
+  .stars{color:var(--warn);font-size:11px;letter-spacing:1px;white-space:nowrap}
+  .tag{font-size:10px;padding:2px 9px;border-radius:99px;border:1px solid;white-space:nowrap}
+  .t-c{color:var(--acc2);border-color:color-mix(in srgb, var(--acc2) 40%, transparent)}
+  .t-v{color:var(--acc);border-color:color-mix(in srgb, var(--acc) 40%, transparent)}
+  .t-w{color:var(--warn);border-color:color-mix(in srgb, var(--warn) 40%, transparent)}
+  .t-g{color:var(--good);border-color:color-mix(in srgb, var(--good) 40%, transparent)}
+  .t-b{color:var(--bad);border-color:color-mix(in srgb, var(--bad) 40%, transparent)}
+
+  /* tabs (day/week/month) */
+  .tabs{display:flex;gap:6px;margin-bottom:14px}
+  .tab{background:none;border:1px solid var(--border);color:var(--muted);border-radius:99px;padding:5px 18px;font:inherit;font-size:12.5px;cursor:pointer}
+  .tab.on{color:#0a0e17;background:linear-gradient(90deg,var(--acc2),var(--acc));border-color:transparent;font-weight:700}
+
+  /* misc */
+  .prio{width:8px;height:8px;border-radius:99px;flex-shrink:0}
+  .p1{background:var(--bad)} .p2{background:var(--warn)} .p3{background:var(--acc2)}
+  input[type=text].fld, textarea{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text);
+    border-radius:12px;padding:10px 14px;font:inherit;font-size:13px;outline:none}
+  input[type=text].fld:focus, textarea:focus{border-color:var(--acc)}
+  textarea{resize:vertical;min-height:100px}
+  .btn{background:linear-gradient(90deg,var(--acc2),var(--acc));color:#0a0e17;border:none;border-radius:12px;
+    padding:9px 22px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+  .ghost{background:none;border:1px solid var(--border2);color:var(--muted)}
+  .theme-btn{width:52px;height:52px;border-radius:14px;border:1px solid var(--border);background:none;color:var(--muted);font-size:20px;cursor:pointer}
+  .theme-btn:hover{color:var(--acc)}
+
+  @media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:700px){
+    .app{flex-direction:column}
+    .side{width:100%;height:auto;flex-direction:row!important;border-inline-end:none;border-bottom:1px solid var(--border);
+      position:sticky;top:0;overflow-x:auto;padding:8px}
+    .logo{margin:0 6px 0 0;width:36px;height:36px;font-size:16px;border-radius:11px}
+    .nav-btn{width:46px;height:46px;font-size:18px} .nav-btn .tip,.me{display:none} .sp{flex:0}
+    .grid,.g2,.g3{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== sidebar ===== -->
+  <aside class="side" style="flex-direction:column">
+    <div class="logo">ز</div>
+    <button class="nav-btn on" data-go="today" style="position:relative">🏠<span class="tip">امروز</span></button>
+    <button class="nav-btn" data-go="money" style="position:relative">💰<span class="tip">مالی</span></button>
+    <button class="nav-btn" data-go="habits" style="position:relative">✅<span class="tip">عادت‌ها</span></button>
+    <button class="nav-btn" data-go="fun" style="position:relative">🎬<span class="tip">تفریحات</span></button>
+    <button class="nav-btn" data-go="journal" style="position:relative">📝<span class="tip">ژورنال</span></button>
+    <button class="nav-btn" data-go="tasks" style="position:relative">📋<span class="tip">کارها و اهداف</span></button>
+    <button class="nav-btn" data-go="life" style="position:relative">🏡<span class="tip">زندگی</span></button>
+    <div class="sp"></div>
+    <button class="theme-btn" id="themeBtn" title="تغییر تم رنگی">🎨</button>
+    <div class="me" title="با هر تیک عادت، XP می‌گیری!">
+      <div class="xn" id="lvTxt">Lv 7</div>
+      <div class="xb"><i id="xpBar" style="width:40%"></i></div>
+    </div>
+  </aside>
+
+  <main>
+    <!-- ================= TODAY ================= -->
+    <section class="panel on" id="today">
+      <div class="hello">سلام! امروزش <span>روز خوبیه</span> ☀️</div>
+      <div class="date" id="todayDate">—</div>
+
+      <div class="qc">
+        <input id="qcIn" type="text" placeholder="⚡ هر چی به ذهنت رسید، همینجا بریز... (کار، ایده، اسم فیلم، هرچی)">
+        <button id="qcBtn">ثبت سریع</button>
+      </div>
+      <div class="chips" id="qcChips"></div>
+
+      <div class="grid">
+        <div class="c">
+          <h4>✅ امروز چیکارکنم <span class="more" data-jump="tasks">کارها ←</span></h4>
+          <label class="tk"><input type="checkbox" data-k="c1"><span class="bx"></span><span class="tt">🏃 ورزش ۳۰ دقیقه</span><span class="pr">🔥۱۲</span></label>
+          <label class="tk"><input type="checkbox" data-k="c2"><span class="bx"></span><span class="tt">🇩🇪 ۱۰ لغت آلمانی</span><span class="pr">🔥۴۷</span></label>
+          <label class="tk"><input type="checkbox" data-k="c3"><span class="bx"></span><span class="tt">📧 جواب ایمیل مشتری</span><span class="pr p1" style="background:var(--bad)"></span></label>
+          <label class="tk"><input type="checkbox" data-k="c4"><span class="bx"></span><span class="tt">🛒 خرید هفته</span><span class="pr"></span></label>
+        </div>
+
+        <div class="c">
+          <h4>💧 آب امروز</h4>
+          <div class="cups" id="cups"></div>
+          <div class="sub" style="margin-top:10px" id="cupTxt">۰ از ۸ لیوان</div>
+          <div class="bar" style="margin-top:6px"><i id="cupBar" style="width:0%"></i></div>
+        </div>
+
+        <div class="c">
+          <h4>😊 حال‌وهوا <span class="more" data-jump="journal">ژورنال ←</span></h4>
+          <div class="moods" id="moods">
+            <button class="mood" data-m="0">😢</button><button class="mood" data-m="1">😕</button>
+            <button class="mood" data-m="2">😐</button><button class="mood" data-m="3">🙂</button>
+            <button class="mood" data-m="4">😄</button>
+          </div>
+          <div class="sub" style="margin-top:10px">دیروز: 🙂 · این هفته: رو به بالا 📈</div>
+        </div>
+
+        <div class="c">
+          <h4>💶 پول امروز <span class="more" data-jump="money">مالی ←</span></h4>
+          <div class="big">۳۲٫۵۰ <span style="font-size:15px">€</span></div>
+          <div class="sub dn">خرج امروز</div>
+          <div style="margin-top:12px" class="sub">مانده بودجه ماه: <b class="ac">۳۹۰ €</b></div>
+          <div class="bar" style="margin-top:6px"><i style="width:62%"></i></div>
+        </div>
+
+        <div class="c">
+          <h4>⏳ رویداد بعدی <span class="more" data-jump="life">زندگی ←</span></h4>
+          <div class="med" style="border:none;padding:0">
+            <div class="ic">🚂</div>
+            <div class="tt"><b>سفر مونیخ</b><span>آخر هفته · با دوستان</span></div>
+          </div>
+          <div class="big ac" style="margin-top:8px">۹ روز</div>
+        </div>
+
+        <div class="c">
+          <h4>📖 در حال ...</h4>
+          <div class="med" style="border:none;padding:2px 0"><div class="ic">📕</div>
+            <div class="tt"><b>اتاق شیشه‌ای</b><span>صفحه ۱۲۸ از ۳۴۰ · ۳۸٪</span>
+            <div class="bar" style="margin-top:4px"><i style="width:38%"></i></div></div></div>
+          <div class="med" style="border:none;padding:2px 0"><div class="ic">🗡️</div>
+            <div class="tt"><b>شوگان — فصل ۱</b><span>قسمت ۵ از ۱۰ · ۵۰٪</span>
+            <div class="bar" style="margin-top:4px"><i style="width:50%"></i></div></div></div>
+        </div>
+
+        <div class="c">
+          <h4>🔥 زنجیره عادت‌ها <span class="more" data-jump="habits">عادت‌ها ←</span></h4>
+          <div class="big">۱۲ روز</div>
+          <div class="sub up">رکورد: ۲۳ — ادامه بده!</div>
+          <div class="heat" id="miniHeat" style="margin-top:10px;grid-template-rows:repeat(7,7px)"></div>
+        </div>
+
+        <div class="c">
+          <h4>🎯 نزدیک‌ترین هدف</h4>
+          <div class="big" style="font-size:17px">💰 پس‌انداز ۱۵٬۰۰۰€</div>
+          <div class="bar" style="margin-top:10px"><i style="width:85%"></i></div>
+          <div class="sub" style="margin-top:6px"><b class="up">۸۵٪</b> · فقط ۲٬۲۰۰€ مونده!</div>
+          <div class="sub" style="margin-top:8px;color:var(--faint)">«قطره قطره جمع گردد، وانگهی دریا شود» 🌊</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MONEY ================= -->
+    <section class="panel" id="money">
+      <div class="hello">💰 <span>مالی</span></div>
+      <div class="date">شهریور ۱۴۰۵</div>
+      <div class="grid" style="grid-template-columns:1.3fr 1fr 1fr">
+        <div class="bank">
+          <div class="rw"><span> حساب اصلی</span><span>💳</span></div>
+          <div>
+            <div class="bal">4,230.50 €</div>
+            <div class="sub" style="color:rgba(255,255,255,.75)">+۷۹۰€ مانده این ماه → پس‌انداز</div>
+          </div>
+          <div class="num">•••• •••• •••• 8812</div>
+        </div>
+        <div class="c"><h4>📊 این ماه</h4>
+          <div class="big">۲٫۴۱۰ €</div><div class="sub dn">هزینه</div>
+          <div style="height:10px"></div>
+          <div class="big" style="font-size:20px">۳٫۲۰۰ €</div><div class="sub up">درآمد</div>
+        </div>
+        <div class="c"><h4>🏦 ثروت خالص</h4>
+          <div class="big up">۱۸٫۶ ک</div><div class="sub">یورو · کل دارایی‌ها</div>
+          <div class="bar" style="margin-top:12px"><i style="width:74%"></i></div>
+          <div class="sub" style="margin-top:6px">هدف سال: ۲۵ک € · ۷۴٪</div>
+        </div>
+      </div>
+
+      <div class="grid g2" style="margin-top:14px">
+        <div class="c">
+          <h4>🧮 بودجه‌ی پاکتی <span class="sub" style="margin-inline-start:auto">هر پاکت تا آخر ماه</span></h4>
+          <div class="tk" style="cursor:default"><span>🛒 خوراک</span><span style="margin-inline-start:auto" class="sub">۸۵۰ / ۹۰۰</span><div class="bar" style="width:70px"><i style="width:94%"></i></div></div>
+          <div class="tk" style="cursor:default"><span>🏠 خونه</span><span style="margin-inline-start:auto" class="sub">۹۵۰ / ۱۰۰۰</span><div class="bar" style="width:70px"><i style="width:95%"></i></div></div>
+          <div class="tk" style="cursor:default"><span>🎉 تفریح</span><span style="margin-inline-start:auto" class="sub wr">۱۸۰ / ۱۵۰ ⚠️</span><div class="bar" style="width:70px"><i style="width:100%;background:var(--warn)"></i></div></div>
+          <div class="tk" style="cursor:default"><span>🚌 حمل‌ونقل</span><span style="margin-inline-start:auto" class="sub">۱۲۰ / ۲۰۰</span><div class="bar" style="width:70px"><i style="width:60%"></i></div></div>
+          <div class="tk" style="cursor:default"><span>💊 سلامت</span><span style="margin-inline-start:auto" class="sub">۹۰ / ۲۰۰</span><div class="bar" style="width:70px"><i style="width:45%"></i></div></div>
+        </div>
+        <div class="c">
+          <h4>🔁 اشتراک‌ها <span class="sub" style="margin-inline-start:auto">۶۴٫۹۸€ / ماه</span></h4>
+          <div class="med"><div class="ic">🎬</div><div class="tt"><b>نتفلیکس</b><span>۷ روز تا تمدید</span></div><b>۱۳٫۹۹€</b></div>
+          <div class="med"><div class="ic">🎧</div><div class="tt"><b>اسپاتیفای</b><span>۱۲ روز تا تمدید</span></div><b>۱۰٫۹۹€</b></div>
+          <div class="med"><div class="ic">🏋️</div><div class="tt"><b>باشگاه</b><span>روز اول ماه</span></div><b>۲۵€</b></div>
+          <div class="med"><div class="ic">📱</div><div class="tt"><b>موبایل</b><span>روز اول ماه</span></div><b>۱۵€</b></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= HABITS ================= -->
+    <section class="panel" id="habits">
+      <div class="hello">✅ <span>عادت‌ها</span></div>
+      <div class="date">زنجیره رو نشکن!</div>
+
+      <div class="c" style="margin-bottom:14px">
+        <h4>📆 نقشه‌ی سال <span class="sub" style="margin-inline-start:auto">۱۴۰۵ · هر خانه یک روز</span></h4>
+        <div class="heat-wrap"><div class="heat" id="yearHeat"></div></div>
+        <div class="hleg">کم <b style="background:#131c30"></b><b style="background:color-mix(in srgb,var(--acc) 25%,transparent)"></b><b style="background:color-mix(in srgb,var(--acc) 50%,transparent)"></b><b style="background:color-mix(in srgb,var(--acc) 75%,transparent)"></b><b style="background:var(--acc)"></b> زیاد</div>
+      </div>
+
+      <div class="grid g3">
+        <div class="c">
+          <h4>☀️ روتین صبح</h4>
+          <label class="tk"><input type="checkbox" data-k="m1"><span class="bx"></span><span class="tt">💧 اولین لیوان آب</span></label>
+          <label class="tk"><input type="checkbox" data-k="m2"><span class="bx"></span><span class="tt">🧘 ۱۰ دقیقه سکوت</span></label>
+          <label class="tk"><input type="checkbox" data-k="m3"><span class="bx"></span><span class="tt">📰 ۵ دقیقه خبر</span></label>
+        </div>
+        <div class="c">
+          <h4>🌙 روتین شب</h4>
+          <label class="tk"><input type="checkbox" data-k="n1"><span class="bx"></span><span class="tt">📚 ۲۰ صفحه کتاب</span></label>
+          <label class="tk"><input type="checkbox" data-k="n2"><span class="bx"></span><span class="tt">📝 یک جمله ژورنال</span></label>
+          <label class="tk"><input type="checkbox" data-k="n3"><span class="bx"></span><span class="tt">📱 موبایل بیرون از اتاق</span></label>
+        </div>
+        <div class="c">
+          <h4>🔥 زنجیره‌ها</h4>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>🇩🇪 آلمانی</b><span>۴۷ روز پیوسته</span></div><span class="tag t-g">رکورد!</span></div>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>🏃 ورزش</b><span>۱۲ روز پیوسته</span></div><span class="tag t-c">قوی</span></div>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>🧘 مدیتیشن</b><span>۳ روز پیوسته</span></div><span class="tag t-w">شکننده</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FUN ================= -->
+    <section class="panel" id="fun">
+      <div class="hello">🎬 <span>تفریحات</span></div>
+      <div class="date">آرشیو چیزای خوب زندگی</div>
+
+      <div class="grid g3">
+        <div class="c">
+          <h4>▶️ در حال دیدن/خواندن</h4>
+          <div class="med"><div class="ic">🗡️</div><div class="tt"><b>شوگان</b><span>قسمت ۵ از ۱۰</span><div class="bar" style="margin-top:4px"><i style="width:50%"></i></div></div></div>
+          <div class="med"><div class="ic">🔮</div><div class="tt"><b>استرنجر تینگز ۴</b><span>قسمت ۳ از ۹</span><div class="bar" style="margin-top:4px"><i style="width:33%"></i></div></div></div>
+          <div class="med"><div class="ic">📕</div><div class="tt"><b>اتاق شیشه‌ای</b><span>صفحه ۱۲۸ از ۳۴۰</span><div class="bar" style="margin-top:4px"><i style="width:38%"></i></div></div></div>
+        </div>
+        <div class="c">
+          <h4>⭐ تمام‌شده‌ها <span class="sub" style="margin-inline-start:auto">امسال: ۳۴</span></h4>
+          <div class="med"><div class="ic">🧠</div><div class="tt"><b>اوپنهایمر</b><span>سینما · تیر</span></div><span class="stars">★★★★★</span></div>
+          <div class="med"><div class="ic">🚀</div><div class="tt"><b>دونه</b><span>سینما · خرداد</span></div><span class="stars">★★★★★</span></div>
+          <div class="med"><div class="ic">🌸</div><div class="tt"><b>های‌فای</b><span>انیمه · مرداد</span></div><span class="stars">★★★★☆</span></div>
+          <div class="med"><div class="ic">🕹️</div><div class="tt"><b>Elden Ring</b><span>۹۸ ساعت · تمام</span></div><span class="stars">★★★★★</span></div>
+        </div>
+        <div class="c">
+          <h4>🕒 واچ‌لیست</h4>
+          <div class="med"><div class="ic">🎬</div><div class="tt"><b>سِوِرَنس</b><span>پیشنهاد دوست</span></div><span class="tag t-v">صف</span></div>
+          <div class="med"><div class="ic">🎬</div><div class="tt"><b>اینتراستلار</b><span>برای سومین بار!</span></div><span class="tag t-v">صف</span></div>
+          <div class="med"><div class="ic">📗</div><div class="tt"><b>خواب آلودگی</b><span>موراکامی</span></div><span class="tag t-v">صف</span></div>
+        </div>
+      </div>
+
+      <div class="grid g3" style="margin-top:14px">
+        <div class="c"><h4>🍽️ رستوران‌ها</h4>
+          <div class="med" style="border:none;padding:3px 0"><div class="tt"><b>بِلا ویتا</b><span>ایتالیایی</span></div><span class="stars">★★★★★</span></div>
+          <div class="med" style="border:none;padding:3px 0"><div class="tt"><b>کافه کتز</b><span>محل معمول ورود 😄</span></div><span class="stars">★★★★☆</span></div>
+          <div class="med" style="border:none;padding:3px 0"><div class="tt"><b>کباب تهران (مونیخ)</b><span>ایرانی</span></div><span class="stars">★★★★★</span></div>
+        </div>
+        <div class="c"><h4>✈️ سفرها</h4>
+          <div class="sub" style="margin-bottom:6px">رفته‌ام:</div>
+          <div><span class="chip" style="border:none;background:rgba(255,255,255,.05);padding:3px 11px;font-size:11.5px;margin:2px">🇮🇹 ایتالیا</span><span class="chip" style="border:none;background:rgba(255,255,255,.05);padding:3px 11px;font-size:11.5px;margin:2px">🇫🇷 فرانسه</span><span class="chip" style="border:none;background:rgba(255,255,255,.05);padding:3px 11px;font-size:11.5px;margin:2px">🇳🇱 هلند</span><span class="chip" style="border:none;background:rgba(255,255,255,.05);padding:3px 11px;font-size:11.5px;margin:2px">🇹🇷 ترکیه</span></div>
+          <div class="sub" style="margin:8px 0 4px">آرزوها:</div>
+          <div class="sub">🇯🇵 ژاپن · 🇬🇷 یونان · 🇳🇴 نروژ</div>
+        </div>
+        <div class="c"><h4>🎤 رویدادها</h4>
+          <div class="med" style="border:none;padding:3px 0"><div class="tt"><b>کنسرت سمفونی</b><span>۲۰ شهریور</span></div><span class="tag t-g">بلیت ✅</span></div>
+          <div class="med" style="border:none;padding:3px 0"><div class="tt"><b>بازی نورنبرگ–بایرن</b><span>۱۰ مهر</span></div><span class="tag t-w">منتظر بلیت</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= JOURNAL ================= -->
+    <section class="panel" id="journal">
+      <div class="hello">📝 <span>ژورنال</span></div>
+      <div class="date" id="jDate">—</div>
+
+      <div class="grid g2">
+        <div class="c">
+          <h4>✍️ امروز</h4>
+          <div class="sub" style="margin-bottom:6px">حال‌وهوا:</div>
+          <div class="moods" id="jmoods" style="max-width:280px">
+            <button class="mood" data-m="0">😢</button><button class="mood" data-m="1">😕</button>
+            <button class="mood" data-m="2">😐</button><button class="mood" data-m="3">🙂</button>
+            <button class="mood" data-m="4">😄</button>
+          </div>
+          <div style="height:12px"></div>
+          <input type="text" class="fld" id="jLine" placeholder="یک جمله برای امروز..." style="margin-bottom:8px">
+          <textarea id="jText" placeholder="هرچی دل تنگت خواست بنویس..."></textarea>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+            <button class="btn" id="jSave">ذخیره</button>
+            <span class="sub" id="jSaved" style="display:none">✅ ذخیره شد</span>
+          </div>
+        </div>
+        <div class="c">
+          <h4>📔 روزهای پیشین</h4>
+          <div class="med"><div class="ic">😄</div><div class="tt"><b>جمعه</b><span>«شام با دوستای قدیمی، عالی بود» #دوستانی</span></div></div>
+          <div class="med"><div class="ic">🙂</div><div class="tt"><b>پنج‌شنبه</b><span>«روز معمولی، ورزش قوی بود» #ورزش</span></div></div>
+          <div class="med"><div class="ic">😐</div><div class="tt"><b>چهارشنبه</b><span>«کم‌انرژی، زیاد کار کردم» #شغل</span></div></div>
+          <div class="med"><div class="ic">🙂</div><div class="tt"><b>سه‌شنبه</b><span>«پروژه تحویل شد! 🎉» #پروژه</span></div></div>
+          <div class="sub" style="margin-top:8px;color:var(--faint)">💡 بعد از چند هفته ثبت خواب و استرس، اینجا بخش «الگوها» ظاهر می‌شه: «روزهای کم‌خوابی، حالت ۳۰٪ پایین‌تره»</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TASKS ================= -->
+    <section class="panel" id="tasks">
+      <div class="hello">📋 <span>کارها و اهداف</span></div>
+      <div class="date">سه افق: امروز، این هفته، این ماه</div>
+
+      <div class="tabs">
+        <button class="tab on" data-t="d">روز</button>
+        <button class="tab" data-t="w">هفته</button>
+        <button class="tab" data-t="m">ماه</button>
+      </div>
+
+      <div class="grid g2">
+        <div class="c">
+          <div id="tl-d">
+            <label class="tk"><input type="checkbox" data-k="d1" checked><span class="bx"></span><span class="prio p1"></span><span class="tt">📧 جواب ایمیل مشتری</span><span class="pr wr">فوری</span></label>
+            <label class="tk"><input type="checkbox" data-k="d2"><span class="bx"></span><span class="prio p2"></span><span class="tt">💼 ۲ ساعت پروژه سایت</span><span class="pr">مهم</span></label>
+            <label class="tk"><input type="checkbox" data-k="d3"><span class="bx"></span><span class="prio p3"></span><span class="tt">🛒 خرید هفته</span><span class="pr">هر وقت</span></label>
+            <label class="tk"><input type="checkbox" data-k="d4"><span class="bx"></span><span class="prio p3"></span><span class="tt">🧺 ظرف‌ها</span><span class="pr">هر وقت</span></label>
+          </div>
+          <div id="tl-w" style="display:none">
+            <label class="tk"><input type="checkbox" data-k="w1"><span class="bx"></span><span class="prio p2"></span><span class="tt">🎁 خرید هدیه تولد مامان</span><span class="pr">پنج‌شنبه</span></label>
+            <label class="tk"><input type="checkbox" data-k="w2"><span class="bx"></span><span class="prio p2"></span><span class="tt">🧾 تمدید بیمه</span><span class="pr wr">۳ هفته معطل!</span></label>
+            <label class="tk"><input type="checkbox" data-k="w3"><span class="bx"></span><span class="prio p3"></span><span class="tt">💻 فروش لپ‌تاپ قدیمی</span><span class="pr">جمعه</span></label>
+          </div>
+          <div id="tl-m" style="display:none">
+            <label class="tk"><input type="checkbox" data-k="mm1"><span class="bx"></span><span class="prio p2"></span><span class="tt">🚂 برنامه سفر مونیخ</span><span class="pr">۲۴ شهریور</span></label>
+            <label class="tk"><input type="checkbox" data-k="mm2"><span class="bx"></span><span class="prio p2"></span><span class="tt">🎓 ثبت‌نام امتحان B2</span><span class="pr">این ماه</span></label>
+            <label class="tk"><input type="checkbox" data-k="mm3"><span class="bx"></span><span class="prio p3"></span><span class="tt">🖼️ آلبوم عکس سفر ایتالیا</span><span class="pr">بالاخره!</span></label>
+          </div>
+        </div>
+        <div class="c">
+          <h4>🎯 اهداف ۱۴۰۵</h4>
+          <div style="margin-bottom:12px"><div class="sub"><b class="ac">🗣️ آلمانی B2</b> · ۶۵٪</div><div class="bar" style="margin-top:4px"><i style="width:65%"></i></div></div>
+          <div style="margin-bottom:12px"><div class="sub"><b class="ac">💰 پس‌انداز ۱۵هزار</b> · ۸۵٪</div><div class="bar" style="margin-top:4px"><i style="width:85%"></i></div></div>
+          <div style="margin-bottom:12px"><div class="sub"><b class="ac">📚 ۱۲ کتاب</b> · ۱۰ از ۱۲</div><div class="bar" style="margin-top:4px"><i style="width:83%"></i></div></div>
+          <div><div class="sub"><b class="ac">🏃 ورزش ۳×هفته</b> · ۷۱٪</div><div class="bar" style="margin-top:4px"><i style="width:71%"></i></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= LIFE ================= -->
+    <section class="panel" id="life">
+      <div class="hello">🏡 <span>زندگی</span></div>
+      <div class="date">خانه، یادگیری، آدم‌ها و اسناد — همه در یک نگاه</div>
+
+      <div class="grid g3">
+        <div class="c">
+          <h4>🛒 لیست خرید</h4>
+          <label class="tk"><input type="checkbox" data-k="s1" checked><span class="bx"></span><span class="tt">🥛 شیر</span></label>
+          <label class="tk"><input type="checkbox" data-k="s2" checked><span class="bx"></span><span class="tt">🍞 نان</span></label>
+          <label class="tk"><input type="checkbox" data-k="s3"><span class="bx"></span><span class="tt">🥚 تخم‌مرغ</span></label>
+          <label class="tk"><input type="checkbox" data-k="s4"><span class="bx"></span><span class="tt">☕ قهوه</span></label>
+        </div>
+        <div class="c">
+          <h4>🔄 کارهای دوره‌ای</h4>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>🧹 نظافت هفتگی</b></div><span class="tag t-b">الان!</span></div>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>🛏️ تعویض ملحفه</b></div><span class="tag t-g">ok</span></div>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>🌿 آبیاری گل‌ها</b></div><span class="tag t-g">ok</span></div>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>💡 فیلتر جاروبرقی</b></div><span class="tag t-w">۵ روز</span></div>
+        </div>
+        <div class="c">
+          <h4>📚 یادگیری</h4>
+          <div style="margin-bottom:10px"><div class="sub"><b>🇩🇪 آلمانی</b> · B1.2→B2</div><div class="bar" style="margin-top:4px"><i style="width:65%"></i></div></div>
+          <div style="margin-bottom:10px"><div class="sub"><b>💻 React پیشرفته</b> · ۴۵٪</div><div class="bar" style="margin-top:4px"><i style="width:45%"></i></div></div>
+          <div><div class="sub"><b>📷 عکاسی موبایل</b> · ۷۰٪</div><div class="bar" style="margin-top:4px"><i style="width:70%"></i></div></div>
+        </div>
+        <div class="c">
+          <h4>👥 آدم‌ها</h4>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>👩 مامان</b><span>۲ روز پیش</span></div><span class="tag t-g">🟢</span></div>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>🧑 علی</b><span>۱۱ روز پیش</span></div><span class="tag t-w">🟡</span></div>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>👩‍🦰 سارا</b><span>۳۱ روز پیش</span></div><span class="tag t-b">🔴 تماس بگیر!</span></div>
+        </div>
+        <div class="c">
+          <h4>🗂️ اسناد</h4>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>🪪 اجازه اقامت</b><span>۹ ماه مونده</span></div><span class="tag t-w">چک کن</span></div>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>💳 کارت بانکی</b><span>۲ ماه مونده</span></div><span class="tag t-w">چک کن</span></div>
+          <div class="med" style="border:none;padding:4px 0"><div class="tt"><b>🛂 پاسپورت</b><span>تا ۱۴۰۸</span></div><span class="tag t-g">ok</span></div>
+        </div>
+        <div class="c">
+          <h4>🎵 در حال پخش</h4>
+          <div class="med" style="border:none;padding:4px 0"><div class="ic">🎧</div><div class="tt"><b>Lo-fi Focus</b><span>پلی‌لیست روزهای کاری</span></div></div>
+          <div class="sub" style="margin-top:8px;color:var(--faint)">🖼️ مودبورد: «قطره قطره جمع گردد...»</div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ---------------- state ---------------- */
+var S = {};
+try{ S = JSON.parse(localStorage.getItem('zindagi-v2')||'{}') }catch(e){ S={} }
+S.checks = S.checks||{}; S.water = S.water||0; S.mood = (S.mood==null? 3 : S.mood);
+S.inbox = S.inbox||[]; S.j = S.j||{}; S.xp = S.xp||120; S.theme = S.theme||'neon';
+function save(){ localStorage.setItem('zindagi-v2', JSON.stringify(S)) }
+function fa(n){ return String(n).replace(/\d/g,function(d){return'۰۱۲۳۴۵۶۷۸۹'[d]}) }
+
+/* ---------------- date (real!) ---------------- */
+try{
+  var jq = new Intl.DateTimeFormat('fa-IR',{dateStyle:'full'}).format(new Date());
+  var gr = new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(new Date());
+  document.getElementById('todayDate').textContent = jq + ' · ' + gr + ' · نورنبرگ';
+  document.getElementById('jDate').textContent = jq;
+}catch(e){ document.getElementById('todayDate').textContent=''; }
+
+/* ---------------- nav ---------------- */
+document.querySelectorAll('.nav-btn').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.nav-btn').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on')});
+    document.getElementById(b.dataset.go).classList.add('on');
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+});
+document.querySelectorAll('[data-jump]').forEach(function(el){
+  el.addEventListener('click',function(){
+    document.querySelector('.nav-btn[data-go="'+el.dataset.jump+'"]').click();
+  });
+});
+
+/* ---------------- theme ---------------- */
+var themes=['neon','ocean','rose'], tnames={neon:'✨ نئون',ocean:'🌊 اقیانوس',rose:'🌸 رز'};
+function applyTheme(){ document.documentElement.dataset.theme=S.theme }
+document.getElementById('themeBtn').addEventListener('click',function(){
+  S.theme = themes[(themes.indexOf(S.theme)+1)%themes.length]; applyTheme(); save();
+  var t=this; t.textContent='🎨'; t.title='تم: '+tnames[S.theme];
+});
+applyTheme();
+document.getElementById('themeBtn').title='تم: '+tnames[S.theme];
+
+/* ---------------- checkboxes + XP ---------------- */
+document.querySelectorAll('.tk input').forEach(function(inp){
+  inp.checked = !!S.checks[inp.dataset.k];
+  inp.addEventListener('change',function(){
+    S.checks[inp.dataset.k]=inp.checked;
+    S.xp += inp.checked? 10 : -10; if(S.xp<0)S.xp=0;
+    save(); renderXP();
+  });
+});
+function renderXP(){
+  var lv=Math.floor(S.xp/100)+1, pct=S.xp%100;
+  document.getElementById('lvTxt').textContent='Lv '+lv;
+  document.getElementById('xpBar').style.width=pct+'%';
+}
+renderXP();
+
+/* ---------------- water ---------------- */
+var cupsEl=document.getElementById('cups');
+for(var i=0;i<8;i++){
+  var b=document.createElement('button'); b.className='cup'; b.textContent='🥛';
+  b.addEventListener('click',function(){ 
+    var idx=[].indexOf.call(cupsEl.children,this);
+    S.water = (S.water===idx+1)? idx : idx+1; renderWater(); save();
+  });
+  cupsEl.appendChild(b);
+}
+function renderWater(){
+  [].forEach.call(cupsEl.children,function(c,i){ c.classList.toggle('on', i<S.water) });
+  document.getElementById('cupTxt').textContent=fa(S.water)+' از ۸ لیوان';
+  document.getElementById('cupBar').style.width=(S.water/8*100)+'%';
+}
+renderWater();
+
+/* ---------------- mood (today + journal) ---------------- */
+function renderMoods(box, val){
+  [].forEach.call(box.children,function(m,i){ m.classList.toggle('on', i===val) });
+}
+var mBox=document.getElementById('moods');
+renderMoods(mBox, S.mood);
+mBox.addEventListener('click',function(e){
+  if(!e.target.dataset.m && e.target.dataset.m!=='0') return;
+  S.mood=+e.target.dataset.m; renderMoods(mBox,S.mood); save();
+});
+var jmBox=document.getElementById('jmoods');
+renderMoods(jmBox, (S.j.mood==null?3:S.j.mood));
+jmBox.addEventListener('click',function(e){
+  if(!e.target.dataset.m && e.target.dataset.m!=='0') return;
+  S.j.mood=+e.target.dataset.m; renderMoods(jmBox,S.j.mood); save();
+});
+
+/* ---------------- quick capture ---------------- */
+var qcIn=document.getElementById('qcIn'), qcChips=document.getElementById('qcChips');
+function renderQC(){
+  qcChips.innerHTML='';
+  S.inbox.forEach(function(t,i){
+    var d=document.createElement('span'); d.className='chip';
+    d.innerHTML='<b>'+t+'</b><button title="حذف">✕</button>';
+    d.querySelector('button').addEventListener('click',function(){ S.inbox.splice(i,1); save(); renderQC(); });
+    qcChips.appendChild(d);
+  });
+}
+function addQC(){
+  var v=qcIn.value.trim(); if(!v) return;
+  S.inbox.unshift(v); qcIn.value=''; save(); renderQC();
+}
+document.getElementById('qcBtn').addEventListener('click',addQC);
+qcIn.addEventListener('keydown',function(e){ if(e.key==='Enter') addQC() });
+renderQC();
+
+/* ---------------- journal save ---------------- */
+if(S.j.line) document.getElementById('jLine').value=S.j.line;
+if(S.j.text) document.getElementById('jText').value=S.j.text;
+document.getElementById('jSave').addEventListener('click',function(){
+  S.j.line=document.getElementById('jLine').value;
+  S.j.text=document.getElementById('jText').value;
+  save(); document.getElementById('jSaved').style.display='inline'; 
+  setTimeout(function(){document.getElementById('jSaved').style.display='none'},1500);
+});
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});
+    t.classList.add('on');
+    ['d','w','m'].forEach(function(k){
+      document.getElementById('tl-'+k).style.display = k===t.dataset.t?'block':'none';
+    });
+  });
+});
+
+/* ---------------- heatmaps ---------------- */
+function heat(el,weeks,cell){
+  if(!el) return;
+  var h='';
+  for(var w=0;w<weeks;w++){
+    for(var d=0;d<7;d++){
+      var x=Math.sin(w*12.9898+d*78.233)*43758.5453; x=x-Math.floor(x);
+      var lvl=Math.floor(x*5);
+      var bg= lvl===0? 'transparent' : 'color-mix(in srgb, var(--acc) '+(lvl*25)+'%, #131c30)';
+      h+='<i style="background:'+bg+'"></i>';
+    }
+  }
+  el.innerHTML=h;
+}
+heat(document.getElementById('yearHeat'),52);
+heat(document.getElementById('miniHeat'),13);
+</script>
+</body>
+</html>

@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>زندگی‌من | داشبورد شخصی (نمونه)</title>
+<style>
+  :root{
+    --bg:#0a0e17; --card:#0f1524; --border:#1d2a44; --border2:#26365a;
+    --text:#e5e7eb; --muted:#8fa1bd; --faint:#5c6f8d;
+    --cyan:#22d3ee; --violet:#a78bfa; --pink:#f472b6; --green:#34d399;
+    --amber:#fbbf24; --red:#f87171; --blue:#60a5fa;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Segoe UI",Tahoma,"Iranian Sans",sans-serif;
+    background:var(--bg); color:var(--text); line-height:1.7;
+    background-image:
+      radial-gradient(1100px 700px at 88% -10%, rgba(167,139,250,.13), transparent 60%),
+      radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.10), transparent 60%);
+    background-attachment:fixed;
+  }
+  .app{display:flex;min-height:100vh}
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:225px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;
+    border-inline-end:1px solid var(--border);
+    background:rgba(10,14,23,.75);padding:18px 12px;z-index:5;
+  }
+  .logo{font-size:19px;font-weight:800;letter-spacing:.3px;padding:4px 10px 14px;
+    background:linear-gradient(90deg,var(--cyan),var(--violet),var(--pink));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .logo small{display:block;font-size:10.5px;color:var(--faint);-webkit-text-fill-color:var(--faint);font-weight:400;margin-top:2px}
+  .nav-btn{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:right;
+    background:none;border:1px solid transparent;color:var(--muted);
+    padding:9px 12px;border-radius:12px;font:inherit;font-size:13.5px;cursor:pointer;margin-bottom:2px;
+    transition:.15s;
+  }
+  .nav-btn:hover{color:#fff;background:rgba(255,255,255,.04)}
+  .nav-btn.active{
+    color:#fff;background:linear-gradient(90deg,rgba(34,211,238,.14),rgba(167,139,250,.14));
+    border-color:rgba(34,211,238,.35)
+  }
+  .nav-btn .ic{width:20px;text-align:center}
+  .side-note{margin-top:14px;padding:10px;border:1px dashed var(--border2);border-radius:12px;font-size:11px;color:var(--faint)}
+
+  /* ---------- Main ---------- */
+  main{flex:1;min-width:0;padding:0 22px 60px}
+  .topbar{
+    position:sticky;top:0;z-index:4;display:flex;align-items:center;gap:12px;
+    padding:14px 4px;margin-bottom:14px;
+    background:rgba(10,14,23,.82);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);
+  }
+  .topbar .hello{font-weight:700;font-size:15px}
+  .topbar .date{font-size:12.5px;color:var(--muted)}
+  .topbar .spacer{flex:1}
+  .icon-btn{background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);
+    width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:15px}
+  .icon-btn:hover{color:#fff;border-color:var(--border2)}
+
+  .panel{display:none}
+  .panel.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .page-title{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;margin:8px 0 2px}
+  .page-sub{color:var(--muted);font-size:12.5px;margin:0 0 16px}
+
+  /* ---------- Cards & grids ---------- */
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .mt{margin-top:14px}
+  .card{
+    background:linear-gradient(160deg,rgba(255,255,255,.045),rgba(255,255,255,.012));
+    border:1px solid var(--border);border-radius:16px;padding:16px;transition:.15s;
+  }
+  .card:hover{border-color:var(--border2);transform:translateY(-2px)}
+  .card h3{margin:0 0 12px;font-size:13.5px;color:#cbd5e1;display:flex;align-items:center;gap:8px}
+  .card h3 .cnt{margin-inline-start:auto;font-size:11px;color:var(--faint);font-weight:400}
+
+  .kpi .lbl{font-size:12px;color:var(--muted)}
+  .kpi .val{font-size:22px;font-weight:800;margin:2px 0}
+  .kpi .sub{font-size:11.5px}
+  .up{color:var(--green)} .down{color:var(--red)} .warn{color:var(--amber)}
+  .c-cyan{color:var(--cyan)} .c-violet{color:var(--violet)} .c-pink{color:var(--pink)}
+  .c-green{color:var(--green)} .c-amber{color:var(--amber)} .c-blue{color:var(--blue)} .c-red{color:var(--red)}
+
+  .bar{height:8px;background:#182238;border-radius:99px;overflow:hidden;margin-top:6px}
+  .bar>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--cyan),var(--violet))}
+  .bar>i.pink{background:linear-gradient(90deg,var(--pink),var(--red))}
+  .bar>i.green{background:linear-gradient(90deg,var(--green),var(--cyan))}
+  .bar>i.amber{background:linear-gradient(90deg,var(--amber),var(--pink))}
+
+  .badge{font-size:10.5px;padding:2px 9px;border-radius:99px;border:1px solid;white-space:nowrap}
+  .b-green{color:var(--green);border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.08)}
+  .b-red{color:var(--red);border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.08)}
+  .b-amber{color:var(--amber);border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.08)}
+  .b-blue{color:var(--blue);border-color:rgba(96,165,250,.4);background:rgba(96,165,250,.08)}
+  .b-violet{color:var(--violet);border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.08)}
+  .b-cyan{color:var(--cyan);border-color:rgba(34,211,238,.4);background:rgba(34,211,238,.08)}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{color:var(--faint);font-weight:600;text-align:right;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--border)}
+  td{padding:8px;border-bottom:1px solid rgba(29,42,68,.6)}
+  tr:last-child td{border-bottom:none}
+
+  .row{display:flex;align-items:center;gap:8px}
+  .row .grow{flex:1;min-width:0}
+  .list-item{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid rgba(29,42,68,.55);font-size:13px}
+  .list-item:last-child{border-bottom:none}
+
+  /* ---------- Banner ---------- */
+  .banner{
+    border:1px solid rgba(34,211,238,.35);border-radius:16px;padding:14px 16px;margin-bottom:16px;
+    background:linear-gradient(90deg,rgba(34,211,238,.08),rgba(167,139,250,.08));font-size:13px;
+  }
+  .banner b{color:var(--cyan)}
+
+  /* ---------- Heatmap ---------- */
+  .hm{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,12px);gap:3px;direction:ltr}
+  .hm i{width:12px;height:12px;border-radius:3px;background:#141d31}
+  .hm-legend{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--faint);margin-top:8px}
+  .hm-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+  /* ---------- Todo / habits ---------- */
+  .todo{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid rgba(29,42,68,.55);font-size:13.5px;cursor:pointer}
+  .todo:last-child{border-bottom:none}
+  .todo input{accent-color:var(--cyan);width:16px;height:16px;cursor:pointer}
+  .todo input:checked ~ .t{text-decoration:line-through;opacity:.45}
+  .todo .meta{margin-inline-start:auto;font-size:11px;color:var(--faint);white-space:nowrap}
+  .cups{display:flex;gap:6px;margin-top:8px;direction:rtl}
+  .cup{width:26px;height:32px;border:1px solid var(--border2);border-radius:6px;cursor:pointer;font-size:13px;
+    display:flex;align-items:center;justify-content:center;color:var(--faint);background:transparent;transition:.15s}
+  .cup.on{background:rgba(34,211,238,.18);border-color:var(--cyan);color:var(--cyan)}
+
+  /* ---------- Media / fun ---------- */
+  .media-scroll{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}
+  .media{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:rgba(255,255,255,.02)}
+  .poster{height:96px;display:flex;align-items:center;justify-content:center;font-size:38px;background:var(--g,linear-gradient(135deg,#22d3ee33,#a78bfa33))}
+  .media .body{padding:8px 10px;font-size:12px}
+  .media .body b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stars{color:var(--amber);font-size:12px;letter-spacing:1px}
+  .tagline{font-size:10.5px;color:var(--faint)}
+
+  /* ---------- Mood ---------- */
+  .moods{display:flex;gap:8px}
+  .mood{font-size:24px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;
+    width:48px;height:48px;cursor:pointer;transition:.15s}
+  .mood:hover{transform:translateY(-2px)}
+  .mood.sel{border-color:var(--cyan);background:rgba(34,211,238,.14);box-shadow:0 0 14px rgba(34,211,238,.25)}
+
+  /* ---------- Pomodoro ---------- */
+  .pomo{display:flex;flex-direction:column;align-items:center;gap:10px;padding:6px 0}
+  .pomo .time{font-size:44px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:2px;direction:ltr}
+  .btn{background:linear-gradient(90deg,var(--cyan),var(--violet));color:#04121a;border:none;font-weight:700;
+    padding:9px 22px;border-radius:12px;cursor:pointer;font:inherit;font-size:13px;font-weight:700}
+  .btn.ghost{background:transparent;border:1px solid var(--border2);color:var(--muted)}
+
+  /* ---------- Calendar ---------- */
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:12px}
+  .cal .hd{color:var(--faint);font-size:10.5px;padding:4px 0}
+  .cal .d{padding:7px 0;border-radius:9px;color:var(--muted)}
+  .cal .d.ev{color:var(--pink);font-weight:700;background:rgba(244,114,182,.1)}
+  .cal .d.today{background:linear-gradient(135deg,var(--cyan),var(--violet));color:#04121a;font-weight:800}
+
+  /* ---------- Forms ---------- */
+  input[type=text],input[type=number],textarea,select{
+    width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text);
+    border-radius:10px;padding:9px 12px;font:inherit;font-size:13px;outline:none}
+  input:focus,textarea:focus{border-color:var(--cyan)}
+  textarea{resize:vertical;min-height:90px}
+  .field{margin-bottom:10px}
+  .field label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px}
+
+  .countdown{font-size:26px;font-weight:800}
+  .chip{display:inline-block;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:99px;
+    padding:3px 12px;font-size:12px;margin:2px}
+  .doc-status{white-space:nowrap}
+
+  /* ---------- Donut ---------- */
+  .donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .donut{width:150px;height:150px;border-radius:50%;position:relative;flex-shrink:0;
+    background:conic-gradient(#22d3ee 0 35%, #a78bfa 35% 74%, #f472b6 74% 82%, #fbbf24 82% 91%, #34d399 91% 96%, #60a5fa 96% 100%)}
+  .donut::after{content:"";position:absolute;inset:26px;border-radius:50%;background:#0d1322;border:1px solid var(--border)}
+  .donut .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1}
+  .donut .center b{font-size:16px}
+  .donut .center span{font-size:10px;color:var(--faint)}
+  .legend{flex:1;min-width:170px;font-size:12px}
+  .legend .li{display:flex;align-items:center;gap:8px;padding:3.5px 0}
+  .legend .dot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+
+  /* ---------- Responsive ---------- */
+  @media(max-width:1050px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:860px){
+    .app{flex-direction:column}
+    .sidebar{width:100%;height:auto;position:static;border-inline-end:none;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:4px;overflow-x:auto;padding:10px}
+    .logo{padding:0 8px;white-space:nowrap;font-size:15px} .logo small{display:none}
+    .sidebar nav{display:flex;gap:2px} .nav-btn{white-space:nowrap;width:auto;padding:8px 10px}
+    .nav-btn .lbl-txt{display:none}
+    .side-note{display:none}
+    .g2,.g3,.g4{grid-template-columns:1fr}
+    main{padding:0 12px 50px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+    <div class="logo">✨ زندگی‌من<small>داشبورد شخصی · نسخه نمونه</small></div>
+    <nav>
+      <button class="nav-btn active" data-go="overview"><span class="ic">🏠</span><span class="lbl-txt">نمای کلی</span></button>
+      <button class="nav-btn" data-go="finance"><span class="ic">💰</span><span class="lbl-txt">مالی</span></button>
+      <button class="nav-btn" data-go="habits"><span class="ic">✅</span><span class="lbl-txt">عادت‌ها</span></button>
+      <button class="nav-btn" data-go="fun"><span class="ic">🎬</span><span class="lbl-txt">تفریحات</span></button>
+      <button class="nav-btn" data-go="journal"><span class="ic">📝</span><span class="lbl-txt">ژورنال</span></button>
+      <button class="nav-btn" data-go="tasks"><span class="ic">📋</span><span class="lbl-txt">کارها</span></button>
+      <button class="nav-btn" data-go="goals"><span class="ic">🎯</span><span class="lbl-txt">اهداف</span></button>
+      <button class="nav-btn" data-go="calendar"><span class="ic">📅</span><span class="lbl-txt">تقویم</span></button>
+      <button class="nav-btn" data-go="home"><span class="ic">🏡</span><span class="lbl-txt">خانه</span></button>
+      <button class="nav-btn" data-go="learn"><span class="ic">📚</span><span class="lbl-txt">یادگیری</span></button>
+      <button class="nav-btn" data-go="people"><span class="ic">👥</span><span class="lbl-txt">روابط</span></button>
+      <button class="nav-btn" data-go="docs"><span class="ic">🗂️</span><span class="lbl-txt">اسناد</span></button>
+    </nav>
+    <div class="side-note">💡 این یک <b>نمونه‌ی اولیه</b> با داده‌ی فرضی است تا ببینی چه چیزهایی ممکنه. بعد از دیدن بگو چی بمونه، چی حذف شه و چی اضافه شه.</div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main>
+    <div class="topbar">
+      <div>
+        <div class="hello">سلام علی 👋</div>
+        <div class="date">شنبه ۱۴ شهریور ۱۴۰۵ · ۰۵ سپتامبر ۲۰۲۶ · نورنبرگ</div>
+      </div>
+      <div class="spacer"></div>
+      <button class="icon-btn" title="یادآورها">🔔</button>
+      <button class="icon-btn" title="تنظیمات">⚙️</button>
+    </div>
+
+    <!-- ============ OVERVIEW ============ -->
+    <section class="panel active" id="overview">
+      <div class="banner">
+        👀 <b>این یک نمونه‌ی اولیه است</b> — همه‌ی عدد‌ها و اسم‌ها فرضی‌ان. منو رو بگرد، همه‌ی بخش‌ها رو ببین، بعد بهم بگو:
+        «این بخش خوبه، این حذف شه، این فلان شکلی باشه». چند چیز هم اینجا <b>واقعاً کار می‌کنه</b> (چک‌لیست‌ها، تایمر پومودورو، تبدیل ارز، انتخاب حال‌وهوا) تا حسِ واقعی رو بگیری.
+      </div>
+
+      <div class="page-title">🏠 نمای کلی</div>
+      <p class="page-sub">خلاصه‌ی همه‌ی زندگیت در یک نگاه</p>
+
+      <div class="grid g4">
+        <div class="card kpi">
+          <div class="lbl">💰 خرج امروز</div>
+          <div class="val">۳۲٫۵۰ €</div>
+          <div class="sub down">۱۲٪ کمتر از میانگین روزهای اخیر</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl">📊 مانده بودجه ماه</div>
+          <div class="val c-cyan">۳۹۰ €</div>
+          <div class="sub warn">۱۶ روز تا پایان ماه</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl">🔥 زنجیره عادت‌ها</div>
+          <div class="val c-amber">۱۲ روز</div>
+          <div class="sub up">رکورد: ۲۳ روز — ادامه بده!</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl">✅ کارهای امروز</div>
+          <div class="val">۲ / ۵</div>
+          <div class="sub" style="color:var(--muted)">۳ کار مونده</div>
+        </div>
+      </div>
+
+      <div class="grid g3 mt">
+        <div class="card">
+          <h3>🔥 پیوستگی عادت‌ها <span class="cnt">۹۰ روز اخیر</span></h3>
+          <div class="hm" id="hmMini"></div>
+          <div class="hm-legend">کم <i style="background:#141d31"></i><i style="background:rgba(52,211,153,.3)"></i><i style="background:rgba(52,211,153,.55)"></i><i style="background:rgba(52,211,153,.8)"></i><i style="background:#34d399"></i> زیاد</div>
+        </div>
+        <div class="card">
+          <h3>🗓️ رویداد بعدی</h3>
+          <div class="row"><span style="font-size:34px">🚂</span>
+            <div class="grow">
+              <b>سفر آخر هفته به مونیخ</b>
+              <div class="tagline">با علی · قطار ۸:۳۰ صبح</div>
+            </div>
+          </div>
+          <div class="countdown c-violet" style="margin-top:10px">۹ روز دیگه</div>
+          <div class="bar"><i style="width:71%"></i></div>
+          <div class="tagline" style="margin-top:4px">آماده‌سازی: رزرو هتل ✅ · بلیت قطار ✅ · چمدان ⬜</div>
+        </div>
+        <div class="card">
+          <h3>📖 در حال خواندن</h3>
+          <div class="row"><span style="font-size:34px">📕</span>
+            <div class="grow">
+              <b>اتاق شیشه‌ای</b>
+              <div class="tagline">آدولفو بایو کاسارس</div>
+            </div>
+          </div>
+          <div class="row" style="margin-top:8px;font-size:12px;color:var(--muted)">صفحه ۱۲۸ از ۳۴۰</div>
+          <div class="bar green"><i style="width:38%"></i></div>
+          <div class="tagline" style="margin-top:4px">هدف سال: ۱۲ کتاب · تا الان ۱۰ کتاب ✅</div>
+        </div>
+      </div>
+
+      <div class="grid g2 mt">
+        <div class="card">
+          <h3>💳 آخرین تراکنش‌ها <span class="cnt">و ادامه در بخش مالی</span></h3>
+          <div class="list-item"><span>🛒</span><div class="grow"><b>سوپرمارکت رِوا</b><div class="tagline">خوراک · امروز ۱۸:۲۰</div></div><b class="down">−۲۳٫۴۰ €</b></div>
+          <div class="list-item"><span>☕</span><div class="grow"><b>کافه کتز</b><div class="tagline">تفریح · دیروز</div></div><b class="down">−۴٫۸۰ €</b></div>
+          <div class="list-item"><span>💼</span><div class="grow"><b>حقوق ماه</b><div class="tagline">درآمد · ۱ شهریور</div></div><b class="up">+۳٫۲۰۰ €</b></div>
+        </div>
+        <div class="card">
+          <h3>😊 حال‌وهوای این هفته</h3>
+          <div class="row" style="justify-content:space-between;text-align:center;margin-top:6px">
+            <div><div style="font-size:26px">😄</div><div class="tagline">شنبه</div></div>
+            <div><div style="font-size:26px">🙂</div><div class="tagline">جمعه</div></div>
+            <div><div style="font-size:26px">😐</div><div class="tagline">پنج‌شنبه</div></div>
+            <div><div style="font-size:26px">🙂</div><div class="tagline">چهارشنبه</div></div>
+            <div><div style="font-size:26px">😄</div><div class="tagline">سه‌شنبه</div></div>
+            <div><div style="font-size:26px">😕</div><div class="tagline">دوشنبه</div></div>
+            <div><div style="font-size:26px">🙂</div><div class="tagline">یکشنبه</div></div>
+          </div>
+          <div class="tagline" style="margin-top:10px">میانگین هفته: «خوب» — از هفته قبل بهتر 🙂</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FINANCE ============ -->
+    <section class="panel" id="finance">
+      <div class="page-title">💰 مالی</div>
+      <p class="page-sub">شهریور ۱۴۰۵ · درآمد، هزینه، بودجه، حساب‌ها، اشتراک‌ها و بدهی‌ها</p>
+
+      <div class="grid g4">
+        <div class="card kpi"><div class="lbl">درآمد ماه</div><div class="val up">۳٫۲۰۰ €</div><div class="sub" style="color:var(--muted)">حقوق + فریلنس</div></div>
+        <div class="card kpi"><div class="lbl">هزینه ماه</div><div class="val down">۲٫۴۱۰ €</div><div class="sub up">۱۸۰− یورو کمتر از مرداد</div></div>
+        <div class="card kpi"><div class="lbl">مانده ماه</div><div class="val c-cyan">۷۹۰ €</div><div class="sub" style="color:var(--muted)">→ پس‌انداز</div></div>
+        <div class="card kpi"><div class="lbl">نرخ پس‌انداز</div><div class="val c-green">۲۵٪</div><div class="bar green mt" style="margin-top:8px"><i style="width:25%"></i></div></div>
+      </div>
+
+      <div class="grid g2 mt">
+        <div class="card">
+          <h3>📈 روند ۶ ماه اخیر</h3>
+          <div class="row" style="gap:14px;font-size:11px;color:var(--muted);margin-bottom:6px">
+            <span><i class="dot" style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--cyan)"></i> درآمد</span>
+            <span><i class="dot" style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--pink)"></i> هزینه</span>
+          </div>
+          <svg viewBox="0 0 460 185" width="100%" style="direction:ltr">
+            <line x1="15" y1="20"  x2="445" y2="20"  stroke="#182238" stroke-width="1"/>
+            <line x1="15" y1="65"  x2="445" y2="65"  stroke="#182238" stroke-width="1"/>
+            <line x1="15" y1="110" x2="445" y2="110" stroke="#182238" stroke-width="1"/>
+            <line x1="15" y1="160" x2="445" y2="160" stroke="#26365a" stroke-width="1"/>
+            <!-- فروردین -->
+            <rect x="25" y="33"  width="24" height="127" rx="4" fill="#22d3ee" opacity=".9"/>
+            <rect x="53" y="46"  width="24" height="114" rx="4" fill="#f472b6" opacity=".85"/>
+            <!-- اردیبهشت -->
+            <rect x="97" y="24"  width="24" height="136" rx="4" fill="#22d3ee" opacity=".9"/>
+            <rect x="125" y="53" width="24" height="107" rx="4" fill="#f472b6" opacity=".85"/>
+            <!-- خرداد -->
+            <rect x="169" y="20" width="24" height="140" rx="4" fill="#22d3ee" opacity=".9"/>
+            <rect x="197" y="40" width="24" height="120" rx="4" fill="#f472b6" opacity=".85"/>
+            <!-- تیر -->
+            <rect x="241" y="27" width="24" height="133" rx="4" fill="#22d3ee" opacity=".9"/>
+            <rect x="269" y="50" width="24" height="110" rx="4" fill="#f472b6" opacity=".85"/>
+            <!-- مرداد -->
+            <rect x="313" y="20" width="24" height="140" rx="4" fill="#22d3ee" opacity=".9"/>
+            <rect x="341" y="43" width="24" height="117" rx="4" fill="#f472b6" opacity=".85"/>
+            <!-- شهریور -->
+            <rect x="385" y="20" width="24" height="140" rx="4" fill="#22d3ee" opacity=".9"/>
+            <rect x="413" y="55" width="24" height="105" rx="4" fill="#f472b6" opacity=".85"/>
+            <text x="51"  y="177" fill="#64748b" font-size="10" text-anchor="middle" font-family="Tahoma">فروردین</text>
+            <text x="123" y="177" fill="#64748b" font-size="10" text-anchor="middle" font-family="Tahoma">اردیبهشت</text>
+            <text x="195" y="177" fill="#64748b" font-size="10" text-anchor="middle" font-family="Tahoma">خرداد</text>
+            <text x="267" y="177" fill="#64748b" font-size="10" text-anchor="middle" font-family="Tahoma">تیر</text>
+            <text x="339" y="177" fill="#64748b" font-size="10" text-anchor="middle" font-family="Tahoma">مرداد</text>
+            <text x="411" y="177" fill="#64748b" font-size="10" text-anchor="middle" font-family="Tahoma">شهریور</text>
+          </svg>
+        </div>
+
+        <div class="card">
+          <h3>🥧 هزینه‌ها بر اساس دسته</h3>
+          <div class="donut-wrap">
+            <div class="donut">
+              <div class="center"><b>۲٫۴۱۰ €</b><span>این ماه</span></div>
+            </div>
+            <div class="legend">
+              <div class="li"><span class="dot" style="background:#22d3ee"></span>خوراک <span style="margin-inline-start:auto;color:var(--muted)">۸۵۰ €</span></div>
+              <div class="li"><span class="dot" style="background:#a78bfa"></span>اجاره و خونه <span style="margin-inline-start:auto;color:var(--muted)">۹۵۰ €</span></div>
+              <div class="li"><span class="dot" style="background:#f472b6"></span>تفریح <span style="margin-inline-start:auto;color:var(--muted)">۱۸۰ €</span></div>
+              <div class="li"><span class="dot" style="background:#fbbf24"></span>دیگری <span style="margin-inline-start:auto;color:var(--muted)">۲۲۰ €</span></div>
+              <div class="li"><span class="dot" style="background:#34d399"></span>حمل‌ونقل <span style="margin-inline-start:auto;color:var(--muted)">۱۲۰ €</span></div>
+              <div class="li"><span class="dot" style="background:#60a5fa"></span>سلامت <span style="margin-inline-start:auto;color:var(--muted)">۹۰ €</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g2 mt">
+        <div class="card">
+          <h3>🎯 بودجه ماهانه</h3>
+          <div style="font-size:12.5px">
+            <div class="row"><span style="width:90px">🛒 خوراک</span><div class="grow"><div class="bar"><i class="green" style="width:94%"></i></div></div><span style="width:86px;text-align:left;color:var(--muted)">۸۵۰ / ۹۰۰</span></div>
+            <div class="row" style="margin-top:10px"><span style="width:90px">🏠 خونه</span><div class="grow"><div class="bar"><i style="width:95%"></i></div></div><span style="width:86px;text-align:left;color:var(--muted)">۹۵۰ / ۱۰۰۰</span></div>
+            <div class="row" style="margin-top:10px"><span style="width:90px">🎉 تفریح</span><div class="grow"><div class="bar"><i class="pink" style="width:100%"></i></div></div><span style="width:86px;text-align:left" class="down">۱۸۰ / ۱۵۰ ⚠️</span></div>
+            <div class="row" style="margin-top:10px"><span style="width:90px">🚌 حمل‌ونقل</span><div class="grow"><div class="bar"><i class="green" style="width:60%"></i></div></div><span style="width:86px;text-align:left;color:var(--muted)">۱۲۰ / ۲۰۰</span></div>
+            <div class="row" style="margin-top:10px"><span style="width:90px">💊 سلامت</span><div class="grow"><div class="bar"><i class="green" style="width:45%"></i></div></div><span style="width:86px;text-align:left;color:var(--muted)">۹۰ / ۲۰۰</span></div>
+          </div>
+          <div class="tagline" style="margin-top:10px">⚠️ بودجه تفریح ۳۰ یورو رد شده — برای باقی ماه آروم‌تر 😅</div>
+        </div>
+
+        <div class="card">
+          <h3>🏦 حساب‌ها و دارایی</h3>
+          <table>
+            <tr><td>💵 حساب جاری (Deutsche Bank)</td><td style="text-align:left"><b>۴٫۲۳۰ €</b></td></tr>
+            <tr><td>💰 پس‌انداز بلندمدت</td><td style="text-align:left"><b class="up">۱۲٫۸۰۰ €</b></td></tr>
+            <tr><td>💳 اعتبار قابل استفاده</td><td style="text-align:left"><b>۱٫۵۰۰ €</b></td></tr>
+            <tr><td>💶 نقد</td><td style="text-align:left"><b>۱۲۰ €</b></td></tr>
+          </table>
+          <div class="row" style="margin-top:10px">
+            <span class="badge b-violet">🎯 هدف پس‌انداز: ۱۵٫۰۰۰ €</span>
+            <div class="grow"><div class="bar"><i style="width:85%"></i></div></div>
+            <span class="tagline">۸۵٪</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g3 mt">
+        <div class="card">
+          <h3>🔁 اشتراک‌های ماهانه</h3>
+          <div class="list-item"><span>🎬</span><div class="grow"><b>نتفلیکس</b><div class="tagline">۷ روز تا تمدید</div></div><b>۱۳٫۹۹ €</b></div>
+          <div class="list-item"><span>🎧</span><div class="grow"><b>اسپاتیفای</b><div class="tagline">۱۲ روز تا تمدید</div></div><b>۱۰٫۹۹ €</b></div>
+          <div class="list-item"><span>🏋️</span><div class="grow"><b>باشگاه</b><div class="tagline">روز اول ماه</div></div><b>۲۵ €</b></div>
+          <div class="list-item"><span>📱</span><div class="grow"><b>موبایل</b><div class="tagline">روز اول ماه</div></div><b>۱۵ €</b></div>
+          <div class="tagline" style="margin-top:8px">جمع ماهانه: <b class="c-amber">۶۴٫۹۸ €</b> · سالانه ~۷۸۰ €</div>
+        </div>
+
+        <div class="card">
+          <h3>📉 بدهی‌ها و اقساط</h3>
+          <div class="row"><span style="font-size:26px">🎓</span><div class="grow"><b>وام تحصیلی</b><div class="tagline">قسط ماهانه ۱۲۰ € · ۹ قسط باقی‌مانده</div></div></div>
+          <div class="bar pink" style="margin-top:8px"><i style="width:34%"></i></div>
+          <div class="tagline" style="margin-top:4px">پرداخت‌شده ۶۶٪ · باقی‌مانده <b>۱٫۰۸۰ €</b></div>
+          <div class="list-item" style="margin-top:10px"><span>💳</span><div class="grow"><b>کارت اعتباری</b><div class="tagline">سررسید ۲۰ شهریور</div></div><b class="warn">۲۱۰ €</b></div>
+        </div>
+
+        <div class="card">
+          <h3>💱 تبدیل ارز <span class="cnt">نمونه — واقعاً کار می‌کنه</span></h3>
+          <div class="field"><label>مبلغ به یورو</label>
+            <input type="number" id="eur" value="100" min="0" step="10">
+          </div>
+          <div class="kpi" style="padding:6px 2px">
+            <div class="lbl">معادل تومان</div>
+            <div class="val c-green" id="tomanOut">۱۱٬۹۵۰٬۰۰۰ تومان</div>
+          </div>
+          <div class="tagline">نرخ فرضی: هر یورو ≈ ۱۱۹٬۵۰۰ تومان (در نسخه اصلی می‌تونه خودکار به‌روز شه)</div>
+        </div>
+      </div>
+
+      <div class="card mt">
+        <h3>🧾 آخرین تراکنش‌ها <span class="cnt">۵ از ۴۸ تراکنش این ماه</span></h3>
+        <table>
+          <tr><th>تاریخ</th><th>عنوان</th><th>دسته</th><th>حساب</th><th style="text-align:left">مبلغ</th></tr>
+          <tr><td>۱۴ شهریور</td><td>🛒 سوپرمارکت رِوا</td><td>خوراک</td><td>حساب جاری</td><td style="text-align:left" class="down">−۲۳٫۴۰ €</td></tr>
+          <tr><td>۱۳ شهریور</td><td>🚇 بلیت ماهانه VGN</td><td>حمل‌ونقل</td><td>حساب جاری</td><td style="text-align:left" class="down">−۶۹٫۰۰ €</td></tr>
+          <tr><td>۱۲ شهریور</td><td>🍕 رستوران بِلا ویتا (با دوستان)</td><td>تفریح</td><td>کارت اعتباری</td><td style="text-align:left" class="down">−۱۸٫۲۰ €</td></tr>
+          <tr><td>۱۰ شهریور</td><td>💼 پروژه فریلنس طراحی سایت</td><td>درآمد جانبی</td><td>PayPal</td><td style="text-align:left" class="up">+۴۵۰ €</td></tr>
+          <tr><td>۰۱ شهریور</td><td>💼 حقوق ماه</td><td>درآمد اصلی</td><td>حساب جاری</td><td style="text-align:left" class="up">+۲٫۷۵۰ €</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ HABITS ============ -->
+    <section class="panel" id="habits">
+      <div class="page-title">✅ عادت‌های روزانه</div>
+      <p class="page-sub">امروز شنبه ۱۴ شهریور · چک کن، زنجیره رو نشکن!</p>
+
+      <div class="grid g3">
+        <div class="card">
+          <h3>☑️ چک‌لیست امروز <span class="cnt">روی آیتم‌ها کلیک کن!</span></h3>
+          <label class="todo"><input type="checkbox" checked><span class="t">🏃 ورزش (۳۰ دقیقه دویدن)</span><span class="meta">🔥 ۱۲ روز</span></label>
+          <label class="todo"><input type="checkbox" checked><span class="t">📚 مطالعه ۳۰ دقیقه</span><span class="meta">🔥 ۸ روز</span></label>
+          <label class="todo"><input type="checkbox"><span class="t">🇩🇪 ۱۰ لغت آلمانی</span><span class="meta">🔥 ۴۷ روز</span></label>
+          <label class="todo"><input type="checkbox"><span class="t">🧘 مدیتیشن ۱۰ دقیقه</span><span class="meta">🔥 ۳ روز</span></label>
+          <label class="todo"><input type="checkbox"><span class="t">😴 خواب قبل از ۱۲</span><span class="meta">🔥 ۵ روز</span></label>
+        </div>
+
+        <div class="card">
+          <h3>💧 آب امروز <span class="cnt">روی لیوان‌ها بزن</span></h3>
+          <div class="cups" id="cups">
+            <button class="cup">🥛</button><button class="cup">🥛</button><button class="cup">🥛</button><button class="cup">🥛</button>
+            <button class="cup">🥛</button><button class="cup">🥛</button><button class="cup">🥛</button><button class="cup">🥛</button>
+          </div>
+          <div class="tagline" style="margin-top:10px">هدف: ۸ لیوان · تا الان: <b id="cupCnt">۰</b> لیوان</div>
+          <div class="bar" style="margin-top:6px"><i id="cupBar" style="width:0%"></i></div>
+        </div>
+
+        <div class="card kpi">
+          <div class="lbl">🔥 زنجیره فعلی</div>
+          <div class="val c-amber">۱۲ روز</div>
+          <div class="sub" style="color:var(--muted)">رکورد تاریخ: ۲۳ روز (تیر ۱۴۰۵)</div>
+          <div class="bar amber" style="margin-top:10px"><i style="width:52%"></i></div>
+          <div class="tagline" style="margin-top:4px">۱۱ روز تا شکستن رکورد 🏆</div>
+        </div>
+      </div>
+
+      <div class="card mt">
+        <h3>📆 نقشه پیوستگی <span class="cnt">۱۸ هفته اخیر · هر خانه یک روز</span></h3>
+        <div class="hm" id="hmBig"></div>
+        <div class="hm-legend">کم <i style="background:#141d31"></i><i style="background:rgba(52,211,153,.3)"></i><i style="background:rgba(52,211,153,.55)"></i><i style="background:rgba(52,211,153,.8)"></i><i style="background:#34d399"></i> زیاد <span style="margin-inline-start:12px">(در نسخه واقعی، تعداد عادت‌های انجام‌شده‌ی هر روز)</span></div>
+      </div>
+
+      <div class="grid g4 mt">
+        <div class="card kpi"><div class="lbl">🏃 ورزش</div><div class="val">۱۲ روز 🔥</div><div class="sub" style="color:var(--muted)">این ماه: ۱۲ از ۱۴ روز</div></div>
+        <div class="card kpi"><div class="lbl">🇩🇪 آلمانی</div><div class="val">۴۷ روز 🔥</div><div class="sub up">بهترین زنجیره‌ات!</div></div>
+        <div class="card kpi"><div class="lbl">📚 مطالعه</div><div class="val">۸ روز 🔥</div><div class="sub" style="color:var(--muted)">این ماه: ۹ از ۱۴ روز</div></div>
+        <div class="card kpi"><div class="lbl">🧘 مدیتیشن</div><div class="val">۳ روز 🔥</div><div class="sub warn">کم و زیاد شده — یکم سرسخت‌تر 😉</div></div>
+      </div>
+    </section>
+
+    <!-- ============ FUN ============ -->
+    <section class="panel" id="fun">
+      <div class="page-title">🎬 تفریحات و رسانه</div>
+      <p class="page-sub">آرشیو همه‌ی چیزای خوبی که دیدی، خوندی، بازی کردی و تجربه کردی</p>
+
+      <div class="card">
+        <h3>🎞️ فیلم و سریال</h3>
+        <div class="tagline" style="margin-bottom:10px">در حال دیدن:</div>
+        <div class="media-scroll">
+          <div class="media"><div class="poster" style="--g:linear-gradient(135deg,#f59e0b44,#ef444444);background:var(--g)">🗡️</div><div class="body"><b>شوگان</b><span class="tagline">فصل ۱ · قسمت ۵ از ۱۰</span><div class="bar"><i style="width:50%"></i></div></div></div>
+          <div class="media"><div class="poster" style="--g:linear-gradient(135deg,#8b5cf644,#ec489944);background:var(--g)">🔮</div><div class="body"><b>استرنجر تینگز</b><span class="tagline">فصل ۴ · قسمت ۳ از ۹</span><div class="bar"><i style="width:33%"></i></div></div></div>
+        </div>
+        <div class="tagline" style="margin:14px 0 10px">دیده‌شده (امسال: ۳۴ فیلم و سریال):</div>
+        <div class="media-scroll">
+          <div class="media"><div class="poster" style="--g:linear-gradient(135deg,#0ea5e944,#22d3ee44)">🧠</div><div class="body"><b>اوپنهایمر</b><span class="stars">★★★★★</span><span class="tagline">سینما · تیر ۱۴۰۵</span></div></div>
+          <div class="media"><div class="poster" style="--g:linear-gradient(135deg,#8b5cf644,#6366f144)">🌸</div><div class="body"><b>هی‌هی</b><span class="stars">★★★★☆</span><span class="tagline">انیمه · مرداد</span></div></div>
+          <div class="media"><div class="poster" style="--g:linear-gradient(135deg,#f4a4a444,#fbbf2444)">🤠</div><div class="body"><b>داستان ازدواج</b><span class="stars">★★★★☆</span><span class="tagline">نتفلیکس · مرداد</span></div></div>
+          <div class="media"><div class="poster" style="--g:linear-gradient(135deg,#22c55e44,#0ea5e944)">🚀</div><div class="body"><b>دونه</b><span class="stars">★★★★★</span><span class="tagline">سینما · خرداد</span></div></div>
+          <div class="media"><div class="poster" style="--g:linear-gradient(135deg,#33415566,#0ea5e944)">🧛</div><div class="body"><b>نوسفراتو</b><span class="stars">★★★☆☆</span><span class="tagline">سینما · خرداد</span></div></div>
+        </div>
+        <div class="tagline" style="margin:14px 0 10px">واچ‌لیست (می‌خوام ببینم):</div>
+        <div class="media-scroll">
+          <div class="media"><div class="poster" style="--g:linear-gradient(135deg,#1f2937,#374151)">🎬</div><div class="body"><b>بلاد رانر ۲</b><span class="tagline">در واچ‌لیست</span></div></div>
+          <div class="media"><div class="poster" style="--g:linear-gradient(135deg,#1f2937,#374151)">🎬</div><div class="body"><b>اینتراستلار</b><span class="tagline">دوباره! برای سومین بار</span></div></div>
+          <div class="media"><div class="poster" style="--g:linear-gradient(135deg,#1f2937,#374151)">🎬</div><div class="body"><b>سریال «سِوِرَنس»</b><span class="tagline">پیشنهاد علی</span></div></div>
+        </div>
+      </div>
+
+      <div class="grid g2 mt">
+        <div class="card">
+          <h3>📚 کتاب‌ها <span class="cnt">امسال: ۱۰ کتاب</span></h3>
+          <div class="list-item"><span>📕</span><div class="grow"><b>اتاق شیشه‌ای</b><div class="tagline">در حال خواندن · صفحه ۱۲۸ از ۳۴۰</div></div><span class="badge b-cyan">۳۸٪</span></div>
+          <div class="list-item"><span>📗</span><div class="grow"><b>خواب آلودگی</b><div class="tagline">هاروکی موراکامی · در صف خواندن</div></div><span class="badge b-violet">صف</span></div>
+          <div class="list-item"><span>📘</span><div class="grow"><b>سووشون</b><div class="tagline">تمام‌شده · مرداد ۱۴۰۵</div></div><span class="stars">★★★★★</span></div>
+          <div class="list-item"><span>📙</span><div class="grow"><b>Atomic Habits</b><div class="tagline">تمام‌شده · تیر ۱۴۰۵</div></div><span class="stars">★★★★☆</span></div>
+          <div class="tagline" style="margin-top:8px">🎯 هدف: ۱۲ کتاب در ۱۴۰۵ · <b class="up">۸۳٪ تکمیل</b></div>
+        </div>
+
+        <div class="card">
+          <h3>🎮 بازی‌ها</h3>
+          <div class="list-item"><span>🕹️</span><div class="grow"><b>Zelda: TOTK</b><div class="tagline">در حال بازی · ۴۵ ساعت</div></div><span class="badge b-cyan">در جریان</span></div>
+          <div class="list-item"><span>♟️</span><div class="grow"><b>شطرنج آنلاین</b><div class="tagline">رِیتینگ فعلی ۱٬۴۵۰ · +۳۰ از ماه قبل</div></div><span class="badge b-green up">↑</span></div>
+          <div class="list-item"><span>🕹️</span><div class="grow"><b>Elden Ring</b><div class="tagline">تمام‌شده · ۹۸ ساعت · خدای مالیکان شکست خورد 🏆</div></div><span class="stars">★★★★★</span></div>
+        </div>
+      </div>
+
+      <div class="grid g2 mt">
+        <div class="card">
+          <h3>🍽️ رستوران‌ها و کافه‌ها <span class="cnt">آرشیو امتحان‌شده‌ها</span></h3>
+          <div class="list-item"><span>🍕</span><div class="grow"><b>بِلا ویتا</b><div class="tagline">نورنبرگ · ایتالیایی · ۱۲ شهریور</div></div><span class="stars">★★★★★</span></div>
+          <div class="list-item"><span>🍔</span><div class="grow"><b>برگرام</b><div class="tagline">نورنبرگ · فست‌فود · ۲ مرداد</div></div><span class="stars">★★★☆☆</span></div>
+          <div class="list-item"><span>☕</span><div class="grow"><b>کافه کتز</b><div class="tagline">نورنبرگ · کافه · رایج‌ترین محل ورودت!</div></div><span class="stars">★★★★☆</span></div>
+          <div class="list-item"><span>🥙</span><div class="grow"><b>کباب خانه تهران</b><div class="tagline">مونیخ · ایرانی · ۲۰ تیر</div></div><span class="stars">★★★★★</span></div>
+        </div>
+
+        <div class="card">
+          <h3>✈️ سفرها</h3>
+          <div class="tagline" style="margin-bottom:8px">رفته‌ام:</div>
+          <div>
+            <span class="chip">🇩🇪 آلمان (زندگی)</span><span class="chip">🇮🇹 ایتالیا ۲۰۲۴</span><span class="chip">🇫🇷 فرانسه ۲۰۲۳</span><span class="chip">🇳🇱 هلند ۲۰۲۳</span><span class="chip">🇹🇷 ترکیه ۲۰۲۲</span><span class="chip">🇮🇷 ایران (خونه)</span>
+          </div>
+          <div class="tagline" style="margin:12px 0 8px">لیست آرزوها:</div>
+          <div>
+            <span class="chip" style="opacity:.55">🇯🇵 ژاپن</span><span class="chip" style="opacity:.55">🇬🇷 یونان</span><span class="chip" style="opacity:.55">🇪🇸 اسپانیا</span><span class="chip" style="opacity:.55">🇳🇴 نروژ (شمالی‌ها)</span>
+          </div>
+          <div class="list-item" style="margin-top:12px"><span>🚂</span><div class="grow"><b>مونیخ · آخر هفته آینده</b><div class="tagline">برنامه‌ریزی شده</div></div><span class="badge b-cyan">۹ روز دیگه</span></div>
+        </div>
+      </div>
+
+      <div class="card mt">
+        <h3>🎤 رویدادها</h3>
+        <div class="grid g3">
+          <div class="list-item"><span>🎼</span><div class="grow"><b>کنسرت سمفونی نورنبرگ</b><div class="tagline">۲۰ شهریور · Meistersingerhalle</div></div><span class="badge b-violet">بلیت دارم ✅</span></div>
+          <div class="list-item"><span>⚽</span><div class="grow"><b>بازی نورنبرگ vs بایرن</b><div class="tagline">۱۰ مهر · استادیوم</div></div><span class="badge b-amber">در انتظار بلیت</span></div>
+          <div class="list-item"><span>🎭</span><div class="grow"><b>تئاتر آلمانی برای زبان‌آموزان</b><div class="tagline">۲۴ شهریور</div></div><span class="badge b-blue">با کلاس زبان</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ JOURNAL ============ -->
+    <section class="panel" id="journal">
+      <div class="page-title">📝 ژورنال</div>
+      <p class="page-sub">امروز چطور بود؟ چند خطی بنویس — آینده‌ات تشکرت می‌کنه</p>
+
+      <div class="grid g3">
+        <div class="card" style="grid-column:span 2">
+          <h3>✍️ یادداشت امروز <span class="cnt">شنبه ۱۴ شهریور</span></h3>
+          <div class="field"><label>حال‌وهوای امروز (کلیک کن — واقعاً کار می‌کنه)</label>
+            <div class="moods">
+              <button class="mood">😢</button><button class="mood">😕</button><button class="mood">😐</button><button class="mood sel">🙂</button><button class="mood">😄</button>
+            </div>
+          </div>
+          <div class="field"><label>یک جمله برای امروز</label>
+            <input type="text" value="روز آرام و پرکاری بود، دویدن عالی بود.">
+          </div>
+          <div class="field"><label>روزیاری آزاد</label>
+            <textarea>صبح زود بیدار شدم و قبل از کار یه دور زدم. جلسه پروژه خوب پیش رفت. شب با علی حرف زدیم درباره سفر مونیخ...</textarea>
+          </div>
+          <div class="field"><label>۳ چیز که بابتشون thankful هستم</label>
+            <input type="text" value="۱. هواى خوب  ۲. قهوه‌ى صبح  ۳. تماس با مامان" style="margin-bottom:6px">
+          </div>
+          <button class="btn">💾 ذخیره امروز</button>
+        </div>
+
+        <div class="card">
+          <h3>📔 روزهای پیشین</h3>
+          <div class="list-item"><span style="font-size:20px">😄</span><div class="grow"><b>جمعه ۱۳ شهریور</b><div class="tagline">«شام با دوستای قدیمی، خیلی خوب بود»</div></div></div>
+          <div class="list-item"><span style="font-size:20px">🙂</span><div class="grow"><b>پنج‌شنبه ۱۲ شهریور</b><div class="tagline">«روز عادی، ولی ورزش قوی بود»</div></div></div>
+          <div class="list-item"><span style="font-size:20px">😐</span><div class="grow"><b>چهارشنبه ۱۱ شهریور</b><div class="tagline">«کم‌انرژی، زیاد کار کردم»</div></div></div>
+          <div class="list-item"><span style="font-size:20px">🙂</span><div class="grow"><b>سه‌شنبه ۱۰ شهریور</b><div class="tagline">«پروژه فریلنس تحویل شد! 🎉»</div></div></div>
+          <div class="tagline" style="margin-top:8px">📝 ۲۴۶ یادداشت از فروردین تا امروز</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TASKS ============ -->
+    <section class="panel" id="tasks">
+      <div class="page-title">📋 کارها و بهره‌وری</div>
+      <p class="page-sub">لیست امروز، کارهای معطل، پروژه‌ها و تمرکز</p>
+
+      <div class="grid g3">
+        <div class="card">
+          <h3>☀️ کارهای امروز <span class="cnt">تیک بزن!</span></h3>
+          <label class="todo"><input type="checkbox" checked><span class="t">🛒 خرید هفته</span></label>
+          <label class="todo"><input type="checkbox" checked><span class="t">📧 جواب ایمیل مشتری</span></label>
+          <label class="todo"><input type="checkbox"><span class="t">💼 ۲ ساعت روی پروژه سایت</span></label>
+          <label class="todo"><input type="checkbox"><span class="t">📞 تماس با علی درباره سفر</span></label>
+          <label class="todo"><input type="checkbox"><span class="t">🧺 ظرف‌ها و لباس‌شویی</span></label>
+        </div>
+
+        <div class="card">
+          <h3>🌀 بک‌لاگ (معطل‌ها)</h3>
+          <div class="list-item"><span>🔄</span><div class="grow"><b>تمدید بیمه سلامت</b><div class="tagline">۳ هفته معطل!</div></div><span class="badge b-red">فوری</span></div>
+          <div class="list-item"><span>🔄</span><div class="grow"><b>ساخت آلبوم عکس سفر ایتالیا</b><div class="tagline">از ۲ سال پیش 😅</div></div><span class="badge b-amber">کم‌اهمیت</span></div>
+          <div class="list-item"><span>🔄</span><div class="grow"><b>فروش لپ‌تاپ قدیمی</b><div class="tagline">۱ ماه معطل</div></div><span class="badge b-blue">این هفته</span></div>
+        </div>
+
+        <div class="card">
+          <h3>⏱️ پومودورو <span class="cnt">واقعاً کار می‌کنه!</span></h3>
+          <div class="pomo">
+            <div class="time" id="pTime">25:00</div>
+            <div class="row">
+              <button class="btn" id="pStart">▶️ شروع</button>
+              <button class="btn ghost" id="pReset">↺ ریست</button>
+            </div>
+            <div class="tagline">امروز ۳ پومودورو کامل ✅ · مجموع تمرکز: ۷۵ دقیقه</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt">
+        <h3>🚀 پروژه‌های در جریان</h3>
+        <div class="grid g3">
+          <div>
+            <div class="row"><b>🌐 سایت شخصی</b><span class="badge b-cyan" style="margin-inline-start:auto">۶۵٪</span></div>
+            <div class="bar"><i style="width:65%"></i></div>
+            <div class="tagline" style="margin-top:4px">قدم بعدی: صفحه بلاگ</div>
+          </div>
+          <div>
+            <div class="row"><b>🎓 آمادگی امتحان B2</b><span class="badge b-violet" style="margin-inline-start:auto">۴۰٪</span></div>
+            <div class="bar"><i style="width:40%"></i></div>
+            <div class="tagline" style="margin-top:4px">قدم بعدی: ماژول شنیداری</div>
+          </div>
+          <div>
+            <div class="row"><b>📷 چنل یوتیوب آشپزی</b><span class="badge b-pink" style="margin-inline-start:auto">۱۵٪</span></div>
+            <div class="bar"><i style="width:15%"></i></div>
+            <div class="tagline" style="margin-top:4px">قدم بعدی: فیلم‌برداری قسمت اول</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ GOALS ============ -->
+    <section class="panel" id="goals">
+      <div class="page-title">🎯 اهداف ۱۴۰۵</div>
+      <p class="page-sub">اهداف سال با پیشرفت و مراحل</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <div class="row"><span style="font-size:26px">🗣️</span><b>رسیدن به آلمانی B2</b><span class="badge b-violet" style="margin-inline-start:auto">۶۵٪</span></div>
+          <div class="bar mt"><i style="width:65%"></i></div>
+          <div class="tagline" style="margin:8px 0 4px">مراحل:</div>
+          <div class="list-item"><span>✅</span><div class="grow">گذراندن A2</div><span class="tagline">تیر ۱۴۰۴</span></div>
+          <div class="list-item"><span>✅</span><div class="grow">گذراندن B1</div><span class="tagline">خرداد ۱۴۰۵</span></div>
+          <div class="list-item"><span>⬜</span><div class="grow">اتمام دوره B2.2</div><span class="tagline">در جریان</span></div>
+          <div class="list-item"><span>⬜</span><div class="grow">امتحان Goethe B2</div><span class="tagline">هدف: آذر ۱۴۰۵</span></div>
+        </div>
+
+        <div class="card">
+          <div class="row"><span style="font-size:26px">💰</span><b>پس‌انداز ۱۵٫۰۰۰ یورویی</b><span class="badge b-cyan" style="margin-inline-start:auto">۸۵٪</span></div>
+          <div class="bar green mt"><i class="green" style="width:85%"></i></div>
+          <div class="tagline" style="margin:8px 0 4px">مراحل:</div>
+          <div class="list-item"><span>✅</span><div class="grow">۵٫۰۰۰ € (قدم اول)</div><span class="tagline">شهریور ۱۴۰۴</span></div>
+          <div class="list-item"><span>✅</span><div class="grow">۱۰٫۰۰۰ € (قدم دوم)</div><span class="tagline">اردیبهشت ۱۴۰۵</span></div>
+          <div class="list-item"><span>⬜</span><div class="grow">۱۵٫۰۰۰ € (هدف نهایی)</div><span class="tagline">۲٫۲۰۰ € باقی‌مانده</span></div>
+        </div>
+
+        <div class="card">
+          <div class="row"><span style="font-size:26px">📚</span><b>۱۲ کتاب در سال ۱۴۰۵</b><span class="badge b-green" style="margin-inline-start:auto">۸۳٪</span></div>
+          <div class="bar mt"><i class="green" style="width:83%"></i></div>
+          <div class="tagline" style="margin-top:8px">۱۰ از ۱۲ کتاب · ۲ کتاب در ۳٫۵ ماه باقی‌مانده — سرعت فعلی: هر ۲۸ روز یک کتاب ✅ قابل انجام!</div>
+        </div>
+
+        <div class="card">
+          <div class="row"><span style="font-size:26px">🏃</span><b>ورزش ۳ بار در هفته</b><span class="badge b-amber" style="margin-inline-start:auto">۷۱٪</span></div>
+          <div class="bar amber mt"><i class="amber" style="width:71%"></i></div>
+          <div class="tagline" style="margin-top:8px">۳۷ هفته از ۵۲ هفته سال · در ۲۶ هفته هدف محقق شد</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CALENDAR ============ -->
+    <section class="panel" id="calendar">
+      <div class="page-title">📅 تقویم و رویدادها</div>
+      <p class="page-sub">شهریور ۱۴۰۵ · شمسی + میلادی</p>
+
+      <div class="grid g3">
+        <div class="card" style="grid-column:span 2">
+          <h3>🗓️ شهریور ۱۴۰۵ <span class="cnt">اوت — سپتامبر ۲۰۲۶</span></h3>
+          <div class="cal">
+            <div class="hd">ش</div><div class="hd">ی</div><div class="hd">د</div><div class="hd">س</div><div class="hd">چ</div><div class="hd">پ</div><div class="hd">ج</div>
+            <div class="d"></div>
+            <div class="d">۱</div><div class="d">۲</div><div class="d ev" title="قرار دندان">۳</div><div class="d">۴</div><div class="d">۵</div><div class="d">۶</div>
+            <div class="d">۷</div><div class="d">۸</div><div class="d ev" title="کنسرت">۹</div><div class="d">۱۰</div><div class="d">۱۱</div><div class="d">۱۲</div><div class="d">۱۳</div>
+            <div class="d today">۱۴</div><div class="d">۱۵</div><div class="d">۱۶</div><div class="d">۱۷</div><div class="d">۱۸</div><div class="d ev" title="جلسه کلاس زبان">۱۹</div><div class="d">۲۰</div>
+            <div class="d ev" title="تولد مامان 🎂">۲۱</div><div class="d">۲۲</div><div class="d">۲۳</div><div class="d ev" title="سفر مونیخ 🚂">۲۴</div><div class="d">۲۵</div><div class="d">۲۶</div><div class="d">۲۷</div>
+            <div class="d">۲۸</div><div class="d">۲۹</div><div class="d">۳۰</div><div class="d">۳۱</div><div class="d"></div><div class="d"></div><div class="d"></div>
+          </div>
+          <div class="tagline" style="margin-top:10px">🩷 روزهای رنگی = رویداد دارن · روی هر روز کلیک کنی، جزئیاتش باز می‌شه (در نسخه اصلی)</div>
+        </div>
+
+        <div class="card">
+          <h3>⏳ شمارش معکوس</h3>
+          <div class="list-item"><span>🎂</span><div class="grow"><b>تولد مامان</b></div><b class="c-pink">۷ روز</b></div>
+          <div class="list-item"><span>🚂</span><div class="grow"><b>سفر مونیخ</b></div><b class="c-violet">۱۰ روز</b></div>
+          <div class="list-item"><span>✈️</span><div class="grow"><b>سفر ایتالیا با سارا</b></div><b class="c-cyan">۳۷ روز</b></div>
+          <div class="list-item"><span>🎓</span><div class="grow"><b>امتحان آلمانی B2</b></div><b class="c-amber">۸۴ روز</b></div>
+          <div class="list-item"><span>🎄</span><div class="grow"><b>کریسمس</b></div><b style="color:var(--green)">۱۱۰ روز</b></div>
+        </div>
+      </div>
+
+      <div class="card mt">
+        <h3>📌 رویدادهای پیش‌رو</h3>
+        <table>
+          <tr><th>رویداد</th><th>تاریخ</th><th>یادآوری</th><th>وضعیت</th></tr>
+          <tr><td>🦷 جلسه دندان‌پزشکی</td><td>۳ شهریور (گذشت)</td><td>۱ روز قبل</td><td><span class="badge b-green">انجام شد</span></td></tr>
+          <tr><td>🎼 کنسرت سمفونی</td><td>۹ شهریور · ۲۰:۰۰</td><td>روز قبل</td><td><span class="badge b-violet">بلیت ✅</span></td></tr>
+          <tr><td>🎂 تولد مامان</td><td>۲۱ شهریور</td><td>۳ روز قبل · خرید هدیه!</td><td><span class="badge b-amber">هدیه یادت نره 🎁</span></td></tr>
+          <tr><td>🚂 سفر مونیخ</td><td>۲۴–۲۶ شهریور</td><td>هفته قبل</td><td><span class="badge b-cyan">برنامه‌ریزی‌شده</span></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ HOME ============ -->
+    <section class="panel" id="home">
+      <div class="page-title">🏡 خانه و زندگی روزمره</div>
+      <p class="page-sub">خرید، کارهای دوره‌ای و برنامه غذایی</p>
+
+      <div class="grid g3">
+        <div class="card">
+          <h3>🛒 لیست خرید <span class="cnt">تیک‌پذیر</span></h3>
+          <label class="todo"><input type="checkbox" checked><span class="t">🥛 شیر</span></label>
+          <label class="todo"><input type="checkbox" checked><span class="t">🍞 نان</span></label>
+          <label class="todo"><input type="checkbox"><span class="t">🥚 تخم‌مرغ</span></label>
+          <label class="todo"><input type="checkbox"><span class="t">🍅 گوجه و خیار</span></label>
+          <label class="todo"><input type="checkbox"><span class="t">☕ قهوه</span></label>
+          <label class="todo"><input type="checkbox"><span class="t">🧻 دستمال کاغذی</span></label>
+          <div class="tagline" style="margin-top:8px">در نسخه اصلی: با تیک‌خوردن، خودکار به هزینه‌ها اضافه می‌شه 💡</div>
+        </div>
+
+        <div class="card">
+          <h3>🔄 کارهای دوره‌ای خانه</h3>
+          <div class="list-item"><span>🧹</span><div class="grow"><b>جارو و نظافت هفتگی</b><div class="tagline">هر شنبه · آخرین بار: ۷ روز پیش</div></div><span class="badge b-red">الان!</span></div>
+          <div class="list-item"><span>🛏️</span><div class="grow"><b>تعویض ملحفه</b><div class="tagline">هر ۲ هفته · ۴ روز پیش</div></div><span class="badge b-green">ok</span></div>
+          <div class="list-item"><span>🧴</span><div class="grow"><b>قرص ظرف‌شویی</b><div class="tagline">ماهانه · ۱۲ روز پیش</div></div><span class="badge b-amber">به‌زودی</span></div>
+          <div class="list-item"><span>🌿</span><div class="grow"><b>آبیاری گل‌ها</b><div class="tagline">هر ۳ روز · دیروز</div></div><span class="badge b-green">ok</span></div>
+          <div class="list-item"><span>💡</span><div class="grow"><b>فیلتر جاروبرقی</b><div class="tagline">هر ۲ ماه · ۵۵ روز پیش</div></div><span class="badge b-amber">۵ روز مونده</span></div>
+        </div>
+
+        <div class="card">
+          <h3>🍽️ برنامه غذایی هفته</h3>
+          <table>
+            <tr><td>شنبه (امروز)</td><td style="color:var(--muted)">قورمه‌سبزی 🇮🇷</td></tr>
+            <tr><td>یکشنبه</td><td style="color:var(--muted)">پاستا آروبایا‌اتا</td></tr>
+            <tr><td>دوشنبه</td><td style="color:var(--muted)">خوراک مرغ و برنج</td></tr>
+            <tr><td>سه‌شنبه</td><td style="color:var(--muted)">فلافل و سالاد</td></tr>
+            <tr><td>چهارشنبه</td><td style="color:var(--muted)">میرزاقاسمی 🍆</td></tr>
+            <tr><td>پنج‌شنبه</td><td style="color:var(--muted)">پیتزا خانگی 🍕</td></tr>
+            <tr><td>جمعه</td><td style="color:var(--muted)">بیرون — رستوران جدید!</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ LEARN ============ -->
+    <section class="panel" id="learn">
+      <div class="page-title">📚 یادگیری و رشد</div>
+      <p class="page-sub">دوره‌ها، زبان آلمانی و مهارت‌ها</p>
+
+      <div class="grid g3">
+        <div class="card">
+          <h3>🇩🇪 زبان آلمانی</h3>
+          <div class="kpi">
+            <div class="lbl">سطح فعلی</div>
+            <div class="val c-violet">B1.2 → B2</div>
+            <div class="sub up">🔥 روزهای پیوسته تمرین: ۴۷ روز</div>
+          </div>
+          <div class="bar mt" style="margin-top:10px"><i style="width:65%"></i></div>
+          <div class="list-item" style="margin-top:10px"><span>📖</span><div class="grow">لغات یادگرفته‌شده</div><b>۱٬۲۳۰</b></div>
+          <div class="list-item"><span>👂</span><div class="grow">دقیقه شنیداری این ماه</div><b>۳۴۰ دقیقه</b></div>
+          <div class="list-item"><span>🗣️</span><div class="grow">جلسات مکالمه (Tandem)</div><b>۶ جلسه</b></div>
+          <div class="list-item"><span>🎓</span><div class="grow">کلاس هفتگی VHS</div><span class="badge b-cyan">سه‌شنبه‌ها</span></div>
+        </div>
+
+        <div class="card">
+          <h3>💻 دوره‌های در جریان</h3>
+          <div style="margin-bottom:12px">
+            <div class="row"><b>React پیشرفته</b><span class="badge b-cyan" style="margin-inline-start:auto">۴۵٪</span></div>
+            <div class="bar"><i style="width:45%"></i></div>
+          </div>
+          <div style="margin-bottom:12px">
+            <div class="row"><b>عکاسی با موبایل</b><span class="badge b-violet" style="margin-inline-start:auto">۷۰٪</span></div>
+            <div class="bar"><i style="width:70%"></i></div>
+          </div>
+          <div>
+            <div class="row"><b>آشپزی ایرانی حرفه‌ای</b><span class="badge b-pink" style="margin-inline-start:auto">۲۰٪</span></div>
+            <div class="bar"><i style="width:20%"></i></div>
+          </div>
+          <div class="tagline" style="margin-top:10px">✅ تکمیل‌شده امسال: «مدیریت مالی شخصی» · «اکسل حرفه‌ای»</div>
+        </div>
+
+        <div class="card">
+          <h3>📜 گواهی‌ها</h3>
+          <div class="list-item"><span>🏅</span><div class="grow"><b>Goethe B1</b><div class="tagline">خرداد ۱۴۰۵ · نمره ۲۳۸/۳۰۰</div></div><span class="badge b-green">دریافت‌شده</span></div>
+          <div class="list-item"><span>🏅</span><div class="grow"><b>Google Analytics</b><div class="tagline">آذر ۱۴۰۴</div></div><span class="badge b-green">دریافت‌شده</span></div>
+          <div class="list-item"><span>🎯</span><div class="grow"><b>Goethe B2</b><div class="tagline">ثبت‌نام شده · آذر ۱۴۰۵</div></div><span class="badge b-amber">در انتظار</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PEOPLE ============ -->
+    <section class="panel" id="people">
+      <div class="page-title">👥 روابط</div>
+      <p class="page-sub">یادآوری تماس با عزیزان، هدیه‌ها و قرارها</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <h3>📞 آخرین تماس‌ها <span class="cnt">🟢 اخیر · 🟡 قابل قبول · 🔴 وقتشه!</span></h3>
+          <div class="list-item"><span>👩</span><div class="grow"><b>مامان</b><div class="tagline">تماس تصویری · ۲ روز پیش</div></div><span>🟢</span></div>
+          <div class="list-item"><span>👨</span><div class="grow"><b>بابا</b><div class="tagline">تلفنی · ۵ روز پیش</div></div><span>🟢</span></div>
+          <div class="list-item"><span>🧑</span><div class="grow"><b>علی (بهترین دوست)</b><div class="tagline">پیام · ۱۱ روز پیش · قرار: سفر مونیخ!</div></div><span>🟡</span></div>
+          <div class="list-item"><span>👩‍🦰</span><div class="grow"><b>سارا</b><div class="tagline">تماس · ۳۱ روز پیش · قرار ایتالیا هم دارید</div></div><span>🔴</span></div>
+          <div class="list-item"><span>🧔</span><div class="grow"><b>محمد (دوست دانشگاه)</b><div class="tagline">۳ ماه پیش 😬</div></div><span>🔴</span></div>
+          <div class="tagline" style="margin-top:8px">💡 هدف: هیچ‌کس قرمز نشه — داشبورد یادآوری می‌کنه</div>
+        </div>
+
+        <div class="card">
+          <h3>🎁 هدیه‌ها</h3>
+          <div class="tagline" style="margin-bottom:8px">داده‌ام:</div>
+          <div class="list-item"><span>🎂</span><div class="grow"><b>عطر — برای مامان</b><div class="tagline">تولد ۲۱ شهریور · خریده‌شده ✅</div></div></div>
+          <div class="list-item"><span>📚</span><div class="grow"><b>کتاب «سووشون» — برای سارا</b><div class="tagline">مهر · در نظر گرفته شد</div></div></div>
+          <div class="tagline" style="margin:12px 0 8px">گرفته‌ام (یادم بمونه چی پس بدم 😄):</div>
+          <div class="list-item"><span>🎧</span><div class="grow"><b>هدفون — از علی</b><div class="tagline">تولد ۱۴۰۴</div></div></div>
+          <div class="list-item" style="margin-top:12px"><span>📅</span><div class="grow"><b>قرارهای اجتماعی پیش‌رو</b><div class="tagline">شام با همکاران · ۱۸ شهریور · رستوران Osso</div></div><span class="badge b-blue">تأیید شد</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DOCS ============ -->
+    <section class="panel" id="docs">
+      <div class="page-title">🗂️ آرشیو اسناد</div>
+      <p class="page-sub">اسناد مهم با تاریخ انقضا — دیگه هیچی حذف نمی‌شه</p>
+
+      <div class="card">
+        <h3>📄 اسناد من</h3>
+        <table>
+          <tr><th>سند</th><th>شماره / مشخصه</th><th>انقضا</th><th class="doc-status">وضعیت</th><th>یادآوری</th></tr>
+          <tr><td>🛂 پاسپورت ایرانی</td><td>A01…4477</td><td>۱۲ فروردین ۱۴۰۸</td><td><span class="badge b-green">معتبر</span></td><td>۳ ماه قبل</td></tr>
+          <tr><td>🪪 اجازه اقامت (Aufenthaltstitel)</td><td>NÜ-…-2391</td><td>۳۰ اردیبهشت ۱۴۰۶</td><td><span class="badge b-amber">~۹ ماه مونده</span></td><td>۶ ماه قبل</td></tr>
+          <tr><td>🏥 بیمه سلامت (TK)</td><td>—</td><td>۳۱ دی ۱۴۰۵</td><td><span class="badge b-green">معتبر</span></td><td>۱ ماه قبل · تمدید خودکار</td></tr>
+          <tr><td>🏠 قرارداد اجاره</td><td>—</td><td>۳۰ بهمن ۱۴۰۵</td><td><span class="badge b-green">معتبر</span></td><td>۳ ماه قبل · تصمیم: تمدید یا نقل مکان؟</td></tr>
+          <tr><td>🚗 گواهینامه رانندگی</td><td>DE-B</td><td>—</td><td><span class="badge b-blue">بدون انقضا</span></td><td>—</td></tr>
+          <tr><td>💳 کارت بانکی</td><td>DB …8812</td><td>۰۹ آبان ۱۴۰۵</td><td><span class="badge b-amber">۲ ماه مونده</span></td><td>۱ ماه قبل</td></tr>
+        </table>
+        <div class="tagline" style="margin-top:10px">💡 در نسخه اصلی: آپلود فایل اسکن + هشدار خودکار روی صفحه اصلی وقتی سندی نزدیک انقضاست</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // ---- Tab navigation ----
+  document.querySelectorAll('.nav-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.nav-btn').forEach(function(x){x.classList.remove('active')});
+      b.classList.add('active');
+      document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});
+      document.getElementById(b.dataset.go).classList.add('active');
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+  });
+
+  // ---- Heatmaps (random demo data) ----
+  function heat(el, weeks){
+    if(!el) return;
+    var html='';
+    for(var w=0; w<weeks; w++){
+      for(var d=0; d<7; d++){
+        var r=Math.random();
+        var lvl = r<.2?0 : r<.42?1 : r<.68?2 : r<.88?3 : 4;
+        var alpha=[0,.3,.55,.8,1][lvl];
+        var bg = lvl===0 ? '#141d31' : 'rgba(52,211,153,'+alpha+')';
+        html+='<i style="background:'+bg+'"></i>';
+      }
+    }
+    el.innerHTML=html;
+  }
+  heat(document.getElementById('hmBig'),18);
+  heat(document.getElementById('hmMini'),13);
+
+  // ---- Water cups ----
+  var cups=document.querySelectorAll('#cups .cup');
+  function syncCups(){
+    var n=0;
+    cups.forEach(function(c,i){ if(c.classList.contains('on') && i<n+99){} });
+    n=document.querySelectorAll('#cups .cup.on').length;
+    document.getElementById('cupCnt').textContent=String(n).replace(/\d/g,function(d){return'۰۱۲۳۴۵۶۷۸۹'[d]});
+    document.getElementById('cupBar').style.width=(n/8*100)+'%';
+  }
+  cups.forEach(function(c){ c.addEventListener('click',function(){ c.classList.toggle('on'); syncCups(); }) });
+  // pre-fill 5 cups
+  [0,1,2,3,4].forEach(function(i){ cups[i].classList.add('on') });
+  syncCups();
+
+  // ---- Mood picker ----
+  document.querySelectorAll('.mood').forEach(function(m){
+    m.addEventListener('click',function(){
+      document.querySelectorAll('.mood').forEach(function(x){x.classList.remove('sel')});
+      m.classList.add('sel');
+    });
+  });
+
+  // ---- Pomodoro ----
+  var pTotal=25*60, pLeft=pTotal, pInt=null, pTime=document.getElementById('pTime'),
+      pStart=document.getElementById('pStart'), pReset=document.getElementById('pReset');
+  function pFmt(s){
+    var m=Math.floor(s/60), sec=s%60;
+    return (m<10?'0':'')+m+':'+(sec<10?'0':'')+sec;
+  }
+  pStart.addEventListener('click',function(){
+    if(pInt){ clearInterval(pInt); pInt=null; pStart.textContent='▶️ ادامه'; return; }
+    pStart.textContent='⏸️ توقف';
+    pInt=setInterval(function(){
+      pLeft--;
+      pTime.textContent=pFmt(Math.max(pLeft,0));
+      if(pLeft<=0){ clearInterval(pInt); pInt=null; pStart.textContent='✅ تموم شد!'; }
+    },1000);
+  });
+  pReset.addEventListener('click',function(){
+    if(pInt){clearInterval(pInt); pInt=null;}
+    pLeft=pTotal; pTime.textContent=pFmt(pLeft); pStart.textContent='▶️ شروع';
+  });
+
+  // ---- Currency converter ----
+  var RATE=119500;
+  var eur=document.getElementById('eur'), out=document.getElementById('tomanOut');
+  function conv(){
+    var v=parseFloat(eur.value)||0;
+    out.textContent=(v*RATE).toLocaleString('fa-IR',{maximumFractionDigits:0})+' تومان';
+  }
+  eur.addEventListener('input',conv); conv();
+</script>
+</body>
+</html>
