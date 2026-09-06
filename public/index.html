@@ -612,17 +612,59 @@ body.nav-open .nav-backdrop{display:block}
 .home-row.r2 > .wcard,
 .home-row.r2 > .mcard,
 .home-row.r2 > #gamesCard,
-.home-row.r2 > .tr-combo{min-width:0;height:100%}
-.tr-combo{
-  display:flex;flex-direction:column;gap:12px;min-width:0;height:100%;
+.home-row.r2 > /* کارها + یادآوری — یک باکس عمودی فشرده */
+.tr-combo{min-width:0;height:100%}
+.tr-combo .tr-panel{
+  height:100%;
+  display:flex;flex-direction:column;gap:0;
+  background:var(--panel);
+  border:1.5px solid var(--border2);
+  border-radius:22px;
+  padding:10px 12px 8px;
+  box-sizing:border-box;
+  overflow:hidden;
 }
-.tr-combo > .tcard,
-.tr-combo > .rcard{
-  flex:1 1 0;min-height:0;height:auto !important;
-  display:flex;flex-direction:column;
+.tr-combo .tr-sec{display:flex;flex-direction:column;min-height:0;flex:1 1 0}
+.tr-combo .tr-sec + .tr-sec{
+  border-top:1px dashed var(--border);
+  margin-top:6px;padding-top:6px;
 }
+.tr-combo .mhead.compact{
+  margin:0 0 4px;padding:0;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.tr-combo .mhead.compact h4{font-size:14.5px;margin:0}
+.tr-combo .mhead.compact .cnt{font-size:12px}
 .tr-combo #taskList,
-.tr-combo #remList{flex:1;overflow:auto;max-height:220px}
+.tr-combo #remList{
+  flex:1;overflow:auto;max-height:none;
+  min-height:0;
+}
+.tr-combo .task{
+  gap:8px !important;
+  padding:4px 2px !important;
+  font-size:14px !important;
+  line-height:1.35 !important;
+  border-bottom-color:color-mix(in srgb,var(--border) 70%, transparent) !important;
+}
+.tr-combo .task .tt{font-size:14px}
+.tr-combo .task .st{font-size:12px}
+.tr-combo .task .ck{width:16px;height:16px}
+.tr-combo .rem{
+  gap:8px !important;
+  padding:4px 2px !important;
+  font-size:13.5px !important;
+  line-height:1.35 !important;
+  border-bottom-color:color-mix(in srgb,var(--border) 70%, transparent) !important;
+}
+.tr-combo .rem .rt{font-size:13.5px}
+.tr-combo .rem .rv{font-size:12px}
+.tr-combo .rem .rd{width:8px;height:8px}
+.tr-combo .remfoot{
+  margin-top:4px;padding-top:4px;
+  font-size:11.5px;opacity:.85;
+}
+.tr-combo .tcard,.tr-combo .rcard{display:contents} /* legacy */
 .grow .glogo{width:22px;height:22px;border-radius:50%;object-fit:cover;background:var(--panel2);flex:none}
 .grow .glogos{display:flex;align-items:center;gap:4px;flex:none}
 .grow .gteam{display:inline-flex;align-items:center;gap:6px;min-width:0}
@@ -766,21 +808,23 @@ body.nav-open .nav-backdrop{display:block}
     <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
   </div>
 <div class="tr-combo" id="trCombo">
-<div class="tcard">
-      <div class="mhead">
-        <h4 id="taskH">✅ کارهای آینده</h4>
-        <span class="cnt" id="taskCnt">—</span>
+    <div class="tr-panel">
+      <div class="tr-sec" id="taskSec">
+        <div class="mhead compact">
+          <h4 id="taskH">✅ کارهای آینده</h4>
+          <span class="cnt" id="taskCnt">—</span>
+        </div>
+        <div id="taskList"></div>
       </div>
-      <div id="taskList"></div>
-
-      <!-- افزودن کار به ردیف ۱ منتقل شد -->
+      <div class="tr-sec" id="remSec">
+        <div class="mhead compact">
+          <h4>🔔 یادآوری‌ها</h4>
+          <span class="cnt" id="remCnt">—</span>
+        </div>
+        <div id="remList"></div>
+        <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
+      </div>
     </div>
-<div class="rcard">
-      <div class="mhead"><h4>🔔 یادآوری‌ها</h4><span class="cnt" id="remCnt">—</span></div>
-      <div id="remList"></div>
-      <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
-    </div>
-</div>
   </div>
 
   <!-- ردیف ۳ — دوستونه: تراکنش · ثبت روزانه -->
@@ -1819,7 +1863,7 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
   }
   function loadGames(){
     Promise.all([
-      fetch('/api/football/remote/free/day').then(function(r){return r.json()}).catch(function(){return{leagues:[]}}),
+      fetch('/api/football/remote/free/day?date='+encodeURIComponent((function(){try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return new Date().toISOString().slice(0,10)}})())).then(function(r){return r.json()}).catch(function(){return{leagues:[]}}),
       fetch('/api/football/remote/free/live').then(function(r){return r.json()}).catch(function(){return{items:[]}})
     ]).then(function(arr){
       var d=arr[0]||{leagues:[]}, live=arr[1]||{items:[]};
