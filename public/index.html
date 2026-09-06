@@ -105,10 +105,57 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 /* ===== چیدمان امروز: ردیف‌های صریح ===== */
 .home{display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .home-row{display:grid;gap:14px;align-items:stretch;width:100%}
-.home-row.r1{grid-template-columns:1fr}
+.home-row.r1{grid-template-columns:minmax(0,1.55fr) minmax(240px,.85fr);align-items:stretch}
 .home-row.r2{grid-template-columns:repeat(4,minmax(0,1fr))}
 .home-row.r3{grid-template-columns:repeat(2,minmax(0,1fr))}
 .home-row.r4{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+/* ردیف ۱: کارت تاریخ (راست) + مینی‌تقویم با دما (چپ) */
+.home-row.r1{grid-template-columns:minmax(0,1.55fr) minmax(240px,.85fr);align-items:stretch;gap:14px}
+.minical{
+  background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;
+  padding:14px 16px 12px;display:flex;flex-direction:column;min-width:0;height:100%;
+  cursor:pointer;position:relative;overflow:hidden;
+  background-image:radial-gradient(420px 220px at 10% 0%, color-mix(in srgb,var(--acc) 10%,transparent), transparent 70%);
+}
+.minical:hover{border-color:color-mix(in srgb,var(--acc) 45%,var(--border2))}
+.minical .mchead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.minical .mchead b{flex:1;text-align:center;font-family:var(--fh);font-size:15.5px}
+.minical .mchead button{
+  background:var(--panel2);border:1px solid var(--border);color:var(--text);
+  border-radius:10px;width:30px;height:30px;cursor:pointer;font-family:var(--fh);font-size:15px
+}
+.minical .mchead button:hover{border-color:var(--acc);color:var(--acc)}
+.minical .mcwd{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;direction:rtl}
+.minical .mcwd span{text-align:center;font-size:11px;color:var(--faint);font-family:var(--fh);padding:2px 0}
+.minical .mcgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;direction:rtl;flex:1}
+.minical .mc{
+  aspect-ratio:1;max-height:36px;border-radius:9px;border:1.5px solid transparent;
+  background:transparent;color:var(--text);font-family:var(--fh);font-size:12.5px;
+  cursor:pointer;display:grid;place-items:center;padding:0
+}
+.minical .mc:hover{background:var(--panel2)}
+.minical .mc.empty{cursor:default;pointer-events:none}
+.minical .mc.today{
+  border-color:#f472b6;color:#f9a8d4;font-weight:800;
+  background:color-mix(in srgb,#f472b6 12%,transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb,#f472b6 30%,transparent)
+}
+.minical .mc.sel{
+  background:linear-gradient(135deg,#c084fc,#a78bfa);color:#1a0b2e;font-weight:800;border-color:transparent
+}
+.minical .mc.fri{color:var(--bad)}
+.minical .mc.hol{color:var(--bad);font-weight:700}
+.minical .mcfoot{
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;gap:10px
+}
+.minical .mcfoot .tic{font-size:28px;line-height:1}
+.minical .mcfoot .ttemp{font-family:var(--fh);font-size:28px;font-weight:800;color:var(--acc);line-height:1}
+.minical .mcfoot .ttemp small{font-size:14px;font-weight:600;color:var(--muted);margin-right:2px}
+.home-row.r1 .datecard{height:100%}
+.home-row.r1 .minical{height:100%}
+
 @media(max-width:1279px){
   .home-row.r2{grid-template-columns:repeat(2,minmax(0,1fr))}
   .home-row.r4{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -457,14 +504,15 @@ body.nav-open .nav-backdrop{display:block}
 }
 
 /* page-mobile-extra */
-
 @media(max-width:900px){
-  .home-row.r1,.home-row.r2,.home-row.r3,.home-row.r4{grid-template-columns:1fr!important}
+  .home-row.r1{grid-template-columns:1fr!important}
+  .home-row.r2,.home-row.r3,.home-row.r4{grid-template-columns:1fr!important}
   .home-row.r3>.mcard,.home-row.r3>.c3wrap{height:auto}
   .datecard .dnum{font-size:64px!important}
   .occrow{flex-wrap:wrap}
+  .minical .mc{max-height:40px;font-size:13px}
+  .minical .mcfoot .ttemp{font-size:24px}
 }
-
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
@@ -477,7 +525,8 @@ body.nav-open .nav-backdrop{display:block}
 
   <!-- ردیف ۱ — یک‌ستونه: تاریخ -->
   <div class="home-row r1">
-<div class="datecard">
+    <!-- راست (RTL اول): کارت تاریخ کامل -->
+    <div class="datecard">
       <div class="dgreet" id="dayGreet">سلام حمیدرضا 👋</div>
       <div class="drow">
         <div class="dnum" id="dNum">—</div>
@@ -490,9 +539,23 @@ body.nav-open .nav-backdrop{display:block}
       </div>
       <div class="occrow"><div class="daynav"><button type="button" class="dnbtn" id="dPrev" title="روز قبل">‹</button><button type="button" class="dntoday" id="dTodayBtn">امروز</button><button type="button" class="dnbtn" id="dNext" title="روز بعد">›</button></div><div class="occs" id="occs"></div></div>
     </div>
+    <!-- چپ: مینی‌تقویم ماه + دما پایین کارت -->
+    <div class="minical" id="miniCal" title="کلیک → تقویم کامل">
+      <div class="mchead">
+        <button type="button" id="mcPrev" title="ماه قبل">‹</button>
+        <b id="mcTitle">—</b>
+        <button type="button" id="mcNext" title="ماه بعد">›</button>
+      </div>
+      <div class="mcwd"><span>ش</span><span>ی</span><span>د</span><span>س</span><span>چ</span><span>پ</span><span>ج</span></div>
+      <div class="mcgrid" id="mcGrid"></div>
+      <div class="mcfoot">
+        <span class="ttemp"><span id="mcTemp">—</span><small>°</small></span>
+        <span class="tic" id="mcIcon">☀️</span>
+      </div>
+    </div>
   </div>
 
-  <!-- ردیف ۲ — چهارستونه: هوا · کارها · یادآوری · بازار -->
+  <!-- ردیف ۲ —  چهارستونه: هوا · کارها · یادآوری · بازار -->
   <div class="home-row r2">
 <div class="wcard">
       <div class="wnow">
@@ -729,6 +792,7 @@ function renderDay(off){
   document.getElementById('dMon').textContent=month+' '+year;
   document.getElementById('dGreg').textContent=new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(now)+' · '+new Intl.DateTimeFormat('en-GB',{weekday:'long'}).format(now);
   var hb=document.getElementById('holBadge');if(hb)hb.style.display=off?'none':'';
+  try{if(typeof renderMiniCal==="function"){var c=currentJDay();if(c){mcY=c.jy;mcM=c.jm}renderMiniCal()}}catch(e){}
   var ds=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(now);
   var nm=off===0?'امروز':(off===1?'فردا':(off===-1?'دیروز':''));
   var dsm='<small style="font-size:12px;color:var(--faint)">'+(nm?nm+' ':'')+ds+'</small>';
@@ -736,6 +800,59 @@ function renderDay(off){
   var xh=document.getElementById('txH');if(xh)xh.innerHTML='💸 تراکنش‌های '+dsm;
 }
 renderDay(0);
+try{if(typeof renderMiniCal==="function")renderMiniCal()}catch(e){}
+
+/* ===== مینی‌تقویم ماه (ردیف ۱) — با دما پایین کارت ===== */
+var mcY=null, mcM=null;
+function mcKey(jy,jm,jd){return ''+jy+('0'+jm).slice(-2)+('0'+jd).slice(-2)}
+function mcMonthLen(jy,jm){var leap=jalCal(jy).leap;return jm<=6?31:(jm<12?30:(leap?30:29))}
+function currentJDay(){
+  var base=jToday(), off=(typeof dayOff==='number')?dayOff:0;
+  return d2j(j2d(base.jy,base.jm,base.jd)+off);
+}
+function renderMiniCal(){
+  if(typeof jToday!=='function'||typeof CALMON==='undefined')return;
+  var t=jToday(), cur=currentJDay();
+  if(mcY==null){mcY=cur.jy;mcM=cur.jm}
+  var title=document.getElementById('mcTitle'), grid=document.getElementById('mcGrid');
+  if(!title||!grid)return;
+  title.textContent=CALMON[mcM-1]+' '+fa(mcY);
+  var len=mcMonthLen(mcY,mcM), firstCol=(j2d(mcY,mcM,1)+2)%7, html='';
+  for(var b=0;b<firstCol;b++)html+='<button type="button" class="mc empty" tabindex="-1"></button>';
+  for(var d=1;d<=len;d++){
+    var isT=d===t.jd&&mcM===t.jm&&mcY===t.jy;
+    var isSel=d===cur.jd&&mcM===cur.jm&&mcY===cur.jy;
+    var isFri=((firstCol+d-1)%7)===6;
+    var hol=typeof HOL!=='undefined'&&HOL[mcKey(mcY,mcM,d)];
+    var cls='mc'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(hol?' hol':'');
+    html+='<button type="button" class="'+cls+'" data-md="'+d+'">'+fa(d)+'</button>';
+  }
+  grid.innerHTML=html;
+}
+function goFullCal(jy,jm,jd){location.href='/design/calendar-page.html?y='+jy+'&m='+jm+'&d='+jd}
+(function initMiniCal(){
+  function boot(){
+    if(typeof jToday!=='function'||typeof CALMON==='undefined'){setTimeout(boot,40);return}
+    var cur=currentJDay();mcY=cur.jy;mcM=cur.jm;
+    renderMiniCal();
+    var prev=document.getElementById('mcPrev'), next=document.getElementById('mcNext'), grid=document.getElementById('mcGrid'), box=document.getElementById('miniCal');
+    if(prev)prev.addEventListener('click',function(e){e.stopPropagation();mcM--;if(mcM<1){mcM=12;mcY--}renderMiniCal()});
+    if(next)next.addEventListener('click',function(e){e.stopPropagation();mcM++;if(mcM>12){mcM=1;mcY++}renderMiniCal()});
+    if(grid)grid.addEventListener('click',function(e){
+      e.stopPropagation();
+      var b=e.target.closest('[data-md]');if(!b)return;
+      var d=+b.dataset.md, base=jToday(), off=j2d(mcY,mcM,d)-j2d(base.jy,base.jm,base.jd);
+      if(typeof renderDay==='function')renderDay(off);
+      renderMiniCal();
+    });
+    if(box)box.addEventListener('click',function(e){
+      if(e.target.closest('button'))return;
+      var cur=currentJDay();goFullCal(cur.jy,cur.jm,cur.jd);
+    });
+  }
+  boot();
+})();
+
 try{var yst=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long'}).format(new Date(Date.now()-864e5));document.getElementById('aSub').textContent='درباره‌ی '+yst+' — فقط همین دو تا، ثانیه‌ای تمام می‌شود';}catch(e){}
 document.getElementById('dPrev').addEventListener('click',function(){renderDay(dayOff-1)});
 document.getElementById('dNext').addEventListener('click',function(){renderDay(dayOff+1)});
@@ -983,7 +1100,9 @@ function windDir(deg){
 function renderWeather(d){
   var c=WMO[d.current.weather_code]||['—','🌡'];
   document.getElementById('wIcon').textContent=c[1];
+  var _mci=document.getElementById('mcIcon');if(_mci)_mci.textContent=c[1];
   document.getElementById('wTemp').textContent=fa(Math.round(d.current.temperature_2m));
+  var _mct=document.getElementById('mcTemp');if(_mct)_mct.textContent=fa(Math.round(d.current.temperature_2m));
   document.getElementById('wDesc').textContent=c[0];
   document.getElementById('wFeel').textContent=fa(Math.round(d.current.apparent_temperature))+'°';
   document.getElementById('wHum').textContent=fa(Math.round(d.current.relative_humidity_2m))+'٪';

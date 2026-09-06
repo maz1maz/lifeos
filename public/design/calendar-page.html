@@ -128,7 +128,8 @@ body.zoom1{zoom:1.1111}
 .wdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;direction:rtl}
 .wdays span{text-align:center;font-size:12.5px;color:var(--faint);font-family:var(--fh);padding:4px 0}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;direction:rtl}
-.cell{min-height:92px;background:var(--panel2);border:1.5px solid var(--border);border-radius:14px;padding:8px 8px 6px;cursor:pointer;display:flex;flex-direction:column;gap:4px;transition:.12s;text-align:right}
+/* legacy cell base superseded by design block */
+.cell-legacy-disabled{display:none}
 .cell:hover{border-color:var(--acc);transform:translateY(-1px)}
 .cell.empty{background:transparent;border-color:transparent;cursor:default;min-height:0}
 .cell.empty:hover{transform:none}
@@ -225,7 +226,7 @@ body.zoom1{zoom:1.1111}
 
 /* ensure cards never fall back to white */
 .cal-card,.side-card,.note-card,.minical,.tempcard{background:var(--panel)!important;color:var(--text)}
-.cell{background:var(--panel2)!important}
+/* cell bg handled by design block */
 .cell.empty{background:transparent!important}
 textarea,input,button.sel,.pickgrid button{background:var(--panel2);color:var(--text)}
 
@@ -288,6 +289,81 @@ body.nav-open .nav-backdrop{display:block}
   body{font-size:16px}
 }
 
+
+
+/* فریم کارت‌های صفحه تقویم */
+.cal-card,.side-card,.note-card{
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)) !important;
+  border:1.5px solid rgba(255,255,255,.08) !important;
+  box-shadow:0 18px 40px -28px rgba(0,0,0,.7);
+}
+html[data-mode="light"] .cal-card,
+html[data-mode="light"] .side-card,
+html[data-mode="light"] .note-card{
+  background:var(--panel)!important;border-color:var(--border2)!important;box-shadow:0 10px 28px -18px rgba(0,0,0,.12);
+}
+
+/* کادر روزها — مثل دیزاین: امروز صورتی، انتخاب بنفش، تعطیل قرمز */
+.cell{
+  min-height:92px;background:rgba(255,255,255,.03);border:1.5px solid rgba(255,255,255,.06);
+  border-radius:14px;padding:8px 8px 6px;cursor:pointer;display:flex;flex-direction:column;gap:4px;
+  transition:.14s;text-align:right
+}
+html[data-mode="light"] .cell{background:var(--panel2);border-color:var(--border)}
+.cell:hover{border-color:color-mix(in srgb,#c084fc 55%,var(--border));transform:translateY(-1px)}
+.cell.empty{background:transparent!important;border-color:transparent!important;cursor:default;min-height:0;box-shadow:none!important}
+.cell.empty:hover{transform:none}
+.cell .dn{font-family:var(--fh);font-size:18px;font-weight:800;line-height:1;color:var(--text)}
+.cell .g{font-size:11px;color:var(--faint);direction:ltr;text-align:left}
+.cell .ev{font-size:11.5px;color:var(--muted);line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+/* امروز = کادر صورتی */
+.cell.today{
+  border-color:#f472b6 !important;
+  box-shadow:0 0 0 1.5px color-mix(in srgb,#f472b6 45%,transparent), 0 8px 18px -14px rgba(244,114,182,.5) !important;
+  background:color-mix(in srgb,#f472b6 10%, rgba(255,255,255,.03)) !important;
+}
+.cell.today .dn{color:#f9a8d4}
+/* تعطیل / جمعه */
+.cell.fri .dn{color:var(--bad)}
+.cell.hol{
+  background:color-mix(in srgb,var(--bad) 12%, rgba(255,255,255,.03)) !important;
+  border-color:color-mix(in srgb,var(--bad) 45%, transparent) !important;
+}
+.cell.hol .dn{color:var(--bad)}
+/* انتخاب = بنفش پررنگ + برچسب */
+.cell.sel{
+  border-color:#c084fc !important;
+  background:linear-gradient(160deg, color-mix(in srgb,#c084fc 28%, #1a1228), color-mix(in srgb,#a78bfa 16%, #121826)) !important;
+  box-shadow:0 0 0 2px color-mix(in srgb,#c084fc 60%,transparent), 0 12px 28px -12px rgba(192,132,252,.65) !important;
+  transform:translateY(-2px);
+  position:relative;z-index:1;
+}
+html[data-mode="light"] .cell.sel{
+  background:linear-gradient(160deg, color-mix(in srgb,#c084fc 22%,#fff), color-mix(in srgb,#f472b6 10%,#fff)) !important;
+}
+.cell.sel .dn{color:#f3e8ff !important}
+.cell.sel.hol .dn{color:#fda4af !important}
+.cell.sel.today{ /* انتخاب بر امروز غالب */
+  border-color:#c084fc !important;
+}
+.cell.sel .tag-sel{
+  display:inline-flex;align-items:center;gap:3px;
+  font-family:var(--fh);font-size:10.5px;font-weight:800;
+  background:#c084fc;color:#1e1033;border-radius:99px;
+  padding:1px 7px;margin-top:2px;width:fit-content;
+}
+.cell:not(.sel) .tag-sel{display:none}
+/* روز دارای یادداشت — کادر بنفش کم‌رنگ */
+.cell.has-note:not(.sel):not(.today){
+  border-color:color-mix(in srgb,#c084fc 55%, var(--border)) !important;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,#c084fc 18%, transparent);
+}
+.cell .dots{display:flex;gap:3px;flex-wrap:wrap;margin-top:auto}
+.cell .dot{width:6px;height:6px;border-radius:99px;background:var(--muted)}
+.cell .dot.h{background:var(--bad)}
+.cell .dot.n{background:#c084fc}
+.cell .dot.t{background:#f472b6}
+
 /* page-mobile-extra */
 
 @media(max-width:900px){
@@ -324,7 +400,7 @@ body.nav-open .nav-backdrop{display:block}
       <div class="wdays"><span>ش</span><span>ی</span><span>د</span><span>س</span><span>چ</span><span>پ</span><span>ج</span></div>
       <div class="grid" id="calGrid"></div>
       <div class="legend">
-        <span><i style="background:var(--acc)"></i> امروز</span>
+        <span><i style="background:#f472b6"></i> امروز</span>
         <span><i style="background:#c084fc"></i> روز انتخاب‌شده</span>
         <span><i style="background:var(--bad)"></i> تعطیل / جمعه</span>
         <span><i style="background:var(--muted)"></i> مناسبت</span>
@@ -487,7 +563,8 @@ function renderCal(){
     var isFri=((firstCol+d-1)%7)===6;
     var isHol=list.some(function(e){return e.h})||!!HOL[keyOf(vy,vm,d)];
     var g=d2g(j2d(vy,vm,d));
-    var cls='cell'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(isHol?' hol':'');
+    var hasN=(typeof hasNote==='function'&&hasNote(vy,vm,d));
+    var cls='cell'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(isHol?' hol':'')+(hasN?' has-note':'');
     var dots=list.slice(0,3).map(function(e){return '<span class="dot'+(e.h?' h':'')+'"></span>'}).join('');
     if(hasNote(vy,vm,d)) dots+='<span class="dot n" title="یادداشت"></span>';
     var evtxt=list.slice(0,2).map(function(e){return esc(e.t)}).join(' · ');
