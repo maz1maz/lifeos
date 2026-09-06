@@ -43,7 +43,7 @@ html[data-mode="light"]{
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-size:17px;line-height:2;
   background-image:radial-gradient(1000px 560px at 85% -6%, color-mix(in srgb,var(--acc) 8%,transparent), transparent 62%);
   background-attachment:fixed}
-.wrap{max-width:980px;margin:0 auto;padding:26px 22px 100px;zoom:.9}
+.wrap{max-width:1240px;margin:0 auto;padding:26px 22px 100px;zoom:.9}
 .lead{color:var(--muted);font-size:15px;margin:0 0 14px}
 .tools{display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px}
 .iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--border);background:color-mix(in srgb,var(--bg) 80%,transparent);color:var(--text);font-size:17px;cursor:pointer}
@@ -104,9 +104,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 @media(max-width:760px){.duo{grid-template-columns:1fr}}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px;align-items:start}
 /* کل بالای صفحه سه‌ستونه مثل بازار */
-.page3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start;margin-top:14px}
+.page3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:stretch;margin-top:14px}
 .page3>.duo{display:contents}
-.page3 .epcard{margin-top:0}
+.page3 .epcard{margin-top:0;height:fit-content}
 .c3wrap{grid-column:span 2}
 @media(max-width:760px){.page3{grid-template-columns:1fr}.c3wrap{grid-column:auto}}
 @media(max-width:560px){.trio{grid-template-columns:1fr}}
@@ -175,7 +175,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 @keyframes pop{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
 /* ---- card3 v2 extras ---- */
-.demo-bar{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
+.demo-bar{display:none}
 .demo-btn{background:var(--panel2);border:1px dashed var(--border2);color:var(--muted);border-radius:99px;padding:4px 15px;font:inherit;font-size:14px;cursor:pointer}
 .demo-btn:hover{color:var(--text)}
 .tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
