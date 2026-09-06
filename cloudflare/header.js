@@ -132,7 +132,7 @@ function makeHelpers(env) {
     if(text.startsWith('/')){
       let cmd=tgCmdName(text),arg=text.slice(cmd.length).trim();
       if(cmd==='/start'||cmd==='/help'||cmd==='/کمک'||cmd==='/راهنما'){
-        return tgSend(chatId,'سلام'+(user.name?(' '+user.name):'')+' 👋\nمن دستیار lifeos هستم.\n\n'+'فرمان‌ها:\n/امروز /کارها /یادآوری‌ها /موجودی /پرتفوی /گزارش_ماه /انجام\n\nمتن آزاد بفرست، مثلاً:\n• خرید عینک ۲/۵ م\n• سه‌شنبه هفته بعد قرار دکتر ساعت ۳\n• ۵۰ هزار ناهار\n• حالم ۸، ۷ ساعت خوابیدم\n• کار خرید نان',{reply_markup:tgMainKeyboard()});
+        return tgSend(chatId,'سلام'+(user.name?(' '+user.name):'')+' 👋\nمن دستیار lifeos هستم.\n\n'+'فرمان‌ها:\n/امروز /کارها /یادآوری‌ها /موجودی /پرتفوی /گزارش_ماه /انجام\n\nمتن آزاد بفرست، مثلاً:\n• خرید عینک ۲/۵ م\n• سه‌شنبه هفته بعد قرار دکتر ساعت ۳\n• ۵۰ هزار ناهار\n• حالم ۸، ۷ ساعت خوابیدم\n• کار خرید نان\n\nگزارش خودکار: صبح ۹ و شب ۲۳ (تهران)\nدستی: /گزارش_صبح /گزارش_شب',{reply_markup:tgMainKeyboard()});
       }
       if(cmd==='/امروز'){
         let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d),done=tasks.filter(x=>x.done).length;
@@ -178,6 +178,15 @@ function makeHelpers(env) {
         let month=d.slice(0,7),t=db.transactions.filter(x=>x.userId===user.id&&x.date.startsWith(month)),expense=t.filter(x=>x.kind==='expense').reduce((n,x)=>n+x.amount,0),income=t.filter(x=>x.kind==='income').reduce((n,x)=>n+x.amount,0);
         return tgSend(chatId,`گزارش ${month}:\nدرآمد: ${income.toLocaleString('fa-IR')}\nهزینه: ${expense.toLocaleString('fa-IR')}\nمانده: ${(income-expense).toLocaleString('fa-IR')}`);
       }
+
+      if(cmd==='/گزارش_صبح'||cmd==='/صبح'){
+        let w=await fetchTehranWeatherBrief();
+        return tgSend(chatId,await buildMorningBrief(db,user,d,w),{reply_markup:tgMainKeyboard()});
+      }
+      if(cmd==='/گزارش_شب'||cmd==='/شب'){
+        return tgSend(chatId,await buildEveningReport(db,user,d),{reply_markup:tgMainKeyboard()});
+      }
+
       if(cmd==='/انجام'||cmd==='/done'){
         let n=Number((enNum(arg).match(/\d+/)||[0])[0]);
         let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d&&!x.done);
@@ -188,22 +197,158 @@ function makeHelpers(env) {
         await write(db);
         return tgSend(chatId,'✅ انجام شد: '+t.title);
       }
-      return tgSend(chatId,'فرمان‌ها:\n/امروز /کارها /یادآوری‌ها /موجودی /پرتفوی /گزارش_ماه /انجام\n\nمتن آزاد بفرست، مثلاً:\n• خرید عینک ۲/۵ م\n• سه‌شنبه هفته بعد قرار دکتر ساعت ۳\n• ۵۰ هزار ناهار\n• حالم ۸، ۷ ساعت خوابیدم\n• کار خرید نان',{reply_markup:tgMainKeyboard()});
+      return tgSend(chatId,'فرمان‌ها:\n/امروز /کارها /یادآوری‌ها /موجودی /پرتفوی /گزارش_ماه /انجام\n\nمتن آزاد بفرست، مثلاً:\n• خرید عینک ۲/۵ م\n• سه‌شنبه هفته بعد قرار دکتر ساعت ۳\n• ۵۰ هزار ناهار\n• حالم ۸، ۷ ساعت خوابیدم\n• کار خرید نان\n\nگزارش خودکار: صبح ۹ و شب ۲۳ (تهران)\nدستی: /گزارش_صبح /گزارش_شب',{reply_markup:tgMainKeyboard()});
     }
     let actions=parseLifeText(text);
     if(!actions.length&&AI_PROVIDER_API_KEY){try{actions=await aiExtractActions(text)}catch(e){}}
     let done=await applyParsedActions(db,user,actions,d);
     await write(db);
-    return tgSend(chatId,done.length?('ثبت شد:\n• '+done.join('\n• ')):'چیزی قابل تشخیص نبود.\n'+'فرمان‌ها:\n/امروز /کارها /یادآوری‌ها /موجودی /پرتفوی /گزارش_ماه /انجام\n\nمتن آزاد بفرست، مثلاً:\n• خرید عینک ۲/۵ م\n• سه‌شنبه هفته بعد قرار دکتر ساعت ۳\n• ۵۰ هزار ناهار\n• حالم ۸، ۷ ساعت خوابیدم\n• کار خرید نان',{reply_markup:tgMainKeyboard()});
+    return tgSend(chatId,done.length?('ثبت شد:\n• '+done.join('\n• ')):'چیزی قابل تشخیص نبود.\n'+'فرمان‌ها:\n/امروز /کارها /یادآوری‌ها /موجودی /پرتفوی /گزارش_ماه /انجام\n\nمتن آزاد بفرست، مثلاً:\n• خرید عینک ۲/۵ م\n• سه‌شنبه هفته بعد قرار دکتر ساعت ۳\n• ۵۰ هزار ناهار\n• حالم ۸، ۷ ساعت خوابیدم\n• کار خرید نان\n\nگزارش خودکار: صبح ۹ و شب ۲۳ (تهران)\nدستی: /گزارش_صبح /گزارش_شب',{reply_markup:tgMainKeyboard()});
   }
-  async function tgCheckReports(db){if(!TELEGRAM_BOT_TOKEN)return false;let now=new Date(),hh=now.getUTCHours(),d=today(),changed=false;db.reminders??=[];for(const user of db.users){if(!user.telegramUserId)continue;let morningH=user.tgMorningHour!=null?Number(user.tgMorningHour):8,eveningH=user.tgEveningHour!=null?Number(user.tgEveningHour):21;if(hh===morningH&&user.tgLastMorning!==d){user.tgLastMorning=d;changed=true;let soon=addDaysIso(d,3);let subs=db.subscriptions.filter(x=>x.userId===user.id&&!x.archived&&x.nextDate<=soon).length,debts=db.debts.filter(x=>x.userId===user.id&&!x.settled&&x.dueDate&&x.dueDate<=soon).length,matchesToday=db.matches.filter(x=>x.userId===user.id&&x.date===d&&x.status==='upcoming');let rems=db.reminders.filter(x=>x.userId===user.id&&!x.done&&x.date>=d&&x.date<=soon);let lines=[`صبح بخیر ${user.name||''}! امروز ${tgFmtDate(d)} است.`.replace(/\s+/g,' ').trim()];if(subs)lines.push(`${subs} اشتراک سررسید نزدیک دارد.`);if(debts)lines.push(`${debts} بدهی/طلب سررسید نزدیک دارد.`);rems.slice(0,5).forEach(r=>lines.push(`🔔 ${r.date===d?'امروز':r.date}${r.time?' '+r.time:''}: ${r.title}`));matchesToday.forEach(m=>lines.push(`امروز${m.time?' ساعت '+m.time:''} بازی ${m.home} - ${m.away} داری.`));await tgSend(user.telegramUserId,lines.join('\n'),{reply_markup:tgMainKeyboard()})}if(hh===eveningH&&user.tgLastEvening!==d){user.tgLastEvening=d;changed=true;let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d),doneCount=tasks.filter(x=>x.done).length,daily=db.daily.find(x=>x.userId===user.id&&x.date===d),expense=db.transactions.filter(x=>x.userId===user.id&&x.date===d&&x.kind==='expense').reduce((n,x)=>n+x.amount,0);let lines=[`گزارش شب: ${doneCount} از ${tasks.length} تسک امروز انجام شد.`];lines.push('هزینه امروز: '+expense.toLocaleString('fa-IR')+' تومان');if(daily)lines.push('حال: '+daily.mood+'/10');else lines.push('هنوز روزنگار امروز رو ثبت نکردی.');await tgSend(user.telegramUserId,lines.join('\n'),{reply_markup:tgMainKeyboard()})}}return changed}
+
+  const WMO_FA={0:['صاف','☀️'],1:['کمی ابری','🌤'],2:['نیمه‌ابری','⛅'],3:['ابری','☁️'],45:['مه','🌫'],48:['مه','🌫'],51:['نم‌نم','🌦'],53:['نم‌نم','🌦'],55:['نم‌نم','🌦'],61:['باران سبک','🌧'],63:['باران','🌧'],65:['باران شدید','🌧'],71:['برف سبک','🌨'],73:['برف','🌨'],75:['برف','❄️'],80:['رگبار','🌦'],81:['رگبار','🌦'],82:['رگبار شدید','🌦'],95:['رعدوبرق','⛈'],96:['رعدوبرق','⛈'],99:['رعدوبرق','⛈']};
+  function tehranHourNow(){let p=tehranParts(new Date());return Number(p.hour)}
+  function tehranMinuteNow(){let p=tehranParts(new Date());return Number(p.minute)}
+  async function fetchTehranWeatherBrief(){
+    try{
+      let [w,aq]=await Promise.all([
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=35.69&longitude=51.39&current=temperature_2m,weather_code,relative_humidity_2m,apparent_temperature,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,sunrise,sunset&timezone=Asia%2FTehran&forecast_days=2').then(r=>r.json()),
+        fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude=35.69&longitude=51.39&current=european_aqi,pm2_5&timezone=Asia%2FTehran').then(r=>r.json()).catch(()=>null)
+      ]);
+      if(!w||!w.current)return null;
+      let code=w.current.weather_code,pair=WMO_FA[code]||['—','🌡'];
+      let aqi=aq&&aq.current?aq.current.european_aqi:null;
+      let aqiLabel=aqi==null?null:(aqi<=40?'خوب':aqi<=60?'متوسط':aqi<=80?'ضعیف':'ناسالم');
+      return{
+        temp:Math.round(w.current.temperature_2m),
+        feel:Math.round(w.current.apparent_temperature),
+        hum:Math.round(w.current.relative_humidity_2m),
+        wind:Math.round(w.current.wind_speed_10m),
+        icon:pair[1], desc:pair[0],
+        tmax:w.daily&&w.daily.temperature_2m_max?Math.round(w.daily.temperature_2m_max[0]):null,
+        tmin:w.daily&&w.daily.temperature_2m_min?Math.round(w.daily.temperature_2m_min[0]):null,
+        pop:w.daily&&w.daily.precipitation_probability_max?w.daily.precipitation_probability_max[0]:null,
+        sunrise:(w.daily&&w.daily.sunrise&&w.daily.sunrise[0]||'').slice(11,16),
+        sunset:(w.daily&&w.daily.sunset&&w.daily.sunset[0]||'').slice(11,16),
+        aqi, aqiLabel
+      };
+    }catch(e){return null}
+  }
+  function formatWeatherLine(w){
+    if(!w)return null;
+    let s=w.icon+' تهران: '+w.temp+'° ('+w.desc+')';
+    if(w.tmin!=null&&w.tmax!=null)s+=' · '+w.tmin+'°…'+w.tmax+'°';
+    if(w.feel!=null)s+=' · حس '+w.feel+'°';
+    if(w.pop!=null&&w.pop>0)s+=' · احتمال باران '+w.pop+'٪';
+    if(w.aqi!=null)s+=' · هوا '+(w.aqiLabel||'')+' ('+w.aqi+')';
+    if(w.sunrise&&w.sunset)s+='\n🌅 '+w.sunrise+' · 🌇 '+w.sunset;
+    return s;
+  }
+  async function buildMorningBrief(db,user,d,weather){
+    let lines=[];
+    lines.push('🌅 صبح بخیر'+(user.name?(' '+user.name):'')+'!');
+    lines.push('📅 '+tgFmtDate(d));
+    let wl=formatWeatherLine(weather); if(wl) lines.push(wl);
+    let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d).sort((a,b)=>String(a.startTime||'').localeCompare(String(b.startTime||'')));
+    let open=tasks.filter(x=>!x.done);
+    let rems=db.reminders.filter(x=>x.userId===user.id&&!x.done&&x.date===d).sort((a,b)=>String(a.time||'').localeCompare(String(b.time||'')));
+    lines.push('');
+    lines.push('📋 برنامه امروز:');
+    if(!open.length&&!rems.length) lines.push('• برنامهٔ خاصی ثبت نشده — بفرست مثلاً «کار خرید نان»');
+    rems.forEach(r=>lines.push('🔔 '+(r.time?r.time+' · ':'')+r.title));
+    open.filter(t=>!t.isReminder).slice(0,10).forEach((t,i)=>lines.push('⬜ '+(t.startTime?t.startTime+' · ':'')+t.title));
+    let matchesToday=db.matches.filter(x=>x.userId===user.id&&x.date===d);
+    if(matchesToday.length){
+      lines.push(''); lines.push('⚽ بازی‌ها:');
+      matchesToday.forEach(m=>lines.push('• '+(m.time?m.time+' · ':'')+(m.home||'?')+' - '+(m.away||'?')+(m.status==='live'?' 🔴':'')));
+    }
+    let soon=addDaysIso(d,3);
+    let subs=db.subscriptions.filter(x=>x.userId===user.id&&!x.archived&&x.nextDate>=d&&x.nextDate<=soon);
+    let debts=db.debts.filter(x=>x.userId===user.id&&!x.settled&&x.dueDate&&x.dueDate>=d&&x.dueDate<=soon);
+    let nearRems=db.reminders.filter(x=>x.userId===user.id&&!x.done&&x.date>d&&x.date<=soon);
+    if(subs.length||debts.length||nearRems.length){
+      lines.push(''); lines.push('⏰ سررسید نزدیک (۳ روز):');
+      subs.forEach(s=>lines.push('• 💳 '+s.nextDate+' — '+(s.name||s.title||'اشتراک')));
+      debts.forEach(x=>lines.push('• 📌 '+x.dueDate+' — '+(x.title||x.name||'بدهی')));
+      nearRems.slice(0,4).forEach(r=>lines.push('• 🔔 '+r.date+(r.time?' '+r.time:'')+' — '+r.title));
+    }
+    let tmr=addDaysIso(d,1);
+    let tmrRems=db.reminders.filter(x=>x.userId===user.id&&!x.done&&x.date===tmr);
+    let tmrTasks=db.tasks.filter(x=>x.userId===user.id&&!x.done&&x.date===tmr&&!x.isReminder);
+    if(tmrRems.length||tmrTasks.length){
+      lines.push(''); lines.push('➡️ فردا:');
+      tmrRems.slice(0,3).forEach(r=>lines.push('• '+(r.time?r.time+' · ':'')+r.title));
+      tmrTasks.slice(0,3).forEach(t=>lines.push('• '+t.title));
+    }
+    lines.push(''); lines.push('موفق باشی 💪 — /امروز برای جزئیات');
+    return lines.join('\n');
+  }
+  async function buildEveningReport(db,user,d){
+    let lines=[];
+    lines.push('🌙 گزارش شب · '+tgFmtDate(d));
+    let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d);
+    let done=tasks.filter(x=>x.done), open=tasks.filter(x=>!x.done);
+    lines.push('✅ کارها: '+done.length+' از '+tasks.length+(tasks.length?(' ('+Math.round(100*done.length/Math.max(1,tasks.length))+'٪)'):''));
+    if(open.length){ lines.push('⬜ مانده:'); open.slice(0,8).forEach((t,i)=>lines.push('  '+(i+1)+'. '+(t.startTime?t.startTime+' · ':'')+t.title)); lines.push('تیک: /انجام 1'); }
+    else if(tasks.length) lines.push('همه کارها انجام شد 🎉');
+    let remsOpen=db.reminders.filter(x=>x.userId===user.id&&x.date===d&&!x.done);
+    if(remsOpen.length){ lines.push('🔔 یادآوری باز:'); remsOpen.forEach(r=>lines.push('• '+(r.time?r.time+' · ':'')+r.title)); }
+    let txs=db.transactions.filter(x=>x.userId===user.id&&x.date===d);
+    let expense=txs.filter(x=>x.kind==='expense').reduce((n,x)=>n+x.amount,0);
+    let income=txs.filter(x=>x.kind==='income').reduce((n,x)=>n+x.amount,0);
+    lines.push('💸 هزینه: '+expense.toLocaleString('fa-IR')+' تومان'+(income?(' · درآمد '+income.toLocaleString('fa-IR')):''));
+    if(txs.filter(x=>x.kind==='expense').length){
+      let by={}; txs.filter(x=>x.kind==='expense').forEach(x=>by[x.category||'متفرقه']=(by[x.category||'متفرقه']||0)+x.amount);
+      let top=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,3);
+      if(top.length) lines.push('  └ '+top.map(([c,a])=>c+' '+a.toLocaleString('fa-IR')).join(' · '));
+    }
+    let daily=db.daily.find(x=>x.userId===user.id&&x.date===d);
+    if(daily) lines.push('🙂 حال '+(daily.mood!=null?daily.mood+'/10':'—')+(daily.sleep?(' · 😴 '+daily.sleep):''));
+    else lines.push('📝 روزنگار امروز خالی است — بفرست: «حالم ۸» یا «۷ ساعت خوابیدم»');
+    let workMin=db.timeEntries.filter(x=>x.userId===user.id&&x.date===d).reduce((n,x)=>n+(x.minutes||0),0);
+    if(workMin) lines.push('⏱ کار ثبت‌شده: '+Math.floor(workMin/60)+'س '+(workMin%60)+'د');
+    let tmr=addDaysIso(d,1);
+    let tmrItems=[
+      ...db.reminders.filter(x=>x.userId===user.id&&!x.done&&x.date===tmr).map(r=>'🔔 '+(r.time?r.time+' · ':'')+r.title),
+      ...db.tasks.filter(x=>x.userId===user.id&&!x.done&&x.date===tmr&&!x.isReminder).map(t=>'⬜ '+t.title)
+    ];
+    if(tmrItems.length){ lines.push(''); lines.push('➡️ فردا:'); tmrItems.slice(0,6).forEach(x=>lines.push('• '+x)); }
+    lines.push(''); lines.push('شب بخیر 🌙');
+    return lines.join('\n');
+  }
+  async function tgCheckReports(db){
+    if(!TELEGRAM_BOT_TOKEN)return false;
+    let d=today(), changed=false, hh=tehranHourNow();
+    db.reminders??=[]; db.tasks??=[];
+    let weather=null;
+    let needMorning=db.users.some(u=>u.telegramUserId&&(u.tgMorningHour!=null?Number(u.tgMorningHour):9)===hh&&u.tgLastMorning!==d);
+    if(needMorning) weather=await fetchTehranWeatherBrief();
+    for(const user of db.users){
+      if(!user.telegramUserId)continue;
+      let morningH=user.tgMorningHour!=null?Number(user.tgMorningHour):9;
+      let eveningH=user.tgEveningHour!=null?Number(user.tgEveningHour):23;
+      if(user.tgReports===false)continue;
+      if(hh===morningH&&user.tgLastMorning!==d){
+        user.tgLastMorning=d; changed=true;
+        let text=await buildMorningBrief(db,user,d,weather);
+        await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
+      }
+      if(hh===eveningH&&user.tgLastEvening!==d){
+        user.tgLastEvening=d; changed=true;
+        let text=await buildEveningReport(db,user,d);
+        await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
+      }
+    }
+    return changed;
+  }
+
   async function refreshPricesAndAlerts(db){let changed=await refreshAllCryptoPrices(db).catch(()=>false),now=Date.now();for(const user of db.users){let holdings=computeHoldings(db,user.id);for(const t of evaluateAlerts(db,user.id,holdings)){let a=t.alert;if(!a.lastNotifiedAt||now-a.lastNotifiedAt>6*3600*1000){a.lastNotifiedAt=now;changed=true;if(TELEGRAM_BOT_TOKEN&&user.telegramUserId)await tgSend(user.telegramUserId,'🔔 '+t.text)}}}return changed}
 
   return { read, write, json, body, cookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
     jalaliToGregorianIso, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel,
     parseSleepHours, suggestCategoryKeyword, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd,
-    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, tgApi, tgSend, handleTelegramMessage, tgCheckReports, refreshPricesAndAlerts,
+    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, tgApi, tgSend, handleTelegramMessage, tgCheckReports, fetchTehranWeatherBrief, buildMorningBrief, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
     SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI, AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY };
 }
@@ -214,7 +359,7 @@ async function handleApi(request, env) {
     jalaliToGregorianIso, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel,
     parseSleepHours, suggestCategoryKeyword, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd,
-    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, tgApi, tgSend, handleTelegramMessage, tgCheckReports, refreshPricesAndAlerts,
+    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, tgApi, tgSend, handleTelegramMessage, tgCheckReports, fetchTehranWeatherBrief, buildMorningBrief, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
     SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI, AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY } = H;
   const req = request;
