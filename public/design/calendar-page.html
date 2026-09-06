@@ -71,10 +71,58 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .cell.fri .dn{color:var(--bad)}
 .cell.hol{background:color-mix(in srgb,var(--bad) 10%,var(--panel2));border-color:color-mix(in srgb,var(--bad) 40%,var(--border))}
 .cell.hol .dn{color:var(--bad)}
-.cell.sel{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,var(--panel2))}
+/* امروز = فیروزه‌ای کم‌رنگ؛ انتخاب = بنفش/صورتی متمایز + رینگ + برچسب «انتخاب» */
+.cell.today{border-color:var(--acc);box-shadow:0 0 0 1px color-mix(in srgb,var(--acc) 35%,transparent);background:color-mix(in srgb,var(--acc) 8%,var(--panel2))}
+.cell.sel{
+  border-color:#c084fc !important;
+  background:linear-gradient(160deg, color-mix(in srgb,#c084fc 22%,var(--panel2)), color-mix(in srgb,#f472b6 12%,var(--panel2))) !important;
+  box-shadow:0 0 0 2px color-mix(in srgb,#c084fc 55%,transparent), 0 10px 22px -12px rgba(192,132,252,.55) !important;
+  transform:translateY(-2px);
+  position:relative;
+  z-index:1;
+}
+.cell.sel .dn{color:#e9d5ff !important}
+.cell.sel.hol .dn{color:#fda4af !important}
+.cell.sel .tag-sel{
+  display:inline-flex;align-items:center;gap:3px;
+  font-family:var(--fh);font-size:10.5px;font-weight:800;
+  background:#c084fc;color:#1e1033;border-radius:99px;
+  padding:1px 7px;margin-top:2px;width:fit-content;
+}
+.cell:not(.sel) .tag-sel{display:none}
 .cell .dots{display:flex;gap:3px;flex-wrap:wrap;margin-top:auto}
 .cell .dot{width:6px;height:6px;border-radius:99px;background:var(--acc)}
 .cell .dot.h{background:var(--bad)}
+.cell .dot.n{background:#c084fc}
+.note-card{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:18px 20px;margin-top:16px}
+.note-card .nhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.note-card .nhead h3{font-family:var(--fh);font-size:18px;margin:0;flex:1;min-width:160px}
+.note-card .nhead .nday{
+  display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,#c084fc,#f472b6);
+  color:#1a0b2e;border-radius:99px;padding:6px 14px;
+  font-family:var(--fh);font-weight:800;font-size:13.5px;
+}
+.note-card .nhead .nday .ico{font-size:16px}
+.note-card textarea{
+  width:100%;min-height:120px;resize:vertical;
+  background:var(--panel2);border:1.5px solid var(--border);
+  border-radius:16px;padding:14px 16px;color:var(--text);
+  font:inherit;font-size:15.5px;line-height:1.7;outline:none;
+}
+.note-card textarea:focus{border-color:#c084fc;box-shadow:0 0 0 3px color-mix(in srgb,#c084fc 22%,transparent)}
+.note-card textarea::placeholder{color:var(--faint)}
+.note-card .nfoot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.note-card .nfoot .hint{color:var(--faint);font-size:12.5px;flex:1}
+.note-card .nfoot .save{
+  background:linear-gradient(135deg,#c084fc,#a78bfa);color:#1a0b2e;border:none;
+  border-radius:12px;padding:9px 18px;font-family:var(--fh);font-weight:800;font-size:14px;cursor:pointer;
+}
+.note-card .nfoot .save:hover{filter:brightness(1.06)}
+.note-card .nfoot .save:disabled{opacity:.55;cursor:default}
+.note-card .nfoot .st{font-size:12.5px;color:var(--faint);min-width:90px;text-align:left}
+.note-card .nfoot .st.ok{color:var(--good)}
+.note-card .nfoot .st.err{color:var(--bad)}
 .side-card h3{font-family:var(--fh);font-size:18px;margin:0 0 4px}
 .side-card .sub{color:var(--faint);font-size:13px;margin-bottom:12px}
 .side-num{font-family:var(--fh);font-size:64px;font-weight:800;color:var(--acc);line-height:1}
@@ -132,9 +180,11 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
       <div class="wdays"><span>ش</span><span>ی</span><span>د</span><span>س</span><span>چ</span><span>پ</span><span>ج</span></div>
       <div class="grid" id="calGrid"></div>
       <div class="legend">
-        <span><i style="background:var(--acc)"></i> امروز / انتخاب</span>
+        <span><i style="background:var(--acc)"></i> امروز</span>
+        <span><i style="background:#c084fc"></i> روز انتخاب‌شده</span>
         <span><i style="background:var(--bad)"></i> تعطیل / جمعه</span>
         <span><i style="background:var(--muted)"></i> مناسبت</span>
+        <span><i style="background:#c084fc"></i> یادداشت</span>
       </div>
       <div class="stats">
         <div class="stat"><b id="stDays">—</b><small>روز ماه</small></div>
@@ -157,6 +207,19 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
         <h4>مناسبت‌های این ماه</h4>
         <div id="monthEvents"></div>
       </div>
+    </div>
+  </div>
+
+  <div class="note-card" id="dayNoteCard">
+    <div class="nhead">
+      <h3>📝 یادداشت این روز</h3>
+      <span class="nday"><span class="ico" id="noteIco">📅</span><span id="noteDayLabel">—</span></span>
+    </div>
+    <textarea id="dayNote" placeholder="چی گذشت امروز؟ قرار، حال‌وهوا، کارها، هر چیزی که بعداً بخوای یادت بیاد…"></textarea>
+    <div class="nfoot">
+      <span class="hint">ذخیره روی حسابت · با انتخاب روز دیگر عوض می‌شود</span>
+      <span class="st" id="noteSt"></span>
+      <button type="button" class="save" id="noteSave">ذخیره یادداشت</button>
     </div>
   </div>
 </div>
@@ -184,6 +247,15 @@ var HOL={"14030101": "جشن نوروز/جشن سال نو", "14030102": "عید
 
 var EVENTS={"14050601": [{"t": "روز بزرگداشت ابوعلی سینا و روز پزشک"}], "14050602": [{"t": "آغاز هفته دولت"}], "14050603": [{"t": "میلاد رسول اکرم به روایت اهل سنت[ ۱۲ ربیع الاول ]"}], "14050604": [{"t": "زادروز کوروش بزرگ"}, {"t": "شهریور روز،جشن شهریورگان"}], "14050605": [{"t": "روز بزرگداشت محمدبن زکریای رازی و روز داروساز"}], "14050608": [{"t": "انفجار در دفتر نخست‌وزیری جمهوری اسلامی ایران، روز مبارزه با تروریسم"}, {"t": "میلاد رسول اکرم و امام جعفر صادق (ع)[ ۱۷ ربیع الاول ]", "h": 1}], "14050611": [{"t": "روز ملی صنعت چاپ"}], "14050612": [{"t": "سالروز شهادت رئیسعلی دلواری، سردار بزرگ میهن و فرمانده قیام جنوب علیه اشغالگران انگلیسی"}], "14050613": [{"t": "روز بزرگداشت ابوریحان بیرونی"}], "14050619": [{"t": "روز جهانی پیشگیری از خودکشی[ September 10 ]"}], "14050620": [{"t": "حمله به برج‌های دوقلوی مرکز تجارت جهانی[ September 11 ]"}], "14050621": [{"t": "روز سینما"}], "14050627": [{"t": "روز شعر و ادب پارسی و روز بزرگداشت استاد شهریار"}], "14050629": [{"t": "ولادت امام حسن عسکری (ع)[ ۸ ربیع الثانی ]"}], "14050630": [{"t": "روز جهانی صلح[ September 21 ]"}], "14050631": [{"t": "آغاز هفته دفاع مقدس"}, {"t": "وفات حضرت معصومه (س)[ ۱۰ ربیع الثانی ]"}], "14050701": [{"t": "آغاز حمله مغول به ایران در پاییز 598 خورشیدی"}], "14050704": [{"t": "روز گرامیداشت سربازان وطن"}], "14050705": [{"t": "روز جهانی جهانگردی[ September 27 ]"}], "14050707": [{"t": "روز آتش نشانی و ایمنی"}, {"t": "سقوط هواپیمای حامل جمعی از فرماندهان جنگ (کلاهدوز، نامجو، فلاحی، فکوری، جهان آرا) در سال 1360"}, {"t": "روز بزرگداشت شمس تبریزی"}], "14050708": [{"t": "روزبزرگداشت مولوی"}, {"t": "روز جهانی ناشنوایان[ September 30 ]"}, {"t": "روز جهانی ترجمه و مترجم[ September 30 ]"}], "14050709": [{"t": "روز جهانی سالمندان[ October 1 ]"}], "14050710": [{"t": "مهر روز،جشن مهرگان"}], "14050712": [{"t": "آغاز هفته جهانی فضا[ October 4 ]"}], "14050713": [{"t": "روز جهانی معلم[ October 5 ]"}], "14050714": [{"t": "روز دامپزشکی"}], "14050716": [{"t": "روز ملی کودک"}], "14050717": [{"t": "روز جهانی پست[ October 9 ]"}], "14050718": [{"t": "روز جهانی مبارزه با حکم اعدام[ October 10 ]"}], "14050719": [{"t": "روز جهانی دختر[ October 11 ]"}], "14050720": [{"t": "روز بزرگداشت حافظ"}], "14050721": [{"t": "روز پیروزی کاوه و فریدون بر ضحاک"}], "14050722": [{"t": "روز جهانی استاندارد[ October 14 ]"}], "14050723": [{"t": "روز جهانی عصای سفید[ October 15 ]"}], "14050724": [{"t": "ولادت حضرت زینب (س) و روز پرستار و بهورز[ ۵ جمادی الاول ]"}, {"t": "روز جهانی غذا[ October 16 ]"}], "14050725": [{"t": "روز جهانی ریشه کنی فقر[ October 17 ]"}], "14050726": [{"t": "روز تربیت بدنی و ورزش"}], "14050728": [{"t": "زادروز ستارخان ملقب به سردار ملی و از سرداران جنبش مشروطه ایران"}], "14050729": [{"t": "روز ملی کوهنورد"}]};
 var WK=['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه'];
+var WK_ICO=['🌙','☀️','📘','🌿','✏️','🎯','🎉']; /* ش ی د س چ پ ج */
+var NOTE_KEY='cal-day-notes-v1';
+var noteTimer=null, noteDirty=false, noteLoading=false;
+function noteStore(){try{return JSON.parse(localStorage.getItem(NOTE_KEY)||'{}')}catch(e){return{}}}
+function noteSaveLocal(k, text){var s=noteStore();if(text&&text.trim())s[k]=text;else delete s[k];try{localStorage.setItem(NOTE_KEY,JSON.stringify(s))}catch(e){}}
+function noteGetLocal(k){var s=noteStore();return s[k]||''}
+function gregKey(jy,jm,jd){var g=d2g(j2d(jy,jm,jd));return g.gy+'-'+('0'+g.gm).slice(-2)+'-'+('0'+g.gd).slice(-2)}
+function hasNote(jy,jm,jd){var k=keyOf(jy,jm,jd);return !!(noteGetLocal(k)||noteGetLocal(gregKey(jy,jm,jd)))}
+
 var vy,vm,sel={};
 function keyOf(jy,jm,jd){return ''+jy+('0'+jm).slice(-2)+('0'+jd).slice(-2)}
 function monthLen(jy,jm){var leap=jalCal(jy).leap;return jm<=6?31:(jm<12?30:(leap?30:29))}
@@ -235,6 +307,12 @@ function renderSide(){
       return '<div class="erow"><span class="ic">'+(e.h?'🎉':'•')+'</span><div><b>'+esc(e.t)+'</b><small>'+(e.h?'تعطیل / مناسبت ویژه':'مناسبت و یادروز')+'</small></div></div>';
     }).join('');
   }
+  /* برچسب و آیکن روز انتخاب‌شده + باکس یادداشت */
+  var ico=WK_ICO[w]||'📅';
+  var lab=ico+' '+WK[w]+' · '+fa(jd)+' '+CALMON[jm-1];
+  var ni=document.getElementById('noteIco'); if(ni)ni.textContent=ico;
+  var nl=document.getElementById('noteDayLabel'); if(nl)nl.textContent=WK[w]+' '+fa(jd)+' '+CALMON[jm-1]+' '+fa(jy);
+  loadDayNote(jy,jm,jd);
 }
 function renderMonthList(){
   var len=monthLen(vy,vm), html='', nEv=0, nHol=0;
@@ -267,9 +345,13 @@ function renderCal(){
     var g=d2g(j2d(vy,vm,d));
     var cls='cell'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(isHol?' hol':'');
     var dots=list.slice(0,3).map(function(e){return '<span class="dot'+(e.h?' h':'')+'"></span>'}).join('');
+    if(hasNote(vy,vm,d)) dots+='<span class="dot n" title="یادداشت"></span>';
     var evtxt=list.slice(0,2).map(function(e){return esc(e.t)}).join(' · ');
+    var wday=((firstCol+d-1)%7);
+    var tag=isSel?('<span class="tag-sel">'+esc(WK_ICO[wday]||'📌')+' انتخاب</span>'):'';
     html+='<div class="'+cls+'" data-d="'+d+'" title="'+esc(list.map(function(e){return e.t}).join(' | '))+'" role="button" tabindex="0">'
       +'<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="dn">'+fa(d)+'</span><span class="g">'+g.gd+'/'+g.gm+'</span></div>'
+      +tag
       +(evtxt?'<div class="ev">'+evtxt+'</div>':'')
       +(dots?'<div class="dots">'+dots+'</div>':'')
       +'</div>';
@@ -329,6 +411,59 @@ document.getElementById('monthEvents').addEventListener('click',function(e){
   sel={jy:vy,jm:vm,jd:+r.dataset.goto};renderCal();
   window.scrollTo({top:0,behavior:'smooth'});
 });
+
+function setNoteSt(msg, kind){
+  var st=document.getElementById('noteSt'); if(!st)return;
+  st.textContent=msg||''; st.className='st'+(kind?' '+kind:'');
+}
+function loadDayNote(jy,jm,jd){
+  noteLoading=true; noteDirty=false;
+  var ta=document.getElementById('dayNote'); if(!ta)return;
+  var jk=keyOf(jy,jm,jd), gk=gregKey(jy,jm,jd);
+  var local=noteGetLocal(jk)||noteGetLocal(gk)||'';
+  ta.value=local;
+  setNoteSt(local?'ذخیره‌شده محلی':'', local?'ok':'');
+  /* try server daily note (gregorian date) */
+  fetch('/api/dashboard?date='+encodeURIComponent(gk),{credentials:'same-origin'})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+    .then(function(res){
+      if(!res.ok||!res.d)return;
+      var n=(res.d.daily&&res.d.daily.note)||'';
+      if(n && (!ta.value || ta.value===local)){
+        ta.value=n;
+        noteSaveLocal(jk,n);
+        setNoteSt('از سرور', 'ok');
+      }
+    }).catch(function(){})
+    .finally(function(){noteLoading=false});
+}
+function saveDayNote(opts){
+  opts=opts||{};
+  var ta=document.getElementById('dayNote'); if(!ta)return;
+  var text=ta.value||'';
+  var jk=keyOf(sel.jy,sel.jm,sel.jd), gk=gregKey(sel.jy,sel.jm,sel.jd);
+  noteSaveLocal(jk,text);
+  setNoteSt('در حال ذخیره…','');
+  var btn=document.getElementById('noteSave'); if(btn)btn.disabled=true;
+  fetch('/api/daily',{
+    method:'PUT', credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({date:gk, note:text})
+  }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+  .then(function(res){
+    if(res.ok){ noteDirty=false; setNoteSt('✓ ذخیره شد','ok'); }
+    else if(res.status===401){ setNoteSt('محلی ذخیره شد — برای همگام‌سازی وارد شو',''); }
+    else setNoteSt((res.d&&res.d.error)||'ذخیره سرور ناموفق — محلی ماند','err');
+  }).catch(function(){ setNoteSt('آفلاین — فقط محلی','err'); })
+  .finally(function(){ if(btn)btn.disabled=false; if(!opts.silent) renderCal(); });
+}
+document.getElementById('noteSave').addEventListener('click',function(){saveDayNote()});
+document.getElementById('dayNote').addEventListener('input',function(){
+  noteDirty=true; setNoteSt('ذخیره نشده…','');
+  clearTimeout(noteTimer);
+  noteTimer=setTimeout(function(){saveDayNote({silent:true})},1200);
+});
+
 parseQuery();renderCal();
 </script>
 <script>
