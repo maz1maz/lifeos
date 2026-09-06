@@ -682,73 +682,83 @@ body.nav-open .nav-backdrop{display:block}
 }
 
 
-/* بازی‌های امروز — ارتفاع کامل + نتیجه واضح */
-#gamesCard{
-  display:flex;flex-direction:column;min-height:0;height:100% !important;
+
+/* بازی‌ها — هم‌ارتفاع ردیف۲ (کارت هوا) + نتیجه LTR واضح */
+.home-row.r2{
+  align-items:stretch !important;
+}
+.home-row.r2 > .wcard,
+.home-row.r2 > .mcard,
+.home-row.r2 > #gamesCard,
+.home-row.r2 > .tr-combo{
+  height:100%;
+  max-height:100%;
+  min-height:0 !important;
   align-self:stretch;
+  box-sizing:border-box;
+}
+#gamesCard{
+  display:flex !important;flex-direction:column;min-height:0 !important;height:100% !important;
 }
 #gamesCard .gwrap,
 #gamesCard #gamesList{
   flex:1 1 auto !important;
   max-height:none !important;
-  min-height:420px;
+  min-height:0 !important;
   overflow:auto;
-  -webkit-overflow-scrolling:touch;
 }
-.home-row.r2 > #gamesCard{min-height:520px}
 .grow{
-  display:flex;align-items:center;gap:8px;
-  padding:8px 6px;border-bottom:1px solid var(--border);
-  font-size:13.5px;
+  display:flex;flex-direction:column;gap:2px;
+  padding:7px 6px;border-bottom:1px solid var(--border);
+  font-size:13px;
 }
-.grow.is-live{
+.grow.st-live{
   background:color-mix(in srgb,#f87171 8%,transparent);
   border-radius:12px;border-bottom-color:transparent;margin:3px 0;
 }
-.grow .gleft{flex:none;min-width:3.6em}
-.grow .glive{color:#f87171;font-size:11.5px;font-weight:800;white-space:nowrap}
-.grow .gdone{color:var(--good);font-size:11.5px;font-weight:700}
-.grow .gkick{font-family:var(--fh);font-size:12.5px;font-weight:800;color:var(--acc);direction:ltr;unicode-bidi:isolate;white-space:nowrap}
-.grow .gmain{
-  flex:1;min-width:0;
+.grow .gtag{line-height:1}
+.grow .glive{color:#f87171;font-size:11px;font-weight:800}
+.grow .gdone{color:var(--good);font-size:11px;font-weight:700}
+.grow .gline{
   display:grid;
-  grid-template-columns:1fr auto 1fr;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
   align-items:center;gap:8px;
+  direction:ltr; unicode-bidi:isolate;
+  width:100%;
 }
-.grow .gteam{
+.grow .gside{
   display:inline-flex;align-items:center;gap:6px;min-width:0;
 }
-.grow .gteam.home{justify-content:flex-end;text-align:left;direction:ltr}
-.grow .gteam.away{justify-content:flex-start;text-align:right;direction:ltr}
-.grow .gteam .gn{
+.grow .gside.home{justify-content:flex-end}
+.grow .gside.away{justify-content:flex-start}
+.grow .gn{
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  max-width:9em;font-size:13px;
+  max-width:100%;font-size:12.5px;color:var(--text);
 }
 .grow .glogo{
-  width:22px;height:22px;border-radius:50%;object-fit:cover;
+  width:20px;height:20px;border-radius:50%;object-fit:cover;
   background:var(--panel2);flex:none;
 }
-.grow .glogo.gph, .grow .gph{
+.grow .gph{
   display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--muted);
-  width:22px;height:22px;border-radius:50%;background:var(--panel2);
+  width:20px;height:20px;border-radius:50%;background:var(--panel2);flex:none;
 }
-.grow .gscore{
+.grow .gcenter{
+  font-family:var(--fh);font-weight:800;font-size:14px;
+  min-width:3.6em;text-align:center;justify-self:center;
   direction:ltr;unicode-bidi:isolate;
-  display:inline-flex;align-items:center;gap:6px;
-  font-family:var(--fh);font-weight:800;font-size:15px;
-  min-width:3.8em;justify-content:center;
-  background:var(--panel2);border-radius:10px;padding:3px 8px;
 }
-.grow .gscore .gh, .grow .gscore .ga{color:var(--text);min-width:0.9em;text-align:center}
-.grow.is-live .gscore{color:#f87171;background:color-mix(in srgb,#f87171 12%,var(--panel2))}
-.grow .gscore .gx{color:var(--faint);font-size:12px;font-weight:600}
-.grow .gmid{
-  direction:ltr;unicode-bidi:isolate;text-align:center;
-  font-family:var(--fh);font-weight:800;font-size:13px;
-  min-width:3.8em;color:var(--acc);
+.grow .gcenter.score{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  background:var(--panel2);border-radius:9px;padding:2px 8px;
 }
-.grow .gmid.live{color:#f87171;font-size:12px}
-.glg{font-family:var(--fh);font-size:12.5px;font-weight:800;color:var(--acc);margin:12px 2px 6px}
+.grow .gcenter.score b{color:var(--text);font-size:15px}
+.grow .gcenter.score i{font-style:normal;color:var(--faint);font-weight:600}
+.grow.st-live .gcenter.score{background:color-mix(in srgb,#f87171 14%,var(--panel2))}
+.grow.st-live .gcenter.score b{color:#fecaca}
+.grow .gcenter.kick{color:var(--acc);font-size:13px}
+.grow .gcenter.live{color:#f87171;font-size:12px}
+.glg{font-family:var(--fh);font-size:12.5px;font-weight:800;color:var(--acc);margin:10px 2px 4px}
 
 /* page-mobile-extra */
 @media(max-width:900px){
@@ -1896,49 +1906,40 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
       }
     }catch(e){}
     var st=m.status||'upcoming';
-    // normalize scores
     var hs = (m.homeScore!=null && m.homeScore!=='') ? Number(m.homeScore) : null;
     var as = (m.awayScore!=null && m.awayScore!=='') ? Number(m.awayScore) : null;
-    if(hs==null && as==null && m.score && /[\d]/.test(String(m.score))){
+    if((hs==null||as==null) && m.score && /[\d]/.test(String(m.score))){
       var parts=String(m.score).replace(/–|—/g,'-').split(/\s*-\s*/);
-      if(parts.length>=2 && parts[0]!=='' && parts[1]!=='' && parts[0]!=='—' && parts[0]!=='-'){
-        var n0=Number(parts[0]), n1=Number(parts[1]);
+      if(parts.length>=2){
+        var n0=Number(String(parts[0]).trim()), n1=Number(String(parts[1]).trim());
         if(!isNaN(n0)&&!isNaN(n1)){ hs=n0; as=n1; }
       }
     }
     var hasScore = hs!=null && as!=null && !isNaN(hs) && !isNaN(as);
-    // upcoming / not started: NEVER show 0-0 — show kickoff time (Tehran)
-    if(st!=='live' && st!=='finished'){
-      hasScore=false;
-    }
-    // live without real scores
-    var mid;
-    if(st==='live' && !hasScore){
-      mid='<span class="gmid live">در جریان</span>';
-    } else if(hasScore){
-      // score beside each side: Home 0 × 1 Away  (clear who scored)
-      mid='<span class="gscore"><b class="gh">'+hs+'</b><span class="gx">×</span><b class="ga">'+as+'</b></span>';
-    } else {
-      mid='<span class="gmid time">'+(tm||'—')+'</span>';
-    }
-    var badge='';
-    if(st==='live') badge='<span class="glive">● زنده</span>';
-    else if(st==='finished') badge='<span class="gdone">پایان</span>';
-    else badge='<span class="gkick" title="به‌وقت تهران">'+cl(tm||'—')+'</span>';
+    if(st!=='live' && st!=='finished') hasScore=false;
 
     function logo(url,name){
       if(url) return '<img class="glogo" src="'+cl(url)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
       var ch=(name||'?').trim().charAt(0);
       return '<span class="glogo gph">'+cl(ch)+'</span>';
     }
-    // layout: [badge/time] [home logo+name] [score or kickoff] [away logo+name]
-    // direction LTR for score block so 0 is home, 1 is away always
-    return '<div class="grow'+(st==='live'?' is-live':'')+(st==='finished'?' is-done':'')+(st==='upcoming'||(!st)||(st!=='live'&&st!=='finished')?' is-up':'')+'">'
-      +'<div class="gleft">'+badge+'</div>'
-      +'<div class="gmain">'
-        +'<span class="gteam home">'+logo(m.homeLogo,m.home)+'<span class="gn">'+cl(m.home||'—')+'</span></span>'
-        +mid
-        +'<span class="gteam away">'+logo(m.awayLogo,m.away)+'<span class="gn">'+cl(m.away||'—')+'</span></span>'
+    // One clear LTR line:  [HOME] 0 - 2 [AWAY]   so left number = home, right = away
+    var center;
+    if(st==='live' && !hasScore) center='<span class="gcenter live">زنده</span>';
+    else if(hasScore) center='<span class="gcenter score" dir="ltr"><b>'+hs+'</b><i>-</i><b>'+as+'</b></span>';
+    else center='<span class="gcenter kick" dir="ltr" title="به‌وقت تهران">'+cl(tm||'—')+'</span>';
+
+    var tag='';
+    if(st==='live') tag='<span class="glive">● زنده</span>';
+    else if(st==='finished') tag='<span class="gdone">پایان</span>';
+    else tag='';
+
+    return '<div class="grow st-'+cl(st)+'" dir="ltr">'
+      +(tag?'<div class="gtag">'+tag+'</div>':'')
+      +'<div class="gline">'
+        +'<span class="gside home">'+logo(m.homeLogo,m.home)+'<span class="gn">'+cl(m.home||'—')+'</span></span>'
+        +center
+        +'<span class="gside away"><span class="gn">'+cl(m.away||'—')+'</span>'+logo(m.awayLogo,m.away)+'</span>'
       +'</div>'
       +'</div>';
   }
@@ -1960,45 +1961,92 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
       }
     });
     L.innerHTML=h||'<div style="padding:14px 4px;color:var(--faint)">امروز بازی لیگ‌های بزرگ نیست ⚽</div>';
-    var f=document.getElementById('gamesFoot');if(f)f.textContent='به‌وقت تهران · به‌روز'+(d._liveMerged?' + زنده':'');
+    var f=document.getElementById('gamesFoot');if(f)f.textContent='تهران'+(d._at?(' · '+d._at):'')+(d._liveMerged?' · زنده':'')+' · هر ۳۰ث';
     var gs=document.getElementById('gamesSub');if(gs)gs.textContent=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(new Date())+' · لیگ‌های بزرگ';
   }
   function loadGames(){
+    var tehranDate=(function(){try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return new Date().toISOString().slice(0,10)}})();
+    function norm(s){return String(s||'').toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g,'').replace(/fc$|cf$|sc$/,'')}
+    function matchKey(a,b){return norm(a)+'|'+norm(b)}
+    function fuzzyHit(map, home, away){
+      var k=matchKey(home,away); if(map[k]) return map[k];
+      var kr=matchKey(away,home); if(map[kr]) return map[kr];
+      // partial
+      var nh=norm(home), na=norm(away);
+      for(var key in map){
+        var p=key.split('|'); if(p.length<2) continue;
+        if((p[0].indexOf(nh)>=0||nh.indexOf(p[0])>=0)&&(p[1].indexOf(na)>=0||na.indexOf(p[1])>=0)) return map[key];
+        if((p[0].indexOf(na)>=0||na.indexOf(p[0])>=0)&&(p[1].indexOf(nh)>=0||nh.indexOf(p[1])>=0)){
+          // swapped names — swap scores if present
+          var x=Object.assign({}, map[key]);
+          if(x.homeScore!=null||x.awayScore!=null){
+            var ts=x.homeScore; x.homeScore=x.awayScore; x.awayScore=ts;
+            if(x.score && /\d/.test(x.score)){
+              var sp=String(x.score).split(/\s*-\s*/);
+              if(sp.length>=2) x.score=String(sp[1]).trim()+' - '+String(sp[0]).trim();
+            }
+            var th=x.home; x.home=x.away; x.away=th;
+          }
+          return x;
+        }
+      }
+      return null;
+    }
+    function applyLive(m, hit){
+      if(!hit) return;
+      if(hit.status) m.status=hit.status;
+      if(hit.homeScore!=null && hit.awayScore!=null){
+        // only apply if same orientation (home names similar) else already swapped in fuzzyHit
+        m.homeScore=hit.homeScore; m.awayScore=hit.awayScore;
+        m.score=String(hit.homeScore)+' - '+String(hit.awayScore);
+      } else if(hit.score && hit.score!=='—'){
+        m.score=hit.score;
+        var sp=String(hit.score).replace(/–|—/g,'-').split(/\s*-\s*/);
+        if(sp.length>=2){ m.homeScore=Number(sp[0]); m.awayScore=Number(sp[1]); }
+      }
+      if(hit.homeLogo && !m.homeLogo) m.homeLogo=hit.homeLogo;
+      if(hit.awayLogo && !m.awayLogo) m.awayLogo=hit.awayLogo;
+    }
     Promise.all([
-      fetch('/api/football/remote/free/day?date='+encodeURIComponent((function(){try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return new Date().toISOString().slice(0,10)}})())).then(function(r){return r.json()}).catch(function(){return{leagues:[]}}),
-      fetch('/api/football/remote/free/live').then(function(r){return r.json()}).catch(function(){return{items:[]}})
+      fetch('/api/football/remote/free/day?date='+encodeURIComponent(tehranDate)+'&_='+Date.now()).then(function(r){return r.json()}).catch(function(){return{leagues:[]}}),
+      fetch('/api/football/remote/free/live?_='+Date.now()).then(function(r){return r.json()}).catch(function(){return{items:[]}})
     ]).then(function(arr){
       var d=arr[0]||{leagues:[]}, live=arr[1]||{items:[]};
       var by={};
-      (live.items||[]).forEach(function(x){
-        by[(x.home+'|'+x.away).toLowerCase()]=x;
+      function indexItem(x){
+        if(!x) return;
+        by[matchKey(x.home,x.away)]=x;
         if(x.fixtureId) by['id:'+x.fixtureId]=x;
+      }
+      (live.items||[]).forEach(indexItem);
+      // also index live games already inside day payload
+      (d.leagues||[]).forEach(function(lg){
+        (lg.items||[]).forEach(function(m){ if(m.status==='live'||m.status==='finished') indexItem(m); });
       });
       (d.leagues||[]).forEach(function(lg){
         (lg.items||[]).forEach(function(m){
-          var hit=by['id:'+m.fixtureId]||by[(m.home+'|'+m.away).toLowerCase()];
-          if(hit){
-            if(hit.score&&hit.score!=='—') m.score=hit.score;
-            if(hit.status) m.status=hit.status;
-            if(hit.homeScore!=null) m.homeScore=hit.homeScore;
-            if(hit.awayScore!=null) m.awayScore=hit.awayScore;
-          }
+          var hit=null;
+          if(m.fixtureId && by['id:'+m.fixtureId]) hit=by['id:'+m.fixtureId];
+          else hit=fuzzyHit(by, m.home, m.away);
+          // Prefer fresher live scores when status is live
+          if(hit && (hit.status==='live' || hit.status==='finished' || m.status==='live')) applyLive(m, hit);
         });
       });
-      // also append live matches not already listed
       var seen={};
-      (d.leagues||[]).forEach(function(lg){(lg.items||[]).forEach(function(m){seen[(m.home+'|'+m.away).toLowerCase()]=1})});
-      var extra=(live.items||[]).filter(function(x){return !seen[(x.home+'|'+x.away).toLowerCase()]});
+      (d.leagues||[]).forEach(function(lg){(lg.items||[]).forEach(function(m){seen[matchKey(m.home,m.away)]=1; seen[matchKey(m.away,m.home)]=1})});
+      var extra=(live.items||[]).filter(function(x){return !seen[matchKey(x.home,x.away)]});
       if(extra.length){
         d.leagues=d.leagues||[];
-        d.leagues.unshift({name:'🔴 زنده الآن', items:extra});
+        d.leagues.unshift({id:'live', name:'🔴 زنده الآن', items:extra});
       }
       d._liveMerged=!!(live.items&&live.items.length);
+      d._at=new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Tehran'});
       paintGames(d);
     }).catch(function(){L.innerHTML='<div style="padding:14px 4px;color:var(--faint)">دریافت بازی‌ها ناموفق بود</div>'});
   }
   loadGames();
-  setInterval(loadGames, 60*1000);
+  setInterval(loadGames, 30*1000);
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) loadGames(); });
 })();
 </script>
 <script>

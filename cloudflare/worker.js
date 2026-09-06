@@ -401,7 +401,34 @@ async function handleApi(request, env) {
     
     return json(res,200,{date,leagues})}
  if(p==='/api/football/remote/free/table'&&req.method==='GET'){let db=await read();auth(req,res,db);let leagueId=u.searchParams.get('league')||'eng.1',league=FREE_LEAGUES.find(l=>l.id===leagueId);if(!league)return json(res,400,{error:'لیگ شناخته نشد.'});let data;try{data=await fetchTheSportsDb('/lookuptable.php?l='+league.tsdb+'&s='+league.season)}catch(e){return json(res,502,{error:'دریافت جدول '+league.name+' ناموفق بود.'})}return json(res,200,{items:(data.table||[]).map(r=>({rank:Number(r.intRank),name:r.strTeam,played:Number(r.intPlayed),win:Number(r.intWin),draw:Number(r.intDraw),loss:Number(r.intLoss),goalsFor:Number(r.intGoalsFor),goalsAgainst:Number(r.intGoalsAgainst),goalDiff:Number(r.intGoalDifference),points:Number(r.intPoints),form:r.strForm||''}))})}
- if(p==='/api/football/remote/free/live'&&req.method==='GET'){let db=await read();auth(req,res,db);let data;try{data=await fetchTheSportsDb('/livescore.php?s=Soccer')}catch(e){return json(res,502,{error:'دریافت بازی‌های زنده ناموفق بود.'})}return json(res,200,{items:(data.livescore||[]).map(mapTheSportsDbEvent)})}
+ if(p==='/api/football/remote/free/live'&&req.method==='GET'){let db=await read();auth(req,res,db);let items=[],seen=new Set();
+    // ESPN live/in-progress from major leagues (fresh scores)
+    for(const league of FREE_LEAGUES){
+      try{
+        let data=await fetchEspnScoreboard(league.id, null);
+        for(const ev of (data.events||[])){
+          let m=mapEspnEvent(ev, league.name);
+          if(m.status==='live' || m.status==='finished'){
+            let k=(m.home+'|'+m.away).toLowerCase();
+            if(seen.has(k)) continue; seen.add(k);
+            items.push(m);
+          }
+        }
+      }catch(e){}
+    }
+    try{
+      let data=await fetchTheSportsDb('/livescore.php?s=Soccer');
+      for(const raw of (data.livescore||[])){
+        let m=mapTheSportsDbEvent(raw);
+        let k=(m.home+'|'+m.away).toLowerCase();
+        if(seen.has(k)){
+          // prefer ESPN item already there; skip
+          continue;
+        }
+        seen.add(k); items.push(m);
+      }
+    }catch(e){}
+    return json(res,200,{items, at:new Date().toISOString()})}
  if(p==='/api/football/remote/1xbet/sports'&&req.method==='GET'){let db=await read();auth(req,res,db);let data;try{data=await xbetGet('/sports',{})}catch(e){return json(res,502,{error:e.message})}if(!data)return json(res,503,{error:'کلید RapidAPI هنوز در تنظیمات سرور وارد نشده است.'});return json(res,200,{items:data})}
  if(p==='/api/football/remote/1xbet/leagues'&&req.method==='GET'){let db=await read();auth(req,res,db);let sportId=u.searchParams.get('sportId');if(!sportId)return json(res,400,{error:'شناسهٔ رشتهٔ ورزشی لازم است.'});let data;try{data=await xbetGet('/sports/'+encodeURIComponent(sportId)+'/leagues',{})}catch(e){return json(res,502,{error:e.message})}if(!data)return json(res,503,{error:'کلید RapidAPI هنوز در تنظیمات سرور وارد نشده است.'});return json(res,200,{items:data})}
  if(p==='/api/football/remote/1xbet/matches'&&req.method==='GET'){let db=await read();auth(req,res,db);let sportId=u.searchParams.get('sportId'),leagueId=u.searchParams.get('leagueId');if(!sportId||!leagueId)return json(res,400,{error:'شناسهٔ رشته و لیگ لازم است.'});let data;try{data=await xbetGet('/matches',{sport_id:sportId,league_id:leagueId})}catch(e){return json(res,502,{error:e.message})}if(!data)return json(res,503,{error:'کلید RapidAPI هنوز در تنظیمات سرور وارد نشده است.'});return json(res,200,{items:data})}
