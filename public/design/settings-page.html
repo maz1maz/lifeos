@@ -22,6 +22,23 @@ html[data-mode="light"]{
   --border:#e3e7f1; --border2:#c9d2e5;
   --text:#1b2233; --muted:#5c687f; --faint:#8b95ac;
 }
+
+/* ===== nav ===== */
+.nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:16px;padding:10px 22px;
+  background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border)}
+.nav .brand{font-family:var(--fh);font-weight:800;font-size:22px;color:var(--acc);text-decoration:none;line-height:1.2}
+.navlinks{display:flex;gap:4px;flex:1;flex-wrap:wrap}
+.navlinks a{color:var(--muted);text-decoration:none;font-family:var(--fh);font-size:14.5px;padding:6px 13px;border-radius:11px}
+.navlinks a:hover{color:var(--text);background:var(--panel2)}
+.navlinks a.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);font-weight:700}
+.navtools{display:flex;gap:8px;align-items:center;flex:none}
+.navuser{font-size:14px;color:var(--muted);white-space:nowrap}
+.navout{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:11px;
+  padding:6px 14px;font-family:var(--fh);font-size:13.5px;cursor:pointer}
+.navout:hover{color:var(--bad);border-color:var(--bad)}
+.navin{background:var(--acc);color:#062028;border-radius:11px;padding:6px 16px;
+  font-family:var(--fh);font-size:13.5px;font-weight:800;text-decoration:none}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-size:17px;line-height:1.9;
   background-image:radial-gradient(1000px 560px at 85% -6%, color-mix(in srgb,var(--acc) 8%,transparent), transparent 62%);
@@ -113,11 +130,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 <body>
 <div class="wrap">
 
-  <div class="top">
-    <div class="mark">هـ</div>
-    <h1>تنظیمات و <span>اتصال‌ها</span> ⚙️</h1>
-    <div class="tools"><button class="iconbtn" id="modeBtn">🌙</button></div>
-  </div>
+  <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/settings-page.html" class="on">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
   <p class="lead">تلگرام، حساب کاربری و سرویس‌های وصل‌شونده</p>
 
   <!-- تلگرام -->
@@ -278,6 +291,15 @@ var mb=document.getElementById('modeBtn');
 mb.addEventListener('click',function(){var r=document.documentElement,l=r.dataset.mode==='light';
   r.dataset.mode=l?'dark':'light';mb.textContent=l?'🌙':'☀️';});
 renderH();
+
+/* ===== nav auth ===== */
+(function(){fetch('/api/me').then(function(r){return r.json()}).then(function(d){
+  var b=document.getElementById('navAuth');if(!b)return;
+  if(d&&d.user){var n=String(d.user.name||'').replace(/[<>&"]/g,'');
+    b.innerHTML='<span class="navuser">'+n+'</span> <button class="navout" id="navOut">خروج</button>';
+    document.getElementById('navOut').onclick=function(){fetch('/api/auth/logout',{method:'POST'}).finally(function(){location.href='/design/login-page.html'})};
+  }else b.innerHTML='<a class="navin" href="/design/login-page.html">ورود</a>';
+}).catch(function(){var b=document.getElementById('navAuth');if(b)b.innerHTML='<a class="navin" href="/design/login-page.html">ورود</a>'})})();
 </script>
 </body>
 </html>
