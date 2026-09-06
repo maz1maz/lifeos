@@ -105,16 +105,16 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 /* ===== چیدمان امروز: ردیف‌های صریح ===== */
 .home{display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .home-row{display:grid;gap:14px;align-items:stretch;width:100%}
-.home-row.r1{grid-template-columns:minmax(0,1fr) 250px;align-items:start;gap:14px}
+.home-row.r1{grid-template-columns:minmax(0,1.4fr) 260px;align-items:stretch;gap:14px}
 .home-row.r2{grid-template-columns:repeat(4,minmax(0,1fr))}
 .home-row.r3{grid-template-columns:repeat(2,minmax(0,1fr))}
 .home-row.r4{grid-template-columns:repeat(3,minmax(0,1fr))}
 
 /* ردیف ۱: کارت تاریخ (راست) + مینی‌تقویم با دما (چپ) */
-.home-row.r1{grid-template-columns:minmax(0,1fr) 250px;align-items:start;gap:14px}
+.home-row.r1{grid-template-columns:minmax(0,1.4fr) 260px;align-items:stretch;gap:14px}
 .minical{
   /* هم‌اندازهٔ تقویم انتخاب روز کارها (calpop = 250px) */
-  width:250px;max-width:250px;box-sizing:border-box;
+  width:100%;max-width:260px;box-sizing:border-box;
   background:var(--bg);border:1px solid var(--border2);border-radius:15px;
   padding:12px 14px;display:flex;flex-direction:column;min-width:0;height:auto;
   cursor:pointer;position:relative;overflow:hidden;
@@ -151,14 +151,14 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .minical .mc.hol{color:var(--bad);font-weight:700}
 .minical .mcfoot{
   margin-top:8px;padding-top:8px;border-top:1px solid var(--border);
-  display:flex;align-items:center;justify-content:center;gap:8px
+  display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap
 }
-.minical .mcfoot .tic{font-size:20px;line-height:1}
-.minical .mcfoot .ttemp{font-family:var(--fh);font-size:20px;font-weight:800;color:var(--acc);line-height:1}
+.minical .mcfoot .tic{font-size:22px;line-height:1}
+.minical .mcfoot .ttemp{font-family:var(--fh);font-size:22px;font-weight:800;color:var(--acc);line-height:1}
 .minical .mcfoot .ttemp small{font-size:12px;font-weight:600;color:var(--muted);margin-right:2px}
-.home-row.r1 .datecard{height:auto;min-height:100%}
-/* minical fixed size like calpop */
-.home-row.r1 .minical{height:auto;align-self:start}
+.minical .mcfoot .mcplace{font-family:var(--fh);font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+.home-row.r1 .datecard{height:100%}
+.home-row.r1 .minical{height:100%;align-self:stretch;max-width:260px;width:100%}
 
 @media(max-width:1279px){
   .home-row.r2{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -202,6 +202,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .grow .gsc{font-family:var(--fh);font-weight:700;color:var(--muted);direction:ltr;white-space:nowrap}
 .grow .gtime{font-size:13px;color:var(--faint);white-space:nowrap}
 .glive{color:#f87171;font-size:12px;white-space:nowrap}
+.gsc.live{color:#f87171;font-weight:800}
+.grow.is-live{background:color-mix(in srgb,#f87171 6%,transparent);border-radius:10px;padding:4px 6px;margin:2px 0}
 .gwrap{max-height:290px;overflow:auto}
 /* ===== زوم 🔍 ===== */
 .navzoom{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:11px;
@@ -566,9 +568,10 @@ body.nav-open .nav-backdrop{display:block}
       </div>
       <div class="mcwd"><span>ش</span><span>ی</span><span>د</span><span>س</span><span>چ</span><span>پ</span><span>ج</span></div>
       <div class="mcgrid" id="mcGrid"></div>
-      <div class="mcfoot">
+            <div class="mcfoot">
         <span class="ttemp"><span id="mcTemp">—</span><small>°</small></span>
         <span class="tic" id="mcIcon">☀️</span>
+        <span class="mcplace" id="mcPlace">امروز تهران</span>
       </div>
     </div>
   </div>
@@ -633,8 +636,6 @@ body.nav-open .nav-backdrop{display:block}
         <span style="font-size:14px;color:var(--faint)">برای:</span>
         <span class="dchip on" data-r="0">امروز</span>
         <span class="dchip" data-r="1">فردا</span>
-        <span class="dchip" data-r="3">۳ روز</span>
-        <span class="dchip" data-r="7">۷ روز</span>
         <span class="dchip" id="remMore">📅 روز دیگر</span>
       </div>
       <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
@@ -812,7 +813,7 @@ function renderDay(off){
   var get=function(t){var p=parts.find(function(x){return x.type===t});return p?p.value:''};
   var dayNum=get('day'),month=get('month'),year=get('year'),wk=get('weekday').replace('،','').trim();
   document.getElementById('dNum').textContent=dayNum;
-  var tag=off===0?'':(off===1?' · فردا':(off===-1?' · دیروز':(off>1?' · '+fa(off)+' روز بعد':' · '+fa(-off)+' روز قبل')));
+  var tag=off===0?'':(off===1?' فردا':(off===-1?' دیروز':(off>1?' '+fa(off)+' روز بعد':' '+fa(-off)+' روز قبل')));
   document.getElementById('dWk').textContent=wk+tag;
   document.getElementById('dMon').textContent=month+' '+year;
   document.getElementById('dGreg').textContent=new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(now)+' · '+new Intl.DateTimeFormat('en-GB',{weekday:'long'}).format(now);
@@ -1615,19 +1616,67 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
   var L=document.getElementById('gamesList');if(!L)return;
   function cl(x){return String(x==null?'':x).replace(/[<>&]/g,'')}
   function row(m){
-    var t=m.date?new Date(m.date):null,tm=(t&&!isNaN(t))?fa(t.toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tehran'})):'';
-    if(m.status!=='live'&&m.status!=='finished')return '<div class="grow"><span class="gt" style="flex:1">'+cl(m.home)+' × '+cl(m.away)+'</span><span class="gtime" style="font-family:var(--fh);white-space:nowrap">⏱ '+tm+' تهران</span></div>';
-    var badge=m.status==='live'?'<span class="glive">● زنده</span>':'✅';
-    return '<div class="grow">'+badge+'<span class="gt">'+cl(m.home)+' × '+cl(m.away)+'</span><span class="gsc">'+cl(m.score||'—')+'</span></div>';
+    var tm='';
+    try{ if(m.date){ tm=new Date(m.date).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'}); } }catch(e){}
+    var st=m.status||'upcoming';
+    var score=m.score;
+    // never show bogus live 0-0 / empty
+    if(!score || score==='— ' || score==='- - -' || score==='null - null') score='—';
+    if(st==='live' && (score==='—'||score==='0 - 0'||score==='0-0') && m.homeScore==null && m.awayScore==null){
+      // keep live badge but show «در جریان» instead of fake 0-0 if we truly don't know — still allow real 0-0 when homeScore===0
+      score='در جریان';
+    }
+    if(st==='live' && (score==='0 - 0'||score==='0-0') && m.homeScore==null){
+      score='در جریان';
+    }
+    var badge=st==='live'?'<span class="glive">● زنده</span>':(st==='finished'?'✅':'⏱');
+    var scCls=st==='live'?'gsc live':'gsc';
+    return '<div class="grow'+(st==='live'?' is-live':'')+'">'+badge+'<span class="gt">'+cl(m.home)+' × '+cl(m.away)+'</span><span class="'+scCls+'">'+cl(score||'—')+'</span></div>';
   }
-  fetch('/api/football/remote/free/day').then(function(r){return r.json()}).then(function(d){
+  function paintGames(d){
     var h='';
     (d.leagues||[]).forEach(function(lg){ if(!lg.items||!lg.items.length)return;
       h+='<div class="glg">'+cl(lg.name)+'</div>'+lg.items.map(row).join(''); });
     L.innerHTML=h||'<div style="padding:14px 4px;color:var(--faint)">امروز بازی لیگ‌های بزرگ نیست ⚽</div>';
-    var f=document.getElementById('gamesFoot');if(f)f.textContent='به‌وقت تهران';
+    var f=document.getElementById('gamesFoot');if(f)f.textContent='به‌وقت تهران · به‌روز'+(d._liveMerged?' + زنده':'');
     var gs=document.getElementById('gamesSub');if(gs)gs.textContent=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(new Date())+' · لیگ‌های بزرگ';
-  }).catch(function(){L.innerHTML='<div style="padding:14px 4px;color:var(--faint)">دریافت بازی‌ها ناموفق بود</div>'});
+  }
+  function loadGames(){
+    Promise.all([
+      fetch('/api/football/remote/free/day').then(function(r){return r.json()}).catch(function(){return{leagues:[]}}),
+      fetch('/api/football/remote/free/live').then(function(r){return r.json()}).catch(function(){return{items:[]}})
+    ]).then(function(arr){
+      var d=arr[0]||{leagues:[]}, live=arr[1]||{items:[]};
+      var by={};
+      (live.items||[]).forEach(function(x){
+        by[(x.home+'|'+x.away).toLowerCase()]=x;
+        if(x.fixtureId) by['id:'+x.fixtureId]=x;
+      });
+      (d.leagues||[]).forEach(function(lg){
+        (lg.items||[]).forEach(function(m){
+          var hit=by['id:'+m.fixtureId]||by[(m.home+'|'+m.away).toLowerCase()];
+          if(hit){
+            if(hit.score&&hit.score!=='—') m.score=hit.score;
+            if(hit.status) m.status=hit.status;
+            if(hit.homeScore!=null) m.homeScore=hit.homeScore;
+            if(hit.awayScore!=null) m.awayScore=hit.awayScore;
+          }
+        });
+      });
+      // also append live matches not already listed
+      var seen={};
+      (d.leagues||[]).forEach(function(lg){(lg.items||[]).forEach(function(m){seen[(m.home+'|'+m.away).toLowerCase()]=1})});
+      var extra=(live.items||[]).filter(function(x){return !seen[(x.home+'|'+x.away).toLowerCase()]});
+      if(extra.length){
+        d.leagues=d.leagues||[];
+        d.leagues.unshift({name:'🔴 زنده الآن', items:extra});
+      }
+      d._liveMerged=!!(live.items&&live.items.length);
+      paintGames(d);
+    }).catch(function(){L.innerHTML='<div style="padding:14px 4px;color:var(--faint)">دریافت بازی‌ها ناموفق بود</div>'});
+  }
+  loadGames();
+  setInterval(loadGames, 60*1000);
 })();
 </script>
 <script>
