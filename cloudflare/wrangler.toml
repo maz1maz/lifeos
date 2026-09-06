@@ -4,6 +4,7 @@ compatibility_date = "2026-08-01"
 
 [assets]
 directory = "../public"
+binding = "ASSETS"
 run_worker_first = true
 # Note: /public/uploads/ locally holds user-uploaded receipts; those are
 # runtime data, not build-time assets, so they are NOT deployed here.
