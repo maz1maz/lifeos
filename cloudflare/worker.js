@@ -89,10 +89,50 @@ function makeHelpers(env) {
   async function syncAllNewsSources(db){let results=[],changed=false;for(const user of db.users){for(const src of db.newsSources.filter(x=>x.userId===user.id&&x.active)){let r=await syncOneNewsSource(db,user.id,src);if(r.added)changed=true;results.push(r)}}return{changed,results}}
   async function rapidApiGet(host,path){if(!RAPIDAPI_KEY)return null;let r=await fetch('https://'+host+path,{headers:{'x-rapidapi-key':RAPIDAPI_KEY,'x-rapidapi-host':host}}),data=await r.json();if(!r.ok)throw new Error((data&&(data.message||data.error))||'خطا در دریافت داده از RapidAPI');return data}
   async function apiFootballFetch(path,params){let qs='?'+new URLSearchParams(params||{});if(API_FOOTBALL_KEY){let r=await fetch('https://v3.football.api-sports.io'+path+qs,{headers:{'x-apisports-key':API_FOOTBALL_KEY}}),data=await r.json();if(!r.ok)throw new Error(data.message||'خطا در دریافت داده از API-Football');return data}if(RAPIDAPI_KEY)return rapidApiGet('api-football-v1.p.rapidapi.com','/v3'+path+qs);return null}
-  const FREE_LEAGUES=[{id:'eng.1',tsdb:'4328',name:'لیگ برتر انگلیس',country:'انگلیس',season:'2026-2027'},{id:'esp.1',tsdb:'4335',name:'لالیگا',country:'اسپانیا',season:'2026-2027'},{id:'ita.1',tsdb:'4332',name:'سری آ',country:'ایتالیا',season:'2026-2027'},{id:'ger.1',tsdb:'4331',name:'بوندس‌لیگا',country:'آلمان',season:'2026-2027'},{id:'fra.1',tsdb:'4334',name:'لیگ ۱',country:'فرانسه',season:'2026-2027'},{id:'tur.1',tsdb:'4339',name:'سوپر لیگ ترکیه',country:'ترکیه',season:'2026-2027'},{id:'ksa.1',tsdb:'4668',name:'لیگ حرفه‌ای عربستان',country:'عربستان',season:'2025-2026'},{id:'irn.1',tsdb:'4742',name:'لیگ برتر خلیج فارس',country:'ایران',season:'2025-2026'}];
+  const FREE_LEAGUES=[{id:'irn.1',tsdb:'4742',name:'لیگ برتر خلیج فارس',country:'ایران',season:'2025-2026'},{id:'eng.1',tsdb:'4328',name:'لیگ برتر انگلیس',country:'انگلیس',season:'2026-2027'},{id:'esp.1',tsdb:'4335',name:'لالیگا',country:'اسپانیا',season:'2026-2027'},{id:'ita.1',tsdb:'4332',name:'سری آ',country:'ایتالیا',season:'2026-2027'},{id:'ger.1',tsdb:'4331',name:'بوندس‌لیگا',country:'آلمان',season:'2026-2027'},{id:'fra.1',tsdb:'4334',name:'لیگ ۱',country:'فرانسه',season:'2026-2027'},{id:'tur.1',tsdb:'4339',name:'سوپر لیگ ترکیه',country:'ترکیه',season:'2026-2027'},{id:'ksa.1',tsdb:'4668',name:'لیگ حرفه‌ای عربستان',country:'عربستان',season:'2025-2026'}];
   async function fetchEspnScoreboard(espnCode,date){let q=(date?'?dates='+date.replace(/-/g,''):''),hosts=['https://site.api.espn.com','https://site.web.api.espn.com'],last=null;for(let h of hosts){try{let r=await fetch(h+'/apis/site/v2/sports/soccer/'+espnCode+'/scoreboard'+q,{headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36','Accept':'application/json'}});if(!r.ok){last='HTTP '+r.status;continue}let data=await r.json();if(data&&data.events)return data;last='خالی'}catch(e){last=e.message}}throw new Error('ESPN: '+(last||'ناموفق'))}
-  const ESPN_LEAGUE_IDS=['eng.1','esp.1','ita.1','ger.1','fra.1','tur.1'];
-  async function fetchFreeLeagueDay(league,date){if(ESPN_LEAGUE_IDS.includes(league.id)){try{let data=await fetchEspnScoreboard(league.id,date);let items=(data.events||[]).map(ev=>mapEspnEvent(ev,league.name));if(items.length)return items}catch(e){}}let data=await fetchTheSportsDb('/eventsseason.php?id='+league.tsdb+'&s='+league.season);return(data.events||[]).filter(e=>e.dateEvent===date).map(mapTheSportsDbEvent)}
+  const ESPN_LEAGUE_IDS=['eng.1','esp.1','ita.1','ger.1','fra.1','tur.1','irn.1','ksa.1'];
+  async function fetchFreeLeagueDay(league,date){
+    // 1) ESPN scoreboard (includes Iran irn.1 when available)
+    if(ESPN_LEAGUE_IDS.includes(league.id)){
+      try{
+        let data=await fetchEspnScoreboard(league.id,date);
+        let items=(data.events||[]).map(ev=>mapEspnEvent(ev,league.name));
+        if(items.length)return items;
+      }catch(e){}
+    }
+    // 2) TheSportsDB day lookup (better for "today" than full season dump)
+    try{
+      let day=await fetchTheSportsDb('/eventsday.php?d='+encodeURIComponent(date)+'&s=Soccer');
+      let dayItems=(day.events||[]).filter(e=>{
+        let lid=String(e.idLeague||'');
+        let lname=(e.strLeague||'').toLowerCase();
+        if(lid && String(league.tsdb)===lid) return true;
+        // Iran aliases
+        if(league.id==='irn.1'){
+          return /persian gulf|iran|خلیج|برتر.*ایران|ipl|persian/.test(lname) || lid==='4742';
+        }
+        return false;
+      }).map(mapTheSportsDbEvent);
+      if(dayItems.length)return dayItems;
+    }catch(e){}
+    // 3) season dump — try current + nearby seasons
+    let seasons=[league.season];
+    if(league.id==='irn.1'){
+      seasons=['2025-2026','2024-2025','2026-2027','2023-2024'];
+    }
+    for(let season of seasons){
+      try{
+        let data=await fetchTheSportsDb('/eventsseason.php?id='+league.tsdb+'&s='+season);
+        let items=(data.events||[]).filter(e=>e.dateEvent===date).map(mapTheSportsDbEvent);
+        if(items.length){
+          league.season=season; // remember working season
+          return items;
+        }
+      }catch(e){}
+    }
+    return [];
+  }
   async function fetchTheSportsDb(path){let r=await fetch('https://www.thesportsdb.com/api/v1/json/3'+path),data=await r.json();if(!r.ok)throw new Error('HTTP '+r.status);return data}
   function mapEspnEvent(ev,leagueName){
     let comp=(ev.competitions&&ev.competitions[0])||{};

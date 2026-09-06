@@ -865,7 +865,7 @@ body.nav-open .nav-backdrop{display:block}
       </div>
 </div>
 <div class="mcard" id="gamesCard">
-    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ</span></div>
+    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ + ایران</span></div>
     <div class="gwrap" id="gamesList">در حال دریافت…</div>
     <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
   </div>
@@ -1756,7 +1756,12 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
   }
   function paintGames(d){
     var h='';
-    (d.leagues||[]).forEach(function(lg){ if(!lg.items||!lg.items.length)return;
+    var leagues=(d.leagues||[]).slice().sort(function(a,b){
+      var ia=/ایران|خلیج فارس|persian|irn/i.test(a.name||a.id||'')?0:1;
+      var ib=/ایران|خلیج فارس|persian|irn/i.test(b.name||b.id||'')?0:1;
+      return ia-ib;
+    });
+    leagues.forEach(function(lg){ if(!lg.items||!lg.items.length)return;
       h+='<div class="glg">'+cl(lg.name)+'</div>'+lg.items.map(row).join(''); });
     L.innerHTML=h||'<div style="padding:14px 4px;color:var(--faint)">امروز بازی لیگ‌های بزرگ نیست ⚽</div>';
     var f=document.getElementById('gamesFoot');if(f)f.textContent='به‌وقت تهران · به‌روز'+(d._liveMerged?' + زنده':'');
