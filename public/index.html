@@ -112,6 +112,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 @media(max-width:1279px){.page3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .page3 .datecard{grid-column:1/-1}
+.dgreet{font-size:15px;color:var(--muted);margin:0 0 4px}
 .datecard .drow{flex:1;align-items:center;gap:28px}
 .navcard{cursor:pointer}
 .navcard:hover{border-color:rgba(34,211,238,.45)}
@@ -376,15 +377,14 @@ body.zoom1{zoom:1.1111}
 </style>
 </head>
 <body>
-<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="on">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><span id="navAuth"></span></div></nav>
+<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="on">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
 <div class="wrap">
 
-  <div class="tools"><button class="iconbtn" id="modeBtn">🌙</button></div>
-  <div class="lead">سلام حمیدرضا 👋 — تاریخ، هوا، روزمرگی و پولت، همه در یک نگاه · داده‌ها واقعی‌اند؛ اگر اینترنت در دسترس نبود، آخرین اسنپ‌شات</div>
-  <div class="page3">
+<div class="page3">
   <!-- ============ هیرو: تاریخ + هوا ============ -->
   <div class="duo hero-duo" style="grid-template-columns:1.05fr 1fr">
     <div class="datecard">
+      <div class="dgreet" id="dayGreet">سلام حمیدرضا 👋 — تاریخ، هوا، روزمرگی و پولت، همه در یک نگاه · داده‌ها واقعی‌اند</div>
       <div class="drow">
         <div class="dnum" id="dNum">—</div>
         <div class="dmeta">
@@ -612,7 +612,7 @@ body.zoom1{zoom:1.1111}
 /* ===== دروازه‌ی لاگین ===== */
 fetch('/api/me').then(function(r){return r.json()}).then(function(d){
   if(!d||!d.user)return;
-  var el=document.querySelector('.lead');
+  var el=document.getElementById('dayGreet');
   if(el&&d.user.name)el.textContent='سلام '+d.user.name+' 👋 — تاریخ، هوا، روزمرگی و پولت، همه در یک نگاه · داده‌ها واقعی‌اند';
 }).catch(function(){});
 
