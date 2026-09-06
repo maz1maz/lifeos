@@ -790,7 +790,7 @@ function chgHtml(c){
 }
 function renderMarket(){
   var d=MK.data;
-  function prUSD(v){return v>=1000?faNum(Math.round(v).toLocaleString('en-US')):faNum((Math.round(v*100)/100).toLocaleString('en-US'))}
+  function prUSD(v){return v>=1000?faNum(Math.round(v)):faNum(Math.round(v*100)/100)}
   function row(ic,nm,sub,pr,unit,c){return '<div class="mrow"><div class="ic">'+ic+'</div><div class="nm"><b>'+nm+'</b><small>'+sub+'</small></div>'+chgHtml(c)+'<div class="pr">'+pr+' <small>'+unit+'</small></div></div>'}
   var g=d.gold||SNAP.gold,sv=d.silver||SNAP.silver,b=d.btc||SNAP.btc,e=d.eth||SNAP.eth,T=(typeof TOMAN!=='undefined')?TOMAN:null;
   function tm(k){return T&&T[k]}function pc(x){return (x&&x.chg&&x.chg[1]!=null)?x.chg[1]:null}

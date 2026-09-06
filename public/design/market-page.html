@@ -441,7 +441,7 @@ function chgHtml(c){
 function renderMarket(){
   var d=MK.data;
   function mkrow(x){
-    var pr = x.v.p>=1000 ? faNum(Math.round(x.v.p).toLocaleString('en-US')) : faNum((Math.round(x.v.p*100)/100).toLocaleString('en-US'));
+    var pr = x.v.p>=1000 ? faNum(Math.round(x.v.p)) : faNum(Math.round(x.v.p*100)/100);
     return '<div class="mrow"><div class="ic">'+x.ic+'</div><div class="nm"><b>'+x.nm+'</b><small>'+x.sub+'</small></div>'+chgHtml(x.v.c)+'<div class="pr">'+pr+' <small>$</small></div></div>';
   }
   document.getElementById('mrows').innerHTML=[
@@ -469,7 +469,8 @@ function renderMarket(){
         alu:SNAP.alu,
         btc:{p:r.bitcoin.usd,c:r.bitcoin.usd_24h_change},
         eth:{p:r.ethereum.usd,c:r.ethereum.usd_24h_change},
-        sol:{p:r.solana.usd,c:r.solana.usd_24h_change}};
+        sol:{p:r.solana.usd,c:r.solana.usd_24h_change},
+        tether:{p:r.tether.usd,c:r.tether.usd_24h_change},ripple:{p:r.ripple.usd,c:r.ripple.usd_24h_change},dogecoin:{p:r.dogecoin.usd,c:r.dogecoin.usd_24h_change},binancecoin:{p:r.binancecoin.usd,c:r.binancecoin.usd_24h_change},cardano:{p:r.cardano.usd,c:r.cardano.usd_24h_change},'avalanche-2':{p:r['avalanche-2'].usd,c:r['avalanche-2'].usd_24h_change}};
       try{localStorage.setItem('market-cache-v3',JSON.stringify({at:Date.now(),d:MK.data}))}catch(e){}
       renderMarket();
     })
@@ -590,14 +591,14 @@ document.addEventListener('click',function(e){
    if(m[3]==='cr'){
     var crv=(window.MK&&MK.data)?MK.data[k]:null;
     if(!crv)return;
-    var cpr=crv.p>=1000?faNum(Math.round(crv.p).toLocaleString('en-US')):faNum((Math.round(crv.p*100)/100).toLocaleString('en-US'));
+    var cpr=crv.p>=1000?faNum(Math.round(crv.p)):faNum(Math.round(crv.p*100)/100);
     var cch=(crv.c!=null&&!isNaN(crv.c))?'<div class="chg '+(crv.c>=0?'up':'dn')+'">'+(crv.c>=0?'▲':'▼')+' '+fa(Math.abs(crv.c).toFixed(2).replace(/\.?0+$/,''))+'٪</div>':'<div class="chg na">—</div>';
     var row=document.createElement('div');row.className='mrow';row.setAttribute('data-xrow',k);
     row.innerHTML='<div class="ic">'+m[1]+'</div><div class="nm"><b>'+m[2]+'</b><small>کریپتو · دلار</small></div>'+cch+'<div class="pr">'+cpr+' <small>$</small></div><span class="xdel" data-xdel="'+k+'">✕</span>';
     document.getElementById('mrows2').appendChild(row);return;
    }
    var v=TG&&TG.items&&TG.items[k];if(!v)return;
-   var val=m[3]==='tm'?fmtTm(v.p)+' <small>تومان</small>':faNum(Math.round(v.p).toLocaleString('en-US'))+' <small>$</small>';
+   var val=m[3]==='tm'?fmtTm(v.p)+' <small>تومان</small>':faNum(Math.round(v.p))+' <small>$</small>';
    var chg=v.d?'<div class="chg '+(v.d>0?'up':'dn')+'">'+(v.d>0?'▲':'▼')+'</div>':'<div class="chg na">—</div>';
    var row=document.createElement('div');row.className='mrow';row.setAttribute('data-xrow',k);
    row.innerHTML='<div class="ic">'+m[1]+'</div><div class="nm"><b>'+m[2]+'</b><small>'+(m[3]==='tm'?'تومان':'جهانی · دلار')+'</small></div>'+chg+'<div class="pr">'+val+'</div><span class="xdel" data-xdel="'+k+'">✕</span>';
