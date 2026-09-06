@@ -305,16 +305,24 @@ body.nav-open .nav-backdrop{display:block}
       <div class="tgava">🤖</div>
       <div class="tgmain">
         <b>بات شخصی تو</b>
-        <small>هرچه بنویسی ثبت می‌کند؛ گزارش‌ها را هم سر وقت می‌فرستد</small>
-        <div class="inrow">
-          <input id="tgId" placeholder="شناسه عددی تلگرام — 123456789">
-          <button class="btn" id="tgSave">ذخیره</button>
+        <small>اتصال امن با کد یک‌بارمصرف — بدون وارد کردن شناسه عددی</small>
+        <div class="inrow" style="flex-wrap:wrap;gap:8px">
+          <button class="btn" id="tgCodeBtn" type="button">🔑 ساخت کد اتصال</button>
+          <button class="btn ghost" id="tgUnlink" type="button">قطع اتصال</button>
+        </div>
+        <div id="tgCodeBox" style="display:none;margin-top:10px;padding:12px;border-radius:14px;background:var(--panel2);border:1px dashed var(--border2)">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:6px">این کد را در بات بفرست (۱۵ دقیقه اعتبار):</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <code id="tgCodeVal" style="font-size:22px;letter-spacing:.12em;font-weight:800;color:var(--acc)">————</code>
+            <button class="btn ghost" id="tgCopy" type="button">کپی</button>
+          </div>
+          <div id="tgCodeHint" style="margin-top:8px;font-size:13px;color:var(--faint)"></div>
         </div>
       </div>
     </div>
-    <div class="step"><span class="n">۱</span><span>به <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a> پیام بده تا شناسه‌ی عددیت را بگوید</span></div>
-    <div class="step"><span class="n">۲</span><span>همین‌جا ثبتش کن — از این پس فقط تلگرامِ خودت به حسابت وصل است</span></div>
-    <div class="step"><span class="n">۳</span><span>در <a href="https://t.me/BotFather" target="_blank">@BotFather</a> بات بساز و توکنش را در <b>.env</b> بگذار (<b>TELEGRAM_BOT_TOKEN</b>)</span></div>
+    <div class="step"><span class="n">۱</span><span>دکمه <b>ساخت کد اتصال</b> را بزن</span></div>
+    <div class="step"><span class="n">۲</span><span>در تلگرام بات را باز کن و بفرست: <code>/start کد</code> یا فقط خودِ کد</span></div>
+    <div class="step"><span class="n">۳</span><span>پیام «وصل شد ✓» می‌آید — دیگر کسی با دانستن ID نمی‌تواند به حسابت بچسبد</span></div>
   </div>
 
   <!-- گزارش‌های خودکار -->
@@ -387,6 +395,21 @@ body.nav-open .nav-backdrop{display:block}
     </div>
   </div>
 
+
+  <!-- قفل PIN -->
+  <div class="card">
+    <div class="mhead"><h4>🔐 قفل صفحه (PIN)</h4><span class="status" id="pinSt">خاموش</span></div>
+    <p style="color:var(--muted);font-size:13.5px;line-height:1.7;margin:0 0 12px">بعد از ورود، برای دیدن داشبورد PIN می‌خواهد — مناسب موبایل مشترک یا وقتی صفحه باز می‌ماند.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+      <div class="field"><label>PIN جدید (۴–۸ رقم)</label><input id="pinNew" type="password" inputmode="numeric" maxlength="8" placeholder="••••" style="width:100%"></div>
+      <div class="field"><label>PIN فعلی (اگر داری)</label><input id="pinCur" type="password" inputmode="numeric" maxlength="8" placeholder="اختیاری" style="width:100%"></div>
+      <button class="btn" id="pinSave" type="button">ذخیره PIN</button>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn ghost" id="pinClear" type="button">خاموش کردن قفل</button>
+    </div>
+  </div>
+
   <!-- حساب -->
   <div class="card">
     <div class="mhead"><h4>👤 حساب کاربری</h4></div>
@@ -410,7 +433,7 @@ function fa(n){return String(n).replace(/\d/g,function(d){return faD[d]})}
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200)}
 
 /* ساعت‌ها */
-var HOURS={m:8,e:21};
+var HOURS={m:9,e:23};
 function fmtH(h){return fa(h<10?'0'+h:h)+':۰۰'}
 function renderH(){document.getElementById('hMon').textContent=fmtH(HOURS.m);document.getElementById('hEve').textContent=fmtH(HOURS.e)}
 document.querySelectorAll('.hourbox button').forEach(function(b){
@@ -429,23 +452,64 @@ function save(){
     .catch(function(){toast('ذخیره شد ✓ (نمایشی)')});
 }
 
-/* شناسه تلگرام */
-document.getElementById('tgSave').addEventListener('click',function(){
-  var v=document.getElementById('tgId').value.trim();
-  if(!v||v.replace(/[^0-9]/g,'').length<4){toast('شناسه‌ی عددی معتبر بنویس — از @userinfobot بگیر');return}
-  fetch('/api/me',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramUserId:v})})
-    .then(function(){ok()}).catch(function(){ok()});
-  function ok(){
-    document.getElementById('tgSt').textContent='متصل ✓';
-    toast('تلگرام وصل شد! برو بات را /start کن 🚀');
-  }
+/* تلگرام — کد یک‌بارمصرف */
+document.getElementById('tgCodeBtn').addEventListener('click',function(){
+  fetch('/api/telegram/link-code',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j}})})
+    .then(function(x){
+      if(!x.ok)throw new Error((x.j&&x.j.error)||'خطا');
+      document.getElementById('tgCodeBox').style.display='block';
+      document.getElementById('tgCodeVal').textContent=x.j.code;
+      document.getElementById('tgCodeHint').textContent='در بات بفرست: /start '+x.j.code+'  ·  اعتبار ۱۵ دقیقه';
+      toast('کد ساخته شد — برو بات');
+    }).catch(function(e){toast(e.message||'خطا')});
 });
+document.getElementById('tgCopy').addEventListener('click',function(){
+  var c=document.getElementById('tgCodeVal').textContent;
+  if(navigator.clipboard)navigator.clipboard.writeText('/start '+c).then(function(){toast('کپی شد')});
+  else toast(c);
+});
+document.getElementById('tgUnlink').addEventListener('click',function(){
+  if(!confirm('اتصال تلگرام قطع شود؟'))return;
+  fetch('/api/telegram/unlink',{method:'POST',credentials:'same-origin'})
+    .then(function(){document.getElementById('tgSt').textContent='وصل نیست';document.getElementById('tgSt').className='status st-warn';toast('قطع شد')})
+    .catch(function(){toast('خطا')});
+});
+
+/* PIN */
+function refreshPinSt(on){
+  var el=document.getElementById('pinSt');
+  if(!el)return;
+  el.textContent=on?'فعال ✓':'خاموش';
+  el.className='status '+(on?'st-on':'st-warn');
+}
+document.getElementById('pinSave').addEventListener('click',function(){
+  var pin=document.getElementById('pinNew').value.replace(/\D/g,'');
+  var cur=document.getElementById('pinCur').value.replace(/\D/g,'');
+  if(pin.length<4||pin.length>8){toast('PIN باید ۴ تا ۸ رقم باشد');return}
+  fetch('/api/security/pin',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,currentPin:cur||undefined})})
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j}})})
+    .then(function(x){if(!x.ok)throw new Error((x.j&&x.j.error)||'خطا');refreshPinSt(true);document.getElementById('pinNew').value='';document.getElementById('pinCur').value='';toast('PIN ذخیره شد ✓')})
+    .catch(function(e){toast(e.message||'خطا')});
+});
+document.getElementById('pinClear').addEventListener('click',function(){
+  var cur=document.getElementById('pinCur').value.replace(/\D/g,'')||prompt('PIN فعلی را وارد کن')||'';
+  cur=String(cur).replace(/\D/g,'');
+  fetch('/api/security/pin',{method:'DELETE',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:cur})})
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j}})})
+    .then(function(x){if(!x.ok)throw new Error((x.j&&x.j.error)||'خطا');refreshPinSt(false);toast('قفل خاموش شد')})
+    .catch(function(e){toast(e.message||'خطا')});
+});
+fetch('/api/me').then(function(r){return r.json()}).then(function(d){
+  if(d&&d.user)refreshPinSt(!!d.user.pinEnabled);
+}).catch(function(){});
+
 
 /* وضعیت واقعی (در اپ زنده) */
 fetch('/api/integrations').then(function(r){return r.json()}).then(function(d){
   if(d&&d.telegram){document.getElementById('tgSt').textContent=d.telegram.connected?'متصل ✓':'وصل نیست';
     document.getElementById('tgSt').className='status '+(d.telegram.connected?'st-on':'st-warn');
-    if(d.telegram.userId)document.getElementById('tgId').value=d.telegram.userId;}
+    }
   if(d&&d.spotify)document.getElementById('spSt').textContent=d.spotify.connected?'وصل است ✓':'وصل نیست — پخش‌های اخیر';
   if(d&&d.youtube)document.getElementById('ytSt').textContent=d.youtube.connected?'وصل است ✓':'وصل نیست — پلی‌لیست‌ها';
 }).catch(function(){});
@@ -553,5 +617,6 @@ document.addEventListener('click',function(e){
 })();
 </script>
 
+<script src="/app-lock.js" defer></script>
 </body>
 </html>

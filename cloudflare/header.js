@@ -18,7 +18,7 @@ function makeHelpers(env) {
     let x = row ? JSON.parse(row.value) : { users: [], sessions: [], transactions: [], tasks: [], inbox: [], daily: [] };
     x.investments ??= []; x.accounts ??= []; x.budgets ??= []; x.projects ??= []; x.timeEntries ??= []; x.habits ??= []; x.habitLogs ??= [];
     x.subscriptions ??= []; x.debts ??= []; x.footballTeams ??= []; x.matches ??= []; x.news ??= []; x.movies ??= []; x.timers ??= [];
-    x.exercise ??= []; x.weeklyNotes ??= []; x.mediaLog ??= []; x.investmentTx ??= []; x.assetPrices ??= []; x.priceAlerts ??= []; x.portfolioSnapshots ??= []; x.newsSources ??= []; x.contacts ??= []; x.contactLogs ??= []; x.learning ??= []; x.bookmarks ??= []; x.shoppingItems ??= []; x.trips ??= []; x.tripChecklist ??= []; x.documents ??= []; x.goals ??= []; x.wins ??= []; x.decisions ??= []; x.lifeReviews ??= []; x.pokerSessions ??= []; x.reminders ??= [];
+    x.exercise ??= []; x.weeklyNotes ??= []; x.mediaLog ??= []; x.investmentTx ??= []; x.assetPrices ??= []; x.priceAlerts ??= []; x.portfolioSnapshots ??= []; x.newsSources ??= []; x.contacts ??= []; x.contactLogs ??= []; x.learning ??= []; x.bookmarks ??= []; x.shoppingItems ??= []; x.trips ??= []; x.tripChecklist ??= []; x.documents ??= []; x.goals ??= []; x.wins ??= []; x.decisions ??= []; x.lifeReviews ??= []; x.pokerSessions ??= []; x.reminders ??= []; x.telegramLinkCodes ??= [];
     return x;
   }
   async function write(db) {
@@ -28,6 +28,7 @@ function makeHelpers(env) {
   function json(res, status, data) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)) }
   async function body(req) { try { let t = await req.text(); return t ? JSON.parse(t) : {} } catch (e) { throw e } }
   function cookie(req) { return Object.fromEntries((req.headers.get('cookie') || '').split(';').filter(Boolean).map(x => x.trim().split('='))) }
+  function sidCookie(sid){return 'sid='+sid+'; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000'}
   // Workers' Web Crypto PBKDF2 hard-caps iterations at 100,000 (Node's
   // crypto.pbkdf2Sync, used by server.js, has no such cap and uses 130,000).
   // This means password hashes from the Node server and this Worker are NOT
@@ -46,7 +47,15 @@ function makeHelpers(env) {
   function b64(str) { return btoa(str) }
   function bytesFromBase64(b64str) { let bin = atob(b64str); let bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); return bytes }
   function textFromBase64(b64str) { return new TextDecoder('utf-8').decode(bytesFromBase64(b64str)) }
-  function today() { return new Date().toISOString().slice(0, 10) }
+  function today(){try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return new Date().toISOString().slice(0,10)}}
+
+  const _rateMap = new Map();
+  function clientIp(req){try{let h=req.headers;return (h.get&&(h.get('cf-connecting-ip')||h.get('x-forwarded-for'))||h['cf-connecting-ip']||h['x-forwarded-for']||'').toString().split(',')[0].trim()||'ip'}catch(e){return 'ip'}}
+  function checkRateLimit(bucket, maxN, windowMs){maxN=maxN||5;windowMs=windowMs||900000;let now=Date.now(),e=_rateMap.get(bucket);if(!e||now>e.resetAt){e={count:0,resetAt:now+windowMs};_rateMap.set(bucket,e)}e.count++;if(e.count>maxN)return{ok:false,retrySec:Math.max(1,Math.ceil((e.resetAt-now)/1000))};return{ok:true,retrySec:0}}
+  function clearRateLimit(bucket){_rateMap.delete(bucket)}
+  function genLinkCode(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let b=new Uint8Array(8);crypto.getRandomValues(b);let out='';for(let i=0;i<8;i++)out+=a[b[i]%a.length];return out}
+  async function hashPin(pin, salt){let enc=new TextEncoder();let keyMaterial=await crypto.subtle.importKey('raw',enc.encode(String(pin)),'PBKDF2',false,['deriveBits']);let bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(String(salt)),iterations:100000,hash:'SHA-256'},keyMaterial,256);return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+
   class AuthError extends Error { }
   function me(req, db) { let sid = cookie(req).sid; let s = db.sessions.find(x => x.id === sid); return s && db.users.find(x => x.id === s.userId) }
   function auth(req, res, db) { let u = me(req, db); if (!u) { json(res, 401, { error: 'ابتدا وارد حساب شوید.' }); throw new AuthError() } return u }
@@ -125,8 +134,38 @@ function makeHelpers(env) {
   function tgCmdName(text){let c=(text||'').trim().split(/\s+/)[0]||'';c=c.split('@')[0];return c}
   async function handleTelegramMessage(db,msg){
     let fromId=String(msg.from&&msg.from.id),chatId=msg.chat.id,text=(msg.text||'').trim();
-    let user=db.users.find(u=>u.telegramUserId===fromId);
-    if(!user)return tgSend(chatId,'این حساب تلگرام به هیچ حسابِ هِسته وصل نیست. از تنظیمات اپ، شناسهٔ عددی تلگرامت رو وصل کن.');
+    db.telegramLinkCodes ??= [];
+    db.reminders ??= [];
+    db.tasks ??= [];
+    // One-time link: /start CODE or bare CODE
+    let linkCode = null;
+    let startM = text.match(/^\/start(?:@\w+)?(?:\s+(.+))?$/i);
+    if (startM && startM[1]) linkCode = String(startM[1]).trim();
+    else if (/^[A-Za-z0-9]{6,12}$/.test(text) && !text.startsWith('/')) linkCode = text.trim();
+    if (linkCode) {
+      let code = enNum(linkCode).toUpperCase().replace(/[^A-Z0-9]/g,'');
+      let row = db.telegramLinkCodes.find(c => c.code === code && !c.usedAt && c.expiresAt > Date.now());
+      if (!row) {
+        // if already linked user sending code by mistake, fall through
+        let already = db.users.find(u => u.telegramUserId === fromId);
+        if (!already) return tgSend(chatId, 'کد اتصال نامعتبر یا منقضی است.\\nاز تنظیمات lifeos یک کد تازه بساز.');
+      } else {
+        let owner = db.users.find(u => u.id === row.userId);
+        if (!owner) return tgSend(chatId, 'حساب متصل به این کد پیدا نشد.');
+        // detach this telegram from any other user
+        db.users.forEach(u => { if (u.telegramUserId === fromId && u.id !== owner.id) u.telegramUserId = null; });
+        owner.telegramUserId = fromId;
+        row.usedAt = Date.now();
+        row.usedBy = fromId;
+        // invalidate other open codes for this user
+        db.telegramLinkCodes.forEach(c => { if (c.userId === owner.id && c.code !== code && !c.usedAt) c.expiresAt = 0; });
+        await write(db);
+        return tgSend(chatId, '✅ تلگرام به حساب «' + (owner.name || owner.email || '') + '» وصل شد.\\n/start برای راهنما', { reply_markup: tgMainKeyboard() });
+      }
+    }
+    let user = db.users.find(u => u.telegramUserId === fromId);
+    if (!user) return tgSend(chatId, 'این تلگرام به هیچ حسابی وصل نیست.\\n\\n۱) در lifeos → تنظیمات → «ساخت کد اتصال»\\n۲) همان کد را اینجا بفرست یا /start CODE');
+
     db.reminders??=[];db.tasks??=[];
     let d=today();
     if(text.startsWith('/')){
@@ -329,12 +368,12 @@ function makeHelpers(env) {
       let morningH=user.tgMorningHour!=null?Number(user.tgMorningHour):9;
       let eveningH=user.tgEveningHour!=null?Number(user.tgEveningHour):23;
       if(user.tgReports===false)continue;
-      if(hh===morningH&&user.tgLastMorning!==d){
+      if(hh===morningH&&user.tgMorningOn!==false&&user.tgLastMorning!==d){
         user.tgLastMorning=d; changed=true;
         let text=await buildMorningBrief(db,user,d,weather);
         await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
       }
-      if(hh===eveningH&&user.tgLastEvening!==d){
+      if(hh===eveningH&&user.tgEveningOn!==false&&user.tgLastEvening!==d){
         user.tgLastEvening=d; changed=true;
         let text=await buildEveningReport(db,user,d);
         await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
@@ -345,22 +384,22 @@ function makeHelpers(env) {
 
   async function refreshPricesAndAlerts(db){let changed=await refreshAllCryptoPrices(db).catch(()=>false),now=Date.now();for(const user of db.users){let holdings=computeHoldings(db,user.id);for(const t of evaluateAlerts(db,user.id,holdings)){let a=t.alert;if(!a.lastNotifiedAt||now-a.lastNotifiedAt>6*3600*1000){a.lastNotifiedAt=now;changed=true;if(TELEGRAM_BOT_TOKEN&&user.telegramUserId)await tgSend(user.telegramUserId,'🔔 '+t.text)}}}return changed}
 
-  return { read, write, json, body, cookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
+  return { read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
     jalaliToGregorianIso, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel,
     parseSleepHours, suggestCategoryKeyword, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd,
-    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, tgApi, tgSend, handleTelegramMessage, tgCheckReports, fetchTehranWeatherBrief, buildMorningBrief, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
+    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, checkRateLimit, clearRateLimit, clientIp, hashPin, genLinkCode, tgApi, tgSend, handleTelegramMessage, tgCheckReports, fetchTehranWeatherBrief, buildMorningBrief, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
     SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI, AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY };
 }
 
 async function handleApi(request, env) {
   const H = makeHelpers(env);
-  const { read, write, json, body, cookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
+  const { read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
     jalaliToGregorianIso, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel,
     parseSleepHours, suggestCategoryKeyword, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd,
-    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, tgApi, tgSend, handleTelegramMessage, tgCheckReports, fetchTehranWeatherBrief, buildMorningBrief, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
+    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, checkRateLimit, clearRateLimit, clientIp, hashPin, genLinkCode, tgApi, tgSend, handleTelegramMessage, tgCheckReports, fetchTehranWeatherBrief, buildMorningBrief, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
     SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI, AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY } = H;
   const req = request;
