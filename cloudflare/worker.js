@@ -364,7 +364,17 @@ export default {
       const isPublic = /^\/design\/login-page(\.html)?$/.test(url.pathname);
       if (!isPublic) {
         let authed = false;
-        try { const db = await read(); authed = !!me(request, db); } catch (e) {}
+        try {
+          const sid = (request.headers.get('cookie') || '').match(/(?:^|;\s*)sid=([^;]+)/);
+          if (sid) {
+            const row = await env.DB.prepare("SELECT value FROM kv WHERE key='db'").first();
+            if (row) {
+              const db = JSON.parse(row.value);
+              const s = (db.sessions || []).find(x => x.id === sid[1]);
+              authed = !!(s && (db.users || []).find(u => u.id === s.userId));
+            }
+          }
+        } catch (e) {}
         if (!authed) return Response.redirect(new URL('/design/login-page.html', url).toString(), 302);
       }
       return env.ASSETS.fetch(request);
