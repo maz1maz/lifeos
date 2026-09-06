@@ -467,12 +467,18 @@ body.zoom1{zoom:1.1111}
   </div>
 
   <div class="tabsrow" style="margin-top:14px">
-    <button class="tabchip on" data-tab="playlists">📂 پلی‌لیست‌ها</button>
+    <button class="tabchip on" data-tab="recent">🎬 تماشاهای اخیر</button>
+    <button class="tabchip" data-tab="playlists">📂 پلی‌لیست‌ها</button>
     <button class="tabchip" data-tab="subs">📺 سابسکرایب‌ها</button>
   </div>
 
-  <div class="mcard sec panelsec on" id="panel-playlists" style="margin-top:12px">
-    <div class="mhead"><h4>📂 پلی‌لیست‌های تو</h4><span id="ytPlState" style="font-size:12.5px;color:var(--faint)">نمونه — بعد از اتصال، واقعی می‌شود</span></div>
+  <div class="mcard sec panelsec on" id="panel-recent" style="margin-top:12px">
+    <div class="mhead"><h4>🎬 تازه‌ترین تماشاها</h4><span id="ytRecState" style="font-size:12.5px;color:var(--faint)">نمونه — بعد از اتصال، واقعی می‌شود</span></div>
+    <div class="rygrid" id="ytRecent"></div>
+  </div>
+
+  <div class="mcard sec panelsec" id="panel-playlists" style="margin-top:12px">
+    <div class="mhead"><h4>📂 پلی‌لیست‌های تو</h4><span id="ytPlState" style="font-size:12.5px;color:var(--faint)"></span></div>
     <div class="rygrid" id="ytPl"></div>
   </div>
 
@@ -489,7 +495,7 @@ body.zoom1{zoom:1.1111}
       </span>
       <div style="flex:1;min-width:180px">
         <b style="font-size:16px">اتصال یوتیوب</b>
-        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">برای پلی‌لیست و سابسکرایب واقعی وصل شو</div>
+        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">برای هیستوری، پلی‌لیست و سابسکرایب واقعی وصل شو</div>
       </div>
       <span class="conbadge" id="ytState">… در حال بررسی</span>
       <button class="bigbtn ytred" id="ytConnect">اتصال به یوتیوب</button>
@@ -616,6 +622,17 @@ var DEMO_SEARCH=[
   {title:'20 min Full Body Workout',channel:'Pamela Reif',videoId:'UBMk30rjy0o'},
   {title:'JavaScript in 100 Seconds',channel:'Fireship',videoId:'DHjqpvDnNGE'}
 ];
+var DEMO_RECENT=[
+  {title:'Flutter in 100 seconds',channel:'Fireship',videoId:'fq4N0hgOWzU',playedAt:new Date(Date.now()-18e5).toISOString()},
+  {title:'lofi hip hop radio',channel:'Lofi Girl',videoId:'jfKfPfyJRdk',playedAt:new Date(Date.now()-36e5).toISOString()},
+  {title:'Node.js Crash Course',channel:'Traversy Media',videoId:'fBNz5xF-Kx4',playedAt:new Date(Date.now()-72e5).toISOString()},
+  {title:'Black Holes Explained',channel:'Veritasium',videoId:'QqsLTNkzvaY',playedAt:new Date(Date.now()-14e4*60).toISOString()},
+  {title:'20 min Full Body Workout',channel:'Pamela Reif',videoId:'UBMk30rjy0o',playedAt:new Date(Date.now()-864e5).toISOString()},
+  {title:'JavaScript in 100 Seconds',channel:'Fireship',videoId:'DHjqpvDnNGE',playedAt:new Date(Date.now()-2*864e5).toISOString()},
+  {title:'Dart in 100 seconds',channel:'Fireship',videoId:'NrO0CJCbYLA',playedAt:new Date(Date.now()-3*864e5).toISOString()},
+  {title:'The Universe',channel:'National Geographic',videoId:'Qd6nLFDf2yA',playedAt:new Date(Date.now()-4*864e5).toISOString()}
+];
+function relTime(iso){if(!iso)return'';try{var d=new Date(iso),diff=(Date.now()-d.getTime())/1000;if(diff<60)return'همین الان';if(diff<3600)return fa(Math.floor(diff/60))+' دقیقه پیش';if(diff<86400)return fa(Math.floor(diff/3600))+' ساعت پیش';return fa(Math.floor(diff/86400))+' روز پیش'}catch(e){return''}}
 
 function normVideo(v){
   var id=v.videoId||'';
@@ -726,6 +743,20 @@ function renderSearch(items){
   var g=document.getElementById('ytSearchResults');
   if(!items||!items.length){g.innerHTML='<div class="emptyhint" style="grid-column:1/-1">نتیجه‌ای نبود</div>';return}
   g.innerHTML=items.slice(0,14).map(videoCard).join('');
+}
+function renderRecent(items){
+  var g=document.getElementById('ytRecent');
+  if(!g)return;
+  if(!items||!items.length){g.innerHTML='<div class="emptyhint" style="grid-column:1/-1">هنوز تماشایی ثبت نشده</div>';return}
+  g.innerHTML=items.slice(0,14).map(function(v){
+    var n=normVideo(v);
+    if(v.playedAt){n._when=relTime(v.playedAt)}
+    var card=videoCard(n);
+    if(n._when){
+      card=card.replace('</small></div>',' · '+esc(n._when)+'</small></div>');
+    }
+    return card;
+  }).join('');
 }
 
 /* tabs */
@@ -842,6 +873,7 @@ document.getElementById('ytSearchBtn').addEventListener('click',doSearch);
 document.getElementById('ytQ').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch()}});
 
 /* demo first */
+renderRecent(DEMO_RECENT);
 renderPlaylists(DEMO_PLAYLISTS);
 renderSubs(DEMO_SUBS);
 
@@ -858,6 +890,27 @@ function setConnected(on){
 function loadLive(){
   document.getElementById('ytPlState').textContent='در حال دریافت…';
   document.getElementById('ytSubState').textContent='…';
+  var recSt=document.getElementById('ytRecState');
+  if(recSt)recSt.textContent='در حال دریافت…';
+  fetch('/api/integrations/youtube/history').then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})}).then(function(res){
+    var d=res.d||{};
+    if(!res.ok){
+      if(recSt)recSt.textContent=d.error||'ناموفق';
+      renderRecent(DEMO_RECENT);
+      return;
+    }
+    var items=d.items||[];
+    if(items.length){
+      renderRecent(items);
+      if(recSt)recSt.textContent='زنده ✓ · '+fa(items.length)+' ویدیو';
+    } else {
+      renderRecent(DEMO_RECENT);
+      if(recSt)recSt.textContent='هیستوری خالی — نمونه';
+    }
+  }).catch(function(){
+    renderRecent(DEMO_RECENT);
+    if(recSt)recSt.textContent='دریافت ناموفق — نمونه';
+  });
   fetch('/api/integrations/youtube/playlists').then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})}).then(function(res){
     var d=res.d||{};
     if(!res.ok){document.getElementById('ytPlState').textContent=d.error||'ناموفق';return}
