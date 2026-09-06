@@ -855,22 +855,23 @@ function doSearch(){
     .then(function(res){
       if(btn){btn.disabled=false;btn.textContent='جستجو'}
       if(!res.ok){
-        if(res.status===401||res.status===400){
-          window.__spLive=false;
-          demoFallback((res.d&&res.d.error)||'اول اسپاتیفای را وصل کن (پایین صفحه)');
+        var errMsg=(res.d&&res.d.error)||('خطا '+res.status);
+        /* scope/token issues: keep demo so UI never looks broken */
+        if(res.status===401||res.status===400||res.status===403){
+          demoFallback(errMsg.indexOf('scope')>=0||/Insufficient/i.test(errMsg)
+            ? 'جستجو نیاز به دسترسی اپ دارد — یک‌بار قطع و وصل کن'
+            : errMsg);
           return;
         }
-        st.textContent=(res.d&&res.d.error)||('خطا '+res.status);
+        st.textContent=errMsg;
         return;
       }
-      window.__spLive=true;
       var items=res.d.items||[];
       renderSearch(items);
       st.textContent=items.length?('✓ '+fa(items.length)+' نتیجه'):'چیزی پیدا نشد';
     }).catch(function(err){
       if(btn){btn.disabled=false;btn.textContent='جستجو'}
-      if(window.__spLive){st.textContent='جستجو ناموفق — دوباره تلاش کن';return}
-      demoFallback('نمونه — اتصال لازم است');
+      demoFallback('جستجو ناموفق — دوباره تلاش کن');
     });
 }
 document.getElementById('spSearchBtn').addEventListener('click',doSearch);
