@@ -401,6 +401,12 @@ body.zoom1{zoom:1.1111}
 .bigbtn:hover{filter:brightness(1.08)}
 .bigbtn.ghost{background:none;border:1.5px solid var(--border);color:var(--muted);font-weight:400}
 .bigbtn.spgreen{background:#1db954;color:#04140a}
+
+.spsearch{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.spsearch input{flex:1;min-width:180px;background:var(--panel2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font:inherit;font-size:15px;color:var(--text);outline:none}
+.spsearch input:focus{border-color:var(--acc)}
+.spsearch input::placeholder{color:var(--faint)}
+
 .chiprow2{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 .artchip{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:6px 14px 6px 6px;font-size:13.5px;text-decoration:none;color:inherit;transition:border-color .12s,transform .12s}
 .artchip:hover{border-color:var(--acc);transform:translateY(-2px)}
@@ -464,23 +470,6 @@ body.zoom1{zoom:1.1111}
 <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="on">🎵 موسیقی</a><a href="/design/youtube-page.html" class="">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap" style="max-width:1320px">
-  <div class="lead">موسیقی‌ات — کاور آلبوم، پلی‌لیست و پخش‌های اخیر، درست مثل اسپاتیفای</div>
-
-  <div class="mcard" style="margin-top:14px">
-    <div class="concard">
-      <span class="spbrand">
-        <svg viewBox="0 0 24 24" fill="#1db954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-      </span>
-      <div style="flex:1;min-width:180px">
-        <b style="font-size:16px">اسپاتیفای</b>
-        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">پوستر آهنگ، پلی‌لیست‌ها و هنرمندان برگزیده — همه با کاور واقعی</div>
-      </div>
-      <span class="conbadge" id="spState">… در حال بررسی</span>
-      <button class="bigbtn spgreen" id="spConnect">اتصال به اسپاتیفای</button>
-      <button class="bigbtn ghost" id="spDis" style="display:none">قطع اتصال</button>
-      <button class="bigbtn ghost" id="spRefresh" style="display:none" title="تازه‌سازی">↻</button>
-    </div>
-  </div>
 
   <!-- Now Playing -->
   <div class="nowcard" id="nowCard">
@@ -502,6 +491,15 @@ body.zoom1{zoom:1.1111}
     </div>
   </div>
 
+  <div class="mcard" style="margin-top:14px">
+    <div class="mhead" style="margin-bottom:10px"><h4>🔎 جستجوی آهنگ</h4><span id="spSearchState" style="font-size:12.5px;color:var(--faint)"></span></div>
+    <div class="spsearch">
+      <input id="spQ" type="search" placeholder="اسم آهنگ یا هنرمند…" autocomplete="off">
+      <button class="bigbtn spgreen" id="spSearchBtn" type="button">جستجو</button>
+    </div>
+    <div class="rygrid" id="spSearchResults" style="margin-top:12px"></div>
+  </div>
+
   <div class="tabsrow">
     <button class="tabchip on" data-tab="recent">🎧 پخش‌های اخیر</button>
     <button class="tabchip" data-tab="playlists">📂 پلی‌لیست‌ها</button>
@@ -511,7 +509,6 @@ body.zoom1{zoom:1.1111}
   <div class="mcard sec panelsec on" id="panel-recent" style="margin-top:12px">
     <div class="mhead"><h4>🎧 تازه‌ترین پخش‌ها</h4><span id="spRecState" style="font-size:12.5px;color:var(--faint)">نمونه — بعد از اتصال، واقعی می‌شود</span></div>
     <div class="rygrid" id="spRecent"></div>
-    <div class="listrow" id="spRecentList" style="margin-top:14px"></div>
   </div>
 
   <div class="mcard sec panelsec" id="panel-playlists" style="margin-top:12px">
@@ -523,6 +520,22 @@ body.zoom1{zoom:1.1111}
     <div class="mhead"><h4>⭐ هنرمندان برگزیده</h4><span id="spArtState" style="font-size:12.5px;color:var(--faint)"></span></div>
     <div class="chiprow2" id="spArtists"></div>
     <div class="rygrid" id="spArtistsGrid" style="margin-top:14px"></div>
+  </div>
+
+  <div class="mcard" style="margin-top:18px" id="spConnCard">
+    <div class="concard">
+      <span class="spbrand">
+        <svg viewBox="0 0 24 24" fill="#1db954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+      </span>
+      <div style="flex:1;min-width:180px">
+        <b style="font-size:16px">اتصال اسپاتیفای</b>
+        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">برای پخش‌های واقعی، پلی‌لیست و جستجو وصل شو</div>
+      </div>
+      <span class="conbadge" id="spState">… در حال بررسی</span>
+      <button class="bigbtn spgreen" id="spConnect">اتصال به اسپاتیفای</button>
+      <button class="bigbtn ghost" id="spDis" style="display:none">قطع اتصال</button>
+      <button class="bigbtn ghost" id="spRefresh" style="display:none" title="تازه‌سازی">↻</button>
+    </div>
   </div>
 
 </div>
@@ -683,14 +696,11 @@ function playlistCard(pl){
 
 function renderRecent(items){
   var g=document.getElementById('spRecent');
-  var l=document.getElementById('spRecentList');
   if(!items||!items.length){
     g.innerHTML='<div class="emptyhint" style="grid-column:1/-1">هنوز چیزی پخش نکردی</div>';
-    l.innerHTML='';
     return;
   }
-  g.innerHTML=items.slice(0,12).map(trackCard).join('');
-  l.innerHTML='<div style="font-size:13px;color:var(--faint);margin:4px 2px 6px">لیست کامل</div>'+items.slice(0,20).map(trackRow).join('');
+  g.innerHTML=items.slice(0,14).map(trackCard).join('');
 }
 
 function renderArtists(items){
@@ -752,6 +762,7 @@ function setConnected(on){
   document.getElementById('spConnect').style.display=on?'none':'';
   document.getElementById('spDis').style.display=on?'':'none';
   document.getElementById('spRefresh').style.display=on?'':'none';
+  window.__spLive=!!on;
 }
 
 function loadLive(){
@@ -780,7 +791,7 @@ function loadLive(){
           url:t.url||''
         };
       }));
-      document.getElementById('spRecState').textContent='زنده ✓ · '+fa(items.length)+' آهنگ';
+      document.getElementById('spRecState').textContent='زنده ✓ · '+fa(Math.min(items.length,14))+' آهنگ';
     } else document.getElementById('spRecState').textContent='پخش اخیری نبود';
 
     if(d.artists&&d.artists.length){
@@ -814,6 +825,43 @@ document.getElementById('spDis').addEventListener('click',function(){
   fetch('/api/integrations/spotify/disconnect',{method:'POST'}).finally(function(){location.reload()});
 });
 document.getElementById('spRefresh').addEventListener('click',function(){loadLive()});
+
+function renderSearch(items){
+  var g=document.getElementById('spSearchResults');
+  if(!items||!items.length){
+    g.innerHTML='<div class="emptyhint" style="grid-column:1/-1">نتیجه‌ای نبود</div>';
+    return;
+  }
+  g.innerHTML=items.slice(0,14).map(trackCard).join('');
+}
+function doSearch(){
+  var q=(document.getElementById('spQ').value||'').trim();
+  var st=document.getElementById('spSearchState');
+  if(!q){st.textContent='چیزی بنویس';return}
+  if(!window.__spLive){
+    // offline demo filter
+    var hits=DEMO_COVERS.filter(function(t){
+      var s=(t.name+' '+t.artist+' '+(t.album||'')).toLowerCase();
+      return s.indexOf(q.toLowerCase())>=0;
+    });
+    if(!hits.length) hits=DEMO_COVERS.slice(0,6);
+    renderSearch(hits);
+    st.textContent='نمونه (بعد از اتصال، جستجوی واقعی)';
+    return;
+  }
+  st.textContent='در حال جستجو…';
+  fetch('/api/integrations/spotify/search?q='+encodeURIComponent(q))
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+    .then(function(res){
+      if(!res.ok){st.textContent=(res.d&&res.d.error)||'ناموفق';return}
+      var items=res.d.items||[];
+      renderSearch(items);
+      st.textContent=items.length?('زنده ✓ · '+fa(items.length)+' نتیجه'):'چیزی پیدا نشد';
+    }).catch(function(){st.textContent='جستجو ناموفق'});
+}
+document.getElementById('spSearchBtn').addEventListener('click',doSearch);
+document.getElementById('spQ').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch()}});
+
 
 document.getElementById('nowSave').addEventListener('click',function(){
   var title=document.getElementById('nowTitle').textContent;
