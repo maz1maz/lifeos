@@ -18,7 +18,7 @@ function makeHelpers(env) {
     let x = row ? JSON.parse(row.value) : { users: [], sessions: [], transactions: [], tasks: [], inbox: [], daily: [] };
     x.investments ??= []; x.accounts ??= []; x.budgets ??= []; x.projects ??= []; x.timeEntries ??= []; x.habits ??= []; x.habitLogs ??= [];
     x.subscriptions ??= []; x.debts ??= []; x.footballTeams ??= []; x.matches ??= []; x.news ??= []; x.movies ??= []; x.timers ??= [];
-    x.exercise ??= []; x.weeklyNotes ??= []; x.mediaLog ??= []; x.investmentTx ??= []; x.assetPrices ??= []; x.priceAlerts ??= []; x.portfolioSnapshots ??= []; x.newsSources ??= []; x.contacts ??= []; x.contactLogs ??= []; x.learning ??= []; x.bookmarks ??= []; x.shoppingItems ??= []; x.trips ??= []; x.tripChecklist ??= []; x.documents ??= []; x.goals ??= []; x.wins ??= []; x.decisions ??= []; x.lifeReviews ??= []; x.pokerSessions ??= [];
+    x.exercise ??= []; x.weeklyNotes ??= []; x.mediaLog ??= []; x.investmentTx ??= []; x.assetPrices ??= []; x.priceAlerts ??= []; x.portfolioSnapshots ??= []; x.newsSources ??= []; x.contacts ??= []; x.contactLogs ??= []; x.learning ??= []; x.bookmarks ??= []; x.shoppingItems ??= []; x.trips ??= []; x.tripChecklist ??= []; x.documents ??= []; x.goals ??= []; x.wins ??= []; x.decisions ??= []; x.lifeReviews ??= []; x.pokerSessions ??= []; x.reminders ??= [];
     return x;
   }
   async function write(db) {
@@ -46,7 +46,7 @@ function makeHelpers(env) {
   function b64(str) { return btoa(str) }
   function bytesFromBase64(b64str) { let bin = atob(b64str); let bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); return bytes }
   function textFromBase64(b64str) { return new TextDecoder('utf-8').decode(bytesFromBase64(b64str)) }
-  function today(){try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return new Date().toISOString().slice(0,10)}}
+  function today() { return new Date().toISOString().slice(0, 10) }
   class AuthError extends Error { }
   function me(req, db) { let sid = cookie(req).sid; let s = db.sessions.find(x => x.id === sid); return s && db.users.find(x => x.id === s.userId) }
   function auth(req, res, db) { let u = me(req, db); if (!u) { json(res, 401, { error: 'ابتدا وارد حساب شوید.' }); throw new AuthError() } return u }
@@ -62,7 +62,16 @@ function makeHelpers(env) {
   function csvEscape(v){v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
   function advanceRecurringTransactions(db,userId){let chains={};db.transactions.forEach(x=>{if(x.userId===userId&&x.recurrenceId)(chains[x.recurrenceId]=chains[x.recurrenceId]||[]).push(x)});let changed=false;for(const list of Object.values(chains)){let latest=list.sort((a,b)=>b.date.localeCompare(a.date))[0];if(!latest.recurrence)continue;let next=new Date(latest.date+'T12:00:00');if(latest.recurrence==='weekly')next.setDate(next.getDate()+7);else if(latest.recurrence==='monthly')next.setMonth(next.getMonth()+1);else next.setDate(next.getDate()+1);let nextDate=next.toISOString().slice(0,10);if(nextDate<=today()&&!list.some(x=>x.date===nextDate)){db.transactions.push({id:id(),userId,title:latest.title,amount:latest.amount,category:latest.category,kind:latest.kind,account:latest.account,date:nextDate,recurrence:latest.recurrence,recurrenceId:latest.recurrenceId,receipt:null,createdAt:Date.now()});changed=true}}return changed}
   function enNum(v){return String(v).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d))}
-  function parseLifeText(text){let t=enNum(text),actions=[],m=t.match(/(?:خرید(?:م)?|خرج کردم|هزینه)[^\d]{0,25}(\d[\d,]*)/);if(m){let a=Number(m[1].replace(/,/g,''));actions.push({type:'transaction',amount:a,title:'هزینه ثبت‌شده از متن',category:/نان|رستوران|شام|غذا|کافه/.test(t)?'خوراک':'متفرقه'})}let w=t.match(/(\d+(?:\.\d+)?)\s*(?:ساعت|ساعتِ?)\s*(?:روی|کار)/);if(w)actions.push({type:'time',minutes:Math.round(Number(w[1])*60),title:'کار ثبت‌شده از متن'});let mood=t.match(/(?:حالم|مود)[^\d]{0,12}(\d{1,2})/);if(mood)actions.push({type:'mood',value:Math.min(10,Number(mood[1]))});let sleep=t.match(/(\d+(?:\.\d+)?)\s*ساعت\s*(?:خواب|خوابیدم)/);if(sleep)actions.push({type:'sleep',value:sleep[1]+' ساعت'});let s1=t.match(/سریال\s+(.+?)\s*(?:رو|را)?\s*(?:تا\s*)?فصل\s*(\d+)[^\d]{0,10}قسمت\s*(\d+)/);if(s1)actions.push({type:'series',title:s1[1].trim(),season:Number(s1[2]),episode:Number(s1[3])});else{let s2=t.match(/سریال\s+(.+?)\s*(?:رو|را)?\s*(?:تا\s*)?قسمت\s*(\d+)[^\d]{0,10}فصل\s*(\d+)/);if(s2)actions.push({type:'series',title:s2[1].trim(),season:Number(s2[3]),episode:Number(s2[2])})}return actions}
+  function tehranParts(d){try{let f=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false});let parts={};for(const p of f.formatToParts(d||new Date()))if(p.type!=='literal')parts[p.type]=p.value;return parts}catch(e){let x=d||new Date();return{year:String(x.getFullYear()),month:String(x.getMonth()+1).padStart(2,'0'),day:String(x.getDate()).padStart(2,'0'),weekday:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][x.getDay()],hour:String(x.getHours()).padStart(2,'0'),minute:String(x.getMinutes()).padStart(2,'0')}}}
+  function addDaysIso(iso,n){let d=new Date(String(iso).slice(0,10)+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+Number(n||0));return d.toISOString().slice(0,10)}
+  function weekdayIndexTehran(iso){let p=tehranParts(new Date(String(iso).slice(0,10)+'T12:00:00Z'));return({Sat:0,Sun:1,Mon:2,Tue:3,Wed:4,Thu:5,Fri:6})[p.weekday]||0}
+  function nextWeekdayIso(fromIso,targetIdx,weekOffset){weekOffset=weekOffset|0;let cur=weekdayIndexTehran(fromIso),delta=(targetIdx-cur+7)%7;return addDaysIso(fromIso,delta+7*weekOffset)}
+  function parsePersianAmount(token){if(token==null)return null;let s=enNum(String(token)).trim().replace(/,/g,'').replace(/٬/g,'').replace(/٫/g,'.');s=s.replace(/(\d)\s*[/]\s*(\d+)/g,'$1.$2');let mult=1,body=s.replace(/تومان|تومن|ریال/ig,'').trim();if(/میلیون/i.test(body)||/\d(?:\.\d+)?\s*م\b/i.test(body)||/\d(?:\.\d+)?م(?:\s|$)/i.test(body)||/\d(?:\.\d+)?\s*م$/i.test(body)){mult=1e6;s=body.replace(/میلیون/ig,'').replace(/\s*م\b/i,'').replace(/م$/i,'').replace(/\s+/g,'')}else if(/هزار/i.test(body)){mult=1e3;s=body.replace(/هزار/ig,'').replace(/\s+/g,'')}else s=body.replace(/\s+/g,'');s=s.replace(/تومان|تومن|ریال/ig,'').replace(/\s+/g,'').trim();let n=parseFloat(s);if(!isFinite(n)||n<=0)return null;return Math.round(n*mult)}
+  function extractAmountFromText(t){t=enNum(t);let res=null;function tryOne(re){let m=t.match(re);if(!m)return;let a=parsePersianAmount(m[0]);if(a&&a>0){if(!res||m[0].length>=res.raw.length)res={amount:a,index:m.index,length:m[0].length,raw:m[0]}}}tryOne(/(\d+(?:[./٫]\d+)?)\s*میلیون/);tryOne(/(\d+(?:[./٫]\d+)?)\s*م(?=\s|$|[^\u0600-\u06ffa-zA-Z0-9])/);tryOne(/(\d+(?:[./٫]\d+)?)\s*هزار(?:\s*(?:تومان|تومن))?/);tryOne(/(\d{1,3}(?:[,٬]\d{3}){1,3})(?:\s*(?:تومان|تومن))?/);tryOne(/(\d{4,12})(?:\s*(?:تومان|تومن))?/);tryOne(/(\d+(?:[./٫]\d+)?)\s*(?:تومان|تومن)/);return res}
+  function extractTimeFromText(t){t=enNum(t);let m=t.match(/ساعت\s*(\d{1,2})(?:[:：.](\d{2}))?\s*(صبح|ظهر|بعدازظهر|بعد\s*از\s*ظهر|عصر|شب)?/);if(!m)m=t.match(/\b(\d{1,2})[:：.](\d{2})\s*(صبح|ظهر|بعدازظهر|بعد\s*از\s*ظهر|عصر|شب)?/);if(!m)return null;let h=Number(m[1]),mi=m[2]?Number(m[2]):0,suf=(m[3]||'').replace(/\s+/g,'');if(h>23||mi>59)return null;if(/بعدازظهر|عصر|شب/.test(suf)&&h>0&&h<12)h+=12;if(suf==='ظهر'&&h<12)h=12;if(suf==='صبح'&&h===12)h=0;if(!suf&&h>=1&&h<=6)h+=12;return{time:String(h).padStart(2,'0')+':'+String(mi).padStart(2,'0'),index:m.index,length:m[0].length}}
+  function extractDateFromText(t,baseIso){t=enNum(String(t));baseIso=baseIso||today();if(/امروز/.test(t))return{date:baseIso,label:'امروز'};if(/پس\s*فردا|پسفردا/.test(t))return{date:addDaysIso(baseIso,2),label:'پس‌فردا'};if(/فردا/.test(t))return{date:addDaysIso(baseIso,1),label:'فردا'};let dm=t.match(/(\d+)\s*روز\s*(?:دیگر|دیگه)/);if(dm)return{date:addDaysIso(baseIso,Number(dm[1])),label:dm[1]+' روز دیگر'};let weekOffset=0;if(/دو\s*هفته\s*(?:ی\s*)?(?:بعد|آینده|دیگه)/.test(t))weekOffset=2;else if(/هفته\s*(?:ی\s*)?(?:بعد|آینده)|هفته‌ی?\s*دیگه/.test(t))weekOffset=1;const wds=[[/سه‌شنبه|سه\s*شنبه/,3,'سه‌شنبه'],[/چهارشنبه|چهار\s*شنبه/,4,'چهارشنبه'],[/پنج‌شنبه|پنجشنبه|پنج\s*شنبه/,5,'پنج‌شنبه'],[/یکشنبه|یک\s*شنبه/,1,'یکشنبه'],[/دوشنبه|دو\s*شنبه/,2,'دوشنبه'],[/شنبه/,0,'شنبه'],[/جمعه/,6,'جمعه']];for(const[re,idx,name]of wds){if(re.test(t))return{date:nextWeekdayIso(baseIso,idx,weekOffset),label:(weekOffset?('هفته بعد '):'')+name}}if(weekOffset===1)return{date:addDaysIso(baseIso,7),label:'هفته بعد'};if(weekOffset===2)return{date:addDaysIso(baseIso,14),label:'دو هفته بعد'};return null}
+  function cleanTitle(s){return String(s||'').replace(/[،,.\-–—:؛]+$/g,'').replace(/^(?:که|رو|را|و|با|برای|در|به)\s+/,'').replace(/\s+/g,' ').trim()}
+  function parseLifeText(text){let raw=String(text||'').trim();if(!raw)return[];let t=enNum(raw).replace(/ي/g,'ی').replace(/ك/g,'ک');let actions=[],base=today();let s1=t.match(/(?:سریال\s+)?(.+?)\s*(?:رو|را)?\s*(?:تا\s*)?فصل\s*(\d+)[^\d]{0,14}قسمت\s*(\d+)/);if(s1)actions.push({type:'series',title:cleanTitle(s1[1].replace(/^سریال\s+/,'')),season:Number(s1[2]),episode:Number(s1[3])});else{let s2=t.match(/(?:سریال\s+)?(.+?)\s*(?:رو|را)?\s*(?:تا\s*)?قسمت\s*(\d+)[^\d]{0,14}فصل\s*(\d+)/);if(s2)actions.push({type:'series',title:cleanTitle(s2[1].replace(/^سریال\s+/,'')),season:Number(s2[3]),episode:Number(s2[2])})}let mood=t.match(/(?:حالم|حال|مود|mood)\s*(?:بود)?\s*[=:]?\s*(\d{1,2})\b/);if(mood){let v=Number(mood[1]);if(v>=0&&v<=10)actions.push({type:'mood',value:v})}let sleep=t.match(/(\d+(?:\.\d+)?)\s*ساعت\s*(?:خواب(?:یدم)?)/)||t.match(/خواب(?:م)?\s*[=:]?\s*(\d+(?:\.\d+)?)/);if(sleep)actions.push({type:'sleep',value:sleep[1]+' ساعت'});if(!/خواب/.test(t)){let w=t.match(/(\d+(?:\.\d+)?)\s*ساعت\s+(?:روی\s+)?([^\d]+?)(?:\s+کار(?:\s*کردم)?)?$/);if(!w)w=t.match(/(\d+(?:\.\d+)?)\s*ساعت\s*کار(?:\s*کردم)?/);if(w&&!/قرار|یادآوری|یادم|ساعت\s*\d/.test(t)){let minutes=Math.round(Number(w[1])*60),title=cleanTitle(w[2]||'کار');title=(title||'').replace(/\s*کار\s*کردم$/,'').trim();if(!title||/^(کردم|کردیم|کار)$/.test(title))title='کار';actions.push({type:'time',minutes,title})}}let dateInfo=extractDateFromText(t,base),timeInfo=extractTimeFromText(t),amt=extractAmountFromText(t);let hasApptWord=/(?:قرار|یادآوری|یادم\s*باشه|یادم\s*نره|جلسه(?:‌ام|ام)?|ملاقات|ویزیت)/.test(t);let hasApptHint=!!(dateInfo&&timeInfo)||!!(dateInfo&&/(?:دکتر|پزشک|دندان|بیمارستان|بانک|اداره|فرودگاه|مسافر|تحویل|ملاقات)/.test(t));let isReminder=hasApptWord||hasApptHint;let moneyWord=/(?:خرید(?:م|ی)?|خریدم|خرج(?:یدم|م)?|پرداخت|هزینه|تومان|تومن|میلیون|هزار|\d(?:[./٫]\d+)?\s*م\b|\d(?:[./٫]\d+)?م\b)/.test(t);if(amt&&amt.amount>=1000)moneyWord=true;if(isReminder){let title=t;title=title.replace(/یادم\s*باشه(?:\s*که)?|یادم\s*نره(?:\s*که)?|یادآوری(?:\s*کن)?|قرار(?:ه|ه؟|\s*دارم|\s*ه)?|جلسه(?:‌ام|ام)?|ملاقات|ویزیت/g,' ');title=title.replace(/امروز|فردا|پس\s*فردا|پسفردا|این\s*هفته|دو\s*هفته\s*(?:ی\s*)?(?:بعد|آینده|دیگه)|هفته\s*(?:ی\s*)?(?:بعد|آینده)|هفته‌ی?\s*دیگه/g,' ');title=title.replace(/سه‌شنبه|سه\s*شنبه|چهارشنبه|چهار\s*شنبه|پنج‌شنبه|پنجشنبه|پنج\s*شنبه|یکشنبه|یک\s*شنبه|دوشنبه|دو\s*شنبه|شنبه|جمعه/g,' ');title=title.replace(/ساعت\s*\d{1,2}(?:[:：.]\d{2})?\s*(?:صبح|ظهر|بعدازظهر|بعد\s*از\s*ظهر|عصر|شب)?/g,' ');title=title.replace(/\d{1,2}[:：.]\d{2}/g,' ');title=title.replace(/\d+\s*روز\s*(?:دیگر|دیگه)/g,' ');title=cleanTitle(title);if(!title||title.length<2)title='یادآوری';actions.push({type:'reminder',title,date:(dateInfo&&dateInfo.date)||base,time:timeInfo?timeInfo.time:null,whenLabel:(dateInfo&&dateInfo.label)||((dateInfo&&dateInfo.date)||base)})}let taskM=t.match(/^(?:کار|تسک|todo)\s*[:：\-]?\s*(.+)$/i);if(taskM){let title=cleanTitle(taskM[1].replace(/امروز|فردا|ساعت\s*\d{1,2}(?:[:：.]\d{2})?/g,' '));if(title)actions.push({type:'task',title,date:(dateInfo&&dateInfo.date)||base,startTime:timeInfo?timeInfo.time:null})}if(amt&&moneyWord&&!(isReminder&&amt.amount<=24&&!/(?:خرید|خرج|پرداخت|تومان|تومن|میلیون|هزار|\d(?:[./٫]\d+)?\s*م\b)/.test(t))){let amount=amt.amount,title=(t.slice(0,amt.index)+' '+t.slice(amt.index+amt.length));title=title.replace(/(?:خرید(?:م|ی)?|خریدم|خرج(?:یدم|م)?|پرداخت(?:م| کردم)?|هزینه(?:ی|ٔ)?|دادم)\s*/g,' ');title=title.replace(/(?:به مبلغ|به قیمت|به ارزش|مبلغ|قیمت)\s*/g,' ');title=title.replace(/(?:تومان|تومن)\s*/g,' ');title=cleanTitle(title);if(!title||title.length<2)title='هزینه ثبت‌شده از متن';let cat=suggestCategoryKeyword(title)||suggestCategoryKeyword(t)||'متفرقه';if(/عینک/.test(t)&&cat==='متفرقه')cat='پوشاک';let kind=/(?:دریافت|واریز|حقوق|درآمد)/.test(t)?'income':'expense';actions.push({type:'transaction',amount,title,category:cat,kind})}if(!actions.length&&dateInfo){let title=t;title=title.replace(/امروز|فردا|پس\s*فردا|این\s*هفته|هفته\s*(?:بعد|آینده)|سه‌شنبه|سه\s*شنبه|چهارشنبه|پنج‌شنبه|پنجشنبه|یکشنبه|دوشنبه|شنبه|جمعه|ساعت\s*\d{1,2}(?:[:：.]\d{2})?/g,' ');title=cleanTitle(title);if(title.length>=2)actions.push({type:'reminder',title,date:dateInfo.date,time:timeInfo?timeInfo.time:null,whenLabel:dateInfo.label})}let seen=new Set(),out=[];for(const a of actions){let k=[a.type,a.title||'',a.amount||a.value||'',a.date||'',a.time||a.startTime||''].join('|');if(seen.has(k))continue;seen.add(k);out.push(a)}return out}
   function normTitle(s){return String(s||'').toLowerCase().replace(/[‌\s]+/g,' ').trim()}
   async function applySeriesAction(db,userId,a){let title=String(a.title||'').trim();if(!title)return null;let nt=normTitle(title),existing=db.movies.find(x=>x.userId===userId&&x.type==='series'&&(normTitle(x.title).includes(nt)||nt.includes(normTitle(x.title))));if(existing){if(a.season)existing.currentSeason=Number(a.season);if(a.episode)existing.currentEpisode=Number(a.episode);if(existing.status!=='completed')existing.status='watching';return{label:existing.title,created:false}}let created={id:id(),userId,title,type:'series',status:'watching',rating:null,progress:'',currentSeason:a.season?Number(a.season):null,currentEpisode:a.episode?Number(a.episode):null,totalEpisodes:null,date:today(),note:'',tags:'',platform:'',language:'',watchedWith:'',spoiler:'',genre:'',director:'',durationMinutes:null,tmdbId:null,posterUrl:null,tmdbRating:null,createdAt:Date.now()};if(TMDB_API_KEY){try{let r=await fetch('https://api.themoviedb.org/3/search/tv?api_key='+TMDB_API_KEY+'&query='+encodeURIComponent(title)+'&language=fa'),data=await r.json(),top=(data.results||[])[0];if(top){created.title=top.name||title;created.tmdbId=top.id;created.posterUrl=top.poster_path?'https://image.tmdb.org/t/p/w342'+top.poster_path:null;created.tmdbRating=top.vote_average||null}}catch(e){}}db.movies.push(created);return{label:created.title,created:true}}
   function parseBingersLibrary(rows){let header=rows[0]||[],idx=n=>header.indexOf(n),ti=idx('title'),yi=idx('year'),tmdbI=idx('tmdb_id'),tvdbI=idx('tvdb_id'),statusI=idx('list_status'),addedI=idx('added_at');if(ti===-1||statusI===-1)throw new Error('ساختار library.csv شناخته نشد.');let statusMap={watching:'watching',for_later:'watchlist',completed:'completed',dropped:'dropped'};return rows.slice(1).filter(r=>r.length>1&&r[ti]).map(r=>({title:r[ti].trim(),year:r[yi]||'',tmdbId:r[tmdbI]||null,tvdbId:r[tvdbI]||null,status:statusMap[r[statusI]]||'watchlist',addedAt:r[addedI]||''}))}
@@ -70,11 +79,11 @@ function makeHelpers(env) {
   async function fetchTvMazeNextEpisode(show){try{let tvShow=null;if(show.tvdbId){let r=await fetch('https://api.tvmaze.com/lookup/shows?thetvdb='+encodeURIComponent(show.tvdbId));if(r.ok){let j=await r.json();if(j&&j.id)tvShow=j}}if(!tvShow){let r=await fetch('https://api.tvmaze.com/singlesearch/shows?q='+encodeURIComponent(show.title));if(r.ok){let j=await r.json();if(j&&j.id)tvShow=j}}if(!tvShow)return null;let r2=await fetch('https://api.tvmaze.com/shows/'+tvShow.id+'?embed[]=previousepisode&embed[]=nextepisode');if(!r2.ok)return null;let full=await r2.json();return{previous:(full._embedded&&full._embedded.previousepisode)||null,next:(full._embedded&&full._embedded.nextepisode)||null}}catch(e){return null}}
   async function mapConcurrent(items,limit,fn){let i=0,results=new Array(items.length);async function worker(){while(i<items.length){let idx=i++;results[idx]=await fn(items[idx])}}await Promise.all(Array.from({length:Math.min(limit,items.length)},worker));return results}
   async function aiComplete(system,userMsg,maxTokens){if(!AI_PROVIDER_API_KEY)return null;let r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':AI_PROVIDER_API_KEY,'anthropic-version':'2023-06-01','content-type':'application/json'},body:JSON.stringify({model:AI_MODEL,max_tokens:maxTokens||800,system,messages:[{role:'user',content:userMsg}]})}).then(r=>r.json());if(r.error)throw new Error(r.error.message||'خطای مدل هوش مصنوعی');return(r.content&&r.content[0]&&r.content[0].text)||''}
-  async function aiExtractActions(text){if(!AI_PROVIDER_API_KEY)return[];let sys='اعمال زیر را از متن فارسی کاربر استخراج کن و فقط یک آرایهٔ JSON برگردان، بدون هیچ توضیح اضافه. هر آیتم یکی از این ساختارهاست: {"type":"transaction","amount":عدد,"title":"...","category":"..."} یا {"type":"time","minutes":عدد,"title":"..."} یا {"type":"mood","value":عدد بین ۰ تا ۱۰} یا {"type":"sleep","value":"عدد ساعت"} یا {"type":"series","title":"اسم سریال","season":عدد,"episode":عدد}. اگر چیزی برای استخراج نبود، آرایهٔ خالی [] برگردان.';try{let out=await aiComplete(sys,text,400);let m=out&&out.match(/\[[\s\S]*\]/);if(!m)return[];let arr=JSON.parse(m[0]);return Array.isArray(arr)?arr.filter(a=>a&&typeof a==='object'&&['transaction','time','mood','sleep','series'].includes(a.type)):[]}catch(e){return[]}}
+  async function aiExtractActions(text){if(!AI_PROVIDER_API_KEY)return[];let sys='اعمال را از متن کوتاه فارسی کاربر استخراج کن و فقط آرایه JSON برگردان. ساختارها: {"type":"transaction","amount":عدد تومان,"title":"...","category":"خوراک|حمل‌ونقل|قبض|سلامت|تفریح|پوشاک|آموزش|مسکن|متفرقه","kind":"expense|income"} یا {"type":"time","minutes":عدد,"title":"..."} یا {"type":"mood","value":0-10} یا {"type":"sleep","value":"N ساعت"} یا {"type":"series","title":"...","season":عدد,"episode":عدد} یا {"type":"task","title":"...","date":"YYYY-MM-DD","startTime":"HH:MM"|null} یا {"type":"reminder","title":"...","date":"YYYY-MM-DD","time":"HH:MM"|null,"whenLabel":"..."}. مبلغ‌های فارسی: «۲/۵ م» یا «2.5م» = 2500000، «۵۰ هزار» = 50000. تاریخ نسبی را به میلادی ISO با تقویم تهران تبدیل کن. اگر چیزی نبود [] برگردان.';try{let out=await aiComplete(sys,text,500);let m=out&&out.match(/\[[\s\S]*\]/);if(!m)return[];let arr=JSON.parse(m[0]);return Array.isArray(arr)?arr.filter(a=>a&&typeof a==='object'&&['transaction','time','mood','sleep','series','task','reminder'].includes(a.type)):[]}catch(e){return[]}}
   function pearson(xs,ys){let n=xs.length;if(n<3)return null;let mx=xs.reduce((a,b)=>a+b,0)/n,my=ys.reduce((a,b)=>a+b,0)/n,num=0,dx2=0,dy2=0;for(let i=0;i<n;i++){let dx=xs[i]-mx,dy=ys[i]-my;num+=dx*dy;dx2+=dx*dx;dy2+=dy*dy}let den=Math.sqrt(dx2*dy2);return den===0?null:num/den}
   function correlationLabel(r){if(r===null)return{strength:'داده کافی نیست',direction:null};let a=Math.abs(r),direction=r>=0?'مثبت':'منفی',strength=a<0.2?'ناچیز':a<0.5?'ضعیف':a<0.7?'متوسط':'قوی';return{strength,direction}}
   function parseSleepHours(v){if(!v)return null;let m=String(v).match(/(\d+(?:\.\d+)?)/);return m?Number(m[1]):null}
-  const CATEGORY_KEYWORDS=[['خوراک',/نان|رستوران|شام|ناهار|صبحانه|غذا|کافه|سوپرمارکت|میوه|قصاب|نانوایی|فست\s?فود/],['حمل‌ونقل',/تاکسی|اسنپ|تپسی|بنزین|پمپ\s?بنزین|مترو|اتوبوس|پارکینگ|تعمیر\s?ماشین|بلیط|مسافرت/],['قبض',/قبض|برق|آب و فاضلاب|گاز|اینترنت|تلفن|شارژ\s?خط|بیمه/],['سلامت',/دکتر|پزشک|دارو|داروخانه|بیمارستان|درمانگاه|دندانپزشک|آزمایشگاه/],['تفریح',/سینما|کنسرت|بازی|فیلم|پارک|تفریح|بولینگ|بیلیارد/],['پوشاک',/لباس|کفش|پوشاک|مانتو|شلوار|کاپشن/],['آموزش',/کتاب|دوره|کلاس|آموزش|شهریه|دانشگاه/],['مسکن',/اجاره|رهن|شارژ\s?ساختمان|مسکن/]];
+  const CATEGORY_KEYWORDS=[['خوراک',/نان|رستوران|شام|ناهار|صبحانه|غذا|کافه|سوپرمارکت|میوه|قصاب|نانوایی|فست\s?فود/],['حمل‌ونقل',/تاکسی|اسنپ|تپسی|بنزین|پمپ\s?بنزین|مترو|اتوبوس|پارکینگ|تعمیر\s?ماشین|بلیط|مسافرت/],['قبض',/قبض|برق|آب و فاضلاب|گاز|اینترنت|تلفن|شارژ\s?خط|بیمه/],['سلامت',/دکتر|پزشک|دارو|داروخانه|بیمارستان|درمانگاه|دندانپزشک|آزمایشگاه/],['تفریح',/سینما|کنسرت|بازی|فیلم|پارک|تفریح|بولینگ|بیلیارد/],['پوشاک',/لباس|کفش|پوشاک|مانتو|شلوار|کاپشن|عینک|کیف/],['آموزش',/کتاب|دوره|کلاس|آموزش|شهریه|دانشگاه/],['مسکن',/اجاره|رهن|شارژ\s?ساختمان|مسکن/]];
   function suggestCategoryKeyword(title){let t=String(title||'');for(const[cat,re]of CATEGORY_KEYWORDS)if(re.test(t))return cat;return null}
   function decodeXmlEntities(s){return String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<[^>]+>/g,' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#0?39;/g,"'").replace(/&apos;/g,"'").replace(/\s+/g,' ').trim()}
   function extractTag(block,tag){let m=block.match(new RegExp('<'+tag+'[^>]*>([\\s\\S]*?)<\\/'+tag+'>','i'));return m?m[1]:''}
@@ -89,162 +98,13 @@ function makeHelpers(env) {
   async function syncAllNewsSources(db){let results=[],changed=false;for(const user of db.users){for(const src of db.newsSources.filter(x=>x.userId===user.id&&x.active)){let r=await syncOneNewsSource(db,user.id,src);if(r.added)changed=true;results.push(r)}}return{changed,results}}
   async function rapidApiGet(host,path){if(!RAPIDAPI_KEY)return null;let r=await fetch('https://'+host+path,{headers:{'x-rapidapi-key':RAPIDAPI_KEY,'x-rapidapi-host':host}}),data=await r.json();if(!r.ok)throw new Error((data&&(data.message||data.error))||'خطا در دریافت داده از RapidAPI');return data}
   async function apiFootballFetch(path,params){let qs='?'+new URLSearchParams(params||{});if(API_FOOTBALL_KEY){let r=await fetch('https://v3.football.api-sports.io'+path+qs,{headers:{'x-apisports-key':API_FOOTBALL_KEY}}),data=await r.json();if(!r.ok)throw new Error(data.message||'خطا در دریافت داده از API-Football');return data}if(RAPIDAPI_KEY)return rapidApiGet('api-football-v1.p.rapidapi.com','/v3'+path+qs);return null}
-  const FREE_LEAGUES=[{id:'irn.1',tsdb:'4742',name:'لیگ برتر خلیج فارس',country:'ایران',season:'2025-2026'},{id:'eng.1',tsdb:'4328',name:'لیگ برتر انگلیس',country:'انگلیس',season:'2026-2027'},{id:'esp.1',tsdb:'4335',name:'لالیگا',country:'اسپانیا',season:'2026-2027'},{id:'ita.1',tsdb:'4332',name:'سری آ',country:'ایتالیا',season:'2026-2027'},{id:'ger.1',tsdb:'4331',name:'بوندس‌لیگا',country:'آلمان',season:'2026-2027'},{id:'fra.1',tsdb:'4334',name:'لیگ ۱',country:'فرانسه',season:'2026-2027'},{id:'tur.1',tsdb:'4339',name:'سوپر لیگ ترکیه',country:'ترکیه',season:'2026-2027'},{id:'ksa.1',tsdb:'4668',name:'لیگ حرفه‌ای عربستان',country:'عربستان',season:'2025-2026'}];
+  const FREE_LEAGUES=[{id:'eng.1',tsdb:'4328',name:'لیگ برتر انگلیس',country:'انگلیس',season:'2026-2027'},{id:'esp.1',tsdb:'4335',name:'لالیگا',country:'اسپانیا',season:'2026-2027'},{id:'ita.1',tsdb:'4332',name:'سری آ',country:'ایتالیا',season:'2026-2027'},{id:'ger.1',tsdb:'4331',name:'بوندس‌لیگا',country:'آلمان',season:'2026-2027'},{id:'fra.1',tsdb:'4334',name:'لیگ ۱',country:'فرانسه',season:'2026-2027'},{id:'tur.1',tsdb:'4339',name:'سوپر لیگ ترکیه',country:'ترکیه',season:'2026-2027'},{id:'ksa.1',tsdb:'4668',name:'لیگ حرفه‌ای عربستان',country:'عربستان',season:'2025-2026'},{id:'irn.1',tsdb:'4742',name:'لیگ برتر خلیج فارس',country:'ایران',season:'2025-2026'}];
   async function fetchEspnScoreboard(espnCode,date){let q=(date?'?dates='+date.replace(/-/g,''):''),hosts=['https://site.api.espn.com','https://site.web.api.espn.com'],last=null;for(let h of hosts){try{let r=await fetch(h+'/apis/site/v2/sports/soccer/'+espnCode+'/scoreboard'+q,{headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36','Accept':'application/json'}});if(!r.ok){last='HTTP '+r.status;continue}let data=await r.json();if(data&&data.events)return data;last='خالی'}catch(e){last=e.message}}throw new Error('ESPN: '+(last||'ناموفق'))}
-  const ESPN_LEAGUE_IDS=['eng.1','esp.1','ita.1','ger.1','fra.1','tur.1','irn.1','ksa.1'];
-  
-    // last-chance Iran: any soccer event that day with Iranian club names
-    async function fetchIranDayFallback(date){
-      try{
-        let day=await fetchTheSportsDb('/eventsday.php?d='+encodeURIComponent(date)+'&s=Soccer');
-        let re=/esteghlal|persepolis|sepahan|tractor|foolad|gol gohar|aluminium|malavan|chadormalu|kheybar|mes raf|shams azar|zob ahan|paykan|nassaji|esteghlal khuz|sanat naft|fajr sepasi|aluminium arak|hovadar|persian gulf/i;
-        return (day.events||[]).filter(e=>re.test((e.strHomeTeam||'')+' '+(e.strAwayTeam||'')+' '+(e.strLeague||'')+' '+(e.strCountry||''))).map(mapTheSportsDbEvent);
-      }catch(e){return []}
-    }
-
-  async function fetchFreeLeagueDay(league,date){
-    let codes = [league.id];
-    if(league.id==='irn.1') codes = ['irn.1','iran.1','ir.1','persian.1'];
-    const tehranToday = today();
-    // 1) ESPN scoreboard — try date + no-date + dates=YYYYMMDD
-    if(ESPN_LEAGUE_IDS.includes(league.id) || league.id==='irn.1' || league.id==='ksa.1'){
-      const dateVariants = [];
-      if(date) dateVariants.push(date);
-      dateVariants.push(null);
-      // also try ±1 day for timezone edge
-      try{
-        let t=new Date(date+'T12:00:00Z');
-        for(const dlt of [-1,1]){
-          let x=new Date(t.getTime()+dlt*864e5);
-          dateVariants.push(x.toISOString().slice(0,10));
-        }
-      }catch(e){}
-      for(const code of codes){
-        for(const d of dateVariants){
-          try{
-            let data=await fetchEspnScoreboard(code,d);
-            let items=(data.events||[]).map(ev=>mapEspnEvent(ev,league.name));
-            if(d && d!==date){
-              items=items.filter(x=>{
-                try{
-                  let xd=new Date(x.date);
-                  let tehran=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).format(xd);
-                  return tehran===date || (x.date||'').slice(0,10)===date;
-                }catch(e){return true}
-              });
-            }
-            if(items.length)return items;
-          }catch(e){}
-        }
-      }
-    }
-    // 2) TheSportsDB day lookup (global soccer day)
-    try{
-      let day=await fetchTheSportsDb('/eventsday.php?d='+encodeURIComponent(date)+'&s=Soccer');
-      let dayItems=(day.events||[]).filter(e=>{
-        let lid=String(e.idLeague||'');
-        let lname=(e.strLeague||'').toLowerCase();
-        let country=(e.strCountry||'').toLowerCase();
-        if(lid && String(league.tsdb)===lid) return true;
-        if(league.id==='irn.1'){
-          return country==='iran' || /persian gulf|persian|iran super|iran pro|ipl|azadegan|خلیج|برتر|ایران/.test(lname) || ['4742','4421','4855'].includes(lid);
-        }
-        // also match by league name loosely for other leagues
-        if(league.name && lname && lname.includes(String(league.name).toLowerCase().slice(0,5))) return true;
-        return false;
-      }).map(mapTheSportsDbEvent);
-      if(dayItems.length)return dayItems;
-    }catch(e){}
-    // 2b) Iran-specific: search events by league name day
-    if(league.id==='irn.1'){
-      for(const q of ['Persian Gulf','Iran','Pro League']){
-        try{
-          let day=await fetchTheSportsDb('/eventsday.php?d='+encodeURIComponent(date)+'&l='+encodeURIComponent(q));
-          let items=(day.events||[]).map(mapTheSportsDbEvent);
-          if(items.length)return items;
-        }catch(e){}
-      }
-    }
-    // 3) season dump + alternate seasons / tsdb ids
-    let seasons=[league.season];
-    if(league.id==='irn.1'){
-      // Persian Gulf season typically Aug–May
-      seasons=['2025-2026','2024-2025','2026-2027','2023-2024','2025'];
-    }
-    let tsdbIds=[league.tsdb];
-    if(league.id==='irn.1') tsdbIds=['4742','4421','4855'];
-    for(const tid of tsdbIds){
-      for(let season of seasons){
-        try{
-          let data=await fetchTheSportsDb('/eventsseason.php?id='+tid+'&s='+season);
-          let items=(data.events||[]).filter(e=>e.dateEvent===date).map(mapTheSportsDbEvent);
-          if(items.length){ return items; }
-        }catch(e){}
-      }
-      // next 7 days window if exact day empty (show nearest matchday)
-      if(league.id==='irn.1'){
-        try{
-          let data=await fetchTheSportsDb('/eventsseason.php?id='+tid+'&s='+seasons[0]);
-          let all=(data.events||[]).map(e=>({raw:e, d:e.dateEvent})).filter(x=>x.d);
-          let near=all.filter(x=>{
-            let diff=Math.abs((new Date(x.d+'T12:00:00Z')-new Date(date+'T12:00:00Z'))/864e5);
-            return diff<=2;
-          }).map(x=>mapTheSportsDbEvent(x.raw));
-          if(near.length) return near;
-        }catch(e){}
-      }
-    }
-    if(league.id==='irn.1'){
-      let fb=await fetchIranDayFallback(date);
-      if(fb.length) return fb;
-    }
-    return [];
-  }
-  
+  const ESPN_LEAGUE_IDS=['eng.1','esp.1','ita.1','ger.1','fra.1','tur.1'];
+  async function fetchFreeLeagueDay(league,date){if(ESPN_LEAGUE_IDS.includes(league.id)){try{let data=await fetchEspnScoreboard(league.id,date);let items=(data.events||[]).map(ev=>mapEspnEvent(ev,league.name));if(items.length)return items}catch(e){}}let data=await fetchTheSportsDb('/eventsseason.php?id='+league.tsdb+'&s='+league.season);return(data.events||[]).filter(e=>e.dateEvent===date).map(mapTheSportsDbEvent)}
   async function fetchTheSportsDb(path){let r=await fetch('https://www.thesportsdb.com/api/v1/json/3'+path),data=await r.json();if(!r.ok)throw new Error('HTTP '+r.status);return data}
-  function mapEspnEvent(ev,leagueName){
-    let comp=(ev.competitions&&ev.competitions[0])||{};
-    let home=(comp.competitors||[]).find(c=>c.homeAway==='home')||{};
-    let away=(comp.competitors||[]).find(c=>c.homeAway==='away')||{};
-    let state=comp.status&&comp.status.type&&comp.status.type.state;
-    let statusMap={pre:'upcoming',in:'live',post:'finished'};
-    let hs=home.score, as=away.score;
-    let hasScore=hs!==null&&hs!==undefined&&hs!==''&&as!==null&&as!==undefined&&as!=='';
-    return{
-      fixtureId:ev.id,
-      home:(home.team&&home.team.displayName)||'',
-      away:(away.team&&away.team.displayName)||'',
-      homeLogo:(home.team&&(home.team.logo||home.team.logos&&home.team.logos[0]&&home.team.logos[0].href))||home.logo||'',
-      awayLogo:(away.team&&(away.team.logo||away.team.logos&&away.team.logos[0]&&away.team.logos[0].href))||away.logo||'',
-      league:leagueName||'',
-      date:ev.date,
-      status:statusMap[state]||state||'upcoming',
-      score:(function(){
-        let st=statusMap[state]||state||'upcoming';
-        if(st!=='live'&&st!=='finished') return '—';
-        return hasScore?(String(hs)+' - '+String(as)):'—';
-      })(),
-      homeScore:(function(){let st=statusMap[state]||state||'upcoming'; if(st!=='live'&&st!=='finished') return null; return hasScore?Number(hs):null})(),
-      awayScore:(function(){let st=statusMap[state]||state||'upcoming'; if(st!=='live'&&st!=='finished') return null; return hasScore?Number(as):null})()
-    };
-  }
-  function mapTheSportsDbEvent(e){
-    let status=(e.strStatus||e.strProgress||'').toUpperCase().trim();
-    let hs=e.intHomeScore, as=e.intAwayScore;
-    let hasScore=hs!==null&&hs!==undefined&&hs!==''&&as!==null&&as!==undefined&&as!=='';
-    let finished=/^(FT|AET|PEN|MATCH FINISHED|FULL TIME|FINISHED|FT_PEN)$/.test(status);
-    let notStarted=!status||status==='NS'||status==='NOT STARTED'||status==='TBD'||status==='POSTPONED'||status==='CANC'||status==='CANCELLED'||status==='SUSP';
-    let live=false;
-    if(!finished&&!notStarted){
-      // only mark live if progress looks in-play OR scores present with in-play status
-      live=/LIVE|1H|2H|HT|ET|BREAK|INT|IN PLAY|KICK|HALF/.test(status) || (hasScore && status && !finished);
-    }
-    // scores: don't invent 0-0 when null
-    let statusVal=finished?'finished':(live?'live':'upcoming');
-    let score=(statusVal==='live'||statusVal==='finished')&&hasScore?(String(hs)+' - '+String(as)):'—';
-    if(statusVal==='upcoming'){ hs=null; as=null; hasScore=false; score='—'; }
-    return{fixtureId:e.idEvent,home:e.strHomeTeam||'',away:e.strAwayTeam||'',homeLogo:e.strHomeTeamBadge||e.strHomeBadge||'',awayLogo:e.strAwayTeamBadge||e.strAwayBadge||'',league:e.strLeague||'',date:e.strTimestamp||(e.dateEvent+'T'+(e.strTime||'00:00:00')),status:statusVal,score:score,homeScore:hasScore?Number(hs):null,awayScore:hasScore?Number(as):null,rawStatus:status}
-  }
+  function mapEspnEvent(ev,leagueName){let comp=(ev.competitions&&ev.competitions[0])||{},home=(comp.competitors||[]).find(c=>c.homeAway==='home')||{},away=(comp.competitors||[]).find(c=>c.homeAway==='away')||{},state=comp.status&&comp.status.type&&comp.status.type.state,statusMap={pre:'upcoming',in:'live',post:'finished'};return{fixtureId:ev.id,home:(home.team&&home.team.displayName)||'',away:(away.team&&away.team.displayName)||'',league:leagueName||'',date:ev.date,status:statusMap[state]||state||'upcoming',score:(home.score??'-')+' - '+(away.score??'-')}}
+  function mapTheSportsDbEvent(e){let status=(e.strStatus||'').toUpperCase(),statusVal=status==='FT'||status==='MATCH FINISHED'?'finished':status&&status!=='NS'?'live':'upcoming';return{fixtureId:e.idEvent,home:e.strHomeTeam||'',away:e.strAwayTeam||'',league:e.strLeague||'',date:e.strTimestamp||(e.dateEvent+'T'+(e.strTime||'00:00:00')),status:statusVal,score:(e.intHomeScore??'-')+' - '+(e.intAwayScore??'-')}}
   async function xbetGet(path,params){if(!RAPIDAPI_KEY)return null;return rapidApiGet('1xbet-api.p.rapidapi.com',path+'?'+new URLSearchParams({mode:'line',lng:'en',...params}))}
   async function sofaGet(path){if(!RAPIDAPI_KEY)return null;return rapidApiGet('sportapi7.p.rapidapi.com',path)}
   const COINGECKO_IDS={BTC:'bitcoin',ETH:'ethereum',USDT:'tether',USDC:'usd-coin',BNB:'binancecoin',SOL:'solana',XRP:'ripple',ADA:'cardano',DOGE:'dogecoin',TON:'the-open-network',DOT:'polkadot',MATIC:'matic-network',POL:'polygon-ecosystem-token',LTC:'litecoin',TRX:'tron',AVAX:'avalanche-2',LINK:'chainlink',ATOM:'cosmos',SHIB:'shiba-inu',UNI:'uniswap',XLM:'stellar',BCH:'bitcoin-cash',NEAR:'near',ETC:'ethereum-classic',XMR:'monero'};
@@ -256,22 +116,92 @@ function makeHelpers(env) {
   function portfolioTotals(holdings){let totals={};for(const h of holdings){let t=totals[h.currency]=totals[h.currency]||{value:0,cost:0,unrealizedPnl:0,realizedPnl:0,dividends:0,fees:0};t.value+=h.marketValue;t.cost+=h.costBasis;t.unrealizedPnl+=h.unrealizedPnl;t.realizedPnl+=h.realizedPnl;t.dividends+=h.dividends;t.fees+=h.fees}return totals}
   function evaluateAlerts(db,userId,holdings){let msgs=[];for(const a of db.priceAlerts.filter(a=>a.userId===userId&&a.active)){let h=holdings.find(x=>x.symbol===a.symbol);if(!h)continue;let met=false,text='';if(a.condition==='price_above'&&h.currentPrice>=a.value){met=true;text=`قیمت ${a.symbol} به ${a.value.toLocaleString('fa-IR')} ${h.currency} یا بالاتر رسید (اکنون ${h.currentPrice.toLocaleString('fa-IR')}).`}else if(a.condition==='price_below'&&h.currentPrice<=a.value){met=true;text=`قیمت ${a.symbol} به ${a.value.toLocaleString('fa-IR')} ${h.currency} یا پایین‌تر رسید (اکنون ${h.currentPrice.toLocaleString('fa-IR')}).`}else if(a.condition==='pnl_pct_above'||a.condition==='pnl_pct_below'){let pct=h.costBasis?(h.unrealizedPnl/h.costBasis*100):0;if(a.condition==='pnl_pct_above'&&pct>=a.value){met=true;text=`سود ${a.symbol} به ${pct.toFixed(1)}٪ رسید (هدف ${a.value}٪).`}else if(a.condition==='pnl_pct_below'&&pct<=a.value){met=true;text=`زیان ${a.symbol} به ${pct.toFixed(1)}٪ رسید (هدف ${a.value}٪).`}}if(met)msgs.push({icon:'💰',text,alert:a})}return msgs}
 
+  async function applyParsedActions(db,user,actions,defaultDate){let d=defaultDate||today();let done=[],daily=db.daily.find(x=>x.userId===user.id&&x.date===d);db.tasks??=[];db.reminders??=[];db.transactions??=[];db.timeEntries??=[];db.daily??=[];db.movies??=[];for(const a of actions){if(a.type==='transaction'&&Number(a.amount)>0){let amount=Number(a.amount),title=String(a.title||'هزینه ثبت‌شده از متن'),category=String(a.category||suggestCategoryKeyword(title)||'متفرقه'),kind=a.kind==='income'?'income':'expense',date=a.date||d;db.transactions.push({id:id(),userId:user.id,title,amount,category,kind,account:'بدون حساب',date,createdAt:Date.now()});done.push((kind==='income'?'درآمد ':'هزینه ')+amount.toLocaleString('fa-IR')+' تومان'+(title&&title!=='هزینه ثبت‌شده از متن'?' («'+title+'»)':''))}if(a.type==='time'&&Number(a.minutes)>0){let minutes=Math.round(Number(a.minutes)),title=String(a.title||'کار');db.timeEntries.push({id:id(),userId:user.id,title,projectId:null,minutes,date:a.date||d,createdAt:Date.now()});done.push('کار '+minutes+' دقیقه'+(title?' · '+title:''))}if(a.type==='mood'||a.type==='sleep'){let date=a.date||d;daily=db.daily.find(x=>x.userId===user.id&&x.date===date);if(!daily){daily={id:id(),userId:user.id,date,mood:7,energy:7,sleep:'',note:''};db.daily.push(daily)}if(a.type==='mood'&&Number(a.value)>=0&&Number(a.value)<=10){daily.mood=Number(a.value);done.push('مود '+Number(a.value))}else if(a.type==='sleep'&&a.value){daily.sleep=String(a.value);done.push('خواب '+String(a.value))}}if(a.type==='series'){let r=await applySeriesAction(db,user.id,a);if(r)done.push((r.created?'سریال جدید: ':'سریال: ')+r.label+(a.season?' فصل '+a.season:'')+(a.episode?' قسمت '+a.episode:''))}if(a.type==='task'&&String(a.title||'').trim()){let title=String(a.title).trim(),date=a.date||d,startTime=a.startTime||a.time||null;db.tasks.push({id:id(),userId:user.id,title,date,done:false,priority:'medium',deadline:date,projectId:null,parentTaskId:null,recurrence:null,startTime,durationMinutes:null,createdAt:Date.now()});done.push('کار «'+title+'»'+(date!==d?' برای '+date:'')+(startTime?' ساعت '+startTime:''))}if(a.type==='reminder'&&String(a.title||'').trim()){let title=String(a.title).trim(),date=a.date||d,time=a.time||null;db.reminders.push({id:id(),userId:user.id,title,date,time,done:false,whenLabel:a.whenLabel||date,createdAt:Date.now()});db.tasks.push({id:id(),userId:user.id,title:(time?('⏰ '+time+' · '):'🔔 ')+title,date,done:false,priority:'high',deadline:date,projectId:null,parentTaskId:null,recurrence:null,startTime:time,durationMinutes:null,createdAt:Date.now(),isReminder:true});done.push('یادآوری «'+title+'» · '+(a.whenLabel||date)+(time?' ساعت '+time:''))}}return done}
+
   function tgApi(method,params){if(!TELEGRAM_BOT_TOKEN)return Promise.resolve(null);return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params||{})}).then(r=>r.json())}
-  function tgSend(chatId,text){return tgApi('sendMessage',{chat_id:chatId,text})}
-  async function handleTelegramMessage(db,msg){let fromId=String(msg.from.id),chatId=msg.chat.id,text=(msg.text||'').trim();let user=db.users.find(u=>u.telegramUserId===fromId);if(!user)return tgSend(chatId,'این حساب تلگرام به هیچ حسابِ هِسته وصل نیست. از تنظیمات اپ، شناسهٔ عددی تلگرامت رو وصل کن.');let d=today();
-   if(text.startsWith('/')){let cmd=text.split(' ')[0];
-    if(cmd==='/امروز'){let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d),done=tasks.filter(x=>x.done).length,expense=db.transactions.filter(x=>x.userId===user.id&&x.date===d&&x.kind==='expense').reduce((n,x)=>n+x.amount,0),daily=db.daily.find(x=>x.userId===user.id&&x.date===d);return tgSend(chatId,`امروز:\nتسک‌ها: ${done} از ${tasks.length}\nهزینه: ${expense.toLocaleString('fa-IR')} تومان\nحال: ${daily?daily.mood+'/10':'ثبت نشده'}`)}
-    if(cmd==='/موجودی'){let accounts=db.accounts.filter(x=>x.userId===user.id&&!x.archived),balances={};db.transactions.filter(x=>x.userId===user.id).forEach(x=>{let a=x.account||'بدون حساب';if(x.kind==='transfer'){balances[a]=(balances[a]||0)-x.amount;let b=x.toAccount||'بدون حساب';balances[b]=(balances[b]||0)+x.amount}else balances[a]=(balances[a]||0)+(x.kind==='income'?x.amount:-x.amount)});let lines=accounts.map(a=>`${a.name}: ${((a.openingBalance||0)+(balances[a.name]||0)).toLocaleString('fa-IR')} تومان`);return tgSend(chatId,lines.length?lines.join('\n'):'حسابی ثبت نشده.')}
-    if(cmd==='/پرتفوی'){let totals=portfolioTotals(computeHoldings(db,user.id)),lines=Object.entries(totals).map(([cur,t])=>`${cur}: ارزش ${t.value.toLocaleString('fa-IR')} · سود/زیان ${(t.unrealizedPnl+t.realizedPnl+t.dividends-t.fees).toLocaleString('fa-IR')}`);return tgSend(chatId,lines.length?lines.join('\n'):'هنوز دارایی‌ای ثبت نشده.')}
-    if(cmd==='/گزارش_ماه'){let month=d.slice(0,7),t=db.transactions.filter(x=>x.userId===user.id&&x.date.startsWith(month)),expense=t.filter(x=>x.kind==='expense').reduce((n,x)=>n+x.amount,0),income=t.filter(x=>x.kind==='income').reduce((n,x)=>n+x.amount,0);return tgSend(chatId,`گزارش ${month}:\nدرآمد: ${income.toLocaleString('fa-IR')}\nهزینه: ${expense.toLocaleString('fa-IR')}\nمانده: ${(income-expense).toLocaleString('fa-IR')}`)}
-    return tgSend(chatId,'فرمان‌های موجود: /امروز /موجودی /پرتفوی /گزارش_ماه')}
-   let actions=parseLifeText(text);if(!actions.length&&AI_PROVIDER_API_KEY){try{actions=await aiExtractActions(text)}catch(e){}}let done=[],daily=db.daily.find(x=>x.userId===user.id&&x.date===d);for(const a of actions){if(a.type==='transaction'&&Number(a.amount)>0){let amount=Number(a.amount);db.transactions.push({id:id(),userId:user.id,title:String(a.title||'هزینه ثبت‌شده از متن'),amount,category:String(a.category||'متفرقه'),kind:'expense',account:'بدون حساب',date:d,createdAt:Date.now()});done.push('هزینه '+amount.toLocaleString('fa-IR')+' تومان')}if(a.type==='time'&&Number(a.minutes)>0){let minutes=Math.round(Number(a.minutes));db.timeEntries.push({id:id(),userId:user.id,title:String(a.title||'کار ثبت‌شده از متن'),projectId:null,minutes,date:d,createdAt:Date.now()});done.push('کار '+minutes+' دقیقه')}if(a.type==='mood'||a.type==='sleep'){if(!daily){daily={id:id(),userId:user.id,date:d,mood:7,energy:7,sleep:'',note:''};db.daily.push(daily)}if(a.type==='mood'&&Number(a.value)>=0&&Number(a.value)<=10){daily.mood=Number(a.value);done.push('مود '+Number(a.value))}else if(a.type==='sleep'&&a.value){daily.sleep=String(a.value);done.push('خواب '+String(a.value))}}}await write(db);return tgSend(chatId,done.length?'ثبت شد: '+done.join(' · '):'چیزی قابل تشخیص نبود. مثلاً بنویس: «۵۰ هزار تومان ناهار خوردم» یا «۲ ساعت کار کردم».')}
-  async function tgCheckReports(db){if(!TELEGRAM_BOT_TOKEN)return false;let now=new Date(),hh=now.getUTCHours(),d=today(),changed=false;for(const user of db.users){if(!user.telegramUserId)continue;if(hh===8&&user.tgLastMorning!==d){user.tgLastMorning=d;changed=true;let soon=new Date();soon.setDate(soon.getDate()+3);let soonStr=soon.toISOString().slice(0,10);let subs=db.subscriptions.filter(x=>x.userId===user.id&&!x.archived&&x.nextDate<=soonStr).length,debts=db.debts.filter(x=>x.userId===user.id&&!x.settled&&x.dueDate&&x.dueDate<=soonStr).length,matchesToday=db.matches.filter(x=>x.userId===user.id&&x.date===d&&x.status==='upcoming');let lines=[`صبح بخیر ${user.name}! امروز ${d} است.`];if(subs)lines.push(`${subs} اشتراک سررسید نزدیک دارد.`);if(debts)lines.push(`${debts} بدهی/طلب سررسید نزدیک دارد.`);matchesToday.forEach(m=>lines.push(`امروز${m.time?' ساعت '+m.time:''} بازی ${m.home} - ${m.away} داری.`));await tgSend(user.telegramUserId,lines.join('\n'))}if(hh===21&&user.tgLastEvening!==d){user.tgLastEvening=d;changed=true;let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d),doneCount=tasks.filter(x=>x.done).length,daily=db.daily.find(x=>x.userId===user.id&&x.date===d);let lines=[`گزارش شب: ${doneCount} از ${tasks.length} تسک امروز انجام شد.`];if(!daily)lines.push('هنوز روزنگار امروز رو ثبت نکردی.');await tgSend(user.telegramUserId,lines.join('\n'))}}return changed}
+  function tgSend(chatId,text,extra){let payload=Object.assign({chat_id:chatId,text:String(text||'').slice(0,4000)},extra||{});return tgApi('sendMessage',payload)}
+  function tgMainKeyboard(){return{keyboard:[[{text:'/امروز'},{text:'/کارها'},{text:'/یادآوری‌ها'}],[{text:'/موجودی'},{text:'/پرتفوی'},{text:'/گزارش_ماه'}]],resize_keyboard:true,is_persistent:true}}
+  function tgFmtDate(iso){try{return new Intl.DateTimeFormat('fa-IR',{timeZone:'Asia/Tehran',year:'numeric',month:'short',day:'numeric',weekday:'short'}).format(new Date(iso+'T12:00:00Z'))}catch(e){return iso}}
+  function tgCmdName(text){let c=(text||'').trim().split(/\s+/)[0]||'';c=c.split('@')[0];return c}
+  async function handleTelegramMessage(db,msg){
+    let fromId=String(msg.from&&msg.from.id),chatId=msg.chat.id,text=(msg.text||'').trim();
+    let user=db.users.find(u=>u.telegramUserId===fromId);
+    if(!user)return tgSend(chatId,'این حساب تلگرام به هیچ حسابِ هِسته وصل نیست. از تنظیمات اپ، شناسهٔ عددی تلگرامت رو وصل کن.');
+    db.reminders??=[];db.tasks??=[];
+    let d=today();
+    if(text.startsWith('/')){
+      let cmd=tgCmdName(text),arg=text.slice(cmd.length).trim();
+      if(cmd==='/start'||cmd==='/help'||cmd==='/کمک'||cmd==='/راهنما'){
+        return tgSend(chatId,'سلام'+(user.name?(' '+user.name):'')+' 👋\nمن دستیار lifeos هستم.\n\n'+'فرمان‌ها:\n/امروز /کارها /یادآوری‌ها /موجودی /پرتفوی /گزارش_ماه /انجام\n\nمتن آزاد بفرست، مثلاً:\n• خرید عینک ۲/۵ م\n• سه‌شنبه هفته بعد قرار دکتر ساعت ۳\n• ۵۰ هزار ناهار\n• حالم ۸، ۷ ساعت خوابیدم\n• کار خرید نان',{reply_markup:tgMainKeyboard()});
+      }
+      if(cmd==='/امروز'){
+        let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d),done=tasks.filter(x=>x.done).length;
+        let expense=db.transactions.filter(x=>x.userId===user.id&&x.date===d&&x.kind==='expense').reduce((n,x)=>n+x.amount,0);
+        let daily=db.daily.find(x=>x.userId===user.id&&x.date===d);
+        let rems=db.reminders.filter(x=>x.userId===user.id&&x.date===d&&!x.done);
+        let lines=['📅 امروز '+tgFmtDate(d),`✅ کارها: ${done} از ${tasks.length}`,`💸 هزینه: ${expense.toLocaleString('fa-IR')} تومان`,`🙂 حال: ${daily?daily.mood+'/10':'ثبت نشده'}`];
+        if(rems.length){lines.push('🔔 یادآوری امروز:');rems.slice(0,8).forEach(r=>lines.push('• '+(r.time?r.time+' · ':'')+r.title))}
+        if(tasks.filter(x=>!x.done).length){lines.push('⬜ مانده:');tasks.filter(x=>!x.done).slice(0,8).forEach((t,i)=>lines.push(`${i+1}. ${t.title}`))}
+        return tgSend(chatId,lines.join('\n'),{reply_markup:tgMainKeyboard()});
+      }
+      if(cmd==='/کارها'||cmd==='/tasks'){
+        let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d).sort((a,b)=>(a.done-b.done)||String(a.startTime||'').localeCompare(String(b.startTime||'')));
+        if(!tasks.length)return tgSend(chatId,'کاری برای امروز ثبت نشده.\nبفرست: کار خرید نان');
+        let lines=['✅ کارهای امروز:'];
+        tasks.forEach((t,i)=>lines.push(`${t.done?'✅':'⬜'} ${i+1}. ${(t.startTime?t.startTime+' · ':'')}${t.title}`));
+        lines.push('','برای تیک: /انجام 1');
+        return tgSend(chatId,lines.join('\n'));
+      }
+      if(cmd==='/یادآوری‌ها'||cmd==='/reminders'||cmd==='/یادآوری'){
+        let to=addDaysIso(d,7);
+        let rems=db.reminders.filter(x=>x.userId===user.id&&!x.done&&x.date>=d&&x.date<=to).sort((a,b)=>a.date.localeCompare(b.date)||String(a.time||'').localeCompare(String(b.time||'')));
+        let subs=db.subscriptions.filter(x=>x.userId===user.id&&!x.archived&&x.nextDate>=d&&x.nextDate<=to);
+        let debts=db.debts.filter(x=>x.userId===user.id&&!x.settled&&x.dueDate&&x.dueDate>=d&&x.dueDate<=to);
+        let lines=['🔔 سررسید ۷ روز آینده:'];
+        if(!rems.length&&!subs.length&&!debts.length)lines.push('چیزی نیست.');
+        rems.forEach(r=>lines.push(`• ${tgFmtDate(r.date)}${r.time?' '+r.time:''} — ${r.title}`));
+        subs.forEach(s=>lines.push(`• 💳 ${s.nextDate} — اشتراک ${s.name||s.title||''}`));
+        debts.forEach(x=>lines.push(`• 📌 ${x.dueDate} — بدهی/طلب ${x.title||x.name||''}`));
+        return tgSend(chatId,lines.join('\n'));
+      }
+      if(cmd==='/موجودی'){
+        let accounts=db.accounts.filter(x=>x.userId===user.id&&!x.archived),balances={};
+        db.transactions.filter(x=>x.userId===user.id).forEach(x=>{let a=x.account||'بدون حساب';if(x.kind==='transfer'){balances[a]=(balances[a]||0)-x.amount;let b=x.toAccount||'بدون حساب';balances[b]=(balances[b]||0)+x.amount}else balances[a]=(balances[a]||0)+(x.kind==='income'?x.amount:-x.amount)});
+        let lines=accounts.map(a=>`${a.name}: ${((a.openingBalance||0)+(balances[a.name]||0)).toLocaleString('fa-IR')} تومان`);
+        return tgSend(chatId,lines.length?lines.join('\n'):'حسابی ثبت نشده.');
+      }
+      if(cmd==='/پرتفوی'){
+        let totals=portfolioTotals(computeHoldings(db,user.id)),lines=Object.entries(totals).map(([cur,t])=>`${cur}: ارزش ${t.value.toLocaleString('fa-IR')} · سود/زیان ${(t.unrealizedPnl+t.realizedPnl+t.dividends-t.fees).toLocaleString('fa-IR')}`);
+        return tgSend(chatId,lines.length?lines.join('\n'):'هنوز دارایی‌ای ثبت نشده.');
+      }
+      if(cmd==='/گزارش_ماه'){
+        let month=d.slice(0,7),t=db.transactions.filter(x=>x.userId===user.id&&x.date.startsWith(month)),expense=t.filter(x=>x.kind==='expense').reduce((n,x)=>n+x.amount,0),income=t.filter(x=>x.kind==='income').reduce((n,x)=>n+x.amount,0);
+        return tgSend(chatId,`گزارش ${month}:\nدرآمد: ${income.toLocaleString('fa-IR')}\nهزینه: ${expense.toLocaleString('fa-IR')}\nمانده: ${(income-expense).toLocaleString('fa-IR')}`);
+      }
+      if(cmd==='/انجام'||cmd==='/done'){
+        let n=Number((enNum(arg).match(/\d+/)||[0])[0]);
+        let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d&&!x.done);
+        if(!n||n<1||n>tasks.length)return tgSend(chatId,tasks.length?('شماره کار را بگو، مثلاً /انجام 1\n'+tasks.map((t,i)=>`${i+1}. ${t.title}`).join('\n')):'کار باز برای امروز نیست.');
+        let t=tasks[n-1];t.done=true;
+        let rem=db.reminders.find(r=>r.userId===user.id&&r.date===d&&!r.done&&(r.title===t.title||t.title.includes(r.title)));
+        if(rem)rem.done=true;
+        await write(db);
+        return tgSend(chatId,'✅ انجام شد: '+t.title);
+      }
+      return tgSend(chatId,'فرمان‌ها:\n/امروز /کارها /یادآوری‌ها /موجودی /پرتفوی /گزارش_ماه /انجام\n\nمتن آزاد بفرست، مثلاً:\n• خرید عینک ۲/۵ م\n• سه‌شنبه هفته بعد قرار دکتر ساعت ۳\n• ۵۰ هزار ناهار\n• حالم ۸، ۷ ساعت خوابیدم\n• کار خرید نان',{reply_markup:tgMainKeyboard()});
+    }
+    let actions=parseLifeText(text);
+    if(!actions.length&&AI_PROVIDER_API_KEY){try{actions=await aiExtractActions(text)}catch(e){}}
+    let done=await applyParsedActions(db,user,actions,d);
+    await write(db);
+    return tgSend(chatId,done.length?('ثبت شد:\n• '+done.join('\n• ')):'چیزی قابل تشخیص نبود.\n'+'فرمان‌ها:\n/امروز /کارها /یادآوری‌ها /موجودی /پرتفوی /گزارش_ماه /انجام\n\nمتن آزاد بفرست، مثلاً:\n• خرید عینک ۲/۵ م\n• سه‌شنبه هفته بعد قرار دکتر ساعت ۳\n• ۵۰ هزار ناهار\n• حالم ۸، ۷ ساعت خوابیدم\n• کار خرید نان',{reply_markup:tgMainKeyboard()});
+  }
+  async function tgCheckReports(db){if(!TELEGRAM_BOT_TOKEN)return false;let now=new Date(),hh=now.getUTCHours(),d=today(),changed=false;db.reminders??=[];for(const user of db.users){if(!user.telegramUserId)continue;let morningH=user.tgMorningHour!=null?Number(user.tgMorningHour):8,eveningH=user.tgEveningHour!=null?Number(user.tgEveningHour):21;if(hh===morningH&&user.tgLastMorning!==d){user.tgLastMorning=d;changed=true;let soon=addDaysIso(d,3);let subs=db.subscriptions.filter(x=>x.userId===user.id&&!x.archived&&x.nextDate<=soon).length,debts=db.debts.filter(x=>x.userId===user.id&&!x.settled&&x.dueDate&&x.dueDate<=soon).length,matchesToday=db.matches.filter(x=>x.userId===user.id&&x.date===d&&x.status==='upcoming');let rems=db.reminders.filter(x=>x.userId===user.id&&!x.done&&x.date>=d&&x.date<=soon);let lines=[`صبح بخیر ${user.name||''}! امروز ${tgFmtDate(d)} است.`.replace(/\s+/g,' ').trim()];if(subs)lines.push(`${subs} اشتراک سررسید نزدیک دارد.`);if(debts)lines.push(`${debts} بدهی/طلب سررسید نزدیک دارد.`);rems.slice(0,5).forEach(r=>lines.push(`🔔 ${r.date===d?'امروز':r.date}${r.time?' '+r.time:''}: ${r.title}`));matchesToday.forEach(m=>lines.push(`امروز${m.time?' ساعت '+m.time:''} بازی ${m.home} - ${m.away} داری.`));await tgSend(user.telegramUserId,lines.join('\n'),{reply_markup:tgMainKeyboard()})}if(hh===eveningH&&user.tgLastEvening!==d){user.tgLastEvening=d;changed=true;let tasks=db.tasks.filter(x=>x.userId===user.id&&x.date===d),doneCount=tasks.filter(x=>x.done).length,daily=db.daily.find(x=>x.userId===user.id&&x.date===d),expense=db.transactions.filter(x=>x.userId===user.id&&x.date===d&&x.kind==='expense').reduce((n,x)=>n+x.amount,0);let lines=[`گزارش شب: ${doneCount} از ${tasks.length} تسک امروز انجام شد.`];lines.push('هزینه امروز: '+expense.toLocaleString('fa-IR')+' تومان');if(daily)lines.push('حال: '+daily.mood+'/10');else lines.push('هنوز روزنگار امروز رو ثبت نکردی.');await tgSend(user.telegramUserId,lines.join('\n'),{reply_markup:tgMainKeyboard()})}}return changed}
   async function refreshPricesAndAlerts(db){let changed=await refreshAllCryptoPrices(db).catch(()=>false),now=Date.now();for(const user of db.users){let holdings=computeHoldings(db,user.id);for(const t of evaluateAlerts(db,user.id,holdings)){let a=t.alert;if(!a.lastNotifiedAt||now-a.lastNotifiedAt>6*3600*1000){a.lastNotifiedAt=now;changed=true;if(TELEGRAM_BOT_TOKEN&&user.telegramUserId)await tgSend(user.telegramUserId,'🔔 '+t.text)}}}return changed}
 
   return { read, write, json, body, cookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
     jalaliToGregorianIso, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
-    filterTransactions, csvEscape, advanceRecurringTransactions, enNum, parseLifeText, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel,
+    filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel,
     parseSleepHours, suggestCategoryKeyword, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd,
     refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, tgApi, tgSend, handleTelegramMessage, tgCheckReports, refreshPricesAndAlerts,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
@@ -282,7 +212,7 @@ async function handleApi(request, env) {
   const H = makeHelpers(env);
   const { read, write, json, body, cookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
     jalaliToGregorianIso, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
-    filterTransactions, csvEscape, advanceRecurringTransactions, enNum, parseLifeText, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel,
+    filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel,
     parseSleepHours, suggestCategoryKeyword, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd,
     refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, tgApi, tgSend, handleTelegramMessage, tgCheckReports, refreshPricesAndAlerts,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
@@ -364,70 +294,9 @@ async function handleApi(request, env) {
  if(p==='/api/football/remote/odds'){let db=await read(),user=auth(req,res,db),fixture=u.searchParams.get('fixture');if(!fixture)return json(res,400,{error:'شناسه بازی لازم است.'});let data;try{data=await apiFootballFetch('/odds',{fixture,bookmaker:11})}catch(e){return json(res,502,{error:e.message})}if(!data)return json(res,503,{error:'کلید API-Football یا RapidAPI هنوز در تنظیمات سرور وارد نشده است.'});let item=(data.response||[])[0],book=item?.bookmakers?.find(x=>x.name==='1xBet')||item?.bookmakers?.[0];return json(res,200,{bookmaker:book?.name||'1xBet',bets:book?.bets||[]})}
  if(p==='/api/football/remote/free/leagues'&&req.method==='GET'){let db=await read();auth(req,res,db);return json(res,200,{items:FREE_LEAGUES.map(l=>({id:l.id,name:l.name,country:l.country}))})}
  if(p==='/api/football/remote/free/scoreboard'&&req.method==='GET'){let db=await read();auth(req,res,db);let leagueId=u.searchParams.get('league')||'eng.1',date=u.searchParams.get('date')||today(),league=FREE_LEAGUES.find(l=>l.id===leagueId);if(!league)return json(res,400,{error:'لیگ شناخته نشد.'});let items;try{items=await fetchFreeLeagueDay(league,date)}catch(e){return json(res,502,{error:'دریافت بازی‌های '+league.name+' ناموفق بود.'})}return json(res,200,{items})}
- if(p==='/api/football/remote/free/day'&&req.method==='GET'){let db=await read();auth(req,res,db);let date=u.searchParams.get('date')||today(),results=await Promise.all(FREE_LEAGUES.map(async league=>{try{return{id:league.id,name:league.name,country:league.country,items:await fetchFreeLeagueDay(league,date)}}catch(e){return{id:league.id,name:league.name,country:league.country,items:[]}}}));
-    // merge live scores from TheSportsDB livescore when available
-    try{
-      let liveData=await fetchTheSportsDb('/livescore.php?s=Soccer');
-      let liveItems=(liveData.livescore||[]).map(mapTheSportsDbEvent);
-      let byKey={};
-      liveItems.forEach(x=>{byKey[(x.home+'|'+x.away).toLowerCase()]=x; if(x.fixtureId)byKey['id:'+x.fixtureId]=x});
-      results.forEach(lg=>{(lg.items||[]).forEach(m=>{
-        let hit=byKey['id:'+m.fixtureId]||byKey[(m.home+'|'+m.away).toLowerCase()]||byKey[(m.away+'|'+m.home).toLowerCase()];
-        if(hit){
-          if(hit.score&&hit.score!=='—')m.score=hit.score;
-          if(hit.status==='live'||hit.status==='finished')m.status=hit.status;
-          if(hit.homeScore!=null)m.homeScore=hit.homeScore;
-          if(hit.awayScore!=null)m.awayScore=hit.awayScore;
-        }
-      })});
-    }catch(e){}
-    let leagues=results.filter(l=>l.items.length || l.id==='irn.1');
-    // ensure Iran label present
-    if(!leagues.some(l=>l.id==='irn.1')){
-      let ir=results.find(l=>l.id==='irn.1');
-      if(ir) leagues.unshift(ir); else leagues.unshift({id:'irn.1',name:'لیگ برتر خلیج فارس',country:'ایران',items:[]});
-    } else {
-      // pin Iran first
-      leagues.sort((a,b)=>(a.id==='irn.1'?0:1)-(b.id==='irn.1'?0:1));
-    }
-    
-    // fill Iran if still empty
-    try{
-      let ir=leagues.find(l=>l.id==='irn.1');
-      if(ir && (!ir.items || !ir.items.length)){
-        ir.items = await fetchIranDayFallback(date);
-      }
-    }catch(e){}
-    
-    return json(res,200,{date,leagues})}
+ if(p==='/api/football/remote/free/day'&&req.method==='GET'){let db=await read();auth(req,res,db);let date=u.searchParams.get('date')||today(),results=await Promise.all(FREE_LEAGUES.map(async league=>{try{return{id:league.id,name:league.name,country:league.country,items:await fetchFreeLeagueDay(league,date)}}catch(e){return{id:league.id,name:league.name,country:league.country,items:[]}}}));return json(res,200,{date,leagues:results.filter(l=>l.items.length)})}
  if(p==='/api/football/remote/free/table'&&req.method==='GET'){let db=await read();auth(req,res,db);let leagueId=u.searchParams.get('league')||'eng.1',league=FREE_LEAGUES.find(l=>l.id===leagueId);if(!league)return json(res,400,{error:'لیگ شناخته نشد.'});let data;try{data=await fetchTheSportsDb('/lookuptable.php?l='+league.tsdb+'&s='+league.season)}catch(e){return json(res,502,{error:'دریافت جدول '+league.name+' ناموفق بود.'})}return json(res,200,{items:(data.table||[]).map(r=>({rank:Number(r.intRank),name:r.strTeam,played:Number(r.intPlayed),win:Number(r.intWin),draw:Number(r.intDraw),loss:Number(r.intLoss),goalsFor:Number(r.intGoalsFor),goalsAgainst:Number(r.intGoalsAgainst),goalDiff:Number(r.intGoalDifference),points:Number(r.intPoints),form:r.strForm||''}))})}
- if(p==='/api/football/remote/free/live'&&req.method==='GET'){let db=await read();auth(req,res,db);let items=[],seen=new Set();
-    // ESPN live/in-progress from major leagues (fresh scores)
-    for(const league of FREE_LEAGUES){
-      try{
-        let data=await fetchEspnScoreboard(league.id, null);
-        for(const ev of (data.events||[])){
-          let m=mapEspnEvent(ev, league.name);
-          if(m.status==='live' || m.status==='finished'){
-            let k=(m.home+'|'+m.away).toLowerCase();
-            if(seen.has(k)) continue; seen.add(k);
-            items.push(m);
-          }
-        }
-      }catch(e){}
-    }
-    try{
-      let data=await fetchTheSportsDb('/livescore.php?s=Soccer');
-      let major=/english premier|premier league|la liga|serie a|bundesliga|ligue 1|super lig|persian gulf|saudi|uefa|champions|europa|world cup|ایران|خلیج/i;
-      for(const raw of (data.livescore||[])){
-        let m=mapTheSportsDbEvent(raw);
-        let k=(m.home+'|'+m.away).toLowerCase();
-        if(seen.has(k)) continue;
-        if(!major.test(m.league||raw.strLeague||'')) continue; // فقط لیگ‌های بزرگ
-        seen.add(k); items.push(m);
-      }
-    }catch(e){}
-    return json(res,200,{items, at:new Date().toISOString()})}
+ if(p==='/api/football/remote/free/live'&&req.method==='GET'){let db=await read();auth(req,res,db);let data;try{data=await fetchTheSportsDb('/livescore.php?s=Soccer')}catch(e){return json(res,502,{error:'دریافت بازی‌های زنده ناموفق بود.'})}return json(res,200,{items:(data.livescore||[]).map(mapTheSportsDbEvent)})}
  if(p==='/api/football/remote/1xbet/sports'&&req.method==='GET'){let db=await read();auth(req,res,db);let data;try{data=await xbetGet('/sports',{})}catch(e){return json(res,502,{error:e.message})}if(!data)return json(res,503,{error:'کلید RapidAPI هنوز در تنظیمات سرور وارد نشده است.'});return json(res,200,{items:data})}
  if(p==='/api/football/remote/1xbet/leagues'&&req.method==='GET'){let db=await read();auth(req,res,db);let sportId=u.searchParams.get('sportId');if(!sportId)return json(res,400,{error:'شناسهٔ رشتهٔ ورزشی لازم است.'});let data;try{data=await xbetGet('/sports/'+encodeURIComponent(sportId)+'/leagues',{})}catch(e){return json(res,502,{error:e.message})}if(!data)return json(res,503,{error:'کلید RapidAPI هنوز در تنظیمات سرور وارد نشده است.'});return json(res,200,{items:data})}
  if(p==='/api/football/remote/1xbet/matches'&&req.method==='GET'){let db=await read();auth(req,res,db);let sportId=u.searchParams.get('sportId'),leagueId=u.searchParams.get('leagueId');if(!sportId||!leagueId)return json(res,400,{error:'شناسهٔ رشته و لیگ لازم است.'});let data;try{data=await xbetGet('/matches',{sport_id:sportId,league_id:leagueId})}catch(e){return json(res,502,{error:e.message})}if(!data)return json(res,503,{error:'کلید RapidAPI هنوز در تنظیمات سرور وارد نشده است.'});return json(res,200,{items:data})}
@@ -452,7 +321,7 @@ async function handleApi(request, env) {
  if(p==='/api/habits'){let db=await read(),user=auth(req,res,db);if(req.method==='GET'){let date=u.searchParams.get('date')||today(),items=db.habits.filter(x=>x.userId===user.id&&!x.archived).map(x=>{let done=db.habitLogs.some(l=>l.habitId===x.id&&l.date===date&&l.done),d=new Date(date+'T12:00:00'),streak=0;while(db.habitLogs.some(l=>l.habitId===x.id&&l.date===d.toISOString().slice(0,10)&&l.done)){streak++;d.setDate(d.getDate()-1)}return {...x,done,streak}});return json(res,200,{items})}if(req.method==='POST'){let d=await body(req);if(!d.name)return json(res,400,{error:'نام عادت لازم است.'});let r={id:id(),userId:user.id,name:d.name.trim(),icon:d.icon||'✓',archived:false,createdAt:Date.now()};db.habits.push(r);await write(db);return json(res,201,r)}}
  if(p.startsWith('/api/habits/')&&p.endsWith('/toggle')&&req.method==='POST'){let db=await read(),user=auth(req,res,db);let habitId=p.split('/')[3],h=db.habits.find(x=>x.id===habitId&&x.userId===user.id);if(!h)return json(res,404,{error:'عادت پیدا نشد.'});let d=await body(req),date=d.date||today(),log=db.habitLogs.find(x=>x.habitId===habitId&&x.date===date);if(log)log.done=!log.done;else{log={id:id(),habitId,date,done:true};db.habitLogs.push(log)}await write(db);return json(res,200,log)}
  if(p.startsWith('/api/habits/')&&!p.endsWith('/toggle')&&(req.method==='PATCH'||req.method==='DELETE')){let db=await read(),user=auth(req,res,db),habitId=p.split('/').pop(),h=db.habits.find(x=>x.id===habitId&&x.userId===user.id);if(!h)return json(res,404,{error:'عادت پیدا نشد.'});if(req.method==='DELETE'){db.habits=db.habits.filter(x=>x.id!==habitId);db.habitLogs=db.habitLogs.filter(x=>x.habitId!==habitId);await write(db);return json(res,200,{ok:true})}let d=await body(req);for(const k of ['name','icon','archived'])if(d[k]!==undefined)h[k]=d[k];await write(db);return json(res,200,h)}
- if(p==='/api/ai/process'&&req.method==='POST'){let db=await read(),user=auth(req,res,db);let d=await body(req),date=d.date||today(),actions=parseLifeText(d.text||'');if(!actions.length&&AI_PROVIDER_API_KEY){try{actions=await aiExtractActions(d.text||'')}catch(e){}}let done=[];let daily=db.daily.find(x=>x.userId===user.id&&x.date===date);for(const a of actions){if(a.type==='transaction'&&Number(a.amount)>0){let amount=Number(a.amount);db.transactions.push({id:id(),userId:user.id,title:String(a.title||'هزینه ثبت‌شده از متن'),amount,category:String(a.category||'متفرقه'),kind:'expense',account:'بدون حساب',date,createdAt:Date.now()});done.push('هزینه '+amount.toLocaleString('fa-IR')+' تومان')}if(a.type==='time'&&Number(a.minutes)>0){let minutes=Math.round(Number(a.minutes));db.timeEntries.push({id:id(),userId:user.id,title:String(a.title||'کار ثبت‌شده از متن'),projectId:null,minutes,date,createdAt:Date.now()});done.push('کار '+minutes+' دقیقه')}if(a.type==='mood'||a.type==='sleep'){if(!daily){daily={id:id(),userId:user.id,date,mood:7,energy:7,sleep:'',note:''};db.daily.push(daily)}if(a.type==='mood'&&Number(a.value)>=0&&Number(a.value)<=10){daily.mood=Number(a.value);done.push('مود '+Number(a.value))}else if(a.type==='sleep'&&a.value){daily.sleep=String(a.value);done.push('خواب '+String(a.value))}}if(a.type==='series'){let r=await applySeriesAction(db,user.id,a);if(r)done.push((r.created?'سریال جدید ثبت شد: ':'به‌روزرسانی شد: ')+r.label+(a.season?' فصل '+a.season:'')+(a.episode?' قسمت '+a.episode:''))}}await write(db);return json(res,200,{actions,done})}
+ if(p==='/api/ai/process'&&req.method==='POST'){let db=await read(),user=auth(req,res,db);let d=await body(req),date=d.date||today(),actions=parseLifeText(d.text||'');if(!actions.length&&AI_PROVIDER_API_KEY){try{actions=await aiExtractActions(d.text||'')}catch(e){}}let done=await applyParsedActions(db,user,actions,date);await write(db);return json(res,200,{actions,done})}
  if(p==='/api/ai/chat'&&req.method==='POST'){let db=await read(),user=auth(req,res,db);if(!AI_PROVIDER_API_KEY)return json(res,503,{error:'دستیار هوشمند هنوز روی سرور فعال نشده است.'});let d=await body(req),msg=String(d.message||'').trim();if(!msg)return json(res,400,{error:'پیام لازم است.'});let month=today().slice(0,7),t=db.transactions.filter(x=>x.userId===user.id&&x.date.startsWith(month)),expense=t.filter(x=>x.kind==='expense'),income=t.filter(x=>x.kind==='income'),byCat={};expense.forEach(x=>byCat[x.category]=(byCat[x.category]||0)+x.amount);let last7=[...Array(7)].map((_,i)=>{let dt=new Date();dt.setDate(dt.getDate()-i);return dt.toISOString().slice(0,10)}),dailyRecent=db.daily.filter(x=>x.userId===user.id&&last7.includes(x.date)),upcomingTasks=db.tasks.filter(x=>x.userId===user.id&&!x.done).slice(0,15).map(x=>({title:x.title,deadline:x.deadline})),habits=db.habits.filter(x=>x.userId===user.id&&!x.archived).map(h=>({name:h.name,streak:(()=>{let d2=new Date(today()+'T12:00:00'),s=0;while(db.habitLogs.some(l=>l.habitId===h.id&&l.date===d2.toISOString().slice(0,10)&&l.done)){s++;d2.setDate(d2.getDate()-1)}return s})()})),context={thisMonthExpenseTotal:expense.reduce((a,x)=>a+x.amount,0),thisMonthIncomeTotal:income.reduce((a,x)=>a+x.amount,0),thisMonthExpenseByCategory:byCat,last7DaysMoodSleep:dailyRecent.map(x=>({date:x.date,mood:x.mood,sleep:x.sleep})),upcomingTasks,habits};let history=Array.isArray(d.history)?d.history.filter(h=>h&&(h.role==='user'||h.role==='assistant')&&typeof h.content==='string').slice(-10):[];let sys='تو دستیار شخصی اپ «هِسته» هستی. فقط بر اساس داده‌های واقعی زیر به فارسی و خلاصه پاسخ بده؛ چیزی حدس نزن و از داده‌ای که نداری حرف نزن. اعداد پول را با جداکنندهٔ هزارگان و «تومان» بنویس.\n\nDATA: '+JSON.stringify(context);let convo=history.map(h=>`${h.role==='user'?'کاربر':'دستیار'}: ${h.content}`).join('\n');let prompt=(convo?convo+'\n':'')+'کاربر: '+msg;try{let reply=await aiComplete(sys,prompt,600);return json(res,200,{reply})}catch(e){return json(res,502,{error:e.message})}}
  if(p==='/api/ai/report'&&req.method==='GET'){let db=await read(),user=auth(req,res,db);if(!AI_PROVIDER_API_KEY)return json(res,503,{error:'گزارش هوشمند هنوز روی سرور فعال نشده است.'});let period=u.searchParams.get('period')||'daily',date=u.searchParams.get('date')||today(),from=date,to=date;if(period==='weekly'){let d0=new Date(date+'T12:00:00');from=new Date(d0.getTime()-6*86400000).toISOString().slice(0,10);to=date}else if(period==='monthly'){from=date.slice(0,7)+'-01';to=date}let trans=db.transactions.filter(x=>x.userId===user.id&&x.date>=from&&x.date<=to),expense=trans.filter(x=>x.kind==='expense').reduce((a,x)=>a+x.amount,0),income=trans.filter(x=>x.kind==='income').reduce((a,x)=>a+x.amount,0),daily=db.daily.filter(x=>x.userId===user.id&&x.date>=from&&x.date<=to),moods=daily.filter(x=>x.mood!=null).map(x=>x.mood),avgMood=moods.length?(moods.reduce((a,b)=>a+b,0)/moods.length).toFixed(1):null,tasksDone=db.tasks.filter(x=>x.userId===user.id&&x.done&&x.date>=from&&x.date<=to).length,workMinutes=db.timeEntries.filter(x=>x.userId===user.id&&x.date>=from&&x.date<=to).reduce((a,x)=>a+x.minutes,0),habitsDone=db.habitLogs.filter(l=>l.done&&l.date>=from&&l.date<=to&&db.habits.some(h=>h.id===l.habitId&&h.userId===user.id)).length,movies=db.movies.filter(x=>x.userId===user.id&&x.status==='completed'&&x.date>=from&&x.date<=to).length,data={period,from,to,expense,income,avgMood,tasksDone,workHours:(workMinutes/60).toFixed(1),habitsDone,moviesWatched:movies};try{let reply=await aiComplete('تو دستیار شخصی اپ «هِسته» هستی. یک گزارش کوتاه (۳ تا ۶ جمله)، دوستانه و به فارسی برای این بازهٔ زمانی بر اساس داده‌های زیر بنویس. فقط از همین داده‌ها استفاده کن.\n\nDATA: '+JSON.stringify(data),'گزارش را بنویس.',500);return json(res,200,{data,report:reply})}catch(e){return json(res,502,{error:e.message})}}
  if(p==='/api/ai/correlations'&&req.method==='GET'){let db=await read(),user=auth(req,res,db),days=Math.min(Number(u.searchParams.get('days'))||30,180),dates=[...Array(days)].map((_,i)=>{let dt=new Date();dt.setDate(dt.getDate()-i);return dt.toISOString().slice(0,10)}),dailyMap={};db.daily.filter(x=>x.userId===user.id&&dates.includes(x.date)).forEach(x=>dailyMap[x.date]=x);let exerciseByDate={};db.exercise.filter(x=>x.userId===user.id&&dates.includes(x.date)).forEach(x=>exerciseByDate[x.date]=(exerciseByDate[x.date]||0)+x.minutes);let workByDate={};db.timeEntries.filter(x=>x.userId===user.id&&dates.includes(x.date)).forEach(x=>workByDate[x.date]=(workByDate[x.date]||0)+x.minutes);let rows=dates.filter(d=>dailyMap[d]).map(d=>({mood:dailyMap[d].mood,energy:dailyMap[d].energy,sleep:parseSleepHours(dailyMap[d].sleep),exercise:exerciseByDate[d]||0,work:workByDate[d]||0}));function pair(field1,field2,label){let a=[],b=[];rows.forEach(r=>{if(r[field1]!=null&&r[field2]!=null){a.push(r[field1]);b.push(r[field2])}});let r=pearson(a,b),lbl=correlationLabel(r);return{pair:field1+'_'+field2,label,sampleSize:a.length,r:r===null?null:Number(r.toFixed(2)),strength:lbl.strength,direction:lbl.direction}}let correlations=[pair('sleep','mood','خواب و مود'),pair('exercise','mood','ورزش و مود'),pair('work','mood','کار و مود'),pair('sleep','energy','خواب و انرژی'),pair('exercise','energy','ورزش و انرژی'),pair('work','energy','کار و انرژی')];return json(res,200,{days,sampleSize:rows.length,correlations})}
