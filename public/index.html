@@ -1047,13 +1047,13 @@ document.querySelectorAll('#dayChips .dchip[data-d]').forEach(function(c){
       if(off<0){toast('تاریخ گذشته است — یکی از آینده انتخاب کن');return}
       document.querySelectorAll('#dayChips .dchip,.extradays .dchip').forEach(function(x){x.classList.remove('on')});
       dM.classList.add('on');selDay=off;
-      dM.textContent='📅 '+(off===0?'امروز':off===1?'فردا':fa(p.jd)+' '+CALMON[p.jm-1]);
+      dM.textContent='📅 '+(off===0?'امروز':off===1?'فردا':fa(p.jd)+' '+CALMON[p.jm-1]+' '+fa(p.jy));
     });
   });
 })();
 function dayName(off){
   if(off===0)return'امروز'; if(off===1)return'فردا';
-  return new Intl.DateTimeFormat('fa-IR',{weekday:'long'}).format(new Date(Date.now()+off*864e5));
+  return new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(new Date(Date.now()+off*864e5));
 }
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');
   setTimeout(function(){t.classList.remove('show')},1800)}
@@ -1068,7 +1068,11 @@ function renderFutures(){
 function addTask(){
   var inp=document.getElementById('taskIn'),v=inp.value.trim(); if(!v)return;
   if(selDay===0){ TASKS.push({t:v,p:0,meta:'امروز',done:false}); }
-  else { FUTURES.push({t:v,off:selDay}); toast('«'+v+'» برای '+dayName(selDay)+' برنامه‌ریزی شد ✓'); renderFutures(); }
+  else { FUTURES.push({t:v,off:selDay}); toast('«'+v+'» برای '+dayName(selDay)+' برنامه‌ریزی شد ✓'); renderFutures();
+    selDay=0;
+    document.querySelectorAll('#dayChips .dchip').forEach(function(x){x.classList.toggle('on',x.dataset.d==='0')});
+    if(window._resetDMore)_resetDMore();
+  }
   inp.value=''; renderTasks();
 }
 document.getElementById('taskAdd').addEventListener('click',addTask);
