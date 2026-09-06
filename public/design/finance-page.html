@@ -583,14 +583,18 @@ function closeCal(){var p=document.getElementById('calpop');if(p)p.remove()}
 function openCal(anchor,onPick){
   closeCal();
   var t=jToday(),vy=t.jy,vm=t.jm,pop=document.createElement('div');
+  var view='d';
   pop.id='calpop';
   pop.style.cssText='position:fixed;z-index:130;background:var(--bg);border:1px solid var(--border2);border-radius:15px;padding:12px 14px;width:250px;box-shadow:0 18px 44px -12px rgba(0,0,0,.65)';
   function draw(){
+    if(view==='m'){var ms='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">';CALMON.forEach(function(nm,idx){var on=(idx+1)===vm;ms+='<button data-m="'+(idx+1)+'" style="border:1px solid '+(on?'var(--acc)':'transparent')+';background:'+(on?'color-mix(in srgb,var(--acc) 14%,transparent)':'none')+';color:var(--text);border-radius:9px;padding:7px 2px;font-size:13px;cursor:pointer;font-family:var(--fh)">'+nm+'</button>'});pop.innerHTML='<div style="font-size:12.5px;color:var(--faint);margin-bottom:8px">انتخاب ماه — '+fa(vy)+'</div>'+ms+'</div>'+'<div style="text-align:center;margin-top:8px"><span data-nav="vd" style="font-size:12.5px;color:var(--acc);cursor:pointer">✕ بازگشت</span></div>';return}
+    if(view==='y'){var ys='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">';for(var yy=vy-6;yy<=vy+5;yy++){var yon=yy===vy;ys+='<button data-y="'+yy+'" style="border:1px solid '+(yon?'var(--acc)':'transparent')+';background:'+(yon?'color-mix(in srgb,var(--acc) 14%,transparent)':'none')+';color:var(--text);border-radius:9px;padding:7px 2px;font-size:13px;cursor:pointer;font-family:var(--fh)">'+fa(yy)+'</button>'}pop.innerHTML='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">'+'<button data-yp="-12" style="background:var(--panel2);border:none;border-radius:9px;color:var(--text);width:26px;height:26px;cursor:pointer">‹</button>'+'<b style="flex:1;text-align:center;font-size:12.5px;color:var(--faint)">انتخاب سال</b>'+'<button data-yp="12" style="background:var(--panel2);border:none;border-radius:9px;color:var(--text);width:26px;height:26px;cursor:pointer">›</button></div>'+ys+'</div>'+'<div style="text-align:center;margin-top:8px"><span data-nav="vd" style="font-size:12.5px;color:var(--acc);cursor:pointer">✕ بازگشت</span></div>';return}
     var leap=jalCal(vy).leap,len=vm<=6?31:(vm<12?30:(leap?30:29));
     var firstCol=(j2d(vy,vm,1)+2)%7;
     var s='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">'
      +'<button data-nav="-1" style="background:var(--panel2);border:none;border-radius:9px;color:var(--text);width:26px;height:26px;cursor:pointer;font-size:14px">‹</button>'
-     +'<b style="font-family:var(--fh);font-size:14.5px;flex:1;text-align:center">'+CALMON[vm-1]+' '+fa(vy)+'</b>'
+     +'<button data-sel="m" style="flex:1;background:none;border:none;color:var(--text);font-family:var(--fh);font-size:14.5px;cursor:pointer;padding:2px 4px;text-align:center">'+CALMON[vm-1]+' ▾</button>'
+     +'<button data-sel="y" style="background:none;border:none;color:var(--muted);font-family:var(--fh);font-size:13.5px;cursor:pointer;padding:2px 2px">'+fa(vy)+' ▾</button>'
      +'<button data-nav="1" style="background:var(--panel2);border:none;border-radius:9px;color:var(--text);width:26px;height:26px;cursor:pointer;font-size:14px">›</button></div>'
      +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;direction:rtl">'
      +['ش','ی','د','س','چ','پ','ج'].map(function(w){return '<span style="text-align:center;font-size:11px;color:var(--faint);padding:2px 0">'+w+'</span>'}).join('');
@@ -610,7 +614,11 @@ function openCal(anchor,onPick){
   }
   pop.addEventListener('click',function(e){
     var nv=e.target.closest('[data-nav]');
-    if(nv){var v=nv.dataset.nav;if(v==='today'){vy=t.jy;vm=t.jm}else{var m=vm+ +v;if(m<1){m=12;vy--}if(m>12){m=1;vy++}vm=m;}draw();return}
+    if(nv){var v=nv.dataset.nav;if(v==='today'){vy=t.jy;vm=t.jm;view='d'}else if(v==='vd'){view='d'}else{var m=vm+ +v;if(m<1){m=12;vy--}if(m>12){m=1;vy++}vm=m;}draw();return}
+    var sl=e.target.closest('[data-sel]');if(sl){view=sl.dataset.sel;draw();return}
+    var mg=e.target.closest('[data-m]');if(mg){vm=+mg.dataset.m;view='d';draw();return}
+    var yg=e.target.closest('[data-y]');if(yg){vy=+yg.dataset.y;view='d';draw();return}
+    var yp=e.target.closest('[data-yp]');if(yp){vy+= +yp.dataset.yp;draw();return}
     var db=e.target.closest('[data-d]');
     if(db){var jd=+db.dataset.d;closeCal();onPick({jy:vy,jm:vm,jd:jd})}
   });

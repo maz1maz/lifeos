@@ -124,17 +124,6 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .grow .gtime{font-size:13px;color:var(--faint);white-space:nowrap}
 .glive{color:#f87171;font-size:12px;white-space:nowrap}
 .gwrap{max-height:290px;overflow:auto}
-/* ===== بزرگ‌شدن کارت با کلیک ===== */
-.xcard{position:relative}
-.xcard:hover{border-color:rgba(34,211,238,.45)}
-.xbadge{position:absolute;top:10px;left:10px;z-index:3;font-size:12px;color:var(--faint);background:var(--panel2);
-  border:1px solid var(--border);border-radius:9px;padding:2px 9px;opacity:0;pointer-events:none;transition:opacity .15s}
-.xcard:hover .xbadge{opacity:1}
-.big .xbadge{display:none}
-.page3 .big,.trio .big{grid-column:1/-1;outline:2px solid var(--acc);outline-offset:4px;border-radius:22px}
-.xclose{position:absolute;top:10px;left:10px;z-index:4;display:none;background:var(--panel2);border:1px solid var(--acc);
-  color:var(--acc);border-radius:9px;padding:2px 10px;font-size:12.5px;cursor:pointer;font-family:inherit}
-.big>.xclose{display:block}
 /* ===== زوم 🔍 ===== */
 .navzoom{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:11px;
   padding:5px 10px;font-size:15px;cursor:pointer}
@@ -446,7 +435,6 @@ body.zoom1{zoom:1.1111}
         <span class="dchip" data-d="1">فردا</span>
         <span class="dchip" id="dMore">📅 روز دیگر</span>
       </div>
-      <div class="extradays" id="extraDays"></div>
       <div class="futureline" id="futureLine"></div>
     </div>
 
@@ -761,10 +749,16 @@ function renderMarket(){
   var d=MK.data;
   function prUSD(v){return v>=1000?faNum(Math.round(v).toLocaleString('en-US')):faNum((Math.round(v*100)/100).toLocaleString('en-US'))}
   function row(ic,nm,sub,pr,unit,c){return '<div class="mrow"><div class="ic">'+ic+'</div><div class="nm"><b>'+nm+'</b><small>'+sub+'</small></div>'+chgHtml(c)+'<div class="pr">'+pr+' <small>'+unit+'</small></div></div>'}
-  var g=d.gold||SNAP.gold,b=d.btc||SNAP.btc,t=(typeof TOMAN!=='undefined')?TOMAN.price_dollar_rl:null;
+  var g=d.gold||SNAP.gold,sv=d.silver||SNAP.silver,b=d.btc||SNAP.btc,e=d.eth||SNAP.eth,T=(typeof TOMAN!=='undefined')?TOMAN:null;
+  function tm(k){return T&&T[k]}function pc(x){return (x&&x.chg&&x.chg[1]!=null)?x.chg[1]:null}
   var h=row('🥇','طلا','اونس جهانی',prUSD(g.p),'$',g.c)
-       +row('₿','بیت‌کوین','BTC',prUSD(b.p),'$',b.c);
-  if(t)h+=row('💵','دلار آزاد','تهران',faNum(Math.round(t.p/1000))+' هزار','تومان',(t.chg&&t.chg[1]));
+       +row('🥈','نقره','اونس جهانی',prUSD(sv.p),'$',sv.c)
+       +row('₿','بیت‌کوین','BTC',prUSD(b.p),'$',b.c)
+       +row('Ξ','اتریوم','ETH',prUSD(e.p),'$',e.c)
+       +row('💵','دلار آزاد','تهران',faNum(Math.round((tm('price_dollar_rl')||{p:0}).p/1000))+' هزار','تومان',pc(tm('price_dollar_rl')))
+       +row('💶','یورو','تهران',faNum(Math.round((tm('price_eur')||{p:0}).p/1000))+' هزار','تومان',pc(tm('price_eur')))
+       +row('🟡','گرم ۱۸','طلا داخلی',faNum(Math.round((tm('geram18')||{p:0}).p/1e6))+' م','تومان',pc(tm('geram18')))
+       +row('🪙','سکه امامی','طرح جدید',faNum(Math.round((tm('sekee')||{p:0}).p/1e6))+' م','تومان',pc(tm('sekee')));
   var el=document.getElementById('sumRows');if(el)el.innerHTML=h;
   var st=document.getElementById('sumTime');if(st)st.textContent=d.live?'زنده ✓':('آفلاین · '+d.t);
 }
@@ -939,14 +933,18 @@ function closeCal(){var p=document.getElementById('calpop');if(p)p.remove()}
 function openCal(anchor,onPick){
   closeCal();
   var t=jToday(),vy=t.jy,vm=t.jm,pop=document.createElement('div');
+  var view='d';
   pop.id='calpop';
   pop.style.cssText='position:fixed;z-index:130;background:var(--bg);border:1px solid var(--border2);border-radius:15px;padding:12px 14px;width:250px;box-shadow:0 18px 44px -12px rgba(0,0,0,.65)';
   function draw(){
+    if(view==='m'){var ms='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">';CALMON.forEach(function(nm,idx){var on=(idx+1)===vm;ms+='<button data-m="'+(idx+1)+'" style="border:1px solid '+(on?'var(--acc)':'transparent')+';background:'+(on?'color-mix(in srgb,var(--acc) 14%,transparent)':'none')+';color:var(--text);border-radius:9px;padding:7px 2px;font-size:13px;cursor:pointer;font-family:var(--fh)">'+nm+'</button>'});pop.innerHTML='<div style="font-size:12.5px;color:var(--faint);margin-bottom:8px">انتخاب ماه — '+fa(vy)+'</div>'+ms+'</div>'+'<div style="text-align:center;margin-top:8px"><span data-nav="vd" style="font-size:12.5px;color:var(--acc);cursor:pointer">✕ بازگشت</span></div>';return}
+    if(view==='y'){var ys='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">';for(var yy=vy-6;yy<=vy+5;yy++){var yon=yy===vy;ys+='<button data-y="'+yy+'" style="border:1px solid '+(yon?'var(--acc)':'transparent')+';background:'+(yon?'color-mix(in srgb,var(--acc) 14%,transparent)':'none')+';color:var(--text);border-radius:9px;padding:7px 2px;font-size:13px;cursor:pointer;font-family:var(--fh)">'+fa(yy)+'</button>'}pop.innerHTML='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">'+'<button data-yp="-12" style="background:var(--panel2);border:none;border-radius:9px;color:var(--text);width:26px;height:26px;cursor:pointer">‹</button>'+'<b style="flex:1;text-align:center;font-size:12.5px;color:var(--faint)">انتخاب سال</b>'+'<button data-yp="12" style="background:var(--panel2);border:none;border-radius:9px;color:var(--text);width:26px;height:26px;cursor:pointer">›</button></div>'+ys+'</div>'+'<div style="text-align:center;margin-top:8px"><span data-nav="vd" style="font-size:12.5px;color:var(--acc);cursor:pointer">✕ بازگشت</span></div>';return}
     var leap=jalCal(vy).leap,len=vm<=6?31:(vm<12?30:(leap?30:29));
     var firstCol=(j2d(vy,vm,1)+2)%7;
     var s='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">'
      +'<button data-nav="-1" style="background:var(--panel2);border:none;border-radius:9px;color:var(--text);width:26px;height:26px;cursor:pointer;font-size:14px">‹</button>'
-     +'<b style="font-family:var(--fh);font-size:14.5px;flex:1;text-align:center">'+CALMON[vm-1]+' '+fa(vy)+'</b>'
+     +'<button data-sel="m" style="flex:1;background:none;border:none;color:var(--text);font-family:var(--fh);font-size:14.5px;cursor:pointer;padding:2px 4px;text-align:center">'+CALMON[vm-1]+' ▾</button>'
+     +'<button data-sel="y" style="background:none;border:none;color:var(--muted);font-family:var(--fh);font-size:13.5px;cursor:pointer;padding:2px 2px">'+fa(vy)+' ▾</button>'
      +'<button data-nav="1" style="background:var(--panel2);border:none;border-radius:9px;color:var(--text);width:26px;height:26px;cursor:pointer;font-size:14px">›</button></div>'
      +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;direction:rtl">'
      +['ش','ی','د','س','چ','پ','ج'].map(function(w){return '<span style="text-align:center;font-size:11px;color:var(--faint);padding:2px 0">'+w+'</span>'}).join('');
@@ -966,7 +964,11 @@ function openCal(anchor,onPick){
   }
   pop.addEventListener('click',function(e){
     var nv=e.target.closest('[data-nav]');
-    if(nv){var v=nv.dataset.nav;if(v==='today'){vy=t.jy;vm=t.jm}else{var m=vm+ +v;if(m<1){m=12;vy--}if(m>12){m=1;vy++}vm=m;}draw();return}
+    if(nv){var v=nv.dataset.nav;if(v==='today'){vy=t.jy;vm=t.jm;view='d'}else if(v==='vd'){view='d'}else{var m=vm+ +v;if(m<1){m=12;vy--}if(m>12){m=1;vy++}vm=m;}draw();return}
+    var sl=e.target.closest('[data-sel]');if(sl){view=sl.dataset.sel;draw();return}
+    var mg=e.target.closest('[data-m]');if(mg){vm=+mg.dataset.m;view='d';draw();return}
+    var yg=e.target.closest('[data-y]');if(yg){vy=+yg.dataset.y;view='d';draw();return}
+    var yp=e.target.closest('[data-yp]');if(yp){vy+= +yp.dataset.yp;draw();return}
     var db=e.target.closest('[data-d]');
     if(db){var jd=+db.dataset.d;closeCal();onPick({jy:vy,jm:vm,jd:jd})}
   });
@@ -1010,22 +1012,7 @@ document.querySelectorAll('#dayChips .dchip[data-d]').forEach(function(c){
   });
 });
 (function(){
-  var box=document.getElementById('extraDays'),faD=['ش','ی','د','س','چ','پ','ج'];
-  for(var off=2;off<=7;off++){
-    (function(o){
-      var dt=new Date(Date.now()+o*864e5);
-      var s=document.createElement('span'); s.className='dchip'; s.dataset.d=o;
-      s.textContent=faD[dt.getDay()]+' +'+fa(o);
-      s.addEventListener('click',function(){
-        document.querySelectorAll('#dayChips .dchip,.extradays .dchip').forEach(function(x){x.classList.remove('on')});
-        s.classList.add('on'); selDay=o;
-        if(window._resetDMore){_resetDMore(); s.classList.add('on');}
-      });
-      box.appendChild(s);
-    })(off);
-  }
-  box.classList.add('open');
-  var dM=document.getElementById('dMore');
+    var dM=document.getElementById('dMore');
   window._resetDMore=function(){dM.classList.remove('on');dM.textContent='📅 روز دیگر'};
   dM.addEventListener('click',function(){
     openCal(dM,function(p){
@@ -1181,30 +1168,10 @@ renderAccChips();renderCatChips();renderTx();
 </script>
 <div id="toast"></div>
 <script>
-/* ===== بزرگ‌شدن کارت‌ها با کلیک + زوم 🔍 ===== */
+/* ===== زوم 🔍 ===== */
 (function(){
   var SEL='.page3 .datecard,.page3 .wcard,.page3 .tcard,.page3 .rcard,.page3 .mcard,.page3 .c3wrap,.page3 .epcard';
   var NO='button,a,input,select,textarea,label,form,[contenteditable],.moodslider,.stepper,.chip,.daychips,.extradays,.futureline,.taskadd,.txform,.txrow,.txsum,.budwrap,.budcats,.moretoggle,.morebox,.qrow,.tags,.task,.rem,.eprow,.demo-bar,.weekline,.yearago,.collapsed,.occs,.askrow';
-  if(window.matchMedia&&matchMedia('(min-width:761px)').matches){
-    document.querySelectorAll(SEL).forEach(function(c){
-      if(c.classList.contains('navcard'))return;
-      c.classList.add('xcard');
-      var b=document.createElement('span');b.className='xbadge';b.textContent='⤢ بزرگ کن';c.appendChild(b);
-      var x=document.createElement('button');x.type='button';x.className='xclose';x.textContent='✕ کوچک کن';c.appendChild(x);
-      x.addEventListener('click',function(e){e.stopPropagation();c.classList.remove('big')});
-    });
-    document.addEventListener('click',function(e){
-      if(e.target.closest(NO))return;
-      if(window.getSelection&&String(window.getSelection()))return;
-      var c=e.target.closest('.xcard');if(!c)return;
-      var was=c.classList.contains('big');
-      document.querySelectorAll('.xcard.big').forEach(function(y){y.classList.remove('big')});
-      if(!was){c.classList.add('big');c.scrollIntoView({behavior:'smooth',block:'start'})}
-    });
-    document.addEventListener('keydown',function(e){
-      if(e.key==='Escape')document.querySelectorAll('.xcard.big').forEach(function(y){y.classList.remove('big')});
-    });
-  }
   var nav=document.querySelector('.navtools');
   if(nav){
     var z=document.createElement('button');z.type='button';z.className='navzoom';z.title='بزرگ‌نمایی صفحه';z.textContent='🔍';
