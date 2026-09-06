@@ -102,7 +102,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .bc .bar i{display:block;height:100%;border-radius:99px}
 .bc .v{width:76px;flex:none;text-align:left;font-family:var(--fh);font-size:12.5px;direction:ltr;color:var(--muted)}
 @media(max-width:760px){.duo{grid-template-columns:1fr}.page3{grid-template-columns:1fr}}
-.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px;align-items:start}
+.trio{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px;align-items:start}
 /* کل بالای صفحه سه‌ستونه مثل بازار */
 .page3{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:stretch;margin-top:14px}
 .page3>.duo{display:contents}
@@ -401,8 +401,7 @@ body.zoom1{zoom:1.1111}
         </div>
         <span class="holbadge" id="holBadge">🎉 امروز تعطیله</span>
       </div>
-      <div class="occrow"><div class="occs" id="occs"></div>
-        <div class="daynav"><button type="button" class="dnbtn" id="dPrev" title="روز قبل">‹</button><button type="button" class="dntoday" id="dTodayBtn">امروز</button><button type="button" class="dnbtn" id="dNext" title="روز بعد">›</button></div></div>
+      <div class="occrow"><div class="daynav"><button type="button" class="dnbtn" id="dPrev" title="روز قبل">‹</button><button type="button" class="dntoday" id="dTodayBtn">امروز</button><button type="button" class="dnbtn" id="dNext" title="روز بعد">›</button></div><div class="occs" id="occs"></div></div>
     </div>
     <div class="wcard">
       <div class="wnow">
@@ -663,6 +662,11 @@ try{var yst=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long'}).format
 document.getElementById('dPrev').addEventListener('click',function(){renderDay(dayOff-1)});
 document.getElementById('dNext').addEventListener('click',function(){renderDay(dayOff+1)});
 document.getElementById('dTodayBtn').addEventListener('click',function(){renderDay(0)});
+(function(){var dr=document.querySelector('.datecard .drow');if(!dr)return;
+ dr.style.cursor='pointer';dr.title='کلیک → تقویم';
+ dr.addEventListener('click',function(e){if(e.target.closest('.daynav'))return;
+  openCal(dr,function(p){var t=jToday();renderDay(j2d(p.jy,p.jm,p.jd)-j2d(t.jy,t.jm,t.jd))});});
+})();
 
 /* ---------- occasions ---------- */
 var EVENTS={"14050601": [{"t": "روز بزرگداشت ابوعلی سینا و روز پزشک"}], "14050602": [{"t": "آغاز هفته دولت"}], "14050603": [{"t": "میلاد رسول اکرم به روایت اهل سنت[ ۱۲ ربیع الاول ]"}], "14050604": [{"t": "زادروز کوروش بزرگ"}, {"t": "شهریور روز،جشن شهریورگان"}], "14050605": [{"t": "روز بزرگداشت محمدبن زکریای رازی و روز داروساز"}], "14050608": [{"t": "انفجار در دفتر نخست‌وزیری جمهوری اسلامی ایران، روز مبارزه با تروریسم"}, {"t": "میلاد رسول اکرم و امام جعفر صادق (ع)[ ۱۷ ربیع الاول ]", "h": 1}], "14050611": [{"t": "روز ملی صنعت چاپ"}], "14050612": [{"t": "سالروز شهادت رئیسعلی دلواری، سردار بزرگ میهن و فرمانده قیام جنوب علیه اشغالگران انگلیسی"}], "14050613": [{"t": "روز بزرگداشت ابوریحان بیرونی"}], "14050619": [{"t": "روز جهانی پیشگیری از خودکشی[ September 10 ]"}], "14050620": [{"t": "حمله به برج‌های دوقلوی مرکز تجارت جهانی[ September 11 ]"}], "14050621": [{"t": "روز سینما"}], "14050627": [{"t": "روز شعر و ادب پارسی و روز بزرگداشت استاد شهریار"}], "14050629": [{"t": "ولادت امام حسن عسکری (ع)[ ۸ ربیع الثانی ]"}], "14050630": [{"t": "روز جهانی صلح[ September 21 ]"}], "14050631": [{"t": "آغاز هفته دفاع مقدس"}, {"t": "وفات حضرت معصومه (س)[ ۱۰ ربیع الثانی ]"}], "14050701": [{"t": "آغاز حمله مغول به ایران در پاییز 598 خورشیدی"}], "14050704": [{"t": "روز گرامیداشت سربازان وطن"}], "14050705": [{"t": "روز جهانی جهانگردی[ September 27 ]"}], "14050707": [{"t": "روز آتش نشانی و ایمنی"}, {"t": "سقوط هواپیمای حامل جمعی از فرماندهان جنگ (کلاهدوز، نامجو، فلاحی، فکوری، جهان آرا) در سال 1360"}, {"t": "روز بزرگداشت شمس تبریزی"}], "14050708": [{"t": "روزبزرگداشت مولوی"}, {"t": "روز جهانی ناشنوایان[ September 30 ]"}, {"t": "روز جهانی ترجمه و مترجم[ September 30 ]"}], "14050709": [{"t": "روز جهانی سالمندان[ October 1 ]"}], "14050710": [{"t": "مهر روز،جشن مهرگان"}], "14050712": [{"t": "آغاز هفته جهانی فضا[ October 4 ]"}], "14050713": [{"t": "روز جهانی معلم[ October 5 ]"}], "14050714": [{"t": "روز دامپزشکی"}], "14050716": [{"t": "روز ملی کودک"}], "14050717": [{"t": "روز جهانی پست[ October 9 ]"}], "14050718": [{"t": "روز جهانی مبارزه با حکم اعدام[ October 10 ]"}], "14050719": [{"t": "روز جهانی دختر[ October 11 ]"}], "14050720": [{"t": "روز بزرگداشت حافظ"}], "14050721": [{"t": "روز پیروزی کاوه و فریدون بر ضحاک"}], "14050722": [{"t": "روز جهانی استاندارد[ October 14 ]"}], "14050723": [{"t": "روز جهانی عصای سفید[ October 15 ]"}], "14050724": [{"t": "ولادت حضرت زینب (س) و روز پرستار و بهورز[ ۵ جمادی الاول ]"}, {"t": "روز جهانی غذا[ October 16 ]"}], "14050725": [{"t": "روز جهانی ریشه کنی فقر[ October 17 ]"}], "14050726": [{"t": "روز تربیت بدنی و ورزش"}], "14050728": [{"t": "زادروز ستارخان ملقب به سردار ملی و از سرداران جنبش مشروطه ایران"}], "14050729": [{"t": "روز ملی کوهنورد"}]};
@@ -1071,7 +1075,7 @@ function renderFutures(){
   var el=document.getElementById('futureLine');
   if(!FUTURES.length){el.classList.remove('show');return}
   var items=FUTURES.slice().sort(function(a,b){return a.off-b.off}).slice(0,10);
-  el.innerHTML='📌 '+items.map(function(f){return '«'+f.t+'» — '+dayName(f.off)}).join(' · ');
+  el.innerHTML='📌 '+items.map(function(f){return '«'+f.t+'» — '+dayName(f.off)}).join('<br>');
   el.classList.add('show');
 }
 function addTask(){
