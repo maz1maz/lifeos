@@ -403,6 +403,11 @@ body.zoom1{zoom:1.1111}
 .bigbtn:hover{filter:brightness(1.08)}
 .bigbtn.ghost{background:none;border:1.5px solid var(--border);color:var(--muted);font-weight:400}
 .bigbtn.ytred{background:#ff0000;color:#fff}
+.ytsearch{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ytsearch input{flex:1;min-width:180px;background:var(--panel2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font:inherit;font-size:15px;color:var(--text);outline:none}
+.ytsearch input:focus{border-color:var(--acc)}
+.ytsearch input::placeholder{color:var(--faint)}
+.vrow .vopen{background:#ff0000;border:none;color:#fff;border-radius:10px;padding:5px 12px;font-size:12.5px;cursor:pointer;flex:none;font-family:var(--fh);text-decoration:none;display:inline-flex;align-items:center}
 .chiprow2{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 .artchip{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:6px 14px 6px 6px;font-size:13.5px;text-decoration:none;color:inherit;transition:border-color .12s,transform .12s}
 .artchip:hover{border-color:var(--acc);transform:translateY(-2px)}
@@ -451,6 +456,15 @@ body.zoom1{zoom:1.1111}
 <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="">🎵 موسیقی</a><a href="/design/youtube-page.html" class="on">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap" style="max-width:1320px">
+
+  <div class="mcard" style="margin-top:14px">
+    <div class="mhead" style="margin-bottom:10px"><h4>🔎 جستجوی ویدیو</h4><span id="ytSearchState" style="font-size:12.5px;color:var(--faint)"></span></div>
+    <div class="ytsearch">
+      <input id="ytQ" type="search" placeholder="اسم ویدیو یا کانال…" autocomplete="off">
+      <button class="bigbtn ytred" id="ytSearchBtn" type="button">جستجو</button>
+    </div>
+    <div class="rygrid" id="ytSearchResults" style="margin-top:12px"></div>
+  </div>
 
   <div class="tabsrow" style="margin-top:14px">
     <button class="tabchip on" data-tab="playlists">📂 پلی‌لیست‌ها</button>
@@ -542,59 +556,117 @@ document.addEventListener('click',function(e){
 var faD='۰۱۲۳۴۵۶۷۸۹';
 function fa(n){return String(n).replace(/\d/g,function(d){return faD[d]})}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})}
+function ytThumb(id, q){return id ? ('https://i.ytimg.com/vi/'+id+'/hqdefault.jpg') : ''}
+function ytWatch(id){return id ? ('https://www.youtube.com/watch?v='+id) : ''}
+function ytList(id){return id ? ('https://www.youtube.com/playlist?list='+id) : ''}
 
 var GRADS=['linear-gradient(135deg,#ff0000,#f59e0b)','linear-gradient(135deg,#7c3aed,#ec4899)','linear-gradient(135deg,#0ea5e9,#22d3ee)','linear-gradient(135deg,#22c55e,#84cc16)','linear-gradient(135deg,#f43f5e,#fb923c)','linear-gradient(135deg,#1e293b,#0ea5e9)','linear-gradient(135deg,#14b8a6,#3b82f6)','linear-gradient(135deg,#a855f7,#6366f1)'];
 function gradFor(s){var h=0;s=String(s||'');for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return GRADS[Math.abs(h)%GRADS.length]}
 
+/* دمو با thumbnail و لینک واقعی یوتیوب */
 var DEMO_PLAYLISTS=[
-  {name:'Flutter Masterclass',desc:'آموزش فلاتر — ۲۴ قسمت',count:24,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBlYTVlOSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMDM2OWExIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGM0YTZlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5GTDwvdGV4dD48L3N2Zz4='},
-  {name:'Lo-Fi Beats',desc:'موسیقی کار و تمرکز',count:87,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzdjM2FlZCIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZGIyNzc3Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjNGMxZDk1Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5MRjwvdGV4dD48L3N2Zz4='},
-  {name:'Space Docs',desc:'مستند فضا و کهکشان\u200cها',count:12,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFlMjkzYiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMGVhNWU5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDIwNjE3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5TUDwvdGV4dD48L3N2Zz4='},
-  {name:'Node.js Projects',desc:'پروژه\u200cهای عملی بک\u200cاند',count:18,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzIyYzU1ZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMTU4MDNkIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTQ1MzJkIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5ORDwvdGV4dD48L3N2Zz4='},
-  {name:'Home Workout',desc:'تمرین خانه — ۳۰ دقیقه',count:40,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y0M2Y1ZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOWYxMjM5Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5IVzwvdGV4dD48L3N2Zz4='},
-  {name:'آشپزی سریع',desc:'دست\u200cپخت ۲۰ دقیقه\u200cای',count:33,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y1OWUwYiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZWY0NDQ0Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOWEzNDEyIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5DSzwvdGV4dD48L3N2Zz4='}
+  {id:'demo-flutter',name:'Flutter & Dart',desc:'آموزش فلاتر',count:6,cover:ytThumb('fq4N0hgOWzU'),url:'https://www.youtube.com/results?search_query=flutter+tutorial'},
+  {id:'demo-lofi',name:'Lo-Fi Beats',desc:'موسیقی تمرکز',count:8,cover:ytThumb('jfKfPfyJRdk'),url:'https://www.youtube.com/watch?v=jfKfPfyJRdk'},
+  {id:'demo-space',name:'Space & Science',desc:'مستند فضا',count:5,cover:ytThumb('Qd6nLFDf2yA'),url:'https://www.youtube.com/results?search_query=space+documentary'},
+  {id:'demo-node',name:'Node.js',desc:'بک‌اند عملی',count:7,cover:ytThumb('Oe421EPjeBE'),url:'https://www.youtube.com/results?search_query=nodejs+tutorial'},
+  {id:'demo-work',name:'Home Workout',desc:'تمرین خانه',count:4,cover:ytThumb('UBMk30rjy0o'),url:'https://www.youtube.com/results?search_query=home+workout'},
+  {id:'demo-cook',name:'Cooking',desc:'آشپزی سریع',count:5,cover:ytThumb('1Isjgc0oX0s'),url:'https://www.youtube.com/results?search_query=easy+cooking'}
 ];
+var DEMO_VIDEOS={
+  'demo-flutter':[
+    {title:'Flutter in 100 seconds',channel:'Fireship',videoId:'fq4N0hgOWzU',duration:'2:12'},
+    {title:'Dart in 100 seconds',channel:'Fireship',videoId:'NrO0CJCbYLA',duration:'2:49'},
+    {title:'Flutter Crash Course',channel:'Traversy Media',videoId:'1gDhl4leEzA',duration:'1:00:00'},
+    {title:'State Management',channel:'Fireship',videoId:'3RH52KJlwjg',duration:'7:41'}
+  ],
+  'demo-lofi':[
+    {title:'lofi hip hop radio',channel:'Lofi Girl',videoId:'jfKfPfyJRdk',duration:'LIVE'},
+    {title:'Chill beats',channel:'Lofi Girl',videoId:'4xDzrJKXOOY',duration:'LIVE'}
+  ],
+  'demo-space':[
+    {title:'The Universe',channel:'National Geographic',videoId:'Qd6nLFDf2yA',duration:'12:04'},
+    {title:'Black Holes',channel:'Veritasium',videoId:'QqsLTNkzvaY',duration:'16:20'}
+  ],
+  'demo-node':[
+    {title:'Node.js Crash Course',channel:'Traversy Media',videoId:'fBNz5xF-Kx4',duration:'1:30:00'},
+    {title:'Node in 100 seconds',channel:'Fireship',videoId:'ENrzD9HAZK4',duration:'2:25'}
+  ],
+  'demo-work':[
+    {title:'20 min Full Body',channel:'Pamela Reif',videoId:'UBMk30rjy0o',duration:'20:00'},
+    {title:'HIIT Cardio',channel:'The Body Coach',videoId:'ml6cT4AZdqI',duration:'15:00'}
+  ],
+  'demo-cook':[
+    {title:'Easy Pasta',channel:'Babish',videoId:'1Isjgc0oX0s',duration:'8:40'},
+    {title:'Quick Stir Fry',channel:'You Suck At Cooking',videoId:'LLbai-AkF9M',duration:'5:12'}
+  ]
+};
 var DEMO_SUBS=[
-  {name:'Fireship',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y0M2Y1ZSIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzlmMTIzOSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj5GPC90ZXh0Pjwvc3ZnPg=='},
-  {name:'Traversy Media',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBlYTVlOSIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzA3NTk4NSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj5UPC90ZXh0Pjwvc3ZnPg=='},
-  {name:'Vox',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFlMjkzYiIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzMzNDE1NSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj5WPC90ZXh0Pjwvc3ZnPg=='},
-  {name:'Veritasium',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y1OWUwYiIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2I0NTMwOSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj5WZTwvdGV4dD48L3N2Zz4='},
-  {name:'سلامت',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzIyYzU1ZSIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzE1ODAzZCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj7YszwvdGV4dD48L3N2Zz4='},
-  {name:'کادر فنی',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzdjM2FlZCIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzViMjFiNiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj7aqTwvdGV4dD48L3N2Zz4='}
+  {name:'Fireship',cover:ytThumb('fq4N0hgOWzU'),url:'https://www.youtube.com/@Fireship'},
+  {name:'Traversy Media',cover:ytThumb('fBNz5xF-Kx4'),url:'https://www.youtube.com/@TraversyMedia'},
+  {name:'Veritasium',cover:ytThumb('QqsLTNkzvaY'),url:'https://www.youtube.com/@veritasium'},
+  {name:'Lofi Girl',cover:ytThumb('jfKfPfyJRdk'),url:'https://www.youtube.com/@LofiGirl'},
+  {name:'National Geographic',cover:ytThumb('Qd6nLFDf2yA'),url:'https://www.youtube.com/@NatGeo'},
+  {name:'The Body Coach',cover:ytThumb('ml6cT4AZdqI'),url:'https://www.youtube.com/@thebodycoach'}
 ];
-var DEMO_VIDEOS=[
-  {title:'مقدمه و نصب',channel:'Fireship',duration:'12:04',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBlYTVlOSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMDM2OWExIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGM0YTZlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wMTwvdGV4dD48L3N2Zz4='},
-  {title:'Widgetها از صفر',channel:'Fireship',duration:'18:32',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzdjM2FlZCIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjNWIyMWI2Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjM2IwNzY0Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wMjwvdGV4dD48L3N2Zz4='},
-  {title:'State Management',channel:'Traversy',duration:'24:10',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzIyYzU1ZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMTU4MDNkIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTQ1MzJkIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wMzwvdGV4dD48L3N2Zz4='},
-  {title:'API و HTTP',channel:'Fireship',duration:'15:48',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y0M2Y1ZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjOWYxMjM5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjODgxMzM3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wNDwvdGV4dD48L3N2Zz4='},
-  {title:'انیمیشن روان',channel:'Vox',duration:'09:21',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y1OWUwYiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjYjQ1MzA5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjNzgzNTBmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wNTwvdGV4dD48L3N2Zz4='},
-  {title:'دیپلوی نهایی',channel:'Fireship',duration:'11:05',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzE0YjhhNiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMGY3NjZlIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTM0ZTRhIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wNjwvdGV4dD48L3N2Zz4='}
+var DEMO_SEARCH=[
+  {title:'Flutter in 100 seconds',channel:'Fireship',videoId:'fq4N0hgOWzU'},
+  {title:'Node.js Crash Course',channel:'Traversy Media',videoId:'fBNz5xF-Kx4'},
+  {title:'lofi hip hop radio',channel:'Lofi Girl',videoId:'jfKfPfyJRdk'},
+  {title:'Black Holes Explained',channel:'Veritasium',videoId:'QqsLTNkzvaY'},
+  {title:'20 min Full Body Workout',channel:'Pamela Reif',videoId:'UBMk30rjy0o'},
+  {title:'JavaScript in 100 Seconds',channel:'Fireship',videoId:'DHjqpvDnNGE'}
 ];
+
+function normVideo(v){
+  var id=v.videoId||'';
+  var cover=v.cover||v.thumb||ytThumb(id);
+  var url=v.url||ytWatch(id);
+  return {
+    title:v.title||'—',
+    channel:v.channel||v.channelTitle||'',
+    channelTitle:v.channel||v.channelTitle||'',
+    videoId:id,
+    cover:cover,
+    duration:v.duration||'',
+    url:url
+  };
+}
 
 function coverHtml(url, name){
   var g=gradFor(name);
   if(url){
-    return '<img src="'+esc(url)+'" alt="'+esc(name)+'" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling&&(this.nextElementSibling.style.display=\'grid\')">'
+    return '<img src="'+esc(url)+'" alt="'+esc(name)+'" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display=\'none\';this.nextElementSibling&&(this.nextElementSibling.style.display=\'grid\')">'
       +'<div class="fallback" style="display:none;background:'+g+'">▶️</div>';
   }
   return '<div class="fallback" style="display:grid;background:'+g+'">▶️</div>';
 }
 
 function plCard(p){
-  var tag=p.url?'a':'div';
-  var extra=p.url&&!p.id?' href="'+esc(p.url)+'" target="_blank" rel="noopener"':'';
-  var cnt=p.count!=null?p.count:(p.itemCount!=null?p.itemCount:0);
-  var data=p.id?' data-pl="'+esc(p.id)+'" data-title="'+esc(p.name||p.title||'')+'" data-cover="'+esc(p.cover||'')+'" data-count="'+cnt+'"':'';
-  return '<'+tag+' class="rycard"'+extra+data+'>'
+  var cnt=p.count!=null?p.count:0;
+  var openUrl=p.url||(p.id&&String(p.id).indexOf('demo-')!==0?ytList(p.id):'');
+  var data=' data-pl="'+esc(p.id||'')+'" data-title="'+esc(p.name||p.title||'')+'" data-cover="'+esc(p.cover||'')+'" data-count="'+cnt+'" data-url="'+esc(openUrl)+'"';
+  return '<div class="rycard"'+data+' role="button" tabindex="0">'
     +'<div class="art">'+coverHtml(p.cover,p.name||p.title)
     +'<span class="ryb">'+fa(cnt)+' ویدیو</span>'
     +'<div class="ryplay"><span>▶</span></div></div>'
     +'<div class="ryt"><b>'+esc(p.name||p.title||'—')+'</b><small>'+esc(p.desc||p.description||p.channelTitle||'پلی‌لیست')+'</small></div>'
+    +'</div>';
+}
+
+function videoCard(v){
+  v=normVideo(v);
+  var tag=v.url?'a':'div';
+  var extra=v.url?' href="'+esc(v.url)+'" target="_blank" rel="noopener"':'';
+  return '<'+tag+' class="rycard"'+extra+'>'
+    +'<div class="art">'+coverHtml(v.cover,v.title)
+    +(v.duration?'<span class="ryb">'+esc(v.duration)+'</span>':'')
+    +'<div class="ryplay"><span>▶</span></div></div>'
+    +'<div class="ryt"><b>'+esc(v.title)+'</b><small>'+esc(v.channel)+'</small></div>'
     +'</'+tag+'>';
 }
 
 function subChip(s){
-  var inner=s.cover?'<img src="'+esc(s.cover)+'" alt="">':'📺';
+  var inner=s.cover?'<img src="'+esc(s.cover)+'" alt="" referrerpolicy="no-referrer">':'📺';
   var tag=s.url?'a':'span';
   var extra=s.url?' href="'+esc(s.url)+'" target="_blank" rel="noopener"':'';
   return '<'+tag+' class="artchip"'+extra+'><span class="dotart">'+inner+'</span>'+esc(s.name||s.title||'')+'</'+tag+'>';
@@ -604,25 +676,25 @@ function subCard(s){
   var tag=s.url?'a':'div';
   var extra=s.url?' href="'+esc(s.url)+'" target="_blank" rel="noopener"':'';
   return '<'+tag+' class="rycard"'+extra+'>'
-    +'<div class="art" style="aspect-ratio:1;border-radius:0">'+coverHtml(s.cover,s.name||s.title)+'</div>'
+    +'<div class="art" style="aspect-ratio:1">'+coverHtml(s.cover,s.name||s.title)+'</div>'
     +'<div class="ryt"><b>'+esc(s.name||s.title||'—')+'</b><small>'+esc(s.description||'کانال')+'</small></div>'
     +'</'+tag+'>';
 }
 
 function videoRow(v, i){
-  var href=v.url?' href="'+esc(v.url)+'" target="_blank" rel="noopener"':'';
-  var tag=v.url?'a':'div';
-  var cov=v.cover
-    ? '<img class="vcov" src="'+esc(v.cover)+'" alt="">'
-    : '<div class="vcov" style="background:'+gradFor(v.title)+';display:grid;place-items:center">▶️</div>';
-  var saveBtn=v.title?'<button type="button" class="vsave" data-save="'+esc(v.title)+'" data-meta="'+esc(v.channel||v.channelTitle||'')+'">ذخیره</button>':'';
-  return '<'+tag+' class="vrow"'+href+'>'
+  v=normVideo(v);
+  var open=v.url?'<a class="vopen" href="'+esc(v.url)+'" target="_blank" rel="noopener">باز کردن</a>':'';
+  var saveBtn=v.title?'<button type="button" class="vsave" data-save="'+esc(v.title)+'" data-meta="'+esc(v.channel)+'">ذخیره</button>':'';
+  return '<div class="vrow">'
     +'<span class="num">'+fa(i+1)+'</span>'
-    +cov
-    +'<div class="vi"><b>'+esc(v.title||'—')+'</b><small>'+esc(v.channel||v.channelTitle||'')+'</small></div>'
+    +'<a href="'+(v.url?esc(v.url):'#')+'" target="_blank" rel="noopener" style="flex:none">'
+    +(v.cover?'<img class="vcov" src="'+esc(v.cover)+'" alt="" referrerpolicy="no-referrer">':'<div class="vcov" style="background:'+gradFor(v.title)+';display:grid;place-items:center">▶️</div>')
+    +'</a>'
+    +'<div class="vi"><b>'+esc(v.title)+'</b><small>'+esc(v.channel)+'</small></div>'
     +(v.duration?'<span class="vdur">'+esc(v.duration)+'</span>':'')
+    +open
     +saveBtn
-    +'</'+tag+'>';
+    +'</div>';
 }
 
 function renderPlaylists(items){
@@ -632,10 +704,9 @@ function renderPlaylists(items){
     return plCard({
       id:p.id||'',
       name:p.name||p.title||'—',
-      title:p.title||p.name,
       desc:p.desc||p.description||p.channelTitle||'',
       cover:p.cover||p.thumb||'',
-      count:p.count!=null?p.count:(p.itemCount!=null?p.itemCount:0),
+      count:p.count!=null?p.count:0,
       url:p.url||''
     });
   }).join('');
@@ -649,6 +720,12 @@ function renderSubs(items){
   document.getElementById('ytSubsGrid').innerHTML=items.slice(0,12).map(function(s){
     return subCard({name:s.name||s.title,cover:s.cover||s.thumb||'',url:s.url||'',description:s.description||''});
   }).join('');
+}
+
+function renderSearch(items){
+  var g=document.getElementById('ytSearchResults');
+  if(!items||!items.length){g.innerHTML='<div class="emptyhint" style="grid-column:1/-1">نتیجه‌ای نبود</div>';return}
+  g.innerHTML=items.slice(0,14).map(videoCard).join('');
 }
 
 /* tabs */
@@ -666,12 +743,13 @@ document.querySelectorAll('.tabchip').forEach(function(b){
 var drawer=document.getElementById('ytDrawer');
 var ovl=document.getElementById('ytOvl');
 function closeDrawer(){drawer.classList.remove('open');ovl.classList.remove('open')}
-function openDrawer(title, cover, meta){
+function openDrawer(title, cover, meta, openUrl){
   document.getElementById('ytDTitle').textContent=title||'پلی‌لیست';
   var img=document.getElementById('ytDCover');
-  if(cover){img.src=cover;img.style.display='block';img.style.background=''} 
+  if(cover){img.src=cover;img.style.display='block';img.style.background='';img.referrerPolicy='no-referrer'}
   else {img.removeAttribute('src');img.style.background=gradFor(title);img.style.display='block'}
-  document.getElementById('ytDMeta').textContent=meta||'';
+  var metaEl=document.getElementById('ytDMeta');
+  metaEl.innerHTML=esc(meta||'')+(openUrl?' · <a href="'+esc(openUrl)+'" target="_blank" rel="noopener" style="color:var(--acc)">باز کردن در یوتیوب</a>':'');
   drawer.classList.add('open');ovl.classList.add('open');
 }
 document.getElementById('ytDx').onclick=closeDrawer;
@@ -680,40 +758,31 @@ ovl.onclick=closeDrawer;
 function showVideos(items){
   var list=document.getElementById('ytDList');
   if(!items||!items.length){list.innerHTML='<div class="emptyhint">ویدیویی در این پلی‌لیست نیست</div>';return}
-  list.innerHTML=items.map(function(v,i){
-    return videoRow({
-      title:v.title,
-      channel:v.channel||v.channelTitle||'',
-      cover:v.cover||v.thumb||'',
-      duration:v.duration||'',
-      url:v.url||(v.videoId?('https://www.youtube.com/watch?v='+v.videoId):'')
-    }, i);
-  }).join('');
+  list.innerHTML=items.map(function(v,i){return videoRow(v,i)}).join('');
 }
 
 document.getElementById('ytPl').addEventListener('click',function(e){
   var card=e.target.closest('[data-pl]');
   if(!card)return;
-  e.preventDefault();
   var id=card.dataset.pl;
   var title=card.dataset.title||'پلی‌لیست';
   var cover=card.dataset.cover||'';
   var count=card.dataset.count||'0';
-  openDrawer(title, cover, fa(count)+' ویدیو');
+  var openUrl=card.dataset.url||'';
+  openDrawer(title, cover, fa(count)+' ویدیو', openUrl);
   document.getElementById('ytDList').innerHTML='<div class="emptyhint">در حال دریافت ویدیوها…</div>';
 
-  if(!window.__ytLive){
-    showVideos(DEMO_VIDEOS);
+  if(!window.__ytLive || String(id).indexOf('demo-')===0){
+    showVideos(DEMO_VIDEOS[id]||DEMO_VIDEOS['demo-flutter']||[]);
     return;
   }
   fetch('/api/integrations/youtube/playlist-items?playlistId='+encodeURIComponent(id))
-    .then(function(r){return r.json()})
-    .then(function(d){
-      showVideos(d.items||[]);
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+    .then(function(res){
+      if(!res.ok){document.getElementById('ytDList').innerHTML='<div class="emptyhint">'+(res.d&&res.d.error||'ناموفق')+'</div>';return}
+      showVideos(res.d.items||[]);
     })
-    .catch(function(){
-      document.getElementById('ytDList').innerHTML='<div class="emptyhint">دریافت ناموفق</div>';
-    });
+    .catch(function(){document.getElementById('ytDList').innerHTML='<div class="emptyhint">دریافت ناموفق</div>'});
 });
 
 document.getElementById('ytDList').addEventListener('click',function(e){
@@ -725,14 +794,56 @@ document.getElementById('ytDList').addEventListener('click',function(e){
     body:JSON.stringify({source:'youtube',title:btn.dataset.save,meta:btn.dataset.meta||''})})
     .then(function(r){return r.json()}).then(function(d){
       var t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}
-      t.textContent=d&& (d.ok||d.entry)?'✓ در امروز ذخیره شد':(d.error||'ذخیره نشد');
+      t.textContent=d&&(d.ok||d.entry)?'✓ در امروز ذخیره شد':(d.error||'ذخیره نشد');
       t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000);
     }).catch(function(){});
 });
 
+/* search */
+function doSearch(){
+  var q=(document.getElementById('ytQ').value||'').trim();
+  var st=document.getElementById('ytSearchState');
+  var btn=document.getElementById('ytSearchBtn');
+  if(!q){st.textContent='چیزی بنویس';return}
+  function demoFallback(msg){
+    var hits=DEMO_SEARCH.filter(function(v){
+      return (v.title+' '+v.channel).toLowerCase().indexOf(q.toLowerCase())>=0;
+    });
+    if(!hits.length) hits=DEMO_SEARCH.slice();
+    renderSearch(hits);
+    st.textContent=msg||'نمونه — برای جستجوی واقعی وصل شو';
+  }
+  st.textContent='در حال جستجو…';
+  if(btn){btn.disabled=true;btn.textContent='…'}
+  fetch('/api/integrations/youtube/search?q='+encodeURIComponent(q))
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+    .then(function(res){
+      if(btn){btn.disabled=false;btn.textContent='جستجو'}
+      if(!res.ok){
+        if(res.status===401||res.status===400){
+          window.__ytLive=false;
+          demoFallback((res.d&&res.d.error)||'اول یوتیوب را وصل کن (پایین صفحه)');
+          return;
+        }
+        st.textContent=(res.d&&res.d.error)||('خطا '+res.status);
+        return;
+      }
+      window.__ytLive=true;
+      var items=res.d.items||[];
+      renderSearch(items);
+      st.textContent=items.length?('✓ '+fa(items.length)+' نتیجه'):'چیزی پیدا نشد';
+    }).catch(function(){
+      if(btn){btn.disabled=false;btn.textContent='جستجو'}
+      if(window.__ytLive){st.textContent='جستجو ناموفق';return}
+      demoFallback('نمونه — اتصال لازم است');
+    });
+}
+document.getElementById('ytSearchBtn').addEventListener('click',doSearch);
+document.getElementById('ytQ').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch()}});
+
 /* demo first */
-renderPlaylists(DEMO_PLAYLISTS.map(function(p){return {name:p.name,desc:p.desc,count:p.count,cover:p.cover}}));
-renderSubs(DEMO_SUBS.map(function(s){return {name:s.name,cover:s.cover}}));
+renderPlaylists(DEMO_PLAYLISTS);
+renderSubs(DEMO_SUBS);
 
 function setConnected(on){
   var st=document.getElementById('ytState');
@@ -752,7 +863,17 @@ function loadLive(){
     if(!res.ok){document.getElementById('ytPlState').textContent=d.error||'ناموفق';return}
     var items=d.items||[];
     if(items.length){
-      renderPlaylists(items);
+      renderPlaylists(items.map(function(p){
+        return {
+          id:p.id,
+          name:p.name||p.title,
+          title:p.title||p.name,
+          desc:p.description||p.channelTitle||'',
+          cover:p.cover||p.thumb||'',
+          count:p.count||0,
+          url:p.url||ytList(p.id)
+        };
+      }));
       document.getElementById('ytPlState').textContent='زنده ✓ · '+fa(items.length)+' پلی‌لیست';
     } else document.getElementById('ytPlState').textContent='پلی‌لیستی نبود';
     var subs=d.subscriptions||[];
