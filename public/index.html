@@ -174,7 +174,7 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .span2{grid-column:span 2}
 .c3wrap{min-width:0}
 .home .datecard,.home .wcard,.home .tcard,.home .rcard,.home .mcard,.home .epcard,.home .c3wrap{min-width:0}
-.home-row.r1 .datecard,.home-row.r2>.wcard,.home-row.r2>.tcard,.home-row.r2>.rcard,.home-row.r2>.mcard,.home-row.r4>.mcard,.home-row.r4>.epcard{height:100%}
+.home-row.r1 .datecard,.home-row.r4>.mcard,.home-row.r4>.epcard{height:100%}
 .home-row.r3>.mcard,.home-row.r3>.c3wrap{height:auto;align-self:start}
 .home .txform .chiprow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px}
 .home .txform #catChips,.home .txform #accChips{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:0}
@@ -690,57 +690,72 @@ body.nav-open .nav-backdrop{display:block}
 
 
 
-/* ===== ردیف ۲ دسکتاپ: ارتفاع = هوا؛ بازی اسکرول؛ کار+یادآوری منظم ===== */
+/* ===== ردیف ۲ دسکتاپ: ارتفاع فقط = هوا؛ بقیه اسکرول داخلی ===== */
 .home-row.r2{
   display:grid !important;
   grid-template-columns:repeat(4, minmax(0,1fr)) !important;
-  align-items:stretch !important;
+  align-items:start !important;
   gap:14px;
 }
-.home-row.r2 > .wcard,
+.home-row.r2 > .wcard{
+  min-width:0;
+  height:auto !important;
+  max-height:none !important;
+  align-self:start !important;
+  box-sizing:border-box;
+}
 .home-row.r2 > #mkSum,
-.home-row.r2 > .mcard.navcard,
 .home-row.r2 > #gamesCard,
 .home-row.r2 > .tr-combo{
   min-width:0;
-  height:auto;
-  max-height:none;
-  align-self:stretch;
+  align-self:start !important;
   box-sizing:border-box;
+  height:var(--r2-h, 420px) !important;
+  max-height:var(--r2-h, 420px) !important;
+  overflow:hidden !important;
 }
-/* بازی‌ها: کارت هم‌ارتفاع ردیف، لیست داخلی اسکرول — محتوا ردیف را بلند نمی‌کند */
 #gamesCard{
   display:flex !important;
   flex-direction:column !important;
   min-height:0 !important;
-  height:100% !important;
-  max-height:100% !important;
   overflow:hidden !important;
 }
 #gamesCard > .mhead,
-#gamesCard > .mfoot{flex:0 0 auto}
+#gamesCard > .mfoot{flex:0 0 auto !important}
 #gamesCard .gwrap,
 #gamesCard #gamesList{
   flex:1 1 auto !important;
   min-height:0 !important;
-  max-height:none !important; /* سقف از height کارت می‌آید */
+  max-height:none !important;
+  height:auto !important;
   overflow-x:hidden !important;
   overflow-y:auto !important;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
 }
-/* کار + یادآوری — باکس عمودی مرتب */
+#mkSum{
+  display:flex !important;
+  flex-direction:column !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+}
+#mkSum > .mhead,
+#mkSum > .mfoot{flex:0 0 auto}
+#mkSum #sumRows{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+}
 .tr-combo{
   min-width:0 !important;
-  height:100% !important;
-  max-height:100% !important;
   overflow:hidden !important;
   display:flex !important;
   flex-direction:column !important;
 }
 .tr-combo .tr-panel{
-  flex:1 1 auto;
-  min-height:0;
+  flex:1 1 auto !important;
+  min-height:0 !important;
   height:100% !important;
   max-height:100% !important;
   display:flex !important;
@@ -777,45 +792,24 @@ body.nav-open .nav-backdrop{display:block}
   flex:0 0 auto !important;
   width:100% !important;
 }
-.tr-combo .mhead h4{
-  margin:0 !important;
-  font-size:14.5px !important;
-  line-height:1.3 !important;
-  white-space:nowrap;
-}
-.tr-combo .mhead .cnt{font-size:12px;color:var(--faint);flex:none}
 .tr-combo #taskList,
 .tr-combo #remList{
   flex:1 1 auto !important;
   min-height:0 !important;
-  max-height:none !important;
-  overflow-x:hidden !important;
   overflow-y:auto !important;
-  display:block !important;
-  width:100% !important;
+  overflow-x:hidden !important;
 }
-/* هر ردیف کار / یادآوری — یک خط افقی مرتب، نه همه چسبیده */
 .tr-combo .task,
 .tr-combo .rem{
   display:flex !important;
   flex-direction:row !important;
-  flex-wrap:nowrap !important;
   align-items:center !important;
   gap:8px !important;
   width:100% !important;
   box-sizing:border-box !important;
-  padding:7px 2px !important;
-  margin:0 !important;
-  border-bottom:1px solid var(--border) !important;
-  font-size:14px !important;
-  line-height:1.35 !important;
-  white-space:normal !important;
+  padding:7px 4px !important;
+  min-height:36px !important;
 }
-.tr-combo .task .ck,
-.tr-combo .rem .rd{
-  flex:0 0 auto !important;
-}
-.tr-combo .task .prio{flex:0 0 auto}
 .tr-combo .task .tt,
 .tr-combo .rem .rt{
   flex:1 1 auto !important;
@@ -823,37 +817,16 @@ body.nav-open .nav-backdrop{display:block}
   overflow:hidden !important;
   text-overflow:ellipsis !important;
   white-space:nowrap !important;
-  font-size:14px !important;
 }
-.tr-combo .task .st,
-.tr-combo .rem .rv{
-  flex:0 0 auto !important;
-  font-size:12px !important;
-  color:var(--faint) !important;
-  white-space:nowrap !important;
-  max-width:40%;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.tr-combo .task .tdel,
-.tr-combo .rem .rdel{
-  flex:0 0 auto !important;
-  opacity:.55;
-}
-.tr-combo .remfoot{
-  flex:0 0 auto !important;
-  margin-top:6px !important;
-  font-size:11.5px !important;
-  color:var(--faint);
-  text-align:center;
-}
-@media(max-width:1100px){
-  .home-row.r2{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+.tr-combo .remfoot{flex:0 0 auto;font-size:11.5px;color:var(--faint);margin-top:4px}
+@media(max-width:1100px) and (min-width:901px){
+  .home-row.r2{grid-template-columns:repeat(2,minmax(0,1fr)) !important;align-items:start !important}
 }
 @media(max-width:900px){
   .home-row.r2{
     grid-template-columns:1fr !important;
     align-items:start !important;
+    height:auto !important;
   }
   .home-row.r2 > .wcard,
   .home-row.r2 > #mkSum,
@@ -861,45 +834,37 @@ body.nav-open .nav-backdrop{display:block}
   .home-row.r2 > .tr-combo{
     height:auto !important;
     max-height:none !important;
-    align-self:start !important;
-  }
-  #gamesCard{
-    height:auto !important;
-    max-height:none !important;
-    overflow:visible !important;
+    width:100% !important;
   }
   #gamesCard .gwrap,
   #gamesCard #gamesList{
     flex:none !important;
-    max-height:min(50vh, 400px) !important;
+    max-height:min(55vh, 420px) !important;
     min-height:200px !important;
-  }
-  .tr-combo,
-  .tr-combo .tr-panel{
-    height:auto !important;
-    max-height:none !important;
-    overflow:visible !important;
+    overflow-y:auto !important;
   }
   .tr-combo #taskList,
-  .tr-combo #remList{
-    max-height:220px !important;
-  }
+  .tr-combo #remList{max-height:220px !important}
 }
 
-
-/* page-mobile-extra */
 @media(max-width:900px){
-  .home-row.r1{display:grid!important;grid-template-columns:1fr!important;height:auto!important}
-  .home-row.r2,.home-row.r3,.home-row.r4{display:grid!important;grid-template-columns:1fr!important;height:auto!important;align-items:start!important}
-  .home-row.r1 > *, .home-row.r2 > *{height:auto!important;min-height:0!important;max-height:none!important}
+  .home-row.r2,.home-row.r3,.home-row.r4{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    height:auto!important;
+    align-items:start!important;
+  }
+  .home-row.r1 > *, .home-row.r2 > *{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+  }
   .datecard .dnum{font-size:56px!important}
   .occrow{flex-wrap:wrap}
   .minical{width:100%!important;max-width:100%!important}
   .minical .mc{max-height:34px;font-size:13px}
   .minical .mcfoot .ttemp{font-size:20px}
   .r1-quick{height:auto!important}
-  /* بازی‌ها: لیست کامل روی موبایل */
-  /* games mobile height in CLEAN */
   #gamesCard .mhead{flex:none}
   #gamesCard .mfoot{flex:none}
   #gamesCard .gwrap, #gamesCard #gamesList{
@@ -2221,48 +2186,106 @@ document.addEventListener('click',function(e){
 
 <script>
 
-/* ارتفاع کارت بازی = ارتفاع کارت هوا (فقط دسکتاپ) */
+/* ارتفاع ردیف ۲ = فقط کارت هوا (دسکتاپ) */
 (function(){
+  var busy=false;
+  function mobile(){return window.matchMedia && window.matchMedia('(max-width:900px)').matches}
+  function clear(){
+    ['gamesCard','mkSum','trCombo'].forEach(function(id){
+      var el=document.getElementById(id); if(!el)return;
+      el.style.removeProperty('height'); el.style.removeProperty('max-height'); el.style.removeProperty('min-height');
+    });
+    var list=document.getElementById('gamesList'); if(list){list.style.removeProperty('height');list.style.removeProperty('max-height')}
+    var sr=document.getElementById('sumRows'); if(sr) sr.style.removeProperty('max-height');
+    var row=document.querySelector('.home-row.r2'); if(row) row.style.removeProperty('--r2-h');
+  }
+  function schedule(){ clearTimeout(window._sgH); window._sgH=setTimeout(function(){ requestAnimationFrame(syncGamesHeight); }, 50); }
   function syncGamesHeight(){
-    if(window.matchMedia && window.matchMedia('(max-width:900px)').matches) return;
-    var w=document.querySelector('.home-row.r2 > .wcard') || document.querySelector('.wcard');
-    var g=document.getElementById('gamesCard');
-    var list=document.getElementById('gamesList');
-    if(!w||!g||!list) return;
-    var head=g.querySelector('.mhead');
-    var foot=g.querySelector('.mfoot');
-    var wh=w.getBoundingClientRect().height;
-    if(!wh || wh < 120) return;
-    g.style.height = wh + 'px';
-    g.style.maxHeight = wh + 'px';
-    var used=(head?head.offsetHeight:0)+(foot?foot.offsetHeight:0)+16;
-    var lh=Math.max(160, Math.floor(wh - used));
-    list.style.maxHeight = lh + 'px';
-    list.style.height = lh + 'px';
-    list.style.overflowY = 'auto';
+    if(busy){ window._sgPending=true; return; }
+    if(mobile()){ clear(); return; }
+    var w=document.querySelector('.home-row.r2 > .wcard');
+    var row=document.querySelector('.home-row.r2');
+    if(!w||!row) return;
+    busy=true;
+    var ids=['gamesCard','mkSum','trCombo'];
+    var cards=ids.map(function(id){return document.getElementById(id)}).filter(Boolean);
+    /* صفر کردن موقت بقیه تا ارتفاع ردیف = فقط هوا */
+    cards.forEach(function(el){
+      el.style.setProperty('height','0px','important');
+      el.style.setProperty('max-height','0px','important');
+      el.style.setProperty('min-height','0px','important');
+      el.style.setProperty('overflow','hidden','important');
+    });
+    void w.offsetHeight;
+    var wh=Math.round(w.getBoundingClientRect().height);
+    if(!wh || wh<80){
+      cards.forEach(function(el){
+        el.style.removeProperty('height'); el.style.removeProperty('max-height');
+        el.style.removeProperty('min-height'); el.style.removeProperty('overflow');
+      });
+      busy=false; return;
+    }
+    row.style.setProperty('--r2-h', wh+'px');
+    cards.forEach(function(el){
+      el.style.setProperty('height', wh+'px', 'important');
+      el.style.setProperty('max-height', wh+'px', 'important');
+      el.style.setProperty('min-height', '0', 'important');
+      el.style.setProperty('overflow', 'hidden', 'important');
+    });
+    function fit(card, list){
+      if(!card||!list) return;
+      var head=card.querySelector(':scope > .mhead') || card.querySelector('.mhead');
+      var foot=card.querySelector(':scope > .mfoot') || card.querySelector('.mfoot');
+      var used=(head?head.getBoundingClientRect().height:0)+(foot?foot.getBoundingClientRect().height:0)+18;
+      var lh=Math.max(72, Math.floor(wh-used));
+      list.style.setProperty('max-height', lh+'px', 'important');
+      list.style.setProperty('height', lh+'px', 'important');
+      list.style.setProperty('overflow-y', 'auto', 'important');
+      list.style.setProperty('min-height', '0', 'important');
+    }
+    fit(document.getElementById('gamesCard'), document.getElementById('gamesList'));
+    fit(document.getElementById('mkSum'), document.getElementById('sumRows'));
     var tr=document.getElementById('trCombo');
-    if(tr){ tr.style.height = wh + 'px'; tr.style.maxHeight = wh + 'px'; }
-    var mk=document.getElementById('mkSum');
-    if(mk){ mk.style.height = wh + 'px'; mk.style.maxHeight = wh + 'px'; mk.style.overflow='hidden';
-      var sr=document.getElementById('sumRows');
-      if(sr){
-        var mh=mk.querySelector('.mhead'), mf=mk.querySelector('.mfoot');
-        var u=(mh?mh.offsetHeight:0)+(mf?mf.offsetHeight:0)+16;
-        sr.style.maxHeight=Math.max(120, Math.floor(wh-u))+'px';
-        sr.style.overflowY='auto';
+    if(tr){
+      var tl=document.getElementById('taskList'), rl=document.getElementById('remList');
+      var heads=tr.querySelectorAll('.mhead'), hh=0;
+      heads.forEach(function(h){hh+=h.getBoundingClientRect().height});
+      var rf=tr.querySelector('.remfoot');
+      var used=hh+(rf?rf.getBoundingClientRect().height:0)+40;
+      var each=Math.max(56, Math.floor((wh-used)/2));
+      if(tl){tl.style.setProperty('max-height',each+'px','important');tl.style.setProperty('overflow-y','auto','important')}
+      if(rl){rl.style.setProperty('max-height',each+'px','important');rl.style.setProperty('overflow-y','auto','important')}
+    }
+    busy=false;
+    if(window._sgPending){ window._sgPending=false; schedule(); }
+  }
+  window.syncGamesHeight=syncGamesHeight;
+  window.addEventListener('resize', schedule);
+  function boot(){
+    syncGamesHeight();
+    setTimeout(syncGamesHeight, 200);
+    setTimeout(syncGamesHeight, 600);
+    setTimeout(syncGamesHeight, 1500);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+  window.addEventListener('load', function(){ setTimeout(syncGamesHeight, 100); });
+  var obs=new MutationObserver(schedule);
+  var ro=null;
+  function watch(){
+    var wcard=document.querySelector('.home-row.r2 > .wcard')||document.querySelector('.wcard');
+    if(wcard){
+      obs.observe(wcard,{childList:true,subtree:true,characterData:true,attributes:true});
+      if(typeof ResizeObserver!=='undefined'){
+        if(ro) try{ro.disconnect()}catch(e){}
+        ro=new ResizeObserver(schedule);
+        ro.observe(wcard);
       }
     }
+    var gl=document.getElementById('gamesList');
+    if(gl) obs.observe(gl,{childList:true,subtree:true});
   }
-  window.syncGamesHeight = syncGamesHeight;
-  window.addEventListener('resize', function(){
-    clearTimeout(window._sgH); window._sgH=setTimeout(syncGamesHeight, 120);
-  });
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(syncGamesHeight, 50); });
-  else setTimeout(syncGamesHeight, 50);
-  // after weather paints
-  var _obs=new MutationObserver(function(){ clearTimeout(window._sgH2); window._sgH2=setTimeout(syncGamesHeight, 80); });
-  var wcard=document.querySelector('.wcard');
-  if(wcard) _obs.observe(wcard, {childList:true, subtree:true, characterData:true});
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', watch); else watch();
 })();
 
 /* منوی موبایل — همبرگر (drawer ثابت، بدون بهم‌ریختن layout) */
