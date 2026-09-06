@@ -379,55 +379,125 @@ body.zoom1{zoom:1.1111}
 
 
 .specline{color:var(--faint);font-size:14.5px;margin-top:22px;border-top:1px dashed var(--border);padding-top:14px}
-</style>
 
-/* ===== سبک Ryot ===== */
-.rygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;margin-top:12px}
-.rycard{background:var(--panel);border:1.5px solid var(--border2);border-radius:16px;overflow:hidden;transition:transform .12s,border-color .12s;cursor:pointer}
-.rycard:hover{transform:translateY(-3px);border-color:var(--acc)}
-.art{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:44px;position:relative}
-.ryb{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.72);color:#fff;border-radius:7px;padding:1px 7px;font-size:11.5px;font-family:var(--fh)}
-.ryt{padding:9px 11px 11px}
-.ryt b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ryt small{color:var(--faint);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ===== سبک Ryot / یوتیوب ===== */
+.rygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-top:12px}
+.rycard{background:var(--panel);border:1.5px solid var(--border2);border-radius:16px;overflow:hidden;transition:transform .15s,border-color .15s,box-shadow .15s;cursor:pointer;text-decoration:none;color:inherit;display:block}
+.rycard:hover{transform:translateY(-4px);border-color:var(--acc);box-shadow:0 12px 28px -14px rgba(0,0,0,.55)}
+.art{aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:44px;position:relative;background:var(--panel2);overflow:hidden}
+.art img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
+.rycard:hover .art img{transform:scale(1.05)}
+.art .fallback{position:absolute;inset:0;display:grid;place-items:center;font-size:42px;background:linear-gradient(135deg,#ef444433,#f59e0b22)}
+.ryb{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.78);color:#fff;border-radius:8px;padding:2px 8px;font-size:11.5px;font-family:var(--fh);backdrop-filter:blur(6px);z-index:1}
+.ryplay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.0);transition:.18s;z-index:1}
+.ryplay span{width:48px;height:48px;border-radius:50%;background:#ff0000;color:#fff;display:grid;place-items:center;font-size:16px;opacity:0;transform:scale(.85);transition:.18s;box-shadow:0 8px 20px rgba(0,0,0,.45)}
+.rycard:hover .ryplay{background:rgba(0,0,0,.25)}
+.rycard:hover .ryplay span{opacity:1;transform:none}
+.ryt{padding:10px 12px 13px}
+.ryt b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--fh)}
+.ryt small{color:var(--faint);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;line-height:1.6}
 .concard{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .conbadge{display:inline-flex;align-items:center;gap:7px;font-size:14px;background:var(--panel2);border:1px solid var(--border);border-radius:11px;padding:6px 12px}
 .conbadge.on{border-color:var(--good);color:var(--good)}
 .bigbtn{background:var(--acc);color:#04222b;border:none;border-radius:12px;padding:9px 18px;font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer}
 .bigbtn:hover{filter:brightness(1.08)}
 .bigbtn.ghost{background:none;border:1.5px solid var(--border);color:var(--muted);font-weight:400}
-.chiprow2{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.artchip{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:5px 12px 5px 7px;font-size:13.5px}
-.dotart{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
-
+.bigbtn.ytred{background:#ff0000;color:#fff}
+.chiprow2{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.artchip{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:6px 14px 6px 6px;font-size:13.5px;text-decoration:none;color:inherit;transition:border-color .12s,transform .12s}
+.artchip:hover{border-color:var(--acc);transform:translateY(-2px)}
+.dotart{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;overflow:hidden;flex:none;background:var(--panel);border:1px solid var(--border)}
+.dotart img{width:100%;height:100%;object-fit:cover}
+.ytbrand{display:inline-flex;align-items:center}
+.ytbrand svg{width:34px;height:24px}
+.tabsrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.tabchip{background:var(--panel2);border:1.5px solid var(--border);color:var(--muted);border-radius:99px;padding:6px 16px;font-family:var(--fh);font-size:13.5px;cursor:pointer}
+.tabchip.on{border-color:var(--acc);color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);font-weight:700}
+.panelsec{display:none}.panelsec.on{display:block}
+.sec{margin-top:16px}
+.sec .mhead{margin-bottom:4px}
+.emptyhint{text-align:center;padding:28px 12px;color:var(--faint);font-size:14.5px}
+/* video list */
+.vlist{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.vrow{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:14px;border:1px solid transparent;transition:.12s;text-decoration:none;color:inherit}
+.vrow:hover{background:var(--panel2);border-color:var(--border)}
+.vrow .num{width:22px;text-align:center;font-family:var(--fh);font-size:13px;color:var(--faint);flex:none}
+.vrow .vcov{width:120px;aspect-ratio:16/9;border-radius:10px;object-fit:cover;flex:none;background:var(--panel2);border:1px solid var(--border)}
+.vrow .vi{flex:1;min-width:0}
+.vrow .vi b{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--fh)}
+.vrow .vi small{color:var(--faint);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vrow .vdur{font-family:var(--fh);font-size:12px;color:var(--faint);direction:ltr;flex:none}
+.vrow .vsave{background:none;border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:5px 10px;font-size:12.5px;cursor:pointer;flex:none;font-family:var(--fh)}
+.vrow .vsave:hover{border-color:var(--acc);color:var(--acc)}
+/* detail drawer for playlist */
+.ytdrawer{position:fixed;top:0;left:0;bottom:0;width:min(480px,100%);background:var(--bg);border-right:1px solid var(--border2);z-index:120;transform:translateX(-105%);transition:transform .25s ease;overflow:auto;box-shadow:20px 0 60px rgba(0,0,0,.4)}
+.ytdrawer.open{transform:none}
+.ytdovl{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:110;opacity:0;pointer-events:none;transition:.2s}
+.ytdovl.open{opacity:1;pointer-events:auto}
+.ytdhead{position:sticky;top:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;z-index:2}
+.ytdhead h3{margin:0;font-family:var(--fh);font-size:17px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ytdx{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;font-size:16px}
+.ytdcover{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:var(--panel2)}
+.ytdbody{padding:14px 16px 40px}
+.ytdmeta{color:var(--faint);font-size:13.5px;margin-bottom:12px}
+@media(max-width:640px){
+  .rygrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .vrow .vcov{width:96px}
+  .ytdrawer{width:100%}
+}
+</style>
 </head>
 <body>
 <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="">🎵 موسیقی</a><a href="/design/youtube-page.html" class="on">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
-<div class="wrap" style="max-width:1240px">
-  <div class="lead">یوتیوب تو — پلی‌لیست‌ها و سابسکرایب‌ها</div>
+<div class="wrap" style="max-width:1320px">
+  <div class="lead">یوتیوب تو — پلی‌لیست‌ها با thumbnail واقعی، ویدیوها و سابسکرایب‌ها</div>
 
   <div class="mcard" style="margin-top:14px">
     <div class="concard">
-      <span style="font-size:34px">▶️</span>
+      <span class="ytbrand">
+        <svg viewBox="0 0 48 34" fill="none"><rect width="48" height="34" rx="8" fill="#FF0000"/><path d="M19 9.5v15l13-7.5L19 9.5z" fill="#fff"/></svg>
+      </span>
       <div style="flex:1;min-width:180px">
         <b style="font-size:16px">یوتیوب</b>
-        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">پلی‌لیست‌ها و ویدیوهای ذخیره‌شده — قشنگ و مرتب</div>
+        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">پوستر پلی‌لیست، ویدیوها و کانال‌های دنبال‌شده — شبیه خود یوتیوب</div>
       </div>
       <span class="conbadge" id="ytState">… در حال بررسی</span>
-      <button class="bigbtn" id="ytConnect">اتصال به یوتیوب</button>
+      <button class="bigbtn ytred" id="ytConnect">اتصال به یوتیوب</button>
       <button class="bigbtn ghost" id="ytDis" style="display:none">قطع اتصال</button>
+      <button class="bigbtn ghost" id="ytRefresh" style="display:none" title="تازه‌سازی">↻</button>
     </div>
   </div>
-  <div class="mcard" style="margin-top:14px">
-    <div class="mhead"><h4>▶️ پلی‌لیست‌ها</h4><span id="ytPlState" style="font-size:12.5px;color:var(--faint)">نمونه — بعد از اتصال، واقعی می‌شود</span></div>
-    <div class="rygrid" id="ytPl"></div>
-  </div>
-  <div class="mcard" style="margin-top:14px">
-    <div class="mhead"><h4>📺 سابسکرایب‌ها</h4></div>
-    <div class="chiprow2" id="ytSubs"></div>
+
+  <div class="tabsrow">
+    <button class="tabchip on" data-tab="playlists">📂 پلی‌لیست‌ها</button>
+    <button class="tabchip" data-tab="subs">📺 سابسکرایب‌ها</button>
   </div>
 
+  <div class="mcard sec panelsec on" id="panel-playlists" style="margin-top:12px">
+    <div class="mhead"><h4>📂 پلی‌لیست‌های تو</h4><span id="ytPlState" style="font-size:12.5px;color:var(--faint)">نمونه — بعد از اتصال، واقعی می‌شود</span></div>
+    <div class="rygrid" id="ytPl"></div>
+  </div>
+
+  <div class="mcard sec panelsec" id="panel-subs" style="margin-top:12px">
+    <div class="mhead"><h4>📺 کانال‌های دنبال‌شده</h4><span id="ytSubState" style="font-size:12.5px;color:var(--faint)"></span></div>
+    <div class="chiprow2" id="ytSubs"></div>
+    <div class="rygrid" id="ytSubsGrid" style="margin-top:14px"></div>
+  </div>
+
+</div>
+
+<div class="ytdovl" id="ytOvl"></div>
+<div class="ytdrawer" id="ytDrawer">
+  <div class="ytdhead">
+    <button class="ytdx" id="ytDx" type="button">✕</button>
+    <h3 id="ytDTitle">پلی‌لیست</h3>
+  </div>
+  <img class="ytdcover" id="ytDCover" alt="">
+  <div class="ytdbody">
+    <div class="ytdmeta" id="ytDMeta"></div>
+    <div class="vlist" id="ytDList"></div>
+  </div>
 </div>
 <script>
 document.getElementById('modeBtn').addEventListener('click',function(){var r=document.documentElement,l=r.dataset.mode==='light';r.dataset.mode=l?'dark':'light';this.textContent=l?'🌙':'☀️';});
@@ -470,45 +540,247 @@ document.addEventListener('click',function(e){
 })();
 </script><script>
 (function(){
-var DEMO=[['Flutter','آموزش فلاتر — ۲۴ قسمت','linear-gradient(135deg,#0ea5e9,#22d3ee)','📘'],['Lo-Fi','موسیقی کار و تمرکز','linear-gradient(135deg,#7c3aed,#db2777)','🎧'],['مستند','فضا و کهکشان‌ها','linear-gradient(135deg,#1e293b,#0ea5e9)','🚀'],['Node.js','پروژه‌های عملی','linear-gradient(135deg,#22c55e,#84cc16)','💻'],['ورزش','تمرین خانه — ۳۰ دقیقه','linear-gradient(135deg,#f43f5e,#fb923c)','🏃'],['آشپزی','دست‌پخت سریع','linear-gradient(135deg,#f59e0b,#ef4444)','🍳']];
-var SUBS=[['Fireship','🔥'],['Traversy','🧑‍🏫'],['Vox','📰'],['سلامت','💚'],['Veritasium','🔬'],['کادر فنی','🛠']];
-function grid(el,items){
- el.innerHTML=items.map(function(x){return '<div class="rycard"><div class="art" style="background:'+x[2]+'">'+x[3]+'<span class="ryb">۱۲ ویدیو</span></div><div class="ryt"><b>'+x[0]+'</b><small>'+x[1]+'</small></div></div>'}).join('');
+var faD='۰۱۲۳۴۵۶۷۸۹';
+function fa(n){return String(n).replace(/\d/g,function(d){return faD[d]})}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})}
+
+var GRADS=['linear-gradient(135deg,#ff0000,#f59e0b)','linear-gradient(135deg,#7c3aed,#ec4899)','linear-gradient(135deg,#0ea5e9,#22d3ee)','linear-gradient(135deg,#22c55e,#84cc16)','linear-gradient(135deg,#f43f5e,#fb923c)','linear-gradient(135deg,#1e293b,#0ea5e9)','linear-gradient(135deg,#14b8a6,#3b82f6)','linear-gradient(135deg,#a855f7,#6366f1)'];
+function gradFor(s){var h=0;s=String(s||'');for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return GRADS[Math.abs(h)%GRADS.length]}
+
+var DEMO_PLAYLISTS=[
+  {name:'Flutter Masterclass',desc:'آموزش فلاتر — ۲۴ قسمت',count:24,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBlYTVlOSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMDM2OWExIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGM0YTZlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5GTDwvdGV4dD48L3N2Zz4='},
+  {name:'Lo-Fi Beats',desc:'موسیقی کار و تمرکز',count:87,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzdjM2FlZCIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZGIyNzc3Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjNGMxZDk1Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5MRjwvdGV4dD48L3N2Zz4='},
+  {name:'Space Docs',desc:'مستند فضا و کهکشان\u200cها',count:12,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFlMjkzYiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMGVhNWU5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDIwNjE3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5TUDwvdGV4dD48L3N2Zz4='},
+  {name:'Node.js Projects',desc:'پروژه\u200cهای عملی بک\u200cاند',count:18,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzIyYzU1ZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMTU4MDNkIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTQ1MzJkIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5ORDwvdGV4dD48L3N2Zz4='},
+  {name:'Home Workout',desc:'تمرین خانه — ۳۰ دقیقه',count:40,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y0M2Y1ZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOWYxMjM5Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5IVzwvdGV4dD48L3N2Zz4='},
+  {name:'آشپزی سریع',desc:'دست\u200cپخت ۲۰ دقیقه\u200cای',count:33,cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y1OWUwYiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZWY0NDQ0Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOWEzNDEyIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5DSzwvdGV4dD48L3N2Zz4='}
+];
+var DEMO_SUBS=[
+  {name:'Fireship',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y0M2Y1ZSIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzlmMTIzOSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj5GPC90ZXh0Pjwvc3ZnPg=='},
+  {name:'Traversy Media',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBlYTVlOSIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzA3NTk4NSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj5UPC90ZXh0Pjwvc3ZnPg=='},
+  {name:'Vox',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFlMjkzYiIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzMzNDE1NSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj5WPC90ZXh0Pjwvc3ZnPg=='},
+  {name:'Veritasium',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y1OWUwYiIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2I0NTMwOSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj5WZTwvdGV4dD48L3N2Zz4='},
+  {name:'سلامت',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzIyYzU1ZSIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzE1ODAzZCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj7YszwvdGV4dD48L3N2Zz4='},
+  {name:'کادر فنی',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzdjM2FlZCIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzViMjFiNiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMTAwIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iMTAwIiB5PSIxMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjcyIiBmb250LXdlaWdodD0iNzAwIj7aqTwvdGV4dD48L3N2Zz4='}
+];
+var DEMO_VIDEOS=[
+  {title:'مقدمه و نصب',channel:'Fireship',duration:'12:04',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBlYTVlOSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMDM2OWExIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGM0YTZlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wMTwvdGV4dD48L3N2Zz4='},
+  {title:'Widgetها از صفر',channel:'Fireship',duration:'18:32',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzdjM2FlZCIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjNWIyMWI2Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjM2IwNzY0Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wMjwvdGV4dD48L3N2Zz4='},
+  {title:'State Management',channel:'Traversy',duration:'24:10',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzIyYzU1ZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMTU4MDNkIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTQ1MzJkIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wMzwvdGV4dD48L3N2Zz4='},
+  {title:'API و HTTP',channel:'Fireship',duration:'15:48',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y0M2Y1ZSIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjOWYxMjM5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjODgxMzM3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wNDwvdGV4dD48L3N2Zz4='},
+  {title:'انیمیشن روان',channel:'Vox',duration:'09:21',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y1OWUwYiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjYjQ1MzA5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjNzgzNTBmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wNTwvdGV4dD48L3N2Zz4='},
+  {title:'دیپلوی نهایی',channel:'Fireship',duration:'11:05',cover:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMjcwIiB2aWV3Qm94PSIwIDAgNDgwIDI3MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzE0YjhhNiIvPjxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjMGY3NjZlIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTM0ZTRhIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIyNzAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSIyNDAiIGN5PSIxMzUiIHI9IjM2IiBmaWxsPSJyZ2JhKDAsMCwwLC40NSkiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwuNSkiIHN0cm9rZS13aWR0aD0iMiIvPjxwb2x5Z29uIHBvaW50cz0iMjI4LDExOSAyMjgsMTUxIDI1OCwxMzUiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIyNDAiIHk9IjI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuOSkiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj4wNjwvdGV4dD48L3N2Zz4='}
+];
+
+function coverHtml(url, name){
+  var g=gradFor(name);
+  if(url){
+    return '<img src="'+esc(url)+'" alt="'+esc(name)+'" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling&&(this.nextElementSibling.style.display=\'grid\')">'
+      +'<div class="fallback" style="display:none;background:'+g+'">▶️</div>';
+  }
+  return '<div class="fallback" style="display:grid;background:'+g+'">▶️</div>';
 }
-grid(document.getElementById('ytPl'),DEMO);
-document.getElementById('ytSubs').innerHTML=SUBS.map(function(a){return '<span class="artchip"><span class="dotart" style="background:var(--panel)">'+a[1]+'</span>'+a[0]+'</span>'}).join('');
+
+function plCard(p){
+  var tag=p.url?'a':'div';
+  var extra=p.url&&!p.id?' href="'+esc(p.url)+'" target="_blank" rel="noopener"':'';
+  var cnt=p.count!=null?p.count:(p.itemCount!=null?p.itemCount:0);
+  var data=p.id?' data-pl="'+esc(p.id)+'" data-title="'+esc(p.name||p.title||'')+'" data-cover="'+esc(p.cover||'')+'" data-count="'+cnt+'"':'';
+  return '<'+tag+' class="rycard"'+extra+data+'>'
+    +'<div class="art">'+coverHtml(p.cover,p.name||p.title)
+    +'<span class="ryb">'+fa(cnt)+' ویدیو</span>'
+    +'<div class="ryplay"><span>▶</span></div></div>'
+    +'<div class="ryt"><b>'+esc(p.name||p.title||'—')+'</b><small>'+esc(p.desc||p.description||p.channelTitle||'پلی‌لیست')+'</small></div>'
+    +'</'+tag+'>';
+}
+
+function subChip(s){
+  var inner=s.cover?'<img src="'+esc(s.cover)+'" alt="">':'📺';
+  var tag=s.url?'a':'span';
+  var extra=s.url?' href="'+esc(s.url)+'" target="_blank" rel="noopener"':'';
+  return '<'+tag+' class="artchip"'+extra+'><span class="dotart">'+inner+'</span>'+esc(s.name||s.title||'')+'</'+tag+'>';
+}
+
+function subCard(s){
+  var tag=s.url?'a':'div';
+  var extra=s.url?' href="'+esc(s.url)+'" target="_blank" rel="noopener"':'';
+  return '<'+tag+' class="rycard"'+extra+'>'
+    +'<div class="art" style="aspect-ratio:1;border-radius:0">'+coverHtml(s.cover,s.name||s.title)+'</div>'
+    +'<div class="ryt"><b>'+esc(s.name||s.title||'—')+'</b><small>'+esc(s.description||'کانال')+'</small></div>'
+    +'</'+tag+'>';
+}
+
+function videoRow(v, i){
+  var href=v.url?' href="'+esc(v.url)+'" target="_blank" rel="noopener"':'';
+  var tag=v.url?'a':'div';
+  var cov=v.cover
+    ? '<img class="vcov" src="'+esc(v.cover)+'" alt="">'
+    : '<div class="vcov" style="background:'+gradFor(v.title)+';display:grid;place-items:center">▶️</div>';
+  var saveBtn=v.title?'<button type="button" class="vsave" data-save="'+esc(v.title)+'" data-meta="'+esc(v.channel||v.channelTitle||'')+'">ذخیره</button>':'';
+  return '<'+tag+' class="vrow"'+href+'>'
+    +'<span class="num">'+fa(i+1)+'</span>'
+    +cov
+    +'<div class="vi"><b>'+esc(v.title||'—')+'</b><small>'+esc(v.channel||v.channelTitle||'')+'</small></div>'
+    +(v.duration?'<span class="vdur">'+esc(v.duration)+'</span>':'')
+    +saveBtn
+    +'</'+tag+'>';
+}
+
+function renderPlaylists(items){
+  var el=document.getElementById('ytPl');
+  if(!items||!items.length){el.innerHTML='<div class="emptyhint" style="grid-column:1/-1">پلی‌لیستی نیست</div>';return}
+  el.innerHTML=items.map(function(p){
+    return plCard({
+      id:p.id||'',
+      name:p.name||p.title||'—',
+      title:p.title||p.name,
+      desc:p.desc||p.description||p.channelTitle||'',
+      cover:p.cover||p.thumb||'',
+      count:p.count!=null?p.count:(p.itemCount!=null?p.itemCount:0),
+      url:p.url||''
+    });
+  }).join('');
+}
+
+function renderSubs(items){
+  items=items||[];
+  document.getElementById('ytSubs').innerHTML=items.length?items.map(function(s){
+    return subChip({name:s.name||s.title,cover:s.cover||s.thumb||'',url:s.url||''});
+  }).join(''):'<div class="emptyhint">کانالی نیست</div>';
+  document.getElementById('ytSubsGrid').innerHTML=items.slice(0,12).map(function(s){
+    return subCard({name:s.name||s.title,cover:s.cover||s.thumb||'',url:s.url||'',description:s.description||''});
+  }).join('');
+}
+
+/* tabs */
+document.querySelectorAll('.tabchip').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.tabchip').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    document.querySelectorAll('.panelsec').forEach(function(p){p.classList.remove('on')});
+    var pan=document.getElementById('panel-'+b.dataset.tab);
+    if(pan)pan.classList.add('on');
+  });
+});
+
+/* drawer */
+var drawer=document.getElementById('ytDrawer');
+var ovl=document.getElementById('ytOvl');
+function closeDrawer(){drawer.classList.remove('open');ovl.classList.remove('open')}
+function openDrawer(title, cover, meta){
+  document.getElementById('ytDTitle').textContent=title||'پلی‌لیست';
+  var img=document.getElementById('ytDCover');
+  if(cover){img.src=cover;img.style.display='block';img.style.background=''} 
+  else {img.removeAttribute('src');img.style.background=gradFor(title);img.style.display='block'}
+  document.getElementById('ytDMeta').textContent=meta||'';
+  drawer.classList.add('open');ovl.classList.add('open');
+}
+document.getElementById('ytDx').onclick=closeDrawer;
+ovl.onclick=closeDrawer;
+
+function showVideos(items){
+  var list=document.getElementById('ytDList');
+  if(!items||!items.length){list.innerHTML='<div class="emptyhint">ویدیویی در این پلی‌لیست نیست</div>';return}
+  list.innerHTML=items.map(function(v,i){
+    return videoRow({
+      title:v.title,
+      channel:v.channel||v.channelTitle||'',
+      cover:v.cover||v.thumb||'',
+      duration:v.duration||'',
+      url:v.url||(v.videoId?('https://www.youtube.com/watch?v='+v.videoId):'')
+    }, i);
+  }).join('');
+}
+
+document.getElementById('ytPl').addEventListener('click',function(e){
+  var card=e.target.closest('[data-pl]');
+  if(!card)return;
+  e.preventDefault();
+  var id=card.dataset.pl;
+  var title=card.dataset.title||'پلی‌لیست';
+  var cover=card.dataset.cover||'';
+  var count=card.dataset.count||'0';
+  openDrawer(title, cover, fa(count)+' ویدیو');
+  document.getElementById('ytDList').innerHTML='<div class="emptyhint">در حال دریافت ویدیوها…</div>';
+
+  if(!window.__ytLive){
+    showVideos(DEMO_VIDEOS);
+    return;
+  }
+  fetch('/api/integrations/youtube/playlist-items?playlistId='+encodeURIComponent(id))
+    .then(function(r){return r.json()})
+    .then(function(d){
+      showVideos(d.items||[]);
+    })
+    .catch(function(){
+      document.getElementById('ytDList').innerHTML='<div class="emptyhint">دریافت ناموفق</div>';
+    });
+});
+
+document.getElementById('ytDList').addEventListener('click',function(e){
+  var btn=e.target.closest('[data-save]');
+  if(!btn)return;
+  e.preventDefault();
+  e.stopPropagation();
+  fetch('/api/media-log',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({source:'youtube',title:btn.dataset.save,meta:btn.dataset.meta||''})})
+    .then(function(r){return r.json()}).then(function(d){
+      var t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}
+      t.textContent=d&& (d.ok||d.entry)?'✓ در امروز ذخیره شد':(d.error||'ذخیره نشد');
+      t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000);
+    }).catch(function(){});
+});
+
+/* demo first */
+renderPlaylists(DEMO_PLAYLISTS.map(function(p){return {name:p.name,desc:p.desc,count:p.count,cover:p.cover}}));
+renderSubs(DEMO_SUBS.map(function(s){return {name:s.name,cover:s.cover}}));
+
+function setConnected(on){
+  var st=document.getElementById('ytState');
+  st.textContent=on?'✓ متصل':'متصل نیست';
+  st.className='conbadge'+(on?' on':'');
+  document.getElementById('ytConnect').style.display=on?'none':'';
+  document.getElementById('ytDis').style.display=on?'':'none';
+  document.getElementById('ytRefresh').style.display=on?'':'none';
+  window.__ytLive=!!on;
+}
+
+function loadLive(){
+  document.getElementById('ytPlState').textContent='در حال دریافت…';
+  document.getElementById('ytSubState').textContent='…';
+  fetch('/api/integrations/youtube/playlists').then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})}).then(function(res){
+    var d=res.d||{};
+    if(!res.ok){document.getElementById('ytPlState').textContent=d.error||'ناموفق';return}
+    var items=d.items||[];
+    if(items.length){
+      renderPlaylists(items);
+      document.getElementById('ytPlState').textContent='زنده ✓ · '+fa(items.length)+' پلی‌لیست';
+    } else document.getElementById('ytPlState').textContent='پلی‌لیستی نبود';
+    var subs=d.subscriptions||[];
+    if(subs.length){
+      renderSubs(subs);
+      document.getElementById('ytSubState').textContent='زنده ✓ · '+fa(subs.length);
+    } else document.getElementById('ytSubState').textContent='';
+  }).catch(function(){document.getElementById('ytPlState').textContent='دریافت ناموفق'});
+}
+
 fetch('/api/me').then(function(r){return r.json()}).then(function(d){
- var on=d&&d.user&&d.user.youtubeConnected;
- var st=document.getElementById('ytState');
- st.textContent=on?'✓ متصل':'متصل نیست';
- st.className='conbadge'+(on?' on':'');
- document.getElementById('ytConnect').style.display=on?'none':'';
- document.getElementById('ytDis').style.display=on?'':'none';
- if(on)loadPl();
+  var on=d&&d.user&&d.user.youtubeConnected;
+  setConnected(!!on);
+  if(on)loadLive();
 }).catch(function(){});
-function loadPl(){
- document.getElementById('ytPlState').textContent='در حال دریافت…';
- fetch('/api/integrations/youtube/playlists').then(function(r){return r.json()}).then(function(d){
-  var items=(d.items||[]);
-  if(items&&items.length){
-   grid(document.getElementById('ytPl'),items.slice(0,12).map(function(p){
-    var sn=p.snippet||p;
-    return ['🎬',sn.title||'—','linear-gradient(135deg,#ef4444,#f59e0b)','▶️'];
-   }));
-   document.getElementById('ytPlState').textContent='زنده ✓';
-  } else document.getElementById('ytPlState').textContent='چیزی نگرفتیم — بعداً دوباره';
- }).catch(function(){document.getElementById('ytPlState').textContent='دریافت ناموفق'});
-}
+
 document.getElementById('ytConnect').addEventListener('click',function(){
- fetch('/api/integrations/youtube/connect').then(function(r){return r.json().catch(function(){return null})}).then(function(d){
-  if(d&&d.url)location.href=d.url;
-  else if(d&&d.error)alert(d.error);
-  else location.href='/api/integrations/youtube/connect';
- }).catch(function(){location.href='/api/integrations/youtube/connect'});
+  fetch('/api/integrations/youtube/connect').then(function(r){return r.json().catch(function(){return null})}).then(function(d){
+    if(d&&d.url)location.href=d.url;
+    else if(d&&d.error)alert(d.error);
+    else location.href='/api/integrations/youtube/connect';
+  }).catch(function(){location.href='/api/integrations/youtube/connect'});
 });
 document.getElementById('ytDis').addEventListener('click',function(){
- fetch('/api/integrations/youtube/disconnect',{method:'POST'}).finally(function(){location.reload()});
+  fetch('/api/integrations/youtube/disconnect',{method:'POST'}).finally(function(){location.reload()});
 });
+document.getElementById('ytRefresh').addEventListener('click',function(){loadLive()});
 })();
 </script>
 </body>
