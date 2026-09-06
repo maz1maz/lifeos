@@ -115,8 +115,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .dgreet{font-size:15px;color:var(--muted);margin:0 0 4px}
 .fullw{grid-column:1/-1}
 .span2{grid-column:span 2}
-@media(max-width:760px){.span2,.c3wrap{grid-column:span 2}}
-.daynav{margin-right:auto;display:flex;gap:6px;align-items:center;flex:none}
+@media(max-width:760px){.span2,.c3wrap{grid-column:auto}}
+.daynav{display:flex;gap:6px;align-items:center;flex:none;flex-wrap:wrap}
 .dnbtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer;font-family:var(--fh)}
 .dnbtn:hover{border-color:var(--acc);color:var(--acc)}
 .dntoday{background:none;border:1px dashed var(--acc);color:var(--acc);border-radius:10px;height:32px;padding:0 12px;font-size:13px;cursor:pointer;font-family:inherit}
@@ -144,9 +144,10 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .palrst{flex-basis:100%;text-align:center;font-size:12.5px;color:var(--acc);cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);margin-top:2px}
 body.zoom1{zoom:1.1111}
 
-.c3wrap{grid-column:auto}
+.c3wrap{grid-column:span 2}
 @media(max-width:760px){.page3{grid-template-columns:1fr}.c3wrap{grid-column:auto}}
-@media(max-width:560px){.trio{grid-template-columns:1fr}}
+@media(max-width:760px){.trio{grid-template-columns:1fr}}
+.trio .epcard{margin-top:0}
 
 /* ================= CARD 3 ================= */
 .card3{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;overflow:hidden;margin-bottom:14px}
@@ -160,7 +161,8 @@ body.zoom1{zoom:1.1111}
 .datecard .dwk{font-family:var(--fh);font-size:20px;font-weight:700;color:var(--acc)}
 .datecard .dmon{font-family:var(--fh);font-size:24px;font-weight:800}
 .datecard .dgreg{color:var(--faint);font-size:14.5px;direction:ltr;text-align:right}
-.datecard .occs{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);flex:1}
+.occrow{display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)}
+.datecard .occs{flex:1;min-width:0}
 .hero-duo{align-items:stretch}
 .c3head{display:flex;align-items:baseline;gap:12px;padding:18px 24px 0}
 .c3head h4{font-family:var(--fh);font-size:19px;margin:0}
@@ -398,9 +400,9 @@ body.zoom1{zoom:1.1111}
           <div class="dgreg" id="dGreg">—</div>
         </div>
         <span class="holbadge" id="holBadge">🎉 امروز تعطیله</span>
-        <div class="daynav"><button type="button" class="dnbtn" id="dPrev" title="روز قبل">›</button><button type="button" class="dntoday" id="dTodayBtn">امروز</button><button type="button" class="dnbtn" id="dNext" title="روز بعد">‹</button></div>
       </div>
-      <div class="occs" id="occs"></div>
+      <div class="occrow"><div class="occs" id="occs"></div>
+        <div class="daynav"><button type="button" class="dnbtn" id="dPrev" title="روز قبل">‹</button><button type="button" class="dntoday" id="dTodayBtn">امروز</button><button type="button" class="dnbtn" id="dNext" title="روز بعد">›</button></div></div>
     </div>
     <div class="wcard">
       <div class="wnow">
@@ -582,8 +584,18 @@ body.zoom1{zoom:1.1111}
   </div>
 </div>
 
-<!-- ============ NEW EPISODES ============ -->
-  <div class="epcard span2">
+  </div>
+
+  
+</div>
+
+  
+
+</div>
+
+<div class="trio">
+  <!-- ============ NEW EPISODES ============ -->
+  <div class="epcard">
     <div class="mhead">
       <h4>🆕 قسمت‌های جدید</h4>
       <span class="cnt" id="epCnt">—</span>
@@ -591,19 +603,16 @@ body.zoom1{zoom:1.1111}
     </div>
     <div id="epList"></div>
     <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
-  </div>
-  </div>
 
   <!-- ============ بازی‌های امروز ============ -->
-  <div class="mcard span2" id="gamesCard">
+  <div class="mcard" id="gamesCard">
     <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ</span></div>
     <div class="gwrap" id="gamesList">در حال دریافت…</div>
     <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
   </div>
-</div>
 
   <!-- ============ بودجه ماه ============ -->
-  <div class="mcard fullw">
+  <div class="mcard">
     <div class="mhead"><h4>📊 بودجه ماه</h4></div>
     <div class="budwrap">
         <div class="budbar"><i id="budFill" style="width:23%"></i></div>
@@ -612,7 +621,7 @@ body.zoom1{zoom:1.1111}
         <div class="budcats" id="budCats"></div>
         <div class="txspec" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:12px">🔌 از <b>/api/finance?month=</b> و <b>/api/budgets</b> · ماکان گزارش ماه در صفحه‌ی پول</div>
       </div>  </div>
-
+  </div>
 </div>
 <script>
 /* ===== دروازه‌ی لاگین ===== */
@@ -1060,9 +1069,8 @@ function toast(m){var t=document.getElementById('toast');t.textContent=m;t.class
 function renderFutures(){
   var el=document.getElementById('futureLine');
   if(!FUTURES.length){el.classList.remove('show');return}
-  var byDay={};
-  FUTURES.forEach(function(f){var n=dayName(f.off);byDay[n]=(byDay[n]||0)+1});
-  el.innerHTML='📌 برای روزهای بعد: '+Object.keys(byDay).map(function(k){return k+' ('+fa(byDay[k])+')'}).join(' · ');
+  var items=FUTURES.slice().sort(function(a,b){return a.off-b.off}).slice(0,10);
+  el.innerHTML='📌 '+items.map(function(f){return '«'+f.t+'» — '+dayName(f.off)}).join(' · ');
   el.classList.add('show');
 }
 function addTask(){
@@ -1248,6 +1256,7 @@ var b=document.createElement('button');b.type='button';b.className='navzoom';b.t
 nav.insertBefore(b,nav.firstChild);
 var pop=null;
 function cur(){try{return localStorage.getItem('accent')}catch(e){return null}}
+var _st=cur();if(_st)document.documentElement.style.setProperty('--acc',_st);
 b.addEventListener('click',function(e){e.stopPropagation();
  if(pop){pop.remove();pop=null;return}
  pop=document.createElement('div');pop.className='palpop';
