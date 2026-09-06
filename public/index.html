@@ -103,6 +103,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .bc .v{width:76px;flex:none;text-align:left;font-family:var(--fh);font-size:12.5px;direction:ltr;color:var(--muted)}
 @media(max-width:760px){.duo{grid-template-columns:1fr}}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px;align-items:start}
+/* کل بالای صفحه سه‌ستونه مثل بازار */
+.page3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start;margin-top:14px}
+.page3>.duo{display:contents}
+.page3 .epcard{margin-top:0}
+.c3wrap{grid-column:span 2}
+@media(max-width:760px){.page3{grid-template-columns:1fr}.c3wrap{grid-column:auto}}
 @media(max-width:560px){.trio{grid-template-columns:1fr}}
 
 /* ================= CARD 3 ================= */
@@ -342,6 +348,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 
   <div class="tools"><button class="iconbtn" id="modeBtn">🌙</button></div>
   <div class="lead">سلام حمیدرضا 👋 — تاریخ، هوا، روزمرگی و پولت، همه در یک نگاه · داده‌ها واقعی‌اند؛ اگر اینترنت در دسترس نبود، آخرین اسنپ‌شات</div>
+  <div class="page3">
   <!-- ============ هیرو: تاریخ + هوا ============ -->
   <div class="duo hero-duo" style="grid-template-columns:1.05fr 1fr">
     <div class="datecard">
@@ -459,7 +466,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 
   <!-- ============ ثبت روزانه + قسمت‌های جدید (نصف‌نصف) ============ -->
 <div class="duo" style="grid-template-columns:1fr 1fr;align-items:start">
-<div>
+<div class="c3wrap">
 <div class="demo-bar">
     <button class="demo-btn" id="demoWeight">🗓 تست: ماه جدید شد (سوال وزن)</button>
     <button class="demo-btn" id="demoReset2">↺ ریست</button>
@@ -555,6 +562,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
     <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
   </div>
   </div>
+</div>
 
   <!-- ============ MARKET (سه‌ستونه) ============ -->
   <div class="trio">
