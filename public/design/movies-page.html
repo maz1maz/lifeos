@@ -40,10 +40,10 @@ html[data-mode="light"]{
 .navzoom:hover{color:var(--text);border-color:var(--acc)}
 
 /* ===== پالت رنگ 🎨 ===== */
-.palpop{position:fixed;z-index:140;background:var(--bg);border:1px solid var(--border2);border-radius:15px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;max-width:240px;box-shadow:0 18px 44px -12px rgba(0,0,0,.6)}
-.palsw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2.5px solid transparent}
+.palpop{position:fixed;z-index:140;background:var(--bg);border:1px solid var(--border2);border-radius:15px;padding:12px 14px;display:grid;grid-template-columns:repeat(4,1fr);gap:9px;width:172px;box-shadow:0 18px 44px -12px rgba(0,0,0,.6)}
+.palsw{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;margin:0 auto}
 .palsw.on{border-color:var(--text)}
-.palrst{flex-basis:100%;text-align:center;font-size:12.5px;color:var(--acc);cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);margin-top:2px}
+.palrst{grid-column:1/-1;text-align:center;font-size:12.5px;color:var(--acc);cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);margin-top:2px}
 body.zoom1{zoom:1.1111}
 
 .navuser{font-size:14px;color:var(--muted);white-space:nowrap}
@@ -187,7 +187,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 <div class="wrap">
   <div class="ptools"><button class="btn" id="addBtn">➕ افزودن فیلم</button></div>
 
-  <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="on">🎞 فیلم‌ها</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
+  <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="on">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="">🎵 موسیقی</a><a href="/design/youtube-page.html" class="">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
   <p class="lead">اسم فیلم را جستجو کن، اضافه‌اش کن — پوستر و اطلاعات خودکار می‌آید · روی کارت بزن برای جزئیات</p>
 

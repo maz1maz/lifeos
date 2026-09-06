@@ -150,10 +150,10 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .xdel:hover{color:var(--bad)}
 
 /* ===== پالت رنگ 🎨 ===== */
-.palpop{position:fixed;z-index:140;background:var(--bg);border:1px solid var(--border2);border-radius:15px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;max-width:240px;box-shadow:0 18px 44px -12px rgba(0,0,0,.6)}
-.palsw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2.5px solid transparent}
+.palpop{position:fixed;z-index:140;background:var(--bg);border:1px solid var(--border2);border-radius:15px;padding:12px 14px;display:grid;grid-template-columns:repeat(4,1fr);gap:9px;width:172px;box-shadow:0 18px 44px -12px rgba(0,0,0,.6)}
+.palsw{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;margin:0 auto}
 .palsw.on{border-color:var(--text)}
-.palrst{flex-basis:100%;text-align:center;font-size:12.5px;color:var(--acc);cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);margin-top:2px}
+.palrst{grid-column:1/-1;text-align:center;font-size:12.5px;color:var(--acc);cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);margin-top:2px}
 body.zoom1{zoom:1.1111}
 
 .c3wrap{grid-column:auto}
@@ -393,7 +393,7 @@ body.zoom1{zoom:1.1111}
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
 <body>
-<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="on">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
+<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="on">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="">🎵 موسیقی</a><a href="/design/youtube-page.html" class="">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap" style="max-width:1240px">
 
@@ -407,7 +407,7 @@ body.zoom1{zoom:1.1111}
       <div class="mfoot"><span id="mTime">—</span><span class="src" id="mSrc">CoinGecko · PAXG≈XAU · KAG≈XAG</span></div>
     </div>
     <div class="mcard">
-      <div class="mhead"><h4>₿ کریپتو</h4><span style="font-size:12.5px;color:var(--faint)">دلار $</span></div>
+      <div class="mhead"><h4>₿ کریپتو</h4><span class="xadd" data-add="cr">➕</span><span style="font-size:12.5px;color:var(--faint)">دلار $</span></div>
       <div id="mrows2"></div>
       <div class="mfoot"><span>CoinGecko</span><span class="src">تغییر ۲۴ ساعته ▲▼</span></div>
     </div>
@@ -454,13 +454,13 @@ function renderMarket(){
     {ic:'Ξ',nm:'اتریوم',sub:'ETH',v:d.eth||SNAP.eth},
     {ic:'◎',nm:'سولانا',sub:'SOL',v:d.sol||SNAP.sol}
   ].map(mkrow).join('');
-  document.getElementById('mTime').textContent=d.live?('زنده · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})):('آفلاین · '+d.t);
+  document.getElementById('mTime').textContent=d.live?('زنده · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})):('آفلاین · '+d.t);if(window._renderX)window._renderX();
 }
 (function(){
   var cached=null;
   try{cached=JSON.parse(localStorage.getItem('market-cache-v3')||'null')}catch(e){}
   if(cached&&Date.now()-cached.at<9e5){MK.data=Object.assign({},cached.d,{live:true});renderMarket();return}
-  fetch('https://api.coingecko.com/api/v3/simple/price?ids=pax-gold,kinesis-silver,bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true')
+  fetch('https://api.coingecko.com/api/v3/simple/price?ids=pax-gold,kinesis-silver,bitcoin,ethereum,solana,tether,ripple,dogecoin,binancecoin,cardano,avalanche-2&vs_currencies=usd&include_24hr_change=true')
     .then(function(r){return r.json()})
     .then(function(r){
       MK.data={live:true,t:'',
@@ -575,7 +575,8 @@ document.addEventListener('click',function(e){
 (function(){
  var XTRA=[['rob','🪙','ربع سکه','tm'],['nim','🥈','نیم سکه','tm'],['sekeb','🌻','سکه بهار آزادی','tm'],['geram24','✨','گرم ۲۴','tm'],
   ['price_gbp','💷','پوند','tm'],['price_try','🇹🇷','لیر','tm'],['price_aed','🇦🇪','درهم','tm'],
-  ['oil_brent','🛢','نفت برنت','us'],['oil','🛢','نفت وتی','us'],['nickel','🔩','نیکل','us'],['platinum','⚪','پلاتین','us'],['copper','🟠','مس','us']];
+  ['oil_brent','🛢','نفت برنت','us'],['oil','🛢','نفت وتی','us'],['nickel','🔩','نیکل','us'],['platinum','⚪','پلاتین','us'],['copper','🟠','مس','us'],
+  ['tether','₮','تتر','cr'],['ripple','✕','ریپل','cr'],['dogecoin','Ð','دوج‌کوین','cr'],['binancecoin','🅑','بایننس‌کوین','cr'],['cardano','₳','کاردانو','cr'],['avalanche-2','🗻','آوالانچ','cr']];
  var TG=null;window._tgjuData=function(d){TG=d;renderX()};
  window._renderX=renderX;
  function picks(){try{return JSON.parse(localStorage.getItem('mkx')||'[]')}catch(e){return[]}}
@@ -586,6 +587,15 @@ document.addEventListener('click',function(e){
   document.querySelectorAll('[data-xrow]').forEach(function(x){x.remove()});
   p.forEach(function(k){
    var m=XTRA.find(function(x){return x[0]===k});if(!m)return;
+   if(m[3]==='cr'){
+    var crv=(window.MK&&MK.data)?MK.data[k]:null;
+    if(!crv)return;
+    var cpr=crv.p>=1000?faNum(Math.round(crv.p).toLocaleString('en-US')):faNum((Math.round(crv.p*100)/100).toLocaleString('en-US'));
+    var cch=(crv.c!=null&&!isNaN(crv.c))?'<div class="chg '+(crv.c>=0?'up':'dn')+'">'+(crv.c>=0?'▲':'▼')+' '+fa(Math.abs(crv.c).toFixed(2).replace(/\.?0+$/,''))+'٪</div>':'<div class="chg na">—</div>';
+    var row=document.createElement('div');row.className='mrow';row.setAttribute('data-xrow',k);
+    row.innerHTML='<div class="ic">'+m[1]+'</div><div class="nm"><b>'+m[2]+'</b><small>کریپتو · دلار</small></div>'+cch+'<div class="pr">'+cpr+' <small>$</small></div><span class="xdel" data-xdel="'+k+'">✕</span>';
+    document.getElementById('mrows2').appendChild(row);return;
+   }
    var v=TG&&TG.items&&TG.items[k];if(!v)return;
    var val=m[3]==='tm'?fmtTm(v.p)+' <small>تومان</small>':faNum(Math.round(v.p).toLocaleString('en-US'))+' <small>$</small>';
    var chg=v.d?'<div class="chg '+(v.d>0?'up':'dn')+'">'+(v.d>0?'▲':'▼')+'</div>':'<div class="chg na">—</div>';
