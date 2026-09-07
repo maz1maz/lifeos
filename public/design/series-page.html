@@ -646,16 +646,51 @@ function renderAll(){
 }
 
 /* ===== تغییر قسمت ===== */
+function patchMovie(id, body){
+  if(!id) return Promise.resolve({ok:false});
+  return fetch('/api/movies/'+encodeURIComponent(id),{
+    method:'PATCH', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+    .catch(function(){return{ok:false}});
+}
+function isShowEnded(meta){
+  if(!meta) return false;
+  var st=String(meta.status||'');
+  var low=st.toLowerCase();
+  if(st==='Running' || low==='running' || low==='returning series') return false;
+  if(st==='Ended' || low==='ended' || low==='canceled' || low==='cancelled' || low==='finished') return true;
+  /* unknown status: treat non-Running as ended for completion purposes */
+  return !!st && st!=='Running';
+}
 function applyCur(w,v){
-  v=Math.max(0,Math.min(w.tot,v));
+  if(!w) return;
+  v=Math.max(0,Math.min(w.tot, parseInt(v,10)||0));
   if(v===w.cur){renderAll();return}
-  var old=w.cur;w.cur=v;
-  if(v>old)w.newEp=false;
-  if(v>=w.tot){
-    if(S(w.k).status==='Running'){w.newEp=false;toast(S(w.k).name+' فصل '+fa(w.season)+' کامل شد! ⏳ در انتظار فصل بعد')}
-    else{WATCHING.splice(WATCHING.indexOf(w),1);DONE.push({k:w.k});toast(S(w.k).name+' به پایان رسید! به تمام‌شده‌ها رفت 🎉')}
-  } else toast(S(w.k).name+' → قسمت '+fa(v)+' دیده شد ✓');
+  var old=w.cur; w.cur=v;
+  if(v>old) w.newEp=false;
+  var meta=S(w.k);
+  var finishedSeason = v>=w.tot;
+  var showEnded = isShowEnded(meta);
+  if(finishedSeason && showEnded){
+    var id=w.id;
+    WATCHING.splice(WATCHING.indexOf(w),1);
+    DONE.push({k:w.k, id:id});
+    toast((meta&&meta.name||w.k)+' تمام شد ✅ → پایان سریال');
+    renderAll();
+    try{closeDetail()}catch(e){}
+    patchMovie(id, {status:'completed', currentEpisode:v, currentSeason:w.season||1, totalEpisodes:w.tot});
+    return;
+  }
+  if(finishedSeason && !showEnded){
+    w.newEp=false;
+    toast((meta&&meta.name||w.k)+' فصل '+fa(w.season)+' کامل شد! ⏳ در انتظار فصل بعد');
+  } else {
+    toast((meta&&meta.name||w.k)+' → قسمت '+fa(v)+' دیده شد ✓');
+  }
   renderAll();
+  patchMovie(w.id, {status:'watching', currentEpisode:v, currentSeason:w.season||1, totalEpisodes:w.tot});
 }
 function editCnt(el){
   var k=el.dataset.cnt,w=WATCHING.find(function(x){return x.k===k});
@@ -673,31 +708,52 @@ function editCnt(el){
 /* ===== drawer جزئیات ===== */
 var dEl=document.getElementById('drawer'),ovl=document.getElementById('ovl');
 function openDetail(k){
-  var s=S(k),w=WATCHING.find(function(x){return x.k===k}),li=LIST.find(function(x){return x.k===k});
-  var run=s.status==='Running',upd;
-  if(w){
+  var s=S(k),w=WATCHING.find(function(x){return x.k===k}),li=LIST.find(function(x){return x.k===k}),dn=DONE.find(function(x){return x.k===k});
+  if(dn && w){ /* completed wins */ w=null; }
+  var run = s.status==='Running' || String(s.status||'').toLowerCase()==='running';
+  var showEnded = isShowEnded(s);
+  var upd;
+  if(dn){
+    upd='تو این سریال را تمام کرده‌ای ✅ — دیگر نمی‌توانی قسمت جدید ثبت کنی';
+  } else if(w){
     var wt=w.cur>=w.tot;
     if(wt&&run){var ns=s.next&&s.next.s?fa(s.next.s):'بعد';
-      upd='فصل '+fa(w.season)+' را کامل دیدی ✓ — فصل '+ns+': '
-        +(s.next&&s.next.date?nextWhen(s.next.date)+' ('+fa(daysTo(s.next.date))+' روز دیگه)':'هنوز تاریخ ندارد')}
+      upd='فصل '+fa(w.season)+' کامل ✓ — منتظر فصل '+ns
+        +(s.next&&s.next.date?': '+nextWhen(s.next.date)+' ('+fa(daysTo(s.next.date))+' روز)':'');}
+    else if(wt){ upd='فصل کامل شد — برای بستن از «پایان سریال» استفاده کن'; }
     else if(w.newEp) upd='فصل '+fa(w.season)+' قسمت '+fa(w.cur+1)+' آماده‌ی تماشاست';
     else if(!wt&&s.next&&s.next.date){var d=daysTo(s.next.date);upd='قسمت بعدی: '+(d>60?nextWhen(s.next.date):fa(s.next.date)+(d>0?' ('+fa(d)+' روز دیگه)':''))}
     else upd='فصل '+fa(w.season)+' · قسمت '+fa(w.cur)+' از '+fa(w.tot)+' دیده شده';
-  } else upd=run?'در حال پخش است':'پخش آن به پایان رسیده';
+  } else if(li){
+    upd=run?'در واچ‌لیست · سریال در حال پخش است':'در واچ‌لیست';
+  } else {
+    upd=run?'در حال پخش است':'پخش آن به پایان رسیده';
+  }
   var acts='';
-  if(w){var wt2=w.cur>=w.tot;
-    acts=wt2?'<button class="big b2" data-arch="'+k+'">📦 آرشیو</button>'
-      :'<button class="big b1" data-p1="'+k+'">+۱ قسمت</button>'
-      +(w.newEp?'<button class="big b2" data-saw="'+k+'">دیدمش ✓</button>':'')
-      +'<button class="big b2" data-arch="'+k+'">📦 آرشیو</button>';}
-  else if(li) acts='<button class="big b1" data-start="'+k+'">▶️ شروع کردم</button><button class="big b2" data-skip="'+k+'">👎 رد کردن</button>';
-  else acts='<button class="big b2" data-rew="'+k+'">↩️ دوباره از اول</button>';
+  if(dn){
+    acts='<button class="big b1" data-rew="'+k+'">↩️ دوباره از اول</button>';
+  } else if(w){
+    var wt2=w.cur>=w.tot;
+    if(wt2){
+      acts=(run?'<div style="width:100%;color:var(--muted);font-size:13.5px;margin-bottom:8px">فصل تمام است — تا فصل بعد قسمت نمی‌زنی</div>':'')
+        +'<button class="big b1" data-arch="'+k+'">✅ پایان سریال</button>';
+    } else {
+      acts='<button class="big b1" data-p1="'+k+'">+۱ قسمت</button>'
+        +(w.newEp?'<button class="big b2" data-saw="'+k+'">دیدمش ✓</button>':'')
+        +'<button class="big b2" data-arch="'+k+'">✅ پایان سریال</button>';
+    }
+  } else if(li){
+    acts='<button class="big b1" data-start="'+k+'">▶️ شروع کردم</button><button class="big b2" data-skip="'+k+'">👎 رد کردن</button>';
+  } else {
+    acts='';
+  }
   dEl.innerHTML=
     '<div class="dcover"><button class="x" id="dx">✕</button><img src="'+s.img+'" alt=""></div>'
    +'<img class="dposter" src="'+s.img+'" alt="">'
    +'<div class="dbody">'
    +'<div class="dhead"><h3>'+s.name+'</h3>'
-   +'<span class="stchip '+(run?'st-run':'st-end')+'">'+(run?'در حال پخش':'پایان‌یافته')+'</span></div>'
+   +'<span class="stchip '+(dn?'st-end':(w?'st-run':(li?'st-run':'st-end')))+'">'+(dn?'✅ تمام‌کرده‌ام':(w?'▶️ می‌بینم':(li?'🔖 واچ‌لیست':(run?'در حال پخش':'پخش تمام'))))+'</span></div>'
+   +'<div style="font-size:12.5px;color:var(--faint);margin-top:6px">پخش شبکه: '+(run?'در حال پخش':'پایان‌یافته')+'</div>'
    +'<div class="gchips" style="margin-top:8px">'+gchipsHtml(s.genres)+'</div>'
    +'<div class="dlab" style="margin-top:10px;color:var(--warn)">🕒 '+upd+'</div>'
    +'<div class="dsum">'+(s.summary||'')+'</div>'
@@ -715,15 +771,21 @@ document.addEventListener('click',function(e){
   var b;
   if(e.target.closest('.cntin'))return;
   if(b=e.target.closest('[data-dec]')){var w0=WATCHING.find(function(x){return x.k===b.dataset.dec});if(w0)applyCur(w0,w0.cur-1);return}
-  if(b=e.target.closest('[data-inc]')){var w1=WATCHING.find(function(x){return x.k===b.dataset.inc});if(w1)applyCur(w1,w1.cur+1);return}
+  if(b=e.target.closest('[data-inc]')){var w1=WATCHING.find(function(x){return x.k===b.dataset.inc});if(w1){if(w1.cur>=w1.tot){toast('فصل کامل است');return}applyCur(w1,w1.cur+1)}return}
   if(e.target.closest('[data-cnt]')){editCnt(e.target.closest('[data-cnt]'));return}
   if(b=e.target.closest('[data-saw]')){var w2=WATCHING.find(function(x){return x.k===b.dataset.saw});if(w2)applyCur(w2,w2.cur+1);closeDetail();return}
-  if(b=e.target.closest('[data-p1]')){var w3=WATCHING.find(function(x){return x.k===b.dataset.p1});if(w3)applyCur(w3,w3.cur+1);closeDetail();return}
+  if(b=e.target.closest('[data-p1]')){var w3=WATCHING.find(function(x){return x.k===b.dataset.p1});if(w3){if(w3.cur>=w3.tot){toast('فصل کامل است — قسمت بیشتر نیست');closeDetail();return}applyCur(w3,w3.cur+1)}closeDetail();return}
   if(b=e.target.closest('[data-start]')){
-    var it=LIST.find(function(x){return x.k===b.dataset.start});
-    if(it){LIST.splice(LIST.indexOf(it),1);WATCHING.push({k:it.k,cur:0,tot:10,season:1,newEp:false});toast(S(it.k).name+' → در حال دیدن ▶️');renderAll()}
-    closeDetail();return;
-  }
+     var it=LIST.find(function(x){return x.k===b.dataset.start});
+     if(it){
+       LIST.splice(LIST.indexOf(it),1);
+       var tot=10;
+       WATCHING.push({k:it.k,cur:0,tot:tot,season:1,newEp:false,id:it.id});
+       toast(S(it.k).name+' → در حال دیدن ▶️');renderAll();
+       patchMovie(it.id, {status:'watching', currentEpisode:0, currentSeason:1, totalEpisodes:tot});
+     }
+     closeDetail();return;
+   }
   if(b=e.target.closest('[data-skip]')){
     var sk=b.dataset.skip,ix=LIST.findIndex(function(x){return x.k===sk});
     if(ix>-1){LIST.splice(ix,1);REJECTED.push(sk);
@@ -737,19 +799,43 @@ document.addEventListener('click',function(e){
     if(r){RECS.splice(RECS.indexOf(r),1);LIST.push({k:r.k});toast(S(r.k).name+' → واچ‌لیست 🔖');renderRecs();renderAll()}
     return;
   }
-  if(b=e.target.closest('[data-rew]')){toast('از فصل ۱ قسمت ۱ شروع شد ↩️');closeDetail();return}
+  if(b=e.target.closest('[data-rew]')){
+     var rk=b.dataset.rew;
+     var d0=DONE.find(function(x){return x.k===rk});
+     var tot=10, id=null;
+     if(d0){ id=d0.id; DONE.splice(DONE.indexOf(d0),1); }
+     else {
+       var wX=WATCHING.find(function(x){return x.k===rk});
+       if(wX){ tot=wX.tot||10; id=wX.id; WATCHING.splice(WATCHING.indexOf(wX),1); }
+     }
+     WATCHING.push({k:rk, cur:0, tot:tot, season:1, newEp:false, id:id});
+     toast(S(rk).name+' → از اول ↩️');
+     renderAll();
+     patchMovie(id, {status:'watching', currentEpisode:0, currentSeason:1});
+     closeDetail();return;
+   }
   if(b=e.target.closest('[data-arch]')){
-    var w4=WATCHING.find(function(x){return x.k===b.dataset.arch});
-    if(w4){WATCHING.splice(WATCHING.indexOf(w4),1);LIST.push({k:w4.k});toast(S(w4.k).name+' → واچ‌لیست 📦');renderAll()}
-    closeDetail();return;
-  }
+     var key=b.dataset.arch;
+     var w4=WATCHING.find(function(x){return x.k===key});
+     if(w4){
+       var id=w4.id;
+       WATCHING.splice(WATCHING.indexOf(w4),1);
+       DONE.push({k:w4.k, id:id});
+       toast(S(w4.k).name+' → پایان سریال ✅');
+       renderAll();
+       patchMovie(id, {status:'completed', currentEpisode:w4.cur, currentSeason:w4.season||1, totalEpisodes:w4.tot});
+     }
+     closeDetail();return;
+   }
   var c=e.target.closest('[data-open]');
   if(c)openDetail(c.dataset.open);
 });
 document.getElementById('stripSaw').addEventListener('click',function(){
-  WATCHING.slice().forEach(function(w){if(w.newEp){w.cur=w.cur+1;w.newEp=false;
-    if(w.cur>=w.tot&&S(w.k).status!=='Running'){WATCHING.splice(WATCHING.indexOf(w),1);DONE.push({k:w.k})}}});
-  toast('همه‌ی قسمت‌های جدید → دیده‌شده‌ها ✓');renderAll();
+  WATCHING.slice().forEach(function(w){
+    if(!w.newEp) return;
+    applyCur(w, w.cur+1);
+  });
+  toast('همه‌ی قسمت‌های جدید → دیده‌شده‌ها ✓');
 });
 
 /* ===== پیشنهادها: پوستر + ژانر + خلاصه + دلیل ===== */
@@ -1145,6 +1231,14 @@ function loadSeriesFromApi(){
         else if(st==='completed' || st==='dropped') DONE.push({k:k, id:it.id});
         else LIST.push({k:k, id:it.id});
       });
+      
+      /* dedupe series lists — completed wins */
+      (function(){
+        var doneK={}; DONE.forEach(function(x){doneK[x.k]=1});
+        WATCHING=WATCHING.filter(function(x){return !doneK[x.k]});
+        LIST=LIST.filter(function(x){return !doneK[x.k]});
+      })();
+
       try{ if(typeof renderAll==='function') renderAll(); }catch(e){}
       try{ if(typeof renderRecs==='function') renderRecs(); }catch(e){}
     }).catch(function(e){ console.error(e); });
