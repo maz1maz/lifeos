@@ -954,7 +954,7 @@ document.getElementById('edSave').addEventListener('click',function(){
       body:JSON.stringify({title:v1.trim()||o.t, amount:parseInt(v2,10)||o.a, kind:v4})});
   } else if(ED.type==='acc' && o.id){
     p=fetch('/api/accounts/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:v1.trim()||o.n, type:v4==='acc'?'bank':v4, openingBalance:parseInt(v2,10)||0})});
+      body:JSON.stringify({name:v1.trim()||o.n, type:v4==='acc'?'bank':v4, balance:parseInt(v2,10)||0})});
   } else if(ED.type==='hold' && o.sym){
     p=fetch('/api/investments/price',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({symbol:(v1.trim().toUpperCase()||o.sym), price:parseFloat(v3)||o.price})});
@@ -1224,24 +1224,12 @@ function isoToMiD(iso){
   }catch(e){return null}
 }
 
-function repairBankRialIfNeeded(){
-  try{
-    if(localStorage.getItem('lifeos-rial-fixed-v1')==='1') return Promise.resolve();
-  }catch(e){}
-  /* یک‌بار بعد از import بانک: مبالغ ریال را به تومان تبدیل کن */
-  return fetch('/api/transactions/repair-rial-toman',{
-    method:'POST', credentials:'include',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({fixAccounts:true})
-  }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
-  .then(function(x){
-    if(x.status===401) return;
-    try{localStorage.setItem('lifeos-rial-fixed-v1','1')}catch(e){}
-    if(x.ok && x.d && x.d.fixed>0){
-      toast(fa(x.d.fixed)+' تراکنش: ریال → تومان اصلاح شد ✓');
-      return loadFinanceFromApi();
-    }
-  }).catch(function(){});
+
+function sealTomanAmountsOnce(){
+  try{ if(localStorage.getItem('lifeos-toman-sealed-v1')==='1') return; }catch(e){}
+  fetch('/api/transactions/seal-toman',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:'{}'})
+    .then(function(r){ if(r.ok) try{ localStorage.setItem('lifeos-toman-sealed-v1','1'); }catch(e){} })
+    .catch(function(){});
 }
 
 function loadFinanceFromApi(){
@@ -1295,7 +1283,7 @@ function loadFinanceFromApi(){
     }
     // keep EDARR refs in sync (arrays mutated in place — already same refs)
     renderHero();renderAccs();renderDebts();renderHist();renderChart();renderCatsIns();renderPort();renderPoker();
-    repairBankRialIfNeeded();
+    sealTomanAmountsOnce();
   }).catch(function(e){ console.error(e); toast('بارگذاری مالی ناموفق'); });
 }
 
