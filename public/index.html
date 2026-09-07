@@ -1302,7 +1302,7 @@ body.nav-open .nav-backdrop{display:block}
           <button type="button" class="on" data-kind="expense">خرج</button>
           <button type="button" data-kind="income">دریافت</button>
           </div>
-          <input class="txamount" id="txAmt" type="text" inputmode="numeric" placeholder="مبلغ ﷼">
+          <input class="txamount" id="txAmt" type="text" inputmode="numeric" placeholder="مبلغ تومان">
           <input class="txtitle" id="txTitle" type="text" placeholder="شرح — مثلاً: اسنپ به محل کار">
           <input class="txtagsin" id="txTags" type="text" placeholder="تگ (اختیاری) — سفر، کار، …" style="min-width:120px">
           <button class="txgo" id="txGo" type="button">ثبت</button>
@@ -2223,7 +2223,7 @@ function renderTx(){
    +'<button class="del" data-deltx="'+i+'">✕</button></div>'}).join('')
   :'<div style="color:var(--faint);font-size:14px;text-align:center;padding:10px">هنوز چیزی ثبت نشده — اولین خرج امروز را بالا بنویس</div>';
  var s=exp.reduce(function(n,x){return n+x.a},0);
- document.getElementById('txSum').textContent=fmtFull(s)+' ﷼';
+ document.getElementById('txSum').textContent=fmtFull(s)+' تومان';
  BUDGET.spent=s; /* فقط جمع خرج‌های امروز در لیست */
  renderBud();
 }

@@ -863,7 +863,7 @@ function renderPort(){
   document.getElementById('holdings').innerHTML=HOLD.map(function(h){
     var v=h.qty*h.price*(h.cur==='$'?USDT:1);
     return '<div class="hrow"><span class="sym">'+h.sym+'<small>'+h.type+'</small></span>'
-     +'<span class="qty">'+fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):fmt(h.price)+' ﷼')+'</span>'
+     +'<span class="qty">'+fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):fmt(h.price)+' تومان')+'</span>'
      +'<span class="chg '+(h.chg>=0?'up':'dn')+'">'+(h.chg>=0?'▲ +':'▼ ')+fa(h.chg)+'٪</span>'
      +'<span class="val">'+fmtC(v)+'</span><button class="rowedit" data-ed="hold" data-u="'+h._u+'">✎</button></div>';
   }).join('');
@@ -1444,7 +1444,7 @@ document.getElementById('hAdd').addEventListener('click',function(){
     btn.disabled=false;
     if(x.status===401){location.href='/design/login-page.html';return}
     if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
-    HOLD.push({_u:UID++, id:x.d.id, sym:sym, type:tname, qty:qty, price:price, cur:tval==='crypto'||tval==='stock'?'$':'﷼', chg:0});
+    HOLD.push({_u:UID++, id:x.d.id, sym:sym, type:tname, qty:qty, price:price, cur:tval==='crypto'||tval==='stock'?'$':'تومان', chg:0});
     renderPort();renderHero();
     document.getElementById('hSym').value='';document.getElementById('hQty').value='';document.getElementById('hPrice').value='';
     toast(sym+' ذخیره شد ✓');
@@ -1549,7 +1549,7 @@ function loadFinanceFromApi(){
       HOLD.length=0;
       res[3].d.items.forEach(function(h){
         var tmap={crypto:'کریپتو',stock:'سهام',gold:'طلا',other:'سایر'};
-        HOLD.push({_u:UID++, sym:h.symbol, type:tmap[h.assetType]||h.assetType||'کریپتو', qty:h.quantity||h.qty||0, price:h.currentPrice!=null?h.currentPrice:(h.price||h.avgCost||0), cur:(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'﷼', chg:h.chg||0});
+        HOLD.push({_u:UID++, sym:h.symbol, type:tmap[h.assetType]||h.assetType||'کریپتو', qty:h.quantity||h.qty||0, price:h.currentPrice!=null?h.currentPrice:(h.price||h.avgCost||0), cur:(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'تومان', chg:h.chg||0});
       });
     }
     // poker
