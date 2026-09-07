@@ -164,6 +164,34 @@ body.zoom1{zoom:1.1111}
 .cell .dot.h{background:var(--bad)}
 .cell .dot.n{background:#c084fc}
 .note-card{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:18px 20px;margin-top:16px}
+/* یادداشت داخل سایدبار راست */
+.side-card{display:flex;flex-direction:column}
+.side-card .note-card{
+  margin-top:14px; padding:14px 14px 12px;
+  background:var(--panel2); border:1px solid var(--border);
+  border-radius:16px; display:flex; flex-direction:column; flex:1; min-height:200px;
+}
+.side-card .note-card .nhead{margin-bottom:8px; gap:8px}
+.side-card .note-card .nhead h3{font-size:15px}
+.side-card .note-card .nhead .nday{font-size:12px;padding:4px 10px}
+.side-card .note-card textarea{
+  flex:1; min-height:140px; font-size:13.5px; padding:10px 12px; border-radius:12px;
+}
+.side-card .note-card .nfoot{margin-top:8px; gap:8px; flex-wrap:wrap}
+.side-card .note-card .nfoot .hint{font-size:11.5px}
+.side-card .note-card .nfoot .save{padding:7px 12px;font-size:13px}
+.side-card .month-list{margin-top:12px}
+/* تقویم میلادی: سلول فقط شماره روز */
+.cell.g-clean{
+  min-height:52px; display:flex; align-items:center; justify-content:center;
+  padding:8px !important;
+}
+.cell.g-clean .dn{font-size:16px; margin:0}
+.cell.g-clean .g,
+.cell.g-clean .ev,
+.cell.g-clean .dots,
+.cell.g-clean .tag-sel{display:none !important}
+
 .note-card .nhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .note-card .nhead h3{font-family:var(--fh);font-size:18px;margin:0;flex:1;min-width:160px}
 .note-card .nhead .nday{
@@ -442,6 +470,18 @@ body.nav-open .nav-backdrop{display:block}
         </div>
       </div>
       <div class="elist" id="sideEvents"><div class="erow"><span class="ic">😊</span><div><b>مناسبتی ثبت نشده</b><small>روز خودت باشد</small></div></div></div>
+      <div class="note-card" id="dayNoteCard">
+        <div class="nhead">
+          <h3>📝 یادداشت این روز</h3>
+          <span class="nday"><span class="ico" id="noteIco">📅</span><span id="noteDayLabel">—</span></span>
+        </div>
+        <textarea id="dayNote" placeholder="چی گذشت امروز؟ قرار، حال‌وهوا، کارها، هر چیزی که بعداً بخوای یادت بیاد…"></textarea>
+        <div class="nfoot">
+          <span class="hint">ذخیره روی حسابت · با انتخاب روز دیگر عوض می‌شود</span>
+          <span class="st" id="noteSt"></span>
+          <button type="button" class="save" id="noteSave">ذخیره یادداشت</button>
+        </div>
+      </div>
       <div class="month-list">
         <h4>مناسبت‌های این ماه</h4>
         <div id="monthEvents"></div>
@@ -449,18 +489,6 @@ body.nav-open .nav-backdrop{display:block}
     </div>
   </div>
 
-  <div class="note-card" id="dayNoteCard">
-    <div class="nhead">
-      <h3>📝 یادداشت این روز</h3>
-      <span class="nday"><span class="ico" id="noteIco">📅</span><span id="noteDayLabel">—</span></span>
-    </div>
-    <textarea id="dayNote" placeholder="چی گذشت امروز؟ قرار، حال‌وهوا، کارها، هر چیزی که بعداً بخوای یادت بیاد…"></textarea>
-    <div class="nfoot">
-      <span class="hint">ذخیره روی حسابت · با انتخاب روز دیگر عوض می‌شود</span>
-      <span class="st" id="noteSt"></span>
-      <button type="button" class="save" id="noteSave">ذخیره یادداشت</button>
-    </div>
-  </div>
 </div>
 <script>
 (function(){var mb=document.getElementById('modeBtn');if(!mb)return;try{var m=localStorage.getItem('mode');if(m){document.documentElement.dataset.mode=m;mb.textContent=m==='light'?'☀️':'🌙'}}catch(e){}mb.addEventListener('click',function(){var r=document.documentElement,l=r.dataset.mode==='light';r.dataset.mode=l?'dark':'light';mb.textContent=l?'🌙':'☀️';try{localStorage.setItem('mode',r.dataset.mode)}catch(e){}})})();
@@ -655,11 +683,9 @@ function renderCal(){
       var evtxt=list.slice(0,2).map(function(e){return esc(e.t)}).join(' · ');
       var wday=((firstCol+d-1)%7);
       var tag=isSel?('<span class="tag-sel">'+(typeof WK_ICO!=='undefined'&&WK_ICO[wday]?WK_ICO[wday]:'📌')+' انتخاب</span>'):'';
-      html+='<div class="'+cls+'" data-gd="'+d+'" data-d="'+j.jd+'" data-jy="'+j.jy+'" data-jm="'+j.jm+'" title="'+esc(list.map(function(e){return e.t}).join(' | '))+'" role="button" tabindex="0">'
-        +'<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="dn">'+d+'</span><span class="g">'+fa(j.jd)+'/'+fa(j.jm)+'</span></div>'
-        +tag
-        +(evtxt?'<div class="ev">'+evtxt+'</div>':'')
-        +(dots?'<div class="dots">'+dots+'</div>':'')
+      cls+=' g-clean';
+      html+='<div class="'+cls+'" data-gd="'+d+'" data-d="'+j.jd+'" data-jy="'+j.jy+'" data-jm="'+j.jm+'" title="'+(isT?'امروز':(isSel?'انتخاب‌شده':''))+'" role="button" tabindex="0">'
+        +'<span class="dn">'+d+'</span>'
         +'</div>';
     }
   } else {
