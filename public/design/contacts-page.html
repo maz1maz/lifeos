@@ -772,36 +772,115 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
   function parseImportText(text){
     text=String(text||'').replace(/^\uFEFF/,'');
     if(/BEGIN:VCARD/i.test(text)) return parseVCard(text);
-    var lines=text.split(/\r?\n/).map(function(l){return l.trim()}).filter(Boolean);
+    var lines=text.split(/\r?\n/).filter(function(l){return l.trim()!==''});
+    if(!lines.length) return [];
     var rows=[], start=0;
-    /* skip header */
-    if(lines.length && /name|نام|fullname|phone|tel/i.test(lines[0]) && splitLine(lines[0]).length>1) start=1;
+    var header=splitLine(lines[0]);
+    var hmap=null;
+    /* Google Contacts / Outlook / generic header row */
+    if(header.length>1 && /name|نام|first|last|phone|tel|email|e-mail|mobile|organization/i.test(header.join(' '))){
+      hmap={};
+      header.forEach(function(h,i){
+        var k=String(h||'').toLowerCase().replace(/["']/g,'').trim();
+        hmap[k]=i;
+        /* aliases */
+        if(/^(first name|given name|نام کوچک)$/.test(k)) hmap['first name']=i;
+        if(/^(middle name|نام میانی)$/.test(k)) hmap['middle name']=i;
+        if(/^(last name|family name|نام خانوادگی)$/.test(k)) hmap['last name']=i;
+        if(/^(name|full name|نام|fullname|display name)$/.test(k)) hmap['name']=i;
+        if(/^nickname$/.test(k)) hmap['nickname']=i;
+        if(/organization|company|سازمان|شرکت/.test(k) && hmap['org']===undefined) hmap['org']=i;
+        if(/^birthday|تولد|bday/.test(k)) hmap['birthday']=i;
+        if(/^notes|note|یادداشت/.test(k) && hmap['notes']===undefined) hmap['notes']=i;
+        if(/relationship|رابطه|group|labels|label/.test(k) && hmap['rel']===undefined) hmap['rel']=i;
+        if(/e-?mail/.test(k) && (hmap['email']===undefined || /value/.test(k) || /1\s*-?\s*value/.test(k) || k==='e-mail 1 - value' || k==='email 1 - value' || k==='email')){
+          if(hmap['email']===undefined || /value/.test(k) || k.indexOf('1')>=0) hmap['email']=i;
+        }
+        if(/phone|tel|mobile|cell|تلفن/.test(k)){
+          if(hmap['phone']===undefined || /value/.test(k) || /1\s*-?\s*value/.test(k)) hmap['phone']=i;
+        }
+      });
+      /* explicit google columns */
+      header.forEach(function(h,i){
+        var k=String(h||'').trim();
+        if(/^First Name$/i.test(k)) hmap['first name']=i;
+        if(/^Middle Name$/i.test(k)) hmap['middle name']=i;
+        if(/^Last Name$/i.test(k)) hmap['last name']=i;
+        if(/^E-mail 1 - Value$/i.test(k) || /^Email 1 - Value$/i.test(k)) hmap['email']=i;
+        if(/^Phone 1 - Value$/i.test(k)) hmap['phone']=i;
+        if(/^Organization Name$/i.test(k)) hmap['org']=i;
+        if(/^Birthday$/i.test(k)) hmap['birthday']=i;
+        if(/^Notes$/i.test(k)) hmap['notes']=i;
+        if(/^Labels$/i.test(k) || /^Group Membership$/i.test(k)) hmap['rel']=i;
+      });
+      start=1;
+    }
+    function cell(p, key){
+      if(!hmap || hmap[key]===undefined) return '';
+      return (p[hmap[key]]||'').trim();
+    }
+    function normRel(s){
+      s=String(s||'').toLowerCase();
+      if(/family|خانواده|\* my contacts/i.test(s) && /family|خانواده/.test(s)) return 'family';
+      if(/family|خانواده/.test(s)) return 'family';
+      if(/work|کار|colleague|همکار|office/.test(s)) return 'work';
+      if(/friend|دوست/.test(s)) return 'friend';
+      if(/other|سایر/.test(s)) return 'other';
+      return 'friend';
+    }
     for(var i=start;i<lines.length;i++){
       var p=splitLine(lines[i]);
-      if(!p[0]) continue;
-      var rel=(p[1]||'friend').toLowerCase();
-      if(rel==='خانواده'||rel==='family') rel='family';
-      else if(rel==='دوست'||rel==='friend') rel='friend';
-      else if(rel==='کار'||rel==='work'||rel==='colleague') rel='work';
-      else if(p.length===1) rel='friend';
-      else if(['family','friend','work','other'].indexOf(rel)<0){
-        /* if second col looks like phone, shift */
-        if(/^\+?\d[\d\s\-]+$/.test(p[1]||'')){
-          p=[p[0], 'friend', p[1], p[2]||'', p[3]||'', p[4]||''];
-          rel='friend';
-        } else rel='other';
+      if(!p.length) continue;
+      var name='', phone='', email='', bday=null, notes='', rel='friend';
+      if(hmap){
+        name=cell(p,'name');
+        if(!name){
+          var fn=cell(p,'first name'), mn=cell(p,'middle name'), ln=cell(p,'last name');
+          name=[fn,mn,ln].filter(Boolean).join(' ').trim();
+        }
+        if(!name) name=cell(p,'nickname');
+        if(!name && cell(p,'org')) name=cell(p,'org');
+        phone=cell(p,'phone');
+        email=cell(p,'email');
+        bday=cell(p,'birthday')||null;
+        notes=cell(p,'notes')||'';
+        if(cell(p,'org') && notes.indexOf(cell(p,'org'))<0) notes=(cell(p,'org')+(notes?' · '+notes:'')).trim();
+        rel=normRel(cell(p,'rel'));
+      } else {
+        if(!p[0]) continue;
+        name=p[0];
+        rel=normRel(p[1]||'friend');
+        if(p.length===1) rel='friend';
+        else if(['family','friend','work','other'].indexOf(String(p[1]||'').toLowerCase())<0){
+          if(/^\+?\d[\d\s\-]+$/.test(p[1]||'')){
+            p=[p[0],'friend',p[1],p[2]||'',p[3]||'',p[4]||''];
+            rel='friend';
+          } else if(p.length>=2 && !/^\+?\d/.test(p[1]||'')){
+            /* name,phone,... without rel */
+            if(/@/.test(p[1]||'') || /^\+?\d/.test(p[2]||'')){
+              phone=p[1]||''; email=p[2]||'';
+              p=[p[0],'friend',phone,email,p[3]||'',p[4]||''];
+              rel='friend';
+            } else rel='other';
+          } else rel='other';
+        }
+        phone=p[2]||phone||'';
+        email=p[3]||email||'';
+        bday=p[4]||null;
+        notes=p[5]||'';
       }
-      rows.push({
-        name:p[0],
-        relationship:rel,
-        phone:p[2]||'',
-        email:p[3]||'',
-        birthday:p[4]||null,
-        notes:p[5]||''
-      });
+      if(!name) continue;
+      /* normalize birthday to YYYY-MM-DD if possible */
+      if(bday){
+        var bm=String(bday).match(/(\d{4})[-\/]?(\d{1,2})[-\/]?(\d{1,2})/);
+        if(bm) bday=bm[1]+'-'+('0'+bm[2]).slice(-2)+'-'+('0'+bm[3]).slice(-2);
+        else if(!/^\d{4}-\d{2}-\d{2}$/.test(bday)) bday=null;
+      }
+      rows.push({name:name,relationship:rel,phone:phone,email:email,birthday:bday,notes:notes});
     }
     return rows;
   }
+
   function showPreview(rows){
     importRows=rows||[];
     var box=document.getElementById('importPreview');
@@ -825,9 +904,14 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     var f=e.target.files&&e.target.files[0]; if(!f)return;
     var reader=new FileReader();
     reader.onload=function(){
-      document.getElementById('importText').value=String(reader.result||'');
-      showPreview(parseImportText(document.getElementById('importText').value));
+      var txt=String(reader.result||'');
+      document.getElementById('importText').value=txt;
+      var rows=parseImportText(txt);
+      showPreview(rows);
+      if(!rows.length) toast('در فایل مخاطبی پیدا نشد — فرمت CSV/vCard را چک کن');
+      else toast(fa(rows.length)+' نفر از فایل خوانده شد');
     };
+    reader.onerror=function(){ toast('خواندن فایل ناموفق بود'); };
     reader.readAsText(f, 'UTF-8');
   });
   document.getElementById('importGoBtn').addEventListener('click',function(){
@@ -835,23 +919,42 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     if(!importRows.length){ toast('لیستی برای ایمپورت نیست'); return; }
     var btn=document.getElementById('importGoBtn');
     btn.disabled=true;
-    var i=0, ok=0, fail=0;
-    function next(){
-      if(i>=importRows.length){
+    var all=importRows.slice(), total=all.length, ok=0, fail=0, chunk=80, idx=0;
+    document.getElementById('importMsg').textContent='در حال افزودن… ۰ از '+fa(total);
+    function sendChunk(){
+      if(idx>=all.length){
         btn.disabled=false;
-        toast(fa(ok)+' اضافه شد'+(fail?(' · '+fa(fail)+' خطا'):''));
-        document.getElementById('importMsg').textContent=fa(ok)+' از '+fa(importRows.length)+' OK';
+        toast(fa(ok)+' مخاطب اضافه شد'+(fail?(' · '+fa(fail)+' رد شد'):''));
+        document.getElementById('importMsg').textContent=fa(ok)+' از '+fa(total)+' اضافه شد';
         importRows=[]; document.getElementById('importPreview').textContent='';
         document.getElementById('importText').value='';
+        var fi=document.getElementById('importFile'); if(fi) fi.value='';
         load();
         return;
       }
-      var row=importRows[i++];
-      fetch('/api/contacts',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify(row)})
-        .then(function(r){ if(r.ok) ok++; else fail++; next(); })
-        .catch(function(){ fail++; next(); });
+      var part=all.slice(idx, idx+chunk);
+      idx+=part.length;
+      fetch('/api/contacts/import',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify({items:part})})
+        .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
+        .then(function(x){
+          if(x.status===401){ location.href='/design/login-page.html'; return; }
+          if(x.ok && x.d){ ok += (x.d.ok||x.d.count||0); fail += (x.d.fail||0); }
+          else {
+            /* fallback: one-by-one for this chunk */
+            return Promise.all(part.map(function(row){
+              return fetch('/api/contacts',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify(row)})
+                .then(function(r){ if(r.ok) ok++; else fail++; })
+                .catch(function(){ fail++; });
+            })).then(function(){});
+          }
+        })
+        .catch(function(){ fail += part.length; })
+        .then(function(){
+          document.getElementById('importMsg').textContent='در حال افزودن… '+fa(Math.min(idx,total))+' از '+fa(total)+' (OK '+fa(ok)+')';
+          sendChunk();
+        });
     }
-    next();
+    sendChunk();
   });
 
   load();

@@ -243,6 +243,15 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .tag-filter .tgall{opacity:.85}
 .ed-tags-hint{font-size:12px;color:var(--faint);margin-top:4px}
 
+
+.charts-pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+@media(max-width:820px){.charts-pair{grid-template-columns:1fr}}
+.chart-card .chart{height:160px}
+.chart.chart-exp .cbar,.chart-exp .cbar{width:70%;max-width:18px;background:linear-gradient(to top, color-mix(in srgb,var(--bad) 55%,transparent), var(--bad))}
+.chart.chart-inc .cbar,.chart-inc .cbar{width:70%;max-width:18px;background:linear-gradient(to top, color-mix(in srgb,var(--good) 55%,transparent), var(--good))}
+.chart-foot{margin-top:10px;font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.chart .ccol.now .cbar{outline:2px solid color-mix(in srgb,var(--acc) 50%,transparent);outline-offset:1px}
+
 .dbnote{margin-top:6px;font-size:12.5px;color:var(--muted);line-height:1.45;white-space:pre-wrap}
 .debt-col .addh input.dbdesc{flex:1 1 100%;min-width:100%}
 /* poker */
@@ -479,29 +488,24 @@ body.nav-open .nav-backdrop{display:block}
     </div>
   </div>
 
-  <div class="card">
-    <div class="mhead"><h4>🧾 تاریخچه تراکنش‌ها</h4><span id="histCount" style="color:var(--faint);font-size:13px"></span></div>
-    <div class="histbar">
-      <div class="monnav">
-        <button id="mPrev">‹</button><span id="mLab">—</span><button id="mNext">›</button>
-      </div>
-      <div class="seg">
-        <button class="on" data-k="all">همه</button>
-        <button data-k="expense">خرج</button>
-        <button data-k="income">دریافت</button>
-      </div>
-      <input class="hsearch" id="hSearch" placeholder="جستجو در شرح…">
+  <div class="charts-pair">
+    <div class="card chart-card">
+      <div class="mhead"><h4>📉 هزینه‌ها — ۲۴ ماه</h4><span style="color:var(--faint);font-size:13px">مجموع خرج هر ماه</span></div>
+      <div class="chart chart-exp" id="chartExp"></div>
+      <div class="chart-foot" id="chartExpFoot"></div>
     </div>
-    <div class="tag-filter" id="tagFilter"></div>
-    <div class="txlist" id="histList"></div>
-    <div class="msum" id="mSum"></div>
+    <div class="card chart-card">
+      <div class="mhead"><h4>📈 دریافت‌ها — ۲۴ ماه</h4><span style="color:var(--faint);font-size:13px">مجموع درآمد هر ماه</span></div>
+      <div class="chart chart-inc" id="chartInc"></div>
+      <div class="chart-foot" id="chartIncFoot"></div>
+    </div>
   </div>
 
-  <div class="card">
-    <div class="mhead"><h4>📊 ۲۴ ماه گذشته</h4><span style="color:var(--faint);font-size:13px">هزینه در برابر دریافت — هر ماه</span></div>
-    <div class="chart" id="chart"></div>
-    <div class="legend"><span>هزینه<i style="background:color-mix(in srgb,var(--bad) 70%,transparent)"></i></span><span>دریافت<i style="background:color-mix(in srgb,var(--good) 65%,transparent)"></i></span></div>
-  </div>
+
+
+  
+
+  
 
   <div class="duo2">
     <div class="card" style="margin-bottom:14px">
@@ -543,6 +547,26 @@ body.nav-open .nav-backdrop{display:block}
     </div>
     <div class="txlist" id="pkList" style="margin-top:10px"></div>
   </div>
+
+<div class="card">
+    <div class="mhead"><h4>🧾 تاریخچه تراکنش‌ها</h4><span id="histCount" style="color:var(--faint);font-size:13px"></span></div>
+    <div class="histbar">
+      <div class="monnav">
+        <button id="mPrev">‹</button><span id="mLab">—</span><button id="mNext">›</button>
+      </div>
+      <div class="seg">
+        <button class="on" data-k="all">همه</button>
+        <button data-k="expense">خرج</button>
+        <button data-k="income">دریافت</button>
+      </div>
+      <input class="hsearch" id="hSearch" placeholder="جستجو در شرح…">
+    </div>
+    <div class="tag-filter" id="tagFilter"></div>
+    <div class="txlist" id="histList"></div>
+    <div class="msum" id="mSum"></div>
+  </div>
+
+
 
   <div class="specline">
     🔌 همه چیز واقعی است در بک‌اند تو: درون‌ریزی <b>POST /api/transactions/import-bank/preview</b> فایل <b>Excel و CSV</b> بانک را مستقیم می‌خواند، تراکنش تکراری را با شناسه‌ی بانکی تشخیص می‌دهد و با <b>/commit</b> ثبت می‌کند · حساب‌ها <b>/api/accounts</b> · آمار ماه <b>/api/finance?month=</b> · پورتفو <b>/api/portfolio</b> با خرید/فروش <b>/api/investments/tx</b> و قیمت زنده <b>/api/investments/price</b> و هشدارها <b>/api/investments/alerts</b> · بدهی‌ها <b>/api/debts</b> · پوکر <b>POST /api/poker</b> (خرید/خروجی/محل) و خلاصه‌ی ماه <b>/api/poker/summary</b>. بدون دادهٔ نمونه — از درون‌ریزی بانک یا ثبت دستی پر کن.
@@ -742,17 +766,26 @@ function renderHist(){
 
 /* ============ چارت ۲۴ ماهه ============ */
 function renderChart(){
-  var exp=[],inc=[],mx=0;
+  var exp=[],inc=[],mxE=1,mxI=1,sumE=0,sumI=0;
   MONTHS.forEach(function(M,mi){
-    var e=0,n=0;DATA.forEach(function(x){if(x.mi===mi){if(x.k==='expense')e+=x.a;else n+=x.a}});
-    exp.push(e);inc.push(n);mx=Math.max(mx,e,n,1);
+    var e=0,n=0;DATA.forEach(function(x){if(x.mi===mi){if(x.k==='expense')e+=x.a;else if(x.k==='income')n+=x.a}});
+    exp.push(e);inc.push(n);sumE+=e;sumI+=n;mxE=Math.max(mxE,e);mxI=Math.max(mxI,n);
   });
-  document.getElementById('chart').innerHTML=MONTHS.map(function(M,mi){
-    var he=Math.max(2,Math.round(exp[mi]/mx*100)),hiN=Math.max(2,Math.round(inc[mi]/mx*100));
-    return '<div class="ccol'+(mi===23?' now':'')+'" title="'+MON[M.m-1]+' '+fa(M.y)+' — هزینه '+fmtC(exp[mi])+' · دریافت '+fmtC(inc[mi])+'">'
-     +'<div class="cpair"><div class="cbar e" style="height:'+he+'%"></div><div class="cbar i" style="height:'+hiN+'%"></div></div>'
-     +'<div class="clab">'+(mi%3===0||mi===23?MON[M.m-1]:'')+'</div></div>';
-  }).join('');
+  function bars(vals, mx, kind){
+    return MONTHS.map(function(M,mi){
+      var h=vals[mi]?Math.max(3,Math.round(vals[mi]/mx*100)):2;
+      var lab=kind==='exp'?'هزینه':'دریافت';
+      return '<div class="ccol'+(mi===23?' now':'')+'" title="'+MON[M.m-1]+' '+fa(M.y)+' — '+lab+' '+fmtC(vals[mi])+'">'
+       +'<div class="cpair"><div class="cbar" style="height:'+h+'%"></div></div>'
+       +'<div class="clab">'+(mi%3===0||mi===23?MON[M.m-1]:'')+'</div></div>';
+    }).join('');
+  }
+  var elE=document.getElementById('chartExp'), elI=document.getElementById('chartInc');
+  if(elE) elE.innerHTML=bars(exp,mxE,'exp');
+  if(elI) elI.innerHTML=bars(inc,mxI,'inc');
+  var fE=document.getElementById('chartExpFoot'), fI=document.getElementById('chartIncFoot');
+  if(fE) fE.innerHTML='<span>جمع ۲۴ ماه: <b style="color:var(--bad)">'+fmtC(sumE)+'</b></span><span>بیشینه ماه: '+fmtC(mxE)+'</span>';
+  if(fI) fI.innerHTML='<span>جمع ۲۴ ماه: <b style="color:var(--good)">'+fmtC(sumI)+'</b></span><span>بیشینه ماه: '+fmtC(mxI)+'</span>';
 }
 
 /* ============ سرفصل‌ها + آمار ============ */
