@@ -40,7 +40,7 @@ html[data-mode="light"]{
 .navin{background:var(--acc);color:#062028;border-radius:11px;padding:6px 16px;
   font-family:var(--fh);font-size:13.5px;font-weight:800;text-decoration:none}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-size:17px;line-height:2;
+body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-family:var(--fb);font-size:17px;line-height:2;
   background-image:radial-gradient(1000px 560px at 85% -6%, color-mix(in srgb,var(--acc) 8%,transparent), transparent 62%);
   background-attachment:fixed}
 .wrap{max-width:1600px;margin:0 auto;padding:26px 22px 100px;zoom:.9}
@@ -379,55 +379,300 @@ body.zoom1{zoom:1.1111}
 
 
 .specline{color:var(--faint);font-size:14.5px;margin-top:22px;border-top:1px dashed var(--border);padding-top:14px}
-</style>
 
-/* ===== سبک Ryot ===== */
-.rygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;margin-top:12px}
-.rycard{background:var(--panel);border:1.5px solid var(--border2);border-radius:16px;overflow:hidden;transition:transform .12s,border-color .12s;cursor:pointer}
-.rycard:hover{transform:translateY(-3px);border-color:var(--acc)}
-.art{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:44px;position:relative}
-.ryb{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.72);color:#fff;border-radius:7px;padding:1px 7px;font-size:11.5px;font-family:var(--fh)}
-.ryt{padding:9px 11px 11px}
-.ryt b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ryt small{color:var(--faint);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ===== سبک Ryot / یوتیوب ===== */
+.rygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-top:12px}
+.rycard{background:var(--panel);border:1.5px solid var(--border2);border-radius:16px;overflow:hidden;transition:transform .15s,border-color .15s,box-shadow .15s;cursor:pointer;text-decoration:none;color:inherit;display:block}
+.rycard:hover{transform:translateY(-4px);border-color:var(--acc);box-shadow:0 12px 28px -14px rgba(0,0,0,.55)}
+.art{aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:44px;position:relative;background:var(--panel2);overflow:hidden}
+.art img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
+.rycard:hover .art img{transform:scale(1.05)}
+.art .fallback{position:absolute;inset:0;display:grid;place-items:center;font-size:42px;background:linear-gradient(135deg,#ef444433,#f59e0b22)}
+.ryb{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.78);color:#fff;border-radius:8px;padding:2px 8px;font-size:11.5px;font-family:var(--fh);backdrop-filter:blur(6px);z-index:1}
+.ryplay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.0);transition:.18s;z-index:1}
+.ryplay span{width:48px;height:48px;border-radius:50%;background:#ff0000;color:#fff;display:grid;place-items:center;font-size:16px;opacity:0;transform:scale(.85);transition:.18s;box-shadow:0 8px 20px rgba(0,0,0,.45)}
+.rycard:hover .ryplay{background:rgba(0,0,0,.25)}
+.rycard:hover .ryplay span{opacity:1;transform:none}
+.ryt{padding:10px 12px 13px}
+.ryt b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--fh)}
+.ryt small{color:var(--faint);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;line-height:1.6}
 .concard{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .conbadge{display:inline-flex;align-items:center;gap:7px;font-size:14px;background:var(--panel2);border:1px solid var(--border);border-radius:11px;padding:6px 12px}
 .conbadge.on{border-color:var(--good);color:var(--good)}
 .bigbtn{background:var(--acc);color:#04222b;border:none;border-radius:12px;padding:9px 18px;font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer}
 .bigbtn:hover{filter:brightness(1.08)}
 .bigbtn.ghost{background:none;border:1.5px solid var(--border);color:var(--muted);font-weight:400}
-.chiprow2{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.artchip{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:5px 12px 5px 7px;font-size:13.5px}
-.dotart{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
+.bigbtn.ytred{background:#ff0000;color:#fff}
+.ytsearch{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ytsearch input{flex:1;min-width:180px;background:var(--panel2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font:inherit;font-size:15px;color:var(--text);outline:none}
+.ytsearch input:focus{border-color:var(--acc)}
+.ytsearch input::placeholder{color:var(--faint)}
+.vrow .vopen{background:#ff0000;border:none;color:#fff;border-radius:10px;padding:5px 12px;font-size:12.5px;cursor:pointer;flex:none;font-family:var(--fh);text-decoration:none;display:inline-flex;align-items:center}
+.chiprow2{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.artchip{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:6px 14px 6px 6px;font-size:13.5px;text-decoration:none;color:inherit;transition:border-color .12s,transform .12s}
+.artchip:hover{border-color:var(--acc);transform:translateY(-2px)}
+.dotart{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;overflow:hidden;flex:none;background:var(--panel);border:1px solid var(--border)}
+.dotart img{width:100%;height:100%;object-fit:cover}
+.ytbrand{display:inline-flex;align-items:center}
+.ytbrand svg{width:34px;height:24px}
+.tabsrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.tabchip{background:var(--panel2);border:1.5px solid var(--border);color:var(--muted);border-radius:99px;padding:6px 16px;font-family:var(--fh);font-size:13.5px;cursor:pointer}
+.tabchip.on{border-color:var(--acc);color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);font-weight:700}
+.panelsec{display:none}.panelsec.on{display:block}
+.sec{margin-top:16px}
+.sec .mhead{margin-bottom:4px}
+.emptyhint{text-align:center;padding:28px 12px;color:var(--faint);font-size:14.5px}
+/* video list */
+.vlist{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.vrow{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:14px;border:1px solid transparent;transition:.12s;text-decoration:none;color:inherit}
+.vrow:hover{background:var(--panel2);border-color:var(--border)}
+.vrow .num{width:22px;text-align:center;font-family:var(--fh);font-size:13px;color:var(--faint);flex:none}
+.vrow .vcov{width:120px;aspect-ratio:16/9;border-radius:10px;object-fit:cover;flex:none;background:var(--panel2);border:1px solid var(--border)}
+.vrow .vi{flex:1;min-width:0}
+.vrow .vi b{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--fh)}
+.vrow .vi small{color:var(--faint);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vrow .vdur{font-family:var(--fh);font-size:12px;color:var(--faint);direction:ltr;flex:none}
+.vrow .vsave{background:none;border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:5px 10px;font-size:12.5px;cursor:pointer;flex:none;font-family:var(--fh)}
+.vrow .vsave:hover{border-color:var(--acc);color:var(--acc)}
+/* detail drawer for playlist */
+.ytdrawer{position:fixed;top:0;left:0;bottom:0;width:min(480px,100%);background:var(--bg);border-right:1px solid var(--border2);z-index:120;transform:translateX(-105%);transition:transform .25s ease;overflow:auto;box-shadow:20px 0 60px rgba(0,0,0,.4)}
+.ytdrawer.open{transform:none}
+.ytdovl{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:110;opacity:0;pointer-events:none;transition:.2s}
+.ytdovl.open{opacity:1;pointer-events:auto}
+.ytdhead{position:sticky;top:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;z-index:2}
+.ytdhead h3{margin:0;font-family:var(--fh);font-size:17px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ytdx{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;font-size:16px}
+.ytdcover{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:var(--panel2)}
+.ytdbody{padding:14px 16px 40px}
+.ytdmeta{color:var(--faint);font-size:13.5px;margin-bottom:12px}
+@media(max-width:640px){
+  .rygrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .vrow .vcov{width:96px}
+  .ytdrawer{width:100%}
+}
 
+
+/* ===== موبایل / تبلت — مشترک ===== */
+.nav-toggle{display:none;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:11px;width:40px;height:40px;font-size:18px;cursor:pointer;flex:none;align-items:center;justify-content:center;padding:0;line-height:1;z-index:60;position:relative}
+.nav-toggle:hover{border-color:var(--acc);color:var(--acc)}
+.nav-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+body.nav-open{overflow:hidden !important;touch-action:none}
+body.nav-open .nav-backdrop{display:block}
+@media(max-width:900px){
+  body{padding-top:58px}
+  .nav{
+    flex-wrap:nowrap !important;
+    gap:8px;
+    padding:8px 12px;
+    align-items:center;
+    min-height:52px;
+    z-index:60;
+  }
+  .nav .brand{font-size:20px;flex:none}
+  .nav-toggle{display:inline-flex !important;order:0}
+  .navtools{margin-right:auto;margin-left:0;gap:6px;flex:none;order:2}
+  .navuser{max-width:72px;overflow:hidden;text-overflow:ellipsis}
+  /* منو: پنل کشویی ثابت — صفحه را بهم نمی‌ریزد */
+  .navlinks{
+    display:flex !important;
+    position:fixed !important;
+    top:52px; right:0; left:0;
+    width:100% !important;
+    max-height:0 !important;
+    overflow:hidden !important;
+    flex-direction:column !important;
+    flex-wrap:nowrap !important;
+    gap:2px;
+    margin:0 !important;
+    padding:0 12px !important;
+    border:none !important;
+    background:color-mix(in srgb,var(--bg) 96%,transparent);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    box-shadow:none;
+    z-index:58;
+    opacity:0;
+    pointer-events:none;
+    transition:max-height .28s ease, opacity .2s ease, padding .2s ease, box-shadow .2s ease;
+  }
+  body.nav-open .navlinks{
+    max-height:min(75vh, 560px) !important;
+    overflow:auto !important;
+    -webkit-overflow-scrolling:touch;
+    opacity:1;
+    pointer-events:auto;
+    padding:10px 12px 14px !important;
+    border-bottom:1px solid var(--border) !important;
+    box-shadow:0 18px 40px -12px rgba(0,0,0,.55);
+  }
+  .navlinks a{
+    padding:12px 14px !important;
+    font-size:15px !important;
+    border-radius:12px;
+    flex:none !important;
+  }
+  .wrap{padding:12px 12px 88px!important;zoom:1!important}
+  .lead{font-size:13.5px}
+  .datecard .dnum{font-size:56px!important}
+  .datecard .dmon{font-size:18px!important}
+  .datecard .dwk{font-size:16px!important}
+  .datecard .drow{flex-wrap:wrap;gap:12px!important}
+  .txrow{flex-direction:column;align-items:stretch}
+  .txamount,.txtitle,.txgo{width:100%;min-width:0}
+  .kindseg{width:100%;justify-content:stretch}
+  .kindseg button{flex:1}
+  .chiprow{gap:6px;flex-wrap:wrap}
+  .txchip{font-size:12.5px;padding:5px 10px}
+  .wstats{grid-template-columns:repeat(2,1fr)!important}
+  .wdays{grid-template-columns:repeat(3,1fr)!important}
+  .rygrid,.plgrid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))!important}
+  .trio,.duo,.duo2,.hero-duo,.page3,.cal-shell{grid-template-columns:1fr!important}
+  .grid.cal,.cal-card .grid{gap:4px}
+  .cell{min-height:64px!important;padding:6px!important}
+  .cell .dn{font-size:14px!important}
+  .cell .ev{-webkit-line-clamp:2}
+  .side-num{font-size:48px!important}
+  .note-card textarea{min-height:100px}
+  .ytdrawer{width:100%!important;max-width:100%}
+  .concard{flex-wrap:wrap}
+  .tabsrow{gap:6px}
+  .tabchip{font-size:12.5px;padding:6px 12px}
+  .mcard,.tcard,.rcard,.wcard,.datecard,.epcard,.cal-card,.side-card,.note-card,.tr-combo .tr-panel{border-radius:18px}
+  .hero{grid-template-columns:repeat(2,1fr)!important}
+  .pkstats{grid-template-columns:repeat(2,1fr)!important}
+  /* ردیف‌های خانه تک‌ستونه */
+  .home-row.r1,.home-row.r2,.home-row.r3,.home-row.r4{
+    grid-template-columns:1fr !important;
+    display:grid !important;
+    height:auto !important;
+    align-items:start !important;
+  }
+  .home-row.r1 > .datecard,
+  .home-row.r1 > .minical,
+  .home-row.r1 > .r1-quick,
+  .home-row.r2 > .wcard,
+  .home-row.r2 > .mcard,
+  .home-row.r2 > #gamesCard,
+  .home-row.r2 > .tr-combo{
+    width:100% !important;
+    max-width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    grid-column:auto !important;
+  }
+  /* لیست بازی‌ها روی موبایل: کامل + اسکرول داخلی بلند */
+  #gamesCard{
+    height:auto !important;
+    min-height:0 !important;
+    display:flex !important;
+    flex-direction:column;
+  }
+  #gamesCard .gwrap,
+  #gamesCard #gamesList{
+    flex:none !important;
+    max-height:min(70vh, 640px) !important;
+    min-height:280px !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:8px;
+  }
+  .grow{padding:8px 4px}
+  .grow .gline{gap:6px;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+  .grow .gn{font-size:12px;max-width:100%}
+  .grow .glogo,.grow .gph{width:18px;height:18px}
+  .grow .gcenter{font-size:13px;min-width:3.2em}
+  .grow .gcenter.score{padding:2px 6px}
+  .glg{margin-top:8px}
+  .tr-combo .tr-panel{height:auto !important;max-height:none}
+  .tr-combo #taskList,.tr-combo #remList{max-height:240px;overflow:auto}
+  .r1-quick{height:auto !important}
+  .minical{width:100%!important;max-width:100%!important;height:auto!important}
+}
+@media(max-width:480px){
+  .navtools .navuser{display:none}
+  .wstats{grid-template-columns:1fr 1fr!important}
+  .hero{grid-template-columns:1fr!important}
+  body{font-size:16px}
+  .grow .gn{font-size:11.5px}
+  #gamesCard .gwrap, #gamesCard #gamesList{max-height:min(68vh, 580px)!important}
+}
+
+/* page-mobile-extra */
+
+@media(max-width:900px){
+  .rygrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .ytdrawer{width:100%!important}
+}
+
+</style>
 </head>
 <body>
-<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="">🎵 موسیقی</a><a href="/design/youtube-page.html" class="on">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav></nav>
+<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html" class="on">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
-<div class="wrap" style="max-width:1240px">
-  <div class="lead">یوتیوب تو — پلی‌لیست‌ها و سابسکرایب‌ها</div>
+<div class="wrap" style="max-width:1320px">
 
   <div class="mcard" style="margin-top:14px">
-    <div class="concard">
-      <span style="font-size:34px">▶️</span>
-      <div style="flex:1;min-width:180px">
-        <b style="font-size:16px">یوتیوب</b>
-        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">پلی‌لیست‌ها و ویدیوهای ذخیره‌شده — قشنگ و مرتب</div>
-      </div>
-      <span class="conbadge" id="ytState">… در حال بررسی</span>
-      <button class="bigbtn" id="ytConnect">اتصال به یوتیوب</button>
-      <button class="bigbtn ghost" id="ytDis" style="display:none">قطع اتصال</button>
+    <div class="mhead" style="margin-bottom:10px"><h4>🔎 جستجوی ویدیو</h4><span id="ytSearchState" style="font-size:12.5px;color:var(--faint)"></span></div>
+    <div class="ytsearch">
+      <input id="ytQ" type="search" placeholder="اسم ویدیو یا کانال…" autocomplete="off">
+      <button class="bigbtn ytred" id="ytSearchBtn" type="button">جستجو</button>
     </div>
+    <div class="rygrid" id="ytSearchResults" style="margin-top:12px"></div>
   </div>
-  <div class="mcard" style="margin-top:14px">
-    <div class="mhead"><h4>▶️ پلی‌لیست‌ها</h4><span id="ytPlState" style="font-size:12.5px;color:var(--faint)">نمونه — بعد از اتصال، واقعی می‌شود</span></div>
+
+  <div class="tabsrow" style="margin-top:14px">
+    <button class="tabchip on" data-tab="recent">🎬 تماشاهای اخیر</button>
+    <button class="tabchip" data-tab="playlists">📂 پلی‌لیست‌ها</button>
+    <button class="tabchip" data-tab="subs">📺 سابسکرایب‌ها</button>
+  </div>
+
+  <div class="mcard sec panelsec on" id="panel-recent" style="margin-top:12px">
+    <div class="mhead"><h4>🎬 تازه‌ترین تماشاها</h4><span id="ytRecState" style="font-size:12.5px;color:var(--faint)">نمونه — بعد از اتصال، واقعی می‌شود</span></div>
+    <div class="rygrid" id="ytRecent"></div>
+  </div>
+
+  <div class="mcard sec panelsec" id="panel-playlists" style="margin-top:12px">
+    <div class="mhead"><h4>📂 پلی‌لیست‌های تو</h4><span id="ytPlState" style="font-size:12.5px;color:var(--faint)"></span></div>
     <div class="rygrid" id="ytPl"></div>
   </div>
-  <div class="mcard" style="margin-top:14px">
-    <div class="mhead"><h4>📺 سابسکرایب‌ها</h4></div>
+
+  <div class="mcard sec panelsec" id="panel-subs" style="margin-top:12px">
+    <div class="mhead"><h4>📺 کانال‌های دنبال‌شده</h4><span id="ytSubState" style="font-size:12.5px;color:var(--faint)"></span></div>
     <div class="chiprow2" id="ytSubs"></div>
+    <div class="rygrid" id="ytSubsGrid" style="margin-top:14px"></div>
   </div>
 
+  <div class="mcard" style="margin-top:18px" id="ytConnCard">
+    <div class="concard">
+      <span class="ytbrand">
+        <svg viewBox="0 0 48 34" fill="none"><rect width="48" height="34" rx="8" fill="#FF0000"/><path d="M19 9.5v15l13-7.5L19 9.5z" fill="#fff"/></svg>
+      </span>
+      <div style="flex:1;min-width:180px">
+        <b style="font-size:16px">اتصال یوتیوب</b>
+        <div style="color:var(--faint);font-size:13.5px;margin-top:2px">برای هیستوری، پلی‌لیست و سابسکرایب واقعی وصل شو</div>
+      </div>
+      <span class="conbadge" id="ytState">… در حال بررسی</span>
+      <button class="bigbtn ytred" id="ytConnect">اتصال به یوتیوب</button>
+      <button class="bigbtn ghost" id="ytDis" style="display:none">قطع اتصال</button>
+      <button class="bigbtn ghost" id="ytRefresh" style="display:none" title="تازه‌سازی">↻</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="ytdovl" id="ytOvl"></div>
+<div class="ytdrawer" id="ytDrawer">
+  <div class="ytdhead">
+    <button class="ytdx" id="ytDx" type="button">✕</button>
+    <h3 id="ytDTitle">پلی‌لیست</h3>
+  </div>
+  <img class="ytdcover" id="ytDCover" alt="">
+  <div class="ytdbody">
+    <div class="ytdmeta" id="ytDMeta"></div>
+    <div class="vlist" id="ytDList"></div>
+  </div>
 </div>
 <script>
 document.getElementById('modeBtn').addEventListener('click',function(){var r=document.documentElement,l=r.dataset.mode==='light';r.dataset.mode=l?'dark':'light';this.textContent=l?'🌙':'☀️';});
@@ -470,46 +715,448 @@ document.addEventListener('click',function(e){
 })();
 </script><script>
 (function(){
-var DEMO=[['Flutter','آموزش فلاتر — ۲۴ قسمت','linear-gradient(135deg,#0ea5e9,#22d3ee)','📘'],['Lo-Fi','موسیقی کار و تمرکز','linear-gradient(135deg,#7c3aed,#db2777)','🎧'],['مستند','فضا و کهکشان‌ها','linear-gradient(135deg,#1e293b,#0ea5e9)','🚀'],['Node.js','پروژه‌های عملی','linear-gradient(135deg,#22c55e,#84cc16)','💻'],['ورزش','تمرین خانه — ۳۰ دقیقه','linear-gradient(135deg,#f43f5e,#fb923c)','🏃'],['آشپزی','دست‌پخت سریع','linear-gradient(135deg,#f59e0b,#ef4444)','🍳']];
-var SUBS=[['Fireship','🔥'],['Traversy','🧑‍🏫'],['Vox','📰'],['سلامت','💚'],['Veritasium','🔬'],['کادر فنی','🛠']];
-function grid(el,items){
- el.innerHTML=items.map(function(x){return '<div class="rycard"><div class="art" style="background:'+x[2]+'">'+x[3]+'<span class="ryb">۱۲ ویدیو</span></div><div class="ryt"><b>'+x[0]+'</b><small>'+x[1]+'</small></div></div>'}).join('');
+var faD='۰۱۲۳۴۵۶۷۸۹';
+function fa(n){return String(n).replace(/\d/g,function(d){return faD[d]})}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})}
+function ytThumb(id, q){return id ? ('https://i.ytimg.com/vi/'+id+'/hqdefault.jpg') : ''}
+function ytWatch(id){return id ? ('https://www.youtube.com/watch?v='+id) : ''}
+function ytList(id){return id ? ('https://www.youtube.com/playlist?list='+id) : ''}
+
+var GRADS=['linear-gradient(135deg,#ff0000,#f59e0b)','linear-gradient(135deg,#7c3aed,#ec4899)','linear-gradient(135deg,#0ea5e9,#22d3ee)','linear-gradient(135deg,#22c55e,#84cc16)','linear-gradient(135deg,#f43f5e,#fb923c)','linear-gradient(135deg,#1e293b,#0ea5e9)','linear-gradient(135deg,#14b8a6,#3b82f6)','linear-gradient(135deg,#a855f7,#6366f1)'];
+function gradFor(s){var h=0;s=String(s||'');for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return GRADS[Math.abs(h)%GRADS.length]}
+
+/* دمو با thumbnail و لینک واقعی یوتیوب */
+var DEMO_PLAYLISTS=[
+  {id:'demo-flutter',name:'Flutter & Dart',desc:'آموزش فلاتر',count:6,cover:ytThumb('fq4N0hgOWzU'),url:'https://www.youtube.com/results?search_query=flutter+tutorial'},
+  {id:'demo-lofi',name:'Lo-Fi Beats',desc:'موسیقی تمرکز',count:8,cover:ytThumb('jfKfPfyJRdk'),url:'https://www.youtube.com/watch?v=jfKfPfyJRdk'},
+  {id:'demo-space',name:'Space & Science',desc:'مستند فضا',count:5,cover:ytThumb('Qd6nLFDf2yA'),url:'https://www.youtube.com/results?search_query=space+documentary'},
+  {id:'demo-node',name:'Node.js',desc:'بک‌اند عملی',count:7,cover:ytThumb('Oe421EPjeBE'),url:'https://www.youtube.com/results?search_query=nodejs+tutorial'},
+  {id:'demo-work',name:'Home Workout',desc:'تمرین خانه',count:4,cover:ytThumb('UBMk30rjy0o'),url:'https://www.youtube.com/results?search_query=home+workout'},
+  {id:'demo-cook',name:'Cooking',desc:'آشپزی سریع',count:5,cover:ytThumb('1Isjgc0oX0s'),url:'https://www.youtube.com/results?search_query=easy+cooking'}
+];
+var DEMO_VIDEOS={
+  'demo-flutter':[
+    {title:'Flutter in 100 seconds',channel:'Fireship',videoId:'fq4N0hgOWzU',duration:'2:12'},
+    {title:'Dart in 100 seconds',channel:'Fireship',videoId:'NrO0CJCbYLA',duration:'2:49'},
+    {title:'Flutter Crash Course',channel:'Traversy Media',videoId:'1gDhl4leEzA',duration:'1:00:00'},
+    {title:'State Management',channel:'Fireship',videoId:'3RH52KJlwjg',duration:'7:41'}
+  ],
+  'demo-lofi':[
+    {title:'lofi hip hop radio',channel:'Lofi Girl',videoId:'jfKfPfyJRdk',duration:'LIVE'},
+    {title:'Chill beats',channel:'Lofi Girl',videoId:'4xDzrJKXOOY',duration:'LIVE'}
+  ],
+  'demo-space':[
+    {title:'The Universe',channel:'National Geographic',videoId:'Qd6nLFDf2yA',duration:'12:04'},
+    {title:'Black Holes',channel:'Veritasium',videoId:'QqsLTNkzvaY',duration:'16:20'}
+  ],
+  'demo-node':[
+    {title:'Node.js Crash Course',channel:'Traversy Media',videoId:'fBNz5xF-Kx4',duration:'1:30:00'},
+    {title:'Node in 100 seconds',channel:'Fireship',videoId:'ENrzD9HAZK4',duration:'2:25'}
+  ],
+  'demo-work':[
+    {title:'20 min Full Body',channel:'Pamela Reif',videoId:'UBMk30rjy0o',duration:'20:00'},
+    {title:'HIIT Cardio',channel:'The Body Coach',videoId:'ml6cT4AZdqI',duration:'15:00'}
+  ],
+  'demo-cook':[
+    {title:'Easy Pasta',channel:'Babish',videoId:'1Isjgc0oX0s',duration:'8:40'},
+    {title:'Quick Stir Fry',channel:'You Suck At Cooking',videoId:'LLbai-AkF9M',duration:'5:12'}
+  ]
+};
+var DEMO_SUBS=[
+  {name:'Fireship',cover:ytThumb('fq4N0hgOWzU'),url:'https://www.youtube.com/@Fireship'},
+  {name:'Traversy Media',cover:ytThumb('fBNz5xF-Kx4'),url:'https://www.youtube.com/@TraversyMedia'},
+  {name:'Veritasium',cover:ytThumb('QqsLTNkzvaY'),url:'https://www.youtube.com/@veritasium'},
+  {name:'Lofi Girl',cover:ytThumb('jfKfPfyJRdk'),url:'https://www.youtube.com/@LofiGirl'},
+  {name:'National Geographic',cover:ytThumb('Qd6nLFDf2yA'),url:'https://www.youtube.com/@NatGeo'},
+  {name:'The Body Coach',cover:ytThumb('ml6cT4AZdqI'),url:'https://www.youtube.com/@thebodycoach'}
+];
+var DEMO_SEARCH=[
+  {title:'Flutter in 100 seconds',channel:'Fireship',videoId:'fq4N0hgOWzU'},
+  {title:'Node.js Crash Course',channel:'Traversy Media',videoId:'fBNz5xF-Kx4'},
+  {title:'lofi hip hop radio',channel:'Lofi Girl',videoId:'jfKfPfyJRdk'},
+  {title:'Black Holes Explained',channel:'Veritasium',videoId:'QqsLTNkzvaY'},
+  {title:'20 min Full Body Workout',channel:'Pamela Reif',videoId:'UBMk30rjy0o'},
+  {title:'JavaScript in 100 Seconds',channel:'Fireship',videoId:'DHjqpvDnNGE'}
+];
+var DEMO_RECENT=[
+  {title:'Flutter in 100 seconds',channel:'Fireship',videoId:'fq4N0hgOWzU',playedAt:new Date(Date.now()-18e5).toISOString()},
+  {title:'lofi hip hop radio',channel:'Lofi Girl',videoId:'jfKfPfyJRdk',playedAt:new Date(Date.now()-36e5).toISOString()},
+  {title:'Node.js Crash Course',channel:'Traversy Media',videoId:'fBNz5xF-Kx4',playedAt:new Date(Date.now()-72e5).toISOString()},
+  {title:'Black Holes Explained',channel:'Veritasium',videoId:'QqsLTNkzvaY',playedAt:new Date(Date.now()-14e4*60).toISOString()},
+  {title:'20 min Full Body Workout',channel:'Pamela Reif',videoId:'UBMk30rjy0o',playedAt:new Date(Date.now()-864e5).toISOString()},
+  {title:'JavaScript in 100 Seconds',channel:'Fireship',videoId:'DHjqpvDnNGE',playedAt:new Date(Date.now()-2*864e5).toISOString()},
+  {title:'Dart in 100 seconds',channel:'Fireship',videoId:'NrO0CJCbYLA',playedAt:new Date(Date.now()-3*864e5).toISOString()},
+  {title:'The Universe',channel:'National Geographic',videoId:'Qd6nLFDf2yA',playedAt:new Date(Date.now()-4*864e5).toISOString()}
+];
+function relTime(iso){if(!iso)return'';try{var d=new Date(iso),diff=(Date.now()-d.getTime())/1000;if(diff<60)return'همین الان';if(diff<3600)return fa(Math.floor(diff/60))+' دقیقه پیش';if(diff<86400)return fa(Math.floor(diff/3600))+' ساعت پیش';return fa(Math.floor(diff/86400))+' روز پیش'}catch(e){return''}}
+
+function normVideo(v){
+  var id=v.videoId||'';
+  var cover=v.cover||v.thumb||ytThumb(id);
+  var url=v.url||ytWatch(id);
+  return {
+    title:v.title||'—',
+    channel:v.channel||v.channelTitle||'',
+    channelTitle:v.channel||v.channelTitle||'',
+    videoId:id,
+    cover:cover,
+    duration:v.duration||'',
+    url:url
+  };
 }
-grid(document.getElementById('ytPl'),DEMO);
-document.getElementById('ytSubs').innerHTML=SUBS.map(function(a){return '<span class="artchip"><span class="dotart" style="background:var(--panel)">'+a[1]+'</span>'+a[0]+'</span>'}).join('');
+
+function coverHtml(url, name){
+  var g=gradFor(name);
+  if(url){
+    return '<img src="'+esc(url)+'" alt="'+esc(name)+'" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display=\'none\';this.nextElementSibling&&(this.nextElementSibling.style.display=\'grid\')">'
+      +'<div class="fallback" style="display:none;background:'+g+'">▶️</div>';
+  }
+  return '<div class="fallback" style="display:grid;background:'+g+'">▶️</div>';
+}
+
+function plCard(p){
+  var cnt=p.count!=null?p.count:0;
+  var openUrl=p.url||(p.id&&String(p.id).indexOf('demo-')!==0?ytList(p.id):'');
+  var data=' data-pl="'+esc(p.id||'')+'" data-title="'+esc(p.name||p.title||'')+'" data-cover="'+esc(p.cover||'')+'" data-count="'+cnt+'" data-url="'+esc(openUrl)+'"';
+  return '<div class="rycard"'+data+' role="button" tabindex="0">'
+    +'<div class="art">'+coverHtml(p.cover,p.name||p.title)
+    +'<span class="ryb">'+fa(cnt)+' ویدیو</span>'
+    +'<div class="ryplay"><span>▶</span></div></div>'
+    +'<div class="ryt"><b>'+esc(p.name||p.title||'—')+'</b><small>'+esc(p.desc||p.description||p.channelTitle||'پلی‌لیست')+'</small></div>'
+    +'</div>';
+}
+
+function videoCard(v){
+  v=normVideo(v);
+  var tag=v.url?'a':'div';
+  var extra=v.url?' href="'+esc(v.url)+'" target="_blank" rel="noopener"':'';
+  return '<'+tag+' class="rycard"'+extra+'>'
+    +'<div class="art">'+coverHtml(v.cover,v.title)
+    +(v.duration?'<span class="ryb">'+esc(v.duration)+'</span>':'')
+    +'<div class="ryplay"><span>▶</span></div></div>'
+    +'<div class="ryt"><b>'+esc(v.title)+'</b><small>'+esc(v.channel)+'</small></div>'
+    +'</'+tag+'>';
+}
+
+function subChip(s){
+  var inner=s.cover?'<img src="'+esc(s.cover)+'" alt="" referrerpolicy="no-referrer">':'📺';
+  var tag=s.url?'a':'span';
+  var extra=s.url?' href="'+esc(s.url)+'" target="_blank" rel="noopener"':'';
+  return '<'+tag+' class="artchip"'+extra+'><span class="dotart">'+inner+'</span>'+esc(s.name||s.title||'')+'</'+tag+'>';
+}
+
+function subCard(s){
+  var tag=s.url?'a':'div';
+  var extra=s.url?' href="'+esc(s.url)+'" target="_blank" rel="noopener"':'';
+  return '<'+tag+' class="rycard"'+extra+'>'
+    +'<div class="art" style="aspect-ratio:1">'+coverHtml(s.cover,s.name||s.title)+'</div>'
+    +'<div class="ryt"><b>'+esc(s.name||s.title||'—')+'</b><small>'+esc(s.description||'کانال')+'</small></div>'
+    +'</'+tag+'>';
+}
+
+function videoRow(v, i){
+  v=normVideo(v);
+  var open=v.url?'<a class="vopen" href="'+esc(v.url)+'" target="_blank" rel="noopener">باز کردن</a>':'';
+  var saveBtn=v.title?'<button type="button" class="vsave" data-save="'+esc(v.title)+'" data-meta="'+esc(v.channel)+'">ذخیره</button>':'';
+  return '<div class="vrow">'
+    +'<span class="num">'+fa(i+1)+'</span>'
+    +'<a href="'+(v.url?esc(v.url):'#')+'" target="_blank" rel="noopener" style="flex:none">'
+    +(v.cover?'<img class="vcov" src="'+esc(v.cover)+'" alt="" referrerpolicy="no-referrer">':'<div class="vcov" style="background:'+gradFor(v.title)+';display:grid;place-items:center">▶️</div>')
+    +'</a>'
+    +'<div class="vi"><b>'+esc(v.title)+'</b><small>'+esc(v.channel)+'</small></div>'
+    +(v.duration?'<span class="vdur">'+esc(v.duration)+'</span>':'')
+    +open
+    +saveBtn
+    +'</div>';
+}
+
+function renderPlaylists(items){
+  var el=document.getElementById('ytPl');
+  if(!items||!items.length){el.innerHTML='<div class="emptyhint" style="grid-column:1/-1">پلی‌لیستی نیست</div>';return}
+  el.innerHTML=items.map(function(p){
+    return plCard({
+      id:p.id||'',
+      name:p.name||p.title||'—',
+      desc:p.desc||p.description||p.channelTitle||'',
+      cover:p.cover||p.thumb||'',
+      count:p.count!=null?p.count:0,
+      url:p.url||''
+    });
+  }).join('');
+}
+
+function renderSubs(items){
+  items=items||[];
+  document.getElementById('ytSubs').innerHTML=items.length?items.map(function(s){
+    return subChip({name:s.name||s.title,cover:s.cover||s.thumb||'',url:s.url||''});
+  }).join(''):'<div class="emptyhint">کانالی نیست</div>';
+  document.getElementById('ytSubsGrid').innerHTML=items.slice(0,12).map(function(s){
+    return subCard({name:s.name||s.title,cover:s.cover||s.thumb||'',url:s.url||'',description:s.description||''});
+  }).join('');
+}
+
+function renderSearch(items){
+  var g=document.getElementById('ytSearchResults');
+  if(!items||!items.length){g.innerHTML='<div class="emptyhint" style="grid-column:1/-1">نتیجه‌ای نبود</div>';return}
+  g.innerHTML=items.slice(0,14).map(videoCard).join('');
+}
+function renderRecent(items){
+  var g=document.getElementById('ytRecent');
+  if(!g)return;
+  if(!items||!items.length){g.innerHTML='<div class="emptyhint" style="grid-column:1/-1">هنوز تماشایی ثبت نشده</div>';return}
+  g.innerHTML=items.slice(0,14).map(function(v){
+    var n=normVideo(v);
+    if(v.playedAt){n._when=relTime(v.playedAt)}
+    var card=videoCard(n);
+    if(n._when){
+      card=card.replace('</small></div>',' · '+esc(n._when)+'</small></div>');
+    }
+    return card;
+  }).join('');
+}
+
+/* tabs */
+document.querySelectorAll('.tabchip').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.tabchip').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    document.querySelectorAll('.panelsec').forEach(function(p){p.classList.remove('on')});
+    var pan=document.getElementById('panel-'+b.dataset.tab);
+    if(pan)pan.classList.add('on');
+  });
+});
+
+/* drawer */
+var drawer=document.getElementById('ytDrawer');
+var ovl=document.getElementById('ytOvl');
+function closeDrawer(){drawer.classList.remove('open');ovl.classList.remove('open')}
+function openDrawer(title, cover, meta, openUrl){
+  document.getElementById('ytDTitle').textContent=title||'پلی‌لیست';
+  var img=document.getElementById('ytDCover');
+  if(cover){img.src=cover;img.style.display='block';img.style.background='';img.referrerPolicy='no-referrer'}
+  else {img.removeAttribute('src');img.style.background=gradFor(title);img.style.display='block'}
+  var metaEl=document.getElementById('ytDMeta');
+  metaEl.innerHTML=esc(meta||'')+(openUrl?' · <a href="'+esc(openUrl)+'" target="_blank" rel="noopener" style="color:var(--acc)">باز کردن در یوتیوب</a>':'');
+  drawer.classList.add('open');ovl.classList.add('open');
+}
+document.getElementById('ytDx').onclick=closeDrawer;
+ovl.onclick=closeDrawer;
+
+function showVideos(items){
+  var list=document.getElementById('ytDList');
+  if(!items||!items.length){list.innerHTML='<div class="emptyhint">ویدیویی در این پلی‌لیست نیست</div>';return}
+  list.innerHTML=items.map(function(v,i){return videoRow(v,i)}).join('');
+}
+
+document.getElementById('ytPl').addEventListener('click',function(e){
+  var card=e.target.closest('[data-pl]');
+  if(!card)return;
+  var id=card.dataset.pl;
+  var title=card.dataset.title||'پلی‌لیست';
+  var cover=card.dataset.cover||'';
+  var count=card.dataset.count||'0';
+  var openUrl=card.dataset.url||'';
+  openDrawer(title, cover, fa(count)+' ویدیو', openUrl);
+  document.getElementById('ytDList').innerHTML='<div class="emptyhint">در حال دریافت ویدیوها…</div>';
+
+  if(!window.__ytLive || String(id).indexOf('demo-')===0){
+    showVideos(DEMO_VIDEOS[id]||DEMO_VIDEOS['demo-flutter']||[]);
+    return;
+  }
+  fetch('/api/integrations/youtube/playlist-items?playlistId='+encodeURIComponent(id))
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+    .then(function(res){
+      if(!res.ok){document.getElementById('ytDList').innerHTML='<div class="emptyhint">'+(res.d&&res.d.error||'ناموفق')+'</div>';return}
+      showVideos(res.d.items||[]);
+    })
+    .catch(function(){document.getElementById('ytDList').innerHTML='<div class="emptyhint">دریافت ناموفق</div>'});
+});
+
+document.getElementById('ytDList').addEventListener('click',function(e){
+  var btn=e.target.closest('[data-save]');
+  if(!btn)return;
+  e.preventDefault();
+  e.stopPropagation();
+  fetch('/api/media-log',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({source:'youtube',title:btn.dataset.save,meta:btn.dataset.meta||''})})
+    .then(function(r){return r.json()}).then(function(d){
+      var t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}
+      t.textContent=d&&(d.ok||d.entry)?'✓ در امروز ذخیره شد':(d.error||'ذخیره نشد');
+      t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000);
+    }).catch(function(){});
+});
+
+/* search */
+function doSearch(){
+  var q=(document.getElementById('ytQ').value||'').trim();
+  var st=document.getElementById('ytSearchState');
+  var btn=document.getElementById('ytSearchBtn');
+  if(!q){st.textContent='چیزی بنویس';return}
+  function demoFallback(msg){
+    var hits=DEMO_SEARCH.filter(function(v){
+      return (v.title+' '+v.channel).toLowerCase().indexOf(q.toLowerCase())>=0;
+    });
+    if(!hits.length) hits=DEMO_SEARCH.slice();
+    renderSearch(hits);
+    st.textContent=msg||'نمونه — برای جستجوی واقعی وصل شو';
+  }
+  st.textContent='در حال جستجو…';
+  if(btn){btn.disabled=true;btn.textContent='…'}
+  fetch('/api/integrations/youtube/search?q='+encodeURIComponent(q))
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+    .then(function(res){
+      if(btn){btn.disabled=false;btn.textContent='جستجو'}
+      if(!res.ok){
+        var errMsg=(res.d&&res.d.error)||('خطا '+res.status);
+        document.getElementById('ytSearchResults').innerHTML='';
+        st.textContent=errMsg;
+        if(res.status===401||(res.status===400&&/وصل نیست/i.test(errMsg))){
+          window.__ytLive=false;
+          demoFallback(errMsg.indexOf('وصل')>=0?errMsg:'اول یوتیوب را وصل کن (پایین صفحه)');
+        }
+        return;
+      }
+      window.__ytLive=true;
+      var items=res.d.items||[];
+      renderSearch(items);
+      st.textContent=items.length?('✓ '+fa(items.length)+' نتیجه'):'چیزی پیدا نشد';
+    }).catch(function(){
+      if(btn){btn.disabled=false;btn.textContent='جستجو'}
+      if(window.__ytLive){st.textContent='جستجو ناموفق';return}
+      demoFallback('نمونه — اتصال لازم است');
+    });
+}
+document.getElementById('ytSearchBtn').addEventListener('click',doSearch);
+document.getElementById('ytQ').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch()}});
+
+/* demo first */
+renderRecent(DEMO_RECENT);
+renderPlaylists(DEMO_PLAYLISTS);
+renderSubs(DEMO_SUBS);
+
+function setConnected(on){
+  var st=document.getElementById('ytState');
+  st.textContent=on?'✓ متصل':'متصل نیست';
+  st.className='conbadge'+(on?' on':'');
+  document.getElementById('ytConnect').style.display=on?'none':'';
+  document.getElementById('ytDis').style.display=on?'':'none';
+  document.getElementById('ytRefresh').style.display=on?'':'none';
+  window.__ytLive=!!on;
+}
+
+function loadLive(){
+  document.getElementById('ytPlState').textContent='در حال دریافت…';
+  document.getElementById('ytSubState').textContent='…';
+  var recSt=document.getElementById('ytRecState');
+  if(recSt)recSt.textContent='در حال دریافت…';
+  fetch('/api/integrations/youtube/history').then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})}).then(function(res){
+    var d=res.d||{};
+    if(!res.ok){
+      if(recSt)recSt.textContent=d.error||'ناموفق';
+      renderRecent(DEMO_RECENT);
+      return;
+    }
+    var items=d.items||[];
+    if(items.length){
+      renderRecent(items);
+      if(recSt)recSt.textContent='زنده ✓ · '+fa(items.length)+' ویدیو';
+    } else {
+      renderRecent(DEMO_RECENT);
+      if(recSt)recSt.textContent='هیستوری خالی — نمونه';
+    }
+  }).catch(function(){
+    renderRecent(DEMO_RECENT);
+    if(recSt)recSt.textContent='دریافت ناموفق — نمونه';
+  });
+  fetch('/api/integrations/youtube/playlists').then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})}).then(function(res){
+    var d=res.d||{};
+    if(!res.ok){document.getElementById('ytPlState').textContent=d.error||'ناموفق';return}
+    var items=d.items||[];
+    if(items.length){
+      renderPlaylists(items.map(function(p){
+        return {
+          id:p.id,
+          name:p.name||p.title,
+          title:p.title||p.name,
+          desc:p.description||p.channelTitle||'',
+          cover:p.cover||p.thumb||'',
+          count:p.count||0,
+          url:p.url||ytList(p.id)
+        };
+      }));
+      document.getElementById('ytPlState').textContent='زنده ✓ · '+fa(items.length)+' پلی‌لیست';
+    } else document.getElementById('ytPlState').textContent='پلی‌لیستی نبود';
+    var subs=d.subscriptions||[];
+    if(subs.length){
+      renderSubs(subs);
+      document.getElementById('ytSubState').textContent='زنده ✓ · '+fa(subs.length);
+    } else document.getElementById('ytSubState').textContent='';
+  }).catch(function(){document.getElementById('ytPlState').textContent='دریافت ناموفق'});
+}
+
 fetch('/api/me').then(function(r){return r.json()}).then(function(d){
- var on=d&&d.user&&d.user.youtubeConnected;
- var st=document.getElementById('ytState');
- st.textContent=on?'✓ متصل':'متصل نیست';
- st.className='conbadge'+(on?' on':'');
- document.getElementById('ytConnect').style.display=on?'none':'';
- document.getElementById('ytDis').style.display=on?'':'none';
- if(on)loadPl();
+  var on=d&&d.user&&d.user.youtubeConnected;
+  setConnected(!!on);
+  if(on)loadLive();
 }).catch(function(){});
-function loadPl(){
- document.getElementById('ytPlState').textContent='در حال دریافت…';
- fetch('/api/integrations/youtube/playlists').then(function(r){return r.json()}).then(function(d){
-  var items=(d.items||[]);
-  if(items&&items.length){
-   grid(document.getElementById('ytPl'),items.slice(0,12).map(function(p){
-    var sn=p.snippet||p;
-    return ['🎬',sn.title||'—','linear-gradient(135deg,#ef4444,#f59e0b)','▶️'];
-   }));
-   document.getElementById('ytPlState').textContent='زنده ✓';
-  } else document.getElementById('ytPlState').textContent='چیزی نگرفتیم — بعداً دوباره';
- }).catch(function(){document.getElementById('ytPlState').textContent='دریافت ناموفق'});
-}
+
 document.getElementById('ytConnect').addEventListener('click',function(){
- fetch('/api/integrations/youtube/connect').then(function(r){return r.json().catch(function(){return null})}).then(function(d){
-  if(d&&d.url)location.href=d.url;
-  else if(d&&d.error)alert(d.error);
-  else location.href='/api/integrations/youtube/connect';
- }).catch(function(){location.href='/api/integrations/youtube/connect'});
+  fetch('/api/integrations/youtube/connect').then(function(r){return r.json().catch(function(){return null})}).then(function(d){
+    if(d&&d.url)location.href=d.url;
+    else if(d&&d.error)alert(d.error);
+    else location.href='/api/integrations/youtube/connect';
+  }).catch(function(){location.href='/api/integrations/youtube/connect'});
 });
 document.getElementById('ytDis').addEventListener('click',function(){
- fetch('/api/integrations/youtube/disconnect',{method:'POST'}).finally(function(){location.reload()});
+  fetch('/api/integrations/youtube/disconnect',{method:'POST'}).finally(function(){location.reload()});
 });
+document.getElementById('ytRefresh').addEventListener('click',function(){loadLive()});
 })();
 </script>
+
+<script>
+/* منوی موبایل — همبرگر (drawer ثابت، بدون بهم‌ریختن layout) */
+(function(){
+  var nav=document.querySelector('.nav'); if(!nav)return;
+  if(nav.querySelector('.nav-toggle'))return;
+  var btn=document.createElement('button');
+  btn.type='button'; btn.className='nav-toggle'; btn.setAttribute('aria-label','منو');
+  btn.setAttribute('aria-expanded','false');
+  btn.innerHTML='☰';
+  var brand=nav.querySelector('.brand');
+  if(brand&&brand.nextSibling) nav.insertBefore(btn, brand.nextSibling);
+  else if(brand) brand.insertAdjacentElement('afterend', btn);
+  else nav.insertBefore(btn, nav.firstChild);
+  var bd=document.querySelector('.nav-backdrop');
+  if(!bd){ bd=document.createElement('div'); bd.className='nav-backdrop'; document.body.appendChild(bd); }
+  var links=nav.querySelector('.navlinks');
+  function close(){
+    document.body.classList.remove('nav-open');
+    btn.innerHTML='☰';
+    btn.setAttribute('aria-expanded','false');
+  }
+  function open(){
+    document.body.classList.add('nav-open');
+    btn.innerHTML='✕';
+    btn.setAttribute('aria-expanded','true');
+  }
+  function toggle(e){
+    if(e){e.preventDefault();e.stopPropagation()}
+    if(document.body.classList.contains('nav-open')) close(); else open();
+  }
+  btn.addEventListener('click', toggle);
+  bd.addEventListener('click', function(e){e.preventDefault();close()});
+  if(links){
+    links.addEventListener('click', function(e){
+      var a=e.target.closest('a');
+      if(a && window.matchMedia('(max-width:900px)').matches) close();
+    });
+  }
+  window.addEventListener('resize', function(){ if(window.innerWidth>900) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
+})();
+</script>
+
+<script src="/app-lock.js" defer></script>
 </body>
 </html>

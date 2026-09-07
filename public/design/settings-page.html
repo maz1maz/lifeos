@@ -53,7 +53,7 @@ body.zoom1{zoom:1.1111}
 .navin{background:var(--acc);color:#062028;border-radius:11px;padding:6px 16px;
   font-family:var(--fh);font-size:13.5px;font-weight:800;text-decoration:none}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-size:17px;line-height:1.9;
+body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-family:var(--fb);font-size:17px;line-height:1.9;
   background-image:radial-gradient(1000px 560px at 85% -6%, color-mix(in srgb,var(--acc) 8%,transparent), transparent 62%);
   background-attachment:fixed}
 .wrap{max-width:780px;margin:0 auto;padding:26px 22px 120px}
@@ -138,6 +138,155 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
   font-family:var(--fh);font-weight:700;font-size:15px;border-radius:13px;padding:10px 22px;opacity:0;
   pointer-events:none;transition:.25s;z-index:99}
 #toast.show{opacity:1}
+
+
+/* ===== موبایل / تبلت — مشترک ===== */
+.nav-toggle{display:none;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:11px;width:40px;height:40px;font-size:18px;cursor:pointer;flex:none;align-items:center;justify-content:center;padding:0;line-height:1;z-index:60;position:relative}
+.nav-toggle:hover{border-color:var(--acc);color:var(--acc)}
+.nav-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+body.nav-open{overflow:hidden !important;touch-action:none}
+body.nav-open .nav-backdrop{display:block}
+@media(max-width:900px){
+  body{padding-top:58px}
+  .nav{
+    flex-wrap:nowrap !important;
+    gap:8px;
+    padding:8px 12px;
+    align-items:center;
+    min-height:52px;
+    z-index:60;
+  }
+  .nav .brand{font-size:20px;flex:none}
+  .nav-toggle{display:inline-flex !important;order:0}
+  .navtools{margin-right:auto;margin-left:0;gap:6px;flex:none;order:2}
+  .navuser{max-width:72px;overflow:hidden;text-overflow:ellipsis}
+  /* منو: پنل کشویی ثابت — صفحه را بهم نمی‌ریزد */
+  .navlinks{
+    display:flex !important;
+    position:fixed !important;
+    top:52px; right:0; left:0;
+    width:100% !important;
+    max-height:0 !important;
+    overflow:hidden !important;
+    flex-direction:column !important;
+    flex-wrap:nowrap !important;
+    gap:2px;
+    margin:0 !important;
+    padding:0 12px !important;
+    border:none !important;
+    background:color-mix(in srgb,var(--bg) 96%,transparent);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    box-shadow:none;
+    z-index:58;
+    opacity:0;
+    pointer-events:none;
+    transition:max-height .28s ease, opacity .2s ease, padding .2s ease, box-shadow .2s ease;
+  }
+  body.nav-open .navlinks{
+    max-height:min(75vh, 560px) !important;
+    overflow:auto !important;
+    -webkit-overflow-scrolling:touch;
+    opacity:1;
+    pointer-events:auto;
+    padding:10px 12px 14px !important;
+    border-bottom:1px solid var(--border) !important;
+    box-shadow:0 18px 40px -12px rgba(0,0,0,.55);
+  }
+  .navlinks a{
+    padding:12px 14px !important;
+    font-size:15px !important;
+    border-radius:12px;
+    flex:none !important;
+  }
+  .wrap{padding:12px 12px 88px!important;zoom:1!important}
+  .lead{font-size:13.5px}
+  .datecard .dnum{font-size:56px!important}
+  .datecard .dmon{font-size:18px!important}
+  .datecard .dwk{font-size:16px!important}
+  .datecard .drow{flex-wrap:wrap;gap:12px!important}
+  .txrow{flex-direction:column;align-items:stretch}
+  .txamount,.txtitle,.txgo{width:100%;min-width:0}
+  .kindseg{width:100%;justify-content:stretch}
+  .kindseg button{flex:1}
+  .chiprow{gap:6px;flex-wrap:wrap}
+  .txchip{font-size:12.5px;padding:5px 10px}
+  .wstats{grid-template-columns:repeat(2,1fr)!important}
+  .wdays{grid-template-columns:repeat(3,1fr)!important}
+  .rygrid,.plgrid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))!important}
+  .trio,.duo,.duo2,.hero-duo,.page3,.cal-shell{grid-template-columns:1fr!important}
+  .grid.cal,.cal-card .grid{gap:4px}
+  .cell{min-height:64px!important;padding:6px!important}
+  .cell .dn{font-size:14px!important}
+  .cell .ev{-webkit-line-clamp:2}
+  .side-num{font-size:48px!important}
+  .note-card textarea{min-height:100px}
+  .ytdrawer{width:100%!important;max-width:100%}
+  .concard{flex-wrap:wrap}
+  .tabsrow{gap:6px}
+  .tabchip{font-size:12.5px;padding:6px 12px}
+  .mcard,.tcard,.rcard,.wcard,.datecard,.epcard,.cal-card,.side-card,.note-card,.tr-combo .tr-panel{border-radius:18px}
+  .hero{grid-template-columns:repeat(2,1fr)!important}
+  .pkstats{grid-template-columns:repeat(2,1fr)!important}
+  /* ردیف‌های خانه تک‌ستونه */
+  .home-row.r1,.home-row.r2,.home-row.r3,.home-row.r4{
+    grid-template-columns:1fr !important;
+    display:grid !important;
+    height:auto !important;
+    align-items:start !important;
+  }
+  .home-row.r1 > .datecard,
+  .home-row.r1 > .minical,
+  .home-row.r1 > .r1-quick,
+  .home-row.r2 > .wcard,
+  .home-row.r2 > .mcard,
+  .home-row.r2 > #gamesCard,
+  .home-row.r2 > .tr-combo{
+    width:100% !important;
+    max-width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    grid-column:auto !important;
+  }
+  /* لیست بازی‌ها روی موبایل: کامل + اسکرول داخلی بلند */
+  #gamesCard{
+    height:auto !important;
+    min-height:0 !important;
+    display:flex !important;
+    flex-direction:column;
+  }
+  #gamesCard .gwrap,
+  #gamesCard #gamesList{
+    flex:none !important;
+    max-height:min(70vh, 640px) !important;
+    min-height:280px !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:8px;
+  }
+  .grow{padding:8px 4px}
+  .grow .gline{gap:6px;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+  .grow .gn{font-size:12px;max-width:100%}
+  .grow .glogo,.grow .gph{width:18px;height:18px}
+  .grow .gcenter{font-size:13px;min-width:3.2em}
+  .grow .gcenter.score{padding:2px 6px}
+  .glg{margin-top:8px}
+  .tr-combo .tr-panel{height:auto !important;max-height:none}
+  .tr-combo #taskList,.tr-combo #remList{max-height:240px;overflow:auto}
+  .r1-quick{height:auto !important}
+  .minical{width:100%!important;max-width:100%!important;height:auto!important}
+}
+@media(max-width:480px){
+  .navtools .navuser{display:none}
+  .wstats{grid-template-columns:1fr 1fr!important}
+  .hero{grid-template-columns:1fr!important}
+  body{font-size:16px}
+  .grow .gn{font-size:11.5px}
+  #gamesCard .gwrap, #gamesCard #gamesList{max-height:min(68vh, 580px)!important}
+}
+
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
@@ -145,7 +294,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 <div class="wrap">
   
 
-  <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="">🎵 موسیقی</a><a href="/design/youtube-page.html" class="">▶️ یوتیوب</a><a href="/design/settings-page.html" class="on">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
+  <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html" class="on">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
   <p class="lead">تلگرام، حساب کاربری و سرویس‌های وصل‌شونده</p>
 
@@ -156,16 +305,24 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
       <div class="tgava">🤖</div>
       <div class="tgmain">
         <b>بات شخصی تو</b>
-        <small>هرچه بنویسی ثبت می‌کند؛ گزارش‌ها را هم سر وقت می‌فرستد</small>
-        <div class="inrow">
-          <input id="tgId" placeholder="شناسه عددی تلگرام — 123456789">
-          <button class="btn" id="tgSave">ذخیره</button>
+        <small>اتصال امن با کد یک‌بارمصرف — بدون وارد کردن شناسه عددی</small>
+        <div class="inrow" style="flex-wrap:wrap;gap:8px">
+          <button class="btn" id="tgCodeBtn" type="button">🔑 ساخت کد اتصال</button>
+          <button class="btn ghost" id="tgUnlink" type="button">قطع اتصال</button>
+        </div>
+        <div id="tgCodeBox" style="display:none;margin-top:10px;padding:12px;border-radius:14px;background:var(--panel2);border:1px dashed var(--border2)">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:6px">این کد را در بات بفرست (۱۵ دقیقه اعتبار):</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <code id="tgCodeVal" style="font-size:22px;letter-spacing:.12em;font-weight:800;color:var(--acc)">————</code>
+            <button class="btn ghost" id="tgCopy" type="button">کپی</button>
+          </div>
+          <div id="tgCodeHint" style="margin-top:8px;font-size:13px;color:var(--faint)"></div>
         </div>
       </div>
     </div>
-    <div class="step"><span class="n">۱</span><span>به <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a> پیام بده تا شناسه‌ی عددیت را بگوید</span></div>
-    <div class="step"><span class="n">۲</span><span>همین‌جا ثبتش کن — از این پس فقط تلگرامِ خودت به حسابت وصل است</span></div>
-    <div class="step"><span class="n">۳</span><span>در <a href="https://t.me/BotFather" target="_blank">@BotFather</a> بات بساز و توکنش را در <b>.env</b> بگذار (<b>TELEGRAM_BOT_TOKEN</b>)</span></div>
+    <div class="step"><span class="n">۱</span><span>دکمه <b>ساخت کد اتصال</b> را بزن</span></div>
+    <div class="step"><span class="n">۲</span><span>در تلگرام بات را باز کن و بفرست: <code>/start کد</code> یا فقط خودِ کد</span></div>
+    <div class="step"><span class="n">۳</span><span>پیام «وصل شد ✓» می‌آید — دیگر کسی با دانستن ID نمی‌تواند به حسابت بچسبد</span></div>
   </div>
 
   <!-- گزارش‌های خودکار -->
@@ -196,8 +353,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
     <div class="flow">
       <div class="fcol out">
         <h5>📤 می‌فرستد (بات → تو)</h5>
-        <div class="msg me"><b>🌅 ۸:۰۰</b> — صبح بخیر حمیدرضا! · ۲ اشتراک سررسید نزدیک · امروز ساعت ۲۱:۰۰ بازی استقلال - پرسپولیس داری</div>
-        <div class="msg me"><b>🌙 ۲۱:۰۰</b> — گزارش شب: ۳ از ۵ تسک انجام شد · هزینه امروز ۴۸۵ هزار تومان · حال ۸/۱۰</div>
+        <div class="msg me"><b>🌅 ۹:۰۰ تهران</b> — تاریخ · هوا و AQI · برنامه امروز (کار+یادآوری) · بازی‌ها · سررسید ۳روز</div>
+        <div class="msg me"><b>🌙 ۲۳:۰۰ تهران</b> — کار انجام/مانده · هزینه+سرفصل · حال/خواب · پیش‌نمایش فردا</div>
         <div class="msg me"><b>🔔 هشدار</b> — BTC زیر ۸۰٬۰۰۰$ بسته شد؛ ناحیه‌ی خرید تو</div>
         <div style="text-align:center;margin-top:4px">
           <span class="kbd">📊 امروز</span><span class="kbd">✅ کارها</span><span class="kbd">💰 موجودی</span><span class="kbd">📈 پرتفوی</span><span class="kbd">📅 گزارش ماه</span><span class="kbd">🔔 یادآوری‌ها</span>
@@ -207,11 +364,14 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
       <div class="fcol in">
         <h5>📥 می‌گیرد (تو → بات)</h5>
         <div class="msg"><b>متن آزاد</b> → خودش می‌فهمد و ثبت می‌کند:</div>
-        <div class="msg">«۵۰ هزار تومان ناهار خوردم» → 💸 ثبت هزینه</div>
+        <div class="msg">«خرید عینک ۲/۵ م» → 💸 ۲٬۵۰۰٬۰۰۰ تومان · پوشاک</div>
+        <div class="msg">«۵۰ هزار ناهار» → 💸 هزینه خوراک</div>
+        <div class="msg">«سه‌شنبه هفته بعد قرار دکتر ساعت ۳» → 🔔 یادآوری</div>
+        <div class="msg">«فردا یادم باشه بیمه» → 🔔 یادآوری</div>
         <div class="msg">«۲ ساعت برنامه‌نویسی» → ⏱ ثبت کار</div>
-        <div class="msg">«حالم ۸ بود، ۷ ساعت خوابیدم» → 📝 روزنگار</div>
+        <div class="msg">«حالم ۸، ۷ ساعت خوابیدم» → 📝 روزنگار</div>
         <div class="msg">«شوگان رو تا فصل ۱ قسمت ۶ دیدم» → 🎬 سریال</div>
-        <div class="msg">جواب همیشه: «ثبت شد: هزینه ۵۰٬۰۰۰ تومان ✓» + دکمه‌ها</div>
+        <div class="msg">جواب: «ثبت شد: …» + کیبورد فرمان‌ها</div>
       </div>
     </div>
     <div style="margin-top:12px">
@@ -221,6 +381,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
       <div class="cmd"><code>/گزارش_ماه</code><span>درآمد و هزینه‌ی ماه جاری</span></div>
       <div class="cmd"><code>/کارها</code><span>لیست کارهای امروز با ✅</span></div>
       <div class="cmd"><code>/یادآوری‌ها</code><span>سررسیدهای ۷ روز آینده</span></div>
+      <div class="cmd"><code>/انجام ۱</code><span>تیک زدن کار امروز با شماره</span></div>
+      <div class="cmd"><code>/start</code><span>راهنما + کیبورد فرمان‌ها</span></div>
     </div>
   </div>
 
@@ -230,6 +392,21 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
     <div class="other">
       <div class="oitem"><span class="oi">🎵</span><div><b>Spotify</b><small id="spSt">وصل نیست — پخش‌های اخیر</small></div></div>
       <div class="oitem"><span class="oi">▶️</span><div><b>YouTube</b><small id="ytSt">وصل نیست — پلی‌لیست‌ها</small></div></div>
+    </div>
+  </div>
+
+
+  <!-- قفل PIN -->
+  <div class="card">
+    <div class="mhead"><h4>🔐 قفل صفحه (PIN)</h4><span class="status" id="pinSt">خاموش</span></div>
+    <p style="color:var(--muted);font-size:13.5px;line-height:1.7;margin:0 0 12px">بعد از ورود، برای دیدن داشبورد PIN می‌خواهد — مناسب موبایل مشترک یا وقتی صفحه باز می‌ماند.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+      <div class="field"><label>PIN جدید (۴–۸ رقم)</label><input id="pinNew" type="password" inputmode="numeric" maxlength="8" placeholder="••••" style="width:100%"></div>
+      <div class="field"><label>PIN فعلی (اگر داری)</label><input id="pinCur" type="password" inputmode="numeric" maxlength="8" placeholder="اختیاری" style="width:100%"></div>
+      <button class="btn" id="pinSave" type="button">ذخیره PIN</button>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn ghost" id="pinClear" type="button">خاموش کردن قفل</button>
     </div>
   </div>
 
@@ -244,7 +421,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
   </div>
 
   <div class="specline">
-    🔌 ذخیره‌ی شناسه و تنظیمات: <b>PATCH /api/me</b> (شناسه، ساعت صبح/شب، روشن/خاموش) · وضعیت اتصال‌ها: <b>GET /api/integrations</b> · خروج: <b>POST /api/auth/logout</b> — همه در بک‌اند تو آماده است؛ ساعت گزارش‌ها از این پس به‌جای ثابت (۸/۲۱)، از تنظیمات خودت خوانده می‌شود.
+    🔌 ذخیره‌ی شناسه و تنظیمات: <b>PATCH /api/me</b> (شناسه، ساعت صبح/شب، روشن/خاموش) · وضعیت اتصال‌ها: <b>GET /api/integrations</b> · خروج: <b>POST /api/auth/logout</b> — همه در بک‌اند تو آماده است؛ پیش‌فرض: صبح ۹ و شب ۲۳ تهران (قابل تغییر با PATCH /api/me → tgMorningHour / tgEveningHour). دستی: /گزارش_صبح و /گزارش_شب.
   </div>
 </div>
 
@@ -256,7 +433,7 @@ function fa(n){return String(n).replace(/\d/g,function(d){return faD[d]})}
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200)}
 
 /* ساعت‌ها */
-var HOURS={m:8,e:21};
+var HOURS={m:9,e:23};
 function fmtH(h){return fa(h<10?'0'+h:h)+':۰۰'}
 function renderH(){document.getElementById('hMon').textContent=fmtH(HOURS.m);document.getElementById('hEve').textContent=fmtH(HOURS.e)}
 document.querySelectorAll('.hourbox button').forEach(function(b){
@@ -275,23 +452,64 @@ function save(){
     .catch(function(){toast('ذخیره شد ✓ (نمایشی)')});
 }
 
-/* شناسه تلگرام */
-document.getElementById('tgSave').addEventListener('click',function(){
-  var v=document.getElementById('tgId').value.trim();
-  if(!v||v.replace(/[^0-9]/g,'').length<4){toast('شناسه‌ی عددی معتبر بنویس — از @userinfobot بگیر');return}
-  fetch('/api/me',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramUserId:v})})
-    .then(function(){ok()}).catch(function(){ok()});
-  function ok(){
-    document.getElementById('tgSt').textContent='متصل ✓';
-    toast('تلگرام وصل شد! برو بات را /start کن 🚀');
-  }
+/* تلگرام — کد یک‌بارمصرف */
+document.getElementById('tgCodeBtn').addEventListener('click',function(){
+  fetch('/api/telegram/link-code',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j}})})
+    .then(function(x){
+      if(!x.ok)throw new Error((x.j&&x.j.error)||'خطا');
+      document.getElementById('tgCodeBox').style.display='block';
+      document.getElementById('tgCodeVal').textContent=x.j.code;
+      document.getElementById('tgCodeHint').textContent='در بات بفرست: /start '+x.j.code+'  ·  اعتبار ۱۵ دقیقه';
+      toast('کد ساخته شد — برو بات');
+    }).catch(function(e){toast(e.message||'خطا')});
 });
+document.getElementById('tgCopy').addEventListener('click',function(){
+  var c=document.getElementById('tgCodeVal').textContent;
+  if(navigator.clipboard)navigator.clipboard.writeText('/start '+c).then(function(){toast('کپی شد')});
+  else toast(c);
+});
+document.getElementById('tgUnlink').addEventListener('click',function(){
+  if(!confirm('اتصال تلگرام قطع شود؟'))return;
+  fetch('/api/telegram/unlink',{method:'POST',credentials:'same-origin'})
+    .then(function(){document.getElementById('tgSt').textContent='وصل نیست';document.getElementById('tgSt').className='status st-warn';toast('قطع شد')})
+    .catch(function(){toast('خطا')});
+});
+
+/* PIN */
+function refreshPinSt(on){
+  var el=document.getElementById('pinSt');
+  if(!el)return;
+  el.textContent=on?'فعال ✓':'خاموش';
+  el.className='status '+(on?'st-on':'st-warn');
+}
+document.getElementById('pinSave').addEventListener('click',function(){
+  var pin=document.getElementById('pinNew').value.replace(/\D/g,'');
+  var cur=document.getElementById('pinCur').value.replace(/\D/g,'');
+  if(pin.length<4||pin.length>8){toast('PIN باید ۴ تا ۸ رقم باشد');return}
+  fetch('/api/security/pin',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,currentPin:cur||undefined})})
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j}})})
+    .then(function(x){if(!x.ok)throw new Error((x.j&&x.j.error)||'خطا');refreshPinSt(true);document.getElementById('pinNew').value='';document.getElementById('pinCur').value='';toast('PIN ذخیره شد ✓')})
+    .catch(function(e){toast(e.message||'خطا')});
+});
+document.getElementById('pinClear').addEventListener('click',function(){
+  var cur=document.getElementById('pinCur').value.replace(/\D/g,'')||prompt('PIN فعلی را وارد کن')||'';
+  cur=String(cur).replace(/\D/g,'');
+  fetch('/api/security/pin',{method:'DELETE',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:cur})})
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j}})})
+    .then(function(x){if(!x.ok)throw new Error((x.j&&x.j.error)||'خطا');refreshPinSt(false);toast('قفل خاموش شد')})
+    .catch(function(e){toast(e.message||'خطا')});
+});
+fetch('/api/me').then(function(r){return r.json()}).then(function(d){
+  if(d&&d.user)refreshPinSt(!!d.user.pinEnabled);
+}).catch(function(){});
+
 
 /* وضعیت واقعی (در اپ زنده) */
 fetch('/api/integrations').then(function(r){return r.json()}).then(function(d){
   if(d&&d.telegram){document.getElementById('tgSt').textContent=d.telegram.connected?'متصل ✓':'وصل نیست';
     document.getElementById('tgSt').className='status '+(d.telegram.connected?'st-on':'st-warn');
-    if(d.telegram.userId)document.getElementById('tgId').value=d.telegram.userId;}
+    }
   if(d&&d.spotify)document.getElementById('spSt').textContent=d.spotify.connected?'وصل است ✓':'وصل نیست — پخش‌های اخیر';
   if(d&&d.youtube)document.getElementById('ytSt').textContent=d.youtube.connected?'وصل است ✓':'وصل نیست — پلی‌لیست‌ها';
 }).catch(function(){});
@@ -355,5 +573,50 @@ document.addEventListener('click',function(e){
 });
 })();
 </script>
+
+<script>
+/* منوی موبایل — همبرگر (drawer ثابت، بدون بهم‌ریختن layout) */
+(function(){
+  var nav=document.querySelector('.nav'); if(!nav)return;
+  if(nav.querySelector('.nav-toggle'))return;
+  var btn=document.createElement('button');
+  btn.type='button'; btn.className='nav-toggle'; btn.setAttribute('aria-label','منو');
+  btn.setAttribute('aria-expanded','false');
+  btn.innerHTML='☰';
+  var brand=nav.querySelector('.brand');
+  if(brand&&brand.nextSibling) nav.insertBefore(btn, brand.nextSibling);
+  else if(brand) brand.insertAdjacentElement('afterend', btn);
+  else nav.insertBefore(btn, nav.firstChild);
+  var bd=document.querySelector('.nav-backdrop');
+  if(!bd){ bd=document.createElement('div'); bd.className='nav-backdrop'; document.body.appendChild(bd); }
+  var links=nav.querySelector('.navlinks');
+  function close(){
+    document.body.classList.remove('nav-open');
+    btn.innerHTML='☰';
+    btn.setAttribute('aria-expanded','false');
+  }
+  function open(){
+    document.body.classList.add('nav-open');
+    btn.innerHTML='✕';
+    btn.setAttribute('aria-expanded','true');
+  }
+  function toggle(e){
+    if(e){e.preventDefault();e.stopPropagation()}
+    if(document.body.classList.contains('nav-open')) close(); else open();
+  }
+  btn.addEventListener('click', toggle);
+  bd.addEventListener('click', function(e){e.preventDefault();close()});
+  if(links){
+    links.addEventListener('click', function(e){
+      var a=e.target.closest('a');
+      if(a && window.matchMedia('(max-width:900px)').matches) close();
+    });
+  }
+  window.addEventListener('resize', function(){ if(window.innerWidth>900) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
+})();
+</script>
+
+<script src="/app-lock.js" defer></script>
 </body>
 </html>

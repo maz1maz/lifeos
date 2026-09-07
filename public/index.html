@@ -40,10 +40,11 @@ html[data-mode="light"]{
 .navin{background:var(--acc);color:#062028;border-radius:11px;padding:6px 16px;
   font-family:var(--fh);font-size:13.5px;font-weight:800;text-decoration:none}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-size:17px;line-height:2;
+body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-family:var(--fb);font-size:17px;line-height:2;
   background-image:radial-gradient(1000px 560px at 85% -6%, color-mix(in srgb,var(--acc) 8%,transparent), transparent 62%);
   background-attachment:fixed}
-.wrap{max-width:1600px;margin:0 auto;padding:26px 22px 100px;zoom:.9}
+.wrap{max-width:1600px;margin:0 auto;padding:26px 22px 100px;zoom:1}
+@media(min-width:1100px){.wrap{zoom:.92}}
 .lead{color:var(--muted);font-size:15px;margin:0 0 14px}
 .tools{display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px}
 .iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--border);background:color-mix(in srgb,var(--bg) 80%,transparent);color:var(--text);font-size:17px;cursor:pointer}
@@ -101,27 +102,169 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .bc .bar{flex:1;height:7px;background:var(--panel2);border-radius:99px;overflow:hidden}
 .bc .bar i{display:block;height:100%;border-radius:99px}
 .bc .v{width:76px;flex:none;text-align:left;font-family:var(--fh);font-size:12.5px;direction:ltr;color:var(--muted)}
-@media(max-width:760px){.duo{grid-template-columns:1fr}.page3{grid-template-columns:1fr}}
-.trio{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px;align-items:start}
-/* کل بالای صفحه سه‌ستونه مثل بازار */
-.page3{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:stretch;margin-top:14px}
-.page3>.duo{display:contents}
-.page3 .epcard{margin-top:0}
+/* ===== چیدمان امروز: ردیف‌های صریح ===== */
+.home{display:flex;flex-direction:column;gap:14px;margin-top:14px}
+.home-row{display:grid;gap:14px;align-items:stretch;width:100%}
+/* r1 layout → pack CSS */
+.home-row.r2{grid-template-columns:repeat(4,minmax(0,1fr))}
+/* r3 4col — هر کارت یک ستون جدا */
+.home-row.r3{
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0, 1fr)) !important;
+  align-items:stretch !important;
+  gap:14px !important;
+  width:100% !important;
+}
+.home-row.r3 > .c3wrap,
+.home-row.r3 > .mcard,
+.home-row.r3 > .epcard{
+  min-width:0 !important;
+  width:auto !important;
+  max-width:none !important;
+  grid-column:auto !important;
+  grid-row:auto !important;
+  height:100% !important;
+  align-self:stretch !important;
+  box-sizing:border-box !important;
+  margin:0 !important;
+  margin-top:0 !important;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  background:var(--panel);
+  border:1.5px solid var(--border2);
+  border-radius:22px;
+  padding:14px 16px;
+}
+/* c3wrap قبلاً panel نداشت — مثل بقیه کارت ستون */
+.home-row.r3 > .c3wrap{
+  padding:0;
+  overflow:hidden;
+}
+.home-row.r3 > .c3wrap > .c3head{
+  padding:14px 16px 0;
+}
+.home-row.r3 > .c3wrap > .c3head h4{font-size:17px}
+.home-row.r3 > .c3wrap > .c3head small{display:block;font-size:12px;margin-top:2px}
+.home-row.r3 > .c3wrap .demo-bar{
+  display:none; /* تست‌ها فقط در dev — ستون را شلوغ نکند */
+}
+.home-row.r3 > .c3wrap .card3,
+.home-row.r3 > .c3wrap > .askcard,
+.home-row.r3 > .c3wrap > div:not(.demo-bar):not(.collapsed):not(.weekline){
+  border:none;
+  background:transparent;
+  box-shadow:none;
+  margin:0;
+  flex:1;
+  min-height:0;
+}
+.home-row.r3 > .mcard > .mhead h4,
+.home-row.r3 > .epcard > .mhead h4{font-size:17px}
+.home-row.r3 > .epcard .epdone{font-size:13px}
+.home-row.r3 .txform .txrow{flex-wrap:wrap}
+.home-row.r3 .txform .txamount{min-width:0;flex:1 1 90px}
+.home-row.r3 .txform .txtitle{min-width:0;flex:1 1 120px}
+@media(max-width:1279px) and (min-width:901px){
+  .home-row.r3{
+    grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media(max-width:900px){
+  .home-row.r3{
+    grid-template-columns:1fr !important;
+  }
+  .home-row.r3 > .c3wrap,
+  .home-row.r3 > .mcard,
+  .home-row.r3 > .epcard{
+    height:auto !important;
+  }
+}
+.home-row.r4{grid-template-columns:repeat(3,minmax(0,1fr))}
 
-/* ===== سوییچ ۳/۴ ستونه ===== */
-@media(max-width:1279px){.page3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* ردیف ۱: کارت تاریخ (راست) + مینی‌تقویم با دما (چپ) */
+/* r1 layout → pack CSS */
+.minical{
+  /* هم‌اندازهٔ تقویم انتخاب روز کارها (calpop = 250px) */
+  width:100%;max-width:260px;box-sizing:border-box;
+  background:var(--bg);border:1px solid var(--border2);border-radius:15px;
+  padding:12px 14px;display:flex;flex-direction:column;min-width:0;height:100%;
+  cursor:pointer;position:relative;overflow:hidden;justify-content:space-between;
+  box-shadow:0 18px 44px -12px rgba(0,0,0,.65);
+  background-image:radial-gradient(280px 160px at 10% 0%, color-mix(in srgb,var(--acc) 10%,transparent), transparent 70%);
+}
+.minical:hover{border-color:color-mix(in srgb,var(--acc) 45%,var(--border2))}
+.minical .mchead{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.minical .mchead b{flex:1;text-align:center;font-family:var(--fh);font-size:14.5px;font-weight:700}
+.minical .mchead button{
+  background:var(--panel2);border:none;color:var(--text);
+  border-radius:9px;width:26px;height:26px;cursor:pointer;font-family:var(--fh);font-size:14px
+}
+.minical .mchead button:hover{border-color:var(--acc);color:var(--acc)}
+.minical .mcwd{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;direction:rtl}
+.minical .mcwd span{text-align:center;font-size:11px;color:var(--faint);font-family:var(--fh);padding:2px 0}
+.minical .mcgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;direction:rtl;flex:none}
+.minical .mc{
+  aspect-ratio:1;max-height:30px;border-radius:8px;border:1.5px solid transparent;
+  background:transparent;color:var(--text);font-family:var(--fh);font-size:12.5px;
+  cursor:pointer;display:grid;place-items:center;padding:0
+}
+.minical .mc:hover{background:var(--panel2)}
+.minical .mc.empty{cursor:default;pointer-events:none}
+.minical .mc.today{
+  border-color:#f472b6;color:#f9a8d4;font-weight:800;
+  background:color-mix(in srgb,#f472b6 12%,transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb,#f472b6 30%,transparent)
+}
+.minical .mc.sel{
+  background:linear-gradient(135deg,#c084fc,#a78bfa);color:#1a0b2e;font-weight:800;border-color:transparent
+}
+.minical .mc.fri{color:var(--bad)}
+.minical .mc.hol{color:var(--bad);font-weight:700}
+.minical .mcfoot{
+  margin-top:8px;padding-top:8px;border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap
+}
+.minical .mcfoot .tic{font-size:22px;line-height:1}
+.minical .mcfoot .ttemp{font-family:var(--fh);font-size:22px;font-weight:800;color:var(--acc);line-height:1}
+.minical .mcfoot .ttemp small{font-size:12px;font-weight:600;color:var(--muted);margin-right:2px}
+.minical .mcfoot .mcplace{font-family:var(--fh);font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+.home-row.r1 .datecard{height:100%}
+.home-row.r1 .minical{height:100%;align-self:stretch;max-width:260px;width:100%}
 
-.page3 .datecard{grid-column:1/-1}
+@media(max-width:1279px){
+  .home-row.r2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .home-row.r4{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .duo{grid-template-columns:1fr}
+  .home-row.r2,.home-row.r2r3,.home-row.r3,.home-row.r4{grid-template-columns:1fr}
+}
+.home .epcard{margin-top:0}
 .dgreet{font-size:15px;color:var(--muted);margin:0 0 4px}
 .fullw{grid-column:1/-1}
 .span2{grid-column:span 2}
-@media(max-width:760px){.span2,.c3wrap{grid-column:auto}}
+.c3wrap{min-width:0}
+.home .datecard,.home .wcard,.home .tcard,.home .rcard,.home .mcard,.home .epcard,.home .c3wrap{min-width:0}
+.home-row.r1 .datecard,.home-row.r4>.mcard,.home-row.r4>.epcard{height:100%}
+.home-row.r3>.mcard,.home-row.r3>.c3wrap,.home-row.r3>.epcard{min-width:0}
+.home .txform .chiprow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px}
+.home .txform #catChips,.home .txform #accChips{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:0}
+.chipset{display:inline-flex!important;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:120px}
+.catrow{margin-top:2px}
+.txchip{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;line-height:1.4;background:var(--panel2)!important}
+.home-row.r3 .mcard{overflow:auto}
+.txform{overflow:visible}
+
+/* سازگاری قدیمی */
+.page3,.trio{display:contents}
+.page3>.duo{display:contents}
 .daynav{display:flex;gap:6px;align-items:center;flex:none;flex-wrap:wrap}
 .dnbtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer;font-family:var(--fh)}
 .dnbtn:hover{border-color:var(--acc);color:var(--acc)}
 .dntoday{background:none;border:1px dashed var(--acc);color:var(--acc);border-radius:10px;height:32px;padding:0 12px;font-size:13px;cursor:pointer;font-family:inherit}
 .dntoday:hover{background:color-mix(in srgb,var(--acc) 10%,transparent)}
-.datecard .drow{flex:1;align-items:center;gap:28px}
+.datecard .drow{flex:0 1 auto;align-items:center;gap:18px}
 .navcard{cursor:pointer}
 .navcard:hover{border-color:rgba(34,211,238,.45)}
 .glg{font-size:12.5px;color:var(--faint);margin:10px 0 2px}
@@ -131,7 +274,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .grow .gsc{font-family:var(--fh);font-weight:700;color:var(--muted);direction:ltr;white-space:nowrap}
 .grow .gtime{font-size:13px;color:var(--faint);white-space:nowrap}
 .glive{color:#f87171;font-size:12px;white-space:nowrap}
-.gwrap{max-height:290px;overflow:auto}
+.gsc.live{color:#f87171;font-weight:800}
+.grow.is-live{background:color-mix(in srgb,#f87171 6%,transparent);border-radius:10px;padding:4px 6px;margin:2px 0}
+/* gwrap height → #gamesCard */
 /* ===== زوم 🔍 ===== */
 .navzoom{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:11px;
   padding:5px 10px;font-size:15px;cursor:pointer}
@@ -144,13 +289,42 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .palrst{grid-column:1/-1;text-align:center;font-size:12.5px;color:var(--acc);cursor:pointer;padding-top:6px;border-top:1px dashed var(--border);margin-top:2px}
 body.zoom1{zoom:1.1111}
 
-.c3wrap{grid-column:span 2}
-@media(max-width:760px){.page3{grid-template-columns:1fr}.c3wrap{grid-column:auto}}
-@media(max-width:760px){.trio{grid-template-columns:1fr}}
 .trio .epcard{margin-top:0}
 
 /* ================= CARD 3 ================= */
 .card3{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;overflow:hidden;margin-bottom:14px}
+/* داخل ستون r3: بدون قاب دوبل */
+.home-row.r3 .card3{
+  background:transparent !important;
+  border:none !important;
+  border-radius:0 !important;
+  margin:0 !important;
+  overflow:visible !important;
+  display:flex;
+  flex-direction:column;
+  flex:1;
+  min-height:0;
+}
+.home-row.r3 .card3 .abody{
+  padding:12px 16px 16px;
+  flex:1;
+  overflow:auto;
+  min-height:0;
+}
+.home-row.r3 .c3head{padding:14px 16px 8px !important}
+.home-row.r3 .collapsed{
+  margin:10px 12px 0 !important;
+  border-radius:14px !important;
+}
+.home-row.r3 .weekline,
+.home-row.r3 .yearago{
+  margin-left:12px;
+  margin-right:12px;
+}
+.home-row.r3 .txlist{max-height:none;overflow:visible}
+.home-row.r3 #epList{max-height:220px;overflow:auto;flex:1;min-height:0}
+.home-row.r3 .budwrap{flex:1;min-height:0;overflow:auto}
+
 /* ===== کارت تاریخ (هیرو) ===== */
 .datecard{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:20px 24px;
   display:flex;flex-direction:column;
@@ -260,6 +434,7 @@ body.zoom1{zoom:1.1111}
 /* ================= TASKS + REMINDERS ================= */
 .tcard,.rcard{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:18px 20px}
 .epcard{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:16px 20px;margin-top:14px}
+.home-row.r3 > .epcard{margin-top:0 !important}
 .eprow{display:flex;align-items:center;gap:12px;padding:8px 2px;border-bottom:1px solid var(--border);transition:opacity .3s,transform .3s}
 .eprow:last-child{border-bottom:none}
 .eprow.gone{opacity:0;transform:translateX(30px)}
@@ -313,6 +488,18 @@ body.zoom1{zoom:1.1111}
 .rem .rt b{color:var(--text);font-family:var(--fh);font-weight:700}
 .rem .rv{font-size:14px;color:var(--faint);white-space:nowrap}
 .rem.done .rt,.rem.done .rv{opacity:.5}
+
+/* یادآوری‌ها — افزودن */
+.remadd{margin-top:10px}
+#remList{min-height:8px}
+.rem{position:relative}
+.rem .rdel{background:none;border:none;color:var(--faint);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:8px;opacity:0;transition:.12s}
+.rem:hover .rdel{opacity:1}
+.rem .rdel:hover{color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.rem.done .rt b{text-decoration:line-through}
+.rem{cursor:pointer}
+.remfoot{margin-top:10px;font-size:12.5px;color:var(--faint);text-align:center}
+
 .remfoot{margin-top:10px;font-size:13.5px;color:var(--faint)}
 
 /* ================= MARKET CARD ================= */
@@ -379,17 +566,544 @@ body.zoom1{zoom:1.1111}
 
 
 .specline{color:var(--faint);font-size:14.5px;margin-top:22px;border-top:1px dashed var(--border);padding-top:14px}
+
+
+/* ===== موبایل / تبلت — مشترک ===== */
+.nav-toggle{display:none;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:11px;width:40px;height:40px;font-size:18px;cursor:pointer;flex:none;align-items:center;justify-content:center;padding:0;line-height:1;z-index:60;position:relative}
+.nav-toggle:hover{border-color:var(--acc);color:var(--acc)}
+.nav-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+body.nav-open{overflow:hidden !important;touch-action:none}
+body.nav-open .nav-backdrop{display:block}
+@media(max-width:900px){
+  body{padding-top:58px}
+  .nav{
+    flex-wrap:nowrap !important;
+    gap:8px;
+    padding:8px 12px;
+    align-items:center;
+    min-height:52px;
+    z-index:60;
+  }
+  .nav .brand{font-size:20px;flex:none}
+  .nav-toggle{display:inline-flex !important;order:0}
+  .navtools{margin-right:auto;margin-left:0;gap:6px;flex:none;order:2}
+  .navuser{max-width:72px;overflow:hidden;text-overflow:ellipsis}
+  /* منو: پنل کشویی ثابت — صفحه را بهم نمی‌ریزد */
+  .navlinks{
+    display:flex !important;
+    position:fixed !important;
+    top:52px; right:0; left:0;
+    width:100% !important;
+    max-height:0 !important;
+    overflow:hidden !important;
+    flex-direction:column !important;
+    flex-wrap:nowrap !important;
+    gap:2px;
+    margin:0 !important;
+    padding:0 12px !important;
+    border:none !important;
+    background:color-mix(in srgb,var(--bg) 96%,transparent);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    box-shadow:none;
+    z-index:58;
+    opacity:0;
+    pointer-events:none;
+    transition:max-height .28s ease, opacity .2s ease, padding .2s ease, box-shadow .2s ease;
+  }
+  body.nav-open .navlinks{
+    max-height:min(75vh, 560px) !important;
+    overflow:auto !important;
+    -webkit-overflow-scrolling:touch;
+    opacity:1;
+    pointer-events:auto;
+    padding:10px 12px 14px !important;
+    border-bottom:1px solid var(--border) !important;
+    box-shadow:0 18px 40px -12px rgba(0,0,0,.55);
+  }
+  .navlinks a{
+    padding:12px 14px !important;
+    font-size:15px !important;
+    border-radius:12px;
+    flex:none !important;
+  }
+  .wrap{padding:12px 12px 88px!important;zoom:1!important}
+  .lead{font-size:13.5px}
+  .datecard .dnum{font-size:56px!important}
+  .datecard .dmon{font-size:18px!important}
+  .datecard .dwk{font-size:16px!important}
+  .datecard .drow{flex-wrap:wrap;gap:12px!important}
+  .txrow{flex-direction:column;align-items:stretch}
+  .txamount,.txtitle,.txgo{width:100%;min-width:0}
+  .kindseg{width:100%;justify-content:stretch}
+  .kindseg button{flex:1}
+  .chiprow{gap:6px;flex-wrap:wrap}
+  .txchip{font-size:12.5px;padding:5px 10px}
+  .wstats{grid-template-columns:repeat(2,1fr)!important}
+  .wdays{grid-template-columns:repeat(3,1fr)!important}
+  .rygrid,.plgrid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))!important}
+  .trio,.duo,.duo2,.hero-duo,.page3,.cal-shell{grid-template-columns:1fr!important}
+  .grid.cal,.cal-card .grid{gap:4px}
+  .cell{min-height:64px!important;padding:6px!important}
+  .cell .dn{font-size:14px!important}
+  .cell .ev{-webkit-line-clamp:2}
+  .side-num{font-size:48px!important}
+  .note-card textarea{min-height:100px}
+  .ytdrawer{width:100%!important;max-width:100%}
+  .concard{flex-wrap:wrap}
+  .tabsrow{gap:6px}
+  .tabchip{font-size:12.5px;padding:6px 12px}
+  .mcard,.tcard,.rcard,.wcard,.datecard,.epcard,.cal-card,.side-card,.note-card,.tr-combo .tr-panel{border-radius:18px}
+  .hero{grid-template-columns:repeat(2,1fr)!important}
+  .pkstats{grid-template-columns:repeat(2,1fr)!important}
+  /* ردیف‌های خانه تک‌ستونه */
+  .home-row.r1,.home-row.r2,.home-row.r2r3,.home-row.r3,.home-row.r4{
+    grid-template-columns:1fr !important;
+    display:grid !important;
+    height:auto !important;
+    align-items:start !important;
+  }
+  .home-row.r1 > .datecard,
+  .home-row.r1 > .minical,
+  .home-row.r1 > .r1-quick,
+  .home-row.r2 > .wcard,
+  .home-row.r2 > .mcard,
+  .home-row.r2 > #gamesCard,
+  .home-row.r2 > .tr-combo{
+    width:100% !important;
+    max-width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    grid-column:auto !important;
+  }
+  /* لیست بازی‌ها روی موبایل: کامل + اسکرول داخلی بلند */
+  #gamesCard{
+    height:auto !important;
+    min-height:0 !important;
+    display:flex !important;
+    flex-direction:column;
+  }
+  #gamesCard .gwrap,
+  #gamesCard #gamesList{
+    flex:none !important;
+    max-height:min(70vh, 640px) !important;
+    min-height:280px !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:8px;
+  }
+  .grow{padding:8px 4px}
+  .grow .gline{gap:6px;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+  .grow .gn{font-size:12px;max-width:100%}
+  .grow .glogo,.grow .gph{width:18px;height:18px}
+  .grow .gcenter{font-size:13px;min-width:3.2em}
+  .grow .gcenter.score{padding:2px 6px}
+  .glg{margin-top:8px}
+  .tr-combo .tr-panel{height:auto !important;max-height:none}
+  .tr-combo #taskList,.tr-combo #remList{max-height:240px;overflow:auto}
+  .r1-quick{height:auto !important}
+  .minical{width:100%!important;max-width:100%!important;height:auto!important}
+}
+@media(max-width:480px){
+  .navtools .navuser{display:none}
+  .wstats{grid-template-columns:1fr 1fr!important}
+  .hero{grid-template-columns:1fr!important}
+  body{font-size:16px}
+  .grow .gn{font-size:11.5px}
+  #gamesCard .gwrap, #gamesCard #gamesList{max-height:min(68vh, 580px)!important}
+}
+
+/* ردیف ۱ — ۴ ستون: تاریخ | مینی‌تقویم | کار+یادآوری (۲ ستون) */
+.home-row.r1{
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0,1fr)) !important;
+  align-items:stretch;
+  gap:14px;
+  width:100%;
+}
+.home-row.r1 > .datecard{
+  grid-column:span 1;
+  width:auto !important;
+  max-width:none !important;
+  min-width:0 !important;
+  flex:none !important;
+  height:100% !important;
+  box-sizing:border-box;
+}
+.home-row.r1 > .minical{
+  grid-column:span 1;
+  width:auto !important;
+  max-width:none !important;
+  flex:none !important;
+  height:100% !important;
+  box-sizing:border-box;
+}
+.home-row.r1 > .r1-quick{
+  grid-column:span 2;
+  min-width:0;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  background:var(--panel);
+  border:1.5px solid var(--border2);
+  border-radius:22px;
+  padding:14px 16px;
+  box-sizing:border-box;
+  background-image:linear-gradient(165deg,color-mix(in srgb,var(--acc) 6%,transparent),transparent 55%);
+}
+.r1-quick .qblock{display:flex;flex-direction:column;gap:8px;min-width:0}
+.r1-quick .qblock + .qblock{padding-top:10px;border-top:1px dashed var(--border)}
+.r1-quick .qhead{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-family:var(--fh);font-size:14.5px;font-weight:700;color:var(--text);
+}
+.r1-quick .qhead .qsub{font-size:12.5px;color:var(--faint);font-weight:500}
+.r1-quick .taskadd{margin-top:0}
+.r1-quick .daychips{margin-top:2px}
+.r1-quick .txform{margin-top:0;gap:8px}
+.r1-quick .txrow{gap:6px}
+.r1-quick .txamount{min-width:100px;flex:0 1 120px}
+.r1-quick .txtitle{flex:1;min-width:120px}
+.r1-quick .chiprow{gap:6px}
+.r1-quick .txchip{font-size:12px;padding:4px 9px}
+.r1-quick .chiplab{font-size:12.5px;color:var(--faint);white-space:nowrap}
+.home-row.r1 .datecard .drow{flex:0 1 auto !important;gap:14px !important}
+.home-row.r1 .datecard .dnum{font-size:clamp(48px,5.5vw,72px)}
+.home-row.r1 .minical{
+  background:var(--panel);
+  border:1.5px solid var(--border2);
+  border-radius:22px;
+  padding:12px 14px;
+  box-shadow:none;
+}
+@media(max-width:1100px){
+  .home-row.r1{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+  .home-row.r1 > .datecard,
+  .home-row.r1 > .minical,
+  .home-row.r1 > .r1-quick{grid-column:span 1}
+  .home-row.r1 > .r1-quick{grid-column:1 / -1}
+}
+@media(max-width:900px){
+  .home-row.r1{grid-template-columns:1fr !important}
+  .home-row.r1 > .datecard,
+  .home-row.r1 > .minical,
+  .home-row.r1 > .r1-quick{grid-column:auto;width:100% !important;max-width:100% !important;height:auto !important}
+}
+
+
+
+/* ===== ردیف ۲ دسکتاپ: ارتفاع فقط = هوا؛ بقیه اسکرول داخلی ===== */
+.home-row.r2{
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0,1fr)) !important;
+  align-items:start !important;
+  gap:14px;
+}
+.home-row.r2 > .wcard{
+  min-width:0;
+  height:auto !important;
+  max-height:none !important;
+  align-self:start !important;
+  box-sizing:border-box;
+}
+.home-row.r2 > #mkSum,
+.home-row.r2 > #gamesCard,
+.home-row.r2 > .tr-combo{
+  min-width:0;
+  align-self:start !important;
+  box-sizing:border-box;
+  height:var(--r2-h, 420px) !important;
+  max-height:var(--r2-h, 420px) !important;
+  overflow:hidden !important;
+}
+#gamesCard{
+  display:flex !important;
+  flex-direction:column !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+}
+#gamesCard > .mhead,
+#gamesCard > .mfoot{flex:0 0 auto !important}
+#gamesCard .gwrap,
+#gamesCard #gamesList{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  height:auto !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+#mkSum{
+  display:flex !important;
+  flex-direction:column !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+}
+#mkSum > .mhead,
+#mkSum > .mfoot{flex:0 0 auto}
+#mkSum #sumRows{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+}
+.tr-combo{
+  min-width:0 !important;
+  overflow:hidden !important;
+  display:flex !important;
+  flex-direction:column !important;
+}
+.tr-combo .tr-panel{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  height:100% !important;
+  max-height:100% !important;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:0 !important;
+  background:var(--panel) !important;
+  border:1.5px solid var(--border2) !important;
+  border-radius:22px !important;
+  padding:12px 14px 10px !important;
+  box-sizing:border-box !important;
+  overflow:hidden !important;
+}
+.tr-combo .tr-sec{
+  display:flex !important;
+  flex-direction:column !important;
+  min-height:0 !important;
+  flex:1 1 0 !important;
+  overflow:hidden !important;
+}
+.tr-combo .tr-sec + .tr-sec{
+  border-top:1px dashed var(--border);
+  margin-top:8px;
+  padding-top:8px;
+}
+.tr-combo .mhead.compact,
+.tr-combo .mhead{
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:8px !important;
+  margin:0 0 6px !important;
+  padding:0 !important;
+  flex:0 0 auto !important;
+  width:100% !important;
+}
+.tr-combo #taskList,
+.tr-combo #remList{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+}
+.tr-combo .task,
+.tr-combo .rem{
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  gap:8px !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+  padding:7px 4px !important;
+  min-height:36px !important;
+}
+.tr-combo .task .tt,
+.tr-combo .rem .rt{
+  flex:1 1 auto !important;
+  min-width:0 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+}
+.tr-combo .remfoot{flex:0 0 auto;font-size:11.5px;color:var(--faint);margin-top:4px}
+@media(max-width:1100px) and (min-width:901px){
+  .home-row.r2{grid-template-columns:repeat(2,minmax(0,1fr)) !important;align-items:start !important}
+}
+@media(max-width:900px){
+  .home-row.r2{
+    grid-template-columns:1fr !important;
+    align-items:start !important;
+    height:auto !important;
+  }
+  .home-row.r2 > .wcard,
+  .home-row.r2 > #mkSum,
+  .home-row.r2 > #gamesCard,
+  .home-row.r2 > .tr-combo{
+    height:auto !important;
+    max-height:none !important;
+    width:100% !important;
+  }
+  #gamesCard .gwrap,
+  #gamesCard #gamesList{
+    flex:none !important;
+    max-height:min(55vh, 420px) !important;
+    min-height:200px !important;
+    overflow-y:auto !important;
+  }
+  .tr-combo #taskList,
+  .tr-combo #remList{max-height:220px !important}
+}
+
+@media(max-width:900px){
+  .home-row.r2,.home-row.r2r3,.home-row.r3,.home-row.r4{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    height:auto!important;
+    align-items:start!important;
+  }
+  .home-row.r1 > *, .home-row.r2 > *{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+  }
+  .datecard .dnum{font-size:56px!important}
+  .occrow{flex-wrap:wrap}
+  .minical{width:100%!important;max-width:100%!important}
+  .minical .mc{max-height:34px;font-size:13px}
+  .minical .mcfoot .ttemp{font-size:20px}
+  .r1-quick{height:auto!important}
+  #gamesCard .mhead{flex:none}
+  #gamesCard .mfoot{flex:none}
+  #gamesCard .gwrap, #gamesCard #gamesList{
+    display:block!important;
+    max-height:min(70vh,640px)!important;
+    min-height:260px!important;
+    overflow-y:auto!important;
+    overscroll-behavior:contain;
+  }
+  .grow .gline{width:100%}
+  .tr-combo, .tr-combo .tr-panel{height:auto!important}
+}
+
+
+/* ===== قفل نهایی ردیف ۳: چهار ستون جدا (دسکتاپ) ===== */
+@media(min-width:901px){
+  .home-row.r3{
+    display:grid !important;
+    grid-template-columns:repeat(4, minmax(0, 1fr)) !important;
+    gap:14px !important;
+    align-items:stretch !important;
+  }
+  .home-row.r3 > *{
+    min-width:0 !important;
+    max-width:none !important;
+    width:auto !important;
+    grid-column: span 1 !important;
+  }
+}
+@media(min-width:901px) and (max-width:1279px){
+  .home-row.r3{
+    grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+
+/* ===== ردیف ۲+۳: چهار ستون عمودی هم‌تراز ===== */
+.home-row.r2r3{
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0, 1fr)) !important;
+  gap:14px !important;
+  align-items:start !important;
+  width:100% !important;
+}
+.home-row.r2r3 > .home-col{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  min-width:0 !important;
+  width:100%;
+}
+.home-row.r2r3 .hc-top,
+.home-row.r2r3 .hc-bot{
+  min-width:0;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  flex:0 0 auto;
+}
+.home-row.r2r3 .hc-top > *,
+.home-row.r2r3 .hc-bot > *{
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  margin:0 !important;
+  margin-top:0 !important;
+  box-sizing:border-box;
+}
+/* کارت‌های پایین ستون — ظاهر یکدست */
+.home-row.r2r3 .hc-bot > .c3wrap,
+.home-row.r2r3 .hc-bot > .mcard,
+.home-row.r2r3 .hc-bot > .epcard{
+  background:var(--panel);
+  border:1.5px solid var(--border2);
+  border-radius:22px;
+  padding:14px 16px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  flex:1 1 auto;
+  min-height:0;
+}
+.home-row.r2r3 .hc-bot > .c3wrap{padding:0}
+.home-row.r2r3 .hc-bot .card3{
+  background:transparent !important;
+  border:none !important;
+  margin:0 !important;
+  border-radius:0 !important;
+}
+.home-row.r2r3 .hc-bot .c3head{padding:14px 16px 8px !important}
+.home-row.r2r3 .hc-bot .card3 .abody{padding:12px 16px 16px}
+.home-row.r2r3 .hc-bot .demo-bar{display:none}
+.home-row.r2r3 .hc-bot .txlist{max-height:none;overflow:visible;min-height:0}
+.home-row.r2r3 .hc-bot #epList{max-height:220px;overflow:auto}
+.home-row.r2r3 .hc-bot .budwrap{overflow:auto}
+/* ارتفاع بالای ستون (r2 سابق): هوا معیار — بقیه هم‌ارتفاع در همان ستون فقط محتوا */
+.home-row.r2r3 .hc-top > .wcard{
+  height:auto !important;
+  max-height:none !important;
+}
+.home-row.r2r3 .hc-top > #mkSum,
+.home-row.r2r3 .hc-top > #gamesCard,
+.home-row.r2r3 .hc-top > .tr-combo{
+  /* همراستا با هوا در کل ردیف بالا — JS --r2-h */
+  height:var(--r2-h, 420px) !important;
+  max-height:var(--r2-h, 420px) !important;
+  overflow:hidden !important;
+}
+@media(max-width:1279px) and (min-width:901px){
+  .home-row.r2r3{grid-template-columns:repeat(2, minmax(0,1fr)) !important}
+}
+@media(max-width:900px){
+  .home-row.r2r3{grid-template-columns:1fr !important}
+  .home-row.r2r3 .hc-top > #mkSum,
+  .home-row.r2r3 .hc-top > #gamesCard,
+  .home-row.r2r3 .hc-top > .tr-combo{
+    height:auto !important;
+    max-height:none !important;
+  }
+}
+
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
 <body>
-<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="on">🏠 امروز</a><a href="/design/finance-page.html" class="">💰 پول</a><a href="/design/market-page.html" class="">📈 بازار</a><a href="/design/series-page.html" class="">🎬 سریال‌ها</a><a href="/design/movies-page.html" class="">🎞 فیلم‌ها</a><a href="/design/spotify-page.html" class="">🎵 موسیقی</a><a href="/design/youtube-page.html" class="">▶️ یوتیوب</a><a href="/design/settings-page.html" class="">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn">🌙</button><span id="navAuth"></span></div></nav>
+<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="on">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap">
 
-<div class="page3">
-  <!-- ============ هیرو: تاریخ + هوا ============ -->
-  <div class="duo hero-duo" style="grid-template-columns:1.05fr 1fr">
+<div class="home">
+
+  <!-- ردیف ۱ — یک‌ستونه: تاریخ -->
+  <div class="home-row r1">
+    <!-- راست (RTL اول): کارت تاریخ کامل -->
     <div class="datecard">
       <div class="dgreet" id="dayGreet">سلام حمیدرضا 👋</div>
       <div class="drow">
@@ -403,7 +1117,58 @@ body.zoom1{zoom:1.1111}
       </div>
       <div class="occrow"><div class="daynav"><button type="button" class="dnbtn" id="dPrev" title="روز قبل">‹</button><button type="button" class="dntoday" id="dTodayBtn">امروز</button><button type="button" class="dnbtn" id="dNext" title="روز بعد">›</button></div><div class="occs" id="occs"></div></div>
     </div>
-    <div class="wcard">
+    <!-- چپ: مینی‌تقویم ماه + دما پایین کارت -->
+    <div class="minical" id="miniCal" title="کلیک → تقویم کامل">
+      <div class="mchead">
+        <button type="button" id="mcPrev" title="ماه قبل">‹</button>
+        <b id="mcTitle">—</b>
+        <button type="button" id="mcNext" title="ماه بعد">›</button>
+      </div>
+      <div class="mcwd"><span>ش</span><span>ی</span><span>د</span><span>س</span><span>چ</span><span>پ</span><span>ج</span></div>
+      <div class="mcgrid" id="mcGrid"></div>
+            <div class="mcfoot">
+        <span class="ttemp"><span id="mcTemp">—</span><small>°</small></span>
+        <span class="tic" id="mcIcon">☀️</span>
+        <span class="mcplace" id="mcPlace">امروز تهران</span>
+      </div>
+    </div>
+    <!-- ۲ ستون چپ: افزودن کار · یادآوری · تراکنش -->
+    <div class="r1-quick" id="r1Quick">
+      <div class="qblock" id="qTasks">
+        <div class="qhead"><span id="qTaskH">✅ افزودن کارهای آینده</span><span class="qsub" id="qTaskSub"></span></div>
+        <div class="taskadd">
+          <input type="text" id="taskIn" placeholder="کار جدید... بنویس و Enter بزن" autocomplete="off">
+          <button type="button" id="taskAdd">افزودن</button>
+        </div>
+        <div class="daychips" id="dayChips">
+          <span style="font-size:14px;color:var(--faint)">برای:</span>
+          <span class="dchip on" data-d="0">امروز</span>
+          <span class="dchip" data-d="1">فردا</span>
+          <span class="dchip" id="dMore">📅 روز دیگر</span>
+        </div>
+        <div class="futureline" id="futureLine"></div>
+      </div>
+      <div class="qblock" id="qRems">
+        <div class="qhead"><span>🔔 یادآوری‌ها</span><span class="qsub" id="qRemSub"></span></div>
+        <div class="taskadd remadd">
+          <input type="text" id="remIn" placeholder="یادآوری جدید... بنویس و Enter بزن" autocomplete="off">
+          <button type="button" id="remAdd">افزودن</button>
+        </div>
+        <div class="daychips" id="remChips">
+          <span style="font-size:14px;color:var(--faint)">برای:</span>
+          <span class="dchip on" data-r="0">امروز</span>
+          <span class="dchip" data-r="1">فردا</span>
+          <span class="dchip" id="remMore">📅 روز دیگر</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ردیف ۲+۳: چهار ستون هم‌تراز — هوا|ثبت · بازار|تراکنش · بازی|بودجه · کار+یادآوری|سریال -->
+<div class="home-row r2r3">
+<div class="home-col hc-weather-daily">
+  <div class="hc-top">
+<div class="wcard">
       <div class="wnow">
         <div class="wic" id="wIcon">—</div>
         <div class="wt"><span id="wTemp">—</span><small>°C</small></div>
@@ -432,72 +1197,8 @@ body.zoom1{zoom:1.1111}
       <div class="wdays" id="wdays"></div>
       <div class="wfoot"><span>پیش‌بینی ۵ روز · Open-Meteo</span><span id="wUpd">—</span></div>
     </div>
-
   </div>
-
-  <!-- ============ TASKS + REMINDERS ============ -->
-  <div class="duo" style="grid-template-columns:1.35fr 1fr;margin-top:14px">
-    <div class="tcard">
-      <div class="mhead">
-        <h4 id="taskH">✅ کارهای امروز</h4>
-        <span class="cnt" id="taskCnt">—</span>
-      </div>
-      <div id="taskList"></div>
-      <div class="taskadd">
-        <input type="text" id="taskIn" placeholder="کار جدید... بنویس و Enter بزن">
-        <button id="taskAdd">افزودن</button>
-      </div>
-      <div class="daychips" id="dayChips">
-        <span style="font-size:14px;color:var(--faint)">برای:</span>
-        <span class="dchip on" data-d="0">امروز</span>
-        <span class="dchip" data-d="1">فردا</span>
-        <span class="dchip" id="dMore">📅 روز دیگر</span>
-      </div>
-      <div class="futureline" id="futureLine"></div>
-    </div>
-
-    <div class="rcard">
-      <div class="mhead"><h4>🔔 یادآوری‌ها</h4></div>
-      <div class="rem"><span class="rd" style="background:var(--bad)"></span><span class="rt"><b>۲ کار عقب‌افتاده</b> — تماس بیمه، فایل مشتری</span><span class="rv">برو ببین</span></div>
-      <div class="rem"><span class="rd" style="background:var(--warn)"></span><span class="rt"><b>سررسید بیمه</b></span><span class="rv">۳ روز</span></div>
-      <div class="rem"><span class="rd" style="background:var(--acc)"></span><span class="rt"><b>🎂 تولد مامان</b></span><span class="rv">۷ روز · هدیه!</span></div>
-      <div class="rem"><span class="rd" style="background:var(--warn)"></span><span class="rt"><b>تمدید نتفلیکس</b></span><span class="rv">فردا</span></div>
-      <div class="rem"><span class="rd" style="background:color-mix(in srgb,var(--faint) 60%,transparent)"></span><span class="rt"><b>🪪 کارت بانکی</b></span><span class="rv">۲ ماه</span></div>
-      <div class="rem done"><span class="rd" style="background:var(--good)"></span><span class="rt"><b>قسط وام</b></span><span class="rv">✓ پرداخت شد</span></div>
-      <div class="remfoot">خودکار از: کارها · بدهی‌ها · اسناد · تولدها · اشتراک‌ها</div>
-    </div>
-  </div>
-
-    <!-- خلاصه بازارها — کلیک = صفحه‌ی کامل بازار -->
-  <div class="mcard navcard" id="mkSum">
-    <div class="mhead"><h4>📈 بازارها</h4><span style="font-size:13px;color:var(--acc)">کامل ←</span></div>
-    <div id="sumRows"><div class="mrow"><div class="nm"><b>…</b><small>در حال دریافت</small></div><div class="chg na">—</div><div class="pr">—</div></div></div>
-    <div class="mfoot"><span id="sumTime">—</span><span class="src">کلیک → صفحه‌ی بازار</span></div>
-  </div>
-
-  <!-- ============ ثبت تراکنش ============ -->
-  <div class="mcard span2">
-    <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
-    <div class="txform">
-        <div class="txrow">
-          <div class="kindseg">
-            <button class="on" data-kind="expense">خرج</button>
-            <button data-kind="income">دریافت</button>
-          </div>
-          <input class="txamount" id="txAmt" type="text" inputmode="numeric" placeholder="مبلغ ﷼">
-          <input class="txtitle" id="txTitle" type="text" placeholder="شرح — مثلاً: اسنپ به محل کار">
-          <button class="txgo" id="txGo">ثبت</button>
-        </div>
-        <div class="chiprow"><span class="chiplab">از حساب:</span><span id="accChips"></span></div>
-        <div class="chiprow"><span class="chiplab">سرفصل:</span><span id="catChips"></span></div>
-        <div class="smarthint" id="smartHint"></div>
-      </div>
-                <div class="txlist" id="txList"></div>
-    <div class="txsum"><span>جمع خرج امروز</span><b id="txSum">—</b></div>
-              </div>
-
-  <!-- ============ ثبت روزانه + قسمت‌های جدید (نصف‌نصف) ============ -->
-<div class="duo" style="grid-template-columns:1fr 1fr;align-items:start">
+  <div class="hc-bot">
 <div class="c3wrap">
 <div class="demo-bar">
     <button class="demo-btn" id="demoWeight">🗓 تست: ماه جدید شد (سوال وزن)</button>
@@ -514,7 +1215,7 @@ body.zoom1{zoom:1.1111}
     <div class="wdots" id="wdots"></div>
     <span style="font-size:14px;color:var(--faint)">حال ۷ روز اخیر</span>
   </div>
-  <div class="yearago" id="yearAgo">📜 <b>پارسال این روز:</b> حالت ۸ بود، «اتاق شیشه‌ای» را تمام کردی و ۲ جلسه‌ی خوب کاری داشتی.</div>
+  <div class="yearago" id="yearAgo">📜 <b>پارسال این روز:</b> هنوز یادداشتی نیست.</div>
 
   <div class="card3" id="card3">
     <div class="c3head"><h4>📝 ثبت روزانه</h4><small>دیروز و امروزت در چند ثانیه — ذخیره در /api/daily</small></div>
@@ -574,7 +1275,7 @@ body.zoom1{zoom:1.1111}
         </div>
       </div>
 
-      <div class="streakline">🔥 زنجیره‌ی ثبت: <b>۷ روز</b> پیوسته — امروز هم نه قطعش کنیم</div>
+      <div class="streakline" id="streakLine" style="display:none">🔥 زنجیره‌ی ثبت: <b id="streakDays">۰</b> روز</div>
 
       <div class="askrow">
         <button class="ok" id="btnOk">ثبت</button>
@@ -582,46 +1283,102 @@ body.zoom1{zoom:1.1111}
     </div>
   </div>
 </div>
-
   </div>
-
-  
 </div>
-
-  
-
+<div class="home-col hc-market-tx">
+  <div class="hc-top">
+<div class="mcard navcard" id="mkSum">
+    <div class="mhead"><h4>📈 بازارها</h4><span style="font-size:13px;color:var(--acc)">کامل ←</span></div>
+    <div id="sumRows"><div class="mrow"><div class="nm"><b>…</b><small>در حال دریافت</small></div><div class="chg na">—</div><div class="pr">—</div></div></div>
+    <div class="mfoot"><span id="sumTime">—</span><span class="src">کلیک → صفحه‌ی بازار</span></div>
+  </div>
+  </div>
+  <div class="hc-bot">
+<div class="mcard">
+    <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
+    <div class="txform">
+        <div class="txrow">
+          <div class="kindseg">
+          <button type="button" class="on" data-kind="expense">خرج</button>
+          <button type="button" data-kind="income">دریافت</button>
+          </div>
+          <input class="txamount" id="txAmt" type="text" inputmode="numeric" placeholder="مبلغ تومان">
+          <input class="txtitle" id="txTitle" type="text" placeholder="شرح — مثلاً: اسنپ به محل کار">
+          <input class="txtagsin" id="txTags" type="text" placeholder="تگ (اختیاری) — سفر، کار، …" style="min-width:120px">
+          <button class="txgo" id="txGo" type="button">ثبت</button>
+        </div>
+        <div class="chiprow"><span class="chiplab">از حساب:</span><span id="accChips" class="chipset">
+          <button type="button" class="txchip on" data-acc="💳 کارت اصلی">💳 کارت اصلی</button>
+          <button type="button" class="txchip" data-acc="💵 نقدی">💵 نقدی</button>
+          <button type="button" class="txchip" data-acc="🏦 پس‌انداز">🏦 پس‌انداز</button>
+        </span></div>
+        <div class="chiprow catrow"><span class="chiplab">سرفصل:</span><span id="catChips" class="chipset"><button type="button" class="txchip" data-cat="خوراک">🍞 خوراک</button><button type="button" class="txchip" data-cat="حمل‌ونقل">🚕 حمل‌ونقل</button><button type="button" class="txchip" data-cat="قبض">🧾 قبض</button><button type="button" class="txchip" data-cat="سلامت">💊 سلامت</button><button type="button" class="txchip" data-cat="تفریح">🎬 تفریح</button><button type="button" class="txchip" data-cat="پوشاک">👕 پوشاک</button><button type="button" class="txchip" data-cat="آموزش">📚 آموزش</button><button type="button" class="txchip" data-cat="مسکن">🏠 مسکن</button><button type="button" class="txchip" data-cat="متفرقه">🔖 متفرقه</button><button type="button" class="txchip" data-cat="__custom">✏️ سرفصل خودم</button></span></div>
+        <div class="smarthint" id="smartHint"></div>
+        </div>
+    <div class="txlist" id="txList"></div>
+    <div class="txsum"><span>جمع خرج امروز</span><b id="txSum">—</b></div>
+              </div>
+  </div>
 </div>
-
-<div class="trio">
-  <!-- ============ NEW EPISODES ============ -->
-  <div class="epcard">
+<div class="home-col hc-games-bud">
+  <div class="hc-top">
+<div class="mcard" id="gamesCard">
+    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ + ایران</span></div>
+    <div class="gwrap" id="gamesList">در حال دریافت…</div>
+    <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
+  </div>
+  </div>
+  <div class="hc-bot">
+<div class="mcard">
+    <div class="mhead"><h4>📊 بودجه ماه</h4></div>
+    <div class="budwrap">
+        <div class="budbar"><i id="budFill" style="width:0%"></i></div>
+        <div class="budnums"><span><b id="budSpent">—</b> خرج شده</span><span>از <b id="budTotal">—</b></span></div>
+        <div class="budleft"><b id="budPct">—</b><small id="budDays">—</small></div>
+        <div class="budcats" id="budCats"></div>
+        <div class="txspec" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:12px">🔌 از <b>/api/finance?month=</b> و <b>/api/budgets</b> · ماکان گزارش ماه در صفحه‌ی مالی</div>
+      </div>
+</div>
+  </div>
+</div>
+<div class="home-col hc-tasks-series">
+  <div class="hc-top">
+<div class="tr-combo" id="trCombo">
+    <div class="tr-panel">
+      <div class="tr-sec" id="taskSec">
+        <div class="mhead compact">
+          <h4 id="taskH">✅ کارهای آینده</h4>
+          <span class="cnt" id="taskCnt">—</span>
+        </div>
+        <div id="taskList"></div>
+      </div>
+      <div class="tr-sec" id="remSec">
+        <div class="mhead compact">
+          <h4>🔔 یادآوری‌ها</h4>
+          <span class="cnt" id="remCnt">—</span>
+        </div>
+        <div id="remList"></div>
+        <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div class="hc-bot">
+<div class="epcard">
     <div class="mhead">
-      <h4>🆕 قسمت‌های جدید</h4>
+      <h4>🎬 سریال‌ها</h4>
       <span class="cnt" id="epCnt">—</span>
       <span style="font-size:14px;color:var(--acc);cursor:pointer" id="epGoAll">سریال‌های من ←</span>
     </div>
     <div id="epList"></div>
     <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
-
-  <!-- ============ بازی‌های امروز ============ -->
-  <div class="mcard" id="gamesCard">
-    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ</span></div>
-    <div class="gwrap" id="gamesList">در حال دریافت…</div>
-    <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
-  </div>
-
-  <!-- ============ بودجه ماه ============ -->
-  <div class="mcard">
-    <div class="mhead"><h4>📊 بودجه ماه</h4></div>
-    <div class="budwrap">
-        <div class="budbar"><i id="budFill" style="width:23%"></i></div>
-        <div class="budnums"><span><b id="budSpent">—</b> خرج شده</span><span>از <b id="budTotal">—</b></span></div>
-        <div class="budleft"><b id="budPct">—</b><small id="budDays">—</small></div>
-        <div class="budcats" id="budCats"></div>
-        <div class="txspec" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:12px">🔌 از <b>/api/finance?month=</b> و <b>/api/budgets</b> · ماکان گزارش ماه در صفحه‌ی پول</div>
-      </div>  </div>
+</div>
   </div>
 </div>
+</div>
+
+</div>
+
 <script>
 /* ===== دروازه‌ی لاگین ===== */
 fetch('/api/me').then(function(r){return r.json()}).then(function(d){
@@ -647,26 +1404,102 @@ function renderDay(off){
   var get=function(t){var p=parts.find(function(x){return x.type===t});return p?p.value:''};
   var dayNum=get('day'),month=get('month'),year=get('year'),wk=get('weekday').replace('،','').trim();
   document.getElementById('dNum').textContent=dayNum;
-  var tag=off===0?'':(off===1?' · فردا':(off===-1?' · دیروز':(off>1?' · '+fa(off)+' روز بعد':' · '+fa(-off)+' روز قبل')));
+  var tag=off===0?'':(off===1?' فردا':(off===-1?' دیروز':(off>1?' '+fa(off)+' روز بعد':' '+fa(-off)+' روز قبل')));
   document.getElementById('dWk').textContent=wk+tag;
   document.getElementById('dMon').textContent=month+' '+year;
   document.getElementById('dGreg').textContent=new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(now)+' · '+new Intl.DateTimeFormat('en-GB',{weekday:'long'}).format(now);
   var hb=document.getElementById('holBadge');if(hb)hb.style.display=off?'none':'';
+  try{if(typeof renderMiniCal==="function"){var c=currentJDay();if(c){mcY=c.jy;mcM=c.jm}renderMiniCal()}}catch(e){}
   var ds=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(now);
   var nm=off===0?'امروز':(off===1?'فردا':(off===-1?'دیروز':''));
   var dsm='<small style="font-size:12px;color:var(--faint)">'+(nm?nm+' ':'')+ds+'</small>';
-  var th=document.getElementById('taskH');if(th)th.innerHTML='✅ کارهای '+dsm;
+  var th=document.getElementById('taskH');if(th)th.innerHTML='✅ کارهای آینده <small style="color:var(--faint)">'+(nm?nm+' ':'')+ds+'</small>';
+  var qh=document.getElementById('qTaskH');if(qh)qh.textContent='✅ افزودن کارهای آینده';
   var xh=document.getElementById('txH');if(xh)xh.innerHTML='💸 تراکنش‌های '+dsm;
 }
 renderDay(0);
+try{if(typeof renderMiniCal==="function")renderMiniCal()}catch(e){}
+
+/* ===== مینی‌تقویم ماه (ردیف ۱) — با دما پایین کارت ===== */
+var mcY=null, mcM=null;
+function mcKey(jy,jm,jd){return ''+jy+('0'+jm).slice(-2)+('0'+jd).slice(-2)}
+function mcMonthLen(jy,jm){var leap=jalCal(jy).leap;return jm<=6?31:(jm<12?30:(leap?30:29))}
+function currentJDay(){
+  var base=jToday(), off=(typeof dayOff==='number')?dayOff:0;
+  return d2j(j2d(base.jy,base.jm,base.jd)+off);
+}
+function renderMiniCal(){
+  if(typeof jToday!=='function'||typeof CALMON==='undefined')return;
+  var t=jToday(), cur=currentJDay();
+  if(mcY==null){mcY=cur.jy;mcM=cur.jm}
+  var title=document.getElementById('mcTitle'), grid=document.getElementById('mcGrid');
+  if(!title||!grid)return;
+  title.textContent=CALMON[mcM-1]+' '+fa(mcY);
+  var len=mcMonthLen(mcY,mcM), firstCol=(j2d(mcY,mcM,1)+2)%7, html='';
+  for(var b=0;b<firstCol;b++)html+='<button type="button" class="mc empty" tabindex="-1"></button>';
+  for(var d=1;d<=len;d++){
+    var isT=d===t.jd&&mcM===t.jm&&mcY===t.jy;
+    var isSel=d===cur.jd&&mcM===cur.jm&&mcY===cur.jy;
+    var isFri=((firstCol+d-1)%7)===6;
+    var hol=typeof HOL!=='undefined'&&HOL[mcKey(mcY,mcM,d)];
+    var cls='mc'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(hol?' hol':'');
+    html+='<button type="button" class="'+cls+'" data-md="'+d+'">'+fa(d)+'</button>';
+  }
+  grid.innerHTML=html;
+}
+function goFullCal(jy,jm,jd){location.href='/design/calendar-page.html?y='+jy+'&m='+jm+'&d='+jd}
+(function initMiniCal(){
+  function boot(){
+    if(typeof jToday!=='function'||typeof CALMON==='undefined'){setTimeout(boot,40);return}
+    var cur=currentJDay();mcY=cur.jy;mcM=cur.jm;
+    renderMiniCal();
+    var prev=document.getElementById('mcPrev'), next=document.getElementById('mcNext'), grid=document.getElementById('mcGrid'), box=document.getElementById('miniCal');
+    if(prev)prev.addEventListener('click',function(e){e.stopPropagation();mcM--;if(mcM<1){mcM=12;mcY--}renderMiniCal()});
+    if(next)next.addEventListener('click',function(e){e.stopPropagation();mcM++;if(mcM>12){mcM=1;mcY++}renderMiniCal()});
+    if(grid)grid.addEventListener('click',function(e){
+      e.stopPropagation();
+      var b=e.target.closest('[data-md]');if(!b)return;
+      var d=+b.dataset.md, base=jToday(), off=j2d(mcY,mcM,d)-j2d(base.jy,base.jm,base.jd);
+      if(typeof renderDay==='function')renderDay(off);
+      renderMiniCal();
+    });
+    if(box)box.addEventListener('click',function(e){
+      if(e.target.closest('button'))return;
+      var cur=currentJDay();goFullCal(cur.jy,cur.jm,cur.jd);
+    });
+  }
+  boot();
+})();
+
 try{var yst=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long'}).format(new Date(Date.now()-864e5));document.getElementById('aSub').textContent='درباره‌ی '+yst+' — فقط همین دو تا، ثانیه‌ای تمام می‌شود';}catch(e){}
 document.getElementById('dPrev').addEventListener('click',function(){renderDay(dayOff-1)});
 document.getElementById('dNext').addEventListener('click',function(){renderDay(dayOff+1)});
 document.getElementById('dTodayBtn').addEventListener('click',function(){renderDay(0)});
-(function(){var dr=document.querySelector('.datecard .drow');if(!dr)return;
- dr.style.cursor='pointer';dr.title='کلیک → تقویم';
- dr.addEventListener('click',function(e){if(e.target.closest('.daynav'))return;
-  openCal(dr,function(p){var t=jToday();renderDay(j2d(p.jy,p.jm,p.jd)-j2d(t.jy,t.jm,t.jd))});});
+(function(){
+  function goCal(e){
+    if(e && e.target && e.target.closest && e.target.closest('.daynav'))return;
+    var t=jToday();
+    // keep selected day offset if any
+    var off=(typeof dayOff==='number')?dayOff:0;
+    var d=d2j(g2d(new Date(Date.now()+off*864e5).getFullYear(), new Date(Date.now()+off*864e5).getMonth()+1, new Date(Date.now()+off*864e5).getDate()));
+    // simpler: jToday + dayOff via j2d
+    try{
+      var base=jToday();
+      var jdn=j2d(base.jy,base.jm,base.jd)+off;
+      d=d2j(jdn);
+    }catch(err){d=jToday()}
+    location.href='/design/calendar-page.html?y='+d.jy+'&m='+d.jm+'&d='+d.jd;
+  }
+  var dr=document.querySelector('.datecard .drow');
+  var card=document.querySelector('.datecard');
+  if(dr){dr.style.cursor='pointer';dr.title='کلیک → تقویم کامل';dr.addEventListener('click',goCal)}
+  if(card){
+    card.style.cursor='pointer';
+    var tip=document.createElement('div');
+    tip.style.cssText='margin-top:8px;font-size:12.5px;color:var(--acc)';
+    tip.textContent='📅 کلیک برای تقویم کامل ماه';
+    if(!card.querySelector('.cal-hint')){tip.className='cal-hint';card.appendChild(tip)}
+  }
 })();
 
 /* ---------- occasions ---------- */
@@ -741,7 +1574,7 @@ document.getElementById('demoReset2').addEventListener('click',function(){
   collapsed.classList.remove('show');
   card.style.display='';card.style.opacity='';card.style.transform='';
 });
-var WEEK=[6,7,5,8,7,9,null];
+var WEEK=[null,null,null,null,null,null,null];
 function renderWeek(todayVal){
   var el=document.getElementById('wdots'),html='';
   WEEK.forEach(function(v,i){
@@ -754,10 +1587,65 @@ function renderWeek(todayVal){
 }
 /* ---------- ثبت ---------- */
 var card=document.getElementById('card3'),collapsed=document.getElementById('collapsed');
+function applyDailyCollapsed(rec){
+  if(!rec || rec.mood==null) return false;
+  var v=Number(rec.mood)||0;
+  if(v<1) return false;
+  var slRaw=String(rec.sleep||'');
+  var slM=slRaw.match(/([0-9]+(?:\.[0-9]+)?)/);
+  var sl=slM?slM[1]:'—';
+  var note=String(rec.note||'');
+  var tags=[];
+  note.replace(/#([^\s#]+)/g,function(_,t){tags.push(t)});
+  var sent=note.replace(/·?\s*#[^\s#]+/g,'').replace(/^\s*·\s*|\s*·\s*$/g,'').trim();
+  if(card){ card.style.display='none'; card.style.opacity='1'; card.style.transform=''; }
+  var cd=document.getElementById('colDot'); if(cd) cd.style.background=(typeof colorAt==='function'?colorAt(v):'var(--acc)');
+  var ct=document.getElementById('colText');
+  if(ct) ct.innerHTML='دیروز: <b>'+(typeof word==='function'?word(v):v)+' ('+fa(v)+')</b> · خواب: <b>'+fa(sl)+' ساعت</b>'
+    +(tags.length?' · '+tags.map(function(t){return '#'+t}).join(' '):'')
+    +(sent?' · «'+sent.slice(0,60)+(sent.length>60?'…':'')+'»':'');
+  if(collapsed) collapsed.classList.add('show');
+  if(typeof renderWeek==='function') try{renderWeek(v)}catch(e){}
+  var wl=document.getElementById('weekLine'); if(wl) wl.classList.add('show');
+  var ya=document.getElementById('yearAgo'); if(ya) ya.classList.add('show');
+  return true;
+}
+function loadYesterdayDaily(){
+  var yest=typeof homeIsoFromOff==='function'?homeIsoFromOff(-1):(function(){var d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10)})();
+  fetch('/api/daily?date='+encodeURIComponent(yest),{credentials:'include'})
+    .then(function(r){ if(r.status===401) return null; return r.json(); })
+    .then(function(d){
+      if(!d) return;
+      var rec=d.item||d.daily||d;
+      if(rec && (rec.mood!=null || rec.date)) applyDailyCollapsed(rec);
+    }).catch(function(){});
+}
+loadYesterdayDaily();
 document.getElementById('btnOk').addEventListener('click',function(){
   var v=+msi.value;
   var sent=document.getElementById('daySentence').value.trim();
   var tags=[].map.call(document.querySelectorAll('#dayTags .tag-c.on'),function(t){return t.dataset.t});
+  var snEl=document.getElementById('snText');
+  var sleepNote=snEl?snEl.value.trim():'';
+  var bestEl=document.getElementById('bestMoment');
+  var gratEl=document.getElementById('gratitude');
+  var yest=typeof homeIsoFromOff==='function'?homeIsoFromOff(-1):(function(){var d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10)})();
+  var payload={
+    date:yest,
+    mood:v,
+    sleep:String(sl)+(sleepNote?(' · '+sleepNote):''),
+    note:sent,
+    bestMoment:bestEl?bestEl.value.trim():'',
+    gratitude:gratEl?gratEl.value.trim():''
+  };
+  if(tags.length) payload.note=(payload.note?payload.note+' · ':'')+tags.map(function(t){return '#'+t}).join(' ');
+  fetch('/api/daily',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+    .then(function(x){
+      if(x.status===401){location.href='/design/login-page.html';return}
+      if(!x.ok){toast((x.d&&x.d.error)||'ثبت روزانه ذخیره نشد');return}
+      toast('روزانه ذخیره شد ✓');
+    }).catch(function(){toast('خطای شبکه — روزانه ذخیره نشد')});
   card.style.transition='opacity .35s, transform .35s';
   card.style.opacity='0';card.style.transform='translateY(-14px) scale(.985)';
   setTimeout(function(){
@@ -885,7 +1773,9 @@ function windDir(deg){
 function renderWeather(d){
   var c=WMO[d.current.weather_code]||['—','🌡'];
   document.getElementById('wIcon').textContent=c[1];
+  var _mci=document.getElementById('mcIcon');if(_mci)_mci.textContent=c[1];
   document.getElementById('wTemp').textContent=fa(Math.round(d.current.temperature_2m));
+  var _mct=document.getElementById('mcTemp');if(_mct)_mct.textContent=fa(Math.round(d.current.temperature_2m));
   document.getElementById('wDesc').textContent=c[0];
   document.getElementById('wFeel').textContent=fa(Math.round(d.current.apparent_temperature))+'°';
   document.getElementById('wHum').textContent=fa(Math.round(d.current.relative_humidity_2m))+'٪';
@@ -932,10 +1822,7 @@ function renderWeather(d){
 
 
 /* ================= NEW EPISODES ================= */
-var EPS=[
-  {ic:'🗡️',t:'شوگان',s:'فصل ۱ قسمت ۶ · ۳ روز پیش پخش شد',fresh:true},
-  {ic:'🔮',t:'استرنجر تینگز',s:'فصل ۴ قسمت ۴ · دیروز پخش شد',fresh:true}
-];
+var EPS=[]; /* خالی تا API سریال‌ها پر کند */
 function renderEps(){
   var el=document.getElementById('epList'),html='';
   EPS.forEach(function(x,i){
@@ -945,10 +1832,10 @@ function renderEps(){
       +(x.fresh?'<span class="newb">جدید</span>':'')
       +'<button class="sawbtn">دیدمش ✓</button></div>';
   });
-  el.innerHTML=html;
+  el.innerHTML=html||'<div style="color:var(--faint);font-size:14px;padding:8px 2px">قسمت جدیدی نیست — از صفحه سریال‌ها دنبال کن</div>';
   var n=EPS.filter(Boolean).length;
-  document.getElementById('epCnt').textContent=fa(n)+' قسمت';
-  document.getElementById('epDone').classList.toggle('show',n===0);
+  var cnt=document.getElementById('epCnt'); if(cnt) cnt.textContent=n?fa(n)+' قسمت':'—';
+  var done=document.getElementById('epDone'); if(done) done.classList.toggle('show', false);
 }
 document.getElementById('epList').addEventListener('click',function(e){
   var b=e.target.closest('.sawbtn'); if(!b)return;
@@ -1022,27 +1909,46 @@ function openCal(anchor,onPick){
   setTimeout(function(){document.addEventListener('mousedown',function h(e){if(!pop.contains(e.target)){closeCal();document.removeEventListener('mousedown',h)}})},10);
 }
 /* ================= TASKS ================= */
-var TASKS=[
-  {t:'جواب ایمیل مشتری', p:1, meta:'فوری', done:true},
-  {t:'۳۰ دقیقه ورزش', p:2, meta:'🔥 ۱۲ روز', done:false},
-  {t:'گزارش ماهانه', p:2, meta:'تا جمعه', done:false},
-  {t:'خرید هفته', p:3, meta:'هر وقت', done:false}
-];
+var TASKS=[]; /* خالی — کاربر اضافه می‌کند */
 function renderTasks(){
   var el=document.getElementById('taskList'),html='';
-  TASKS.forEach(function(x,i){
+  TASKS.slice().sort(function(a,b){
+    if(!!a.done !== !!b.done) return a.done?1:-1;
+    var ao=typeof a.off==='number'?a.off:0, bo=typeof b.off==='number'?b.off:0;
+    return ao-bo;
+  }).forEach(function(x){
+    var i=TASKS.indexOf(x);
     html+='<div class="task'+(x.done?' done':'')+'" data-i="'+i+'"><span class="ck"></span>'
       +(x.p?'<span class="prio p'+x.p+'"></span>':'')
-      +'<span class="tt">'+x.t+'</span><span class="st">'+x.meta+'</span><button class="tdel" data-di="'+i+'" title="حذف">✕</button></div>';
+      +'<span class="tt">'+x.t+'</span><span class="st">'+(x.meta||'')+'</span><button class="tdel" data-di="'+i+'" title="حذف">✕</button></div>';
   });
-  el.innerHTML=html;
+  el.innerHTML=html||'<div style="color:var(--faint);font-size:14px;padding:8px 2px">هنوز کاری نیست — بالا اضافه کن</div>';
   var d=TASKS.filter(function(x){return x.done}).length;
-  document.getElementById('taskCnt').textContent=fa(d)+' از '+fa(TASKS.length);
+  var tc=document.getElementById('taskCnt');
+  if(tc) tc.textContent=TASKS.length?(fa(d)+' از '+fa(TASKS.length)):'—';
+  try{if(window.syncGamesHeight)syncGamesHeight()}catch(e){}
 }
 document.getElementById('taskList').addEventListener('click',function(e){
-  var del=e.target.closest('.tdel'); if(del){TASKS.splice(+del.dataset.di,1);renderTasks();toast('حذف شد');return}
+  var del=e.target.closest('.tdel');
+  if(del){
+    var ix=+del.dataset.di, o=TASKS[ix]; if(!o)return;
+    function doneDel(){TASKS.splice(ix,1);renderTasks();toast('حذف شد')}
+    if(o.id){
+      fetch('/api/tasks/'+encodeURIComponent(o.id),{method:'DELETE',credentials:'include'})
+        .then(function(r){if(r.status===401){location.href='/design/login-page.html';return} if(!r.ok){toast('حذف نشد');return} doneDel()})
+        .catch(function(){toast('خطای شبکه')});
+    } else doneDel();
+    return;
+  }
   var row=e.target.closest('.task'); if(!row)return;
-  TASKS[+row.dataset.i].done=!TASKS[+row.dataset.i].done; renderTasks();
+  var o=TASKS[+row.dataset.i]; if(!o)return;
+  o.done=!o.done; renderTasks();
+  if(o.id){
+    fetch('/api/tasks/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({done:!!o.done})
+    }).then(function(r){if(r.status===401)location.href='/design/login-page.html'; if(!r.ok){o.done=!o.done;renderTasks();toast('ذخیره نشد')}})
+     .catch(function(){o.done=!o.done;renderTasks();toast('خطای شبکه')});
+  }
 });
 var FUTURES=[]; /* {t, off} — off: days from today */
 var selDay=0;
@@ -1079,19 +1985,209 @@ function renderFutures(){
   el.innerHTML='📌 '+items.map(function(f){return '«'+f.t+'» — '+dayName(f.off)}).join('<br>');
   el.classList.add('show');
 }
+function homeIsoFromOff(off){
+  function pad(n){return n<10?'0'+n:''+n}
+  try{
+    if(typeof jToday==='function'&&typeof j2d==='function'&&typeof d2g==='function'){
+      var t=jToday(), jdn=j2d(t.jy,t.jm,t.jd)+(+off||0), g=d2g(jdn);
+      return g.gy+'-'+pad(g.gm)+'-'+pad(g.gd);
+    }
+  }catch(e){}
+  /* local calendar date — NOT UTC (toISOString) */
+  var d=new Date();
+  d.setHours(12,0,0,0);
+  d.setDate(d.getDate()+(+off||0));
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
 function addTask(){
   var inp=document.getElementById('taskIn'),v=inp.value.trim(); if(!v)return;
-  if(selDay===0){ TASKS.push({t:v,p:0,meta:'امروز',done:false}); }
-  else { FUTURES.push({t:v,off:selDay}); toast('«'+v+'» برای '+dayName(selDay)+' برنامه‌ریزی شد ✓'); renderFutures();
-    selDay=0;
-    document.querySelectorAll('#dayChips .dchip').forEach(function(x){x.classList.toggle('on',x.dataset.d==='0')});
-    if(window._resetDMore)_resetDMore();
-  }
-  inp.value=''; renderTasks();
+  var off=selDay||0;
+  var date=homeIsoFromOff(off);
+  var btn=document.getElementById('taskAdd');
+  if(btn) btn.disabled=true;
+  fetch('/api/tasks',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title:v,date:date,deadline:date,priority:'medium'})
+  }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+  .then(function(x){
+    if(btn) btn.disabled=false;
+    if(x.status===401){location.href='/design/login-page.html';return}
+    if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+    var meta = off===0 ? 'امروز' : (typeof dayName==='function'?dayName(off):(fa(off)+' روز دیگر'));
+    TASKS.push({id:x.d.id,t:v,p:0,meta:meta,done:false,date:date,off:off});
+    renderTasks();
+    if(off>0){
+      FUTURES.push({id:x.d.id,t:v,off:off,date:date});
+      renderFutures();
+      toast('«'+v+'» برای '+meta+' ذخیره شد ✓');
+      selDay=0;
+      document.querySelectorAll('#dayChips .dchip').forEach(function(ch){ch.classList.toggle('on',ch.dataset.d==='0')});
+      if(window._resetDMore)_resetDMore();
+    } else {
+      toast('کار ذخیره شد ✓');
+    }
+    inp.value='';
+  }).catch(function(){if(btn)btn.disabled=false;toast('خطای شبکه')});
 }
 document.getElementById('taskAdd').addEventListener('click',addTask);
 document.getElementById('taskIn').addEventListener('keydown',function(e){if(e.key==='Enter')addTask()});
 renderTasks();
+
+/* ===== یادآوری‌ها (قابل افزودن، localStorage) ===== */
+var REM_KEY='lifeos-reminders-v2';
+var REM_DEFAULTS=[]; /* خالی — بدون نمونه */
+function loadRems(){
+  try{
+    var raw=localStorage.getItem(REM_KEY);
+    if(raw){var a=JSON.parse(raw); if(Array.isArray(a)) return a}
+  }catch(e){}
+  return REM_DEFAULTS.map(function(x){return Object.assign({},x)});
+}
+function saveRems(){ try{localStorage.setItem(REM_KEY, JSON.stringify(REMS))}catch(e){} }
+var REMS=loadRems();
+var remSelOff=0;
+function remColor(c){
+  if(c==='bad')return'var(--bad)';
+  if(c==='warn')return'var(--warn)';
+  if(c==='good')return'var(--good)';
+  if(c==='acc')return'var(--acc)';
+  return'color-mix(in srgb,var(--faint) 60%,transparent)';
+}
+function remWhenLabel(off){
+  if(off===0)return'امروز';
+  if(off===1)return'فردا';
+  if(off===3)return'۳ روز';
+  if(off===7)return'۷ روز';
+  if(typeof dayName==='function')return dayName(off);
+  return fa(off)+' روز دیگر';
+}
+/* کلید سورت: روز نسبت به امروز (نزدیک → دور). doneها آخر */
+function remSortKey(x){
+  if(x && x.done) return 100000 + (typeof x.off==='number' ? x.off : 9999);
+  if(x && typeof x.off==='number' && !isNaN(x.off)) return x.off;
+  var w=String((x&&x.when)||'').trim();
+  if(!w || w.indexOf('✓')===0) return 50000;
+  if(w==='امروز' || w.indexOf('امروز')===0) return 0;
+  if(w==='فردا' || w.indexOf('فردا')===0) return 1;
+  if(w==='برو ببین' || w.indexOf('عقب')>=0) return -1; /* فوری‌ترین */
+  /* «۳ روز» / «۷ روز» / «۲ ماه» / «N روز دیگر» */
+  var fa2en={'۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9'};
+  var norm=w.replace(/[۰-۹]/g,function(c){return fa2en[c]||c});
+  var m;
+  if((m=norm.match(/(\d+)\s*روز/))) return parseInt(m[1],10);
+  if((m=norm.match(/(\d+)\s*ماه/))) return parseInt(m[1],10)*30;
+  if((m=norm.match(/(\d+)\s*هفت/))) return parseInt(m[1],10)*7;
+  if((m=norm.match(/(\d+)/))) return parseInt(m[1],10);
+  return 9999;
+}
+function sortRemsNearestFirst(){
+  /* ایندکس پایدار برای کلیک/حذف بعد از سورت */
+  REMS.forEach(function(x,i){ x._i=i; });
+  var indexed=REMS.map(function(x,i){return {x:x,i:i}});
+  indexed.sort(function(a,b){
+    var ka=remSortKey(a.x), kb=remSortKey(b.x);
+    if(ka!==kb) return ka-kb;
+    /* هم‌تاریخ: جدیدتر اول */
+    var ta=a.x.at||0, tb=b.x.at||0;
+    if(ta!==tb) return tb-ta;
+    return a.i-b.i;
+  });
+  return indexed;
+}
+function renderRems(){
+  var el=document.getElementById('remList'); if(!el)return;
+  var html='';
+  var sorted=sortRemsNearestFirst();
+  sorted.forEach(function(item){
+    var x=item.x, i=item.i;
+    html+='<div class="rem'+(x.done?' done':'')+'" data-i="'+i+'">'
+      +'<span class="rd" style="background:'+remColor(x.color||'acc')+'"></span>'
+      +'<span class="rt"><b>'+String(x.t||'').replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</b></span>'
+      +'<span class="rv">'+String(x.when||'').replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</span>'
+      +'<button type="button" class="rdel" data-di="'+i+'" title="حذف">✕</button>'
+      +'</div>';
+  });
+  el.innerHTML=html||'<div style="color:var(--faint);font-size:14px;padding:8px 2px">هنوز یادآوری‌ای نیست — پایین اضافه کن</div>';
+  var left=REMS.filter(function(x){return !x.done}).length;
+  var cnt=document.getElementById('remCnt');
+  if(cnt)cnt.textContent=fa(left)+' باز'+(REMS.length?(' · '+fa(REMS.length)):'');
+  try{if(window.syncGamesHeight)syncGamesHeight()}catch(e){}
+}
+function addRem(){
+  var inp=document.getElementById('remIn'); if(!inp)return;
+  var v=inp.value.trim(); if(!v)return;
+  var when=remWhenLabel(remSelOff);
+  var color=remSelOff===0?'acc':(remSelOff<=1?'warn':(remSelOff<=3?'warn':'faint'));
+  var off=remSelOff;
+  var date=(typeof homeIsoFromOff==='function')?homeIsoFromOff(off):(new Date(Date.now()+off*864e5).toISOString().slice(0,10));
+  fetch('/api/reminders',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title:v,date:date,whenLabel:when})
+  }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+  .then(function(x){
+    if(x.status===401){location.href='/design/login-page.html';return}
+    if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+    REMS.unshift({id:x.d.id,t:v, when:when, color:color, done:false, off:off, at:Date.now(), date:date});
+    saveRems(); inp.value=''; remSelOff=0;
+    document.querySelectorAll('#remChips .dchip').forEach(function(ch){
+      ch.classList.toggle('on', ch.dataset.r==='0');
+    });
+    var rm=document.getElementById('remMore');
+    if(rm){rm.classList.remove('on');rm.textContent='📅 روز دیگر'}
+    renderRems();
+    if(typeof toast==='function')toast('یادآوری ذخیره شد ✓');
+  }).catch(function(){toast('خطای شبکه')});
+}
+(function initRems(){
+  var list=document.getElementById('remList');
+  if(!list)return;
+  list.addEventListener('click',function(e){
+    var del=e.target.closest('.rdel');
+    if(del){
+      var ix=+del.dataset.di, o=REMS[ix]; if(!o)return;
+      function doneDel(){ REMS.splice(ix,1); saveRems(); renderRems(); if(typeof toast==='function')toast('حذف شد'); }
+      if(o.id){
+        fetch('/api/reminders/'+encodeURIComponent(o.id),{method:'DELETE',credentials:'include'})
+          .then(function(r){if(r.status===401){location.href='/design/login-page.html';return} if(!r.ok){toast('حذف نشد');return} doneDel();})
+          .catch(function(){toast('خطای شبکه')});
+      } else doneDel();
+      return;
+    }
+    var row=e.target.closest('.rem'); if(!row)return;
+    var i=+row.dataset.i; if(isNaN(i)||!REMS[i])return;
+    var o=REMS[i];
+    o.done=!o.done;
+    if(o.done && !String(o.when||'').startsWith('✓')) o.when='✓ انجام شد';
+    saveRems(); renderRems();
+    if(o.id){
+      fetch('/api/reminders/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({done:!!o.done, whenLabel:o.when})
+      }).then(function(r){if(r.status===401)location.href='/design/login-page.html'; if(!r.ok){o.done=!o.done;saveRems();renderRems();toast('ذخیره نشد')}})
+       .catch(function(){o.done=!o.done;saveRems();renderRems();toast('خطای شبکه')});
+    }
+  });
+  var addBtn=document.getElementById('remAdd'), inp=document.getElementById('remIn');
+  if(addBtn)addBtn.addEventListener('click',addRem);
+  if(inp)inp.addEventListener('keydown',function(e){if(e.key==='Enter')addRem()});
+  document.querySelectorAll('#remChips .dchip[data-r]').forEach(function(c){
+    c.addEventListener('click',function(){
+      document.querySelectorAll('#remChips .dchip').forEach(function(x){x.classList.remove('on')});
+      c.classList.add('on'); remSelOff=+c.dataset.r;
+      var rm=document.getElementById('remMore');
+      if(rm){rm.classList.remove('on');rm.textContent='📅 روز دیگر'}
+    });
+  });
+  var rM=document.getElementById('remMore');
+  if(rM)rM.addEventListener('click',function(){
+    if(typeof openCal!=='function'){remSelOff=7;rM.classList.add('on');return}
+    openCal(rM,function(p){
+      var t=jToday(),off=j2d(p.jy,p.jm,p.jd)-j2d(t.jy,t.jm,t.jd);
+      if(off<0){if(typeof toast==='function')toast('تاریخ گذشته است');return}
+      document.querySelectorAll('#remChips .dchip').forEach(function(x){x.classList.remove('on')});
+      rM.classList.add('on'); remSelOff=off;
+      rM.textContent='📅 '+(off===0?'امروز':off===1?'فردا':fa(p.jd)+' '+CALMON[p.jm-1]);
+    });
+  });
+  renderRems();
+})();
 
 /* mode */
 var mb=document.getElementById('modeBtn');
@@ -1110,39 +2206,45 @@ var CATS=[
  ['مسکن','🏠','#f87171',['اجاره','رهن','شارژ ساختمان','مسکن']],
  ['متفرقه','🔖','var(--faint)',[]]
 ];
-var ACCS=['💳 کارت اصلی','💵 نقدی','🏦 پس‌انداز'];
-var TXKIND='expense',TXACC=ACCS[0],TXCAT=null,TXCATMANUAL=false;
-var TODAYTX=[
- {t:'اسنپ به محل کار',a:85000,c:'حمل‌ونقل',k:'expense'},
- {t:'نانوازی',a:45000,c:'خوراک',k:'expense'}
-];
-var BUDGET={spent:485000,total:2140000,daysLeft:16,
- cats:[['خوراک',210000],['حمل‌ونقل',120000],['تفریح',85000],['پوشاک',70000]]};
+var ACCS=['💳 بدون حساب'];
+var TXKIND='expense',TXACC=ACCS[0],TXCAT=null,TXCATMANUAL=false,TXCATEDIT=false;
+var TODAYTX=[]; /* خالی */
+var BUDGET={spent:0,total:0,daysLeft:0,cats:[]};
 function catMeta(c){for(var i=0;i<CATS.length;i++)if(CATS[i][0]===c)return CATS[i];return CATS[CATS.length-1]}
 function fmtT(n){return fmtFull(n)}
 function fmtFull(n){return fa(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,','))}
 function suggestCat(t){t=String(t||'');for(var i=0;i<CATS.length;i++){var kws=CATS[i][3];for(var j=0;j<kws.length;j++)if(t.indexOf(kws[j])>-1)return CATS[i][0]}return null}
 function renderAccChips(){
- document.getElementById('accChips').innerHTML=ACCS.map(function(a){
-  return '<button class="txchip'+(a===TXACC?' on':'')+'" data-acc="'+a+'">'+a+'</button>'}).join('');
+ var box=document.getElementById('accChips');if(!box)return;
+ box.innerHTML=ACCS.map(function(a){
+  return '<button type="button" class="txchip'+(a===TXACC?' on':'')+'" data-acc="'+a+'">'+a+'</button>'}).join('');
 }
 function renderCatChips(){
- var suggested=TXCATMANUAL?null:suggestCat(document.getElementById('txTitle').value);
+ var box=document.getElementById('catChips');
+ if(!box){return}
+ var titleEl=document.getElementById('txTitle');
+ var suggested=TXCATMANUAL?null:suggestCat(titleEl?titleEl.value:'');
  var active=TXCAT||(TXCATMANUAL?null:suggested);
- if(TXCATEDIT){document.getElementById('catChips').innerHTML='<input id="catCustomIn" placeholder="نام سرفصل + اینتر" style="background:var(--panel);border:1.5px solid var(--acc);border-radius:10px;color:var(--text);padding:6px 10px;font-family:inherit;font-size:13.5px;width:160px">';
-  var ip=document.getElementById('catCustomIn');ip.focus();
-  ip.addEventListener('keydown',function(ev){if(ev.key==='Enter'){var v=ip.value.trim();if(v){TXCAT=v;TXCATMANUAL=true;TXCATEDIT=false;renderCatChips()}}});
-  ip.addEventListener('blur',function(){if(TXCATEDIT){TXCATEDIT=false;renderCatChips()}});
+ if(TXCATEDIT){
+  box.innerHTML='<input id="catCustomIn" placeholder="نام سرفصل + اینتر" style="background:var(--panel);border:1.5px solid var(--acc);border-radius:10px;color:var(--text);padding:6px 10px;font-family:inherit;font-size:13.5px;min-width:160px;flex:1">';
+  var ip=document.getElementById('catCustomIn');
+  if(ip){setTimeout(function(){try{ip.focus()}catch(e){}},0);
+   ip.addEventListener('keydown',function(ev){if(ev.key==='Enter'){var v=ip.value.trim();if(v){TXCAT=v;TXCATMANUAL=true;TXCATEDIT=false;renderCatChips()}}});
+   ip.addEventListener('blur',function(){if(TXCATEDIT){TXCATEDIT=false;renderCatChips()}});}
  }else{
   var custom=TXCATMANUAL&&TXCAT&&!CATS.some(function(c){return c[0]===TXCAT});
-  document.getElementById('catChips').innerHTML=CATS.map(function(c){
+  var html=CATS.map(function(c){
    var on=active===c[0];
-   return '<button class="txchip'+(on?' on':'')+(suggested===c[0]&&!TXCATMANUAL?' smart':'')+'" data-cat="'+c[0]+'">'+c[1]+' '+c[0]+'</button>'}).join('')
-   +'<button class="txchip'+(custom?' on':'')+'" data-cat="__custom">✏‌ی '+(custom?TXCAT:'سرفصل خودم')+'</button>';
+   return '<button type="button" class="txchip'+(on?' on':'')+(suggested===c[0]&&!TXCATMANUAL?' smart':'')+'" data-cat="'+c[0]+'">'+c[1]+' '+c[0]+'</button>';
+  }).join('');
+  html+='<button type="button" class="txchip'+(custom?' on':'')+'" data-cat="__custom">✏️ '+(custom?TXCAT:'سرفصل خودم')+'</button>';
+  box.innerHTML=html;
  }
  var sh=document.getElementById('smartHint');
- if(suggested&&!TXCATMANUAL){var cm=catMeta(suggested);sh.innerHTML='✨ از روی شرح: <b>'+cm[1]+' '+suggested+'</b> — اگر اشتباه است، سرفصل دیگری را بزن'}
- else sh.innerHTML=TXCATMANUAL&&TXCAT?'سرفصل دستی: '+TXCAT:'';
+ if(sh){
+  if(suggested&&!TXCATMANUAL){var cm=catMeta(suggested);sh.innerHTML='✨ از روی شرح: <b>'+cm[1]+' '+suggested+'</b> — اگر اشتباه است، سرفصل دیگری را بزن'}
+  else sh.innerHTML=TXCATMANUAL&&TXCAT?'سرفصل دستی: '+TXCAT:'';
+ }
 }
 function renderTx(){
  var exp=TODAYTX.filter(function(x){return x.k==='expense'});
@@ -1150,40 +2252,49 @@ function renderTx(){
  document.getElementById('txList').innerHTML=TODAYTX.length?TODAYTX.map(function(x,i){
   var cm=catMeta(x.c);
   return '<div class="txi"><span class="catdot" style="background:'+cm[2]+'"></span>'
-   +'<span class="t">'+x.t+' <small>'+cm[1]+' '+x.c+'</small></span>'
+   +'<span class="t">'+x.t+' <small>'+cm[1]+' '+x.c+'</small>'+(x.tags&&x.tags.length?(' '+x.tags.map(function(t){return '<span style="color:var(--acc)">#'+String(t).replace(/[<>&]/g,'')+'</span>'}).join(' ')):'' )+'</span>'
    +'<span class="amt'+(x.k==='income'?' inc':'')+'" style="'+(x.k==='income'?'':'color:var(--bad)')+'">'+(x.k==='income'?'+':'−')+fmtFull(x.a)+'</span>'
    +'<button class="del" data-deltx="'+i+'">✕</button></div>'}).join('')
   :'<div style="color:var(--faint);font-size:14px;text-align:center;padding:10px">هنوز چیزی ثبت نشده — اولین خرج امروز را بالا بنویس</div>';
  var s=exp.reduce(function(n,x){return n+x.a},0);
- document.getElementById('txSum').textContent=fmtFull(s)+' ﷼';
- BUDGET.spent=485000+s-85000-45000;
+ document.getElementById('txSum').textContent=fmtFull(s)+' تومان';
+ BUDGET.spent=s; /* فقط جمع خرج‌های امروز در لیست */
  renderBud();
 }
 function renderBud(){
- var pct=Math.min(100,Math.round(BUDGET.spent/BUDGET.total*100));
- var f=document.getElementById('budFill');f.style.width=pct+'%';
- f.style.background=pct>=100?'var(--bad)':pct>=75?'var(--warn)':'var(--good)';
- document.getElementById('budSpent').textContent=fmtT(BUDGET.spent);
- document.getElementById('budTotal').textContent=fmtT(BUDGET.total)+' تومان';
- document.getElementById('budPct').textContent=fa(pct)+'٪';
- document.getElementById('budDays').textContent=fa(BUDGET.daysLeft)+' روز تا پایان ماه';
- var mx=Math.max.apply(null,BUDGET.cats.map(function(c){return c[1]}));
- document.getElementById('budCats').innerHTML=BUDGET.cats.map(function(c){
+ var pct=BUDGET.total>0?Math.min(100,Math.round(BUDGET.spent/BUDGET.total*100)):0;
+ var f=document.getElementById('budFill'); if(f){ f.style.width=pct+'%';
+  f.style.background=pct>=100?'var(--bad)':pct>=75?'var(--warn)':'var(--good)'; }
+ var bs=document.getElementById('budSpent'); if(bs) bs.textContent=BUDGET.spent?fmtT(BUDGET.spent):'—';
+ var bt=document.getElementById('budTotal'); if(bt) bt.textContent=BUDGET.total?fmtT(BUDGET.total)+' تومان':'—';
+ var bp=document.getElementById('budPct'); if(bp) bp.textContent=BUDGET.total?fa(pct)+'٪':'—';
+ var bd=document.getElementById('budDays'); if(bd) bd.innerHTML=BUDGET.daysLeft?fa(BUDGET.daysLeft)+' روز مانده':'<a href="/design/finance-page.html" style="color:var(--acc)">تنظیم بودجه در مالی</a>';
+ var bc=document.getElementById('budCats');
+ if(bc) bc.innerHTML=BUDGET.cats.length?BUDGET.cats.map(function(c){
   var cm=catMeta(c[0]);
-  return '<div class="bc"><span class="n">'+cm[1]+' '+c[0]+'</span>'
-   +'<span class="bar"><i style="width:'+Math.round(c[1]/mx*100)+'%;background:'+cm[2]+'"></i></span>'
-   +'<span class="v">'+fmtT(c[1])+'</span></div>'}).join('');
+  return '<div class="bc"><span class="n">'+cm[1]+' '+c[0]+'</span><span class="v">'+fmtT(c[1])+'</span></div>';
+ }).join(''):'<div style="color:var(--faint);font-size:13.5px;padding:6px 0">سقف ماه را از <a href="/design/finance-page.html" style="color:var(--acc)">صفحه مالی</a> تنظیم کن</div>';
 }
 function txSubmit(){
  var a=parseInt(document.getElementById('txAmt').dataset.raw||'',10)||0;
  var t=document.getElementById('txTitle').value.trim();
  if(!a||!t){toastB('مبلغ و شرح را بنویس');return}
  var c=TXCAT||suggestCat(t)||'متفرقه';
- TODAYTX.push({t:t,a:a,c:c,k:TXKIND});
- renderTx();
- toastB('ثبت شد ✓ — '+fmtFull(a)+' تومان · '+catMeta(c)[1]+' '+c+' · '+TXACC.replace(/^\S+\s/,''));
- document.getElementById('txAmt').value='';document.getElementById('txTitle').value='';
- TXCAT=null;TXCATMANUAL=false;renderCatChips();document.getElementById('txTitle').focus();
+ var tagsEl=document.getElementById('txTags'); var tags=(function(s){s=String(s||'').trim();if(!s)return[];if(/[،,|/]/.test(s))return s.split(/[،,|/]+/).map(function(x){return x.trim()}).filter(Boolean).slice(0,12);return s.split(/\s+/).map(function(x){return x.trim()}).filter(Boolean).slice(0,12)})(tagsEl&&tagsEl.value); var account=String(TXACC||'بدون حساب').replace(/^\S+\s/,'') || String(TXACC||'بدون حساب');
+ var btn=document.getElementById('txGo'); if(btn) btn.disabled=true;
+ fetch('/api/transactions',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({title:t,amount:a,category:c,kind:TXKIND||'expense',account:account,tags:tags,date:(typeof homeIsoFromOff==='function'?homeIsoFromOff(0):new Date().toISOString().slice(0,10))})
+ }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+ .then(function(x){
+   if(btn) btn.disabled=false;
+   if(x.status===401){location.href='/design/login-page.html';return}
+   if(!x.ok){toastB((x.d&&x.d.error)||'ذخیره نشد');return}
+   TODAYTX.push({id:x.d.id,t:t,a:a,c:c,k:TXKIND,tags:tags});
+   renderTx();
+   toastB('ذخیره شد ✓ — '+fmtFull(a)+' تومان · '+catMeta(c)[1]+' '+c+' · '+account);
+   document.getElementById('txAmt').value='';document.getElementById('txTitle').value='';var _tg=document.getElementById('txTags');if(_tg)_tg.value='';
+   TXCAT=null;TXCATMANUAL=false;renderCatChips();document.getElementById('txTitle').focus();
+ }).catch(function(){if(btn)btn.disabled=false;toastB('خطای شبکه')});
 }
 function toastB(m){var t=document.getElementById('toast2');if(!t){t=document.createElement('div');t.id='toast2';
   t.style.cssText='position:fixed;bottom:22px;right:50%;transform:translateX(50%);background:var(--acc);color:#062028;font-family:var(--fh);font-weight:700;font-size:15px;border-radius:13px;padding:10px 22px;opacity:0;pointer-events:none;transition:.25s;z-index:99';
@@ -1208,7 +2319,149 @@ document.addEventListener('click',function(e){
  if(b=e.target.closest('[data-deltx]')){
   var i=parseInt(b.dataset.deltx,10);TODAYTX.splice(i,1);renderTx();return}
 });
-renderAccChips();renderCatChips();renderTx();
+(function initTxUI(){
+  function run(){
+    try{renderAccChips()}catch(e){console.error('acc',e)}
+    try{renderCatChips()}catch(e){console.error('cat',e)}
+    try{renderTx()}catch(e){console.error('tx',e)}
+    var c=document.getElementById('catChips');
+    if(c&&!c.querySelector('[data-cat]')){
+      try{renderCatChips()}catch(e){console.error('cat2',e)}
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);
+  else run();
+})();
+
+
+/* همگام عنوان‌های ردیف ۱ با کارت‌ها */
+(function(){
+  function syncQ(){
+    var th=document.getElementById('taskH'), qh=document.getElementById('qTaskH');
+    if(qh) qh.textContent='✅ افزودن کارهای آینده';
+    var tx=document.getElementById('txH'), qx=document.getElementById('qTxH');
+    if(tx&&qx) qx.textContent=tx.textContent;
+    var rc=document.getElementById('remCnt'), qs=document.getElementById('qRemSub');
+    if(rc&&qs) qs.textContent=rc.textContent||'';
+    var tc=document.getElementById('taskCnt'), qts=document.getElementById('qTaskSub');
+    if(tc&&qts) qts.textContent=tc.textContent||'';
+  }
+  var _rt=window.renderTasks;
+  if(typeof _rt==='function'){ window.renderTasks=function(){ var r=_rt.apply(this,arguments); try{syncQ()}catch(e){} return r; }; }
+  var _rr=window.renderRems;
+  // renderRems may be local - patch via periodic + after load
+  document.addEventListener('DOMContentLoaded', syncQ);
+  setInterval(syncQ, 2000);
+  // also patch renderDay end
+  var _rd=window.renderDay;
+  if(typeof renderDay==='function'){
+    var __rd=renderDay;
+    window.renderDay=function(off){ var r=__rd.apply(this,arguments); try{syncQ()}catch(e){} return r; };
+  }
+})();
+
+
+/* ===== load home data from API ===== */
+function daysBetweenIso(a,b){
+  try{
+    var da=new Date(a+'T12:00:00'), db=new Date(b+'T12:00:00');
+    return Math.round((db-da)/864e5);
+  }catch(e){return 0}
+}
+function loadHomeFromApi(){
+  var todayIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(0) : (function(){var d=new Date();function p(n){return n<10?'0'+n:''+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())})();
+  var fromIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(-30) : todayIso;
+  var toIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(60) : todayIso;
+  return Promise.all([
+    fetch('/api/dashboard?date='+encodeURIComponent(todayIso),{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/tasks',{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/reminders?from='+encodeURIComponent(todayIso)+'&to='+encodeURIComponent(toIso),{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/budgets',{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/accounts',{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+  ]).then(function(res){
+    if(res[0].status===401) return; /* guest */
+    var dash=res[0].ok?res[0].d:null;
+    // accounts chips
+    if(res[4].ok && res[4].d && res[4].d.accounts && res[4].d.accounts.length){
+      ACCS=res[4].d.accounts.map(function(a){
+        var ic=a.type==='bank'?'🏦':(a.type==='cash'?'💵':'💳');
+        return ic+' '+(a.name||'حساب');
+      });
+      TXACC=ACCS[0];
+      if(typeof renderAccChips==='function') renderAccChips();
+    }
+    // today txs
+    if(dash && Array.isArray(dash.transactions)){
+      TODAYTX=dash.transactions.map(function(t){
+        return {id:t.id,t:t.title,a:t.amount,c:t.category||'متفرقه',k:t.kind==='income'?'income':'expense',tags:Array.isArray(t.tags)?t.tags:[]};
+      });
+      if(typeof renderTx==='function') renderTx();
+    }
+    // tasks: today/overdue in list, future in FUTURES line
+    if(res[1].ok && res[1].d && res[1].d.items){
+      var nextT=[], nextF=[];
+      res[1].d.items.forEach(function(t){
+        if(t.isReminder) return;
+        var off=daysBetweenIso(todayIso, t.date||todayIso);
+        var meta = off<0 ? (fa(Math.abs(off))+' روز پیش') : (off===0 ? 'امروز' : dayName(off));
+        if(t.done) meta='انجام';
+        /* همهٔ کارها در لیست اصلی «کارهای آینده»؛ FUTURES فقط خلاصهٔ خطی */
+        nextT.push({id:t.id,t:t.title,p:t.priority==='high'?1:(t.priority==='low'?3:2),meta:meta,done:!!t.done,date:t.date,off:off});
+        if(off>0 && !t.done){
+          nextF.push({id:t.id,t:t.title,off:off,date:t.date});
+        }
+      });
+      /* merge any optimistic local items not yet in server response */
+      TASKS.forEach(function(x){
+        if(x && x.id && !nextT.some(function(y){return y.id===x.id}) && !nextF.some(function(y){return y.id===x.id})){
+          nextT.push(x);
+        }
+      });
+      FUTURES.forEach(function(x){
+        if(x && x.id && !nextT.some(function(y){return y.id===x.id}) && !nextF.some(function(y){return y.id===x.id})){
+          nextF.push(x);
+        }
+      });
+      TASKS=nextT; FUTURES=nextF;
+      if(typeof renderTasks==='function') renderTasks();
+      if(typeof renderFutures==='function') renderFutures();
+    }
+    // reminders
+    if(res[2].ok && res[2].d && res[2].d.items){
+      REMS=res[2].d.items.map(function(r){
+        var off=daysBetweenIso(todayIso, r.date||todayIso);
+        return {id:r.id,t:r.title,when:r.whenLabel||r.date||'',color:off<=0?'acc':(off<=1?'warn':'faint'),done:!!r.done,off:off,at:r.createdAt||Date.now(),date:r.date};
+      });
+      saveRems();
+      if(typeof renderRems==='function') renderRems();
+    }
+    // budget
+    if(res[3].ok && res[3].d){
+      var bd=res[3].d;
+      BUDGET.total = bd.totalBudget||0;
+      BUDGET.spent = bd.totalSpent||0;
+      var t=new Date(), dim=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();
+      BUDGET.daysLeft = Math.max(0, dim - t.getDate());
+      if(typeof renderBud==='function') renderBud();
+    }
+    // series watching on home
+    if(dash && Array.isArray(dash.watchingSeries)){
+      try{
+        EPS = dash.watchingSeries.slice(0,6).map(function(m){
+          return {
+            ic:'🎬',
+            t:m.title||'سریال',
+            s:(m.currentSeason?('S'+m.currentSeason+' · '):'')+(m.currentEpisode!=null?('قسمت '+m.currentEpisode): (m.progress||'')),
+            fresh:!!m.newEpisode,
+            id:m.id
+          };
+        });
+        if(typeof renderEps==='function') renderEps();
+      }catch(e){}
+    }
+  }).catch(function(e){ console.error('loadHomeFromApi', e); });
+}
+loadHomeFromApi();
 
 /* ===== nav auth ===== */
 (function(){fetch('/api/me').then(function(r){return r.json()}).then(function(d){
@@ -1223,7 +2476,7 @@ renderAccChips();renderCatChips();renderTx();
 <script>
 /* ===== زوم 🔍 ===== */
 (function(){
-  var SEL='.page3 .datecard,.page3 .wcard,.page3 .tcard,.page3 .rcard,.page3 .mcard,.page3 .c3wrap,.page3 .epcard';
+  var SEL='.home .datecard,.home .wcard,.home .tcard,.home .rcard,.home .mcard,.home .c3wrap,.home .epcard';
   var NO='button,a,input,select,textarea,label,form,[contenteditable],.moodslider,.stepper,.chip,.daychips,.extradays,.futureline,.taskadd,.txform,.txrow,.txsum,.budwrap,.budcats,.moretoggle,.morebox,.qrow,.tags,.task,.rem,.eprow,.demo-bar,.weekline,.yearago,.collapsed,.occs,.askrow';
   var nav=document.querySelector('.navtools');
   if(nav){
@@ -1248,19 +2501,159 @@ document.querySelectorAll('.navcard').forEach(function(c){c.addEventListener('cl
   var L=document.getElementById('gamesList');if(!L)return;
   function cl(x){return String(x==null?'':x).replace(/[<>&]/g,'')}
   function row(m){
-    var t=m.date?new Date(m.date):null,tm=(t&&!isNaN(t))?fa(t.toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tehran'})):'';
-    if(m.status!=='live'&&m.status!=='finished')return '<div class="grow"><span class="gt" style="flex:1">'+cl(m.home)+' × '+cl(m.away)+'</span><span class="gtime" style="font-family:var(--fh);white-space:nowrap">⏱ '+tm+' تهران</span></div>';
-    var badge=m.status==='live'?'<span class="glive">● زنده</span>':'✅';
-    return '<div class="grow">'+badge+'<span class="gt">'+cl(m.home)+' × '+cl(m.away)+'</span><span class="gsc">'+cl(m.score||'—')+'</span></div>';
+    var tm='';
+    try{
+      if(m.date){
+        tm=new Date(m.date).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Tehran'});
+      }
+    }catch(e){}
+    var st=m.status||'upcoming';
+    var hs = (m.homeScore!=null && m.homeScore!=='') ? Number(m.homeScore) : null;
+    var as = (m.awayScore!=null && m.awayScore!=='') ? Number(m.awayScore) : null;
+    if((hs==null||as==null) && m.score && /[\d]/.test(String(m.score))){
+      var parts=String(m.score).replace(/–|—/g,'-').split(/\s*-\s*/);
+      if(parts.length>=2){
+        var n0=Number(String(parts[0]).trim()), n1=Number(String(parts[1]).trim());
+        if(!isNaN(n0)&&!isNaN(n1)){ hs=n0; as=n1; }
+      }
+    }
+    var hasScore = hs!=null && as!=null && !isNaN(hs) && !isNaN(as);
+    if(st!=='live' && st!=='finished') hasScore=false;
+
+    function logo(url,name){
+      if(url) return '<img class="glogo" src="'+cl(url)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+      var ch=(name||'?').trim().charAt(0);
+      return '<span class="glogo gph">'+cl(ch)+'</span>';
+    }
+    // One clear LTR line:  [HOME] 0 - 2 [AWAY]   so left number = home, right = away
+    var center;
+    if(st==='live' && !hasScore) center='<span class="gcenter live">زنده</span>';
+    else if(hasScore) center='<span class="gcenter score" dir="ltr"><b>'+hs+'</b><i>-</i><b>'+as+'</b></span>';
+    else center='<span class="gcenter kick" dir="ltr" title="به‌وقت تهران">'+cl(tm||'—')+'</span>';
+
+    var tag='';
+    if(st==='live') tag='<span class="glive">● زنده</span>';
+    else if(st==='finished') tag='<span class="gdone">پایان</span>';
+    else tag='';
+
+    return '<div class="grow st-'+cl(st)+'" dir="ltr">'
+      +(tag?'<div class="gtag">'+tag+'</div>':'')
+      +'<div class="gline">'
+        +'<span class="gside home">'+logo(m.homeLogo,m.home)+'<span class="gn">'+cl(m.home||'—')+'</span></span>'
+        +center
+        +'<span class="gside away"><span class="gn">'+cl(m.away||'—')+'</span>'+logo(m.awayLogo,m.away)+'</span>'
+      +'</div>'
+      +'</div>';
   }
-  fetch('/api/football/remote/free/day').then(function(r){return r.json()}).then(function(d){
+  function paintGames(d){
     var h='';
-    (d.leagues||[]).forEach(function(lg){ if(!lg.items||!lg.items.length)return;
-      h+='<div class="glg">'+cl(lg.name)+'</div>'+lg.items.map(row).join(''); });
-    L.innerHTML=h||'<div style="padding:14px 4px;color:var(--faint)">امروز بازی لیگ‌های بزرگ نیست ⚽</div>';
-    var f=document.getElementById('gamesFoot');if(f)f.textContent='به‌وقت تهران';
+    var leagues=(d.leagues||[]).slice().sort(function(a,b){
+      var ia=/ایران|خلیج فارس|persian|irn/i.test(a.name||a.id||'')?0:1;
+      var ib=/ایران|خلیج فارس|persian|irn/i.test(b.name||b.id||'')?0:1;
+      return ia-ib;
+    });
+    leagues.forEach(function(lg){
+      var isIr=/ایران|خلیج فارس|persian|irn/i.test(lg.name||lg.id||'');
+      if((!lg.items||!lg.items.length) && !isIr) return;
+      h+='<div class="glg">'+cl(lg.name||'لیگ')+'</div>';
+      if(!lg.items||!lg.items.length){
+        h+='<div style="padding:8px 4px;color:var(--faint);font-size:13px">امروز بازیی از این لیگ در منابع نیست</div>';
+      } else {
+        h+=lg.items.map(row).join('');
+      }
+    });
+    L.innerHTML=(h||'<div style="padding:14px 4px;color:var(--faint)">امروز بازی لیگ‌های بزرگ نیست ⚽</div>')+'<div class="games-end-spacer" style="height:8px;flex:none"></div>';
+    try{if(window.syncGamesHeight)requestAnimationFrame(function(){syncGamesHeight()}) }catch(e){}
+    var f=document.getElementById('gamesFoot');if(f)f.textContent='تهران'+(d._at?(' · '+d._at):'')+(d._liveMerged?' · زنده':'')+' · هر ۳۰ث';
     var gs=document.getElementById('gamesSub');if(gs)gs.textContent=new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(new Date())+' · لیگ‌های بزرگ';
-  }).catch(function(){L.innerHTML='<div style="padding:14px 4px;color:var(--faint)">دریافت بازی‌ها ناموفق بود</div>'});
+  }
+  function loadGames(){
+    var tehranDate=(function(){try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return new Date().toISOString().slice(0,10)}})();
+    function norm(s){return String(s||'').toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g,'').replace(/fc$|cf$|sc$/,'')}
+    function matchKey(a,b){return norm(a)+'|'+norm(b)}
+    function fuzzyHit(map, home, away){
+      var k=matchKey(home,away); if(map[k]) return map[k];
+      var kr=matchKey(away,home); if(map[kr]) return map[kr];
+      // partial
+      var nh=norm(home), na=norm(away);
+      for(var key in map){
+        var p=key.split('|'); if(p.length<2) continue;
+        if((p[0].indexOf(nh)>=0||nh.indexOf(p[0])>=0)&&(p[1].indexOf(na)>=0||na.indexOf(p[1])>=0)) return map[key];
+        if((p[0].indexOf(na)>=0||na.indexOf(p[0])>=0)&&(p[1].indexOf(nh)>=0||nh.indexOf(p[1])>=0)){
+          // swapped names — swap scores if present
+          var x=Object.assign({}, map[key]);
+          if(x.homeScore!=null||x.awayScore!=null){
+            var ts=x.homeScore; x.homeScore=x.awayScore; x.awayScore=ts;
+            if(x.score && /\d/.test(x.score)){
+              var sp=String(x.score).split(/\s*-\s*/);
+              if(sp.length>=2) x.score=String(sp[1]).trim()+' - '+String(sp[0]).trim();
+            }
+            var th=x.home; x.home=x.away; x.away=th;
+          }
+          return x;
+        }
+      }
+      return null;
+    }
+    function applyLive(m, hit){
+      if(!hit) return;
+      if(hit.status) m.status=hit.status;
+      if(hit.homeScore!=null && hit.awayScore!=null){
+        // only apply if same orientation (home names similar) else already swapped in fuzzyHit
+        m.homeScore=hit.homeScore; m.awayScore=hit.awayScore;
+        m.score=String(hit.homeScore)+' - '+String(hit.awayScore);
+      } else if(hit.score && hit.score!=='—'){
+        m.score=hit.score;
+        var sp=String(hit.score).replace(/–|—/g,'-').split(/\s*-\s*/);
+        if(sp.length>=2){ m.homeScore=Number(sp[0]); m.awayScore=Number(sp[1]); }
+      }
+      if(hit.homeLogo && !m.homeLogo) m.homeLogo=hit.homeLogo;
+      if(hit.awayLogo && !m.awayLogo) m.awayLogo=hit.awayLogo;
+    }
+    Promise.all([
+      fetch('/api/football/remote/free/day?date='+encodeURIComponent(tehranDate)+'&_='+Date.now()).then(function(r){return r.json()}).catch(function(){return{leagues:[]}}),
+      fetch('/api/football/remote/free/live?_='+Date.now()).then(function(r){return r.json()}).catch(function(){return{items:[]}})
+    ]).then(function(arr){
+      var d=arr[0]||{leagues:[]}, live=arr[1]||{items:[]};
+      var by={};
+      function indexItem(x){
+        if(!x) return;
+        by[matchKey(x.home,x.away)]=x;
+        if(x.fixtureId) by['id:'+x.fixtureId]=x;
+      }
+      (live.items||[]).forEach(indexItem);
+      // also index live games already inside day payload
+      (d.leagues||[]).forEach(function(lg){
+        (lg.items||[]).forEach(function(m){ if(m.status==='live'||m.status==='finished') indexItem(m); });
+      });
+      (d.leagues||[]).forEach(function(lg){
+        (lg.items||[]).forEach(function(m){
+          var hit=null;
+          if(m.fixtureId && by['id:'+m.fixtureId]) hit=by['id:'+m.fixtureId];
+          else hit=fuzzyHit(by, m.home, m.away);
+          // Prefer fresher live scores when status is live
+          if(hit && (hit.status==='live' || hit.status==='finished' || m.status==='live')) applyLive(m, hit);
+        });
+      });
+      var seen={};
+      (d.leagues||[]).forEach(function(lg){(lg.items||[]).forEach(function(m){seen[matchKey(m.home,m.away)]=1; seen[matchKey(m.away,m.home)]=1})});
+      var MAJOR=/انگلیس|لالیگا|سری آ|بوندس|لیگ ۱|ترکیه|عربستان|خلیج|ایران|premier|la liga|serie a|bundesliga|ligue|super lig|persian|champions|europa|uefa/i;
+      var extra=(live.items||[]).filter(function(x){
+        if(seen[matchKey(x.home,x.away)]) return false;
+        return !!(x.league && MAJOR.test(x.league));
+      });
+      if(extra.length){
+        d.leagues=d.leagues||[];
+        d.leagues.unshift({id:'live', name:'🔴 زنده الآن', items:extra});
+      }
+      d._liveMerged=!!(live.items&&live.items.length);
+      d._at=new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Tehran'});
+      paintGames(d);
+    }).catch(function(){L.innerHTML='<div style="padding:14px 4px;color:var(--faint)">دریافت بازی‌ها ناموفق بود</div>'});
+  }
+  loadGames();
+  setInterval(loadGames, 30*1000);
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) loadGames(); });
 })();
 </script>
 <script>
@@ -1290,5 +2683,153 @@ document.addEventListener('click',function(e){
 });
 })();
 </script>
+
+<script>
+
+/* ارتفاع ردیف ۲ = فقط کارت هوا (دسکتاپ) */
+(function(){
+  var busy=false;
+  function mobile(){return window.matchMedia && window.matchMedia('(max-width:900px)').matches}
+  function clear(){
+    ['gamesCard','mkSum','trCombo'].forEach(function(id){
+      var el=document.getElementById(id); if(!el)return;
+      el.style.removeProperty('height'); el.style.removeProperty('max-height'); el.style.removeProperty('min-height');
+    });
+    var list=document.getElementById('gamesList'); if(list){list.style.removeProperty('height');list.style.removeProperty('max-height')}
+    var sr=document.getElementById('sumRows'); if(sr) sr.style.removeProperty('max-height');
+    var row=document.querySelector('.home-row.r2r3, .home-row.r2'); if(row) row.style.removeProperty('--r2-h');
+  }
+  function schedule(){ clearTimeout(window._sgH); window._sgH=setTimeout(function(){ requestAnimationFrame(syncGamesHeight); }, 50); }
+  function syncGamesHeight(){
+    if(busy){ window._sgPending=true; return; }
+    if(mobile()){ clear(); return; }
+    var w=document.querySelector('.home-row.r2r3 .hc-top > .wcard, .home-row.r2 > .wcard');
+    var row=document.querySelector('.home-row.r2r3, .home-row.r2');
+    if(!w||!row) return;
+    busy=true;
+    var ids=['gamesCard','mkSum','trCombo'];
+    var cards=ids.map(function(id){return document.getElementById(id)}).filter(Boolean);
+    /* صفر کردن موقت بقیه تا ارتفاع ردیف = فقط هوا */
+    cards.forEach(function(el){
+      el.style.setProperty('height','0px','important');
+      el.style.setProperty('max-height','0px','important');
+      el.style.setProperty('min-height','0px','important');
+      el.style.setProperty('overflow','hidden','important');
+    });
+    void w.offsetHeight;
+    var wh=Math.round(w.getBoundingClientRect().height);
+    if(!wh || wh<80){
+      cards.forEach(function(el){
+        el.style.removeProperty('height'); el.style.removeProperty('max-height');
+        el.style.removeProperty('min-height'); el.style.removeProperty('overflow');
+      });
+      busy=false; return;
+    }
+    row.style.setProperty('--r2-h', wh+'px');
+    cards.forEach(function(el){
+      el.style.setProperty('height', wh+'px', 'important');
+      el.style.setProperty('max-height', wh+'px', 'important');
+      el.style.setProperty('min-height', '0', 'important');
+      el.style.setProperty('overflow', 'hidden', 'important');
+    });
+    function fit(card, list){
+      if(!card||!list) return;
+      var head=card.querySelector(':scope > .mhead') || card.querySelector('.mhead');
+      var foot=card.querySelector(':scope > .mfoot') || card.querySelector('.mfoot');
+      var used=(head?head.getBoundingClientRect().height:0)+(foot?foot.getBoundingClientRect().height:0)+18;
+      var lh=Math.max(72, Math.floor(wh-used));
+      list.style.setProperty('max-height', lh+'px', 'important');
+      list.style.setProperty('height', lh+'px', 'important');
+      list.style.setProperty('overflow-y', 'auto', 'important');
+      list.style.setProperty('min-height', '0', 'important');
+    }
+    fit(document.getElementById('gamesCard'), document.getElementById('gamesList'));
+    fit(document.getElementById('mkSum'), document.getElementById('sumRows'));
+    var tr=document.getElementById('trCombo');
+    if(tr){
+      var tl=document.getElementById('taskList'), rl=document.getElementById('remList');
+      var heads=tr.querySelectorAll('.mhead'), hh=0;
+      heads.forEach(function(h){hh+=h.getBoundingClientRect().height});
+      var rf=tr.querySelector('.remfoot');
+      var used=hh+(rf?rf.getBoundingClientRect().height:0)+40;
+      var each=Math.max(56, Math.floor((wh-used)/2));
+      if(tl){tl.style.setProperty('max-height',each+'px','important');tl.style.setProperty('overflow-y','auto','important')}
+      if(rl){rl.style.setProperty('max-height',each+'px','important');rl.style.setProperty('overflow-y','auto','important')}
+    }
+    busy=false;
+    if(window._sgPending){ window._sgPending=false; schedule(); }
+  }
+  window.syncGamesHeight=syncGamesHeight;
+  window.addEventListener('resize', schedule);
+  function boot(){
+    syncGamesHeight();
+    setTimeout(syncGamesHeight, 200);
+    setTimeout(syncGamesHeight, 600);
+    setTimeout(syncGamesHeight, 1500);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+  window.addEventListener('load', function(){ setTimeout(syncGamesHeight, 100); });
+  var obs=new MutationObserver(schedule);
+  var ro=null;
+  function watch(){
+    var wcard=document.querySelector('.home-row.r2r3 .hc-top > .wcard, .home-row.r2 > .wcard')||document.querySelector('.wcard');
+    if(wcard){
+      obs.observe(wcard,{childList:true,subtree:true,characterData:true,attributes:true});
+      if(typeof ResizeObserver!=='undefined'){
+        if(ro) try{ro.disconnect()}catch(e){}
+        ro=new ResizeObserver(schedule);
+        ro.observe(wcard);
+      }
+    }
+    var gl=document.getElementById('gamesList');
+    if(gl) obs.observe(gl,{childList:true,subtree:true});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', watch); else watch();
+})();
+
+/* منوی موبایل — همبرگر (drawer ثابت، بدون بهم‌ریختن layout) */
+(function(){
+  var nav=document.querySelector('.nav'); if(!nav)return;
+  if(nav.querySelector('.nav-toggle'))return;
+  var btn=document.createElement('button');
+  btn.type='button'; btn.className='nav-toggle'; btn.setAttribute('aria-label','منو');
+  btn.setAttribute('aria-expanded','false');
+  btn.innerHTML='☰';
+  var brand=nav.querySelector('.brand');
+  if(brand&&brand.nextSibling) nav.insertBefore(btn, brand.nextSibling);
+  else if(brand) brand.insertAdjacentElement('afterend', btn);
+  else nav.insertBefore(btn, nav.firstChild);
+  var bd=document.querySelector('.nav-backdrop');
+  if(!bd){ bd=document.createElement('div'); bd.className='nav-backdrop'; document.body.appendChild(bd); }
+  var links=nav.querySelector('.navlinks');
+  function close(){
+    document.body.classList.remove('nav-open');
+    btn.innerHTML='☰';
+    btn.setAttribute('aria-expanded','false');
+  }
+  function open(){
+    document.body.classList.add('nav-open');
+    btn.innerHTML='✕';
+    btn.setAttribute('aria-expanded','true');
+  }
+  function toggle(e){
+    if(e){e.preventDefault();e.stopPropagation()}
+    if(document.body.classList.contains('nav-open')) close(); else open();
+  }
+  btn.addEventListener('click', toggle);
+  bd.addEventListener('click', function(e){e.preventDefault();close()});
+  if(links){
+    links.addEventListener('click', function(e){
+      var a=e.target.closest('a');
+      if(a && window.matchMedia('(max-width:900px)').matches) close();
+    });
+  }
+  window.addEventListener('resize', function(){ if(window.innerWidth>900) close(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
+})();
+</script>
+
+<script src="/app-lock.js" defer></script>
 </body>
 </html>

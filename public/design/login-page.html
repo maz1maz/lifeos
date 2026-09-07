@@ -143,7 +143,7 @@ document.getElementById('form').addEventListener('submit',function(e){
   if(pass.length<6)return showErr('رمز حداقل ۶ حرف');
   var path=MODE==='signup'?'/api/auth/signup':'/api/auth/login';
   var body=JSON.stringify(MODE==='signup'?{name:name,email:email,password:pass}:{email:email,password:pass});
-  fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:body})
+  fetch(path,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:body})
     .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j}})})
     .then(function(res){
       if(!res.ok)return showErr(res.j.error||'ورود ناموفق بود');

@@ -21,6 +21,7 @@ const beforeRouteCount = (block.match(/ if\(p===/g) || []).length + (block.match
 // 1) Special-case Node-only crypto/fs/Buffer usages (must run before the generic pass
 //    so their own read()/write() calls still get caught by step 2).
 const specialCases = [
+  ["let buf=Buffer.from(m[3],'base64');if(buf.length>12*1024*1024)return json(res,400,{error:'حجم فایل حداکثر ۱۲ مگابایت.'});let filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),buf);r.fileUrl='/uploads/'+filename;r.fileMime=mime;r.fileName=d.fileName||filename;write(db);return json(res,200,r)}", "let buf=bytesFromBase64(m[3]);if(buf.byteLength>12*1024*1024)return json(res,400,{error:'حجم فایل حداکثر ۱۲ مگابایت.'});let filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره\u200cسازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,buf,{httpMetadata:{contentType:mime},customMetadata:{userId:user.id}});r.fileUrl='/uploads/'+filename;r.fileMime=mime;r.fileName=d.fileName||filename;await write(db);return json(res,200,r)}"],
   [`crypto.randomBytes(16).toString('hex')`, `randHex(16)`],
   [`crypto.randomBytes(24).toString('hex')`, `randHex(24)`],
   [`hash(d.password,salt)`, `await hash(d.password,salt)`],
@@ -33,11 +34,11 @@ const specialCases = [
   [`Buffer.from(d.watchesCsvBase64,'base64').toString('utf8')`, `textFromBase64(d.watchesCsvBase64)`],
   [
     `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),Buffer.from(m[2],'base64'));r.receipt='/uploads/'+filename;write(db);return json(res,200,r)}`,
-    `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]}});r.receipt='/uploads/'+filename;await write(db);return json(res,200,r)}`,
+    `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]},customMetadata:{userId:user.id}});r.receipt='/uploads/'+filename;await write(db);return json(res,200,r)}`,
   ],
   [
     `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),Buffer.from(m[2],'base64'));r.fileUrl='/uploads/'+filename;write(db);return json(res,200,r)}`,
-    `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]}});r.fileUrl='/uploads/'+filename;await write(db);return json(res,200,r)}`,
+    `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]},customMetadata:{userId:user.id}});r.fileUrl='/uploads/'+filename;await write(db);return json(res,200,r)}`,
   ],
 ];
 let specialCounts = [];
