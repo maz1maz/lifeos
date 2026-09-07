@@ -1215,7 +1215,7 @@ body.nav-open .nav-backdrop{display:block}
     <div class="wdots" id="wdots"></div>
     <span style="font-size:14px;color:var(--faint)">حال ۷ روز اخیر</span>
   </div>
-  <div class="yearago" id="yearAgo">📜 <b>پارسال این روز:</b> حالت ۸ بود، «اتاق شیشه‌ای» را تمام کردی و ۲ جلسه‌ی خوب کاری داشتی.</div>
+  <div class="yearago" id="yearAgo">📜 <b>پارسال این روز:</b> هنوز یادداشتی نیست.</div>
 
   <div class="card3" id="card3">
     <div class="c3head"><h4>📝 ثبت روزانه</h4><small>دیروز و امروزت در چند ثانیه — ذخیره در /api/daily</small></div>
@@ -1275,7 +1275,7 @@ body.nav-open .nav-backdrop{display:block}
         </div>
       </div>
 
-      <div class="streakline">🔥 زنجیره‌ی ثبت: <b>۷ روز</b> پیوسته — امروز هم نه قطعش کنیم</div>
+      <div class="streakline" id="streakLine" style="display:none">🔥 زنجیره‌ی ثبت: <b id="streakDays">۰</b> روز</div>
 
       <div class="askrow">
         <button class="ok" id="btnOk">ثبت</button>
@@ -1331,7 +1331,7 @@ body.nav-open .nav-backdrop{display:block}
 <div class="mcard">
     <div class="mhead"><h4>📊 بودجه ماه</h4></div>
     <div class="budwrap">
-        <div class="budbar"><i id="budFill" style="width:23%"></i></div>
+        <div class="budbar"><i id="budFill" style="width:0%"></i></div>
         <div class="budnums"><span><b id="budSpent">—</b> خرج شده</span><span>از <b id="budTotal">—</b></span></div>
         <div class="budleft"><b id="budPct">—</b><small id="budDays">—</small></div>
         <div class="budcats" id="budCats"></div>
@@ -1573,7 +1573,7 @@ document.getElementById('demoReset2').addEventListener('click',function(){
   collapsed.classList.remove('show');
   card.style.display='';card.style.opacity='';card.style.transform='';
 });
-var WEEK=[6,7,5,8,7,9,null];
+var WEEK=[null,null,null,null,null,null,null];
 function renderWeek(todayVal){
   var el=document.getElementById('wdots'),html='';
   WEEK.forEach(function(v,i){
@@ -1766,10 +1766,7 @@ function renderWeather(d){
 
 
 /* ================= NEW EPISODES ================= */
-var EPS=[
-  {ic:'🗡️',t:'شوگان',s:'فصل ۱ قسمت ۶ · ۳ روز پیش پخش شد',fresh:true},
-  {ic:'🔮',t:'استرنجر تینگز',s:'فصل ۴ قسمت ۴ · دیروز پخش شد',fresh:true}
-];
+var EPS=[]; /* خالی تا API سریال‌ها پر کند */
 function renderEps(){
   var el=document.getElementById('epList'),html='';
   EPS.forEach(function(x,i){
@@ -1779,10 +1776,10 @@ function renderEps(){
       +(x.fresh?'<span class="newb">جدید</span>':'')
       +'<button class="sawbtn">دیدمش ✓</button></div>';
   });
-  el.innerHTML=html;
+  el.innerHTML=html||'<div style="color:var(--faint);font-size:14px;padding:8px 2px">قسمت جدیدی نیست — از صفحه سریال‌ها دنبال کن</div>';
   var n=EPS.filter(Boolean).length;
-  document.getElementById('epCnt').textContent=fa(n)+' قسمت';
-  document.getElementById('epDone').classList.toggle('show',n===0);
+  var cnt=document.getElementById('epCnt'); if(cnt) cnt.textContent=n?fa(n)+' قسمت':'—';
+  var done=document.getElementById('epDone'); if(done) done.classList.toggle('show', false);
 }
 document.getElementById('epList').addEventListener('click',function(e){
   var b=e.target.closest('.sawbtn'); if(!b)return;
@@ -1856,22 +1853,18 @@ function openCal(anchor,onPick){
   setTimeout(function(){document.addEventListener('mousedown',function h(e){if(!pop.contains(e.target)){closeCal();document.removeEventListener('mousedown',h)}})},10);
 }
 /* ================= TASKS ================= */
-var TASKS=[
-  {t:'جواب ایمیل مشتری', p:1, meta:'فوری', done:true},
-  {t:'۳۰ دقیقه ورزش', p:2, meta:'🔥 ۱۲ روز', done:false},
-  {t:'گزارش ماهانه', p:2, meta:'تا جمعه', done:false},
-  {t:'خرید هفته', p:3, meta:'هر وقت', done:false}
-];
+var TASKS=[]; /* خالی — کاربر اضافه می‌کند */
 function renderTasks(){
   var el=document.getElementById('taskList'),html='';
   TASKS.forEach(function(x,i){
     html+='<div class="task'+(x.done?' done':'')+'" data-i="'+i+'"><span class="ck"></span>'
       +(x.p?'<span class="prio p'+x.p+'"></span>':'')
-      +'<span class="tt">'+x.t+'</span><span class="st">'+x.meta+'</span><button class="tdel" data-di="'+i+'" title="حذف">✕</button></div>';
+      +'<span class="tt">'+x.t+'</span><span class="st">'+(x.meta||'')+'</span><button class="tdel" data-di="'+i+'" title="حذف">✕</button></div>';
   });
-  el.innerHTML=html;
+  el.innerHTML=html||'<div style="color:var(--faint);font-size:14px;padding:8px 2px">هنوز کاری نیست — بالا اضافه کن</div>';
   var d=TASKS.filter(function(x){return x.done}).length;
-  document.getElementById('taskCnt').textContent=fa(d)+' از '+fa(TASKS.length);
+  var tc=document.getElementById('taskCnt');
+  if(tc) tc.textContent=TASKS.length?(fa(d)+' از '+fa(TASKS.length)):'—';
   try{if(window.syncGamesHeight)syncGamesHeight()}catch(e){}
 }
 document.getElementById('taskList').addEventListener('click',function(e){
@@ -1929,15 +1922,8 @@ document.getElementById('taskIn').addEventListener('keydown',function(e){if(e.ke
 renderTasks();
 
 /* ===== یادآوری‌ها (قابل افزودن، localStorage) ===== */
-var REM_KEY='lifeos-reminders-v1';
-var REM_DEFAULTS=[
-  {t:'۲ کار عقب‌افتاده — تماس بیمه، فایل مشتری', when:'برو ببین', color:'bad', done:false, off:-1},
-  {t:'تمدید نتفلیکس', when:'فردا', color:'warn', done:false, off:1},
-  {t:'سررسید بیمه', when:'۳ روز', color:'warn', done:false, off:3},
-  {t:'🎂 تولد مامان', when:'۷ روز · هدیه!', color:'acc', done:false, off:7},
-  {t:'🪪 کارت بانکی', when:'۲ ماه', color:'faint', done:false, off:60},
-  {t:'قسط وام', when:'✓ پرداخت شد', color:'good', done:true, off:0}
-];
+var REM_KEY='lifeos-reminders-v2';
+var REM_DEFAULTS=[]; /* خالی — بدون نمونه */
 function loadRems(){
   try{
     var raw=localStorage.getItem(REM_KEY);
@@ -2086,12 +2072,8 @@ var CATS=[
 ];
 var ACCS=['💳 کارت اصلی','💵 نقدی','🏦 پس‌انداز'];
 var TXKIND='expense',TXACC=ACCS[0],TXCAT=null,TXCATMANUAL=false,TXCATEDIT=false;
-var TODAYTX=[
- {t:'اسنپ به محل کار',a:85000,c:'حمل‌ونقل',k:'expense'},
- {t:'نانوازی',a:45000,c:'خوراک',k:'expense'}
-];
-var BUDGET={spent:485000,total:2140000,daysLeft:16,
- cats:[['خوراک',210000],['حمل‌ونقل',120000],['تفریح',85000],['پوشاک',70000]]};
+var TODAYTX=[]; /* خالی */
+var BUDGET={spent:0,total:0,daysLeft:0,cats:[]};
 function catMeta(c){for(var i=0;i<CATS.length;i++)if(CATS[i][0]===c)return CATS[i];return CATS[CATS.length-1]}
 function fmtT(n){return fmtFull(n)}
 function fmtFull(n){return fa(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,','))}
@@ -2140,23 +2122,22 @@ function renderTx(){
   :'<div style="color:var(--faint);font-size:14px;text-align:center;padding:10px">هنوز چیزی ثبت نشده — اولین خرج امروز را بالا بنویس</div>';
  var s=exp.reduce(function(n,x){return n+x.a},0);
  document.getElementById('txSum').textContent=fmtFull(s)+' ﷼';
- BUDGET.spent=485000+s-85000-45000;
+ BUDGET.spent=s; /* فقط جمع خرج‌های امروز در لیست */
  renderBud();
 }
 function renderBud(){
- var pct=Math.min(100,Math.round(BUDGET.spent/BUDGET.total*100));
- var f=document.getElementById('budFill');f.style.width=pct+'%';
- f.style.background=pct>=100?'var(--bad)':pct>=75?'var(--warn)':'var(--good)';
- document.getElementById('budSpent').textContent=fmtT(BUDGET.spent);
- document.getElementById('budTotal').textContent=fmtT(BUDGET.total)+' تومان';
- document.getElementById('budPct').textContent=fa(pct)+'٪';
- document.getElementById('budDays').textContent=fa(BUDGET.daysLeft)+' روز تا پایان ماه';
- var mx=Math.max.apply(null,BUDGET.cats.map(function(c){return c[1]}));
- document.getElementById('budCats').innerHTML=BUDGET.cats.map(function(c){
+ var pct=BUDGET.total>0?Math.min(100,Math.round(BUDGET.spent/BUDGET.total*100)):0;
+ var f=document.getElementById('budFill'); if(f){ f.style.width=pct+'%';
+  f.style.background=pct>=100?'var(--bad)':pct>=75?'var(--warn)':'var(--good)'; }
+ var bs=document.getElementById('budSpent'); if(bs) bs.textContent=BUDGET.spent?fmtT(BUDGET.spent):'—';
+ var bt=document.getElementById('budTotal'); if(bt) bt.textContent=BUDGET.total?fmtT(BUDGET.total)+' تومان':'—';
+ var bp=document.getElementById('budPct'); if(bp) bp.textContent=BUDGET.total?fa(pct)+'٪':'—';
+ var bd=document.getElementById('budDays'); if(bd) bd.textContent=BUDGET.daysLeft?fa(BUDGET.daysLeft)+' روز مانده':'بودجه هنوز تنظیم نشده';
+ var bc=document.getElementById('budCats');
+ if(bc) bc.innerHTML=BUDGET.cats.length?BUDGET.cats.map(function(c){
   var cm=catMeta(c[0]);
-  return '<div class="bc"><span class="n">'+cm[1]+' '+c[0]+'</span>'
-   +'<span class="bar"><i style="width:'+Math.round(c[1]/mx*100)+'%;background:'+cm[2]+'"></i></span>'
-   +'<span class="v">'+fmtT(c[1])+'</span></div>'}).join('');
+  return '<div class="bc"><span class="n">'+cm[1]+' '+c[0]+'</span><span class="v">'+fmtT(c[1])+'</span></div>';
+ }).join(''):'<div style="color:var(--faint);font-size:13.5px;padding:6px 0">برای سقف ماهانه به صفحه پول برو</div>';
 }
 function txSubmit(){
  var a=parseInt(document.getElementById('txAmt').dataset.raw||'',10)||0;
