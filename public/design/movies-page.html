@@ -357,7 +357,7 @@ body.nav-open .nav-backdrop{display:block}
   <div class="pgrid" id="g-later" style="display:none"></div>
 
   <div class="specline">
-    🔌 اتصال واقعی: جستجو از <b>/api/movies/tmdb/search</b> (کل TMDB) · ذخیره با <b>/api/movies/from-tmdb</b> — پوستر و اطلاعات خودکار می‌آید · لیست از <b>/api/movies</b> · در این پیش‌نمایش، جستجو در ۱۰ فیلم نمونه (با پوستر واقعی از Wikipedia) کار می‌کند.
+    🔌 اتصال واقعی: جستجو از <b>/api/movies/tmdb/search</b> (کل TMDB) · ذخیره با <b>/api/movies/from-tmdb</b> — پوستر و اطلاعات خودکار می‌آید · لیست از <b>/api/movies</b> · کاتالوگ آفلاین فقط برای جستجوی بدون TMDB است؛ لیست دیده‌شده/برای‌بعد خالی شروع می‌شود.
   </div>
 </div>
 
@@ -389,8 +389,8 @@ function M(k){return MV[k]||LIVEINFO[k]||{}}
 function stars(n){return '★'.repeat(n)+'☆'.repeat(5-n)}
 
 /* ===== لیست من ===== */
-var SEEN=[{k:'interstellar',r:5},{k:'parasite',r:5},{k:'whiplash',r:4},{k:'darkknight',r:5}];
-var LATER=[{k:'dune'},{k:'oppenheimer'}];
+var SEEN=[]; /* خالی */
+var LATER=[];
 
 function cardSeen(x){
   var m=M(x.k);

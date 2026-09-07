@@ -497,7 +497,7 @@ body.nav-open .nav-backdrop{display:block}
   </div>
 
   <div class="specline">
-    🔌 همه چیز واقعی است در بک‌اند تو: درون‌ریزی <b>POST /api/transactions/import-bank/preview</b> فایل <b>Excel و CSV</b> بانک را مستقیم می‌خواند، تراکنش تکراری را با شناسه‌ی بانکی تشخیص می‌دهد و با <b>/commit</b> ثبت می‌کند · حساب‌ها <b>/api/accounts</b> · آمار ماه <b>/api/finance?month=</b> · پورتفو <b>/api/portfolio</b> با خرید/فروش <b>/api/investments/tx</b> و قیمت زنده <b>/api/investments/price</b> و هشدارها <b>/api/investments/alerts</b> · بدهی‌ها <b>/api/debts</b> · پوکر <b>POST /api/poker</b> (خرید/خروجی/محل) و خلاصه‌ی ماه <b>/api/poker/summary</b>. این پیش‌نمایش با داده‌ی نمونه‌ی ۲۴ ماهه کار می‌کند.
+    🔌 همه چیز واقعی است در بک‌اند تو: درون‌ریزی <b>POST /api/transactions/import-bank/preview</b> فایل <b>Excel و CSV</b> بانک را مستقیم می‌خواند، تراکنش تکراری را با شناسه‌ی بانکی تشخیص می‌دهد و با <b>/commit</b> ثبت می‌کند · حساب‌ها <b>/api/accounts</b> · آمار ماه <b>/api/finance?month=</b> · پورتفو <b>/api/portfolio</b> با خرید/فروش <b>/api/investments/tx</b> و قیمت زنده <b>/api/investments/price</b> و هشدارها <b>/api/investments/alerts</b> · بدهی‌ها <b>/api/debts</b> · پوکر <b>POST /api/poker</b> (خرید/خروجی/محل) و خلاصه‌ی ماه <b>/api/poker/summary</b>. بدون دادهٔ نمونه — از درون‌ریزی بانک یا ثبت دستی پر کن.
   </div>
 </div>
 
@@ -554,7 +554,7 @@ var UID=1;
 function pick(arr){return arr[Math.floor(R()*arr.length)]}
 function ri(a,b){return Math.floor(a+R()*(b-a+1))}
 
-/* ============ داده‌ی نمونه ============ */
+/* ============ داده (شروع خالی) ============ */
 var CATS={'خوراک':'var(--acc)','حمل‌ونقل':'#fb923c','قبض':'#a78bfa','سلامت':'var(--good)','تفریح':'#f472b6','پوشاک':'#60a5fa','آموزش':'#fbbf24','مسکن':'#f87171','متفرقه':'var(--faint)','حقوق':'var(--good)'};
 var CATI={'خوراک':'🍞','حمل‌ونقل':'🚕','قبض':'🧾','سلامت':'💊','تفریح':'🎬','پوشاک':'👕','آموزش':'📚','مسکن':'🏠','متفرقه':'🔖','حقوق':'💰'};
 var MON=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
@@ -580,21 +580,13 @@ function genMonth(mi,bank){
   if(R()<0.25)add(ri(1,29),pick(['داروخانه','دکتر']),ri(150,1800)*1000,'سلامت','expense');
   if(R()<0.25)add(ri(1,29),pick(['کتاب','دوره آنلاین']),ri(200,1500)*1000,'آموزش','expense');
 }
-/* فقط ۲ ماه آخر پر است (ثبت‌های دستی) — ۲۲ ماه قبل با درون‌ریزی بانک پر می‌شود */
-for(var mi=22;mi<24;mi++)genMonth(mi,false);
+/* بدون دادهٔ نمونه — لیست خالی تا کاربر/API پر کند */
+/* genMonth فقط برای درون‌ریزی بانک (دکمهٔ demo) نگه داشته شده */
 
 /* ============ حساب‌ها ============ */
-var ACCS=[
- {n:'کارت اصلی — بانک صادرات',type:'card',num:'•• 4521',b:42500000},
- {n:'حساب پس‌انداز — بانک ملی',type:'acc',num:'',b:120000000},
- {n:'نقدی',type:'cash',num:'',b:3200000}
-];
+var ACCS=[]; /* خالی */
 ACCS.forEach(function(a){a._u=UID++});
-var DEBTS=[
- {_u:0,n:'وام مسکن',total:600000000,paid:420000000,inst:9500000,due:10},
- {_u:0,n:'قرض از علی',total:80000000,paid:50000000,inst:5000000,due:20},
- {_u:0,n:'قسط لپ‌تاپ',total:42000000,paid:35700000,inst:1750000,due:5}
-];
+var DEBTS=[]; /* خالی */
 DEBTS.forEach(function(d){d._u=UID++});
 function debtRemain(d){return Math.max(0,d.total-d.paid)}
 function DEBT(){return DEBTS.reduce(function(s,d){return s+debtRemain(d)},0)}
@@ -602,14 +594,7 @@ var HIDDEN=false;
 
 /* ============ پورتفو ============ */
 var USDT=22720;
-var HOLD=[
- {sym:'BTC',type:'کریپتو',qty:0.061,price:79838,cur:'$',chg:+0.04},
- {sym:'ETH',type:'کریپتو',qty:1.4,price:2481,cur:'$',chg:+1.03},
- {sym:'SOL',type:'کریپتو',qty:28,price:103.7,cur:'$',chg:+1.88},
- {sym:'سکه امامی',type:'طلا',qty:2,price:23749500,cur:'﷼',chg:+0.6},
- {sym:'فولاد',type:'سهام',qty:4000,price:2340,cur:'﷼',chg:-0.4},
- {sym:'فملی',type:'سهام',qty:1200,price:3980,cur:'﷼',chg:+0.9}
-];
+var HOLD=[]; /* خالی */
 HOLD.forEach(function(a){a._u=UID++});
 var ACOLOR={'کریپتو':'#fbbf24','سهام':'#60a5fa','طلا':'var(--acc)'};
 
@@ -669,7 +654,7 @@ function renderChart(){
   var exp=[],inc=[],mx=0;
   MONTHS.forEach(function(M,mi){
     var e=0,n=0;DATA.forEach(function(x){if(x.mi===mi){if(x.k==='expense')e+=x.a;else n+=x.a}});
-    exp.push(e);inc.push(n);mx=Math.max(mx,e,n);
+    exp.push(e);inc.push(n);mx=Math.max(mx,e,n,1);
   });
   document.getElementById('chart').innerHTML=MONTHS.map(function(M,mi){
     var he=Math.max(2,Math.round(exp[mi]/mx*100)),hiN=Math.max(2,Math.round(inc[mi]/mx*100));
@@ -728,7 +713,7 @@ function renderPort(){
      +'<span class="val">'+fmtC(v)+'</span><button class="rowedit" data-ed="hold" data-u="'+h._u+'">✎</button></div>';
   }).join('');
   document.getElementById('pAlerts').innerHTML=
-   '<div><span>🔔</span><span><b>BTC</b> زیر ۸۰ هزار دلار بسته شد — ناحیه‌ی خرید تو</span></div>'
+   ''
   +'<div><span>🔔</span><span><b>سکه امامی</b> از مرز ۲۳٫۵ میلیون عبور کرد (هدف فروش پله‌ای)</span></div>';
 }
 
@@ -823,17 +808,8 @@ document.getElementById('dbAdd').addEventListener('click',function(){
   toast('«'+n+'» اضافه شد ✓');
 });
 /* ============ پوکر ============ */
-var PK=[];/* {mi,d,bi,co,loc} */
-(function(){
-  var rows=[[17,12,3000000,5200000,'آنلاین'],[17,21,3000000,1800000,'آنلاین'],
-   [18,4,4000000,9500000,'خانه دوستان'],[18,18,4000000,3900000,'آنلاین'],[18,27,3000000,1200000,'آنلاین'],
-   [19,9,5000000,11000000,'خانه دوستان'],[19,22,4000000,2100000,'آنلاین'],
-   [20,6,4000000,8800000,'خانه دوستان'],[20,19,3000000,1000000,'آنلاین'],[20,28,5000000,4700000,'آنلاین'],
-   [21,8,4000000,7600000,'خانه دوستان'],[21,17,3000000,3300000,'آنلاین'],[21,26,5000000,2000000,'خانه دوستان'],
-   [22,3,4000000,9200000,'خانه دوستان'],[22,14,3000000,1400000,'آنلاین'],
-   [23,2,4000000,6100000,'آنلاین'],[23,5,5000000,3400000,'خانه دوستان']];
-  rows.forEach(function(r){PK.push({_u:UID++,mi:r[0],d:r[1],bi:r[2],co:r[3],loc:r[4]})});
-})();
+var PK=[];/* خالی */
+
 var PKDATE=(function(){var t=jToday();return{mi:(t.jy*12+t.jm-1)-(1403*12+6),d:t.jd}})();
 document.getElementById('pkDate').addEventListener('click',function(){
   var btn=this;
@@ -947,28 +923,23 @@ document.getElementById('impBtn').addEventListener('click',function(){impDrawer.
 document.getElementById('closeImp').addEventListener('click',function(){impDrawer.classList.remove('open');ovl.classList.remove('open')});
 ovl.addEventListener('click',function(){impDrawer.classList.remove('open');accDrawer.classList.remove('open');edD.classList.remove('open');ovl.classList.remove('open')});
 document.getElementById('fBank').addEventListener('click',function(){
-  this.classList.add('ok');this.innerHTML='<b>✓ statement_1402-1404.xlsx</b><small>۱٬۲۴۰ ردیف · دو سال و نیم · ۴٫۲ MB</small>';
-  document.getElementById('doImport').textContent='پیش‌نمایش ۱٬۲۴۰ ردیف';
+  this.classList.add('ok');this.innerHTML='<b>✓ فایل انتخاب شد</b><small>آماده پیش‌نمایش</small>';
+  document.getElementById('doImport').textContent='پیش‌نمایش';
 });
 document.getElementById('doImport').addEventListener('click',function(){
   var f=document.getElementById('fBank');
   if(!f.classList.contains('ok')){toast('اول فایل را انتخاب کن 📎');return}
   var btn=this;
   if(!prevShown){
-    var sample=[[3,'واریز حقوق',38000000,'income',false],[5,'پرداخت پذیرندگی — اسنپ',86000,'expense',false],
-      [5,'سوپرمارکرفامیلی',540000,'expense',true],[9,'انتقال کاربه‌کار',20000000,'expense',false],[12,'قبض برق تهران',420300,'expense',true]];
-    document.getElementById('prevRows').innerHTML=sample.map(function(r){
-      return '<div class="pr"><span class="pd">۱۴۰۴/۰۶/'+fa(r[0])+'</span><span class="pt">'+r[1]+'</span>'
-       +'<span style="flex:none;font-size:11px;padding:1px 7px;border-radius:7px;border:1px solid '+(r[2]>0?'var(--bad)':'var(--good)')+';color:'+(r[2]>0?'var(--bad)':'var(--good)')+'">'+(r[2]>0?'هزینه':'دریافت')+'</span>'
-       +'<span class="pa">'+fmt(r[2])+'</span>'
-       +(r[4]?'<span style="flex:none;font-size:11px;color:var(--warn)">تکراری</span>':'')+'</div>';
-    }).join('');
+    var sample=[]; document.getElementById('prevRows').innerHTML=sample.length?sample.map(function(r){
+      return '<div class="txi"><span class="d">'+fa(r[0])+'</span><span class="t">'+r[1]+'</span><span class="amt">'+(r[3]==='income'?'+':'-')+fmt(r[2])+'</span></div>';
+    }).join(''):'<div class="empty">پیش‌نمایش خالی — فایل بانک را انتخاب کن</div>';
     document.getElementById('prevRows').classList.add('show');
     document.getElementById('pSum').classList.add('show');
-    document.getElementById('psTx').textContent=fa(1218);
-    document.getElementById('psIn').textContent=fmtC(912000000);
-    document.getElementById('psOut').textContent=fmtC(684000000);
-    prevShown=true;btn.textContent='⬆️ ثبت ۱٬۲۱۸ تراکنش جدید (۲۲ تکراری نادیده)';
+    document.getElementById('psTx').textContent=fa(0);
+    document.getElementById('psIn').textContent=fmtC(0);
+    document.getElementById('psOut').textContent=fmtC(0);
+    prevShown=true;btn.textContent='⬆️ ثبت از API (فایل واقعی)';
     return;
   }
   if(bankLoaded){toast('قبلاً وارد شده ✓');return}
@@ -978,9 +949,10 @@ document.getElementById('doImport').addEventListener('click',function(){
     w+=6;bi.style.width=Math.min(w,100)+'%';
     if(w>=100){
       clearInterval(iv);bankLoaded=true;btn.disabled=false;
-      for(var mi=0;mi<22;mi++)genMonth(mi,true);
+      /* دیگر دادهٔ ساختگی تولید نمی‌شود — فایل واقعی بانک را از API بفرست */
+      DATA=[];
       renderChart();renderHist();renderCatsIns();
-      toast('۱٬۲۱۸ تراکنش دو سال و نیم وارد شد ✓ چارت را ببین!');
+      toast('بدون دادهٔ نمونه — از API واقعی بانک استفاده کن');
       setTimeout(function(){impDrawer.classList.remove('open');ovl.classList.remove('open');document.getElementById('mPrev').focus()},900);
     }
   },120);

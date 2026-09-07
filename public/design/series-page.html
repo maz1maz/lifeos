@@ -413,7 +413,7 @@ body.nav-open .nav-backdrop{display:block}
   <div id="recs"></div>
 
   <div class="specline">
-    🔌 اتصال واقعی: کتابخانه از <b>/api/movies</b> خودت (پوستر و اطلاعات هنگام افزودن از TMDB/TVmaze ذخیره می‌شود) · قسمت جدید و شروع فصل بعدی خودکار از <b>/api/movies/next-episode-alerts</b> (TVmaze) · درون‌ریزی Bingers آماده‌ست · این پیش‌نمایش داده‌ی واقعیِ امروز را embed شده دارد.
+    🔌 اتصال واقعی: کتابخانه از <b>/api/movies</b> خودت (پوستر و اطلاعات هنگام افزودن از TMDB/TVmaze ذخیره می‌شود) · قسمت جدید و شروع فصل بعدی خودکار از <b>/api/movies/next-episode-alerts</b> (TVmaze) · درون‌ریزی Bingers آماده‌ست · کتابخانهٔ تو خالی است تا سریال اضافه کنی یا از Bingers درون‌ریزی کنی. کاتالوگ TV فقط برای جستجو/پوستر است.
   </div>
 </div>
 
@@ -463,24 +463,12 @@ function stars(n){return '★'.repeat(n)+'☆'.repeat(5-n)}
 function r2(r){return Math.max(1,Math.min(5,Math.round(r/2)))}
 
 /* ===== کتابخانه ===== */
-var WATCHING=[
-  {k:'Shogun',cur:5,tot:10,season:1,newEp:true},
-  {k:'Stranger Things',cur:3,tot:9,season:4,newEp:true},
-  {k:'Severance',cur:3,tot:10,season:2,newEp:false},
-  {k:'Silo',cur:10,tot:10,season:3,newEp:false}
-];
-var DONE=[{k:'Breaking Bad'},{k:'Chernobyl'},{k:'Game of Thrones'},{k:'Mr. Robot'},{k:'Dark'},{k:'The Boys'}];
-var LIST=[{k:'Foundation'},{k:'The Last of Us'}];
-var RECS=[
-  {k:'Andor',why:'چون «Silo» و «Severance» را دیدی',m:92},
-  {k:'Fallout',why:'چون «The Last of Us» و «The Boys» را دیدی',m:89}
-];
+var WATCHING=[]; /* خالی */
+var DONE=[];
+var LIST=[];
+var RECS=[];
 var REJECTED=[];
-var RECPOOL=[
-  {k:'Better Call Saul',why:'چون «Breaking Bad» و «Mr. Robot» را دیدی',m:94},
-  {k:'Peaky Blinders',why:'چون «Game of Thrones» و «Breaking Bad» را دیدی',m:90},
-  {k:'True Detective',why:'چون «Dark» و «Mr. Robot» را دیدی',m:87}
-];
+var RECPOOL=[];
 
 /* شروع فصل جدید: وقتی فصل بعدی سریالِ کامل‌شده پخش شد، خودکار به فصل جدید می‌رود */
 function rollSeasons(sim){
