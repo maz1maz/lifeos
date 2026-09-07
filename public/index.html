@@ -238,7 +238,7 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 }
 @media(max-width:760px){
   .duo{grid-template-columns:1fr}
-  .home-row.r2,.home-row.r3,.home-row.r4{grid-template-columns:1fr}
+  .home-row.r2,.home-row.r2r3,.home-row.r3,.home-row.r4{grid-template-columns:1fr}
 }
 .home .epcard{margin-top:0}
 .dgreet{font-size:15px;color:var(--muted);margin:0 0 4px}
@@ -657,7 +657,7 @@ body.nav-open .nav-backdrop{display:block}
   .hero{grid-template-columns:repeat(2,1fr)!important}
   .pkstats{grid-template-columns:repeat(2,1fr)!important}
   /* ردیف‌های خانه تک‌ستونه */
-  .home-row.r1,.home-row.r2,.home-row.r3,.home-row.r4{
+  .home-row.r1,.home-row.r2,.home-row.r2r3,.home-row.r3,.home-row.r4{
     grid-template-columns:1fr !important;
     display:grid !important;
     height:auto !important;
@@ -953,7 +953,7 @@ body.nav-open .nav-backdrop{display:block}
 }
 
 @media(max-width:900px){
-  .home-row.r2,.home-row.r3,.home-row.r4{
+  .home-row.r2,.home-row.r2r3,.home-row.r3,.home-row.r4{
     display:grid!important;
     grid-template-columns:1fr!important;
     height:auto!important;
@@ -1002,6 +1002,92 @@ body.nav-open .nav-backdrop{display:block}
 @media(min-width:901px) and (max-width:1279px){
   .home-row.r3{
     grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+
+/* ===== ردیف ۲+۳: چهار ستون عمودی هم‌تراز ===== */
+.home-row.r2r3{
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0, 1fr)) !important;
+  gap:14px !important;
+  align-items:start !important;
+  width:100% !important;
+}
+.home-row.r2r3 > .home-col{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  min-width:0 !important;
+  width:100%;
+}
+.home-row.r2r3 .hc-top,
+.home-row.r2r3 .hc-bot{
+  min-width:0;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  flex:0 0 auto;
+}
+.home-row.r2r3 .hc-top > *,
+.home-row.r2r3 .hc-bot > *{
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  margin:0 !important;
+  margin-top:0 !important;
+  box-sizing:border-box;
+}
+/* کارت‌های پایین ستون — ظاهر یکدست */
+.home-row.r2r3 .hc-bot > .c3wrap,
+.home-row.r2r3 .hc-bot > .mcard,
+.home-row.r2r3 .hc-bot > .epcard{
+  background:var(--panel);
+  border:1.5px solid var(--border2);
+  border-radius:22px;
+  padding:14px 16px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  flex:1 1 auto;
+  min-height:0;
+}
+.home-row.r2r3 .hc-bot > .c3wrap{padding:0}
+.home-row.r2r3 .hc-bot .card3{
+  background:transparent !important;
+  border:none !important;
+  margin:0 !important;
+  border-radius:0 !important;
+}
+.home-row.r2r3 .hc-bot .c3head{padding:14px 16px 8px !important}
+.home-row.r2r3 .hc-bot .card3 .abody{padding:12px 16px 16px}
+.home-row.r2r3 .hc-bot .demo-bar{display:none}
+.home-row.r2r3 .hc-bot .txlist{max-height:180px;overflow:auto}
+.home-row.r2r3 .hc-bot #epList{max-height:220px;overflow:auto}
+.home-row.r2r3 .hc-bot .budwrap{overflow:auto}
+/* ارتفاع بالای ستون (r2 سابق): هوا معیار — بقیه هم‌ارتفاع در همان ستون فقط محتوا */
+.home-row.r2r3 .hc-top > .wcard{
+  height:auto !important;
+  max-height:none !important;
+}
+.home-row.r2r3 .hc-top > #mkSum,
+.home-row.r2r3 .hc-top > #gamesCard,
+.home-row.r2r3 .hc-top > .tr-combo{
+  /* همراستا با هوا در کل ردیف بالا — JS --r2-h */
+  height:var(--r2-h, 420px) !important;
+  max-height:var(--r2-h, 420px) !important;
+  overflow:hidden !important;
+}
+@media(max-width:1279px) and (min-width:901px){
+  .home-row.r2r3{grid-template-columns:repeat(2, minmax(0,1fr)) !important}
+}
+@media(max-width:900px){
+  .home-row.r2r3{grid-template-columns:1fr !important}
+  .home-row.r2r3 .hc-top > #mkSum,
+  .home-row.r2r3 .hc-top > #gamesCard,
+  .home-row.r2r3 .hc-top > .tr-combo{
+    height:auto !important;
+    max-height:none !important;
   }
 }
 
@@ -1078,8 +1164,10 @@ body.nav-open .nav-backdrop{display:block}
     </div>
   </div>
 
-  <!-- ردیف ۲ —  چهارستونه: هوا · کارها · یادآوری · بازار -->
-  <div class="home-row r2">
+  <!-- ردیف ۲+۳: چهار ستون هم‌تراز — هوا|ثبت · بازار|تراکنش · بازی|بودجه · کار+یادآوری|سریال -->
+<div class="home-row r2r3">
+<div class="home-col hc-weather-daily">
+  <div class="hc-top">
 <div class="wcard">
       <div class="wnow">
         <div class="wic" id="wIcon">—</div>
@@ -1109,38 +1197,8 @@ body.nav-open .nav-backdrop{display:block}
       <div class="wdays" id="wdays"></div>
       <div class="wfoot"><span>پیش‌بینی ۵ روز · Open-Meteo</span><span id="wUpd">—</span></div>
     </div>
-<div class="mcard navcard" id="mkSum">
-    <div class="mhead"><h4>📈 بازارها</h4><span style="font-size:13px;color:var(--acc)">کامل ←</span></div>
-    <div id="sumRows"><div class="mrow"><div class="nm"><b>…</b><small>در حال دریافت</small></div><div class="chg na">—</div><div class="pr">—</div></div></div>
-    <div class="mfoot"><span id="sumTime">—</span><span class="src">کلیک → صفحه‌ی بازار</span></div>
   </div>
-<div class="mcard" id="gamesCard">
-    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ + ایران</span></div>
-    <div class="gwrap" id="gamesList">در حال دریافت…</div>
-    <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
-  </div>
-<div class="tr-combo" id="trCombo">
-    <div class="tr-panel">
-      <div class="tr-sec" id="taskSec">
-        <div class="mhead compact">
-          <h4 id="taskH">✅ کارهای آینده</h4>
-          <span class="cnt" id="taskCnt">—</span>
-        </div>
-        <div id="taskList"></div>
-      </div>
-      <div class="tr-sec" id="remSec">
-        <div class="mhead compact">
-          <h4>🔔 یادآوری‌ها</h4>
-          <span class="cnt" id="remCnt">—</span>
-        </div>
-        <div id="remList"></div>
-        <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
-      </div>
-    </div>
-  </div>
-
-    <!-- ردیف ۳ — چهارستونه (راست→چپ): ثبت روزانه · تراکنش · بودجه · سریال‌ها -->
-<div class="home-row r3">
+  <div class="hc-bot">
 <div class="c3wrap">
 <div class="demo-bar">
     <button class="demo-btn" id="demoWeight">🗓 تست: ماه جدید شد (سوال وزن)</button>
@@ -1225,6 +1283,17 @@ body.nav-open .nav-backdrop{display:block}
     </div>
   </div>
 </div>
+  </div>
+</div>
+<div class="home-col hc-market-tx">
+  <div class="hc-top">
+<div class="mcard navcard" id="mkSum">
+    <div class="mhead"><h4>📈 بازارها</h4><span style="font-size:13px;color:var(--acc)">کامل ←</span></div>
+    <div id="sumRows"><div class="mrow"><div class="nm"><b>…</b><small>در حال دریافت</small></div><div class="chg na">—</div><div class="pr">—</div></div></div>
+    <div class="mfoot"><span id="sumTime">—</span><span class="src">کلیک → صفحه‌ی بازار</span></div>
+  </div>
+  </div>
+  <div class="hc-bot">
 <div class="mcard">
     <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
     <div class="txform">
@@ -1248,6 +1317,17 @@ body.nav-open .nav-backdrop{display:block}
     <div class="txlist" id="txList"></div>
     <div class="txsum"><span>جمع خرج امروز</span><b id="txSum">—</b></div>
               </div>
+  </div>
+</div>
+<div class="home-col hc-games-bud">
+  <div class="hc-top">
+<div class="mcard" id="gamesCard">
+    <div class="mhead"><h4>⚽ بازی‌های امروز</h4><span id="gamesSub" style="font-size:13px;color:var(--faint)">لیگ‌های بزرگ + ایران</span></div>
+    <div class="gwrap" id="gamesList">در حال دریافت…</div>
+    <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
+  </div>
+  </div>
+  <div class="hc-bot">
 <div class="mcard">
     <div class="mhead"><h4>📊 بودجه ماه</h4></div>
     <div class="budwrap">
@@ -1258,6 +1338,31 @@ body.nav-open .nav-backdrop{display:block}
         <div class="txspec" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:12px">🔌 از <b>/api/finance?month=</b> و <b>/api/budgets</b> · ماکان گزارش ماه در صفحه‌ی پول</div>
       </div>
 </div>
+  </div>
+</div>
+<div class="home-col hc-tasks-series">
+  <div class="hc-top">
+<div class="tr-combo" id="trCombo">
+    <div class="tr-panel">
+      <div class="tr-sec" id="taskSec">
+        <div class="mhead compact">
+          <h4 id="taskH">✅ کارهای آینده</h4>
+          <span class="cnt" id="taskCnt">—</span>
+        </div>
+        <div id="taskList"></div>
+      </div>
+      <div class="tr-sec" id="remSec">
+        <div class="mhead compact">
+          <h4>🔔 یادآوری‌ها</h4>
+          <span class="cnt" id="remCnt">—</span>
+        </div>
+        <div id="remList"></div>
+        <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div class="hc-bot">
 <div class="epcard">
     <div class="mhead">
       <h4>🎬 سریال‌ها</h4>
@@ -1267,8 +1372,10 @@ body.nav-open .nav-backdrop{display:block}
     <div id="epList"></div>
     <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
 </div>
-
+  </div>
 </div>
+</div>
+
 </div>
 
 <script>
@@ -2360,14 +2467,14 @@ document.addEventListener('click',function(e){
     });
     var list=document.getElementById('gamesList'); if(list){list.style.removeProperty('height');list.style.removeProperty('max-height')}
     var sr=document.getElementById('sumRows'); if(sr) sr.style.removeProperty('max-height');
-    var row=document.querySelector('.home-row.r2'); if(row) row.style.removeProperty('--r2-h');
+    var row=document.querySelector('.home-row.r2r3, .home-row.r2'); if(row) row.style.removeProperty('--r2-h');
   }
   function schedule(){ clearTimeout(window._sgH); window._sgH=setTimeout(function(){ requestAnimationFrame(syncGamesHeight); }, 50); }
   function syncGamesHeight(){
     if(busy){ window._sgPending=true; return; }
     if(mobile()){ clear(); return; }
-    var w=document.querySelector('.home-row.r2 > .wcard');
-    var row=document.querySelector('.home-row.r2');
+    var w=document.querySelector('.home-row.r2r3 .hc-top > .wcard, .home-row.r2 > .wcard');
+    var row=document.querySelector('.home-row.r2r3, .home-row.r2');
     if(!w||!row) return;
     busy=true;
     var ids=['gamesCard','mkSum','trCombo'];
@@ -2436,7 +2543,7 @@ document.addEventListener('click',function(e){
   var obs=new MutationObserver(schedule);
   var ro=null;
   function watch(){
-    var wcard=document.querySelector('.home-row.r2 > .wcard')||document.querySelector('.wcard');
+    var wcard=document.querySelector('.home-row.r2r3 .hc-top > .wcard, .home-row.r2 > .wcard')||document.querySelector('.wcard');
     if(wcard){
       obs.observe(wcard,{childList:true,subtree:true,characterData:true,attributes:true});
       if(typeof ResizeObserver!=='undefined'){
