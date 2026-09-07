@@ -1835,17 +1835,20 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
   var libFileObj = null;
   var watFileObj = null;
 
-  function fileToBase64(file) {
+  function fileToText(file) {
     return new Promise(function (res, rej) {
       var fr = new FileReader();
       fr.onload = function () {
         var s = String(fr.result || '');
-        var i = s.indexOf(',');
-        res(i >= 0 ? s.slice(i + 1) : s);
+        if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);
+        res(s);
       };
       fr.onerror = function () { rej(new Error('file')); };
-      fr.readAsDataURL(file);
+      fr.readAsText(file, 'UTF-8');
     });
+  }
+  function textToBase64(text) {
+    return btoa(unescape(encodeURIComponent(text)));
   }
 
   document.getElementById('sxLibPick').addEventListener('click', function () {
@@ -1875,8 +1878,8 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
     btn.textContent = '…';
 
     Promise.all([
-      fileToBase64(libFileObj),
-      watFileObj ? fileToBase64(watFileObj) : Promise.resolve(null)
+      fileToText(libFileObj).then(textToBase64),
+      watFileObj ? fileToText(watFileObj).then(textToBase64) : Promise.resolve(null)
     ])
       .then(function (arr) {
         var body = { libraryCsvBase64: arr[0] };
