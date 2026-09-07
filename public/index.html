@@ -107,8 +107,79 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .home-row{display:grid;gap:14px;align-items:stretch;width:100%}
 /* r1 layout → pack CSS */
 .home-row.r2{grid-template-columns:repeat(4,minmax(0,1fr))}
-/* r3 4col */
-.home-row.r3{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:14px}
+/* r3 4col — هر کارت یک ستون جدا */
+.home-row.r3{
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0, 1fr)) !important;
+  align-items:stretch !important;
+  gap:14px !important;
+  width:100% !important;
+}
+.home-row.r3 > .c3wrap,
+.home-row.r3 > .mcard,
+.home-row.r3 > .epcard{
+  min-width:0 !important;
+  width:auto !important;
+  max-width:none !important;
+  grid-column:auto !important;
+  grid-row:auto !important;
+  height:100% !important;
+  align-self:stretch !important;
+  box-sizing:border-box !important;
+  margin:0 !important;
+  margin-top:0 !important;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  background:var(--panel);
+  border:1.5px solid var(--border2);
+  border-radius:22px;
+  padding:14px 16px;
+}
+/* c3wrap قبلاً panel نداشت — مثل بقیه کارت ستون */
+.home-row.r3 > .c3wrap{
+  padding:0;
+  overflow:hidden;
+}
+.home-row.r3 > .c3wrap > .c3head{
+  padding:14px 16px 0;
+}
+.home-row.r3 > .c3wrap > .c3head h4{font-size:17px}
+.home-row.r3 > .c3wrap > .c3head small{display:block;font-size:12px;margin-top:2px}
+.home-row.r3 > .c3wrap .demo-bar{
+  display:none; /* تست‌ها فقط در dev — ستون را شلوغ نکند */
+}
+.home-row.r3 > .c3wrap .card3,
+.home-row.r3 > .c3wrap > .askcard,
+.home-row.r3 > .c3wrap > div:not(.demo-bar):not(.collapsed):not(.weekline){
+  border:none;
+  background:transparent;
+  box-shadow:none;
+  margin:0;
+  flex:1;
+  min-height:0;
+}
+.home-row.r3 > .mcard > .mhead h4,
+.home-row.r3 > .epcard > .mhead h4{font-size:17px}
+.home-row.r3 > .epcard .epdone{font-size:13px}
+.home-row.r3 .txform .txrow{flex-wrap:wrap}
+.home-row.r3 .txform .txamount{min-width:0;flex:1 1 90px}
+.home-row.r3 .txform .txtitle{min-width:0;flex:1 1 120px}
+@media(max-width:1279px) and (min-width:901px){
+  .home-row.r3{
+    grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media(max-width:900px){
+  .home-row.r3{
+    grid-template-columns:1fr !important;
+  }
+  .home-row.r3 > .c3wrap,
+  .home-row.r3 > .mcard,
+  .home-row.r3 > .epcard{
+    height:auto !important;
+  }
+}
 .home-row.r4{grid-template-columns:repeat(3,minmax(0,1fr))}
 
 /* ردیف ۱: کارت تاریخ (راست) + مینی‌تقویم با دما (چپ) */
@@ -176,13 +247,13 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .c3wrap{min-width:0}
 .home .datecard,.home .wcard,.home .tcard,.home .rcard,.home .mcard,.home .epcard,.home .c3wrap{min-width:0}
 .home-row.r1 .datecard,.home-row.r4>.mcard,.home-row.r4>.epcard{height:100%}
-.home-row.r3>.mcard,.home-row.r3>.c3wrap{height:auto;align-self:start}
+.home-row.r3>.mcard,.home-row.r3>.c3wrap,.home-row.r3>.epcard{min-width:0}
 .home .txform .chiprow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px}
 .home .txform #catChips,.home .txform #accChips{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:0}
 .chipset{display:inline-flex!important;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:120px}
 .catrow{margin-top:2px}
 .txchip{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;line-height:1.4;background:var(--panel2)!important}
-.home-row.r3 .mcard{overflow:visible}
+.home-row.r3 .mcard{overflow:auto}
 .txform{overflow:visible}
 
 /* سازگاری قدیمی */
@@ -222,6 +293,38 @@ body.zoom1{zoom:1.1111}
 
 /* ================= CARD 3 ================= */
 .card3{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;overflow:hidden;margin-bottom:14px}
+/* داخل ستون r3: بدون قاب دوبل */
+.home-row.r3 .card3{
+  background:transparent !important;
+  border:none !important;
+  border-radius:0 !important;
+  margin:0 !important;
+  overflow:visible !important;
+  display:flex;
+  flex-direction:column;
+  flex:1;
+  min-height:0;
+}
+.home-row.r3 .card3 .abody{
+  padding:12px 16px 16px;
+  flex:1;
+  overflow:auto;
+  min-height:0;
+}
+.home-row.r3 .c3head{padding:14px 16px 8px !important}
+.home-row.r3 .collapsed{
+  margin:10px 12px 0 !important;
+  border-radius:14px !important;
+}
+.home-row.r3 .weekline,
+.home-row.r3 .yearago{
+  margin-left:12px;
+  margin-right:12px;
+}
+.home-row.r3 .txlist{max-height:180px;overflow:auto}
+.home-row.r3 #epList{max-height:220px;overflow:auto;flex:1;min-height:0}
+.home-row.r3 .budwrap{flex:1;min-height:0;overflow:auto}
+
 /* ===== کارت تاریخ (هیرو) ===== */
 .datecard{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:20px 24px;
   display:flex;flex-direction:column;
@@ -331,6 +434,7 @@ body.zoom1{zoom:1.1111}
 /* ================= TASKS + REMINDERS ================= */
 .tcard,.rcard{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:18px 20px}
 .epcard{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:16px 20px;margin-top:14px}
+.home-row.r3 > .epcard{margin-top:0 !important}
 .eprow{display:flex;align-items:center;gap:12px;padding:8px 2px;border-bottom:1px solid var(--border);transition:opacity .3s,transform .3s}
 .eprow:last-child{border-bottom:none}
 .eprow.gone{opacity:0;transform:translateX(30px)}
@@ -877,6 +981,28 @@ body.nav-open .nav-backdrop{display:block}
   }
   .grow .gline{width:100%}
   .tr-combo, .tr-combo .tr-panel{height:auto!important}
+}
+
+
+/* ===== قفل نهایی ردیف ۳: چهار ستون جدا (دسکتاپ) ===== */
+@media(min-width:901px){
+  .home-row.r3{
+    display:grid !important;
+    grid-template-columns:repeat(4, minmax(0, 1fr)) !important;
+    gap:14px !important;
+    align-items:stretch !important;
+  }
+  .home-row.r3 > *{
+    min-width:0 !important;
+    max-width:none !important;
+    width:auto !important;
+    grid-column: span 1 !important;
+  }
+}
+@media(min-width:901px) and (max-width:1279px){
+  .home-row.r3{
+    grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+  }
 }
 
 </style>
