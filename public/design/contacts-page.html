@@ -451,11 +451,13 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     <div class="import-box">
       <h5>چسباندن یا فایل</h5>
       <p>
-        هر خط یک نفر. جداکننده با ویرگول یا تب:
-        <code style="direction:ltr;font-size:12px">نام, رابطه, تلفن, ایمیل, تولد(YYYY-MM-DD), یادداشت</code>
-        — یا فقط نام در هر خط. فایل <b>CSV / vCard (.vcf)</b> هم قبول است.
+        خروجی <b>Google Contacts</b> را مستقیم بگذار:
+        Contacts → Export → <b>Google CSV</b> → «انتخاب فایل».
+        از هر نفر این‌ها برداشته می‌شود:
+        <b>نام و نام‌خانوادگی</b>، <b>موبایل/تلفن</b>، <b>ایمیل</b>، <b>تولد</b>، <b>سازمان</b>، <b>یادداشت</b>.
+        vCard (<code>.vcf</code>) هم قبول است.
       </p>
-      <textarea id="importText" placeholder="علی رضایی, friend, 0912..., ali@mail.com&#10;مریم, family&#10;BEGIN:VCARD ..."></textarea>
+      <textarea id="importText" placeholder="First Name,Last Name,... (Google CSV) یا اینجا بچسبان"></textarea>
       <div class="btn-row">
         <label class="btn ghost" style="cursor:pointer;margin:0">
           📎 انتخاب فایل
@@ -736,23 +738,38 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
   });
 
   /* ===== parse import ===== */
-  function splitLine(line){
-    /* CSV-ish with quotes */
-    var out=[], cur='', q=false;
-    for(var i=0;i<line.length;i++){
-      var ch=line[i];
-      if(ch==='"'){ q=!q; continue; }
-      if(!q && (ch===',' || ch==='\t' || ch===';')){ out.push(cur.trim()); cur=''; continue; }
-      cur+=ch;
+  function splitCSV(text){
+    /* RFC4180-ish: commas, quotes, "" escapes, multiline fields */
+    text=String(text||'').replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+    var rows=[], row=[], cur='', i=0, q=false;
+    while(i<text.length){
+      var ch=text[i];
+      if(q){
+        if(ch==='"'){
+          if(text[i+1]==='"'){ cur+='"'; i+=2; continue; }
+          q=false; i++; continue;
+        }
+        cur+=ch; i++; continue;
+      }
+      if(ch==='"'){ q=true; i++; continue; }
+      if(ch===','){ row.push(cur); cur=''; i++; continue; }
+      if(ch==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; i++; continue; }
+      cur+=ch; i++;
     }
-    out.push(cur.trim());
-    return out;
+    if(cur.length || row.length){ row.push(cur); rows.push(row); }
+    /* drop fully empty rows */
+    return rows.filter(function(r){ return r.some(function(c){ return String(c||'').trim()!==''; }); });
+  }
+  function splitLine(line){
+    var rows=splitCSV(line);
+    return rows[0]||[];
   }
   function parseVCard(text){
     var cards=text.split(/BEGIN:VCARD/i).slice(1);
     var rows=[];
     cards.forEach(function(chunk){
-      var name='', phone='', email='', bday='', note='';
+      var name='', phone='', email='', bday='', note='', org='';
+      var phones=[];
       chunk.split(/\r?\n/).forEach(function(line){
         var L=line.replace(/\r/g,'');
         if(/^FN:/i.test(L)) name=L.slice(3).trim();
@@ -760,141 +777,273 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
           var parts=L.slice(2).split(';');
           name=[parts[1],parts[0]].filter(Boolean).join(' ').trim();
         }
-        else if(/^TEL/i.test(L)) phone=(L.split(':').pop()||'').trim();
+        else if(/^ORG:/i.test(L)) org=(L.split(':').slice(1).join(':')||'').split(';')[0].trim();
+        else if(/^TEL/i.test(L)) phones.push((L.split(':').pop()||'').trim());
         else if(/^EMAIL/i.test(L)) email=(L.split(':').pop()||'').trim();
         else if(/^BDAY:/i.test(L)) bday=L.slice(5).trim().slice(0,10);
         else if(/^NOTE:/i.test(L)) note=L.slice(5).trim();
       });
+      if(!name && org) name=org;
+      phone=phones.filter(Boolean).join(' · ');
       if(name) rows.push({name:name,relationship:'friend',phone:phone,email:email,birthday:bday||null,notes:note});
     });
     return rows;
   }
+  function normHeader(h){
+    return String(h||'').replace(/^\uFEFF/,'').trim().toLowerCase().replace(/\s+/g,' ');
+  }
+  function pickGoogleCol(hmap, exactNames){
+    for(var i=0;i<exactNames.length;i++){
+      var k=normHeader(exactNames[i]);
+      if(hmap[k]!==undefined) return hmap[k];
+    }
+    return undefined;
+  }
+  function cellAt(p, idx){
+    if(idx===undefined || idx===null || idx<0) return '';
+    return String(p[idx]||'').trim();
+  }
+  function cleanPhone(raw){
+    if(!raw) return '';
+    /* Google sometimes: "+98 912... ::: Mobile" or multiple " :: " */
+    var parts=String(raw).split(/\s*:::\s*/);
+    var nums=[];
+    parts.forEach(function(part){
+      part=part.trim();
+      if(!part) return;
+      /* drop pure labels */
+      if(/^(mobile|home|work|main|other|fax|iPhone|cell|تلفن|منزل|همراه|فکس)$/i.test(part)) return;
+      /* extract phone-like tokens */
+      var m=part.match(/(\+?\d[\d\s\-()]{5,}\d)/);
+      if(m) nums.push(m[1].replace(/\s+/g,' ').trim());
+      else if(/[\d+]/.test(part) && part.length>=6) nums.push(part.replace(/\s+/g,' ').trim());
+    });
+    /* unique */
+    var seen={}, out=[];
+    nums.forEach(function(n){ if(!seen[n]){ seen[n]=1; out.push(n); } });
+    return out.join(' · ');
+  }
+  function cleanEmail(raw){
+    if(!raw) return '';
+    var parts=String(raw).split(/\s*:::\s*/);
+    for(var i=0;i<parts.length;i++){
+      var e=parts[i].trim();
+      if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return e;
+      var m=e.match(/[^\s,;]+@[^\s,;]+/);
+      if(m) return m[0];
+    }
+    return '';
+  }
+  function normRel(s){
+    s=String(s||'').toLowerCase();
+    if(/family|خانواده|mother|father|spouse|sister|brother|parent/.test(s)) return 'family';
+    if(/work|کار|colleague|همکار|office|job|company/.test(s)) return 'work';
+    if(/friend|دوست/.test(s)) return 'friend';
+    if(/other|سایر/.test(s)) return 'other';
+    return 'friend';
+  }
+  function looksLikeName(s){
+    s=String(s||'').trim();
+    if(!s || s.length>80) return false;
+    if(/@/.test(s)) return false;
+    if(/^https?:/i.test(s)) return false;
+    if(/^[*\s,:;.+]+$/.test(s)) return false;
+    if(/mycontacts|iphone\s*:::|e-mail\s*\d|phone\s*\d/i.test(s)) return false;
+    if(/^\+?\d[\d\s\-()]{4,}$/.test(s)) return false; /* pure phone */
+    if(/^\d+$/.test(s)) return false;
+    /* first token pure digits (e.g. "88 Test") → strip later, still ok if has letters */
+    var letters=(s.match(/[A-Za-z؀-ۿ]/g)||[]).length;
+    if(letters<1) return false;
+    var digits=(s.match(/\d/g)||[]).length;
+    if(digits>=4 && digits>=letters) return false;
+    return true;
+  }
+  function tidyName(s){
+    s=String(s||'').replace(/\s+/g,' ').trim();
+    /* drop leading numeric tokens: "88 Ali" → "Ali" */
+    s=s.replace(/^(\d+[.)]?\s+)+/,'');
+    return s.trim();
+  }
   function parseImportText(text){
     text=String(text||'').replace(/^\uFEFF/,'');
     if(/BEGIN:VCARD/i.test(text)) return parseVCard(text);
-    var lines=text.split(/\r?\n/).filter(function(l){return l.trim()!==''});
-    if(!lines.length) return [];
-    var rows=[], start=0;
-    var header=splitLine(lines[0]);
-    var hmap=null;
-    /* Google Contacts / Outlook / generic header row */
-    if(header.length>1 && /name|نام|first|last|phone|tel|email|e-mail|mobile|organization/i.test(header.join(' '))){
-      hmap={};
-      header.forEach(function(h,i){
-        var k=String(h||'').toLowerCase().replace(/["']/g,'').trim();
-        hmap[k]=i;
-        /* aliases */
-        if(/^(first name|given name|نام کوچک)$/.test(k)) hmap['first name']=i;
-        if(/^(middle name|نام میانی)$/.test(k)) hmap['middle name']=i;
-        if(/^(last name|family name|نام خانوادگی)$/.test(k)) hmap['last name']=i;
-        if(/^(name|full name|نام|fullname|display name)$/.test(k)) hmap['name']=i;
-        if(/^nickname$/.test(k)) hmap['nickname']=i;
-        if(/organization|company|سازمان|شرکت/.test(k) && hmap['org']===undefined) hmap['org']=i;
-        if(/^birthday|تولد|bday/.test(k)) hmap['birthday']=i;
-        if(/^notes|note|یادداشت/.test(k) && hmap['notes']===undefined) hmap['notes']=i;
-        if(/relationship|رابطه|group|labels|label/.test(k) && hmap['rel']===undefined) hmap['rel']=i;
-        if(/e-?mail/.test(k) && (hmap['email']===undefined || /value/.test(k) || /1\s*-?\s*value/.test(k) || k==='e-mail 1 - value' || k==='email 1 - value' || k==='email')){
-          if(hmap['email']===undefined || /value/.test(k) || k.indexOf('1')>=0) hmap['email']=i;
-        }
-        if(/phone|tel|mobile|cell|تلفن/.test(k)){
-          if(hmap['phone']===undefined || /value/.test(k) || /1\s*-?\s*value/.test(k)) hmap['phone']=i;
-        }
-      });
-      /* explicit google columns */
-      header.forEach(function(h,i){
-        var k=String(h||'').trim();
-        if(/^First Name$/i.test(k)) hmap['first name']=i;
-        if(/^Middle Name$/i.test(k)) hmap['middle name']=i;
-        if(/^Last Name$/i.test(k)) hmap['last name']=i;
-        if(/^E-mail 1 - Value$/i.test(k) || /^Email 1 - Value$/i.test(k)) hmap['email']=i;
-        if(/^Phone 1 - Value$/i.test(k)) hmap['phone']=i;
-        if(/^Organization Name$/i.test(k)) hmap['org']=i;
-        if(/^Birthday$/i.test(k)) hmap['birthday']=i;
-        if(/^Notes$/i.test(k)) hmap['notes']=i;
-        if(/^Labels$/i.test(k) || /^Group Membership$/i.test(k)) hmap['rel']=i;
-      });
-      start=1;
-    }
-    function cell(p, key){
-      if(!hmap || hmap[key]===undefined) return '';
-      return (p[hmap[key]]||'').trim();
-    }
-    function normRel(s){
-      s=String(s||'').toLowerCase();
-      if(/family|خانواده|\* my contacts/i.test(s) && /family|خانواده/.test(s)) return 'family';
-      if(/family|خانواده/.test(s)) return 'family';
-      if(/work|کار|colleague|همکار|office/.test(s)) return 'work';
-      if(/friend|دوست/.test(s)) return 'friend';
-      if(/other|سایر/.test(s)) return 'other';
-      return 'friend';
-    }
-    for(var i=start;i<lines.length;i++){
-      var p=splitLine(lines[i]);
-      if(!p.length) continue;
-      var name='', phone='', email='', bday=null, notes='', rel='friend';
-      if(hmap){
-        name=cell(p,'name');
-        if(!name){
-          var fn=cell(p,'first name'), mn=cell(p,'middle name'), ln=cell(p,'last name');
-          name=[fn,mn,ln].filter(Boolean).join(' ').trim();
-        }
-        if(!name) name=cell(p,'nickname');
-        if(!name && cell(p,'org')) name=cell(p,'org');
-        phone=cell(p,'phone');
-        email=cell(p,'email');
-        bday=cell(p,'birthday')||null;
-        notes=cell(p,'notes')||'';
-        if(cell(p,'org') && notes.indexOf(cell(p,'org'))<0) notes=(cell(p,'org')+(notes?' · '+notes:'')).trim();
-        rel=normRel(cell(p,'rel'));
-      } else {
-        if(!p[0]) continue;
-        name=p[0];
-        rel=normRel(p[1]||'friend');
-        if(p.length===1) rel='friend';
-        else if(['family','friend','work','other'].indexOf(String(p[1]||'').toLowerCase())<0){
-          if(/^\+?\d[\d\s\-]+$/.test(p[1]||'')){
-            p=[p[0],'friend',p[1],p[2]||'',p[3]||'',p[4]||''];
-            rel='friend';
-          } else if(p.length>=2 && !/^\+?\d/.test(p[1]||'')){
-            /* name,phone,... without rel */
-            if(/@/.test(p[1]||'') || /^\+?\d/.test(p[2]||'')){
-              phone=p[1]||''; email=p[2]||'';
-              p=[p[0],'friend',phone,email,p[3]||'',p[4]||''];
-              rel='friend';
-            } else rel='other';
-          } else rel='other';
-        }
-        phone=p[2]||phone||'';
-        email=p[3]||email||'';
-        bday=p[4]||null;
-        notes=p[5]||'';
+
+    var table=splitCSV(text);
+    if(!table.length) return [];
+
+    var header=table[0].map(function(h){ return String(h||'').replace(/^\uFEFF/,'').trim(); });
+    var headerJoined=header.join(' | ');
+    var isGoogle=/First Name|Last Name|E-mail 1 - Value|Phone 1 - Value|Organization Name|Given Name/i.test(headerJoined)
+      || /name|نام|phone|tel|email|e-mail|mobile|organization/i.test(headerJoined);
+
+    var rows=[];
+    if(!isGoogle || header.length<2){
+      /* simple: name,rel,phone,email,birthday,notes */
+      var start=0;
+      if(header.length>1 && /name|نام|fullname/i.test(header[0])) start=1;
+      for(var i=start;i<table.length;i++){
+        var p=table[i];
+        if(!p||!p[0]) continue;
+        var name=String(p[0]||'').trim();
+        if(!looksLikeName(name)) continue;
+        rows.push({
+          name:name,
+          relationship:normRel(p[1]||'friend'),
+          phone:cleanPhone(p[2]||p[1]||''),
+          email:cleanEmail(p[3]||''),
+          birthday:p[4]||null,
+          notes:p[5]||''
+        });
       }
-      if(!name) continue;
-      /* normalize birthday to YYYY-MM-DD if possible */
+      return rows;
+    }
+
+    var hmap={};
+    header.forEach(function(h,i){ hmap[normHeader(h)]=i; });
+
+    var cFirst=pickGoogleCol(hmap,['First Name','Given Name','نام کوچک','نام']);
+    var cMiddle=pickGoogleCol(hmap,['Middle Name','نام میانی']);
+    var cLast=pickGoogleCol(hmap,['Last Name','Family Name','نام خانوادگی']);
+    var cNick=pickGoogleCol(hmap,['Nickname','نام مستعار']);
+    var cFileAs=pickGoogleCol(hmap,['File As','File as']);
+    var cOrg=pickGoogleCol(hmap,['Organization Name','Organization 1 - Name','Company','سازمان','شرکت']);
+    var cTitle=pickGoogleCol(hmap,['Organization Title','Organization 1 - Title','Title','سمت']);
+    var cBday=pickGoogleCol(hmap,['Birthday','تولد','Bday']);
+    var cNotes=pickGoogleCol(hmap,['Notes','Note','یادداشت']);
+    var cLabels=pickGoogleCol(hmap,['Labels','Group Membership','Label']);
+    var cRel=pickGoogleCol(hmap,['Relation 1 - Value','Relationship','رابطه']);
+    var cRelLabel=pickGoogleCol(hmap,['Relation 1 - Label']);
+
+    /* all email value columns */
+    var emailIdx=[], phoneIdx=[], phoneLabelIdx=[];
+    header.forEach(function(h,i){
+      var k=normHeader(h);
+      if(/^e-?mail\s*\d+\s*-\s*value$/.test(k) || k==='e-mail' || k==='email') emailIdx.push(i);
+      if(/^phone\s*\d+\s*-\s*value$/.test(k) || k==='phone' || k==='mobile' || k==='tel') phoneIdx.push(i);
+      if(/^phone\s*\d+\s*-\s*label$/.test(k)) phoneLabelIdx.push(i);
+    });
+    /* fallback single columns */
+    if(!emailIdx.length){
+      var e1=pickGoogleCol(hmap,['E-mail 1 - Value','Email 1 - Value','E-mail Address','Email']);
+      if(e1!==undefined) emailIdx=[e1];
+    }
+    if(!phoneIdx.length){
+      var p1=pickGoogleCol(hmap,['Phone 1 - Value','Mobile Phone','Mobile','Phone']);
+      if(p1!==undefined) phoneIdx=[p1];
+    }
+
+    for(var r=1;r<table.length;r++){
+      var p=table[r];
+      if(!p || !p.length) continue;
+
+      var fn=cellAt(p,cFirst), mn=cellAt(p,cMiddle), ln=cellAt(p,cLast);
+      var name=[fn,mn,ln].filter(Boolean).join(' ').trim();
+      if(!looksLikeName(name)){
+        var fa=cellAt(p,cFileAs);
+        if(looksLikeName(fa)) name=fa;
+      }
+      if(!looksLikeName(name)){
+        var nick=cellAt(p,cNick);
+        if(looksLikeName(nick)) name=nick;
+      }
+      var org=cellAt(p,cOrg);
+      if(!looksLikeName(name) && looksLikeName(org)) name=org;
+      name=tidyName(name);
+      if(!looksLikeName(name)) continue; /* skip garbage rows */
+
+      /* phones: prefer Mobile label, then all */
+      var phones=[], mobilePhones=[], phoneSeen={};
+      phoneIdx.forEach(function(idx, n){
+        var val=cleanPhone(cellAt(p,idx));
+        if(!val) return;
+        var lab='';
+        if(phoneLabelIdx[n]!==undefined) lab=cellAt(p, phoneLabelIdx[n]);
+        else {
+          /* adjacent label column often idx-1 */
+          var maybe=normHeader(header[idx-1]||'');
+          if(/phone.*label/.test(maybe)) lab=cellAt(p, idx-1);
+        }
+        val.split(' · ').forEach(function(ph){
+          if(!ph||phoneSeen[ph]) return;
+          phoneSeen[ph]=1;
+          if(/mobile|cell|همراه|موبایل/i.test(lab)) mobilePhones.push(ph);
+          else phones.push(ph);
+        });
+      });
+      var phone=(mobilePhones.concat(phones)).slice(0,4).join(' · ');
+
+      var email='';
+      for(var ei=0;ei<emailIdx.length;ei++){
+        email=cleanEmail(cellAt(p,emailIdx[ei]));
+        if(email) break;
+      }
+
+      var bday=cellAt(p,cBday)||null;
       if(bday){
-        var bm=String(bday).match(/(\d{4})[-\/]?(\d{1,2})[-\/]?(\d{1,2})/);
+        var bm=String(bday).match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
         if(bm) bday=bm[1]+'-'+('0'+bm[2]).slice(-2)+'-'+('0'+bm[3]).slice(-2);
-        else if(!/^\d{4}-\d{2}-\d{2}$/.test(bday)) bday=null;
+        else {
+          /* Google sometimes --12-25 */
+          var bm2=String(bday).match(/--(\d{1,2})-(\d{1,2})/);
+          if(bm2) bday=null; /* year-less: keep in notes */
+          else if(!/^\d{4}-\d{2}-\d{2}$/.test(bday)) {
+            var noteBday=bday; bday=null;
+          }
+        }
       }
-      rows.push({name:name,relationship:rel,phone:phone,email:email,birthday:bday,notes:notes});
+
+      var notesParts=[];
+      var note=cellAt(p,cNotes);
+      if(note){
+        /* don't dump entire CSV into notes - cap */
+        note=note.replace(/\s+/g,' ').trim();
+        if(note.length>300) note=note.slice(0,300)+'…';
+        /* skip if note looks like raw export garbage */
+        if(!/myContacts|E-mail \d -|Phone \d -/i.test(note)) notesParts.push(note);
+      }
+      var title=cellAt(p,cTitle);
+      if(org && name!==org) notesParts.push('سازمان: '+org+(title?' — '+title:''));
+      else if(title) notesParts.push('سمت: '+title);
+      var relVal=cellAt(p,cRel), relLab=cellAt(p,cRelLabel);
+      if(relVal) notesParts.push((relLab||'رابطه')+': '+relVal);
+      /* websites */
+      header.forEach(function(h,i){
+        if(/^website\s*\d+\s*-\s*value$/i.test(normHeader(h))){
+          var w=cellAt(p,i);
+          if(w && /^https?:/i.test(w)) notesParts.push(w);
+        }
+      });
+
+      var labels=cellAt(p,cLabels);
+      var rel=normRel(relVal||labels||'');
+
+      rows.push({
+        name:name.slice(0,120),
+        relationship:rel,
+        phone:phone.slice(0,120),
+        email:email.slice(0,120),
+        birthday:bday,
+        notes:notesParts.join(' · ').slice(0,500)
+      });
     }
     return rows;
   }
-
   function showPreview(rows){
     importRows=rows||[];
     var box=document.getElementById('importPreview');
     var msg=document.getElementById('importMsg');
     if(!importRows.length){
       box.textContent='';
-      msg.textContent='چیزی پیدا نشد';
+      msg.textContent='چیزی پیدا نشد — فایل CSV گوگل (با ردیف First Name و …) را بگذار';
       return;
     }
     msg.textContent=fa(importRows.length)+' نفر آماده ایمپورت';
-    box.innerHTML=importRows.slice(0,30).map(function(r,i){
-      return '<div>'+fa(i+1)+'. <b>'+esc(r.name)+'</b> · '+esc(REL[r.relationship]||r.relationship)
-        +(r.phone?' · '+esc(r.phone):'')+'</div>';
-    }).join('')+(importRows.length>30?'<div>… و '+fa(importRows.length-30)+' نفر دیگر</div>':'');
+    box.innerHTML=importRows.slice(0,40).map(function(r,i){
+      return '<div style="margin-bottom:6px">'+fa(i+1)+'. <b>'+esc(r.name)+'</b>'
+        +(r.phone?' <span style="color:var(--acc)">· '+esc(r.phone)+'</span>':'')
+        +(r.email?' <span style="color:var(--muted)">· '+esc(r.email)+'</span>':'')
+        +' <span style="color:var(--faint)">· '+esc(REL[r.relationship]||r.relationship)+'</span></div>';
+    }).join('')+(importRows.length>40?'<div>… و '+fa(importRows.length-40)+' نفر دیگر</div>':'');
   }
 
   document.getElementById('importPreviewBtn').addEventListener('click',function(){
@@ -919,12 +1068,25 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     if(!importRows.length){ toast('لیستی برای ایمپورت نیست'); return; }
     var btn=document.getElementById('importGoBtn');
     btn.disabled=true;
-    var all=importRows.slice(), total=all.length, ok=0, fail=0, chunk=80, idx=0;
+    var all=importRows.slice().filter(function(row){
+      var nm=String(row.name||'').trim().toLowerCase();
+      var ph=String(row.phone||'').replace(/\D/g,'').slice(-10);
+      return !CONTACTS.some(function(c){
+        var cn=String(c.name||'').trim().toLowerCase();
+        var cp=String(c.phone||'').replace(/\D/g,'').slice(-10);
+        if(nm && cn===nm) return true;
+        if(ph && ph.length>=8 && cp===ph) return true;
+        return false;
+      });
+    });
+    var skippedDup=importRows.length-all.length;
+    var total=all.length, ok=0, fail=0, chunk=80, idx=0;
+    if(!total){ btn.disabled=false; toast(skippedDup?'همه تکراری بودند — چیزی اضافه نشد':'لیست خالی'); return; }
     document.getElementById('importMsg').textContent='در حال افزودن… ۰ از '+fa(total);
     function sendChunk(){
       if(idx>=all.length){
         btn.disabled=false;
-        toast(fa(ok)+' مخاطب اضافه شد'+(fail?(' · '+fa(fail)+' رد شد'):''));
+        toast(fa(ok)+' مخاطب اضافه شد'+(fail?(' · '+fa(fail)+' رد شد'):'')+(skippedDup?(' · '+fa(skippedDup)+' تکراری'):''));
         document.getElementById('importMsg').textContent=fa(ok)+' از '+fa(total)+' اضافه شد';
         importRows=[]; document.getElementById('importPreview').textContent='';
         document.getElementById('importText').value='';
