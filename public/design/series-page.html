@@ -423,14 +423,18 @@ body.nav-open .nav-backdrop{display:block}
 <div class="idrawer" id="idrawer">
   <h3>📥 درون‌ریزی از Bingers</h3>
   <div class="sub">دو فایل CSV را از اپ Bingers خروجی بگیر و اینجا بگذار — تکراری‌ها تشخیص داده می‌شوند و پیشرفت قسمت‌ها اعمال می‌شود.</div>
-  <div class="file" id="fLib"><b>📕 library.csv</b><small>کتابخانه‌ی سریال‌ها — کلیک یا بکش و رها کن</small></div>
-  <div class="file" id="fWat"><b>📗 watches.csv</b><small>تاریخچه‌ی تماشا — اختیاری (برای پیشرفت دقیق)</small></div>
+  <div class="file" id="fLib"><b>📕 library.csv</b><small>کتابخانه‌ی سریال‌ها — کلیک یا بکش و رها کن</small>
+    <input type="file" id="libFile" accept=".csv,text/csv" style="display:none">
+  </div>
+  <div class="file" id="fWat"><b>📗 watches.csv</b><small>تاریخچه‌ی تماشا — اختیاری (برای پیشرفت دقیق)</small>
+    <input type="file" id="watFile" accept=".csv,text/csv" style="display:none">
+  </div>
   <div class="prev" id="prev">
-    <div class="row"><span>سریال پیدا شد</span><b>۴۲</b></div>
-    <div class="row"><span>در حال دیدن</span><b>۱۷</b></div>
-    <div class="row"><span>تمام‌شده</span><b>۲۱</b></div>
-    <div class="row"><span>تکراری (نادیده گرفته می‌شود)</span><b style="color:var(--warn)">۱۲</b></div>
-    <div class="row"><span>پیشرفت قسمت‌ها از watches</span><b>✓ ۳۸ سریال</b></div>
+    <div class="row"><span>سریال پیدا شد</span><b id="bpTotal">—</b></div>
+    <div class="row"><span>در حال دیدن</span><b id="bpWatch">—</b></div>
+    <div class="row"><span>واچ‌لیست</span><b id="bpList">—</b></div>
+    <div class="row"><span>تکراری (نادیده)</span><b id="bpDup" style="color:var(--warn)">—</b></div>
+    <div class="row"><span>آماده ثبت</span><b id="bpFresh">—</b></div>
   </div>
   <button class="btn" id="doImport" style="width:100%">پیش‌نمایش و شروع درون‌ریزی</button>
   <div class="ipbar" id="ipbar"><i></i></div>
@@ -743,35 +747,160 @@ function closeImport(){idr.classList.remove('open');resetImport();if(!dEl.classL
 document.getElementById('importBtn').addEventListener('click',openImport);
 document.getElementById('closeImport').addEventListener('click',closeImport);
 ovl.addEventListener('click',function(){closeDetail();closeImport()});
-var libOk=false,watOk=false;
-document.getElementById('fLib').addEventListener('click',function(){libOk=true;this.classList.add('ok');this.querySelector('small').textContent='✓ library.csv انتخاب شد (۴۲ سریال)'});
-document.getElementById('fWat').addEventListener('click',function(){watOk=true;this.classList.add('ok');this.querySelector('small').textContent='✓ watches.csv انتخاب شد (۱٬۲۰۴ رکورد)'});
+var libOk=false, watOk=false, libFileObj=null, watFileObj=null, bingPreviewItems=[], bingPrevShown=false;
+
+function fileToBase64(file){
+  return new Promise(function(resolve,reject){
+    var r=new FileReader();
+    r.onload=function(){ var s=String(r.result||''); var i=s.indexOf(','); resolve(i>=0?s.slice(i+1):s); };
+    r.onerror=function(){reject(r.error||new Error('read'))};
+    r.readAsDataURL(file);
+  });
+}
+function seriesKeyFromTitle(title){
+  /* map to TV catalog key if possible */
+  var t=String(title||'').trim();
+  if(typeof TV==='object' && TV){
+    if(TV[t]) return t;
+    var low=t.toLowerCase();
+    for(var k in TV){
+      if(!Object.prototype.hasOwnProperty.call(TV,k)) continue;
+      var n=(TV[k].name||k);
+      if(String(n).toLowerCase()===low || k.toLowerCase()===low) return k;
+    }
+  }
+  return t;
+}
+function applyBingersToLocal(items){
+  (items||[]).forEach(function(it){
+    if(!it||!it.title||it.duplicate) return;
+    var k=seriesKeyFromTitle(it.title);
+    /* ensure meta stub so UI can render */
+    if(typeof TV==='object' && !TV[k]){
+      TV[k]={name:it.title, img:'', genres:[], rating:null, year:it.year||'', status:'Running', summary:'', cast:[], next:null, network:''};
+    }
+    var st=it.status||'watchlist';
+    if(st==='watching'){
+      WATCHING.push({k:k, cur:it.currentEpisode||0, tot:it.totalEpisodes||10, season:it.currentSeason||1, newEp:false, id:it.id});
+    } else if(st==='completed'){
+      DONE.push({k:k, id:it.id});
+    } else {
+      LIST.push({k:k, id:it.id});
+    }
+  });
+  try{ if(typeof renderAll==='function') renderAll(); }catch(e){}
+  try{ if(typeof renderRecs==='function') renderRecs(); }catch(e){}
+}
+
+document.getElementById('fLib').addEventListener('click',function(e){
+  if(e.target && e.target.id==='libFile') return;
+  document.getElementById('libFile').click();
+});
+document.getElementById('fWat').addEventListener('click',function(e){
+  if(e.target && e.target.id==='watFile') return;
+  document.getElementById('watFile').click();
+});
+document.getElementById('libFile').addEventListener('change',function(){
+  var f=this.files&&this.files[0]; if(!f)return;
+  libFileObj=f; libOk=true; bingPrevShown=false; bingPreviewItems=[];
+  var el=document.getElementById('fLib'); el.classList.add('ok');
+  el.querySelector('small').textContent='✓ '+f.name+' ('+(Math.round(f.size/1024)||1)+' KB)';
+  document.getElementById('prev').classList.remove('show');
+  document.getElementById('doImport').textContent='پیش‌نمایش از سرور';
+});
+document.getElementById('watFile').addEventListener('change',function(){
+  var f=this.files&&this.files[0]; if(!f)return;
+  watFileObj=f; watOk=true;
+  var el=document.getElementById('fWat'); el.classList.add('ok');
+  el.querySelector('small').textContent='✓ '+f.name+' ('+(Math.round(f.size/1024)||1)+' KB)';
+  bingPrevShown=false;
+});
+
 function resetImport(){
-  libOk=watOk=false;
-  document.getElementById('fLib').classList.remove('ok');document.getElementById('fWat').classList.remove('ok');
+  libOk=watOk=false; libFileObj=watFileObj=null; bingPreviewItems=[]; bingPrevShown=false;
+  document.getElementById('fLib').classList.remove('ok'); document.getElementById('fWat').classList.remove('ok');
   document.getElementById('fLib').querySelector('small').textContent='کتابخانه‌ی سریال‌ها — کلیک یا بکش و رها کن';
   document.getElementById('fWat').querySelector('small').textContent='تاریخچه‌ی تماشا — اختیاری (برای پیشرفت دقیق)';
   document.getElementById('prev').classList.remove('show');
   document.getElementById('ipbar').classList.remove('show');
-  document.getElementById('ipbar').querySelector('i').style.width='0';
+  var bi=document.getElementById('ipbar').querySelector('i'); if(bi) bi.style.width='0';
   document.getElementById('doImport').textContent='پیش‌نمایش و شروع درون‌ریزی';
+  document.getElementById('libFile').value='';
+  document.getElementById('watFile').value='';
 }
+
 document.getElementById('doImport').addEventListener('click',function(){
-  if(!libOk){toast('اول library.csv را انتخاب کن 📕');return}
+  if(!libOk || !libFileObj){ toast('اول library.csv را انتخاب کن 📕'); return; }
   var btn=this;
-  if(!document.getElementById('prev').classList.contains('show')){
-    document.getElementById('prev').classList.add('show');
-    btn.textContent='⬆️ شروع درون‌ریزی ('+(watOk?'۳۰':'۱۲')+' مورد جدید)';
+
+  if(!bingPrevShown){
+    btn.disabled=true; btn.textContent='در حال خواندن…';
+    var body={};
+    fileToBase64(libFileObj).then(function(b64){
+      body.libraryCsvBase64=b64;
+      if(watFileObj) return fileToBase64(watFileObj).then(function(w){ body.watchesCsvBase64=w; });
+    }).then(function(){
+      return fetch('/api/movies/import-bingers/preview',{
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(body)
+      });
+    }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
+    .then(function(x){
+      btn.disabled=false;
+      if(x.status===401){ location.href='/design/login-page.html'; return; }
+      if(!x.ok){ toast((x.d&&x.d.error)||'پیش‌نمایش شکست خورد'); btn.textContent='پیش‌نمایش از سرور'; return; }
+      bingPreviewItems=x.d.items||[];
+      var fresh=bingPreviewItems.filter(function(it){return !it.duplicate});
+      document.getElementById('bpTotal').textContent=fa(bingPreviewItems.length);
+      document.getElementById('bpWatch').textContent=fa(x.d.watching||0);
+      document.getElementById('bpList').textContent=fa(x.d.watchlist||0);
+      document.getElementById('bpDup').textContent=fa(x.d.duplicateCount||0);
+      document.getElementById('bpFresh').textContent=fa(fresh.length);
+      document.getElementById('prev').classList.add('show');
+      bingPrevShown=true;
+      btn.textContent='⬆️ ثبت '+fa(fresh.length)+' سریال جدید';
+      if(!fresh.length) toast('همه تکراری‌اند یا لیست خالی است');
+    }).catch(function(e){
+      btn.disabled=false; btn.textContent='پیش‌نمایش از سرور';
+      toast('خطا: '+(e&&e.message?e.message:'شبکه'));
+      console.error(e);
+    });
     return;
   }
-  var bar=document.getElementById('ipbar');bar.classList.add('show');
-  var w=0,bi=bar.querySelector('i');
-  btn.textContent='در حال درون‌ریزی...';btn.disabled=true;
-  var iv=setInterval(function(){
-    w+=8;bi.style.width=Math.min(w,100)+'%';
-    if(w>=100){clearInterval(iv);btn.disabled=false;toast('۳۰ سریال جدید وارد شد ✓');setTimeout(closeImport,700)}
-  },140);
+
+  var fresh=bingPreviewItems.filter(function(it){return !it.duplicate});
+  if(!fresh.length){ toast('موردی برای ثبت نیست'); return; }
+
+  var bar=document.getElementById('ipbar'); bar.classList.add('show');
+  var bi=bar.querySelector('i'); if(bi) bi.style.width='35%';
+  btn.disabled=true; btn.textContent='در حال درون‌ریزی…';
+
+  fetch('/api/movies/import-bingers/commit',{
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({items:fresh})
+  }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok,d:d}; }); })
+  .then(function(x){
+    if(bi) bi.style.width='100%';
+    btn.disabled=false;
+    if(!x.ok){ toast((x.d&&x.d.error)||'ثبت شکست خورد'); btn.textContent='⬆️ تلاش دوباره'; return; }
+    toast(fa(x.d.imported||0)+' سریال وارد شد'+(x.d.skipped?(' · '+fa(x.d.skipped)+' رد'):'')+' ✓');
+    applyBingersToLocal(fresh);
+    /* also reload from API if available */
+    try{
+      fetch('/api/movies?status=',{credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+        /* optional: could rebuild lists from server; keep local merge for now */
+      }).catch(function(){});
+    }catch(e){}
+    setTimeout(closeImport, 700);
+  }).catch(function(e){
+    btn.disabled=false; btn.textContent='⬆️ تلاش دوباره';
+    toast('خطای شبکه');
+    console.error(e);
+  });
 });
+
 
 /* ===== مود ===== */
 var mb=document.getElementById('modeBtn');

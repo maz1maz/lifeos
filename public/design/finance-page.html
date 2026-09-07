@@ -507,7 +507,13 @@ body.nav-open .nav-backdrop{display:block}
 <div class="drawer" id="impDrawer">
   <h3>📥 درون‌ریزی اکسل بانک</h3>
   <div class="sub">فایل صورت‌حساب بانک را بنداز اینجا — Excel یا CSV. تکراری‌ها خودکار تشخیص داده می‌شوند و سرفصل هر ردیف از روی شرح حدس زده می‌شود.</div>
-  <div class="file" id="fBank"><b>📎 فایل صورت‌حساب</b><small>کلیک کن — مثلاً statement_1402-1404.xlsx</small></div>
+  <div class="file" id="fBank"><b>📎 فایل صورت‌حساب</b><small>کلیک کن — Excel یا CSV بانک</small>
+    <input type="file" id="bankFile" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" style="display:none">
+  </div>
+  <div class="field" style="margin:10px 0 0">
+    <label style="font-size:12.5px;color:var(--muted)">حساب مقصد</label>
+    <input id="bankAccount" value="کارت اصلی" placeholder="نام حساب" style="width:100%;margin-top:4px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;color:var(--text);padding:8px 12px;font:inherit;box-sizing:border-box">
+  </div>
   <div class="prevrows" id="prevRows"></div>
   <div class="psum" id="pSum">
     <div><b id="psTx">—</b>تراکنش جدید</div>
@@ -918,44 +924,168 @@ document.getElementById('edDel').addEventListener('click',function(){
 });
 /* ============ درون‌ریزی بانک ============ */
 var impDrawer=document.getElementById('impDrawer'),ovl=document.getElementById('ovl');
-var bankLoaded=false,prevShown=false;
-document.getElementById('impBtn').addEventListener('click',function(){impDrawer.classList.add('open');ovl.classList.add('open')});
-document.getElementById('closeImp').addEventListener('click',function(){impDrawer.classList.remove('open');ovl.classList.remove('open')});
-ovl.addEventListener('click',function(){impDrawer.classList.remove('open');accDrawer.classList.remove('open');edD.classList.remove('open');ovl.classList.remove('open')});
-document.getElementById('fBank').addEventListener('click',function(){
-  this.classList.add('ok');this.innerHTML='<b>✓ فایل انتخاب شد</b><small>آماده پیش‌نمایش</small>';
-  document.getElementById('doImport').textContent='پیش‌نمایش';
-});
-document.getElementById('doImport').addEventListener('click',function(){
-  var f=document.getElementById('fBank');
-  if(!f.classList.contains('ok')){toast('اول فایل را انتخاب کن 📎');return}
-  var btn=this;
-  if(!prevShown){
-    var sample=[]; document.getElementById('prevRows').innerHTML=sample.length?sample.map(function(r){
-      return '<div class="txi"><span class="d">'+fa(r[0])+'</span><span class="t">'+r[1]+'</span><span class="amt">'+(r[3]==='income'?'+':'-')+fmt(r[2])+'</span></div>';
-    }).join(''):'<div class="empty">پیش‌نمایش خالی — فایل بانک را انتخاب کن</div>';
-    document.getElementById('prevRows').classList.add('show');
-    document.getElementById('pSum').classList.add('show');
-    document.getElementById('psTx').textContent=fa(0);
-    document.getElementById('psIn').textContent=fmtC(0);
-    document.getElementById('psOut').textContent=fmtC(0);
-    prevShown=true;btn.textContent='⬆️ ثبت از API (فایل واقعی)';
+var bankLoaded=false, prevShown=false, bankFileObj=null, bankPreviewItems=[];
+
+function fileToBase64(file){
+  return new Promise(function(resolve,reject){
+    var r=new FileReader();
+    r.onload=function(){
+      var s=String(r.result||'');
+      var i=s.indexOf(',');
+      resolve(i>=0?s.slice(i+1):s);
+    };
+    r.onerror=function(){reject(r.error||new Error('read fail'))};
+    r.readAsDataURL(file);
+  });
+}
+function bankFileType(name){
+  name=String(name||'').toLowerCase();
+  if(name.endsWith('.csv')) return 'csv';
+  return 'xlsx';
+}
+function fmtApiDate(iso){
+  try{
+    var p=String(iso).slice(0,10).split('-');
+    if(p.length===3 && typeof d2j==='function'){
+      var j=d2j(g2d(+p[0],+p[1],+p[2]));
+      return fa(j.jd)+'/'+fa(j.jm);
+    }
+  }catch(e){}
+  return iso||'';
+}
+function renderBankPreview(items){
+  var box=document.getElementById('prevRows');
+  if(!items||!items.length){
+    box.innerHTML='<div class="empty">تراکنشی پیدا نشد</div>';
+    box.classList.add('show');
     return;
   }
-  if(bankLoaded){toast('قبلاً وارد شده ✓');return}
-  var bar=document.getElementById('ipBar');bar.classList.add('show');
-  var w=0,bi=bar.querySelector('i');btn.textContent='در حال ثبت…';btn.disabled=true;
-  var iv=setInterval(function(){
-    w+=6;bi.style.width=Math.min(w,100)+'%';
-    if(w>=100){
-      clearInterval(iv);bankLoaded=true;btn.disabled=false;
-      /* دیگر دادهٔ ساختگی تولید نمی‌شود — فایل واقعی بانک را از API بفرست */
-      DATA=[];
-      renderChart();renderHist();renderCatsIns();
-      toast('بدون دادهٔ نمونه — از API واقعی بانک استفاده کن');
-      setTimeout(function(){impDrawer.classList.remove('open');ovl.classList.remove('open');document.getElementById('mPrev').focus()},900);
-    }
-  },120);
+  box.innerHTML=items.slice(0,40).map(function(x){
+    var dup=x.duplicate?' · <span style="color:var(--warn)">تکراری</span>':'';
+    return '<div class="txi"><span class="d">'+fmtApiDate(x.date)+'</span>'
+      +'<span class="t">'+String(x.title||'').replace(/[<>&]/g,function(c){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])})
+      +' <small>'+(x.category||'')+dup+'</small></span>'
+      +'<span class="amt '+(x.kind==='income'?'inc':'exp')+'">'+(x.kind==='income'?'+':'−')+fmt(x.amount)+'</span></div>';
+  }).join('')+(items.length>40?'<div class="empty">… و '+fa(items.length-40)+' مورد دیگر</div>':'');
+  box.classList.add('show');
+}
+
+document.getElementById('impBtn').addEventListener('click',function(){
+  impDrawer.classList.add('open');ovl.classList.add('open');
+});
+document.getElementById('closeImp').addEventListener('click',function(){
+  impDrawer.classList.remove('open');ovl.classList.remove('open');
+});
+ovl.addEventListener('click',function(){
+  impDrawer.classList.remove('open');
+  if(typeof accDrawer!=='undefined'&&accDrawer)accDrawer.classList.remove('open');
+  if(typeof edD!=='undefined'&&edD)edD.classList.remove('open');
+  ovl.classList.remove('open');
+});
+
+document.getElementById('fBank').addEventListener('click',function(e){
+  if(e.target && e.target.id==='bankFile') return;
+  document.getElementById('bankFile').click();
+});
+document.getElementById('bankFile').addEventListener('change',function(){
+  var f=this.files && this.files[0];
+  if(!f) return;
+  bankFileObj=f;
+  bankPreviewItems=[];
+  prevShown=false;
+  bankLoaded=false;
+  var el=document.getElementById('fBank');
+  el.classList.add('ok');
+  el.querySelector('b').textContent='✓ '+f.name;
+  var sm=el.querySelector('small');
+  if(sm) sm.textContent=(Math.round(f.size/1024)||1)+' KB · آماده پیش‌نمایش';
+  document.getElementById('doImport').textContent='پیش‌نمایش از سرور';
+  document.getElementById('prevRows').classList.remove('show');
+  document.getElementById('pSum').classList.remove('show');
+  document.getElementById('ipBar').classList.remove('show');
+});
+
+document.getElementById('doImport').addEventListener('click',function(){
+  var btn=this;
+  if(!bankFileObj){ toast('اول فایل را انتخاب کن 📎'); return; }
+  var account=(document.getElementById('bankAccount')&&document.getElementById('bankAccount').value.trim())||'کارت اصلی';
+
+  if(!prevShown){
+    btn.disabled=true; btn.textContent='در حال خواندن…';
+    fileToBase64(bankFileObj).then(function(b64){
+      return fetch('/api/transactions/import-bank/preview',{
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({fileBase64:b64, fileType:bankFileType(bankFileObj.name)})
+      });
+    }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
+    .then(function(x){
+      btn.disabled=false;
+      if(x.status===401){ location.href='/design/login-page.html'; return; }
+      if(!x.ok){ toast((x.d&&x.d.error)||'پیش‌نمایش شکست خورد'); btn.textContent='پیش‌نمایش از سرور'; return; }
+      bankPreviewItems=x.d.items||[];
+      var fresh=bankPreviewItems.filter(function(it){return !it.duplicate});
+      renderBankPreview(bankPreviewItems);
+      document.getElementById('pSum').classList.add('show');
+      document.getElementById('psTx').textContent=fa(fresh.length);
+      document.getElementById('psIn').textContent=fmtC(x.d.totalIncome||0);
+      document.getElementById('psOut').textContent=fmtC(x.d.totalExpense||0);
+      prevShown=true;
+      var dup=x.d.duplicateCount||0;
+      btn.textContent='⬆️ ثبت '+fa(fresh.length)+' تراکنش'+(dup?(' ('+fa(dup)+' تکراری رد)') : '');
+      if(!fresh.length) toast('همه تکراری‌اند یا چیزی نیست');
+    }).catch(function(e){
+      btn.disabled=false; btn.textContent='پیش‌نمایش از سرور';
+      toast('خطا: '+(e&&e.message?e.message:'شبکه'));
+      console.error(e);
+    });
+    return;
+  }
+
+  var fresh=bankPreviewItems.filter(function(it){return !it.duplicate});
+  if(!fresh.length){ toast('موردی برای ثبت نیست'); return; }
+  if(bankLoaded){ toast('قبلاً وارد شده ✓'); return; }
+
+  var bar=document.getElementById('ipBar'); bar.classList.add('show');
+  var bi=bar.querySelector('i'); if(bi) bi.style.width='30%';
+  btn.disabled=true; btn.textContent='در حال ثبت…';
+
+  fetch('/api/transactions/import-bank/commit',{
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({items:fresh, account:account})
+  }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok,d:d}; }); })
+  .then(function(x){
+    if(bi) bi.style.width='100%';
+    btn.disabled=false;
+    if(!x.ok){ toast((x.d&&x.d.error)||'ثبت شکست خورد'); btn.textContent='⬆️ تلاش دوباره'; return; }
+    bankLoaded=true;
+    toast(fa(x.d.imported||0)+' تراکنش ثبت شد'+(x.d.skipped?(' · '+fa(x.d.skipped)+' رد'):'')+' ✓');
+    // merge into local DATA view (best-effort)
+    try{
+      fresh.forEach(function(it){
+        var d=String(it.date||'').slice(0,10).split('-');
+        if(d.length===3 && typeof d2j==='function' && typeof g2d==='function' && typeof MONTHS!=='undefined'){
+          var j=d2j(g2d(+d[0],+d[1],+d[2]));
+          var mi=(j.jy*12+j.jm-1)-(1403*12+6);
+          if(mi>=0 && mi<MONTHS.length){
+            DATA.push({_u:UID++, d:j.jd, mi:mi, t:it.title, a:it.amount, c:it.category||'متفرقه', k:it.kind==='income'?'income':'expense'});
+          }
+        }
+      });
+      if(typeof renderChart==='function') renderChart();
+      if(typeof renderHist==='function') renderHist();
+      if(typeof renderCatsIns==='function') renderCatsIns();
+      if(typeof renderHero==='function') renderHero();
+    }catch(err){ console.error(err); }
+    setTimeout(function(){
+      impDrawer.classList.remove('open'); ovl.classList.remove('open');
+    }, 800);
+  }).catch(function(e){
+    btn.disabled=false; btn.textContent='⬆️ تلاش دوباره';
+    toast('خطای شبکه');
+    console.error(e);
+  });
 });
 
 /* ============ افزودن حساب ============ */
