@@ -256,6 +256,26 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .dbcur button{background:var(--panel2);border:none;color:var(--muted);padding:7px 10px;font:inherit;font-size:12.5px;cursor:pointer;font-family:var(--fh)}
 .dbcur button.on{background:color-mix(in srgb,var(--acc) 22%,transparent);color:var(--acc);font-weight:700}
 .dbamt-usd{color:#3dd68c}
+
+/* بدهی/طلب فشرده + ارز */
+.debt-pair .dbrow{padding:7px 10px;margin-bottom:6px;border-radius:12px}
+.debt-pair .dbtop{gap:6px}
+.debt-pair .dbtop b{font-size:14px}
+.debt-pair .dbtop .rm{font-size:13.5px}
+.debt-pair .kindchip{font-size:10.5px;padding:2px 7px}
+.debt-pair .dbbar{height:4px;margin:5px 0 2px;border-radius:99px}
+.debt-pair .dbsub{font-size:11.5px;color:var(--faint);margin-top:2px;display:flex;justify-content:space-between;gap:8px}
+.debt-pair .dbnote{margin-top:3px;font-size:11.5px;line-height:1.35}
+.debt-pair .dbsum{margin-top:8px;padding-top:8px}
+.debt-pair .dbsum b{font-size:14px}
+.debt-pair .dbsum small{font-size:11.5px}
+.debt-pair .addh{gap:6px}
+.dbcur{display:inline-flex;border:1.5px solid var(--border2);border-radius:10px;overflow:hidden;flex:none;z-index:2;position:relative}
+.dbcur button{background:var(--panel2);border:none;color:var(--muted);padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;font-family:var(--fh);line-height:1.2}
+.dbcur button:hover{color:var(--text)}
+.dbcur button.on{background:color-mix(in srgb,var(--acc) 22%,transparent);color:var(--acc);font-weight:800}
+.dbcur[data-cur="USD"] button[data-c="USD"],.dbcur button.on[data-c="USD"]{background:color-mix(in srgb,#3dd68c 22%,transparent);color:#3dd68c}
+
 .dbnote{margin-top:6px;font-size:12.5px;color:var(--muted);line-height:1.45;white-space:pre-wrap}
 .debt-col .addh input.dbdesc{flex:1 1 100%;min-width:100%}
 /* poker */
@@ -469,8 +489,6 @@ body.nav-open .nav-backdrop{display:block}
           <input id="dbNPay" placeholder="نام — مثلاً وام مسکن" style="flex:1;min-width:120px">
           <div class="dbcur" id="dbCurPay" data-cur="IRT"><button type="button" class="on" data-c="IRT">تومان</button><button type="button" data-c="USD">$</button></div><input id="dbTotPay" placeholder="کل مبلغ" style="width:100px;direction:ltr" inputmode="decimal">
           <input id="dbPaidPay" placeholder="پرداخت‌شده" style="width:100px;direction:ltr" inputmode="decimal">
-          <input id="dbInstPay" placeholder="قسط/ماه" style="width:90px;direction:ltr" inputmode="numeric">
-          <input id="dbDuePay" placeholder="سررسید (روز)" style="width:90px" inputmode="numeric">
           <input id="dbNotePay" class="dbdesc" placeholder="توضیح بدهی — مثلاً بابت وام، قسط بانک، خرید…" style="flex:1 1 100%;min-width:140px">
           <button id="dbAddPay">➕ بدهی</button>
         </div>
@@ -483,8 +501,6 @@ body.nav-open .nav-backdrop{display:block}
           <input id="dbNRec" placeholder="نام — مثلاً علی" style="flex:1;min-width:120px">
           <div class="dbcur" id="dbCurRec" data-cur="IRT"><button type="button" class="on" data-c="IRT">تومان</button><button type="button" data-c="USD">$</button></div><input id="dbTotRec" placeholder="کل مبلغ" style="width:100px;direction:ltr" inputmode="decimal">
           <input id="dbPaidRec" placeholder="دریافت‌شده" style="width:100px;direction:ltr" inputmode="decimal">
-          <input id="dbInstRec" placeholder="قسط/ماه" style="width:90px;direction:ltr" inputmode="numeric">
-          <input id="dbDueRec" placeholder="سررسید (روز)" style="width:90px" inputmode="numeric">
           <input id="dbNoteRec" class="dbdesc" placeholder="توضیح طلب — مثلاً بابت قرض به علی، پروژه…" style="flex:1 1 100%;min-width:140px">
           <button id="dbAddRec">➕ طلب</button>
         </div>
@@ -927,34 +943,32 @@ function renderDebtList(list, listEl, sumEl, kind){
     listEl.innerHTML=list.map(function(d){
       var rm=debtRemain(d),pct=d.total?Math.min(100,Math.round(d.paid/d.total*100)):0;
       var chip=isRec?'<span class="kindchip rec">طلب</span>':'<span class="kindchip pay">بدهی</span>'; if(debtCur(d)==='USD') chip+='<span class="kindchip" style="border-color:#3dd68c;color:#3dd68c">$</span>';
-      var noteHtml=d.note?('<div class="dbnote">'+String(d.note).replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</div>'):'';
+      var _note=String(d.note||'').replace(/قسط ماهانه\s*[0-9۰-۹,]+/g,'').replace(/سررسید روز\s*[0-9۰-۹]+/g,'').replace(/ارز\s*USD/gi,'').replace(/\s*·\s*/g,' · ').replace(/^\s*·\s*|\s*·\s*$/g,'').trim();
+      var noteHtml=_note?('<div class="dbnote">'+_note.replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</div>'):'';
+      var cur=debtCur(d);
+      var paidS=cur==='USD'?fmtDebtAmt(d.paid,'USD'):fmtC(d.paid);
+      var totS=cur==='USD'?fmtDebtAmt(d.total,'USD'):fmtC(d.total);
+      var bar=pct>0?('<div class="dbbar"><i style="width:'+pct+'%;'+(isRec?'background:var(--good)':'')+'"></i></div>'):'';
+      var sub=d.paid?('<div class="dbsub"><span>'+fa(pct)+'٪ '+(isRec?'دریافت':'پرداخت')+' · '+paidS+' از '+totS+'</span></div>'):'';
       return '<div class="dbrow"><div class="dbtop">'+chip+'<b>'+d.n+'</b>'
        +'<button class="rowedit" data-ed="debt" data-u="'+d._u+'">✎</button>'
-       +'<span class="rm'+(isRec?' rec':'')+(debtCur(d)==='USD'?' dbamt-usd':'')+'">'+(debtCur(d)==='USD'?fmtDebtAmt(rm,'USD'):fmtC(rm))+'</span></div>'
-       +noteHtml
-       +'<div class="dbbar"><i style="width:'+pct+'%;'+(isRec?'background:var(--good)':'')+'"></i></div>'
-       +'<div class="dbsub"><span>'+fa(pct)+'٪ '+(isRec?'دریافت':'پرداخت')+' شده ('+fmtC(d.paid)+' از '+fmtC(d.total)+')</span>'
-       +'<span>'+(d.inst?('قسط '+fmtC(d.inst)+' · '):'')+'سررسید روز '+fa(d.due||1)+'</span></div></div>';
+       +'<span class="rm'+(isRec?' rec':'')+(cur==='USD'?' dbamt-usd':'')+'">'+(cur==='USD'?fmtDebtAmt(rm,'USD'):fmtC(rm))+'</span></div>'
+       +noteHtml+bar+sub+'</div>';
     }).join('');
   }
   var inst=list.reduce(function(s,d){return s+(d.inst||0)},0);
   var remain=list.reduce(function(s,d){return s+debtRemain(d)},0);
   sumEl.innerHTML=(function(){
-    var irt=0,usd=0,instI=0,instU=0;
+    var irt=0,usd=0;
     list.forEach(function(d){
       var r=debtRemain(d);
-      if(debtCur(d)==='USD'){ usd+=r; instU+=(d.inst||0); }
-      else { irt+=r; instI+=(d.inst||0); }
+      if(debtCur(d)==='USD') usd+=r; else irt+=r;
     });
-    var remParts=[], instParts=[];
+    var remParts=[];
     if(irt) remParts.push(fmtC(irt)+' ت');
     if(usd) remParts.push('$'+Number(usd).toLocaleString('en-US',{maximumFractionDigits:2}));
     if(!remParts.length) remParts.push('۰');
-    if(instI) instParts.push(fmtC(instI));
-    if(instU) instParts.push('$'+Number(instU).toLocaleString('en-US',{maximumFractionDigits:2}));
-    if(!instParts.length) instParts.push('—');
     return '<div><b style="color:'+(isRec?'var(--good)':'var(--bad)')+'">'+remParts.join(' + ')+'</b><small>جمع مانده</small></div>'
-      +'<div><b>'+instParts.join(' + ')+'</b><small>قسط ماهانه</small></div>'
       +'<div><b>'+fa(list.length)+'</b><small>تعداد</small></div>';
   })();
 }
@@ -978,8 +992,7 @@ function addDebtRow(kind){
   }
   var tot=parseAmt(document.getElementById('dbTot'+suf).value);
   var paid=parseAmt(document.getElementById('dbPaid'+suf).value);
-  var inst=parseInt(faToEn(document.getElementById('dbInst'+suf).value).replace(/[^0-9]/g,''),10)||0;
-  var due=parseInt(faToEn(document.getElementById('dbDue'+suf).value),10)||1;
+  var inst=0, due=0;
   var descEl=document.getElementById('dbNote'+suf);
   var desc=(descEl&&descEl.value||'').trim();
   if(!n||!tot){toast('نام و کل مبلغ را بنویس');return}
@@ -988,9 +1001,8 @@ function addDebtRow(kind){
   var remain=Math.max(0,tot-paid);
   var noteBits=[];
   if(desc) noteBits.push(desc);
-  if(inst) noteBits.push('قسط ماهانه '+inst);
-  if(due) noteBits.push('سررسید روز '+due);
   if(paid) noteBits.push((kind==='receivable'?'دریافت':'پرداخت')+'-شده '+paid);
+  if(currency==='USD') noteBits.push('ارز USD');
   fetch('/api/debts',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({person:n, amount:remain||tot, type:kind, currency:currency, note:noteBits.join(' · '), dueDate:null})
   }).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
@@ -1001,11 +1013,34 @@ function addDebtRow(kind){
     DEBTS.push({_u:UID++, id:x.d.id, n:n, total:tot, paid:paid, inst:inst, due:due, kind:kind, note:desc, currency:currency});
     if(nEl) nEl.value='';
     if(descEl) descEl.value='';
-    ['dbTot','dbPaid','dbInst','dbDue'].forEach(function(id){var el=document.getElementById(id+suf); if(el) el.value='';});
+    ['dbTot','dbPaid'].forEach(function(id){var el=document.getElementById(id+suf); if(el) el.value='';});
     renderDebts(); renderHero();
     toast((kind==='receivable'?'طلب':'بدهی')+' «'+n+'» ذخیره شد ✓');
   }).catch(function(){if(btn)btn.disabled=false;toast('خطای شبکه')});
 }
+
+
+function bindDebtCurrency(){
+  ['Pay','Rec'].forEach(function(suf){
+    var box=document.getElementById('dbCur'+suf);
+    if(!box) return;
+    if(box._bound) return;
+    box._bound=true;
+    box.addEventListener('click',function(e){
+      var b=e.target.closest('button[data-c]'); if(!b) return;
+      e.preventDefault(); e.stopPropagation();
+      box.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});
+      b.classList.add('on');
+      var cur=b.getAttribute('data-c')||'IRT';
+      box.setAttribute('data-cur', cur);
+      var tot=document.getElementById('dbTot'+suf);
+      var paid=document.getElementById('dbPaid'+suf);
+      if(tot) tot.placeholder=cur==='USD'?'مبلغ $':'کل مبلغ';
+      if(paid) paid.placeholder=cur==='USD'?(suf==='Rec'?'دریافت $':'پرداخت $'):(suf==='Rec'?'دریافت‌شده':'پرداخت‌شده');
+    });
+  });
+}
+bindDebtCurrency();
 
 document.getElementById('dbAddPay').addEventListener('click',function(){ addDebtRow('payable'); });
 document.getElementById('dbAddRec').addEventListener('click',function(){ addDebtRow('receivable'); });
@@ -1168,9 +1203,8 @@ document.getElementById('edSave').addEventListener('click',function(){
     var noteBits=[];
     if(desc) noteBits.push(desc);
     var inst=o.inst||0, due=o.due||1, _isU=debtCur(o)==='USD'; var paid=_isU?(parseFloat(faToEn(v3).replace(/[^0-9.]/g,''))||o.paid||0):(parseInt(faToEn(v3).replace(/[^0-9]/g,''),10)||o.paid||0);
-    if(inst) noteBits.push('قسط ماهانه '+inst);
-    if(due) noteBits.push('سررسید روز '+due);
     if(paid) noteBits.push((debtKind(o)==='receivable'?'دریافت':'پرداخت')+'-شده '+paid);
+    if(debtCur(o)==='USD') noteBits.push('ارز USD');
     var totV=_isU?(parseFloat(faToEn(v2).replace(/[^0-9.]/g,''))||o.total):(parseInt(faToEn(v2).replace(/[^0-9]/g,''),10)||o.total); var remain=Math.max(0,totV-paid);
     p=fetch('/api/debts/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({person:v1.trim()||o.n, amount:remain||o.total, note:noteBits.join(' · '), type:debtKind(o), currency:debtCur(o)})});
@@ -1352,18 +1386,6 @@ document.getElementById('doImport').addEventListener('click',function(){
 })();
 
 
-['Pay','Rec'].forEach(function(suf){
-  var box=document.getElementById('dbCur'+suf);
-  if(!box||box._bound) return;
-  box._bound=true;
-  box.addEventListener('click',function(e){
-    var b=e.target.closest('button[data-c]'); if(!b) return;
-    box.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});
-    b.classList.add('on');
-    box.setAttribute('data-cur', b.getAttribute('data-c')||'IRT');
-  });
-});
-
 loadFinanceFromApi();
     setTimeout(function(){
       impDrawer.classList.remove('open'); ovl.classList.remove('open');
@@ -1509,15 +1531,16 @@ function loadFinanceFromApi(){
         var freeNote=note
           .replace(/قسط ماهانه\s*[0-9۰-۹,]+/g,'')
           .replace(/سررسید روز\s*[0-9۰-۹]+/g,'')
-          .replace(/(?:پرداخت|دریافت)-شده\s*[0-9۰-۹,]+/g,'')
+          .replace(/(?:پرداخت|دریافت)-شده\s*[0-9۰-۹.,]+/g,'')
+          .replace(/ارز\s*USD/gi,'')
           .replace(/\s*·\s*/g,' · ').replace(/^\s*·\s*|\s*·\s*$/g,'').trim();
+        var cur=(d.currency==='USD'||/ارز\s*USD/i.test(note))?'USD':'IRT';
         DEBTS.push({
           _u:UID++, id:d.id, n:d.person||d.title||'—',
-          total:total, paid:paid, inst:instM?nnum(instM[1]):(Math.round(total/12)||0),
-          due:dueM?nnum(dueM[1]):1,
+          total:total, paid:paid, inst:0, due:0,
           kind:(d.type==='receivable'?'receivable':'payable'),
           note:freeNote,
-          currency:(d.currency==='USD'?'USD':'IRT')
+          currency:cur
         });
       });
     }
