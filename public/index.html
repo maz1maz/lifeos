@@ -108,6 +108,7 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 /* r1 layout → pack CSS */
 .home-row.r2{grid-template-columns:repeat(4,minmax(0,1fr))}
 /* r3 4col */
+.home-row.r3{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:14px}
 .home-row.r4{grid-template-columns:repeat(3,minmax(0,1fr))}
 
 /* ردیف ۱: کارت تاریخ (راست) + مینی‌تقویم با دما (چپ) */
@@ -1012,31 +1013,8 @@ body.nav-open .nav-backdrop{display:block}
     </div>
   </div>
 
-    <!-- ردیف ۳ — چهارستونه: تراکنش · ثبت روزانه · بودجه · قسمت‌ها -->
+    <!-- ردیف ۳ — چهارستونه (راست→چپ): ثبت روزانه · تراکنش · بودجه · سریال‌ها -->
 <div class="home-row r3">
-<div class="mcard">
-    <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
-    <div class="txform">
-        <div class="txrow">
-          <div class="kindseg">
-          <button type="button" class="on" data-kind="expense">خرج</button>
-          <button type="button" data-kind="income">دریافت</button>
-          </div>
-          <input class="txamount" id="txAmt" type="text" inputmode="numeric" placeholder="مبلغ ﷼">
-          <input class="txtitle" id="txTitle" type="text" placeholder="شرح — مثلاً: اسنپ به محل کار">
-          <button class="txgo" id="txGo" type="button">ثبت</button>
-        </div>
-        <div class="chiprow"><span class="chiplab">از حساب:</span><span id="accChips" class="chipset">
-          <button type="button" class="txchip on" data-acc="💳 کارت اصلی">💳 کارت اصلی</button>
-          <button type="button" class="txchip" data-acc="💵 نقدی">💵 نقدی</button>
-          <button type="button" class="txchip" data-acc="🏦 پس‌انداز">🏦 پس‌انداز</button>
-        </span></div>
-        <div class="chiprow catrow"><span class="chiplab">سرفصل:</span><span id="catChips" class="chipset"><button type="button" class="txchip" data-cat="خوراک">🍞 خوراک</button><button type="button" class="txchip" data-cat="حمل‌ونقل">🚕 حمل‌ونقل</button><button type="button" class="txchip" data-cat="قبض">🧾 قبض</button><button type="button" class="txchip" data-cat="سلامت">💊 سلامت</button><button type="button" class="txchip" data-cat="تفریح">🎬 تفریح</button><button type="button" class="txchip" data-cat="پوشاک">👕 پوشاک</button><button type="button" class="txchip" data-cat="آموزش">📚 آموزش</button><button type="button" class="txchip" data-cat="مسکن">🏠 مسکن</button><button type="button" class="txchip" data-cat="متفرقه">🔖 متفرقه</button><button type="button" class="txchip" data-cat="__custom">✏️ سرفصل خودم</button></span></div>
-        <div class="smarthint" id="smartHint"></div>
-        </div>
-    <div class="txlist" id="txList"></div>
-    <div class="txsum"><span>جمع خرج امروز</span><b id="txSum">—</b></div>
-              </div>
 <div class="c3wrap">
 <div class="demo-bar">
     <button class="demo-btn" id="demoWeight">🗓 تست: ماه جدید شد (سوال وزن)</button>
@@ -1122,6 +1100,29 @@ body.nav-open .nav-backdrop{display:block}
   </div>
 </div>
 <div class="mcard">
+    <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
+    <div class="txform">
+        <div class="txrow">
+          <div class="kindseg">
+          <button type="button" class="on" data-kind="expense">خرج</button>
+          <button type="button" data-kind="income">دریافت</button>
+          </div>
+          <input class="txamount" id="txAmt" type="text" inputmode="numeric" placeholder="مبلغ ﷼">
+          <input class="txtitle" id="txTitle" type="text" placeholder="شرح — مثلاً: اسنپ به محل کار">
+          <button class="txgo" id="txGo" type="button">ثبت</button>
+        </div>
+        <div class="chiprow"><span class="chiplab">از حساب:</span><span id="accChips" class="chipset">
+          <button type="button" class="txchip on" data-acc="💳 کارت اصلی">💳 کارت اصلی</button>
+          <button type="button" class="txchip" data-acc="💵 نقدی">💵 نقدی</button>
+          <button type="button" class="txchip" data-acc="🏦 پس‌انداز">🏦 پس‌انداز</button>
+        </span></div>
+        <div class="chiprow catrow"><span class="chiplab">سرفصل:</span><span id="catChips" class="chipset"><button type="button" class="txchip" data-cat="خوراک">🍞 خوراک</button><button type="button" class="txchip" data-cat="حمل‌ونقل">🚕 حمل‌ونقل</button><button type="button" class="txchip" data-cat="قبض">🧾 قبض</button><button type="button" class="txchip" data-cat="سلامت">💊 سلامت</button><button type="button" class="txchip" data-cat="تفریح">🎬 تفریح</button><button type="button" class="txchip" data-cat="پوشاک">👕 پوشاک</button><button type="button" class="txchip" data-cat="آموزش">📚 آموزش</button><button type="button" class="txchip" data-cat="مسکن">🏠 مسکن</button><button type="button" class="txchip" data-cat="متفرقه">🔖 متفرقه</button><button type="button" class="txchip" data-cat="__custom">✏️ سرفصل خودم</button></span></div>
+        <div class="smarthint" id="smartHint"></div>
+        </div>
+    <div class="txlist" id="txList"></div>
+    <div class="txsum"><span>جمع خرج امروز</span><b id="txSum">—</b></div>
+              </div>
+<div class="mcard">
     <div class="mhead"><h4>📊 بودجه ماه</h4></div>
     <div class="budwrap">
         <div class="budbar"><i id="budFill" style="width:23%"></i></div>
@@ -1133,13 +1134,14 @@ body.nav-open .nav-backdrop{display:block}
 </div>
 <div class="epcard">
     <div class="mhead">
-      <h4>🆕 قسمت‌های جدید</h4>
+      <h4>🎬 سریال‌ها</h4>
       <span class="cnt" id="epCnt">—</span>
       <span style="font-size:14px;color:var(--acc);cursor:pointer" id="epGoAll">سریال‌های من ←</span>
     </div>
     <div id="epList"></div>
     <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
 </div>
+
 </div>
 </div>
 
