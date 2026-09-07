@@ -233,6 +233,16 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .dbtop .kindchip.pay{border-color:color-mix(in srgb,var(--bad) 45%,transparent);color:var(--bad)}
 .dbtop .kindchip.rec{border-color:color-mix(in srgb,var(--good) 45%,transparent);color:var(--good)}
 .debt-empty{color:var(--faint);font-size:13.5px;padding:8px 2px}
+
+/* تگ تراکنش */
+.txtags{display:inline-flex;flex-wrap:wrap;gap:4px;margin-right:6px;vertical-align:middle}
+.txtag{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:99px;background:color-mix(in srgb,var(--acc) 16%,transparent);border:1px solid color-mix(in srgb,var(--acc) 35%,transparent);color:var(--acc);font-family:var(--fh);line-height:1.3}
+.tag-filter{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 4px}
+.tag-filter .tg{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:99px;padding:4px 10px;font-size:12.5px;cursor:pointer;font-family:var(--fh)}
+.tag-filter .tg.on{border-color:var(--acc);color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}
+.tag-filter .tgall{opacity:.85}
+.ed-tags-hint{font-size:12px;color:var(--faint);margin-top:4px}
+
 .dbnote{margin-top:6px;font-size:12.5px;color:var(--muted);line-height:1.45;white-space:pre-wrap}
 .debt-col .addh input.dbdesc{flex:1 1 100%;min-width:100%}
 /* poker */
@@ -482,6 +492,7 @@ body.nav-open .nav-backdrop{display:block}
       </div>
       <input class="hsearch" id="hSearch" placeholder="جستجو در شرح…">
     </div>
+    <div class="tag-filter" id="tagFilter"></div>
     <div class="txlist" id="histList"></div>
     <div class="msum" id="mSum"></div>
   </div>
@@ -581,6 +592,7 @@ body.nav-open .nav-backdrop{display:block}
   <div class="frow" id="ef3w"><label id="ef3l"></label><input id="ef3" style="direction:ltr" inputmode="decimal"></div>
   <div class="frow" id="ef4w"><label id="ef4l"></label><select id="ef4"></select></div>
   <div class="frow" id="efNoteW" style="display:none"><label id="efNoteL">توضیح</label><input id="efNote" placeholder="توضیح..."></div>
+  <div class="frow" id="efTagsW" style="display:none"><label id="efTagsL">تگ‌ها</label><input id="efTags" placeholder="مثلاً: سفر، کار، ضروری — با ویرگول جدا کن"><div class="ed-tags-hint">چند تگ را با ، یا فاصله جدا کن</div></div>
   <button class="btn" id="edSave" style="width:100%">ذخیره ✓</button>
   <button id="edDel" style="width:100%;margin-top:10px;background:none;border:1px solid color-mix(in srgb,var(--bad) 45%,transparent);color:var(--bad);border-radius:12px;padding:9px;font-family:var(--fh);font-size:14px;cursor:pointer">🗑 حذف</button>
 </div>
@@ -674,20 +686,50 @@ function renderAccs(){
 }
 
 /* ============ تاریخچه ============ */
-var curMi=(function(){try{var t=jToday();var mi=(t.jy*12+t.jm-1)-(1403*12+6);return Math.max(0,Math.min(23,mi))}catch(e){return 23}})(),kFilter='all',q='';
+var curMi=(function(){try{var t=jToday();var mi=(t.jy*12+t.jm-1)-(1403*12+6);return Math.max(0,Math.min(23,mi))}catch(e){return 23}})(),kFilter='all', tagFilter='',q='';
 function monthLabel(mi){return MON[MONTHS[mi].m-1]+' '+fa(MONTHS[mi].y)}
+
+var tagFilter='';
+function parseTags(s){
+  if(Array.isArray(s)) return s.map(function(x){return String(x).trim()}).filter(Boolean).slice(0,12);
+  var str=String(s||'').trim(); if(!str) return [];
+  if(/[،,|/]/.test(str)) return str.split(/[،,|/]+/).map(function(x){return x.trim()}).filter(Boolean).slice(0,12);
+  return str.split(/\s+/).map(function(x){return x.trim()}).filter(Boolean).slice(0,12);
+}
+function tagsHtml(tags){
+  if(!tags||!tags.length) return '';
+  return '<span class="txtags">'+tags.map(function(t){return '<span class="txtag">#'+String(t).replace(/[<>&]/g,'')+'</span>'}).join('')+'</span>';
+}
+function allTagsInData(){
+  var set={}, out=[];
+  DATA.forEach(function(x){(x.tags||[]).forEach(function(t){if(t&&!set[t]){set[t]=1;out.push(t)}})});
+  return out.sort(function(a,b){return a.localeCompare(b,'fa')});
+}
+function renderTagFilter(){
+  var el=document.getElementById('tagFilter'); if(!el) return;
+  var tags=allTagsInData();
+  if(!tags.length && !tagFilter){ el.innerHTML=''; return; }
+  var html='<button type="button" class="tg tgall'+(tagFilter===''?' on':'')+'" data-tag="">همه تگ‌ها</button>';
+  tags.forEach(function(t){
+    html+='<button type="button" class="tg'+(tagFilter===t?' on':'')+'" data-tag="'+String(t).replace(/"/g,'&quot;')+'">#'+String(t).replace(/[<>&]/g,'')+'</button>';
+  });
+  el.innerHTML=html;
+}
+
 function renderHist(){
   document.getElementById('mLab').textContent=monthLabel(curMi);
   document.getElementById('mPrev').style.visibility=curMi===0?'hidden':'visible';
   document.getElementById('mNext').style.visibility=curMi===23?'hidden':'visible';
+  renderTagFilter();
   var rows=DATA.filter(function(x){return x.mi===curMi
     &&(kFilter==='all'||x.k===kFilter)
-    &&(!q||x.t.indexOf(q)>-1)}).sort(function(a,b){return b.d-a.d});
+    &&(!q||x.t.indexOf(q)>-1||(x.tags||[]).some(function(t){return String(t).indexOf(q)>-1}))
+    &&(!tagFilter||(x.tags||[]).indexOf(tagFilter)>-1)}).sort(function(a,b){return b.d-a.d});
   document.getElementById('histCount').textContent=rows.length?fa(rows.length)+' تراکنش':'';
   document.getElementById('histList').innerHTML=rows.length?rows.map(function(x){
     return '<div class="txi"><span class="catdot" style="background:'+(CATS[x.c]||'var(--faint)')+'"></span>'
      +'<span class="d">'+fa(x.d)+'</span>'
-     +'<span class="t">'+x.t+' <small>'+CATI[x.c]+' '+x.c+'</small></span>'
+     +'<span class="t">'+x.t+' <small>'+CATI[x.c]+' '+x.c+'</small>'+tagsHtml(x.tags)+'</span>'
      +'<span class="amt '+(x.k==='income'?'inc':'exp')+'">'+(x.k==='income'?'+':'−')+fmt(x.a)+'</span><button class="rowedit" data-ed="tx" data-u="'+x._u+'">✎</button></div>';
   }).join(''):'<div class="empty">این ماه چیزی ثبت نشده — با 📥 درون‌ریزی اکسل بانک پرش کن</div>';
   var inc=rows.filter(function(x){return x.k==='income'}).reduce(function(s,x){return s+x.a},0);
@@ -982,6 +1024,8 @@ function openEdit(type,obj){
   ED.type=type;ED.obj=obj;
   var nw=document.getElementById('efNoteW'); if(nw) nw.style.display='none';
   var ni=document.getElementById('efNote'); if(ni) ni.value='';
+  var tw=document.getElementById('efTagsW'); if(tw) tw.style.display='none';
+  var ti=document.getElementById('efTags'); if(ti) ti.value='';
   var ef1el=document.getElementById('ef1');ef1el.readOnly=false;ef1el.onclick=null;
   function setf(n,label,val,show){document.getElementById(n+'w').style.display=show?'flex':'none';
     if(label!==undefined){document.getElementById(n+'l').textContent=label;document.getElementById(n).value=val}}
@@ -990,7 +1034,11 @@ function openEdit(type,obj){
     sel.innerHTML=opts.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===val?' selected':'')+'>'+o[1]+'</option>'}).join('')}
   if(type==='tx'){document.getElementById('edTitle').textContent='ویرایش تراکنش';
     setf('ef1','شرح',obj.t,true);setf('ef2','مبلغ (تومان)',obj.a,true);setf('ef3','',0,false);
-    setsel('نوع',[['expense','هزینه'],['income','دریافت']],obj.k)}
+    setsel('نوع',[['expense','هزینه'],['income','دریافت']],obj.k);
+    var tw=document.getElementById('efTagsW'); if(tw) tw.style.display='flex';
+    var tl=document.getElementById('efTagsL'); if(tl) tl.textContent='تگ‌ها';
+    var ti=document.getElementById('efTags'); if(ti) ti.value=(obj.tags&&obj.tags.length)?obj.tags.join('، '):'';
+  }
   if(type==='acc'){document.getElementById('edTitle').textContent='ویرایش حساب';
     setf('ef1','نام',obj.n,true);setf('ef2','مانده (تومان)',obj.b,true);setf('ef3','',0,false);
     setsel('نوع',[['card','💳 کارت بانکی'],['acc','🏦 حساب'],['cash','💵 نقدی'],['wallet','👛 کیف پول']],obj.type)}
@@ -1023,7 +1071,7 @@ document.getElementById('edSave').addEventListener('click',function(){
   var v1=document.getElementById('ef1').value,v2=num(document.getElementById('ef2').value),v3=num(document.getElementById('ef3').value),v4=document.getElementById('ef4').value;
   var btn=this; btn.disabled=true;
   function doneLocal(){
-    if(ED.type==='tx'){o.t=v1.trim()||o.t;o.a=parseInt(v2,10)||o.a;o.k=v4;renderHist();renderChart();renderCatsIns()}
+    if(ED.type==='tx'){o.t=v1.trim()||o.t;o.a=parseInt(v2,10)||o.a;o.k=v4;var tg=document.getElementById('efTags');o.tags=parseTags(tg?tg.value:'');renderHist();renderChart();renderCatsIns()}
     if(ED.type==='acc'){o.n=v1.trim()||o.n;o.b=parseInt(v2,10)||0;o.type=v4;renderAccs();renderHero()}
     if(ED.type==='pk'){if(ED.pkDate){o.d=ED.pkDate.d;o.mi=ED.pkDate.mi}o.bi=parseInt(v2,10)||o.bi;o.co=parseInt(v3,10)||o.co;o.loc=v4;renderPoker()}
     if(ED.type==='hold'){o.sym=v1.trim().toUpperCase()||o.sym;o.qty=parseFloat(v2)||o.qty;o.price=parseFloat(v3)||o.price;renderPort();renderHero()}
@@ -1032,8 +1080,9 @@ document.getElementById('edSave').addEventListener('click',function(){
   }
   var p=null;
   if(ED.type==='tx' && o.id){
+    var tg=document.getElementById('efTags');
     p=fetch('/api/transactions/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({title:v1.trim()||o.t, amount:parseInt(v2,10)||o.a, kind:v4})});
+      body:JSON.stringify({title:v1.trim()||o.t, amount:parseInt(v2,10)||o.a, kind:v4, tags:parseTags(tg?tg.value:'')})});
   } else if(ED.type==='acc' && o.id){
     p=fetch('/api/accounts/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({name:v1.trim()||o.n, type:v4==='acc'?'bank':v4, balance:parseInt(v2,10)||0})});
@@ -1221,7 +1270,19 @@ document.getElementById('doImport').addEventListener('click',function(){
     if(!x.ok){ toast((x.d&&x.d.error)||'ثبت شکست خورد'); btn.textContent='⬆️ تلاش دوباره'; return; }
     bankLoaded=true;
     toast(fa(x.d.imported||0)+' تراکنش ثبت شد'+(x.d.skipped?(' · '+fa(x.d.skipped)+' رد'):'')+' ✓');
-    if(typeof loadFinanceFromApi==='function') loadFinanceFromApi();
+    if(typeof loadFinanceFromApi==='function') 
+(function bindTagFilter(){
+  var el=document.getElementById('tagFilter');
+  if(!el||el._tagBound) return;
+  el._tagBound=true;
+  el.addEventListener('click',function(e){
+    var b=e.target.closest('[data-tag]'); if(!b) return;
+    tagFilter=b.getAttribute('data-tag')||'';
+    if(typeof renderHist==='function') renderHist();
+  });
+})();
+
+loadFinanceFromApi();
     setTimeout(function(){
       impDrawer.classList.remove('open'); ovl.classList.remove('open');
     }, 800);
@@ -1347,7 +1408,7 @@ function loadFinanceFromApi(){
       DATA.length=0;
       res[1].d.items.forEach(function(t){
         var md=isoToMiD(t.date); if(!md) return;
-        DATA.push({_u:UID++, id:t.id, d:md.d, mi:md.mi, t:t.title, a:t.amount, c:t.category||'متفرقه', k:t.kind==='income'?'income':(t.kind==='transfer'?'expense':'expense')});
+        DATA.push({_u:UID++, id:t.id, d:md.d, mi:md.mi, t:t.title, a:t.amount, c:t.category||'متفرقه', k:t.kind==='income'?'income':(t.kind==='transfer'?'expense':'expense'), tags:Array.isArray(t.tags)?t.tags.slice():parseTags(t.tags||'')});
       });
     }
     // debts

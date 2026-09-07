@@ -1304,6 +1304,7 @@ body.nav-open .nav-backdrop{display:block}
           </div>
           <input class="txamount" id="txAmt" type="text" inputmode="numeric" placeholder="مبلغ ﷼">
           <input class="txtitle" id="txTitle" type="text" placeholder="شرح — مثلاً: اسنپ به محل کار">
+          <input class="txtagsin" id="txTags" type="text" placeholder="تگ (اختیاری) — سفر، کار، …" style="min-width:120px">
           <button class="txgo" id="txGo" type="button">ثبت</button>
         </div>
         <div class="chiprow"><span class="chiplab">از حساب:</span><span id="accChips" class="chipset">
@@ -2217,7 +2218,7 @@ function renderTx(){
  document.getElementById('txList').innerHTML=TODAYTX.length?TODAYTX.map(function(x,i){
   var cm=catMeta(x.c);
   return '<div class="txi"><span class="catdot" style="background:'+cm[2]+'"></span>'
-   +'<span class="t">'+x.t+' <small>'+cm[1]+' '+x.c+'</small></span>'
+   +'<span class="t">'+x.t+' <small>'+cm[1]+' '+x.c+'</small>'+(x.tags&&x.tags.length?(' '+x.tags.map(function(t){return '<span style="color:var(--acc)">#'+String(t).replace(/[<>&]/g,'')+'</span>'}).join(' ')):'' )+'</span>'
    +'<span class="amt'+(x.k==='income'?' inc':'')+'" style="'+(x.k==='income'?'':'color:var(--bad)')+'">'+(x.k==='income'?'+':'−')+fmtFull(x.a)+'</span>'
    +'<button class="del" data-deltx="'+i+'">✕</button></div>'}).join('')
   :'<div style="color:var(--faint);font-size:14px;text-align:center;padding:10px">هنوز چیزی ثبت نشده — اولین خرج امروز را بالا بنویس</div>';
@@ -2245,19 +2246,19 @@ function txSubmit(){
  var t=document.getElementById('txTitle').value.trim();
  if(!a||!t){toastB('مبلغ و شرح را بنویس');return}
  var c=TXCAT||suggestCat(t)||'متفرقه';
- var account=String(TXACC||'بدون حساب').replace(/^\S+\s/,'') || String(TXACC||'بدون حساب');
+ var tagsEl=document.getElementById('txTags'); var tags=(function(s){s=String(s||'').trim();if(!s)return[];if(/[،,|/]/.test(s))return s.split(/[،,|/]+/).map(function(x){return x.trim()}).filter(Boolean).slice(0,12);return s.split(/\s+/).map(function(x){return x.trim()}).filter(Boolean).slice(0,12)})(tagsEl&&tagsEl.value); var account=String(TXACC||'بدون حساب').replace(/^\S+\s/,'') || String(TXACC||'بدون حساب');
  var btn=document.getElementById('txGo'); if(btn) btn.disabled=true;
  fetch('/api/transactions',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({title:t,amount:a,category:c,kind:TXKIND||'expense',account:account,date:(typeof homeIsoFromOff==='function'?homeIsoFromOff(0):new Date().toISOString().slice(0,10))})
+   body:JSON.stringify({title:t,amount:a,category:c,kind:TXKIND||'expense',account:account,tags:tags,date:(typeof homeIsoFromOff==='function'?homeIsoFromOff(0):new Date().toISOString().slice(0,10))})
  }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
  .then(function(x){
    if(btn) btn.disabled=false;
    if(x.status===401){location.href='/design/login-page.html';return}
    if(!x.ok){toastB((x.d&&x.d.error)||'ذخیره نشد');return}
-   TODAYTX.push({id:x.d.id,t:t,a:a,c:c,k:TXKIND});
+   TODAYTX.push({id:x.d.id,t:t,a:a,c:c,k:TXKIND,tags:tags});
    renderTx();
    toastB('ذخیره شد ✓ — '+fmtFull(a)+' تومان · '+catMeta(c)[1]+' '+c+' · '+account);
-   document.getElementById('txAmt').value='';document.getElementById('txTitle').value='';
+   document.getElementById('txAmt').value='';document.getElementById('txTitle').value='';var _tg=document.getElementById('txTags');if(_tg)_tg.value='';
    TXCAT=null;TXCATMANUAL=false;renderCatChips();document.getElementById('txTitle').focus();
  }).catch(function(){if(btn)btn.disabled=false;toastB('خطای شبکه')});
 }
@@ -2358,7 +2359,7 @@ function loadHomeFromApi(){
     // today txs
     if(dash && Array.isArray(dash.transactions)){
       TODAYTX=dash.transactions.map(function(t){
-        return {id:t.id,t:t.title,a:t.amount,c:t.category||'متفرقه',k:t.kind==='income'?'income':'expense'};
+        return {id:t.id,t:t.title,a:t.amount,c:t.category||'متفرقه',k:t.kind==='income'?'income':'expense',tags:Array.isArray(t.tags)?t.tags:[]};
       });
       if(typeof renderTx==='function') renderTx();
     }
