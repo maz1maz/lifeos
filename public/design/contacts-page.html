@@ -382,6 +382,7 @@ html[data-mode="light"] #docSearch{color-scheme:light}
 }
 .ct-row:hover{background:var(--panel2)}
 .ct-row.on{background:color-mix(in srgb,var(--acc) 12%,transparent);border-color:transparent}
+.ct-row.junk{opacity:.75;border-right:3px solid var(--bad)}
 .ct-ava{
   width:42px;height:42px;border-radius:99px;flex:none;display:grid;place-items:center;
   font-family:var(--fh);font-weight:800;font-size:16px;color:#062028;background:var(--acc);
@@ -551,6 +552,7 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
         <button type="button" class="btn ghost" id="importPreviewBtn">پیش‌نمایش</button>
         <button type="button" class="btn" id="importGoBtn">افزودن به لیست</button>
         <button type="button" class="btn ghost" id="dedupeBtn" title="تکراری‌های فعلی را پاک کن">🧹 پاکسازی تکراری</button>
+        <button type="button" class="btn ghost" id="junkBtn" title="مخاطب‌هایی که نام‌شان شبیه ردیف CSV خراب است">🗑️ حذف نام‌های خراب</button>
         <span id="importMsg" style="color:var(--muted);font-size:13px;align-self:center"></span>
       </div>
       <div style="font-size:12px;color:var(--faint);margin-top:6px;line-height:1.5">
@@ -846,6 +848,13 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
       } else if(viewMode!=='new' && viewMode!=='edit'){
         setMode('empty');
       }
+      var junkN=CONTACTS.filter(isJunkContact).length;
+      var jb=document.getElementById('junkBtn');
+      if(jb){
+        if(junkN){ jb.style.borderColor='var(--bad)'; jb.style.color='var(--bad)'; jb.textContent='🗑️ حذف نام‌های خراب ('+fa(junkN)+')'; }
+        else { jb.style.borderColor=''; jb.style.color=''; jb.textContent='🗑️ حذف نام‌های خراب'; }
+      }
+      if(junkN && !window._junkWarned){ window._junkWarned=true; toast(fa(junkN)+' مخاطب با نام خراب — «حذف نام‌های خراب» را بزن'); }
     }).catch(function(e){ toast('خطا در بارگذاری'); console.error(e); });
   }
 
@@ -873,9 +882,12 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
       var on=c.id===selectedId?' on':'';
       var sub=[REL[c.relationship]||c.relationship, c.phone||c.email||''].filter(Boolean).join(' · ');
       var meta=c.followUpDate?('پیگیری '+c.followUpDate):(c.birthday?('🎂 '+c.birthday):'');
-      return '<div class="ct-row'+on+'" data-id="'+esc(c.id)+'">'
+      var junk=isJunkContact(c);
+      var nm=c.name||'';
+      var show=junk?(nm.length>48?nm.slice(0,48)+'…':nm):nm;
+      return '<div class="ct-row'+on+(junk?' junk':'')+'" data-id="'+esc(c.id)+'">'
         +'<div class="ct-ava '+avaColor(c.name)+'">'+esc(avaLetter(c.name))+'</div>'
-        +'<div class="ct-main"><b>'+esc(c.name)+'<span class="relchip">'+esc(REL[c.relationship]||c.relationship||'')+'</span></b>'
+        +'<div class="ct-main"><b>'+esc(show)+(junk?'<span class="relchip" style="color:var(--bad);border-color:var(--bad)">خراب</span>':'')+'<span class="relchip">'+esc(REL[c.relationship]||c.relationship||'')+'</span></b>'
         +'<small>'+esc(sub)+'</small></div>'
         +'<div class="ct-meta">'+esc(meta)+'</div></div>';
     }).join('');
@@ -1097,19 +1109,37 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
   }
   function looksLikeName(s){
     s=String(s||'').trim();
-    if(!s || s.length>80) return false;
+    if(!s || s.length>60) return false;
     if(/@/.test(s)) return false;
     if(/^https?:/i.test(s)) return false;
-    if(/^[*\s,:;.+]+$/.test(s)) return false;
-    if(/mycontacts|iphone\s*:::|e-mail\s*\d|phone\s*\d/i.test(s)) return false;
+    if(/^t\.me\//i.test(s)) return false;
+    if(/^[*\s,:;.+،]+$/.test(s)) return false;
+    /* raw CSV / Google export garbage dumped into name */
+    if(/mycontacts|iphone\s*:::|\* mycontacts/i.test(s)) return false;
+    if(/e-?mail\s*\d|phone\s*\d\s*-|first name|last name|organization name/i.test(s)) return false;
+    if(/,,,|::::/.test(s)) return false;
+    if((s.match(/,/g)||[]).length>=3) return false; /* too many commas = CSV row */
+    if((s.match(/،/g)||[]).length>=2 && s.length>25) return false;
+    if(/\+98|\b0\d{2,3}[\s-]?\d{3,}/.test(s) && s.length>30) return false; /* phone dump */
     if(/^\+?\d[\d\s\-()]{4,}$/.test(s)) return false; /* pure phone */
     if(/^\d+$/.test(s)) return false;
-    /* first token pure digits (e.g. "88 Test") → strip later, still ok if has letters */
-    var letters=(s.match(/[A-Za-z؀-ۿ]/g)||[]).length;
+    if(/^first name$|^last name$|^name$|^نام$/i.test(s)) return false; /* header */
+    var letters=(s.match(/[A-Za-z؀-ۿ deb-޿א-ת]/g)||[]).length;
     if(letters<1) return false;
     var digits=(s.match(/\d/g)||[]).length;
     if(digits>=4 && digits>=letters) return false;
+    /* single char / two-digit junk often from bad cols */
+    if(s.length<=2 && !/[؀-ۿA-Za-z]{2}/.test(s) && !/^[؀-ۿA-Za-z]$/.test(s)) return false;
+    if(/^(mobile|home|work|fax|other|email|phone|tel|labels?)$/i.test(s)) return false;
     return true;
+  }
+  function isJunkContact(c){
+    if(!c) return true;
+    var n=String(c.name||'').trim();
+    if(!looksLikeName(n)) return true;
+    /* name that is basically the whole export blob */
+    if(n.length>50 && (/mycontacts|iphone|bahereh\.|t\.me\//i.test(n) || (n.match(/,/g)||[]).length>=2)) return true;
+    return false;
   }
   function tidyName(s){
     s=String(s||'').replace(/\s+/g,' ').trim();
@@ -1139,8 +1169,9 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
         if(!p||!p[0]) continue;
         var name=String(p[0]||'').trim();
         if(!looksLikeName(name)) continue;
+        if(!looksLikeName(name)) continue;
         rows.push({
-          name:name,
+          name:name.slice(0,60),
           relationship:normRel(p[1]||'friend'),
           phone:cleanPhone(p[2]||p[1]||''),
           email:cleanEmail(p[3]||''),
@@ -1148,7 +1179,7 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
           notes:p[5]||''
         });
       }
-      return rows;
+      return rows.filter(function(r){ return looksLikeName(r.name); });
     }
 
     var hmap={};
@@ -1274,8 +1305,9 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
       var labels=cellAt(p,cLabels);
       var rel=normRel(relVal||labels||'');
 
+      if(!looksLikeName(name)) continue;
       rows.push({
-        name:name.slice(0,120),
+        name:name.slice(0,60),
         relationship:rel,
         phone:phone.slice(0,120),
         email:email.slice(0,120),
@@ -1283,7 +1315,7 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
         notes:notesParts.join(' · ').slice(0,500)
       });
     }
-    return rows;
+    return rows.filter(function(r){ return looksLikeName(r.name); });
   }
   function showPreview(rows){
     importRows=rows||[];
@@ -1479,6 +1511,23 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     });
   }
 
+  var junkBtn=document.getElementById('junkBtn');
+  if(junkBtn){
+    junkBtn.addEventListener('click',function(){
+      var junk=CONTACTS.filter(isJunkContact);
+      if(!junk.length){ toast('نام خرابی پیدا نشد'); return; }
+      if(!confirm(fa(junk.length)+' مخاطب با نام خراب/CSV پیدا شد. حذف شوند؟\n\nنمونه:\n'+junk.slice(0,3).map(function(x){return '• '+(x.name||'').slice(0,80)}).join('\n'))) return;
+      junkBtn.disabled=true;
+      fetch('/api/contacts/dedupe',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify({junk:true})})
+        .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+        .then(function(x){
+          junkBtn.disabled=false;
+          if(!x.ok){ toast((x.d&&x.d.error)||'پاکسازی نشد'); return; }
+          toast(fa(x.d.removed||0)+' نام خراب حذف شد · ماند '+fa(x.d.total||0));
+          selectedId=null; setMode('empty'); load();
+        }).catch(function(){ junkBtn.disabled=false; toast('خطای شبکه'); });
+    });
+  }
 
   setMode('empty');
   load();
