@@ -481,6 +481,9 @@ html[data-mode="light"] #docSearch{color-scheme:light}
   .sx-drawer{width:100vw}
 }
 
+
+.sx-adv{appearance:none;border:1px solid color-mix(in srgb,var(--acc) 45%,transparent);background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc);font-family:var(--fh);font-size:11.5px;font-weight:800;padding:5px 10px;border-radius:999px;cursor:pointer;width:100%}
+.sx-adv:hover{background:color-mix(in srgb,var(--acc) 28%,transparent)}
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
@@ -617,14 +620,114 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
     return false;
   }
 
+  /* Per-season episode caps from TVMaze (not whole-show total, never hardcode 10). */
+  function seasonCapFromMeta(meta, season){
+    season = Number(season)||1;
+    var by = meta && meta.bySeason;
+    if(by && by[season]){
+      var s = by[season];
+      var total = Number(s.total)||0;
+      var aired = Number(s.aired);
+      if(!Number.isFinite(aired)) aired = total;
+      /* UI total = full season length; watchable cap = aired so far */
+      return {total: total||Math.max(aired,0), aired: Math.min(aired, total||aired), cap: Math.min(aired>0?aired:0, total||aired||0)};
+    }
+    if(meta && Number(meta.seasonTot)>0){
+      var t=Number(meta.seasonTot);
+      return {total:t, aired:t, cap:t};
+    }
+    return null;
+  }
+  function resolveTot(w){
+    if(!w) return 1;
+    var meta=S(w.k);
+    var cap=seasonCapFromMeta(meta, w.season||1);
+    if(cap && cap.total>0){
+      /* Prefer season length for display; clamp progress to aired */
+      w.aired = cap.aired;
+      w.cap = cap.cap || cap.aired || cap.total;
+      return cap.total;
+    }
+    var t=Number(w.tot)||0;
+    if(t>0) return t;
+    return Math.max(Number(w.cur)||0, 1);
+  }
+  function clampCur(w){
+    if(!w) return;
+    var tot=resolveTot(w);
+    w.tot=tot;
+    var maxWatch = (w.cap!=null && w.cap>0) ? w.cap : tot;
+    /* If we know aired < total (still airing), max is aired */
+    if(w.aired!=null && w.aired>0 && w.aired<tot) maxWatch=w.aired;
+    w.cur=Math.max(0, Math.min(Number(w.cur)||0, maxWatch));
+  }
+  function fetchSeasonInfo(w){
+    if(!w) return Promise.resolve(null);
+    var q=[];
+    if(w.tvmazeId) q.push('tvmazeId='+encodeURIComponent(w.tvmazeId));
+    if(w.k) q.push('name='+encodeURIComponent(S(w.k).name||w.k));
+    q.push('season='+encodeURIComponent(w.season||1));
+    if(!q.length) return Promise.resolve(null);
+    return fetch('/api/movies/tvmaze/seasons?'+q.join('&'),{credentials:'include'})
+      .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+      .then(function(x){
+        if(!x.ok||!x.d) return null;
+        var d=x.d;
+        if(typeof TV==='object'){
+          if(!TV[w.k]) TV[w.k]={name:d.name||w.k};
+          TV[w.k].bySeason=d.bySeason||TV[w.k].bySeason;
+          TV[w.k].status=d.status||TV[w.k].status;
+          TV[w.k].seasons=d.seasons||TV[w.k].seasons;
+          if(d.name) TV[w.k].name=TV[w.k].name||d.name;
+        }
+        w.tot = d.totalEpisodes || w.tot;
+        w.aired = d.airedInSeason;
+        w.cap = d.capInSeason;
+        clampCur(w);
+        /* persist corrected totals */
+        if(w.id){
+          patchMovie(w.id,{
+            totalEpisodes:w.tot,
+            currentEpisode:w.cur,
+            currentSeason:w.season||1,
+            seasonEpisodes:d.bySeason,
+            airedInSeason:d.airedInSeason,
+            showStatus:d.status
+          });
+        }
+        return d;
+      }).catch(function(){return null});
+  }
+  function ensureSeasonTot(w){
+    if(!w) return Promise.resolve();
+    var meta=S(w.k);
+    if(seasonCapFromMeta(meta, w.season||1)){
+      clampCur(w);
+      return Promise.resolve();
+    }
+    /* already has non-default tot from API that's not the junk default 10 with no meta — still refresh if tvmaze known */
+    if(w._seasonLoaded) { clampCur(w); return Promise.resolve(); }
+    w._seasonLoaded=true;
+    return fetchSeasonInfo(w).then(function(){ clampCur(w); });
+  }
+
+
   var WATCHING=[], DONE=[], LIST=[], tab='watching', q='';
 
   function upsertMeta(k, it){
     if(typeof TV!=='object') return;
     var title=it.title||it.name||k;
     var img=it.posterUrl||it.poster||it.image||it.img||'';
+    var by=it.seasonEpisodes||it.bySeason||null;
+    var seasonTot=null;
+    var seas=Number(it.currentSeason)||1;
+    if(by && by[seas]){
+      seasonTot=Number(by[seas].total)||Number(by[seas].aired)||null;
+    } else if(it.totalEpisodes && !it._allSeasonsTotal){
+      seasonTot=Number(it.totalEpisodes)||null;
+    }
     if(!TV[k]){
-      TV[k]={name:title,img:img||'',genres:it.genre?String(it.genre).split(/[,،]/).map(function(x){return x.trim()}).filter(Boolean):(it.genres||[]),rating:it.rating||it.tmdbRating||null,year:it.year||'',status:it.showStatus||'',summary:it.note||it.summary||'',cast:it.cast||[],next:it.next||null,network:it.network||''};
+      TV[k]={name:title,img:img||'',genres:it.genre?String(it.genre).split(/[,،]/).map(function(x){return x.trim()}).filter(Boolean):(it.genres||[]),rating:it.rating||it.tmdbRating||null,year:it.year||'',status:it.showStatus||'',summary:it.note||it.summary||'',cast:it.cast||[],next:it.next||null,network:it.network||'',bySeason:by||null,seasonTot:seasonTot};
     } else {
       if(title) TV[k].name=TV[k].name||title;
       if(img) TV[k].img=img;
@@ -632,16 +735,32 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
       if(it.year) TV[k].year=it.year;
       if(it.network) TV[k].network=it.network;
       if(it.note||it.summary) TV[k].summary=TV[k].summary||it.note||it.summary;
+      if(by) TV[k].bySeason=by;
+      if(seasonTot) TV[k].seasonTot=seasonTot;
     }
   }
 
   /* Waiting = finished current season AND next season not available yet (or unknown next). Not mixed into watching. */
   function isWaiting(x){
     if(!x) return false;
+    clampCur(x);
     var cur=Number(x.cur)||0, tot=Number(x.tot)||0;
-    if(!(tot>0 && cur>=tot)) return false;
+    /* Finished current season's episodes (or all aired so far if still airing and caught up) */
+    var caughtUp = tot>0 && cur>=tot;
+    if(!caughtUp && x.aired!=null && x.aired>0 && cur>=x.aired && x.aired<tot){
+      /* caught up with aired but season not complete — waiting for next episode of same season */
+      return true;
+    }
+    if(!caughtUp) return false;
     var meta=S(x.k);
     if(isShowEnded(meta)) return false;
+    /* If next season already has aired eps, not waiting — user can advance season */
+    if(meta.bySeason){
+      var ns=(Number(x.season)||1)+1;
+      if(meta.bySeason[ns] && (meta.bySeason[ns].aired>0 || meta.bySeason[ns].total>0)){
+        return false; /* next season exists — stay in watching; UI can offer advance */
+      }
+    }
     if(meta.next && meta.next.date){
       return daysTo(meta.next.date) > 0;
     }
@@ -684,28 +803,52 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
 
   function cardWatch(x, waiting){
     var meta=S(x.k), name=meta.name||x.k||'سریال';
+    clampCur(x);
     var cur=Number(x.cur)||0, tot=Math.max(Number(x.tot)||0,1);
+    var maxWatch=tot;
+    if(x.aired!=null && x.aired>0) maxWatch=Math.min(tot, x.aired);
     var pct=Math.min(100, Math.round(cur/tot*100));
     var badge='';
+    var canAdv=false;
+    if(cur>=tot){
+      var ns=(Number(x.season)||1)+1;
+      var nc=seasonCapFromMeta(meta, ns);
+      if(nc && (nc.total>0||nc.aired>0)) canAdv=true;
+    }
     if(waiting){
       if(meta.next&&meta.next.date){
         var d=daysTo(meta.next.date);
         badge=d>0?'<span class="sx-badge wait">فصل بعد · '+fa(d)+' روز</span>':'<span class="sx-badge new">فصل بعد آماده</span>';
+      } else if(x.aired!=null && x.aired>0 && cur>=x.aired && x.aired<tot){
+        badge='<span class="sx-badge wait">تا قسمت پخش‌شده</span>';
       } else badge='<span class="sx-badge wait">در انتظار فصل بعد</span>';
     } else if(x.newEp) badge='<span class="sx-badge new">قسمت جدید</span>';
     var step;
-    if(!waiting){
+    if(canAdv && !waiting){
+      step='<div class="sx-step" data-stop="1" style="flex-direction:column;gap:6px">'
+        +'<div style="display:flex;gap:6px;align-items:center;justify-content:center">'
+        +'<button type="button" data-dec="'+esc(x.k)+'" '+(cur<=0?'disabled':'')+'>−</button>'
+        +'<span class="ep" data-cnt="'+esc(x.k)+'">'+fa(cur)+' / '+fa(tot)+'</span>'
+        +'<button type="button" data-inc="'+esc(x.k)+'" disabled>+</button></div>'
+        +'<button type="button" class="sx-adv" data-adv="'+esc(x.k)+'">فصل بعد ←</button></div>';
+    } else if(!waiting){
+      var incDis = cur>=maxWatch;
       step='<div class="sx-step" data-stop="1">'
         +'<button type="button" data-dec="'+esc(x.k)+'" '+(cur<=0?'disabled':'')+'>−</button>'
         +'<span class="ep" data-cnt="'+esc(x.k)+'">'+fa(cur)+' / '+fa(tot)+'</span>'
-        +'<button type="button" data-inc="'+esc(x.k)+'" '+(cur>=tot?'disabled':'')+'>+</button></div>';
+        +'<button type="button" data-inc="'+esc(x.k)+'" '+(incDis?'disabled':'')+'>+</button></div>';
     } else {
       step='<div class="meta" style="margin-top:8px;text-align:center;color:#7fe3c3">فصل '+fa(x.season||1)+' کامل</div>';
+    }
+    var metaLine='فصل '+fa(x.season||1);
+    if(!waiting){
+      metaLine+=' · '+fa(cur)+' از '+fa(tot);
+      if(x.aired!=null && x.aired>0 && x.aired<tot) metaLine+=' <span style="opacity:.75">(پخش '+fa(x.aired)+')</span>';
     }
     return '<article class="sx-card" data-open="'+esc(x.k)+'" title="'+esc(name)+'">'+badge
       +'<img src="'+esc(posterSrc(meta,name))+'" alt="" loading="lazy" decoding="async">'
       +'<div class="shade"><div class="title">'+esc(name)+'</div>'
-      +'<div class="meta">فصل '+fa(x.season||1)+(waiting?'':' · '+fa(cur)+' از '+fa(tot))+'</div>'
+      +'<div class="meta">'+metaLine+'</div>'
       +'<div class="bar'+(waiting?' done':'')+'"><i style="width:'+(waiting?100:pct)+'%"></i></div>'
       +step+'</div></article>';
   }
@@ -773,19 +916,60 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
 
   function applyCur(w,v){
     if(!w) return;
+    clampCur(w);
     var tot=Math.max(Number(w.tot)||1,1);
-    v=Math.max(0,Math.min(tot,parseInt(v,10)||0));
+    var maxWatch=tot;
+    if(w.aired!=null && w.aired>0) maxWatch=Math.min(tot, w.aired);
+    v=Math.max(0,Math.min(maxWatch,parseInt(v,10)||0));
     if(v===w.cur){ render(); return; }
     var old=w.cur; w.cur=v; if(v>old) w.newEp=false;
     var meta=S(w.k);
     if(v>=tot && isShowEnded(meta)){
-      WATCHING=WATCHING.filter(function(x){return x.k!==w.k});
-      if(!DONE.some(function(d){return d.k===w.k})) DONE.push({k:w.k,id:w.id});
-      toast((meta.name||w.k)+' → تمام‌شده');
-      patchMovie(w.id,{status:'completed',currentEpisode:v,totalEpisodes:tot,currentSeason:w.season});
-      closeDetail(); render(); return;
+      /* last season fully watched */
+      var seas=meta.bySeason||{};
+      var maxS=Object.keys(seas).map(Number).filter(function(n){return n>0}).sort(function(a,b){return b-a})[0]||(w.season||1);
+      if((w.season||1)>=maxS){
+        WATCHING=WATCHING.filter(function(x){return x.k!==w.k});
+        if(!DONE.some(function(d){return d.k===w.k})) DONE.push({k:w.k,id:w.id});
+        toast((meta.name||w.k)+' → تمام‌شده');
+        patchMovie(w.id,{status:'completed',currentEpisode:v,totalEpisodes:tot,currentSeason:w.season});
+        closeDetail(); render(); return;
+      }
+    }
+    /* If finished season and next season has episodes, auto-advance prompt via waiting/render */
+    if(v>=tot){
+      var ns=(Number(w.season)||1)+1;
+      var nextCap=seasonCapFromMeta(meta, ns);
+      if(nextCap && (nextCap.total>0 || nextCap.aired>0)){
+        /* stay on last ep of season until user advances — isWaiting false so show advance */
+        w._canAdvance=ns;
+      }
     }
     patchMovie(w.id,{status:'watching',currentEpisode:v,totalEpisodes:tot,currentSeason:w.season||1});
+    render();
+  }
+  function advanceSeason(w){
+    if(!w) return;
+    var meta=S(w.k);
+    var ns=(Number(w.season)||1)+1;
+    var cap=seasonCapFromMeta(meta, ns);
+    if(!cap || !(cap.total>0 || cap.aired>0)){
+      /* try fetch */
+      w.season=ns; w.cur=0; w.tot=0; w._seasonLoaded=false;
+      ensureSeasonTot(w).then(function(){
+        clampCur(w);
+        if(!(w.tot>0)){ w.season=ns-1; toast('فصل بعد هنوز نیست'); render(); return; }
+        w.cur=0;
+        patchMovie(w.id,{status:'watching',currentSeason:w.season,currentEpisode:0,totalEpisodes:w.tot});
+        toast('فصل '+fa(w.season)+' · '+fa(w.tot)+' قسمت');
+        render();
+      });
+      return;
+    }
+    w.season=ns; w.cur=0; w.tot=cap.total; w.aired=cap.aired; w.cap=cap.cap; w._canAdvance=null;
+    clampCur(w);
+    patchMovie(w.id,{status:'watching',currentSeason:w.season,currentEpisode:0,totalEpisodes:w.tot});
+    toast('فصل '+fa(w.season)+' · '+fa(w.tot)+' قسمت');
     render();
   }
   function findWatch(k){return WATCHING.find(function(x){return x.k===k})}
@@ -812,8 +996,24 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
         } else upd='فصل '+fa(w.season||1)+' کامل — منتظر فصل بعد.';
         acts='<button type="button" class="g" data-arch="'+esc(k)+'">پایان سریال</button>';
       } else {
-        upd='فصل '+fa(w.season||1)+' · قسمت '+fa(w.cur)+' از '+fa(w.tot);
-        acts='<button type="button" class="p" data-p1="'+esc(k)+'">+۱ قسمت</button><button type="button" class="g" data-arch="'+esc(k)+'">پایان سریال</button>';
+        clampCur(w);
+        var maxW=w.tot;
+        if(w.aired!=null && w.aired>0) maxW=Math.min(w.tot, w.aired);
+        upd='فصل '+fa(w.season||1)+' · قسمت '+fa(w.cur)+' از '+fa(w.tot)
+          +(w.aired!=null && w.aired>0 && w.aired<w.tot ? (' (پخش‌شده تا '+fa(w.aired)+')') : '');
+        acts='';
+        if(w.cur>=w.tot){
+          var ns=(Number(w.season)||1)+1;
+          var nc=seasonCapFromMeta(S(k), ns);
+          if(nc && (nc.total>0||nc.aired>0)){
+            acts+='<button type="button" class="p" data-adv="'+esc(k)+'">شروع فصل '+fa(ns)+'</button>';
+          }
+        } else if(w.cur<maxW){
+          acts+='<button type="button" class="p" data-p1="'+esc(k)+'">+۱ قسمت</button>';
+        } else {
+          acts+='<button type="button" class="p" disabled>+۱ قسمت</button>';
+        }
+        acts+='<button type="button" class="g" data-arch="'+esc(k)+'">پایان سریال</button>';
       }
     } else if(li){
       chip='<span class="sx-chip list">واچ‌لیست</span>';
@@ -844,11 +1044,27 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
   function startSeries(k){
     var it=findList(k); if(!it){ toast('در لیست نیست'); return; }
     LIST=LIST.filter(function(x){return x.k!==k});
-    var tot=10;
+    var meta=S(k);
+    var cap=seasonCapFromMeta(meta, 1);
+    var tot = (cap && cap.total) ? cap.total : 0;
     WATCHING=WATCHING.filter(function(x){return x.k!==k});
-    WATCHING.unshift({k:k,cur:0,tot:tot,season:1,newEp:false,id:it.id,tvmazeId:it.tvmazeId,tmdbId:it.tmdbId});
-    patchMovie(it.id,{status:'watching',currentEpisode:0,currentSeason:1,totalEpisodes:tot});
-    toast((S(k).name||k)+' → در حال دیدن'); tab='watching'; render();
+    var row={k:k,cur:0,tot:tot||0,season:1,newEp:false,id:it.id,tvmazeId:it.tvmazeId,tmdbId:it.tmdbId,aired:cap&&cap.aired,cap:cap&&cap.cap};
+    WATCHING.unshift(row);
+    tab='watching'; render();
+    toast((meta.name||k)+' → در حال دیدن…');
+    ensureSeasonTot(row).then(function(){
+      clampCur(row);
+      if(!(row.tot>0)){
+        /* last resort: refresh from API endpoint */
+        return fetchSeasonInfo(row);
+      }
+    }).then(function(){
+      clampCur(row);
+      if(!(row.tot>0)){ row.tot=1; toast('تعداد قسمت مشخص نشد — دستی تنظیم کن'); }
+      else toast((meta.name||k)+' · فصل ۱ · '+fa(row.tot)+' قسمت');
+      patchMovie(it.id,{status:'watching',currentEpisode:0,currentSeason:1,totalEpisodes:row.tot,airedInSeason:row.aired||null});
+      render();
+    });
   }
   function skipSeries(k){
     var it=findList(k);
@@ -860,7 +1076,8 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
   document.getElementById('sxGrid').addEventListener('click', function(e){
     var b;
     if(b=e.target.closest('[data-dec]')){ e.preventDefault(); e.stopPropagation(); var w=findWatch(b.getAttribute('data-dec')); if(w) applyCur(w,w.cur-1); return; }
-    if(b=e.target.closest('[data-inc]')){ e.preventDefault(); e.stopPropagation(); var w=findWatch(b.getAttribute('data-inc')); if(w){ if(w.cur>=w.tot){toast('فصل کامل است');return;} applyCur(w,w.cur+1);} return; }
+    if(b=e.target.closest('[data-adv]')){ e.preventDefault(); e.stopPropagation(); var w=findWatch(b.getAttribute('data-adv')); if(w) advanceSeason(w); return; }
+    if(b=e.target.closest('[data-inc]')){ e.preventDefault(); e.stopPropagation(); var w=findWatch(b.getAttribute('data-inc')); if(w){ clampCur(w); var maxW=w.tot; if(w.aired!=null&&w.aired>0) maxW=Math.min(w.tot,w.aired); if(w.cur>=maxW){toast(w.cur>=w.tot?'فصل کامل است':'قسمت بعدی هنوز پخش نشده');return;} applyCur(w,w.cur+1);} return; }
     if(b=e.target.closest('[data-cnt]')){ e.preventDefault(); e.stopPropagation(); editCnt(b); return; }
     if(b=e.target.closest('[data-start]')){ e.preventDefault(); e.stopPropagation(); startSeries(b.getAttribute('data-start')); return; }
     if(b=e.target.closest('[data-skip]')){ e.preventDefault(); e.stopPropagation(); skipSeries(b.getAttribute('data-skip')); return; }
@@ -868,7 +1085,8 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
   });
   detail.addEventListener('click', function(e){
     var b;
-    if(b=e.target.closest('[data-p1]')){ var w=findWatch(b.getAttribute('data-p1')); if(w){ if(w.cur>=w.tot){toast('فصل کامل');return;} applyCur(w,w.cur+1);} closeDetail(); return; }
+    if(b=e.target.closest('[data-adv]')){ var w=findWatch(b.getAttribute('data-adv')); if(w) advanceSeason(w); closeDetail(); return; }
+    if(b=e.target.closest('[data-p1]')){ var w=findWatch(b.getAttribute('data-p1')); if(w){ clampCur(w); var maxW=w.tot; if(w.aired!=null&&w.aired>0) maxW=Math.min(w.tot,w.aired); if(w.cur>=maxW){toast(w.cur>=w.tot?'فصل کامل':'قسمت بعدی هنوز پخش نشده');return;} applyCur(w,w.cur+1);} closeDetail(); return; }
     if(b=e.target.closest('[data-arch]')){
       var key=b.getAttribute('data-arch'); var w=findWatch(key);
       if(w){ WATCHING=WATCHING.filter(function(x){return x.k!==key}); if(!DONE.some(function(d){return d.k===key})) DONE.push({k:key,id:w.id}); patchMovie(w.id,{status:'completed'}); toast((S(key).name||key)+' → تمام‌شده'); render(); }
@@ -879,15 +1097,20 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
     if(b=e.target.closest('[data-rew]')){
       var rk=b.getAttribute('data-rew'); var d0=findDone(rk); var id=d0&&d0.id;
       DONE=DONE.filter(function(x){return x.k!==rk}); WATCHING=WATCHING.filter(function(x){return x.k!==rk});
-      WATCHING.push({k:rk,cur:0,tot:10,season:1,newEp:false,id:id});
+      var row={k:rk,cur:0,tot:0,season:1,newEp:false,id:id,tvmazeId:(d0&&d0.tvmazeId)||null};
+      WATCHING.push(row);
       patchMovie(id,{status:'watching',currentEpisode:0,currentSeason:1});
-      toast((S(rk).name||rk)+' → از اول'); render(); closeDetail();
+      toast((S(rk).name||rk)+' → از اول'); closeDetail();
+      ensureSeasonTot(row).then(function(){ clampCur(row); if(row.tot) patchMovie(id,{totalEpisodes:row.tot,currentSeason:1,currentEpisode:0}); render(); });
+      render();
     }
   });
   function editCnt(el){
     var k=el.getAttribute('data-cnt'), w=findWatch(k); if(!w) return;
     var done=false, inp=document.createElement('input');
-    inp.type='number'; inp.min='0'; inp.max=String(w.tot); inp.value=String(w.cur);
+    clampCur(w);
+    var maxW=w.tot; if(w.aired!=null&&w.aired>0) maxW=Math.min(w.tot,w.aired);
+    inp.type='number'; inp.min='0'; inp.max=String(maxW); inp.value=String(w.cur);
     inp.style.cssText='flex:1;min-width:0;background:rgba(10,14,26,.95);border:1px solid var(--acc);border-radius:8px;color:#fff;font-size:12.5px;text-align:center;font-family:var(--fh);direction:ltr;padding:3px 4px';
     el.replaceWith(inp); inp.focus(); inp.select();
     function commit(){ if(done)return; done=true; applyCur(w, parseInt(inp.value,10)); }
@@ -901,7 +1124,7 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
   var search=document.getElementById('sxSearch');
   if(search){ var deb; search.addEventListener('input', function(){ clearTimeout(deb); deb=setTimeout(function(){ q=String(search.value||'').trim().toLowerCase(); render(); },120); }); }
   document.getElementById('sxAlertSaw').addEventListener('click', function(){
-    WATCHING.forEach(function(w){ if(w.newEp && !isWaiting(w)) applyCur(w, Math.min(w.tot, w.cur+1)); });
+    WATCHING.forEach(function(w){ if(w.newEp && !isWaiting(w)){ clampCur(w); var maxW=w.tot; if(w.aired!=null&&w.aired>0) maxW=Math.min(w.tot,w.aired); applyCur(w, Math.min(maxW, w.cur+1)); } });
     toast('ثبت شد');
   });
   ovl.addEventListener('click', closeAll);
@@ -1029,10 +1252,17 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
           upsertMeta(k, it);
           var st=it.status||'watchlist';
           var cur=Number(it.currentEpisode)||0;
-          var tot=Number(it.totalEpisodes)||0;
-          if(!tot||tot<1) tot=Math.max(cur,1);
           var season=Number(it.currentSeason)||1;
-          var row={k:k,cur:cur,tot:tot,season:season,newEp:!!it.newEpisode,id:it.id,tvmazeId:it.tvmazeId||null,tmdbId:it.tmdbId||null};
+          var tot=Number(it.totalEpisodes)||0;
+          var by=it.seasonEpisodes||null;
+          var aired=it.airedInSeason!=null?Number(it.airedInSeason):null;
+          if(by && by[season]){
+            tot=Number(by[season].total)||Number(by[season].aired)||tot;
+            if(by[season].aired!=null) aired=Number(by[season].aired);
+          }
+          /* Never keep the old hardcoded default of 10 when we can resolve real season length later */
+          var row={k:k,cur:cur,tot:tot>0?tot:0,season:season,newEp:!!it.newEpisodeAvailable||!!it.newEpisode,id:it.id,tvmazeId:it.tvmazeId||null,tmdbId:it.tmdbId||null,aired:aired};
+          if(tot>0) clampCur(row);
           if(st==='completed'||st==='dropped'){
             if(seenKey[k]==='done') return;
             WATCHING=WATCHING.filter(function(x){return x.k!==k});
@@ -1056,13 +1286,27 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
         });
         dedupeAll();
         WATCHING.slice().forEach(function(w){
-          if(w.cur>=w.tot && isShowEnded(S(w.k))){
+          if(w.tot>0 && w.cur>=w.tot && isShowEnded(S(w.k))){
+            var seas=(S(w.k).bySeason)||{};
+            var maxS=Object.keys(seas).map(Number).filter(function(n){return n>0}).sort(function(a,b){return b-a})[0];
+            if(maxS && (w.season||1)<maxS) return;
             WATCHING=WATCHING.filter(function(x){return x.k!==w.k});
             if(!DONE.some(function(d){return d.k===w.k})) DONE.push({k:w.k,id:w.id});
             patchMovie(w.id,{status:'completed'});
           }
         });
         render();
+        /* Resolve real per-season totals (fixes old tot=10 / whole-show totals) */
+        var chain=Promise.resolve();
+        WATCHING.forEach(function(w){
+          chain=chain.then(function(){
+            var need = !(w.tot>0) || w.tot===10 || !S(w.k).bySeason;
+            if(!need && w.tvmazeId) need = !seasonCapFromMeta(S(w.k), w.season||1);
+            if(!need){ clampCur(w); return; }
+            return ensureSeasonTot(w);
+          });
+        });
+        chain.then(function(){ render(); });
       }).catch(function(e){ console.error(e); toast('بارگذاری ناموفق'); });
   }
 
