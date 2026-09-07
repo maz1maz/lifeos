@@ -631,7 +631,7 @@ function renderAccs(){
 }
 
 /* ============ تاریخچه ============ */
-var curMi=23,kFilter='all',q='';
+var curMi=(function(){try{var t=jToday();var mi=(t.jy*12+t.jm-1)-(1403*12+6);return Math.max(0,Math.min(23,mi))}catch(e){return 23}})(),kFilter='all',q='';
 function monthLabel(mi){return MON[MONTHS[mi].m-1]+' '+fa(MONTHS[mi].y)}
 function renderHist(){
   document.getElementById('mLab').textContent=monthLabel(curMi);
@@ -808,10 +808,20 @@ document.getElementById('dbAdd').addEventListener('click',function(){
   var inst=parseInt(faToEn(document.getElementById('dbInst').value).replace(/[^0-9]/g,''),10)||0;
   var due=parseInt(faToEn(document.getElementById('dbDue').value),10)||1;
   if(!n||!tot){toast('نام و کل مبلغ را بنویس');return}
-  DEBTS.push({_u:UID++,n:n,total:tot,paid:paid,inst:inst||Math.round(tot/12),due:Math.min(31,Math.max(1,due))});
-  renderDebts();renderHero();
-  ['dbN','dbTot','dbPaid','dbInst','dbDue'].forEach(function(id){document.getElementById(id).value=''});
-  toast('«'+n+'» اضافه شد ✓');
+  var btn=this; btn.disabled=true;
+  var remain=Math.max(0,tot-paid);
+  fetch('/api/debts',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({person:n, amount:remain||tot, type:'payable', note:(inst?('قسط ماهانه '+inst):'')+(due?(' · سررسید روز '+due):''), dueDate:null})
+  }).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
+  .then(function(x){
+    btn.disabled=false;
+    if(x.status===401){location.href='/design/login-page.html';return}
+    if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+    DEBTS.push({_u:UID++, id:x.d.id, n:n, total:tot, paid:paid, inst:inst||Math.round(tot/12), due:Math.min(31,Math.max(1,due))});
+    renderDebts();renderHero();
+    ['dbN','dbTot','dbPaid','dbInst','dbDue'].forEach(function(id){document.getElementById(id).value=''});
+    toast('«'+n+'» ذخیره شد ✓');
+  }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
 });
 /* ============ پوکر ============ */
 var PK=[];/* خالی */
@@ -829,7 +839,9 @@ document.getElementById('pkDate').addEventListener('click',function(){
 });
 function pkProfit(mi){return PK.filter(function(x){return x.mi===mi}).reduce(function(s,x){return s+x.co-x.bi},0)}
 function renderPoker(){
-  var ms=PK.filter(function(x){return x.mi===23}),profit=ms.reduce(function(s,x){return s+x.co-x.bi},0);
+  var t=jToday(), curPkMi=(t.jy*12+t.jm-1)-(1403*12+6);
+  if(curPkMi<0) curPkMi=0; if(curPkMi>23) curPkMi=23;
+  var ms=PK.filter(function(x){return x.mi===curPkMi}),profit=ms.reduce(function(s,x){return s+x.co-x.bi},0);
   var buy=ms.reduce(function(s,x){return s+x.bi},0);
   var wins=ms.filter(function(x){return x.co>x.bi}).length;
   var roi=buy?Math.round(profit/buy*100):0;
@@ -852,16 +864,38 @@ function renderPoker(){
      +'<span class="amt '+(pr>=0?'inc':'exp')+'">'+(pr>=0?'+':'−')+fmt(Math.abs(pr))+'</span><button class="rowedit" data-ed="pk" data-u="'+x._u+'">✎</button></div>';
   }).join(''):'<div class="empty">این ماه هنوز سشنی ثبت نشده</div>';
 }
+function jalaliMiDToIso(mi,d){
+  try{
+    var M=MONTHS[mi]; if(!M) return null;
+    var jdn=j2d(M.y,M.m,d);
+    var g=d2g(jdn);
+    function pad(n){return n<10?'0'+n:''+n}
+    return g.gy+'-'+pad(g.gm)+'-'+pad(g.gd);
+  }catch(e){return null}
+}
 document.getElementById('pkAdd').addEventListener('click',function(){
   var bi=parseInt(faToEn(document.getElementById('pkBuy').value).replace(/[^0-9]/g,''),10);
   var co=parseInt(faToEn(document.getElementById('pkOut').value).replace(/[^0-9]/g,''),10);
   var loc=document.getElementById('pkLoc').value;
-  if(!bi||!co){toast('خرید و خروجی را بنویس');return}
-  PK.push({_u:UID++,mi:PKDATE.mi,d:PKDATE.d,bi:bi,co:co,loc:loc});
-  renderPoker();
-  var pr=co-bi;
-  toast((pr>=0?'برد! 🎉 +':'باخت −')+fmt(Math.abs(pr))+' تومان'+(pr>=0?'':' — سشن بعدی بهتر'));
-  document.getElementById('pkBuy').value='';document.getElementById('pkOut').value='';
+  if(!bi&&bi!==0){toast('خرید و خروجی را بنویس');return}
+  if(co===undefined||co===null||isNaN(co)){toast('خرید و خروجی را بنویس');return}
+  if(!bi||co===undefined||isNaN(co)){ if(!bi||isNaN(co)){toast('خرید و خروجی را بنویس');return} }
+  var date=jalaliMiDToIso(PKDATE.mi, PKDATE.d);
+  if(!date){toast('تاریخ نامعتبر');return}
+  var btn=this; btn.disabled=true;
+  fetch('/api/poker',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({date:date, buyIn:bi, cashOut:co, location:loc})
+  }).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
+  .then(function(x){
+    btn.disabled=false;
+    if(x.status===401){location.href='/design/login-page.html';return}
+    if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+    PK.push({_u:UID++, id:x.d.id, mi:PKDATE.mi, d:PKDATE.d, bi:bi, co:co, loc:loc});
+    renderPoker();
+    var pr=co-bi;
+    toast((pr>=0?'برد! 🎉 +':'باخت −')+fmt(Math.abs(pr))+' تومان — ذخیره شد');
+    document.getElementById('pkBuy').value='';document.getElementById('pkOut').value='';
+  }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
 });
 function faToEn(s){return String(s||'').replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)})}
 /* ============ ویرایشگر عمومی ============ */
@@ -905,22 +939,49 @@ function num(v){return String(v).replace(/[^0-9.]/g,'')}
 document.getElementById('edSave').addEventListener('click',function(){
   var o=ED.obj;if(!o)return;
   var v1=document.getElementById('ef1').value,v2=num(document.getElementById('ef2').value),v3=num(document.getElementById('ef3').value),v4=document.getElementById('ef4').value;
-  if(ED.type==='tx'){o.t=v1.trim()||o.t;o.a=parseInt(v2,10)||o.a;o.k=v4;renderHist();renderChart();renderCatsIns()}
-  if(ED.type==='acc'){o.n=v1.trim()||o.n;o.b=parseInt(v2,10)||0;o.type=v4;renderAccs();renderHero()}
-  if(ED.type==='pk'){if(ED.pkDate){o.d=ED.pkDate.d;o.mi=ED.pkDate.mi}o.bi=parseInt(v2,10)||o.bi;o.co=parseInt(v3,10)||o.co;o.loc=v4;renderPoker()}
-  if(ED.type==='hold'){o.sym=v1.trim().toUpperCase()||o.sym;o.qty=parseFloat(v2)||o.qty;o.price=parseFloat(v3)||o.price;renderPort();renderHero()}
-  if(ED.type==='debt'){o.n=v1.trim()||o.n;o.total=parseInt(v2,10)||o.total;o.paid=Math.min(o.total,parseInt(v3,10)||0);renderDebts();renderHero()}
-  toast('ذخیره شد ✓');closeEd();
+  var btn=this; btn.disabled=true;
+  function doneLocal(){
+    if(ED.type==='tx'){o.t=v1.trim()||o.t;o.a=parseInt(v2,10)||o.a;o.k=v4;renderHist();renderChart();renderCatsIns()}
+    if(ED.type==='acc'){o.n=v1.trim()||o.n;o.b=parseInt(v2,10)||0;o.type=v4;renderAccs();renderHero()}
+    if(ED.type==='pk'){if(ED.pkDate){o.d=ED.pkDate.d;o.mi=ED.pkDate.mi}o.bi=parseInt(v2,10)||o.bi;o.co=parseInt(v3,10)||o.co;o.loc=v4;renderPoker()}
+    if(ED.type==='hold'){o.sym=v1.trim().toUpperCase()||o.sym;o.qty=parseFloat(v2)||o.qty;o.price=parseFloat(v3)||o.price;renderPort();renderHero()}
+    if(ED.type==='debt'){o.n=v1.trim()||o.n;o.total=parseInt(v2,10)||o.total;o.paid=Math.min(o.total,parseInt(v3,10)||0);renderDebts();renderHero()}
+    btn.disabled=false; toast('ذخیره شد ✓'); closeEd();
+  }
+  var p=null;
+  if(ED.type==='tx' && o.id){
+    p=fetch('/api/transactions/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title:v1.trim()||o.t, amount:parseInt(v2,10)||o.a, kind:v4})});
+  } else if(ED.type==='acc' && o.id){
+    p=fetch('/api/accounts/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:v1.trim()||o.n, type:v4==='acc'?'bank':v4, openingBalance:parseInt(v2,10)||0})});
+  } else if(ED.type==='hold' && o.sym){
+    p=fetch('/api/investments/price',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({symbol:(v1.trim().toUpperCase()||o.sym), price:parseFloat(v3)||o.price})});
+  }
+  if(!p){ doneLocal(); return; }
+  p.then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})})
+   .then(function(x){ if(!x.ok){btn.disabled=false;toast((x.d&&x.d.error)||'ذخیره نشد');return} doneLocal(); })
+   .catch(function(){btn.disabled=false;toast('خطای شبکه')});
 });
 document.getElementById('edDel').addEventListener('click',function(){
   var o=ED.obj,arr=EDARR[ED.type];if(!o)return;
-  arr.splice(arr.indexOf(o),1);
-  if(ED.type==='tx'){renderHist();renderChart();renderCatsIns()}
-  if(ED.type==='acc'){renderAccs();renderHero()}
-  if(ED.type==='pk')renderPoker();
-  if(ED.type==='hold'){renderPort();renderHero()}
-  if(ED.type==='debt'){renderDebts();renderHero()}
-  toast('حذف شد');closeEd();
+  function doneLocal(){
+    arr.splice(arr.indexOf(o),1);
+    if(ED.type==='tx'){renderHist();renderChart();renderCatsIns()}
+    if(ED.type==='acc'){renderAccs();renderHero()}
+    if(ED.type==='pk')renderPoker();
+    if(ED.type==='hold'){renderPort();renderHero()}
+    if(ED.type==='debt'){renderDebts();renderHero()}
+    toast('حذف شد');closeEd();
+  }
+  var p=null;
+  if(ED.type==='tx' && o.id) p=fetch('/api/transactions/'+encodeURIComponent(o.id),{method:'DELETE',credentials:'include'});
+  else if(ED.type==='acc' && o.id) p=fetch('/api/accounts/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({archived:true})});
+  else if(ED.type==='debt' && o.id) p=fetch('/api/debts/'+encodeURIComponent(o.id)+'/settle',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+  if(!p){ doneLocal(); return; }
+  p.then(function(r){ if(!r.ok) throw new Error(); doneLocal(); })
+   .catch(function(){ toast('حذف از سرور نشد'); });
 });
 /* ============ درون‌ریزی بانک ============ */
 var impDrawer=document.getElementById('impDrawer'),ovl=document.getElementById('ovl');
@@ -1061,23 +1122,7 @@ document.getElementById('doImport').addEventListener('click',function(){
     if(!x.ok){ toast((x.d&&x.d.error)||'ثبت شکست خورد'); btn.textContent='⬆️ تلاش دوباره'; return; }
     bankLoaded=true;
     toast(fa(x.d.imported||0)+' تراکنش ثبت شد'+(x.d.skipped?(' · '+fa(x.d.skipped)+' رد'):'')+' ✓');
-    // merge into local DATA view (best-effort)
-    try{
-      fresh.forEach(function(it){
-        var d=String(it.date||'').slice(0,10).split('-');
-        if(d.length===3 && typeof d2j==='function' && typeof g2d==='function' && typeof MONTHS!=='undefined'){
-          var j=d2j(g2d(+d[0],+d[1],+d[2]));
-          var mi=(j.jy*12+j.jm-1)-(1403*12+6);
-          if(mi>=0 && mi<MONTHS.length){
-            DATA.push({_u:UID++, d:j.jd, mi:mi, t:it.title, a:it.amount, c:it.category||'متفرقه', k:it.kind==='income'?'income':'expense'});
-          }
-        }
-      });
-      if(typeof renderChart==='function') renderChart();
-      if(typeof renderHist==='function') renderHist();
-      if(typeof renderCatsIns==='function') renderCatsIns();
-      if(typeof renderHero==='function') renderHero();
-    }catch(err){ console.error(err); }
+    if(typeof loadFinanceFromApi==='function') loadFinanceFromApi();
     setTimeout(function(){
       impDrawer.classList.remove('open'); ovl.classList.remove('open');
     }, 800);
@@ -1101,26 +1146,45 @@ document.getElementById('aSave').addEventListener('click',function(){
   if(!n){toast('اسمش را بنویس');return}
   var type=document.getElementById('aType').value;
   var num=document.getElementById('aNum').value.trim();
-  var b=parseInt(document.getElementById('aBal').value.replace(/[^0-9]/g,''),10)||0;
-  ACCS.push({_u:UID++,n:n,type:type,num:num?'•• '+num:'',b:b});
-  renderAccs();renderHero();
-  document.getElementById('aName').value='';document.getElementById('aNum').value='';document.getElementById('aBal').value='';
-  accDrawer.classList.remove('open');ovl.classList.remove('open');
-  toast('حساب «'+n+'» اضافه شد ✓');
+  var b=parseInt(String(document.getElementById('aBal').value).replace(/[^0-9]/g,''),10)||0;
+  var btn=this; btn.disabled=true;
+  fetch('/api/accounts',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:n, type:type==='acc'?'bank':type, openingBalance:b})
+  }).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
+  .then(function(x){
+    btn.disabled=false;
+    if(x.status===401){location.href='/design/login-page.html';return}
+    if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+    ACCS.push({_u:UID++, id:x.d.id, n:n, type:type, num:num?'•• '+num:'', b:b});
+    renderAccs();renderHero();
+    document.getElementById('aName').value='';document.getElementById('aNum').value='';document.getElementById('aBal').value='';
+    accDrawer.classList.remove('open');ovl.classList.remove('open');
+    toast('حساب «'+n+'» ذخیره شد ✓');
+  }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
 });
 
 /* ============ افزودن دارایی ============ */
 document.getElementById('hAdd').addEventListener('click',function(){
   var sym=document.getElementById('hSym').value.trim().toUpperCase();
-  var qty=parseFloat(document.getElementById('hQty').value.replace(/[^0-9.]/g,''));
-  var price=parseFloat(document.getElementById('hPrice').value.replace(/[^0-9.]/g,''));
+  var qty=parseFloat(String(document.getElementById('hQty').value).replace(/[^0-9.]/g,''));
+  var price=parseFloat(String(document.getElementById('hPrice').value).replace(/[^0-9.]/g,''));
   var type=document.getElementById('hType');
+  var tval=type.value; // crypto|stock|gold
   var tname=type.options[type.selectedIndex].text;
   if(!sym||!qty||!price){toast('نماد، تعداد و قیمت را کامل کن');return}
-  HOLD.push({_u:UID++,sym:sym,type:tname,qty:qty,price:price,cur:'﷼',chg:0});
-  renderPort();renderHero();
-  document.getElementById('hSym').value='';document.getElementById('hQty').value='';document.getElementById('hPrice').value='';
-  toast(sym+' به پورتفو اضافه شد ✓');
+  var btn=this; btn.disabled=true;
+  fetch('/api/investments/tx',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({symbol:sym, assetType:tval, type:'buy', quantity:qty, price:price})
+  }).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
+  .then(function(x){
+    btn.disabled=false;
+    if(x.status===401){location.href='/design/login-page.html';return}
+    if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+    HOLD.push({_u:UID++, id:x.d.id, sym:sym, type:tname, qty:qty, price:price, cur:tval==='crypto'||tval==='stock'?'$':'﷼', chg:0});
+    renderPort();renderHero();
+    document.getElementById('hSym').value='';document.getElementById('hQty').value='';document.getElementById('hPrice').value='';
+    toast(sym+' ذخیره شد ✓');
+  }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
 });
 
 /* ============ تاریخچه: کنترل‌ها ============ */
@@ -1142,7 +1206,72 @@ var mb=document.getElementById('modeBtn');
 mb.addEventListener('click',function(){var r=document.documentElement,l=r.dataset.mode==='light';
   r.dataset.mode=l?'dark':'light';mb.textContent=l?'🌙':'☀️';});
 
+function isoToMiD(iso){
+  try{
+    var p=String(iso).slice(0,10).split('-');
+    if(p.length!==3) return null;
+    var j=d2j(g2d(+p[0],+p[1],+p[2]));
+    var mi=(j.jy*12+j.jm-1)-(1403*12+6);
+    if(mi<0||mi>=MONTHS.length) return null;
+    return {mi:mi, d:j.jd};
+  }catch(e){return null}
+}
+function loadFinanceFromApi(){
+  return Promise.all([
+    fetch('/api/accounts',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/transactions?from=2024-01-01&to=2030-12-31',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/debts',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/portfolio',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/poker',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
+  ]).then(function(res){
+    if(res[0].status===401){ /* مهمان — فقط local */ return; }
+    // accounts
+    if(res[0].ok && res[0].d && res[0].d.accounts){
+      ACCS.length=0;
+      res[0].d.accounts.forEach(function(a){
+        if(a.archived) return;
+        var t=a.type==='bank'?'acc':(a.type||'card');
+        ACCS.push({_u:UID++, id:a.id, n:a.name, type:t, num:'', b:Math.round(a.balance!=null?a.balance:(a.openingBalance||0))});
+      });
+    }
+    // transactions
+    if(res[1].ok && res[1].d && res[1].d.items){
+      DATA.length=0;
+      res[1].d.items.forEach(function(t){
+        var md=isoToMiD(t.date); if(!md) return;
+        DATA.push({_u:UID++, id:t.id, d:md.d, mi:md.mi, t:t.title, a:t.amount, c:t.category||'متفرقه', k:t.kind==='income'?'income':(t.kind==='transfer'?'expense':'expense')});
+      });
+    }
+    // debts
+    if(res[2].ok && res[2].d && res[2].d.items){
+      DEBTS.length=0;
+      res[2].d.items.forEach(function(d){
+        DEBTS.push({_u:UID++, id:d.id, n:d.person, total:d.amount, paid:0, inst:Math.round(d.amount/12)||0, due:1});
+      });
+    }
+    // portfolio
+    if(res[3].ok && res[3].d && res[3].d.items){
+      HOLD.length=0;
+      res[3].d.items.forEach(function(h){
+        var tmap={crypto:'کریپتو',stock:'سهام',gold:'طلا',other:'سایر'};
+        HOLD.push({_u:UID++, sym:h.symbol, type:tmap[h.assetType]||h.assetType||'کریپتو', qty:h.quantity||h.qty||0, price:h.price||0, cur:(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'﷼', chg:h.chg||0});
+      });
+    }
+    // poker
+    if(res[4].ok && res[4].d && res[4].d.items){
+      PK.length=0;
+      res[4].d.items.forEach(function(s){
+        var md=isoToMiD(s.date); if(!md) return;
+        PK.push({_u:UID++, id:s.id, mi:md.mi, d:md.d, bi:s.buyIn, co:s.cashOut, loc:s.location||'—'});
+      });
+    }
+    // keep EDARR refs in sync (arrays mutated in place — already same refs)
+    renderHero();renderAccs();renderDebts();renderHist();renderChart();renderCatsIns();renderPort();renderPoker();
+  }).catch(function(e){ console.error(e); toast('بارگذاری مالی ناموفق'); });
+}
+
 renderHero();renderAccs();renderDebts();renderHist();renderChart();renderCatsIns();renderPort();renderPoker();
+loadFinanceFromApi();
 
 /* ===== nav auth ===== */
 (function(){fetch('/api/me').then(function(r){return r.json()}).then(function(d){
