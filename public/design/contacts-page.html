@@ -805,20 +805,27 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
   }
   function cleanPhone(raw){
     if(!raw) return '';
-    /* Google sometimes: "+98 912... ::: Mobile" or multiple " :: " */
-    var parts=String(raw).split(/\s*:::\s*/);
+    var s=String(raw).trim();
+    if(!s) return '';
+    /* Google: "Mobile ::: +98..." or "+98... ::: Mobile" or multi " :: " */
+    var parts=s.split(/\s*:::\s*|\s*::\s*/);
     var nums=[];
     parts.forEach(function(part){
       part=part.trim();
       if(!part) return;
-      /* drop pure labels */
-      if(/^(mobile|home|work|main|other|fax|iPhone|cell|تلفن|منزل|همراه|فکس)$/i.test(part)) return;
-      /* extract phone-like tokens */
-      var m=part.match(/(\+?\d[\d\s\-()]{5,}\d)/);
-      if(m) nums.push(m[1].replace(/\s+/g,' ').trim());
-      else if(/[\d+]/.test(part) && part.length>=6) nums.push(part.replace(/\s+/g,' ').trim());
+      if(/^(mobile|home|work|main|other|fax|iphone|cell|pager|تلفن|منزل|همراه|فکس|موبایل|محل کار)$/i.test(part)) return;
+      var m=part.match(/(\+?\d[\d\s\-().]{5,}\d)/);
+      if(m){
+        var n=m[1].replace(/\s+/g,' ').trim();
+        /* min digits */
+        if((n.match(/\d/g)||[]).length>=8) nums.push(n);
+      }
     });
-    /* unique */
+    /* whole string one number */
+    if(!nums.length){
+      var m2=s.match(/(\+?\d[\d\s\-().]{6,}\d)/);
+      if(m2 && (m2[1].match(/\d/g)||[]).length>=8) nums.push(m2[1].replace(/\s+/g,' ').trim());
+    }
     var seen={}, out=[];
     nums.forEach(function(n){ if(!seen[n]){ seen[n]=1; out.push(n); } });
     return out.join(' · ');
@@ -901,9 +908,13 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     var hmap={};
     header.forEach(function(h,i){ hmap[normHeader(h)]=i; });
 
-    var cFirst=pickGoogleCol(hmap,['First Name','Given Name','نام کوچک','نام']);
+    var cFirst=pickGoogleCol(hmap,['First Name','Given Name','نام کوچک']);
     var cMiddle=pickGoogleCol(hmap,['Middle Name','نام میانی']);
     var cLast=pickGoogleCol(hmap,['Last Name','Family Name','نام خانوادگی']);
+    var cNameOnly=pickGoogleCol(hmap,['Name','Full Name','Display Name','نام']);
+    if(cFirst===undefined && cLast===undefined && cNameOnly!==undefined){
+      cFirst=cNameOnly; /* single full-name column */
+    }
     var cNick=pickGoogleCol(hmap,['Nickname','نام مستعار']);
     var cFileAs=pickGoogleCol(hmap,['File As','File as']);
     var cOrg=pickGoogleCol(hmap,['Organization Name','Organization 1 - Name','Company','سازمان','شرکت']);
@@ -933,23 +944,24 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     }
 
     for(var r=1;r<table.length;r++){
-      var p=table[r];
+      var p=table[r].slice();
       if(!p || !p.length) continue;
+      /* pad short rows to header width so columns stay aligned */
+      while(p.length < header.length) p.push('');
+      if(p.length > header.length) p=p.slice(0, header.length);
 
       var fn=cellAt(p,cFirst), mn=cellAt(p,cMiddle), ln=cellAt(p,cLast);
-      var name=[fn,mn,ln].filter(Boolean).join(' ').trim();
-      if(!looksLikeName(name)){
-        var fa=cellAt(p,cFileAs);
-        if(looksLikeName(fa)) name=fa;
-      }
-      if(!looksLikeName(name)){
-        var nick=cellAt(p,cNick);
-        if(looksLikeName(nick)) name=nick;
-      }
+      var name=tidyName([fn,mn,ln].filter(Boolean).join(' '));
       var org=cellAt(p,cOrg);
-      if(!looksLikeName(name) && looksLikeName(org)) name=org;
-      name=tidyName(name);
-      if(!looksLikeName(name)) continue; /* skip garbage rows */
+      var nick=cellAt(p,cNick);
+      var fileAs=cellAt(p,cFileAs);
+      /* only fall back to File As / Nickname / Org if First+Last empty */
+      if(!name){
+        if(looksLikeName(tidyName(fileAs))) name=tidyName(fileAs);
+        else if(looksLikeName(tidyName(nick))) name=tidyName(nick);
+        else if(looksLikeName(tidyName(org))) name=tidyName(org);
+      }
+      if(!looksLikeName(name)) continue; /* skip garbage / empty rows */
 
       /* phones: prefer Mobile label, then all */
       var phones=[], mobilePhones=[], phoneSeen={};
@@ -995,11 +1007,10 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
       var notesParts=[];
       var note=cellAt(p,cNotes);
       if(note){
-        /* don't dump entire CSV into notes - cap */
         note=note.replace(/\s+/g,' ').trim();
-        if(note.length>300) note=note.slice(0,300)+'…';
-        /* skip if note looks like raw export garbage */
-        if(!/myContacts|E-mail \d -|Phone \d -/i.test(note)) notesParts.push(note);
+        if(note.length>240) note=note.slice(0,240)+'…';
+        if(note && !/myContacts|E-mail \d\s*-|Phone \d\s*-|First Name|Last Name/i.test(note))
+          notesParts.push(note);
       }
       var title=cellAt(p,cTitle);
       if(org && name!==org) notesParts.push('سازمان: '+org+(title?' — '+title:''));
