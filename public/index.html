@@ -1824,12 +1824,12 @@ renderTasks();
 /* ===== یادآوری‌ها (قابل افزودن، localStorage) ===== */
 var REM_KEY='lifeos-reminders-v1';
 var REM_DEFAULTS=[
-  {t:'۲ کار عقب‌افتاده — تماس بیمه، فایل مشتری', when:'برو ببین', color:'bad', done:false},
-  {t:'سررسید بیمه', when:'۳ روز', color:'warn', done:false},
-  {t:'🎂 تولد مامان', when:'۷ روز · هدیه!', color:'acc', done:false},
-  {t:'تمدید نتفلیکس', when:'فردا', color:'warn', done:false},
-  {t:'🪪 کارت بانکی', when:'۲ ماه', color:'faint', done:false},
-  {t:'قسط وام', when:'✓ پرداخت شد', color:'good', done:true}
+  {t:'۲ کار عقب‌افتاده — تماس بیمه، فایل مشتری', when:'برو ببین', color:'bad', done:false, off:-1},
+  {t:'تمدید نتفلیکس', when:'فردا', color:'warn', done:false, off:1},
+  {t:'سررسید بیمه', when:'۳ روز', color:'warn', done:false, off:3},
+  {t:'🎂 تولد مامان', when:'۷ روز · هدیه!', color:'acc', done:false, off:7},
+  {t:'🪪 کارت بانکی', when:'۲ ماه', color:'faint', done:false, off:60},
+  {t:'قسط وام', when:'✓ پرداخت شد', color:'good', done:true, off:0}
 ];
 function loadRems(){
   try{
@@ -1856,10 +1856,45 @@ function remWhenLabel(off){
   if(typeof dayName==='function')return dayName(off);
   return fa(off)+' روز دیگر';
 }
+/* کلید سورت: روز نسبت به امروز (نزدیک → دور). doneها آخر */
+function remSortKey(x){
+  if(x && x.done) return 100000 + (typeof x.off==='number' ? x.off : 9999);
+  if(x && typeof x.off==='number' && !isNaN(x.off)) return x.off;
+  var w=String((x&&x.when)||'').trim();
+  if(!w || w.indexOf('✓')===0) return 50000;
+  if(w==='امروز' || w.indexOf('امروز')===0) return 0;
+  if(w==='فردا' || w.indexOf('فردا')===0) return 1;
+  if(w==='برو ببین' || w.indexOf('عقب')>=0) return -1; /* فوری‌ترین */
+  /* «۳ روز» / «۷ روز» / «۲ ماه» / «N روز دیگر» */
+  var fa2en={'۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9'};
+  var norm=w.replace(/[۰-۹]/g,function(c){return fa2en[c]||c});
+  var m;
+  if((m=norm.match(/(\d+)\s*روز/))) return parseInt(m[1],10);
+  if((m=norm.match(/(\d+)\s*ماه/))) return parseInt(m[1],10)*30;
+  if((m=norm.match(/(\d+)\s*هفت/))) return parseInt(m[1],10)*7;
+  if((m=norm.match(/(\d+)/))) return parseInt(m[1],10);
+  return 9999;
+}
+function sortRemsNearestFirst(){
+  /* ایندکس پایدار برای کلیک/حذف بعد از سورت */
+  REMS.forEach(function(x,i){ x._i=i; });
+  var indexed=REMS.map(function(x,i){return {x:x,i:i}});
+  indexed.sort(function(a,b){
+    var ka=remSortKey(a.x), kb=remSortKey(b.x);
+    if(ka!==kb) return ka-kb;
+    /* هم‌تاریخ: جدیدتر اول */
+    var ta=a.x.at||0, tb=b.x.at||0;
+    if(ta!==tb) return tb-ta;
+    return a.i-b.i;
+  });
+  return indexed;
+}
 function renderRems(){
   var el=document.getElementById('remList'); if(!el)return;
   var html='';
-  REMS.forEach(function(x,i){
+  var sorted=sortRemsNearestFirst();
+  sorted.forEach(function(item){
+    var x=item.x, i=item.i;
     html+='<div class="rem'+(x.done?' done':'')+'" data-i="'+i+'">'
       +'<span class="rd" style="background:'+remColor(x.color||'acc')+'"></span>'
       +'<span class="rt"><b>'+String(x.t||'').replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</b></span>'
