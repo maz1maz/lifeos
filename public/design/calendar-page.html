@@ -164,23 +164,15 @@ body.zoom1{zoom:1.1111}
 .cell .dot.h{background:var(--bad)}
 .cell .dot.n{background:#c084fc}
 .note-card{background:var(--panel);border:1.5px solid var(--border2);border-radius:22px;padding:18px 20px;margin-top:16px}
-/* یادداشت داخل سایدبار راست */
-.side-card{display:flex;flex-direction:column}
-.side-card .note-card{
-  margin-top:14px; padding:14px 14px 12px;
-  background:var(--panel2); border:1px solid var(--border);
-  border-radius:16px; display:flex; flex-direction:column; flex:1; min-height:200px;
+/* ستون تقویم: کارت ماه + یادداشت هم‌عرض زیر آن (نه زیر/داخل سایدبار) */
+.cal-shell{align-items:start}
+.cal-col{
+  display:flex; flex-direction:column; gap:16px; min-width:0;
 }
-.side-card .note-card .nhead{margin-bottom:8px; gap:8px}
-.side-card .note-card .nhead h3{font-size:15px}
-.side-card .note-card .nhead .nday{font-size:12px;padding:4px 10px}
-.side-card .note-card textarea{
-  flex:1; min-height:140px; font-size:13.5px; padding:10px 12px; border-radius:12px;
+.cal-col .note-card{
+  margin-top:0; width:100%; box-sizing:border-box;
 }
-.side-card .note-card .nfoot{margin-top:8px; gap:8px; flex-wrap:wrap}
-.side-card .note-card .nfoot .hint{font-size:11.5px}
-.side-card .note-card .nfoot .save{padding:7px 12px;font-size:13px}
-.side-card .month-list{margin-top:12px}
+.cal-col .note-card textarea{min-height:140px}
 /* تقویم میلادی: سلول فقط شماره روز */
 .cell.g-clean{
   min-height:52px; display:flex; align-items:center; justify-content:center;
@@ -425,6 +417,7 @@ body.nav-open .nav-backdrop{display:block}
 <div class="wrap">
   <div class="lead">تقویم شمسی کامل — مناسبت‌ها، تعطیلات رسمی و شرح هر روز</div>
   <div class="cal-shell">
+    <div class="cal-col">
     <div class="cal-card">
       <div class="cal-head">
         <button type="button" class="navb" id="prevM" title="ماه قبل">‹</button>
@@ -459,6 +452,19 @@ body.nav-open .nav-backdrop{display:block}
         <div class="stat"><b id="stEv">—</b><small>مناسبت</small></div>
       </div>
     </div>
+    <div class="note-card" id="dayNoteCard">
+      <div class="nhead">
+        <h3>📝 یادداشت این روز</h3>
+        <span class="nday"><span class="ico" id="noteIco">📅</span><span id="noteDayLabel">—</span></span>
+      </div>
+      <textarea id="dayNote" placeholder="چی گذشت امروز؟ قرار، حال‌وهوا، کارها، هر چیزی که بعداً بخوای یادت بیاد…"></textarea>
+      <div class="nfoot">
+        <span class="hint">ذخیره روی حسابت · با انتخاب روز دیگر عوض می‌شود</span>
+        <span class="st" id="noteSt"></span>
+        <button type="button" class="save" id="noteSave">ذخیره یادداشت</button>
+      </div>
+    </div>
+    </div>
     <div class="side-card">
       <div style="display:flex;gap:14px;align-items:center">
         <div class="side-num" id="sideNum">—</div>
@@ -470,18 +476,6 @@ body.nav-open .nav-backdrop{display:block}
         </div>
       </div>
       <div class="elist" id="sideEvents"><div class="erow"><span class="ic">😊</span><div><b>مناسبتی ثبت نشده</b><small>روز خودت باشد</small></div></div></div>
-      <div class="note-card" id="dayNoteCard">
-        <div class="nhead">
-          <h3>📝 یادداشت این روز</h3>
-          <span class="nday"><span class="ico" id="noteIco">📅</span><span id="noteDayLabel">—</span></span>
-        </div>
-        <textarea id="dayNote" placeholder="چی گذشت امروز؟ قرار، حال‌وهوا، کارها، هر چیزی که بعداً بخوای یادت بیاد…"></textarea>
-        <div class="nfoot">
-          <span class="hint">ذخیره روی حسابت · با انتخاب روز دیگر عوض می‌شود</span>
-          <span class="st" id="noteSt"></span>
-          <button type="button" class="save" id="noteSave">ذخیره یادداشت</button>
-        </div>
-      </div>
       <div class="month-list">
         <h4>مناسبت‌های این ماه</h4>
         <div id="monthEvents"></div>
