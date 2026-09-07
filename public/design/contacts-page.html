@@ -458,6 +458,11 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
         vCard (<code>.vcf</code>) هم قبول است.
       </p>
       <textarea id="importText" placeholder="First Name,Last Name,... (Google CSV) یا اینجا بچسبان"></textarea>
+      <div class="import-mode" id="importMode" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 8px">
+        <span style="font-size:12.5px;color:var(--muted)">حالت:</span>
+        <button type="button" class="typechip on" data-mode="skip">فقط جدید (تکراری نریز)</button>
+        <button type="button" class="typechip" data-mode="replace">جایگزین کامل لیست</button>
+      </div>
       <div class="btn-row">
         <label class="btn ghost" style="cursor:pointer;margin:0">
           📎 انتخاب فایل
@@ -465,7 +470,12 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
         </label>
         <button type="button" class="btn ghost" id="importPreviewBtn">پیش‌نمایش</button>
         <button type="button" class="btn" id="importGoBtn">افزودن به لیست</button>
+        <button type="button" class="btn ghost" id="dedupeBtn" title="تکراری‌های فعلی را پاک کن">🧹 پاکسازی تکراری</button>
         <span id="importMsg" style="color:var(--muted);font-size:13px;align-self:center"></span>
+      </div>
+      <div style="font-size:12px;color:var(--faint);margin-top:6px;line-height:1.5">
+        «فقط جدید» = اگر اسم+تلفن از قبل باشد اضافه نمی‌شود.
+        «جایگزین کامل» = اول کل لیست پاک می‌شود، بعد فایل می‌آید (عدد نهایی = تعداد فایل).
       </div>
       <div class="import-preview" id="importPreview"></div>
     </div>
@@ -540,7 +550,7 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
 (function(){
   var REL={family:'خانواده',friend:'دوست',work:'کار',other:'سایر'};
   var LOG_T={call:'تماس',meet:'ملاقات',message:'پیام',other:'سایر'};
-  var CONTACTS=[], selectedId=null, importRows=[];
+  var CONTACTS=[], selectedId=null, importRows=[], importMode='skip';
 
   function fa(n){try{return Number(n).toLocaleString('fa-IR')}catch(e){return String(n)}}
   function esc(s){return String(s||'').replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])})}
@@ -1045,15 +1055,40 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     var msg=document.getElementById('importMsg');
     if(!importRows.length){
       box.textContent='';
-      msg.textContent='چیزی پیدا نشد — فایل CSV گوگل (با ردیف First Name و …) را بگذار';
+      msg.textContent='چیزی پیدا نشد — فایل CSV گوگل را بگذار';
       return;
     }
-    msg.textContent=fa(importRows.length)+' نفر آماده ایمپورت';
+    function nname(s){return String(s||'').trim().toLowerCase().replace(/\s+/g,' ')}
+    function nphone(s){var d=String(s||'').replace(/\D/g,''); if(d.length>10)d=d.slice(-10); return d}
+    function nemail(s){return String(s||'').trim().toLowerCase()}
+    function rowKey(row){
+      var n=nname(row.name), p=nphone(String(row.phone||'').split(/[·|,;/]/)[0]||row.phone), e=nemail(row.email);
+      if(n&&p&&p.length>=8) return 'np:'+n+'|'+p;
+      if(n&&e) return 'ne:'+n+'|'+e;
+      if(p&&p.length>=8) return 'p:'+p;
+      if(e) return 'e:'+e;
+      if(n) return 'n:'+n;
+      return '';
+    }
+    var seen={}, uniq=0, fileDup=0, existDup=0;
+    importRows.forEach(function(row){
+      var k=rowKey(row);
+      if(k && seen[k]){ fileDup++; return; }
+      if(k) seen[k]=1;
+      uniq++;
+      if(k && CONTACTS.some(function(c){return rowKey(c)===k})) existDup++;
+    });
+    var fresh=uniq-existDup;
+    msg.textContent=fa(importRows.length)+' در فایل · '+fa(uniq)+' یکتا · '+fa(fresh)+' جدید · '+fa(existDup)+' از قبل هست'+(fileDup?(' · '+fa(fileDup)+' تکرار داخل فایل'):'');
     box.innerHTML=importRows.slice(0,40).map(function(r,i){
+      var k=rowKey(r);
+      var exists=k && CONTACTS.some(function(c){return rowKey(c)===k});
       return '<div style="margin-bottom:6px">'+fa(i+1)+'. <b>'+esc(r.name)+'</b>'
         +(r.phone?' <span style="color:var(--acc)">· '+esc(r.phone)+'</span>':'')
         +(r.email?' <span style="color:var(--muted)">· '+esc(r.email)+'</span>':'')
-        +' <span style="color:var(--faint)">· '+esc(REL[r.relationship]||r.relationship)+'</span></div>';
+        +' <span style="color:var(--faint)">· '+esc(REL[r.relationship]||r.relationship)+'</span>'
+        +(exists?' <span style="color:var(--warn);font-size:12px">· تکراری</span>':'')
+        +'</div>';
     }).join('')+(importRows.length>40?'<div>… و '+fa(importRows.length-40)+' نفر دیگر</div>':'');
   }
 
@@ -1074,54 +1109,115 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     reader.onerror=function(){ toast('خواندن فایل ناموفق بود'); };
     reader.readAsText(f, 'UTF-8');
   });
+  
+  (function(){
+    var box=document.getElementById('importMode');
+    if(!box||box._bound) return;
+    box._bound=true;
+    box.addEventListener('click',function(e){
+      var b=e.target.closest('[data-mode]'); if(!b) return;
+      box.querySelectorAll('[data-mode]').forEach(function(x){x.classList.remove('on')});
+      b.classList.add('on');
+      importMode=b.getAttribute('data-mode')||'skip';
+      var go=document.getElementById('importGoBtn');
+      if(go) go.textContent=importMode==='replace'?'جایگزینی لیست با فایل':'افزودن به لیست';
+    });
+  })();
+
   document.getElementById('importGoBtn').addEventListener('click',function(){
     if(!importRows.length) showPreview(parseImportText(document.getElementById('importText').value));
     if(!importRows.length){ toast('لیستی برای ایمپورت نیست'); return; }
+    var mode=importMode||'skip';
+    if(mode==='replace'){
+      if(!confirm('همهٔ مخاطب‌های فعلی ('+fa(CONTACTS.length)+' نفر) پاک می‌شود و فقط این '+fa(importRows.length)+' نفر از فایل می‌مانند. مطمئنی؟')) return;
+    }
     var btn=document.getElementById('importGoBtn');
     btn.disabled=true;
-    var all=importRows.slice().filter(function(row){
-      var nm=String(row.name||'').trim().toLowerCase();
-      var ph=String(row.phone||'').replace(/\D/g,'').slice(-10);
-      return !CONTACTS.some(function(c){
-        var cn=String(c.name||'').trim().toLowerCase();
-        var cp=String(c.phone||'').replace(/\D/g,'').slice(-10);
-        if(nm && cn===nm) return true;
-        if(ph && ph.length>=8 && cp===ph) return true;
-        return false;
-      });
+    /* client-side unique within file first */
+    function nname(s){return String(s||'').trim().toLowerCase().replace(/\s+/g,' ')}
+    function nphone(s){var d=String(s||'').replace(/\D/g,''); if(d.length>10)d=d.slice(-10); return d}
+    function nemail(s){return String(s||'').trim().toLowerCase()}
+    function rowKey(row){
+      var n=nname(row.name), p=nphone(String(row.phone||'').split(/[·|,;/]/)[0]||row.phone), e=nemail(row.email);
+      if(n&&p&&p.length>=8) return 'np:'+n+'|'+p;
+      if(n&&e) return 'ne:'+n+'|'+e;
+      if(p&&p.length>=8) return 'p:'+p;
+      if(e) return 'e:'+e;
+      if(n) return 'n:'+n;
+      return '';
+    }
+    var seenFile={}, unique=[];
+    importRows.forEach(function(row){
+      var k=rowKey(row);
+      if(k && seenFile[k]) return;
+      if(k) seenFile[k]=1;
+      unique.push(row);
     });
-    var skippedDup=importRows.length-all.length;
-    var total=all.length, ok=0, fail=0, chunk=80, idx=0;
-    if(!total){ btn.disabled=false; toast(skippedDup?'همه تکراری بودند — چیزی اضافه نشد':'لیست خالی'); return; }
-    document.getElementById('importMsg').textContent='در حال افزودن… ۰ از '+fa(total);
+    var fileDups=importRows.length-unique.length;
+    var all=unique;
+    if(mode!=='replace'){
+      all=unique.filter(function(row){
+        var k=rowKey(row);
+        if(!k) return true;
+        return !CONTACTS.some(function(c){ return rowKey(c)===k; });
+      });
+    }
+    var skippedDup=(unique.length-all.length)+fileDups;
+    var total=all.length, ok=0, fail=0, skippedServer=0, chunk=100, idx=0;
+    if(!total && mode!=='replace'){
+      btn.disabled=false;
+      toast(skippedDup?'همه تکراری بودند — چیزی اضافه نشد':'لیست خالی');
+      return;
+    }
+    document.getElementById('importMsg').textContent=mode==='replace'
+      ? ('جایگزینی… '+fa(unique.length)+' نفر')
+      : ('در حال افزودن… ۰ از '+fa(total)+(skippedDup?(' · '+fa(skippedDup)+' تکراری رد'):''));
+    function finish(){
+      btn.disabled=false;
+      var msg=fa(ok)+' مخاطب'+(mode==='replace'?' جایگزین شد':' اضافه شد');
+      if(fail) msg+=' · '+fa(fail)+' خطا';
+      if(skippedDup||skippedServer) msg+=' · '+fa(skippedDup+skippedServer)+' تکراری رد شد';
+      toast(msg);
+      document.getElementById('importMsg').textContent=msg+' · جمع لیست بعد از load';
+      importRows=[]; document.getElementById('importPreview').textContent='';
+      document.getElementById('importText').value='';
+      var fi=document.getElementById('importFile'); if(fi) fi.value='';
+      load().then(function(){
+        document.getElementById('importMsg').textContent=msg+' · الان '+fa(CONTACTS.length)+' نفر در لیست';
+      });
+    }
     function sendChunk(){
-      if(idx>=all.length){
-        btn.disabled=false;
-        toast(fa(ok)+' مخاطب اضافه شد'+(fail?(' · '+fa(fail)+' رد شد'):'')+(skippedDup?(' · '+fa(skippedDup)+' تکراری'):''));
-        document.getElementById('importMsg').textContent=fa(ok)+' از '+fa(total)+' اضافه شد';
-        importRows=[]; document.getElementById('importPreview').textContent='';
-        document.getElementById('importText').value='';
-        var fi=document.getElementById('importFile'); if(fi) fi.value='';
-        load();
+      if(mode==='replace' && idx===0){
+        /* one shot with full unique list + replace mode */
+        fetch('/api/contacts/import',{method:'POST',credentials:'include',headers:authHeaders(),
+          body:JSON.stringify({items:unique, mode:'replace'})})
+          .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+          .then(function(x){
+            if(x.status===401){location.href='/design/login-page.html';return}
+            if(x.ok&&x.d){ ok=x.d.ok||x.d.count||0; fail=x.d.fail||0; skippedServer=x.d.skipped||0; }
+            else { fail=unique.length; }
+            finish();
+          }).catch(function(){ fail=unique.length; finish(); });
         return;
       }
+      if(idx>=all.length){ finish(); return; }
       var part=all.slice(idx, idx+chunk);
       idx+=part.length;
-      fetch('/api/contacts/import',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify({items:part})})
-        .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
+      fetch('/api/contacts/import',{method:'POST',credentials:'include',headers:authHeaders(),
+        body:JSON.stringify({items:part, mode:'skip'})})
+        .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
         .then(function(x){
-          if(x.status===401){ location.href='/design/login-page.html'; return; }
-          if(x.ok && x.d){ ok += (x.d.ok||x.d.count||0); fail += (x.d.fail||0); }
+          if(x.status===401){location.href='/design/login-page.html';return}
+          if(x.ok&&x.d){ ok+=(x.d.ok||x.d.count||0); fail+=(x.d.fail||0); skippedServer+=(x.d.skipped||0); }
           else {
-            /* fallback: one-by-one for this chunk */
             return Promise.all(part.map(function(row){
               return fetch('/api/contacts',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify(row)})
                 .then(function(r){ if(r.ok) ok++; else fail++; })
                 .catch(function(){ fail++; });
-            })).then(function(){});
+            }));
           }
         })
-        .catch(function(){ fail += part.length; })
+        .catch(function(){ fail+=part.length; })
         .then(function(){
           document.getElementById('importMsg').textContent='در حال افزودن… '+fa(Math.min(idx,total))+' از '+fa(total)+' (OK '+fa(ok)+')';
           sendChunk();
@@ -1129,6 +1225,24 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     }
     sendChunk();
   });
+
+  var dedupeBtn=document.getElementById('dedupeBtn');
+  if(dedupeBtn){
+    dedupeBtn.addEventListener('click',function(){
+      if(!CONTACTS.length){ toast('لیست خالی است'); return; }
+      if(!confirm('تکراری‌های لیست (اسم+تلفن یکسان) پاک شوند؟ الان '+fa(CONTACTS.length)+' نفر داری.')) return;
+      dedupeBtn.disabled=true;
+      fetch('/api/contacts/dedupe',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify({})})
+        .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+        .then(function(x){
+          dedupeBtn.disabled=false;
+          if(!x.ok){ toast((x.d&&x.d.error)||'پاکسازی نشد'); return; }
+          toast(fa(x.d.removed||0)+' تکراری حذف شد · ماند '+fa(x.d.total||0));
+          load();
+        }).catch(function(){ dedupeBtn.disabled=false; toast('خطای شبکه'); });
+    });
+  }
+
 
   load();
 })();
