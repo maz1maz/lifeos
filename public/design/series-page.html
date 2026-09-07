@@ -372,6 +372,37 @@ body.nav-open .nav-backdrop{display:block}
   .wrap{padding:14px 12px 88px}
 }
 
+
+/* add / search drawer */
+.adrawer{position:fixed;top:0;bottom:0;left:0;width:min(440px,95vw);background:var(--bg);border-inline-end:1px solid var(--border2);
+  z-index:10;transform:translateX(-105%);transition:transform .28s ease;padding:22px;overflow-y:auto}
+.adrawer.open{transform:none}
+.adrawer h3{font-family:var(--fh);margin:0 0 4px;font-size:19px}
+.adrawer .sub{color:var(--muted);font-size:15px;margin-bottom:14px}
+.adrawer .search{display:flex;gap:8px;margin-bottom:14px}
+.adrawer .search input{flex:1;background:var(--panel);border:1.5px solid var(--border2);border-radius:13px;color:var(--text);
+  font:inherit;font-size:16px;padding:9px 14px;outline:none;direction:ltr;text-align:left}
+.adrawer .search input:focus{border-color:var(--acc)}
+.sres{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:14px;
+  padding:9px 11px;margin-bottom:9px;background:var(--panel)}
+.sres img{width:44px;height:64px;object-fit:cover;border-radius:8px;flex:none;background:var(--panel2)}
+.sres .st{flex:1;min-width:0}
+.sres .st b{font-family:var(--fh);font-size:15.5px;direction:ltr;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sres .st small{color:var(--faint);font-size:13.5px;display:block}
+.addbtn{background:var(--acc);color:#062028;border:none;border-radius:10px;padding:7px 15px;
+  font-family:var(--fh);font-size:13.5px;font-weight:800;cursor:pointer;flex:none}
+.addbtn:disabled{background:var(--panel2);color:var(--faint);cursor:default}
+.nores{color:var(--faint);font-size:14.5px;text-align:center;padding:18px 8px;border:1.5px dashed var(--border2);border-radius:14px}
+.hint{color:var(--faint);font-size:13.5px;margin-top:10px;text-align:center}
+.series-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
+.series-toolbar .libsearch{flex:1;min-width:180px;background:var(--panel);border:1.5px solid var(--border2);border-radius:13px;color:var(--text);
+  font:inherit;font-size:15px;padding:9px 14px;outline:none}
+.series-toolbar .libsearch:focus{border-color:var(--acc)}
+.series-toolbar .btnadd{background:var(--acc);color:#062028;border:none;border-radius:13px;padding:9px 16px;
+  font-family:var(--fh);font-weight:800;font-size:14.5px;cursor:pointer;white-space:nowrap}
+.series-toolbar .btnimp{background:var(--panel2);color:var(--text);border:1px solid var(--border2);border-radius:13px;padding:9px 14px;
+  font-family:var(--fh);font-size:13.5px;cursor:pointer}
+
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
@@ -383,7 +414,12 @@ body.nav-open .nav-backdrop{display:block}
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
   <p class="lead">قسمت دیده‌شده را همان‌جا با − و + عوض کن (روی عدد بزن تا دقیق تایپ کنی) · روی کارت بزن برای جزئیات</p>
 
-  <div class="stats" id="stats"></div>
+    <div class="series-toolbar">
+    <input class="libsearch" id="libSearch" type="search" placeholder="جستجو در کتابخانه من — نام سریال…" autocomplete="off">
+    <button type="button" class="btnadd" id="addSeriesBtn">➕ افزودن سریال</button>
+    <button type="button" class="btnimp" id="importBtnTop">📥 Bingers</button>
+  </div>
+<div class="stats" id="stats"></div>
   <button class="demobtn" id="demoSeason">🧪 بررسی فصل‌های جدید (فقط اگر تاریخ پخش رسیده)</button>
 
   <div class="strip" id="strip">
@@ -441,6 +477,16 @@ body.nav-open .nav-backdrop{display:block}
   <div style="margin-top:14px;text-align:center"><button class="b2 big" id="closeImport">بستن</button></div>
 </div>
 
+
+<div class="adrawer" id="adrawer">
+  <h3>➕ افزودن سریال</h3>
+  <div class="sub">اسم سریال را بنویس — از TMDB پیدا کن و اضافه کن</div>
+  <div class="search"><input id="seriesQ" type="text" placeholder="مثلاً Silo یا Breaking Bad…" autocomplete="off"></div>
+  <div id="seriesResults"><div class="nores">تایپ کن تا نتایج بیاید…</div></div>
+  <div class="hint">جستجو روی TMDB · فقط نتایج سریال (TV)</div>
+  <div style="margin-top:16px;text-align:center"><button type="button" class="btnimp" id="closeAddSeries" style="padding:8px 18px">بستن</button></div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -467,6 +513,7 @@ function stars(n){return '★'.repeat(n)+'☆'.repeat(5-n)}
 function r2(r){return Math.max(1,Math.min(5,Math.round(r/2)))}
 
 /* ===== کتابخانه ===== */
+var libQ='';
 var WATCHING=[]; /* خالی */
 var DONE=[];
 var LIST=[];
@@ -564,16 +611,23 @@ function cardList(x){
     +'<div class="mt">'+gfa((s.genres||[])[0]||'')+' · '+fa(s.year||'')+'</div></div></div>';
 }
 function isWait(x){var s=S(x.k);if(!(x.cur>=x.tot))return false;if(!s||!s.next||!s.next.date)return false;return s.status==='Running'||!s.status}
+function matchLib(x){
+  if(!libQ) return true;
+  var s=typeof S==='function'?S(x.k):null;
+  var name=(s&&s.name)||x.k||'';
+  return String(name).toLowerCase().indexOf(libQ)>-1 || String(x.k||'').toLowerCase().indexOf(libQ)>-1;
+}
 function renderAll(){
-  var act=WATCHING.filter(function(x){return !isWait(x)}),wt=WATCHING.filter(isWait);
+  var act=WATCHING.filter(function(x){return !isWait(x)&&matchLib(x)}),wt=WATCHING.filter(function(x){return isWait(x)&&matchLib(x)});
+  var doneF=DONE.filter(matchLib), listF=LIST.filter(matchLib);
   document.getElementById('g-watching').innerHTML=act.length?act.map(cardWatch).join('')
-    :'<div class="empty">چیزی در حال دیدن نیستی — از واچ‌لیست یکی شروع کن 🍿</div>';
+    :'<div class="empty">'+(libQ?'چیزی با این جستجو پیدا نشد':'چیزی در حال دیدن نیستی — از ➕ سریال اضافه کن یا از واچ‌لیست شروع کن 🍿')+'</div>';
   document.getElementById('g-waiting').innerHTML=wt.length?wt.map(cardWatch).join('')
-    :'<div class="empty">سریالی در انتظار فصل بعد نیست — هر وقت فصلِ سریالی را کامل کنی و ادامه داشته باشد، اینجا می‌آید ⏳</div>';
-  document.getElementById('g-done').innerHTML=DONE.map(cardDone).join('');
-  document.getElementById('g-list').innerHTML=LIST.map(cardList).join('');
-  document.getElementById('nW').textContent='('+fa(act.length)+')';
-  document.getElementById('nNW').textContent='('+fa(wt.length)+')';
+    :'<div class="empty">سریالی در انتظار فصل بعد نیست</div>';
+  document.getElementById('g-done').innerHTML=doneF.length?doneF.map(cardDone).join(''):(libQ?'<div class="empty">چیزی پیدا نشد</div>':'');
+  document.getElementById('g-list').innerHTML=listF.length?listF.map(cardList).join(''):(libQ?'<div class="empty">چیزی پیدا نشد</div>':'');
+  document.getElementById('nW').textContent='('+fa(WATCHING.filter(function(x){return !isWait(x)}).length)+')';
+  document.getElementById('nNW').textContent='('+fa(WATCHING.filter(isWait).length)+')';
   document.getElementById('nD').textContent='('+fa(DONE.length)+')';
   document.getElementById('nL').textContent='('+fa(LIST.length)+')';
   var news=WATCHING.filter(function(x){return x.newEp});
@@ -859,7 +913,161 @@ document.getElementById('doImport').addEventListener('click',function(){
       document.getElementById('bpFresh').textContent=fa(fresh.length);
       if(!fresh.length && bingPreviewItems.length){
         toast('همهٔ این سریال‌ها قبلاً در حسابت هست — لیست از سرور بارگذاری شد');
+        if(typeof loadSeriesFromApi==='function') 
+/* ===== جستجو در کتابخانه + افزودن از TMDB ===== */
+(function(){
+  var libEl=document.getElementById('libSearch');
+  if(libEl){
+    var debL=null;
+    libEl.addEventListener('input',function(){
+      var v=this.value;
+      clearTimeout(debL);
+      debL=setTimeout(function(){
+        libQ=String(v||'').trim().toLowerCase();
+        if(typeof renderAll==='function') renderAll();
+      },180);
+    });
+  }
+  var ad=document.getElementById('adrawer');
+  var ovl=document.getElementById('ovl');
+  var qEl=document.getElementById('seriesQ');
+  var resEl=document.getElementById('seriesResults');
+  function openAdd(){
+    if(!ad) return;
+    ad.classList.add('open');
+    if(ovl) ovl.classList.add('open');
+    if(qEl){ qEl.value=''; setTimeout(function(){qEl.focus()},120); }
+    if(resEl) resEl.innerHTML='<div class="nores">تایپ کن تا نتایج بیاید…</div>';
+  }
+  function closeAdd(){
+    if(ad) ad.classList.remove('open');
+    if(ovl && !(document.getElementById('drawer')&&document.getElementById('drawer').classList.contains('open')) && !(document.getElementById('idrawer')&&document.getElementById('idrawer').classList.contains('open')))
+      ovl.classList.remove('open');
+  }
+  var addBtn=document.getElementById('addSeriesBtn');
+  if(addBtn) addBtn.addEventListener('click', openAdd);
+  var closeBtn=document.getElementById('closeAddSeries');
+  if(closeBtn) closeBtn.addEventListener('click', closeAdd);
+  var impTop=document.getElementById('importBtnTop');
+  if(impTop){
+    impTop.addEventListener('click',function(){
+      if(typeof openImport==='function') openImport();
+      else {
+        var b=document.getElementById('importBtn');
+        if(b) b.click();
+      }
+    });
+  }
+
+  function alreadyHave(title, tmdbId){
+    var t=String(title||'').toLowerCase();
+    function hit(arr){
+      return arr.some(function(x){
+        if(tmdbId && x.tmdbId && String(x.tmdbId)===String(tmdbId)) return true;
+        var s=typeof S==='function'?S(x.k):null;
+        return s && String(s.name||'').toLowerCase()===t;
+      });
+    }
+    return hit(WATCHING)||hit(DONE)||hit(LIST);
+  }
+
+  function renderSeriesHits(items){
+    if(!resEl) return;
+    items=(items||[]).filter(function(it){
+      var mt=it.mediaType||it.media_type||'';
+      return mt==='tv' || mt==='series' || (!mt && (it.first_air_date||it.name));
+    }).slice(0,12);
+    if(!items.length){ resEl.innerHTML='<div class="nores">سریالی پیدا نشد — اسم انگلیسی دقیق‌تر بنویس</div>'; return; }
+    resEl.innerHTML=items.map(function(it){
+      var name=it.title||it.name||'؟';
+      var yr=(it.date||it.first_air_date||it.release_date||'').toString().slice(0,4);
+      var img=it.posterUrl||it.poster_path||'';
+      if(img && img.indexOf('http')!==0) img='https://image.tmdb.org/t/p/w200'+img;
+      var tid=it.tmdbId||it.id||'';
+      var has=alreadyHave(name, tid);
+      var payload=encodeURIComponent(JSON.stringify({tmdbId:tid, name:name, img:img, year:yr, overview:it.overview||''}));
+      return '<div class="sres">'+(img?'<img src="'+img+'" alt="">':'<div style="width:44px;height:64px;border-radius:8px;background:var(--panel2)"></div>')
+        +'<div class="st"><b>'+name+'</b><small>'+(yr?fa(yr)+' · ':'')+'سریال · TMDB</small></div>'
+        +'<button type="button" class="addbtn" data-addseries="'+payload+'"'+(has?' disabled':'')+'>'+(has?'✓ هست':'➕ افزودن')+'</button></div>';
+    }).join('');
+  }
+
+  var deb=null, LIVE=null;
+  function searchSeries(t){
+    t=String(t||'').trim();
+    if(!t || t.length<2){ if(resEl) resEl.innerHTML='<div class="nores">تایپ کن تا نتایج بیاید…</div>'; return; }
+    if(resEl) resEl.innerHTML='<div class="nores">در حال جستجو…</div>';
+    fetch('/api/movies/tmdb/search?q='+encodeURIComponent(t),{credentials:'include'})
+      .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+      .then(function(x){
+        if(x.status===401){ location.href='/design/login-page.html'; return; }
+        if(!x.ok){ if(resEl) resEl.innerHTML='<div class="nores">'+((x.d&&x.d.error)||'جستجو نشد')+'</div>'; return; }
+        LIVE=true;
+        renderSeriesHits((x.d&&(x.d.items||x.d.results))||[]);
+      })
+      .catch(function(){ if(resEl) resEl.innerHTML='<div class="nores">خطای شبکه</div>'; });
+  }
+  if(qEl){
+    qEl.addEventListener('input',function(){
+      var v=this.value; clearTimeout(deb);
+      deb=setTimeout(function(){ searchSeries(v); }, 400);
+    });
+    qEl.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); clearTimeout(deb); searchSeries(this.value); }
+    });
+  }
+
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-addseries]'); if(!b || b.disabled) return;
+    e.preventDefault(); e.stopPropagation();
+    var info; try{ info=JSON.parse(decodeURIComponent(b.getAttribute('data-addseries'))); }catch(err){ return; }
+    b.disabled=true; b.textContent='…';
+    var body;
+    if(info.tmdbId){
+      body={tmdbId:info.tmdbId, mediaType:'tv', status:'watchlist'};
+      fetch('/api/movies/from-tmdb',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+        .then(function(x){
+          if(x.status===401){location.href='/design/login-page.html';return}
+          if(!x.ok){
+            /* fallback plain POST */
+            return fetch('/api/movies',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({title:info.name,type:'series',status:'watchlist',posterUrl:info.img||null,year:info.year||null,note:info.overview||''})
+            }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})});
+          }
+          return x;
+        })
+        .then(function(x){
+          if(!x) return;
+          if(!x.ok){ toast((x.d&&x.d.error)||'ذخیره نشد'); b.disabled=false; b.textContent='➕ افزودن'; return; }
+          toast((info.name||'سریال')+' به واچ‌لیست اضافه شد ✓');
+          if(typeof loadSeriesFromApi==='function') loadSeriesFromApi();
+          b.textContent='✓ هست';
+        })
+        .catch(function(){ toast('خطای شبکه'); b.disabled=false; b.textContent='➕ افزودن'; });
+    } else {
+      fetch('/api/movies',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({title:info.name,type:'series',status:'watchlist',posterUrl:info.img||null})
+      }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+      .then(function(x){
+        if(x.status===401){location.href='/design/login-page.html';return}
+        if(!x.ok){ toast((x.d&&x.d.error)||'ذخیره نشد'); b.disabled=false; b.textContent='➕ افزودن'; return; }
+        toast((info.name||'سریال')+' اضافه شد ✓');
         if(typeof loadSeriesFromApi==='function') loadSeriesFromApi();
+        b.textContent='✓ هست';
+      }).catch(function(){ toast('خطای شبکه'); b.disabled=false; b.textContent='➕ افزودن'; });
+    }
+  }, true);
+
+  /* close add drawer when overlay clicked — chain with existing */
+  if(ovl && !ovl._seriesAddBound){
+    ovl._seriesAddBound=true;
+    ovl.addEventListener('click', function(){ closeAdd(); });
+  }
+})();
+
+
+loadSeriesFromApi();
       }
       document.getElementById('prev').classList.add('show');
       bingPrevShown=true;

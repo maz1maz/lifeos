@@ -386,29 +386,27 @@ html[data-mode="light"] #docSearch{color-scheme:light}
   <div class="pagehead" style="margin:18px 0 14px">
     <h1 style="font-family:var(--fh);font-size:28px;margin:0">📄 مدارک و اسناد</h1>
     <p style="color:var(--muted);margin:8px 0 0;font-size:14.5px;line-height:1.7">
-      کارت ملی، بیمه، قرارداد، گارانتی و هر فایلی که دم‌دست می‌خواهی — با تاریخ انقضا و یادآوری خودکار.
+      کارت ملی، بیمه، قرارداد، گارانتی و هر فایلی که دم‌دست می‌خواهی — با تگ و یادداشت.
     </p>
   </div>
 
   <div class="card" style="margin-bottom:14px">
     <div class="mhead"><h4>➕ سند جدید</h4></div>
-    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px;align-items:end">
-      <div class="field"><label>عنوان</label><input id="docTitle" placeholder="مثلاً بیمه بدنه ماشین" style="width:100%"></div>
-      <div class="field"><label>تاریخ انقضا</label><input id="docExpiry" type="date" style="width:100%"></div>
-      <div class="field" style="grid-column:1/-1">
-        <label>نوع مدرک</label>
-        <input type="hidden" id="docType" value="other">
-        <div class="typechips" id="docTypeChips" role="listbox" aria-label="نوع مدرک">
-          <button type="button" class="typechip" data-type="id">🪪 هویتی</button>
-          <button type="button" class="typechip" data-type="insurance">🛡 بیمه</button>
-          <button type="button" class="typechip" data-type="warranty">🧾 گارانتی</button>
-          <button type="button" class="typechip" data-type="contract">📝 قرارداد</button>
-          <button type="button" class="typechip" data-type="license">📑 مجوز</button>
-          <button type="button" class="typechip" data-type="bank">💳 بانک</button>
-          <button type="button" class="typechip" data-type="medical">💊 پزشکی</button>
-          <button type="button" class="typechip on" data-type="other">📄 سایر</button>
-        </div>
+    <div class="field"><label>عنوان</label><input id="docTitle" placeholder="مثلاً بیمه بدنه ماشین" style="width:100%"></div>
+    <div class="field" style="margin-top:10px">
+      <label>تگ</label>
+      <input type="hidden" id="docType" value="">
+      <div class="typechips" id="docTypeChips" role="listbox" aria-label="تگ مدرک">
+        <button type="button" class="typechip" data-type="id">🪪 هویتی</button>
+        <button type="button" class="typechip" data-type="insurance">🛡 بیمه</button>
+        <button type="button" class="typechip" data-type="warranty">🧾 گارانتی</button>
+        <button type="button" class="typechip" data-type="contract">📝 قرارداد</button>
+        <button type="button" class="typechip" data-type="license">📑 مجوز</button>
+        <button type="button" class="typechip" data-type="bank">💳 بانک</button>
+        <button type="button" class="typechip" data-type="medical">💊 پزشکی</button>
       </div>
+      <input id="docTagCustom" placeholder="تگ خودت — مثلاً اجاره، دانشگاه، ماشین…" style="width:100%;margin-top:8px" autocomplete="off">
+      <div style="font-size:12px;color:var(--faint);margin-top:4px">یکی از تگ‌های بالا را بزن یا تگ دلخواه بنویس</div>
     </div>
     <div class="field" style="margin-top:10px"><label>یادداشت</label><input id="docNotes" placeholder="شماره بیمه‌نامه، کد پیگیری، …" style="width:100%"></div>
     <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
@@ -429,7 +427,7 @@ html[data-mode="light"] #docSearch{color-scheme:light}
     </div>
     <div style="margin:0 0 10px">
         <input type="hidden" id="docFilter" value="">
-        <div class="typechips filterchips" id="docFilterChips" role="listbox" aria-label="فیلتر نوع" style="justify-content:flex-start">
+        <div class="typechips filterchips" id="docFilterChips" role="listbox" aria-label="فیلتر تگ" style="justify-content:flex-start">
           <button type="button" class="typechip on" data-filter="">همه</button>
           <button type="button" class="typechip" data-filter="id">هویتی</button>
           <button type="button" class="typechip" data-filter="insurance">بیمه</button>
@@ -438,9 +436,6 @@ html[data-mode="light"] #docSearch{color-scheme:light}
           <button type="button" class="typechip" data-filter="license">مجوز</button>
           <button type="button" class="typechip" data-filter="bank">بانک</button>
           <button type="button" class="typechip" data-filter="medical">پزشکی</button>
-          <button type="button" class="typechip" data-filter="other">سایر</button>
-          <button type="button" class="typechip" data-filter="expiring">⏳ در حال انقضا</button>
-          <button type="button" class="typechip" data-filter="expired">منقضی</button>
         </div>
     </div>
     <div id="docList" style="margin-top:8px"></div>
@@ -461,8 +456,11 @@ html[data-mode="light"] #docSearch{color-scheme:light}
 <script>
 /* ===== documents vault ===== */
 (function(){
-  var TYPE_L={id:'مدرک هویتی',insurance:'بیمه',warranty:'گارانتی',contract:'قرارداد',license:'مجوز',bank:'بانک',medical:'پزشکی',other:'سایر'};
-  var TYPE_I={id:'🪪',insurance:'🛡',warranty:'🧾',contract:'📝',license:'📑',bank:'💳',medical:'💊',other:'📄'};
+  var TYPE_L={id:'هویتی',insurance:'بیمه',warranty:'گارانتی',contract:'قرارداد',license:'مجوز',bank:'بانک',medical:'پزشکی'};
+  var TYPE_I={id:'🪪',insurance:'🛡',warranty:'🧾',contract:'📝',license:'📑',bank:'💳',medical:'💊'};
+  function tagLabel(t){t=String(t||'').trim(); if(!t) return 'بدون تگ'; return TYPE_L[t]||t;}
+  function tagIcon(t){t=String(t||'').trim(); return TYPE_I[t]||'🏷';}
+  function resolveDocTag(){var custom=(document.getElementById('docTagCustom')&&document.getElementById('docTagCustom').value||'').trim(); if(custom) return custom.slice(0,40); var v=(document.getElementById('docType')&&document.getElementById('docType').value||'').trim(); return v||'عمومی';}
   var DOCS=[], pendingFile=null;
 
   /* type / filter chips — خوانا در دارک و لایت */
@@ -474,11 +472,12 @@ html[data-mode="light"] #docSearch{color-scheme:light}
         var b=e.target.closest('.typechip'); if(!b) return;
         typeBox.querySelectorAll('.typechip').forEach(function(x){x.classList.remove('on')});
         b.classList.add('on');
-        typeIn.value=b.getAttribute('data-type')||'other';
+        typeIn.value=b.getAttribute('data-type')||'';
+        var _c=document.getElementById('docTagCustom'); if(_c) _c.value='';
       });
       // sync initial
       var on=typeBox.querySelector('.typechip.on');
-      if(on) typeIn.value=on.getAttribute('data-type')||'other';
+      if(on) typeIn.value=on.getAttribute('data-type')||'';
     }
     var fBox=document.getElementById('docFilterChips');
     var fIn=document.getElementById('docFilter');
@@ -503,33 +502,45 @@ html[data-mode="light"] #docSearch{color-scheme:light}
   function toast(msg){var t=document.getElementById('toast');if(!t){alert(msg);return}t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200)}
   function msg(t,ok){var el=document.getElementById('docMsg');if(!el)return;el.style.color=ok?'var(--good)':'var(--bad)';el.textContent=t||''}
 
-  function expiryBadge(exp){
-    if(!exp)return '<span style="color:var(--faint);font-size:12px">بدون انقضا</span>';
-    var t=today(), soon=addDays(t,30);
-    if(exp<t)return '<span style="color:var(--bad);font-weight:700;font-size:12.5px">منقضی · '+esc(exp)+'</span>';
-    if(exp<=soon)return '<span style="color:var(--warn);font-weight:700;font-size:12.5px">به‌زودی · '+esc(exp)+'</span>';
-    return '<span style="color:var(--muted);font-size:12.5px">انقضا '+esc(exp)+'</span>';
-  }
+  function expiryBadge(exp){ return ''; }
 
   function filtered(){
     var q=(document.getElementById('docSearch').value||'').trim().toLowerCase();
     var f=document.getElementById('docFilter').value;
-    var t=today(), soon=addDays(t,30);
-    return DOCS.filter(function(d){
-      if(q && (d.title||'').toLowerCase().indexOf(q)<0 && (d.notes||'').toLowerCase().indexOf(q)<0) return false;
-      if(f==='expiring') return d.expiryDate && d.expiryDate>=t && d.expiryDate<=soon;
-      if(f==='expired') return d.expiryDate && d.expiryDate<t;
-      if(f) return d.type===f;
+    return DOCS.filter(function(doc){
+      var tag=tagLabel(doc.type);
+      if(q && (doc.title||'').toLowerCase().indexOf(q)<0 && (doc.notes||'').toLowerCase().indexOf(q)<0 && tag.toLowerCase().indexOf(q)<0 && String(doc.type||'').toLowerCase().indexOf(q)<0) return false;
+      if(f) return String(doc.type||'')===f;
       return true;
     });
   }
+  function rebuildFilterChips(){
+    var box=document.getElementById('docFilterChips'); if(!box) return;
+    var cur=document.getElementById('docFilter').value||'';
+    var presets=[{v:'',l:'همه'},{v:'id',l:'هویتی'},{v:'insurance',l:'بیمه'},{v:'warranty',l:'گارانتی'},{v:'contract',l:'قرارداد'},{v:'license',l:'مجوز'},{v:'bank',l:'بانک'},{v:'medical',l:'پزشکی'}];
+    var known={}; presets.forEach(function(p){if(p.v)known[p.v]=1});
+    var custom=[];
+    DOCS.forEach(function(doc){
+      var t=String(doc.type||'').trim();
+      if(t && !known[t] && custom.indexOf(t)<0) custom.push(t);
+    });
+    custom.sort(function(a,b){return a.localeCompare(b,'fa')});
+    var html=presets.map(function(p){
+      return '<button type="button" class="typechip'+(cur===p.v?' on':'')+'" data-filter="'+p.v+'">'+p.l+'</button>';
+    }).join('');
+    custom.forEach(function(t){
+      html+='<button type="button" class="typechip'+(cur===t?' on':'')+'" data-filter="'+esc(t)+'">🏷 '+esc(t)+'</button>';
+    });
+    box.innerHTML=html;
+  }
 
   function render(){
+    rebuildFilterChips();
     var box=document.getElementById('docList'); if(!box)return;
     var items=filtered();
     if(!items.length){box.innerHTML='<div style="color:var(--faint);padding:16px 4px;font-size:14px">سندی نیست — بالا اضافه کن.</div>';return}
     box.innerHTML=items.map(function(d){
-      var ic=TYPE_I[d.type]||'📄';
+      var ic=tagIcon(d.type);
       var file=d.fileUrl
         ? ('<a class="btn ghost" href="'+esc(d.fileUrl)+'" target="_blank" rel="noopener" style="padding:5px 10px;font-size:13px">👁 مشاهده</a>')
         : '<span style="color:var(--faint);font-size:12.5px">بدون فایل</span>';
@@ -537,9 +548,8 @@ html[data-mode="light"] #docSearch{color-scheme:light}
         +'<div style="font-size:26px;width:36px;text-align:center">'+ic+'</div>'
         +'<div style="flex:1;min-width:0">'
         +'<div style="font-weight:700;font-size:15px">'+esc(d.title)+'</div>'
-        +'<div style="color:var(--muted);font-size:12.5px;margin-top:2px">'+(TYPE_L[d.type]||d.type)
-        +(d.notes?(' · '+esc(d.notes.slice(0,80))):'')+'</div>'
-        +'<div style="margin-top:4px">'+expiryBadge(d.expiryDate)+'</div>'
+        +'<div style="color:var(--muted);font-size:12.5px;margin-top:2px"><span style="color:var(--acc)">#'+esc(tagLabel(d.type))+'</span>'
+        +(d.notes?(' · '+esc(String(d.notes).slice(0,80))):'')+'</div>'
         +'</div>'
         +'<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'
         +file
@@ -583,7 +593,7 @@ html[data-mode="light"] #docSearch{color-scheme:light}
   document.getElementById('docSave').addEventListener('click',function(){
     var title=document.getElementById('docTitle').value.trim();
     if(!title){msg('عنوان لازم است',false);return}
-    var body={title:title,type:document.getElementById('docType').value,expiryDate:document.getElementById('docExpiry').value||null,notes:document.getElementById('docNotes').value.trim()};
+    var body={title:title,type:resolveDocTag(),expiryDate:null,notes:document.getElementById('docNotes').value.trim()};
     msg('در حال ثبت…',true);
     fetch('/api/documents',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
       .then(function(r){return r.json().then(function(j){return {ok:r.ok,j}})})
@@ -598,9 +608,8 @@ html[data-mode="light"] #docSearch{color-scheme:light}
         return p;
       })
       .then(function(){
-        document.getElementById('docTitle').value='';
+        document.getElementById('docTitle').value=''; var _tc=document.getElementById('docTagCustom'); if(_tc)_tc.value=''; var _tb=document.getElementById('docTypeChips'); if(_tb)_tb.querySelectorAll('.typechip').forEach(function(x){x.classList.remove('on')}); var _ti=document.getElementById('docType'); if(_ti)_ti.value='';
         document.getElementById('docNotes').value='';
-        document.getElementById('docExpiry').value='';
         document.getElementById('docFile').value='';
         pendingFile=null;
         document.getElementById('docFileName').textContent='فایلی انتخاب نشده';
