@@ -958,6 +958,12 @@ document.getElementById('edSave').addEventListener('click',function(){
   } else if(ED.type==='hold' && o.sym){
     p=fetch('/api/investments/price',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({symbol:(v1.trim().toUpperCase()||o.sym), price:parseFloat(v3)||o.price})});
+  } else if(ED.type==='pk' && o.id){
+    var pkDate = ED.pkDate ? jalaliMiDToIso(ED.pkDate.mi, ED.pkDate.d) : jalaliMiDToIso(o.mi, o.d);
+    p=fetch('/api/poker/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({buyIn:parseInt(v2,10)||o.bi, cashOut:parseInt(v3,10)||o.co, location:v4, date:pkDate||undefined})});
+  } else if(ED.type==='debt' && o.id){
+    /* debt amount is remain-only on server; local fields only */
   }
   if(!p){ doneLocal(); return; }
   p.then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})})
@@ -979,6 +985,7 @@ document.getElementById('edDel').addEventListener('click',function(){
   if(ED.type==='tx' && o.id) p=fetch('/api/transactions/'+encodeURIComponent(o.id),{method:'DELETE',credentials:'include'});
   else if(ED.type==='acc' && o.id) p=fetch('/api/accounts/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({archived:true})});
   else if(ED.type==='debt' && o.id) p=fetch('/api/debts/'+encodeURIComponent(o.id)+'/settle',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+  else if(ED.type==='pk' && o.id) p=fetch('/api/poker/'+encodeURIComponent(o.id),{method:'DELETE',credentials:'include'});
   if(!p){ doneLocal(); return; }
   p.then(function(r){ if(!r.ok) throw new Error(); doneLocal(); })
    .catch(function(){ toast('حذف از سرور نشد'); });
@@ -1254,7 +1261,7 @@ function loadFinanceFromApi(){
       HOLD.length=0;
       res[3].d.items.forEach(function(h){
         var tmap={crypto:'کریپتو',stock:'سهام',gold:'طلا',other:'سایر'};
-        HOLD.push({_u:UID++, sym:h.symbol, type:tmap[h.assetType]||h.assetType||'کریپتو', qty:h.quantity||h.qty||0, price:h.price||0, cur:(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'﷼', chg:h.chg||0});
+        HOLD.push({_u:UID++, sym:h.symbol, type:tmap[h.assetType]||h.assetType||'کریپتو', qty:h.quantity||h.qty||0, price:h.currentPrice!=null?h.currentPrice:(h.price||h.avgCost||0), cur:(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'﷼', chg:h.chg||0});
       });
     }
     // poker

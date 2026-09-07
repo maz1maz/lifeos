@@ -576,7 +576,7 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     if(d&&d.user){
       el.innerHTML='<span class="navuser">'+esc(d.user.name||d.user.email||'')+'</span> <button type="button" class="navout" id="navOut">خروج</button>';
       var o=document.getElementById('navOut');
-      if(o)o.addEventListener('click',function(){fetch('/api/logout',{method:'POST',credentials:'include'}).then(function(){location.href='/design/login-page.html'})});
+      if(o)o.addEventListener('click',function(){fetch('/api/auth/logout',{method:'POST',credentials:'include'}).then(function(){location.href='/design/login-page.html'})});
     }else{
       el.innerHTML='<a class="navin" href="/design/login-page.html">ورود</a>';
     }

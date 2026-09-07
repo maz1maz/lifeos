@@ -907,6 +907,32 @@ var mb=document.getElementById('modeBtn');
 mb.addEventListener('click',function(){var r=document.documentElement,l=r.dataset.mode==='light';
   r.dataset.mode=l?'dark':'light';mb.textContent=l?'🌙':'☀️';});
 
+
+/* ===== load series library from API ===== */
+function loadSeriesFromApi(){
+  return fetch('/api/movies?status=',{credentials:'include'})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+    .then(function(x){
+      if(x.status===401) return;
+      if(!x.ok || !x.d || !Array.isArray(x.d.items)) return;
+      WATCHING.length=0; DONE.length=0; LIST.length=0;
+      x.d.items.filter(function(it){return (it.type||'series')==='series' || it.type==='tv'}).forEach(function(it){
+        var title=it.title||'';
+        var k = (typeof seriesKeyFromTitle==='function') ? seriesKeyFromTitle(title) : title.toLowerCase().replace(/\s+/g,'_');
+        if(typeof TV==='object' && !TV[k]){
+          TV[k]={name:title, img:it.poster||it.image||'', genres:[], rating:it.rating||null, year:it.year||'', status:'Running', summary:'', cast:[], next:null, network:''};
+        }
+        var st=it.status||'watchlist';
+        if(st==='watching') WATCHING.push({k:k, cur:it.currentEpisode||0, tot:it.totalEpisodes||10, season:it.currentSeason||1, newEp:false, id:it.id});
+        else if(st==='completed') DONE.push({k:k, id:it.id});
+        else LIST.push({k:k, id:it.id});
+      });
+      try{ if(typeof renderAll==='function') renderAll(); }catch(e){}
+      try{ if(typeof renderRecs==='function') renderRecs(); }catch(e){}
+    }).catch(function(e){ console.error(e); });
+}
+loadSeriesFromApi();
+
 renderAll();
 rollSeasons(false);
 document.getElementById('demoSeason').addEventListener('click',function(){rollSeasons(true)});

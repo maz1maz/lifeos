@@ -1590,6 +1590,27 @@ document.getElementById('btnOk').addEventListener('click',function(){
   var v=+msi.value;
   var sent=document.getElementById('daySentence').value.trim();
   var tags=[].map.call(document.querySelectorAll('#dayTags .tag-c.on'),function(t){return t.dataset.t});
+  var snEl=document.getElementById('snText');
+  var sleepNote=snEl?snEl.value.trim():'';
+  var bestEl=document.getElementById('bestMoment');
+  var gratEl=document.getElementById('gratitude');
+  var yest=typeof homeIsoFromOff==='function'?homeIsoFromOff(-1):(function(){var d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10)})();
+  var payload={
+    date:yest,
+    mood:v,
+    sleep:String(sl)+(sleepNote?(' · '+sleepNote):''),
+    note:sent,
+    bestMoment:bestEl?bestEl.value.trim():'',
+    gratitude:gratEl?gratEl.value.trim():''
+  };
+  if(tags.length) payload.note=(payload.note?payload.note+' · ':'')+tags.map(function(t){return '#'+t}).join(' ');
+  fetch('/api/daily',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+    .then(function(x){
+      if(x.status===401){location.href='/design/login-page.html';return}
+      if(!x.ok){toast((x.d&&x.d.error)||'ثبت روزانه ذخیره نشد');return}
+      toast('روزانه ذخیره شد ✓');
+    }).catch(function(){toast('خطای شبکه — روزانه ذخیره نشد')});
   card.style.transition='opacity .35s, transform .35s';
   card.style.opacity='0';card.style.transform='translateY(-14px) scale(.985)';
   setTimeout(function(){
@@ -1868,9 +1889,26 @@ function renderTasks(){
   try{if(window.syncGamesHeight)syncGamesHeight()}catch(e){}
 }
 document.getElementById('taskList').addEventListener('click',function(e){
-  var del=e.target.closest('.tdel'); if(del){TASKS.splice(+del.dataset.di,1);renderTasks();toast('حذف شد');return}
+  var del=e.target.closest('.tdel');
+  if(del){
+    var ix=+del.dataset.di, o=TASKS[ix]; if(!o)return;
+    function doneDel(){TASKS.splice(ix,1);renderTasks();toast('حذف شد')}
+    if(o.id){
+      fetch('/api/tasks/'+encodeURIComponent(o.id),{method:'DELETE',credentials:'include'})
+        .then(function(r){if(r.status===401){location.href='/design/login-page.html';return} if(!r.ok){toast('حذف نشد');return} doneDel()})
+        .catch(function(){toast('خطای شبکه')});
+    } else doneDel();
+    return;
+  }
   var row=e.target.closest('.task'); if(!row)return;
-  TASKS[+row.dataset.i].done=!TASKS[+row.dataset.i].done; renderTasks();
+  var o=TASKS[+row.dataset.i]; if(!o)return;
+  o.done=!o.done; renderTasks();
+  if(o.id){
+    fetch('/api/tasks/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({done:!!o.done})
+    }).then(function(r){if(r.status===401)location.href='/design/login-page.html'; if(!r.ok){o.done=!o.done;renderTasks();toast('ذخیره نشد')}})
+     .catch(function(){o.done=!o.done;renderTasks();toast('خطای شبکه')});
+  }
 });
 var FUTURES=[]; /* {t, off} — off: days from today */
 var selDay=0;
@@ -1907,15 +1945,44 @@ function renderFutures(){
   el.innerHTML='📌 '+items.map(function(f){return '«'+f.t+'» — '+dayName(f.off)}).join('<br>');
   el.classList.add('show');
 }
+function homeIsoFromOff(off){
+  try{
+    if(typeof jToday==='function'&&typeof j2d==='function'&&typeof d2g==='function'){
+      var t=jToday(), jdn=j2d(t.jy,t.jm,t.jd)+(+off||0), g=d2g(jdn);
+      function pad(n){return n<10?'0'+n:''+n}
+      return g.gy+'-'+pad(g.gm)+'-'+pad(g.gd);
+    }
+  }catch(e){}
+  var d=new Date(); d.setDate(d.getDate()+(+off||0));
+  return d.toISOString().slice(0,10);
+}
 function addTask(){
   var inp=document.getElementById('taskIn'),v=inp.value.trim(); if(!v)return;
-  if(selDay===0){ TASKS.push({t:v,p:0,meta:'امروز',done:false}); }
-  else { FUTURES.push({t:v,off:selDay}); toast('«'+v+'» برای '+dayName(selDay)+' برنامه‌ریزی شد ✓'); renderFutures();
-    selDay=0;
-    document.querySelectorAll('#dayChips .dchip').forEach(function(x){x.classList.toggle('on',x.dataset.d==='0')});
-    if(window._resetDMore)_resetDMore();
-  }
-  inp.value=''; renderTasks();
+  var off=selDay||0;
+  var date=homeIsoFromOff(off);
+  var btn=document.getElementById('taskAdd');
+  if(btn) btn.disabled=true;
+  fetch('/api/tasks',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title:v,date:date,deadline:date,priority:'medium'})
+  }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+  .then(function(x){
+    if(btn) btn.disabled=false;
+    if(x.status===401){location.href='/design/login-page.html';return}
+    if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+    if(off===0){
+      TASKS.push({id:x.d.id,t:v,p:0,meta:'امروز',done:false,date:date});
+      renderTasks();
+      toast('کار ذخیره شد ✓');
+    } else {
+      FUTURES.push({id:x.d.id,t:v,off:off,date:date});
+      toast('«'+v+'» برای '+dayName(off)+' ذخیره شد ✓');
+      renderFutures();
+      selDay=0;
+      document.querySelectorAll('#dayChips .dchip').forEach(function(ch){ch.classList.toggle('on',ch.dataset.d==='0')});
+      if(window._resetDMore)_resetDMore();
+    }
+    inp.value='';
+  }).catch(function(){if(btn)btn.disabled=false;toast('خطای شبکه')});
 }
 document.getElementById('taskAdd').addEventListener('click',addTask);
 document.getElementById('taskIn').addEventListener('keydown',function(e){if(e.key==='Enter')addTask()});
@@ -2006,27 +2073,52 @@ function addRem(){
   var v=inp.value.trim(); if(!v)return;
   var when=remWhenLabel(remSelOff);
   var color=remSelOff===0?'acc':(remSelOff<=1?'warn':(remSelOff<=3?'warn':'faint'));
-  REMS.unshift({t:v, when:when, color:color, done:false, off:remSelOff, at:Date.now()});
-  saveRems(); inp.value=''; remSelOff=0;
-  document.querySelectorAll('#remChips .dchip').forEach(function(x){
-    x.classList.toggle('on', x.dataset.r==='0');
-  });
-  var rm=document.getElementById('remMore');
-  if(rm){rm.classList.remove('on');rm.textContent='📅 روز دیگر'}
-  renderRems();
-  if(typeof toast==='function')toast('یادآوری اضافه شد ✓');
+  var off=remSelOff;
+  var date=(typeof homeIsoFromOff==='function')?homeIsoFromOff(off):(new Date(Date.now()+off*864e5).toISOString().slice(0,10));
+  fetch('/api/reminders',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title:v,date:date,whenLabel:when})
+  }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+  .then(function(x){
+    if(x.status===401){location.href='/design/login-page.html';return}
+    if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+    REMS.unshift({id:x.d.id,t:v, when:when, color:color, done:false, off:off, at:Date.now(), date:date});
+    saveRems(); inp.value=''; remSelOff=0;
+    document.querySelectorAll('#remChips .dchip').forEach(function(ch){
+      ch.classList.toggle('on', ch.dataset.r==='0');
+    });
+    var rm=document.getElementById('remMore');
+    if(rm){rm.classList.remove('on');rm.textContent='📅 روز دیگر'}
+    renderRems();
+    if(typeof toast==='function')toast('یادآوری ذخیره شد ✓');
+  }).catch(function(){toast('خطای شبکه')});
 }
 (function initRems(){
   var list=document.getElementById('remList');
   if(!list)return;
   list.addEventListener('click',function(e){
     var del=e.target.closest('.rdel');
-    if(del){ REMS.splice(+del.dataset.di,1); saveRems(); renderRems(); if(typeof toast==='function')toast('حذف شد'); return; }
+    if(del){
+      var ix=+del.dataset.di, o=REMS[ix]; if(!o)return;
+      function doneDel(){ REMS.splice(ix,1); saveRems(); renderRems(); if(typeof toast==='function')toast('حذف شد'); }
+      if(o.id){
+        fetch('/api/reminders/'+encodeURIComponent(o.id),{method:'DELETE',credentials:'include'})
+          .then(function(r){if(r.status===401){location.href='/design/login-page.html';return} if(!r.ok){toast('حذف نشد');return} doneDel();})
+          .catch(function(){toast('خطای شبکه')});
+      } else doneDel();
+      return;
+    }
     var row=e.target.closest('.rem'); if(!row)return;
     var i=+row.dataset.i; if(isNaN(i)||!REMS[i])return;
-    REMS[i].done=!REMS[i].done;
-    if(REMS[i].done && !String(REMS[i].when||'').startsWith('✓')) REMS[i].when='✓ انجام شد';
+    var o=REMS[i];
+    o.done=!o.done;
+    if(o.done && !String(o.when||'').startsWith('✓')) o.when='✓ انجام شد';
     saveRems(); renderRems();
+    if(o.id){
+      fetch('/api/reminders/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({done:!!o.done, whenLabel:o.when})
+      }).then(function(r){if(r.status===401)location.href='/design/login-page.html'; if(!r.ok){o.done=!o.done;saveRems();renderRems();toast('ذخیره نشد')}})
+       .catch(function(){o.done=!o.done;saveRems();renderRems();toast('خطای شبکه')});
+    }
   });
   var addBtn=document.getElementById('remAdd'), inp=document.getElementById('remIn');
   if(addBtn)addBtn.addEventListener('click',addRem);
@@ -2070,7 +2162,7 @@ var CATS=[
  ['مسکن','🏠','#f87171',['اجاره','رهن','شارژ ساختمان','مسکن']],
  ['متفرقه','🔖','var(--faint)',[]]
 ];
-var ACCS=['💳 کارت اصلی','💵 نقدی','🏦 پس‌انداز'];
+var ACCS=['💳 بدون حساب'];
 var TXKIND='expense',TXACC=ACCS[0],TXCAT=null,TXCATMANUAL=false,TXCATEDIT=false;
 var TODAYTX=[]; /* خالی */
 var BUDGET={spent:0,total:0,daysLeft:0,cats:[]};
@@ -2144,11 +2236,21 @@ function txSubmit(){
  var t=document.getElementById('txTitle').value.trim();
  if(!a||!t){toastB('مبلغ و شرح را بنویس');return}
  var c=TXCAT||suggestCat(t)||'متفرقه';
- TODAYTX.push({t:t,a:a,c:c,k:TXKIND});
- renderTx();
- toastB('ثبت شد ✓ — '+fmtFull(a)+' تومان · '+catMeta(c)[1]+' '+c+' · '+TXACC.replace(/^\S+\s/,''));
- document.getElementById('txAmt').value='';document.getElementById('txTitle').value='';
- TXCAT=null;TXCATMANUAL=false;renderCatChips();document.getElementById('txTitle').focus();
+ var account=String(TXACC||'بدون حساب').replace(/^\S+\s/,'') || String(TXACC||'بدون حساب');
+ var btn=document.getElementById('txGo'); if(btn) btn.disabled=true;
+ fetch('/api/transactions',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({title:t,amount:a,category:c,kind:TXKIND||'expense',account:account,date:(typeof homeIsoFromOff==='function'?homeIsoFromOff(0):new Date().toISOString().slice(0,10))})
+ }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+ .then(function(x){
+   if(btn) btn.disabled=false;
+   if(x.status===401){location.href='/design/login-page.html';return}
+   if(!x.ok){toastB((x.d&&x.d.error)||'ذخیره نشد');return}
+   TODAYTX.push({id:x.d.id,t:t,a:a,c:c,k:TXKIND});
+   renderTx();
+   toastB('ذخیره شد ✓ — '+fmtFull(a)+' تومان · '+catMeta(c)[1]+' '+c+' · '+account);
+   document.getElementById('txAmt').value='';document.getElementById('txTitle').value='';
+   TXCAT=null;TXCATMANUAL=false;renderCatChips();document.getElementById('txTitle').focus();
+ }).catch(function(){if(btn)btn.disabled=false;toastB('خطای شبکه')});
 }
 function toastB(m){var t=document.getElementById('toast2');if(!t){t=document.createElement('div');t.id='toast2';
   t.style.cssText='position:fixed;bottom:22px;right:50%;transform:translateX(50%);background:var(--acc);color:#062028;font-family:var(--fh);font-weight:700;font-size:15px;border-radius:13px;padding:10px 22px;opacity:0;pointer-events:none;transition:.25s;z-index:99';
@@ -2213,6 +2315,95 @@ document.addEventListener('click',function(e){
     window.renderDay=function(off){ var r=__rd.apply(this,arguments); try{syncQ()}catch(e){} return r; };
   }
 })();
+
+
+/* ===== load home data from API ===== */
+function daysBetweenIso(a,b){
+  try{
+    var da=new Date(a+'T12:00:00'), db=new Date(b+'T12:00:00');
+    return Math.round((db-da)/864e5);
+  }catch(e){return 0}
+}
+function loadHomeFromApi(){
+  var todayIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(0) : new Date().toISOString().slice(0,10);
+  var fromIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(-1) : todayIso;
+  var toIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(60) : todayIso;
+  return Promise.all([
+    fetch('/api/dashboard?date='+encodeURIComponent(todayIso),{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/tasks?from='+encodeURIComponent(todayIso)+'&to='+encodeURIComponent(toIso),{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/reminders?from='+encodeURIComponent(todayIso)+'&to='+encodeURIComponent(toIso),{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/budgets',{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/accounts',{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+  ]).then(function(res){
+    if(res[0].status===401) return; /* guest */
+    var dash=res[0].ok?res[0].d:null;
+    // accounts chips
+    if(res[4].ok && res[4].d && res[4].d.accounts && res[4].d.accounts.length){
+      ACCS=res[4].d.accounts.map(function(a){
+        var ic=a.type==='bank'?'🏦':(a.type==='cash'?'💵':'💳');
+        return ic+' '+(a.name||'حساب');
+      });
+      TXACC=ACCS[0];
+      if(typeof renderAccChips==='function') renderAccChips();
+    }
+    // today txs
+    if(dash && Array.isArray(dash.transactions)){
+      TODAYTX=dash.transactions.map(function(t){
+        return {id:t.id,t:t.title,a:t.amount,c:t.category||'متفرقه',k:t.kind==='income'?'income':'expense'};
+      });
+      if(typeof renderTx==='function') renderTx();
+    }
+    // tasks: today + futures
+    if(res[1].ok && res[1].d && res[1].d.items){
+      TASKS=[]; FUTURES=[];
+      res[1].d.items.forEach(function(t){
+        if(t.isReminder) return;
+        var off=daysBetweenIso(todayIso, t.date||todayIso);
+        if(off<=0){
+          TASKS.push({id:t.id,t:t.title,p:t.priority==='high'?1:(t.priority==='low'?3:2),meta:t.done?'انجام':'امروز',done:!!t.done,date:t.date});
+        } else {
+          FUTURES.push({id:t.id,t:t.title,off:off,date:t.date});
+        }
+      });
+      if(typeof renderTasks==='function') renderTasks();
+      if(typeof renderFutures==='function') renderFutures();
+    }
+    // reminders
+    if(res[2].ok && res[2].d && res[2].d.items){
+      REMS=res[2].d.items.map(function(r){
+        var off=daysBetweenIso(todayIso, r.date||todayIso);
+        return {id:r.id,t:r.title,when:r.whenLabel||r.date||'',color:off<=0?'acc':(off<=1?'warn':'faint'),done:!!r.done,off:off,at:r.createdAt||Date.now(),date:r.date};
+      });
+      saveRems();
+      if(typeof renderRems==='function') renderRems();
+    }
+    // budget
+    if(res[3].ok && res[3].d){
+      var bd=res[3].d;
+      BUDGET.total = bd.totalBudget||0;
+      BUDGET.spent = bd.totalSpent||0;
+      var t=new Date(), dim=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();
+      BUDGET.daysLeft = Math.max(0, dim - t.getDate());
+      if(typeof renderBud==='function') renderBud();
+    }
+    // series watching on home
+    if(dash && Array.isArray(dash.watchingSeries)){
+      try{
+        EPS = dash.watchingSeries.slice(0,6).map(function(m){
+          return {
+            ic:'🎬',
+            t:m.title||'سریال',
+            s:(m.currentSeason?('S'+m.currentSeason+' · '):'')+(m.currentEpisode!=null?('قسمت '+m.currentEpisode): (m.progress||'')),
+            fresh:!!m.newEpisode,
+            id:m.id
+          };
+        });
+        if(typeof renderEps==='function') renderEps();
+      }catch(e){}
+    }
+  }).catch(function(e){ console.error('loadHomeFromApi', e); });
+}
+loadHomeFromApi();
 
 /* ===== nav auth ===== */
 (function(){fetch('/api/me').then(function(r){return r.json()}).then(function(d){

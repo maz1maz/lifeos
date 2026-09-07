@@ -510,34 +510,78 @@ document.addEventListener('click',function(e){
   var b;
   if(b=e.target.closest('[data-addc]')){
     var k=b.dataset.addc;
-    LATER.push({k:k});toast(M(k).name+' → برای بعد ⏳');renderAll();
-    if(ad.classList.contains('open'))renderSearch(q.value);
+    var meta=M(k)||{name:k};
+    fetch('/api/movies',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title:meta.name||k,type:'movie',status:'watchlist'})
+    }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+    .then(function(x){
+      if(x.status===401){location.href='/design/login-page.html';return}
+      if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+      LATER.push({k:k,id:x.d.id});toast(meta.name+' → برای بعد ⏳');renderAll();
+      if(ad.classList.contains('open'))renderSearch(q.value);
+    }).catch(function(){toast('خطای شبکه')});
     return;
   }
   if(b=e.target.closest('[data-sawm]')){
     var k2=b.dataset.sawm;
     var i=LATER.findIndex(function(x){return x.k===k2});
-    if(i>-1){LATER.splice(i,1);SEEN.push({k:k2,r:0});toast(M(k2).name+' دیده شد! امتیازت رو بده ⭐');renderAll();closeDetail()}
+    if(i>-1){
+      var o=LATER[i];
+      function doneSaw(){LATER.splice(i,1);SEEN.push({k:k2,r:0,id:o.id});toast(M(k2).name+' دیده شد! امتیازت رو بده ⭐');renderAll();closeDetail()}
+      if(o.id){
+        fetch('/api/movies/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({status:'completed'})
+        }).then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+         .then(function(x){if(!x.ok){toast('ذخیره نشد');return} doneSaw();})
+         .catch(function(){toast('خطای شبکه')});
+      } else doneSaw();
+    }
     return;
   }
   if(b=e.target.closest('[data-rate]')){
     var pr=b.dataset.rate.split(':'),kk=pr[0],n=parseInt(pr[1],10);
     var se=SEEN.find(function(x){return x.k===kk});
-    if(se){se.r=(se.r===n?0:n);toast(se.r?M(kk).name+' → '+'★'.repeat(se.r):'امتیاز پاک شد');renderAll();if(dEl.classList.contains('open'))openDetail(kk)}
+    if(se){
+      se.r=(se.r===n?0:n);
+      toast(se.r?M(kk).name+' → '+'★'.repeat(se.r):'امتیاز پاک شد');
+      renderAll();
+      if(dEl.classList.contains('open'))openDetail(kk);
+      if(se.id){
+        fetch('/api/movies/'+encodeURIComponent(se.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({rating:se.r||null})
+        }).catch(function(){});
+      }
+    }
     return;
   }
   if(b=e.target.closest('[data-delm]')){
     var k3=b.dataset.delm;
     var i1=SEEN.findIndex(function(x){return x.k===k3}),i2=LATER.findIndex(function(x){return x.k===k3});
-    if(i1>-1)SEEN.splice(i1,1); if(i2>-1)LATER.splice(i2,1);
-    toast(M(k3).name+' حذف شد');renderAll();closeDetail();
+    var o = i1>-1?SEEN[i1]:(i2>-1?LATER[i2]:null);
+    function doneDel(){
+      if(i1>-1)SEEN.splice(i1,1); if(i2>-1)LATER.splice(i2,1);
+      toast('حذف شد');renderAll();closeDetail();
+    }
+    if(o&&o.id){
+      fetch('/api/movies/'+encodeURIComponent(o.id),{method:'DELETE',credentials:'include'})
+        .then(function(r){if(r.status===401){location.href='/design/login-page.html';return} if(!r.ok){toast('حذف نشد');return} doneDel();})
+        .catch(function(){toast('خطای شبکه')});
+    } else doneDel();
     return;
   }
   if(b=e.target.closest('[data-chip]')){q.value=b.dataset.chip;search(q.value);return}
   if(b=e.target.closest('[data-addlive]')){
     var d;try{d=JSON.parse(decodeURIComponent(b.dataset.addlive))}catch(e2){return}
     var lk='lv'+Date.now();LIVEINFO[lk]={name:d.name,img:d.img,year:d.year,genre:'TMDB',dir:'—',min:0};
-    LATER.push({k:lk});toast(d.name+' → برای بعد ⏳');renderAll();return;
+    fetch('/api/movies',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title:d.name,type:'movie',status:'watchlist',year:d.year||null})
+    }).then(function(r){return r.json().then(function(j){return{ok:r.ok,status:r.status,d:j}})})
+    .then(function(x){
+      if(x.status===401){location.href='/design/login-page.html';return}
+      if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+      LATER.push({k:lk,id:x.d.id});toast(d.name+' → برای بعد ⏳');renderAll();
+    }).catch(function(){toast('خطای شبکه')});
+    return;
   }
   var c=e.target.closest('[data-open]');
   if(c)openDetail(c.dataset.open);
@@ -559,6 +603,31 @@ mb.addEventListener('click',function(){var r=document.documentElement,l=r.datase
   r.dataset.mode=l?'dark':'light';mb.textContent=l?'🌙':'☀️';});
 
 renderAll();
+
+function loadMoviesFromApi(){
+  return fetch('/api/movies?status=',{credentials:'include'})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+    .then(function(x){
+      if(x.status===401) return;
+      if(!x.ok||!x.d||!Array.isArray(x.d.items)) return;
+      SEEN.length=0; LATER.length=0;
+      x.d.items.filter(function(it){return !it.type || it.type==='movie'}).forEach(function(it){
+        var title=it.title||'';
+        var k=null;
+        if(typeof MV==='object'){
+          for(var key in MV){ if(MV[key]&&MV[key].name===title){k=key;break} }
+        }
+        if(!k){
+          k='api_'+it.id;
+          if(typeof LIVEINFO==='object') LIVEINFO[k]={name:title,img:it.poster||it.image||'',year:it.year||'',genre:'',dir:'—',min:0};
+        }
+        if(it.status==='completed') SEEN.push({k:k,r:it.rating||0,id:it.id});
+        else LATER.push({k:k,id:it.id});
+      });
+      try{renderAll()}catch(e){}
+    }).catch(function(e){console.error(e)});
+}
+loadMoviesFromApi();
 
 /* ===== nav auth ===== */
 (function(){fetch('/api/me').then(function(r){return r.json()}).then(function(d){
