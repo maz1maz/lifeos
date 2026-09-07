@@ -430,6 +430,86 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
 .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .empty-hint{color:var(--faint);text-align:center;padding:28px 12px;font-size:14.5px}
 
+/* Google-like contact profile */
+.ct-ava{color:#fff!important}
+.ct-ava-p0{background:#1e8e3e!important}.ct-ava-p1{background:#1a73e8!important}
+.ct-ava-p2{background:#d93025!important}.ct-ava-p3{background:#e8710a!important}
+.ct-ava-p4{background:#a142f4!important}.ct-ava-p5{background:#e52592!important}
+.ct-ava-p6{background:#007b83!important}.ct-ava-p7{background:#188038!important}
+
+.ct-profile{display:none}
+.ct-profile.show{display:block}
+.ct-form-wrap{display:none}
+.ct-form-wrap.show{display:block}
+.ct-empty{display:none;text-align:center;padding:48px 20px}
+.ct-empty.show{display:block}
+.ct-empty .big{font-size:48px;margin-bottom:12px;opacity:.7}
+.ct-empty p{color:var(--muted);margin:0 0 16px;font-size:15px}
+
+.ct-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 8px 20px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.ct-hero-ava{
+  width:120px;height:120px;border-radius:99px;display:grid;place-items:center;
+  font-family:var(--fh);font-weight:800;font-size:48px;color:#fff;margin-bottom:14px;
+  box-shadow:0 8px 28px -10px rgba(0,0,0,.45);
+}
+.ct-hero-name{font-family:var(--fh);font-size:26px;font-weight:800;margin:0 0 6px;line-height:1.3}
+.ct-hero-sub{color:var(--muted);font-size:14px;margin:0 0 4px}
+.ct-hero-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+.ct-hero-actions .btn{padding:8px 16px;font-size:13.5px}
+
+.ct-quick{
+  display:flex;justify-content:center;gap:6px;flex-wrap:wrap;
+  padding:16px 8px 18px;border-bottom:1px solid var(--border);margin-bottom:4px
+}
+.ct-qbtn{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  min-width:72px;padding:10px 12px;border-radius:16px;border:none;
+  background:transparent;color:var(--text);cursor:pointer;font-family:var(--fh);font-size:12px;
+  transition:background .15s;
+}
+.ct-qbtn:hover{background:var(--panel2)}
+.ct-qbtn:disabled{opacity:.35;cursor:not-allowed}
+.ct-qbtn .qi{
+  width:44px;height:44px;border-radius:99px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--acc) 14%,transparent);color:var(--acc);font-size:18px;
+  border:1px solid color-mix(in srgb,var(--acc) 28%,transparent);
+}
+.ct-qbtn span{color:var(--muted);font-weight:600}
+
+.ct-split{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding-top:12px}
+@media(max-width:700px){.ct-split{grid-template-columns:1fr}}
+.ct-panel{
+  background:var(--panel2);border:1px solid var(--border);border-radius:16px;padding:14px 16px;min-height:120px
+}
+.ct-panel h5{
+  font-family:var(--fh);font-size:14px;margin:0 0 12px;color:var(--muted);font-weight:700;
+  display:flex;align-items:center;gap:6px
+}
+.ct-drow{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border)}
+.ct-drow:last-child{border-bottom:none}
+.ct-dico{
+  width:36px;height:36px;border-radius:99px;flex:none;display:grid;place-items:center;
+  background:var(--panel);border:1px solid var(--border);font-size:15px
+}
+.ct-dmain{flex:1;min-width:0}
+.ct-dmain a{color:var(--acc);text-decoration:none;font-family:var(--fh);font-weight:600;font-size:15px;word-break:break-all}
+.ct-dmain a:hover{text-decoration:underline}
+.ct-dmain b{font-family:var(--fh);font-size:15px;display:block}
+.ct-dmain small{color:var(--faint);font-size:12px;display:block;margin-top:2px}
+.ct-hist-item{padding:10px 0;border-bottom:1px solid var(--border)}
+.ct-hist-item:last-child{border-bottom:none}
+.ct-hist-item .ht{font-family:var(--fh);font-weight:700;font-size:14px}
+.ct-hist-item .hd{color:var(--faint);font-size:12px;margin-inline-start:6px}
+.ct-hist-item .hn{color:var(--muted);font-size:13.5px;margin-top:4px;line-height:1.6}
+.ct-hist-add{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)}
+.ct-hist-add select,.ct-hist-add input{
+  background:var(--panel);border:1px solid var(--border2);border-radius:12px;color:var(--text);
+  padding:8px 10px;font:inherit;outline:none
+}
+.ct-hist-add input{flex:1;min-width:100px}
+.ct-detail-head{display:flex;align-items:center;gap:10px;margin-bottom:0}
+.ct-detail-head h4{flex:1;margin:0}
+
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
@@ -502,42 +582,79 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     </div>
 
     <div class="card" id="ctDetailCard">
-      <div class="mhead"><h4 id="ctFormTitle">➕ مخاطب جدید</h4></div>
-      <form id="ctForm" class="ct-form" autocomplete="off">
-        <input type="hidden" id="ctId" value="">
-        <div class="field full"><label>نام *</label><input id="ctName" required placeholder="نام و نام خانوادگی"></div>
-        <div class="field"><label>رابطه</label>
-          <select id="ctRel">
-            <option value="family">خانواده</option>
-            <option value="friend" selected>دوست</option>
-            <option value="work">کار</option>
-            <option value="other">سایر</option>
-          </select>
+      <!-- empty state -->
+      <div class="ct-empty show" id="ctEmpty">
+        <div class="big">👤</div>
+        <p>یک مخاطب از لیست انتخاب کن<br>یا مخاطب جدید بساز</p>
+        <button type="button" class="btn" id="ctEmptyNew">＋ مخاطب جدید</button>
+      </div>
+
+      <!-- Google-like profile view -->
+      <div class="ct-profile" id="ctProfile">
+        <div class="ct-detail-head">
+          <h4 style="font-family:var(--fh);font-size:16px;color:var(--muted);font-weight:700">پروفایل</h4>
+          <button type="button" class="btn ghost" id="ctEditBtn" style="padding:6px 14px;font-size:13px">✏️ ویرایش</button>
+          <button type="button" class="btn ghost" id="ctDeleteView" style="padding:6px 14px;font-size:13px;color:var(--bad);border-color:var(--bad)">حذف</button>
         </div>
-        <div class="field"><label>تلفن</label><input id="ctPhone" type="tel" placeholder="09…" dir="ltr" style="text-align:left"></div>
-        <div class="field"><label>ایمیل</label><input id="ctEmail" type="email" placeholder="name@…" dir="ltr" style="text-align:left"></div>
-        <div class="field"><label>تولد</label><input id="ctBirthday" type="date"></div>
-        <div class="field"><label>پیگیری بعدی</label><input id="ctFollow" type="date"></div>
-        <div class="field full"><label>یادداشت</label><textarea id="ctNotes" placeholder="هر چیزی که بدانی…"></textarea></div>
-        <div class="field full btn-row">
-          <button type="submit" class="btn" id="ctSave">ذخیره</button>
-          <button type="button" class="btn ghost" id="ctReset">پاک کردن فرم</button>
-          <button type="button" class="btn ghost" id="ctDelete" style="display:none;color:var(--bad);border-color:var(--bad)">حذف</button>
+        <div class="ct-hero">
+          <div class="ct-hero-ava ct-ava-p0" id="ctHeroAva">?</div>
+          <h2 class="ct-hero-name" id="ctHeroName">—</h2>
+          <p class="ct-hero-sub" id="ctHeroSub"></p>
         </div>
-      </form>
-      <div class="ct-log" id="ctLogWrap" style="display:none">
-        <div class="mhead" style="margin-bottom:8px"><h4 style="font-size:16px;margin:0">📝 لاگ ارتباط</h4></div>
-        <div class="btn-row" style="margin-top:0">
-          <select id="logType" style="background:var(--panel2);border:1px solid var(--border2);border-radius:12px;color:var(--text);padding:8px 10px;font:inherit">
-            <option value="call">تماس</option>
-            <option value="meet">ملاقات</option>
-            <option value="message">پیام</option>
-            <option value="other">سایر</option>
-          </select>
-          <input id="logNote" placeholder="یادداشت کوتاه…" style="flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--border2);border-radius:12px;color:var(--text);padding:8px 12px;font:inherit">
-          <button type="button" class="btn" id="logAdd">ثبت</button>
+        <div class="ct-quick">
+          <button type="button" class="ct-qbtn" id="ctQEmail" title="ایمیل"><div class="qi">✉️</div><span>ایمیل</span></button>
+          <button type="button" class="ct-qbtn" id="ctQCall" title="تماس"><div class="qi">📞</div><span>تماس</span></button>
+          <button type="button" class="ct-qbtn" id="ctQChat" title="پیام"><div class="qi">💬</div><span>پیام</span></button>
+          <button type="button" class="ct-qbtn" id="ctQVideo" title="ویدیو"><div class="qi">🎥</div><span>ویدیو</span></button>
+          <button type="button" class="ct-qbtn" id="ctQEdit" title="ویرایش"><div class="qi">✏️</div><span>ویرایش</span></button>
         </div>
-        <div id="ctLogs"></div>
+        <div class="ct-split">
+          <div class="ct-panel">
+            <h5>📋 جزئیات مخاطب</h5>
+            <div id="ctDetails"></div>
+          </div>
+          <div class="ct-panel">
+            <h5>🕒 تاریخچه</h5>
+            <div id="ctLogs"></div>
+            <div class="ct-hist-add" id="ctLogWrap">
+              <select id="logType">
+                <option value="call">تماس</option>
+                <option value="meet">ملاقات</option>
+                <option value="message">پیام</option>
+                <option value="other">سایر</option>
+              </select>
+              <input id="logNote" placeholder="یادداشت کوتاه…">
+              <button type="button" class="btn" id="logAdd" style="padding:8px 14px">ثبت</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- edit / new form -->
+      <div class="ct-form-wrap" id="ctFormWrap">
+        <div class="mhead"><h4 id="ctFormTitle">➕ مخاطب جدید</h4></div>
+        <form id="ctForm" class="ct-form" autocomplete="off">
+          <input type="hidden" id="ctId" value="">
+          <div class="field full"><label>نام *</label><input id="ctName" required placeholder="نام و نام خانوادگی"></div>
+          <div class="field"><label>رابطه</label>
+            <select id="ctRel">
+              <option value="family">خانواده</option>
+              <option value="friend" selected>دوست</option>
+              <option value="work">کار</option>
+              <option value="other">سایر</option>
+            </select>
+          </div>
+          <div class="field"><label>تلفن</label><input id="ctPhone" type="tel" placeholder="09…" dir="ltr" style="text-align:left"></div>
+          <div class="field"><label>ایمیل</label><input id="ctEmail" type="email" placeholder="name@…" dir="ltr" style="text-align:left"></div>
+          <div class="field"><label>تولد</label><input id="ctBirthday" type="date"></div>
+          <div class="field"><label>پیگیری بعدی</label><input id="ctFollow" type="date"></div>
+          <div class="field full"><label>یادداشت</label><textarea id="ctNotes" placeholder="هر چیزی که بدانی…"></textarea></div>
+          <div class="field full btn-row">
+            <button type="submit" class="btn" id="ctSave">ذخیره</button>
+            <button type="button" class="btn ghost" id="ctReset">انصراف</button>
+            <button type="button" class="btn ghost" id="ctDelete" style="display:none;color:var(--bad);border-color:var(--bad)">حذف</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -550,7 +667,7 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
 (function(){
   var REL={family:'خانواده',friend:'دوست',work:'کار',other:'سایر'};
   var LOG_T={call:'تماس',meet:'ملاقات',message:'پیام',other:'سایر'};
-  var CONTACTS=[], selectedId=null, importRows=[], importMode='skip';
+  var CONTACTS=[], selectedId=null, importRows=[], importMode='skip', viewMode='empty';
 
   function fa(n){try{return Number(n).toLocaleString('fa-IR')}catch(e){return String(n)}}
   function esc(s){return String(s||'').replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])})}
@@ -564,6 +681,126 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
     if(!p.length) return '?';
     if(p.length===1) return p[0].slice(0,2);
     return (p[0][0]||'')+(p[p.length-1][0]||'');
+  }
+  function avaLetter(name){
+    var s=String(name||'').trim();
+    if(!s) return '?';
+    return s.charAt(0).toUpperCase();
+  }
+  function avaColor(name){
+    var s=String(name||''), h=0;
+    for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0;
+    return 'ct-ava-p'+(h%8);
+  }
+  function splitPhones(phone){
+    return String(phone||'').split(/\s*[·|,;/]+\s*/).map(function(x){return x.trim()}).filter(Boolean);
+  }
+  function telHref(p){
+    var d=String(p||'').replace(/[^\d+]/g,'');
+    return d ? ('tel:'+d) : '#';
+  }
+  function smsHref(p){
+    var d=String(p||'').replace(/[^\d+]/g,'');
+    return d ? ('sms:'+d) : '#';
+  }
+  function setMode(m){
+    viewMode=m;
+    var emp=document.getElementById('ctEmpty');
+    var prof=document.getElementById('ctProfile');
+    var form=document.getElementById('ctFormWrap');
+    if(emp) emp.classList.toggle('show', m==='empty');
+    if(prof) prof.classList.toggle('show', m==='view');
+    if(form) form.classList.toggle('show', m==='edit' || m==='new');
+  }
+  function fillForm(c){
+    c=c||{};
+    document.getElementById('ctId').value=c.id||'';
+    document.getElementById('ctName').value=c.name||'';
+    document.getElementById('ctRel').value=c.relationship||'friend';
+    document.getElementById('ctPhone').value=c.phone||'';
+    document.getElementById('ctEmail').value=c.email||'';
+    document.getElementById('ctBirthday').value=c.birthday||'';
+    document.getElementById('ctFollow').value=c.followUpDate||'';
+    document.getElementById('ctNotes').value=c.notes||'';
+  }
+  function renderProfile(c){
+    if(!c){ setMode('empty'); return; }
+    setMode('view');
+    var ava=document.getElementById('ctHeroAva');
+    if(ava){
+      ava.className='ct-hero-ava '+avaColor(c.name);
+      ava.textContent=avaLetter(c.name);
+    }
+    var hn=document.getElementById('ctHeroName');
+    if(hn) hn.textContent=c.name||'—';
+    var sub=[];
+    if(c.relationship) sub.push(REL[c.relationship]||c.relationship);
+    if(c.followUpDate) sub.push('پیگیری '+c.followUpDate);
+    var hs=document.getElementById('ctHeroSub');
+    if(hs) hs.textContent=sub.join(' · ');
+
+    var phones=splitPhones(c.phone);
+    var email=(c.email||'').trim();
+    var qEmail=document.getElementById('ctQEmail');
+    var qCall=document.getElementById('ctQCall');
+    var qChat=document.getElementById('ctQChat');
+    var qVideo=document.getElementById('ctQVideo');
+    if(qEmail){ qEmail.disabled=!email; qEmail.onclick=email?function(){ location.href='mailto:'+email; }:null; }
+    if(qCall){ qCall.disabled=!phones.length; qCall.onclick=phones.length?function(){ location.href=telHref(phones[0]); }:null; }
+    if(qChat){ qChat.disabled=!phones.length; qChat.onclick=phones.length?function(){ location.href=smsHref(phones[0]); }:null; }
+    if(qVideo){ qVideo.disabled=!phones.length; qVideo.onclick=phones.length?function(){ location.href=telHref(phones[0]); }:null; }
+
+    var box=document.getElementById('ctDetails');
+    if(box){
+      var rows=[];
+      phones.forEach(function(ph,i){
+        rows.push('<div class="ct-drow"><div class="ct-dico">📞</div><div class="ct-dmain">'
+          +'<a href="'+esc(telHref(ph))+'" dir="ltr">'+esc(ph)+'</a>'
+          +'<small>'+(i===0?'تلفن':'تلفن '+(i+1))+'</small></div></div>');
+      });
+      if(email){
+        rows.push('<div class="ct-drow"><div class="ct-dico">✉️</div><div class="ct-dmain">'
+          +'<a href="mailto:'+esc(email)+'" dir="ltr">'+esc(email)+'</a>'
+          +'<small>ایمیل</small></div></div>');
+      }
+      if(c.birthday){
+        rows.push('<div class="ct-drow"><div class="ct-dico">🎂</div><div class="ct-dmain">'
+          +'<b dir="ltr">'+esc(c.birthday)+'</b><small>تولد</small></div></div>');
+      }
+      if(c.followUpDate){
+        rows.push('<div class="ct-drow"><div class="ct-dico">📌</div><div class="ct-dmain">'
+          +'<b dir="ltr">'+esc(c.followUpDate)+'</b><small>پیگیری بعدی</small></div></div>');
+      }
+      if(c.relationship){
+        rows.push('<div class="ct-drow"><div class="ct-dico">🏷️</div><div class="ct-dmain">'
+          +'<b>'+esc(REL[c.relationship]||c.relationship)+'</b><small>رابطه</small></div></div>');
+      }
+      if(c.notes){
+        rows.push('<div class="ct-drow"><div class="ct-dico">📝</div><div class="ct-dmain">'
+          +'<b style="font-weight:500;white-space:pre-wrap">'+esc(c.notes)+'</b><small>یادداشت</small></div></div>');
+      }
+      box.innerHTML=rows.length?rows.join(''):'<div class="empty-hint" style="padding:16px">جزئیاتی ثبت نشده</div>';
+    }
+    loadLogs(c.id);
+  }
+  function openEdit(){
+    if(!selectedId) return;
+    var c=CONTACTS.find(function(x){return x.id===selectedId});
+    if(!c) return;
+    fillForm(c);
+    document.getElementById('ctFormTitle').textContent='✏️ ویرایش · '+(c.name||'');
+    document.getElementById('ctDelete').style.display='';
+    setMode('edit');
+  }
+  function openNew(){
+    selectedId=null;
+    fillForm({});
+    document.getElementById('ctFormTitle').textContent='➕ مخاطب جدید';
+    document.getElementById('ctDelete').style.display='none';
+    document.getElementById('ctLogs').innerHTML='';
+    setMode('new');
+    renderList();
+    try{ document.getElementById('ctName').focus(); }catch(e){}
   }
   function authHeaders(){
     var h={'Content-Type':'application/json'};
@@ -605,7 +842,9 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
       if(selectedId){
         var still=CONTACTS.some(function(c){return c.id===selectedId});
         if(still) selectContact(selectedId);
-        else clearForm();
+        else { selectedId=null; setMode('empty'); renderList(); }
+      } else if(viewMode!=='new' && viewMode!=='edit'){
+        setMode('empty');
       }
     }).catch(function(e){ toast('خطا در بارگذاری'); console.error(e); });
   }
@@ -635,7 +874,7 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
       var sub=[REL[c.relationship]||c.relationship, c.phone||c.email||''].filter(Boolean).join(' · ');
       var meta=c.followUpDate?('پیگیری '+c.followUpDate):(c.birthday?('🎂 '+c.birthday):'');
       return '<div class="ct-row'+on+'" data-id="'+esc(c.id)+'">'
-        +'<div class="ct-ava">'+esc(initials(c.name))+'</div>'
+        +'<div class="ct-ava '+avaColor(c.name)+'">'+esc(avaLetter(c.name))+'</div>'
         +'<div class="ct-main"><b>'+esc(c.name)+'<span class="relchip">'+esc(REL[c.relationship]||c.relationship||'')+'</span></b>'
         +'<small>'+esc(sub)+'</small></div>'
         +'<div class="ct-meta">'+esc(meta)+'</div></div>';
@@ -643,39 +882,16 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
   }
 
   function clearForm(){
-    selectedId=null;
-    document.getElementById('ctId').value='';
-    document.getElementById('ctName').value='';
-    document.getElementById('ctRel').value='friend';
-    document.getElementById('ctPhone').value='';
-    document.getElementById('ctEmail').value='';
-    document.getElementById('ctBirthday').value='';
-    document.getElementById('ctFollow').value='';
-    document.getElementById('ctNotes').value='';
-    document.getElementById('ctFormTitle').textContent='➕ مخاطب جدید';
-    document.getElementById('ctDelete').style.display='none';
-    document.getElementById('ctLogWrap').style.display='none';
-    document.getElementById('ctLogs').innerHTML='';
-    renderList();
+    openNew();
   }
 
   function selectContact(id){
     var c=CONTACTS.find(function(x){return x.id===id});
     if(!c)return;
     selectedId=id;
-    document.getElementById('ctId').value=c.id;
-    document.getElementById('ctName').value=c.name||'';
-    document.getElementById('ctRel').value=c.relationship||'friend';
-    document.getElementById('ctPhone').value=c.phone||'';
-    document.getElementById('ctEmail').value=c.email||'';
-    document.getElementById('ctBirthday').value=c.birthday||'';
-    document.getElementById('ctFollow').value=c.followUpDate||'';
-    document.getElementById('ctNotes').value=c.notes||'';
-    document.getElementById('ctFormTitle').textContent='✏️ '+c.name;
-    document.getElementById('ctDelete').style.display='';
-    document.getElementById('ctLogWrap').style.display='';
+    fillForm(c);
     renderList();
-    loadLogs(id);
+    renderProfile(c);
   }
 
   function loadLogs(id){
@@ -683,11 +899,14 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
       .then(function(r){return r.json()})
       .then(function(d){
         var box=document.getElementById('ctLogs');
+        if(!box) return;
         var items=d.items||[];
-        if(!items.length){ box.innerHTML='<div class="empty-hint" style="padding:12px">هنوز لاگی نیست</div>'; return; }
+        if(!items.length){ box.innerHTML='<div class="empty-hint" style="padding:12px">هنوز سابقه‌ای نیست</div>'; return; }
         box.innerHTML=items.map(function(l){
-          return '<div class="ct-log-item"><b>'+esc(LOG_T[l.type]||l.type)+'</b> · '+esc(l.date||'')
-            +'<small>'+esc(l.note||'')+'</small></div>';
+          return '<div class="ct-hist-item"><span class="ht">'+esc(LOG_T[l.type]||l.type)+'</span>'
+            +'<span class="hd">'+esc(l.date||'')+'</span>'
+            +(l.note?'<div class="hn">'+esc(l.note)+'</div>':'')
+            +'</div>';
         }).join('');
       }).catch(function(){});
   }
@@ -698,8 +917,17 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
   });
   document.getElementById('ctSearch').addEventListener('input',renderList);
   document.getElementById('ctRelFilter').addEventListener('change',renderList);
-  document.getElementById('ctNewBtn').addEventListener('click',clearForm);
-  document.getElementById('ctReset').addEventListener('click',clearForm);
+  document.getElementById('ctNewBtn').addEventListener('click',openNew);
+  document.getElementById('ctReset').addEventListener('click',function(){
+    if(selectedId){ selectContact(selectedId); }
+    else { selectedId=null; setMode('empty'); fillForm({}); renderList(); }
+  });
+  var _ed=document.getElementById('ctEditBtn');
+  if(_ed) _ed.addEventListener('click', openEdit);
+  var _qe=document.getElementById('ctQEdit');
+  if(_qe) _qe.addEventListener('click', openEdit);
+  var _en=document.getElementById('ctEmptyNew');
+  if(_en) _en.addEventListener('click', openNew);
 
   document.getElementById('ctForm').addEventListener('submit',function(e){
     e.preventDefault();
@@ -721,18 +949,26 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
       .then(function(x){
         if(!x.ok){ toast((x.d&&x.d.error)||'خطا'); return; }
         toast(id?'به‌روز شد ✓':'اضافه شد ✓');
-        selectedId=x.d.id||id;
-        load();
+        var nid=(x.d&&(x.d.id||(x.d.item&&x.d.item.id)))||id||selectedId;
+        selectedId=nid;
+        load().then(function(){ if(nid) selectContact(nid); });
       }).catch(function(){toast('خطای شبکه')});
   });
 
-  document.getElementById('ctDelete').addEventListener('click',function(){
-    var id=document.getElementById('ctId').value; if(!id)return;
+  function doDelete(){
+    var id=selectedId||document.getElementById('ctId').value; if(!id)return;
     if(!confirm('این مخاطب حذف شود؟'))return;
     fetch('/api/contacts/'+encodeURIComponent(id),{method:'DELETE',credentials:'include'})
-      .then(function(r){ if(!r.ok) throw new Error(); toast('حذف شد'); clearForm(); return load(); })
+      .then(function(r){
+        if(r.status===401){location.href='/design/login-page.html';return}
+        if(!r.ok) throw new Error();
+        toast('حذف شد'); selectedId=null; setMode('empty'); fillForm({}); return load();
+      })
       .catch(function(){toast('حذف نشد')});
-  });
+  }
+  document.getElementById('ctDelete').addEventListener('click', doDelete);
+  var _dv=document.getElementById('ctDeleteView');
+  if(_dv) _dv.addEventListener('click', doDelete);
 
   document.getElementById('logAdd').addEventListener('click',function(){
     var id=selectedId; if(!id)return;
@@ -1244,6 +1480,7 @@ html[data-mode="light"] .ct-tools select{color-scheme:light}
   }
 
 
+  setMode('empty');
   load();
 })();
 </script>
