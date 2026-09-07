@@ -1,152 +1,99 @@
-# سریال‌ها (Series) — مشخصات و هدف
+# سریال‌ها (Series) — مشخصات + محل کد
 
-> این ماژول از **UI حذف شده** است (صفحه، لینک ناوبری، کارت خانه).  
-> این سند ثبت می‌کند **قرار بود چه باشد و چه کار کند** تا اگر بعداً از نو ساخته شد، قرارداد روشن باشد.  
-> API بک‌اند (`/api/movies` برای `type=series`) ممکن است هنوز باشد؛ فقط فرانت سریال برداشته شده.
+> **توجه:** این سند مشخصات و مرجع است.  
+> کد زندهٔ UI اینجاست: `public/design/series-page.html`  
+> (قبلاً به‌اشتباه حذف شد و دوباره restore شده.)
+
+---
+
+## محل فایل‌ها
+
+| فایل | نقش |
+|------|-----|
+| `public/design/series-page.html` | صفحهٔ کامل سریال‌ها (HTML + CSS + JS) |
+| `public/index.html` | کارت کوتاه سریال روی خانه (`epcard` / `EPS`) |
+| `server.js` / `cloudflare/worker.js` | API: TVMaze، progress، Bingers، refresh-episodes |
 
 ---
 
 ## ۱. هدف کلی
 
-یک **ردیاب تماشای سریال** شخصی داخل LifeOS:
+ردیاب شخصی تماشای سریال داخل LifeOS:
 
 - چه سریالی را می‌بینم / می‌خواهم ببینم / تمام کرده‌ام
 - در **کدام فصل و کدام قسمت** هستم
-- قسمت‌های **واقعاً پخش‌شده** را از منبع خارجی (TVMaze) بگیرد تا نشود قسمتِ نیامده را «دیده‌شده» زد
-- پوستر، ژانر، وضعیت پخش (running/ended)، اعلان قسمت تازه
-
-مخاطب: خودِ کاربر — نه کاتالوگ عمومی.
+- قسمت‌های **واقعاً پخش‌شده** از TVMaze (نشود قسمت نیامده را «دیده‌شده» زد)
+- پوستر، ژانر، وضعیت پخش، اعلان قسمت تازه
 
 ---
 
-## ۲. صفحهٔ اصلی (حذف‌شده: `/design/series-page.html`)
+## ۲. UI صفحه (`series-page.html`)
 
-### ۲.۱ چیدمان UI (طراحی sx-*)
+### تب‌ها
 
-| بخش | نقش |
-|------|-----|
-| هدر | عنوان «سریال‌ها» + جستجو + افزودن + ایمپورت Bingers |
-| تب‌ها | **در حال دیدن** · **در انتظار** · **تمام‌شده** · **واچ‌لیست** |
-| گرید کارت | پوستر + عنوان + فصل + `cur / tot` + نوار پیشرفت + `−` / `+` |
-| دراور جزئیات | خلاصه، وضعیت، `+۱ قسمت`، پایان سریال، شروع از واچ‌لیست |
-| دراور افزودن | جستجوی TVMaze → افزودن به واچ‌لیست |
-| دراور ایمپورت | CSV Bingers: **preview → commit** (تک‌مرحله‌ای نیست) |
+1. **در حال دیدن (`watching`)**
+2. **در انتظار (`waiting`)** — فصل کامل / catch-up تا aired ولی فصل/فصل بعد هنوز کامل نیست
+3. **تمام‌شده (`completed`)** — بدون `+قسمت`
+4. **واچ‌لیست (`watchlist`)** — شروع‌نشده
 
-### ۲.۲ تب‌ها
+### کارت
 
-1. **در حال دیدن (`watching`)** — `status=watching` و هنوز به انتهای قابل‌مشاهدهٔ فصل نرسیده.
-2. **در انتظار (`waiting`)** فقط وقتی:
-   - فصل جاری کامل دیده شده و فصل بعد نیست / تاریخ next در آینده است، **یا**
-   - با قسمت‌های **پخش‌شده** catch-up شده‌ای ولی فصل هنوز قسمت نیامده دارد.  
-   نباید با watching قاطی شود.
-3. **تمام‌شده (`completed`)** — بدون دکمهٔ `+قسمت`.
-4. **واچ‌لیست (`watchlist`)** — اضافه‌شده، شروع‌نشده.
+پوستر + عنوان + فصل + `cur / tot` + نوار پیشرفت + `−` / `+`  
+دراور: جزئیات، افزودن (TVMaze)، ایمپورت Bingers (preview → commit)
 
-### ۲.۳ پیشرفت قسمت (قرارداد درست)
+---
+
+## ۳. قرارداد پیشرفت قسمت
 
 | فیلد | معنی |
 |------|------|
-| `currentSeason` | فصل **جاری** (۱-based) |
-| `currentEpisode` | چند قسمت از **همین فصل** دیده شده |
-| `totalEpisodes` | **طول همین فصل** — نه جمع همهٔ فصل‌ها |
-| `airedInSeason` | چند قسمت از همین فصل تا امروز پخش شده (`airdate ≤ today`) |
+| `currentSeason` | فصل جاری |
+| `currentEpisode` | قسمت دیده‌شده **در همین فصل** |
+| `totalEpisodes` | **طول همین فصل** (نه جمع همهٔ فصل‌ها) |
+| `airedInSeason` | چند قسمت تا امروز پخش شده |
 | `seasonEpisodes` | `{ [season]: { total, aired } }` |
 
-قوانین سخت:
+قوانین:
 
-- **`+` فقط تا `airedInSeason`** (مثال: Lanterns S1 = ۸ قسمت، ۴ پخش → سقف کلیک = ۴).
-- **هرگز `totalEpisodes` را hardcode نکن (مثل ۱۰)**.
-- **هرگز total کل شوی را جای فصل نگذار** (اشتباه Lioness ≈ ۲۴ به‌جای ۸ هر فصل).
-- فصل بعد فقط اگر در `seasonEpisodes` وجود دارد → دکمهٔ «شروع فصل بعد»، نه پرش به S5 الکی.
-- بعد از load: refresh اجباری TVMaze برای هر watching.
-- PATCH سرور هم `currentEpisode` را به aired همان فصل clamp کند.
-
-### ۲.۴ افزودن سریال
-
-1. `GET /api/movies/tvmaze/search?q=`
-2. `POST /api/movies/from-tvmaze` `{ tvmazeId, status:'watchlist' }`  
-   — `seasonEpisodes` از embed episodes؛ total = فصل ۱ نه `eps.length` کل.
-3. «شروع»: `watching`, S1, ep 0، بعد sync.
-
-### ۲.۵ ایمپورت Bingers
-
-- `POST /api/movies/import-bingers/preview`
-- `POST /api/movies/import-bingers/commit`  
-بدون دمو/نمونهٔ کاربر داخل صفحه.
-
-### ۲.۶ خانه (حذف‌شده)
-
-کارت `epcard` زیر tasks: لیست کوتاه watching + لینک به صفحهٔ سریال از `dash.watchingSeries`.
+- `+` فقط تا **aired** (مثلاً Lanterns S1: ۸ قسمت، ۴ پخش → سقف ۴)
+- نه hardcode مثل `tot=10`
+- نه total کل شوی به‌جای فصل (اشتباه Lioness ≈ ۲۴)
+- فصل بعد فقط اگر در TVMaze وجود دارد
+- load → refresh اجباری season از TVMaze
+- PATCH سرور هم episode را به aired clamp می‌کند
 
 ---
 
-## ۳. APIهای مرتبط (بک‌اند)
+## ۴. API
 
-| متد | مسیر | کار |
-|-----|------|-----|
-| GET | `/api/movies` | لیست |
-| PATCH/DELETE | `/api/movies/:id` | پیشرفت / حذف + clamp |
-| GET | `/api/movies/tvmaze/search` | جستجو |
-| GET | `/api/movies/tvmaze/seasons` | bySeason / aired / total |
-| POST | `/api/movies/:id/refresh-episodes` | همگام اجباری |
-| POST | `/api/movies/from-tvmaze` | افزودن |
-| POST | `/api/movies/import-bingers/preview` | پیش‌نمایش |
-| POST | `/api/movies/import-bingers/commit` | ثبت |
-| GET | `/api/movies/next-episode-alerts` | قسمت تازه |
-
-منبع حقیقت اپیزود: **TVMaze**.
+| متد | مسیر |
+|-----|------|
+| GET | `/api/movies` |
+| PATCH/DELETE | `/api/movies/:id` |
+| GET | `/api/movies/tvmaze/search` |
+| GET | `/api/movies/tvmaze/seasons` |
+| POST | `/api/movies/:id/refresh-episodes` |
+| POST | `/api/movies/from-tvmaze` |
+| POST | `/api/movies/import-bingers/preview` |
+| POST | `/api/movies/import-bingers/commit` |
+| GET | `/api/movies/next-episode-alerts` |
 
 ---
 
-## ۴. status
+## ۵. خانه
 
-| مقدار | UI |
-|--------|-----|
-| `watchlist` | واچ‌لیست |
-| `watching` | دیدن / انتظار (بر اساس progress) |
-| `completed` | تمام |
-| `dropped` | رها |
+کارت `epcard` زیر tasks: لیست کوتاه watching + لینک به `/design/series-page.html`.
 
 ---
 
-## ۵. باگ‌های درس‌گرفته
+## ۶. باگ‌های درس‌گرفته
 
-1. `tot=10` هاردکد در start/rewatch  
-2. `totalEpisodes = همهٔ episodes شوی`  
-3. نبودن `aired` → `+` تا tot آزاد  
-4. refresh اختیاری → عدد کهنه روی دیسک  
-5. waiting قاطی watching و `+` روی تمام‌شده  
-
-بازسازی باید از روز اول: **per-season + aired-lock + refresh on load + clamp server**.
+1. `tot=10` هاردکد  
+2. total = همهٔ episodes شوی  
+3. نبود aired → `+` آزاد  
+4. refresh اختیاری → عدد کهنه  
+5. waiting قاطی watching  
 
 ---
 
-## ۶. خارج از اسکوپ
-
-پلیر/استریم، سوشال، ریتینگ عمومی — فقط کتابخانهٔ شخصی + پیشرفت واقعی پخش.
-
----
-
-## ۷. حذف‌شده در این تغییر
-
-- `public/design/series-page.html`
-- لینک ناو «🎬 سریال‌ها» از همهٔ صفحات
-- کارت `epcard` و JS خانه (`EPS` / `renderEps` / epList / epGoAll)
-
-بک‌اند movies/series عمداً نگه داشته شد مگر جداگانه پاک شود.
-
----
-
-## ۸. چک‌لیست پذیرش (اگر دوباره ساخته شد)
-
-- [ ] Lanterns S1: tot=۸؛ با ۴ پخش‌شده `+` بعد از ۴ قفل  
-- [ ] Lioness: فصل‌به‌فصل نه ۲۴ یکجا  
-- [ ] بدون فصل ساختگی  
-- [ ] waiting ≠ watching؛ completed بدون +  
-- [ ] لیست خالی تا کاربر اضافه کند  
-- [ ] Bingers فقط preview→commit  
-- [ ] بعد از deploy اعداد از TVMaze نه tot کهنه  
-
----
-
-*ثبت هنگام حذف UI سریال از LifeOS — مرجع بازطراحی.*
+*مرجع مشخصات سریال LifeOS.*

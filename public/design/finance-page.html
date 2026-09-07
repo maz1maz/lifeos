@@ -467,7 +467,7 @@ body.nav-open .nav-backdrop{display:block}
 <div class="wrap">
   <div class="ptools"><button class="iconbtn" id="eyeBtn">👁</button><button class="btn" id="impBtn">📥 درون‌ریزی اکسل بانک</button></div>
 
-  <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html" class="on">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
+  <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html" class="on">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
   <p class="lead">حساب‌ها، تاریخچه‌ی کامل بانک، آمار ۲۴ ماه و پورتفو — همه در یک صفحه</p>
 
@@ -516,7 +516,7 @@ body.nav-open .nav-backdrop{display:block}
         <div class="dbsum" id="debtSumPay"></div>
         <div class="addh">
           <input id="dbNPay" placeholder="نام — مثلاً وام مسکن" style="flex:1;min-width:120px">
-          <div class="dbcur" id="dbCurPay" data-cur="IRT"><button type="button" class="on" data-c="IRT">تومان</button><button type="button" data-c="USD">$</button></div><input id="dbTotPay" placeholder="کل مبلغ" style="width:100px;direction:ltr" inputmode="decimal">
+          <div class="dbcur" id="dbCurPay" data-cur="IRT"><button type="button" data-c="IRT">تومان</button><button type="button" data-c="USD">$</button></div><input id="dbTotPay" placeholder="کل مبلغ" style="width:100px;direction:ltr" inputmode="decimal">
           <input id="dbPaidPay" placeholder="پرداخت‌شده" style="width:100px;direction:ltr" inputmode="decimal">
           <input id="dbNotePay" class="dbdesc" placeholder="توضیح بدهی — مثلاً بابت وام، قسط بانک، خرید…" style="flex:1 1 100%;min-width:140px">
           <button id="dbAddPay">➕ بدهی</button>
@@ -528,7 +528,7 @@ body.nav-open .nav-backdrop{display:block}
         <div class="dbsum" id="debtSumRec"></div>
         <div class="addh">
           <input id="dbNRec" placeholder="نام — مثلاً علی" style="flex:1;min-width:120px">
-          <div class="dbcur" id="dbCurRec" data-cur="IRT"><button type="button" class="on" data-c="IRT">تومان</button><button type="button" data-c="USD">$</button></div><input id="dbTotRec" placeholder="کل مبلغ" style="width:100px;direction:ltr" inputmode="decimal">
+          <div class="dbcur" id="dbCurRec" data-cur="IRT"><button type="button" data-c="IRT">تومان</button><button type="button" data-c="USD">$</button></div><input id="dbTotRec" placeholder="کل مبلغ" style="width:100px;direction:ltr" inputmode="decimal">
           <input id="dbPaidRec" placeholder="دریافت‌شده" style="width:100px;direction:ltr" inputmode="decimal">
           <input id="dbNoteRec" class="dbdesc" placeholder="توضیح طلب — مثلاً بابت قرض به علی، پروژه…" style="flex:1 1 100%;min-width:140px">
           <button id="dbAddRec">➕ طلب</button>
@@ -604,7 +604,7 @@ body.nav-open .nav-backdrop{display:block}
         <button id="mPrev">‹</button><span id="mLab">—</span><button id="mNext">›</button>
       </div>
       <div class="seg">
-        <button class="on" data-k="all">همه</button>
+        <button data-k="all">همه</button>
         <button data-k="expense">خرج</button>
         <button data-k="income">دریافت</button>
       </div>

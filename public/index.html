@@ -1095,7 +1095,7 @@ body.nav-open .nav-backdrop{display:block}
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
 <body>
-<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="on">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
+<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/" class="on">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap">
 
@@ -1164,7 +1164,7 @@ body.nav-open .nav-backdrop{display:block}
     </div>
   </div>
 
-  <!-- ردیف ۲+۳: چهار ستون هم‌تراز — هوا|ثبت · بازار|تراکنش · بازی|بودجه · کار+یادآوری -->
+  <!-- ردیف ۲+۳: چهار ستون هم‌تراز — هوا|ثبت · بازار|تراکنش · بازی|بودجه · کار+یادآوری|سریال -->
 <div class="home-row r2r3">
 <div class="home-col hc-weather-daily">
   <div class="hc-top">
@@ -1341,7 +1341,7 @@ body.nav-open .nav-backdrop{display:block}
 </div>
   </div>
 </div>
-<div class="home-col hc-tasks">
+<div class="home-col hc-tasks-series">
   <div class="hc-top">
 <div class="tr-combo" id="trCombo">
     <div class="tr-panel">
@@ -1363,7 +1363,17 @@ body.nav-open .nav-backdrop{display:block}
     </div>
   </div>
   </div>
+  <div class="hc-bot">
+<div class="epcard">
+    <div class="mhead">
+      <h4>🎬 سریال‌ها</h4>
+      <span class="cnt" id="epCnt">—</span>
+      <span style="font-size:14px;color:var(--acc);cursor:pointer" id="epGoAll">سریال‌های من ←</span>
+    </div>
+    <div id="epList"></div>
+    <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
 </div>
+  </div>
 </div>
 </div>
 
@@ -1812,6 +1822,30 @@ function renderWeather(d){
 
 
 /* ================= NEW EPISODES ================= */
+var EPS=[]; /* خالی تا API سریال‌ها پر کند */
+function renderEps(){
+  var el=document.getElementById('epList'),html='';
+  EPS.forEach(function(x,i){
+    if(!x)return;
+    html+='<div class="eprow" data-i="'+i+'"><div class="epic">'+x.ic+'</div>'
+      +'<div class="et"><b>'+x.t+'</b><small>'+x.s+'</small></div>'
+      +(x.fresh?'<span class="newb">جدید</span>':'')
+      +'<button class="sawbtn">دیدمش ✓</button></div>';
+  });
+  el.innerHTML=html||'<div style="color:var(--faint);font-size:14px;padding:8px 2px">قسمت جدیدی نیست — از صفحه سریال‌ها دنبال کن</div>';
+  var n=EPS.filter(Boolean).length;
+  var cnt=document.getElementById('epCnt'); if(cnt) cnt.textContent=n?fa(n)+' قسمت':'—';
+  var done=document.getElementById('epDone'); if(done) done.classList.toggle('show', false);
+}
+document.getElementById('epList').addEventListener('click',function(e){
+  var b=e.target.closest('.sawbtn'); if(!b)return;
+  var row=b.closest('.eprow');
+  toast('«'+EPS[+row.dataset.i].t+'» → دیده‌شده‌ها ✓');
+  row.classList.add('gone');
+  setTimeout(function(){EPS[+row.dataset.i]=null;renderEps()},320);
+});
+document.getElementById('epGoAll').addEventListener('click',function(){location.href='/design/series-page.html'});
+renderEps();
 
 /* ===== تقویم شمسی ===== */
 function jdiv(a,b){return ~~(a/b)}
@@ -2410,7 +2444,22 @@ function loadHomeFromApi(){
       BUDGET.daysLeft = Math.max(0, dim - t.getDate());
       if(typeof renderBud==='function') renderBud();
     }
-}).catch(function(e){ console.error('loadHomeFromApi', e); });
+    // series watching on home
+    if(dash && Array.isArray(dash.watchingSeries)){
+      try{
+        EPS = dash.watchingSeries.slice(0,6).map(function(m){
+          return {
+            ic:'🎬',
+            t:m.title||'سریال',
+            s:(m.currentSeason?('S'+m.currentSeason+' · '):'')+(m.currentEpisode!=null?('قسمت '+m.currentEpisode): (m.progress||'')),
+            fresh:!!m.newEpisode,
+            id:m.id
+          };
+        });
+        if(typeof renderEps==='function') renderEps();
+      }catch(e){}
+    }
+  }).catch(function(e){ console.error('loadHomeFromApi', e); });
 }
 loadHomeFromApi();
 
