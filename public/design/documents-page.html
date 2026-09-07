@@ -287,9 +287,90 @@ body.nav-open .nav-backdrop{display:block}
   #gamesCard .gwrap, #gamesCard #gamesList{max-height:min(68vh, 580px)!important}
 }
 
-.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}.field input,.field select{background:var(--panel2);border:1px solid var(--border);border-radius:12px;color:var(--text);padding:9px 12px;font:inherit}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+.field input,.field select,
+select#docType,select#docFilter,#docSearch{
+  background:var(--panel2);
+  border:1px solid var(--border2);
+  border-radius:12px;
+  color:var(--text);
+  padding:9px 12px;
+  font:inherit;
+  width:100%;
+  max-width:100%;
+  outline:none;
+  /* ویندوز/کروم: منوی native با تم درست */
+  color-scheme:dark;
+  appearance:auto;
+  -webkit-appearance:menulist;
+}
+html[data-mode="light"] .field input,
+html[data-mode="light"] .field select,
+html[data-mode="light"] select#docType,
+html[data-mode="light"] select#docFilter,
+html[data-mode="light"] #docSearch{
+  color-scheme:light;
+}
+/* آیتم‌های بازشونده: متن تیره روی سفید (ویندوز اغلب پس‌زمینه روشن می‌دهد) */
+.field select option,
+select#docType option,
+select#docFilter option{
+  background-color:#ffffff !important;
+  color:#1b2233 !important;
+  font-weight:600;
+  padding:8px 10px;
+}
+/* اگر تم تیره سیستم باشد */
+@media (prefers-color-scheme: dark){
+  html:not([data-mode="light"]) .field select option,
+  html:not([data-mode="light"]) select#docType option,
+  html:not([data-mode="light"]) select#docFilter option{
+    background-color:#121826 !important;
+    color:#e8eaf0 !important;
+  }
+}
+html[data-mode="light"] .field select option,
+html[data-mode="light"] select#docType option,
+html[data-mode="light"] select#docFilter option{
+  background-color:#ffffff !important;
+  color:#1b2233 !important;
+}
+.field select:focus,
+select#docType:focus,
+select#docFilter:focus,
+.field input:focus,
+#docSearch:focus{
+  border-color:var(--acc);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 22%,transparent);
+}
 .btn{background:var(--acc);color:#062028;border:none;border-radius:12px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer}.btn.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel);border:1px solid var(--border2);padding:10px 18px;border-radius:14px;opacity:0;pointer-events:none;transition:.2s;z-index:100;font-size:14px}#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.typechips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.typechip{
+  appearance:none;-webkit-appearance:none;border:1.5px solid var(--border2);
+  background:var(--panel2);color:var(--text);
+  font-family:var(--fh);font-size:13.5px;font-weight:600;
+  padding:7px 14px;border-radius:999px;cursor:pointer;
+  line-height:1.4;transition:background .15s,border-color .15s,color .15s,box-shadow .15s;
+}
+.typechip:hover{border-color:var(--acc);color:var(--acc)}
+.typechip.on{
+  background:color-mix(in srgb,var(--acc) 18%,var(--panel2));
+  border-color:var(--acc);color:var(--acc);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 20%,transparent);
+  font-weight:800;
+}
+.filterchips{justify-content:flex-end;max-width:100%}
+.filterchips .typechip{font-size:12.5px;padding:5px 11px}
+.field input[type="date"]{color-scheme:dark;min-height:42px}
+html[data-mode="light"] .field input[type="date"]{color-scheme:light}
+html[data-mode="light"] #docSearch{color-scheme:light}
+#docSearch{color-scheme:dark}
+@media(max-width:640px){
+  .filterchips{justify-content:flex-start}
+}
+
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
@@ -311,21 +392,23 @@ body.nav-open .nav-backdrop{display:block}
 
   <div class="card" style="margin-bottom:14px">
     <div class="mhead"><h4>➕ سند جدید</h4></div>
-    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;align-items:end">
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px;align-items:end">
       <div class="field"><label>عنوان</label><input id="docTitle" placeholder="مثلاً بیمه بدنه ماشین" style="width:100%"></div>
-      <div class="field"><label>نوع</label>
-        <select id="docType" style="width:100%">
-          <option value="id">مدرک هویتی</option>
-          <option value="insurance">بیمه</option>
-          <option value="warranty">گارانتی</option>
-          <option value="contract">قرارداد</option>
-          <option value="license">گواهینامه / مجوز</option>
-          <option value="bank">بانک / کارت</option>
-          <option value="medical">پزشکی</option>
-          <option value="other">سایر</option>
-        </select>
-      </div>
       <div class="field"><label>تاریخ انقضا</label><input id="docExpiry" type="date" style="width:100%"></div>
+      <div class="field" style="grid-column:1/-1">
+        <label>نوع مدرک</label>
+        <input type="hidden" id="docType" value="other">
+        <div class="typechips" id="docTypeChips" role="listbox" aria-label="نوع مدرک">
+          <button type="button" class="typechip" data-type="id">🪪 هویتی</button>
+          <button type="button" class="typechip" data-type="insurance">🛡 بیمه</button>
+          <button type="button" class="typechip" data-type="warranty">🧾 گارانتی</button>
+          <button type="button" class="typechip" data-type="contract">📝 قرارداد</button>
+          <button type="button" class="typechip" data-type="license">📑 مجوز</button>
+          <button type="button" class="typechip" data-type="bank">💳 بانک</button>
+          <button type="button" class="typechip" data-type="medical">💊 پزشکی</button>
+          <button type="button" class="typechip on" data-type="other">📄 سایر</button>
+        </div>
+      </div>
     </div>
     <div class="field" style="margin-top:10px"><label>یادداشت</label><input id="docNotes" placeholder="شماره بیمه‌نامه، کد پیگیری، …" style="width:100%"></div>
     <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
@@ -340,24 +423,25 @@ body.nav-open .nav-backdrop{display:block}
   </div>
 
   <div class="card" style="margin-bottom:14px">
-    <div class="mhead">
+    <div class="mhead" style="flex-wrap:wrap;align-items:flex-start">
       <h4>📚 آرشیو من</h4>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input id="docSearch" placeholder="جستجو…" style="min-width:140px;padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--text);font:inherit">
-        <select id="docFilter" style="padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--text);font:inherit">
-          <option value="">همه انواع</option>
-          <option value="id">هویتی</option>
-          <option value="insurance">بیمه</option>
-          <option value="warranty">گارانتی</option>
-          <option value="contract">قرارداد</option>
-          <option value="license">مجوز</option>
-          <option value="bank">بانک</option>
-          <option value="medical">پزشکی</option>
-          <option value="other">سایر</option>
-          <option value="expiring">در حال انقضا (۳۰ روز)</option>
-          <option value="expired">منقضی</option>
-        </select>
-      </div>
+      <input id="docSearch" placeholder="جستجو…" style="min-width:160px;padding:8px 12px;border-radius:12px;border:1px solid var(--border2);background:var(--panel2);color:var(--text);font:inherit">
+    </div>
+    <div style="margin:0 0 10px">
+        <input type="hidden" id="docFilter" value="">
+        <div class="typechips filterchips" id="docFilterChips" role="listbox" aria-label="فیلتر نوع" style="justify-content:flex-start">
+          <button type="button" class="typechip on" data-filter="">همه</button>
+          <button type="button" class="typechip" data-filter="id">هویتی</button>
+          <button type="button" class="typechip" data-filter="insurance">بیمه</button>
+          <button type="button" class="typechip" data-filter="warranty">گارانتی</button>
+          <button type="button" class="typechip" data-filter="contract">قرارداد</button>
+          <button type="button" class="typechip" data-filter="license">مجوز</button>
+          <button type="button" class="typechip" data-filter="bank">بانک</button>
+          <button type="button" class="typechip" data-filter="medical">پزشکی</button>
+          <button type="button" class="typechip" data-filter="other">سایر</button>
+          <button type="button" class="typechip" data-filter="expiring">⏳ در حال انقضا</button>
+          <button type="button" class="typechip" data-filter="expired">منقضی</button>
+        </div>
     </div>
     <div id="docList" style="margin-top:8px"></div>
   </div>
@@ -380,6 +464,37 @@ body.nav-open .nav-backdrop{display:block}
   var TYPE_L={id:'مدرک هویتی',insurance:'بیمه',warranty:'گارانتی',contract:'قرارداد',license:'مجوز',bank:'بانک',medical:'پزشکی',other:'سایر'};
   var TYPE_I={id:'🪪',insurance:'🛡',warranty:'🧾',contract:'📝',license:'📑',bank:'💳',medical:'💊',other:'📄'};
   var DOCS=[], pendingFile=null;
+
+  /* type / filter chips — خوانا در دارک و لایت */
+  (function wireChips(){
+    var typeBox=document.getElementById('docTypeChips');
+    var typeIn=document.getElementById('docType');
+    if(typeBox && typeIn){
+      typeBox.addEventListener('click',function(e){
+        var b=e.target.closest('.typechip'); if(!b) return;
+        typeBox.querySelectorAll('.typechip').forEach(function(x){x.classList.remove('on')});
+        b.classList.add('on');
+        typeIn.value=b.getAttribute('data-type')||'other';
+      });
+      // sync initial
+      var on=typeBox.querySelector('.typechip.on');
+      if(on) typeIn.value=on.getAttribute('data-type')||'other';
+    }
+    var fBox=document.getElementById('docFilterChips');
+    var fIn=document.getElementById('docFilter');
+    if(fBox && fIn){
+      fBox.addEventListener('click',function(e){
+        var b=e.target.closest('.typechip'); if(!b) return;
+        fBox.querySelectorAll('.typechip').forEach(function(x){x.classList.remove('on')});
+        b.classList.add('on');
+        fIn.value=b.getAttribute('data-filter')||'';
+        try{ if(typeof render==='function') render(); else if(window.renderDocs) window.renderDocs(); }catch(err){}
+        // trigger input event for existing listeners
+        fIn.dispatchEvent(new Event('change'));
+      });
+    }
+  })();
+
 
   function fa(n){try{return Number(n).toLocaleString('fa-IR')}catch(e){return String(n)}}
   function esc(s){return String(s||'').replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])})}
