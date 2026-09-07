@@ -233,6 +233,8 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .dbtop .kindchip.pay{border-color:color-mix(in srgb,var(--bad) 45%,transparent);color:var(--bad)}
 .dbtop .kindchip.rec{border-color:color-mix(in srgb,var(--good) 45%,transparent);color:var(--good)}
 .debt-empty{color:var(--faint);font-size:13.5px;padding:8px 2px}
+.dbnote{margin-top:6px;font-size:12.5px;color:var(--muted);line-height:1.45;white-space:pre-wrap}
+.debt-col .addh input.dbdesc{flex:1 1 100%;min-width:100%}
 /* poker */
 .pkstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
 @media(max-width:700px){.pkstats{grid-template-columns:repeat(2,1fr)}}
@@ -446,6 +448,7 @@ body.nav-open .nav-backdrop{display:block}
           <input id="dbPaidPay" placeholder="پرداخت‌شده" style="width:100px;direction:ltr" inputmode="numeric">
           <input id="dbInstPay" placeholder="قسط/ماه" style="width:90px;direction:ltr" inputmode="numeric">
           <input id="dbDuePay" placeholder="سررسید (روز)" style="width:90px" inputmode="numeric">
+          <input id="dbNotePay" class="dbdesc" placeholder="توضیح بدهی — مثلاً بابت وام، قسط بانک، خرید…" style="flex:1 1 100%;min-width:140px">
           <button id="dbAddPay">➕ بدهی</button>
         </div>
       </div>
@@ -459,6 +462,7 @@ body.nav-open .nav-backdrop{display:block}
           <input id="dbPaidRec" placeholder="دریافت‌شده" style="width:100px;direction:ltr" inputmode="numeric">
           <input id="dbInstRec" placeholder="قسط/ماه" style="width:90px;direction:ltr" inputmode="numeric">
           <input id="dbDueRec" placeholder="سررسید (روز)" style="width:90px" inputmode="numeric">
+          <input id="dbNoteRec" class="dbdesc" placeholder="توضیح طلب — مثلاً بابت قرض به علی، پروژه…" style="flex:1 1 100%;min-width:140px">
           <button id="dbAddRec">➕ طلب</button>
         </div>
       </div>
@@ -576,6 +580,7 @@ body.nav-open .nav-backdrop{display:block}
   <div class="frow" id="ef2w"><label id="ef2l"></label><input id="ef2" style="direction:ltr" inputmode="decimal"></div>
   <div class="frow" id="ef3w"><label id="ef3l"></label><input id="ef3" style="direction:ltr" inputmode="decimal"></div>
   <div class="frow" id="ef4w"><label id="ef4l"></label><select id="ef4"></select></div>
+  <div class="frow" id="efNoteW" style="display:none"><label id="efNoteL">توضیح</label><input id="efNote" placeholder="توضیح..."></div>
   <button class="btn" id="edSave" style="width:100%">ذخیره ✓</button>
   <button id="edDel" style="width:100%;margin-top:10px;background:none;border:1px solid color-mix(in srgb,var(--bad) 45%,transparent);color:var(--bad);border-radius:12px;padding:9px;font-family:var(--fh);font-size:14px;cursor:pointer">🗑 حذف</button>
 </div>
@@ -832,9 +837,11 @@ function renderDebtList(list, listEl, sumEl, kind){
     listEl.innerHTML=list.map(function(d){
       var rm=debtRemain(d),pct=d.total?Math.min(100,Math.round(d.paid/d.total*100)):0;
       var chip=isRec?'<span class="kindchip rec">طلب</span>':'<span class="kindchip pay">بدهی</span>';
+      var noteHtml=d.note?('<div class="dbnote">'+String(d.note).replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</div>'):'';
       return '<div class="dbrow"><div class="dbtop">'+chip+'<b>'+d.n+'</b>'
        +'<button class="rowedit" data-ed="debt" data-u="'+d._u+'">✎</button>'
        +'<span class="rm'+(isRec?' rec':'')+'">'+fmtC(rm)+'</span></div>'
+       +noteHtml
        +'<div class="dbbar"><i style="width:'+pct+'%;'+(isRec?'background:var(--good)':'')+'"></i></div>'
        +'<div class="dbsub"><span>'+fa(pct)+'٪ '+(isRec?'دریافت':'پرداخت')+' شده ('+fmtC(d.paid)+' از '+fmtC(d.total)+')</span>'
        +'<span>'+(d.inst?('قسط '+fmtC(d.inst)+' · '):'')+'سررسید روز '+fa(d.due||1)+'</span></div></div>';
@@ -862,11 +869,14 @@ function addDebtRow(kind){
   var paid=parseInt(faToEn(document.getElementById('dbPaid'+suf).value).replace(/[^0-9]/g,''),10)||0;
   var inst=parseInt(faToEn(document.getElementById('dbInst'+suf).value).replace(/[^0-9]/g,''),10)||0;
   var due=parseInt(faToEn(document.getElementById('dbDue'+suf).value),10)||1;
+  var descEl=document.getElementById('dbNote'+suf);
+  var desc=(descEl&&descEl.value||'').trim();
   if(!n||!tot){toast('نام و کل مبلغ را بنویس');return}
   var btn=document.getElementById(kind==='receivable'?'dbAddRec':'dbAddPay');
   if(btn) btn.disabled=true;
   var remain=Math.max(0,tot-paid);
   var noteBits=[];
+  if(desc) noteBits.push(desc);
   if(inst) noteBits.push('قسط ماهانه '+inst);
   if(due) noteBits.push('سررسید روز '+due);
   if(paid) noteBits.push((kind==='receivable'?'دریافت':'پرداخت')+'-شده '+paid);
@@ -877,13 +887,15 @@ function addDebtRow(kind){
     if(btn) btn.disabled=false;
     if(x.status===401){location.href='/design/login-page.html';return}
     if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
-    DEBTS.push({_u:UID++, id:x.d.id, n:n, total:tot, paid:paid, inst:inst, due:due, kind:kind});
+    DEBTS.push({_u:UID++, id:x.d.id, n:n, total:tot, paid:paid, inst:inst, due:due, kind:kind, note:desc});
     if(nEl) nEl.value='';
+    if(descEl) descEl.value='';
     ['dbTot','dbPaid','dbInst','dbDue'].forEach(function(id){var el=document.getElementById(id+suf); if(el) el.value='';});
     renderDebts(); renderHero();
     toast((kind==='receivable'?'طلب':'بدهی')+' «'+n+'» ذخیره شد ✓');
   }).catch(function(){if(btn)btn.disabled=false;toast('خطای شبکه')});
 }
+
 document.getElementById('dbAddPay').addEventListener('click',function(){ addDebtRow('payable'); });
 document.getElementById('dbAddRec').addEventListener('click',function(){ addDebtRow('receivable'); });
 
@@ -968,6 +980,8 @@ var ED={type:null,obj:null};
 var edD=document.getElementById('edDrawer');
 function openEdit(type,obj){
   ED.type=type;ED.obj=obj;
+  var nw=document.getElementById('efNoteW'); if(nw) nw.style.display='none';
+  var ni=document.getElementById('efNote'); if(ni) ni.value='';
   var ef1el=document.getElementById('ef1');ef1el.readOnly=false;ef1el.onclick=null;
   function setf(n,label,val,show){document.getElementById(n+'w').style.display=show?'flex':'none';
     if(label!==undefined){document.getElementById(n+'l').textContent=label;document.getElementById(n).value=val}}
@@ -991,8 +1005,12 @@ function openEdit(type,obj){
     setf('ef2','خرید Buy-in (تومان)',obj.bi,true);setf('ef3','خروجی Cash-out (تومان)',obj.co,true);
     setsel('محل',[['خانه دوستان','خانه دوستان'],['آنلاین','آنلاین']],obj.loc)}
   if(type==='debt'){document.getElementById('edTitle').textContent=(debtKind(obj)==='receivable'?'ویرایش طلب':'ویرایش بدهی');
-    setf('ef1','نام',obj.n,true);setf('ef2','کل مبلغ (تومان)',obj.total,true);setf('ef3','پرداخت‌شده (تومان)',obj.paid,true);
-    selw.style.display='none'}
+    setf('ef1','نام',obj.n,true);setf('ef2','کل مبلغ (تومان)',obj.total,true);setf('ef3',(debtKind(obj)==='receivable'?'دریافت‌شده':'پرداخت‌شده')+' (تومان)',obj.paid,true);
+    selw.style.display='none';
+    var nw=document.getElementById('efNoteW'); if(nw) nw.style.display='block';
+    var nl=document.getElementById('efNoteL'); if(nl) nl.textContent='توضیح';
+    var ni=document.getElementById('efNote'); if(ni) ni.value=obj.note||'';
+  }
   if(type==='hold'){document.getElementById('edTitle').textContent='ویرایش دارایی';
     setf('ef1','نماد',obj.sym,true);setf('ef2','تعداد',obj.qty,true);setf('ef3','قیمت هر واحد',obj.price,true);
     selw.style.display='none'}
@@ -1009,7 +1027,7 @@ document.getElementById('edSave').addEventListener('click',function(){
     if(ED.type==='acc'){o.n=v1.trim()||o.n;o.b=parseInt(v2,10)||0;o.type=v4;renderAccs();renderHero()}
     if(ED.type==='pk'){if(ED.pkDate){o.d=ED.pkDate.d;o.mi=ED.pkDate.mi}o.bi=parseInt(v2,10)||o.bi;o.co=parseInt(v3,10)||o.co;o.loc=v4;renderPoker()}
     if(ED.type==='hold'){o.sym=v1.trim().toUpperCase()||o.sym;o.qty=parseFloat(v2)||o.qty;o.price=parseFloat(v3)||o.price;renderPort();renderHero()}
-    if(ED.type==='debt'){o.n=v1.trim()||o.n;o.total=parseInt(v2,10)||o.total;o.paid=Math.min(o.total,parseInt(v3,10)||0);renderDebts();renderHero()}
+    if(ED.type==='debt'){o.n=v1.trim()||o.n;o.total=parseInt(v2,10)||o.total;o.paid=Math.min(o.total,parseInt(v3,10)||0);var nv=document.getElementById('efNote');o.note=nv?nv.value.trim():(o.note||'');renderDebts();renderHero()}
     btn.disabled=false; toast('ذخیره شد ✓'); closeEd();
   }
   var p=null;
@@ -1027,7 +1045,17 @@ document.getElementById('edSave').addEventListener('click',function(){
     p=fetch('/api/poker/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({buyIn:parseInt(v2,10)||o.bi, cashOut:parseInt(v3,10)||o.co, location:v4, date:pkDate||undefined})});
   } else if(ED.type==='debt' && o.id){
-    /* debt amount is remain-only on server; local fields only */
+    var nv=document.getElementById('efNote');
+    var desc=nv?nv.value.trim():'';
+    var noteBits=[];
+    if(desc) noteBits.push(desc);
+    var inst=o.inst||0, due=o.due||1, paid=parseInt(v3,10)||o.paid||0;
+    if(inst) noteBits.push('قسط ماهانه '+inst);
+    if(due) noteBits.push('سررسید روز '+due);
+    if(paid) noteBits.push((debtKind(o)==='receivable'?'دریافت':'پرداخت')+'-شده '+paid);
+    var remain=Math.max(0,(parseInt(v2,10)||o.total)-paid);
+    p=fetch('/api/debts/'+encodeURIComponent(o.id),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({person:v1.trim()||o.n, amount:remain||o.total, note:noteBits.join(' · '), type:debtKind(o)})});
   }
   if(!p){ doneLocal(); return; }
   p.then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})})
@@ -1335,11 +1363,17 @@ function loadFinanceFromApi(){
         var paid=paidM?nnum(paidM[1]):0;
         var total=amt+paid; // server stores remain
         if(total<=0) total=amt;
+        var freeNote=note
+          .replace(/قسط ماهانه\s*[0-9۰-۹,]+/g,'')
+          .replace(/سررسید روز\s*[0-9۰-۹]+/g,'')
+          .replace(/(?:پرداخت|دریافت)-شده\s*[0-9۰-۹,]+/g,'')
+          .replace(/\s*·\s*/g,' · ').replace(/^\s*·\s*|\s*·\s*$/g,'').trim();
         DEBTS.push({
           _u:UID++, id:d.id, n:d.person||d.title||'—',
           total:total, paid:paid, inst:instM?nnum(instM[1]):(Math.round(total/12)||0),
           due:dueM?nnum(dueM[1]):1,
-          kind:(d.type==='receivable'?'receivable':'payable')
+          kind:(d.type==='receivable'?'receivable':'payable'),
+          note:freeNote
         });
       });
     }
