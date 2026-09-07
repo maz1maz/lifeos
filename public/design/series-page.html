@@ -563,7 +563,7 @@ function cardList(x){
     +'<div class="ov"><div class="tt">'+s.name+'</div>'
     +'<div class="mt">'+gfa((s.genres||[])[0]||'')+' · '+fa(s.year||'')+'</div></div></div>';
 }
-function isWait(x){return x.cur>=x.tot&&S(x.k).status==='Running'}
+function isWait(x){var s=S(x.k);if(!(x.cur>=x.tot))return false;if(!s||!s.next||!s.next.date)return false;return s.status==='Running'||!s.status}
 function renderAll(){
   var act=WATCHING.filter(function(x){return !isWait(x)}),wt=WATCHING.filter(isWait);
   document.getElementById('g-watching').innerHTML=act.length?act.map(cardWatch).join('')
@@ -857,6 +857,10 @@ document.getElementById('doImport').addEventListener('click',function(){
       document.getElementById('bpList').textContent=fa(x.d.watchlist||0);
       document.getElementById('bpDup').textContent=fa(x.d.duplicateCount||0);
       document.getElementById('bpFresh').textContent=fa(fresh.length);
+      if(!fresh.length && bingPreviewItems.length){
+        toast('همهٔ این سریال‌ها قبلاً در حسابت هست — لیست از سرور بارگذاری شد');
+        if(typeof loadSeriesFromApi==='function') loadSeriesFromApi();
+      }
       document.getElementById('prev').classList.add('show');
       bingPrevShown=true;
       btn.textContent='⬆️ ثبت '+fa(fresh.length)+' سریال جدید';
@@ -886,14 +890,9 @@ document.getElementById('doImport').addEventListener('click',function(){
     btn.disabled=false;
     if(!x.ok){ toast((x.d&&x.d.error)||'ثبت شکست خورد'); btn.textContent='⬆️ تلاش دوباره'; return; }
     toast(fa(x.d.imported||0)+' سریال وارد شد'+(x.d.skipped?(' · '+fa(x.d.skipped)+' رد'):'')+' ✓');
-    applyBingersToLocal(fresh);
-    /* also reload from API if available */
-    try{
-      fetch('/api/movies?status=',{credentials:'include'}).then(function(r){return r.json()}).then(function(d){
-        /* optional: could rebuild lists from server; keep local merge for now */
-      }).catch(function(){});
-    }catch(e){}
-    setTimeout(closeImport, 700);
+    if(typeof loadSeriesFromApi==='function') loadSeriesFromApi();
+    else applyBingersToLocal(fresh);
+    setTimeout(closeImport, 900);
   }).catch(function(e){
     btn.disabled=false; btn.textContent='⬆️ تلاش دوباره';
     toast('خطای شبکه');
@@ -916,15 +915,26 @@ function loadSeriesFromApi(){
       if(x.status===401) return;
       if(!x.ok || !x.d || !Array.isArray(x.d.items)) return;
       WATCHING.length=0; DONE.length=0; LIST.length=0;
-      x.d.items.filter(function(it){return (it.type||'series')==='series' || it.type==='tv'}).forEach(function(it){
-        var title=it.title||'';
-        var k = (typeof seriesKeyFromTitle==='function') ? seriesKeyFromTitle(title) : title.toLowerCase().replace(/\s+/g,'_');
-        if(typeof TV==='object' && !TV[k]){
-          TV[k]={name:title, img:it.poster||it.image||'', genres:[], rating:it.rating||null, year:it.year||'', status:'Running', summary:'', cast:[], next:null, network:''};
+      x.d.items.filter(function(it){
+        var ty=(it.type||'series');
+        return ty==='series' || ty==='tv';
+      }).forEach(function(it){
+        var title=it.title||'بدون‌عنوان';
+        var k = (typeof seriesKeyFromTitle==='function') ? seriesKeyFromTitle(title) : String(title).toLowerCase().replace(/\s+/g,'_');
+        var img=it.posterUrl||it.poster||it.image||'';
+        if(typeof TV==='object'){
+          if(!TV[k]) TV[k]={name:title, img:img, genres:[], rating:it.rating||it.tmdbRating||null, year:it.year||'', status:'Running', summary:'', cast:[], next:null, network:''};
+          else {
+            if(!TV[k].name) TV[k].name=title;
+            if(img && !TV[k].img) TV[k].img=img;
+          }
         }
         var st=it.status||'watchlist';
-        if(st==='watching') WATCHING.push({k:k, cur:it.currentEpisode||0, tot:it.totalEpisodes||10, season:it.currentSeason||1, newEp:false, id:it.id});
-        else if(st==='completed') DONE.push({k:k, id:it.id});
+        var cur=Number(it.currentEpisode)||0;
+        var tot=Number(it.totalEpisodes)||0;
+        if(!tot) tot = Math.max(cur+1, 10);
+        if(st==='watching') WATCHING.push({k:k, cur:cur, tot:tot, season:Number(it.currentSeason)||1, newEp:false, id:it.id});
+        else if(st==='completed' || st==='dropped') DONE.push({k:k, id:it.id});
         else LIST.push({k:k, id:it.id});
       });
       try{ if(typeof renderAll==='function') renderAll(); }catch(e){}

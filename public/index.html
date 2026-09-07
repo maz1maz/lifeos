@@ -1877,7 +1877,12 @@ function openCal(anchor,onPick){
 var TASKS=[]; /* خالی — کاربر اضافه می‌کند */
 function renderTasks(){
   var el=document.getElementById('taskList'),html='';
-  TASKS.forEach(function(x,i){
+  TASKS.slice().sort(function(a,b){
+    if(!!a.done !== !!b.done) return a.done?1:-1;
+    var ao=typeof a.off==='number'?a.off:0, bo=typeof b.off==='number'?b.off:0;
+    return ao-bo;
+  }).forEach(function(x){
+    var i=TASKS.indexOf(x);
     html+='<div class="task'+(x.done?' done':'')+'" data-i="'+i+'"><span class="ck"></span>'
       +(x.p?'<span class="prio p'+x.p+'"></span>':'')
       +'<span class="tt">'+x.t+'</span><span class="st">'+(x.meta||'')+'</span><button class="tdel" data-di="'+i+'" title="حذف">✕</button></div>';
@@ -1946,15 +1951,18 @@ function renderFutures(){
   el.classList.add('show');
 }
 function homeIsoFromOff(off){
+  function pad(n){return n<10?'0'+n:''+n}
   try{
     if(typeof jToday==='function'&&typeof j2d==='function'&&typeof d2g==='function'){
       var t=jToday(), jdn=j2d(t.jy,t.jm,t.jd)+(+off||0), g=d2g(jdn);
-      function pad(n){return n<10?'0'+n:''+n}
       return g.gy+'-'+pad(g.gm)+'-'+pad(g.gd);
     }
   }catch(e){}
-  var d=new Date(); d.setDate(d.getDate()+(+off||0));
-  return d.toISOString().slice(0,10);
+  /* local calendar date — NOT UTC (toISOString) */
+  var d=new Date();
+  d.setHours(12,0,0,0);
+  d.setDate(d.getDate()+(+off||0));
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 }
 function addTask(){
   var inp=document.getElementById('taskIn'),v=inp.value.trim(); if(!v)return;
@@ -1969,17 +1977,18 @@ function addTask(){
     if(btn) btn.disabled=false;
     if(x.status===401){location.href='/design/login-page.html';return}
     if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
-    if(off===0){
-      TASKS.push({id:x.d.id,t:v,p:0,meta:'امروز',done:false,date:date});
-      renderTasks();
-      toast('کار ذخیره شد ✓');
-    } else {
+    var meta = off===0 ? 'امروز' : (typeof dayName==='function'?dayName(off):(fa(off)+' روز دیگر'));
+    TASKS.push({id:x.d.id,t:v,p:0,meta:meta,done:false,date:date,off:off});
+    renderTasks();
+    if(off>0){
       FUTURES.push({id:x.d.id,t:v,off:off,date:date});
-      toast('«'+v+'» برای '+dayName(off)+' ذخیره شد ✓');
       renderFutures();
+      toast('«'+v+'» برای '+meta+' ذخیره شد ✓');
       selDay=0;
       document.querySelectorAll('#dayChips .dchip').forEach(function(ch){ch.classList.toggle('on',ch.dataset.d==='0')});
       if(window._resetDMore)_resetDMore();
+    } else {
+      toast('کار ذخیره شد ✓');
     }
     inp.value='';
   }).catch(function(){if(btn)btn.disabled=false;toast('خطای شبکه')});
@@ -2325,12 +2334,12 @@ function daysBetweenIso(a,b){
   }catch(e){return 0}
 }
 function loadHomeFromApi(){
-  var todayIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(0) : new Date().toISOString().slice(0,10);
-  var fromIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(-1) : todayIso;
+  var todayIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(0) : (function(){var d=new Date();function p(n){return n<10?'0'+n:''+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())})();
+  var fromIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(-30) : todayIso;
   var toIso = typeof homeIsoFromOff==='function' ? homeIsoFromOff(60) : todayIso;
   return Promise.all([
     fetch('/api/dashboard?date='+encodeURIComponent(todayIso),{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
-    fetch('/api/tasks?from='+encodeURIComponent(todayIso)+'&to='+encodeURIComponent(toIso),{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/tasks',{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
     fetch('/api/reminders?from='+encodeURIComponent(todayIso)+'&to='+encodeURIComponent(toIso),{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
     fetch('/api/budgets',{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})}),
     fetch('/api/accounts',{credentials:'include'}).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
@@ -2353,18 +2362,32 @@ function loadHomeFromApi(){
       });
       if(typeof renderTx==='function') renderTx();
     }
-    // tasks: today + futures
+    // tasks: today/overdue in list, future in FUTURES line
     if(res[1].ok && res[1].d && res[1].d.items){
-      TASKS=[]; FUTURES=[];
+      var nextT=[], nextF=[];
       res[1].d.items.forEach(function(t){
         if(t.isReminder) return;
         var off=daysBetweenIso(todayIso, t.date||todayIso);
-        if(off<=0){
-          TASKS.push({id:t.id,t:t.title,p:t.priority==='high'?1:(t.priority==='low'?3:2),meta:t.done?'انجام':'امروز',done:!!t.done,date:t.date});
-        } else {
-          FUTURES.push({id:t.id,t:t.title,off:off,date:t.date});
+        var meta = off<0 ? (fa(Math.abs(off))+' روز پیش') : (off===0 ? 'امروز' : dayName(off));
+        if(t.done) meta='انجام';
+        /* همهٔ کارها در لیست اصلی «کارهای آینده»؛ FUTURES فقط خلاصهٔ خطی */
+        nextT.push({id:t.id,t:t.title,p:t.priority==='high'?1:(t.priority==='low'?3:2),meta:meta,done:!!t.done,date:t.date,off:off});
+        if(off>0 && !t.done){
+          nextF.push({id:t.id,t:t.title,off:off,date:t.date});
         }
       });
+      /* merge any optimistic local items not yet in server response */
+      TASKS.forEach(function(x){
+        if(x && x.id && !nextT.some(function(y){return y.id===x.id}) && !nextF.some(function(y){return y.id===x.id})){
+          nextT.push(x);
+        }
+      });
+      FUTURES.forEach(function(x){
+        if(x && x.id && !nextT.some(function(y){return y.id===x.id}) && !nextF.some(function(y){return y.id===x.id})){
+          nextF.push(x);
+        }
+      });
+      TASKS=nextT; FUTURES=nextF;
       if(typeof renderTasks==='function') renderTasks();
       if(typeof renderFutures==='function') renderFutures();
     }
