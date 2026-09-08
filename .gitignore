@@ -1,6 +1,7 @@
 node_modules/
 .env
 data/db.json
+data/backups/
 bin/
 public/uploads/
 cloudflare/.wrangler/
