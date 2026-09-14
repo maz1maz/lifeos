@@ -37,6 +37,7 @@ const server = http.createServer((req, res) => {
   let p;
   try { p = decodeURIComponent(url.parse(req.url).pathname); } catch { p = '/'; }
   if (p === '/' || p === '') p = HOME;
+  if (p === '/report.html') p = '/public/report.html'; // همان فایلی که دیپلوی می‌شود
 
   // محافظت در برابر path traversal
   const file = path.join(ROOT, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
