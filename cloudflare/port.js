@@ -73,6 +73,79 @@ if (block.includes('crypto.randomBytes') || block.includes('crypto.timingSafeEqu
 
 const header = fs.readFileSync(path.join(__dirname, 'header.js'), 'utf8');
 const footer = fs.readFileSync(path.join(__dirname, 'footer.js'), 'utf8');
+
+// ---------------------------------------------------------------------------
+// Drift guard: the route block below is copied from server.js, but every helper
+// it calls must already exist in header.js / footer.js — those two files are
+// hand-written and are NOT generated from server.js. If a helper is added to
+// server.js only, the generated worker.js ends up calling an undefined function
+// and every request to that route dies with a ReferenceError on Cloudflare,
+// while `node server.js` and `npm test` keep passing locally. Fail loudly here.
+// ---------------------------------------------------------------------------
+function collectDefs(text) {
+  const names = new Set();
+  const pats = [
+    /(?:^|[\s;{}])(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/g,
+    /(?:^|[\s;{}])(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g,
+    /import\s+\*\s+as\s+([A-Za-z_$][\w$]*)/g,
+    /import\s+([A-Za-z_$][\w$]*)\s+from/g,
+    /class\s+([A-Za-z_$][\w$]*)/g,
+  ];
+  for (const re of pats) { let m; while ((m = re.exec(text)) !== null) names.add(m[1]); }
+  for (const m of text.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)+)\s*=/g))
+    m[1].split(',').forEach(n => names.add(n.trim()));
+  return names;
+}
+// whole-word reference check without RegExp escaping (identifiers may contain $)
+function referencedIn(hay, name) {
+  let i = -1;
+  while ((i = hay.indexOf(name, i + 1)) !== -1) {
+    const before = i > 0 ? hay[i - 1] : '';
+    const after = hay[i + name.length] || '';
+    if (!/[.\w$]/.test(before) && !/[\w$]/.test(after)) return true;
+  }
+  return false;
+}
+
+// Only module-level definitions matter. In server.js those start at column 0, and
+// a column-0 line is either a whole single-line function (take its name only —
+// its inner 'let x=' locals must NOT count) or a top-level const/let/var.
+const NODE_BUILTINS = new Set(['fs', 'path', 'http', 'https', 'crypto', 'os', 'url', 'zlib',
+  'util', 'stream', 'events', 'Buffer', 'process', '__dirname', '__filename', 'require',
+  'module', 'exports']);
+const allServerLines = src.split('\n');
+const serverHelperNames = new Set();
+for (const l of allServerLines.slice(0, startIdx).concat(allServerLines.slice(endIdx))) {
+  let m;
+  if ((m = l.match(/^(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/)) || (m = l.match(/^class\s+([A-Za-z_$][\w$]*)/))) {
+    serverHelperNames.add(m[1]);
+  } else if (/^(?:const|let|var)\s/.test(l)) {
+    for (const n of collectDefs(l)) serverHelperNames.add(n);
+  }
+}
+for (const n of NODE_BUILTINS) serverHelperNames.delete(n);
+const workerDefs = collectDefs(header + '\n' + footer);
+
+const missing = [];
+for (const name of serverHelperNames) {
+  if (workerDefs.has(name)) continue;
+  if (referencedIn(block, name)) missing.push(name);
+}
+if (missing.length) {
+  console.error('');
+  console.error('ERROR: the ported route block calls helper(s) that exist in server.js but NOT in');
+  console.error('cloudflare/header.js or cloudflare/footer.js. The generated worker.js would throw a');
+  console.error('ReferenceError on Cloudflare even though `node server.js` works fine locally.');
+  console.error('');
+  console.error('  missing: ' + missing.sort().join(', '));
+  console.error('');
+  console.error('Fix: copy those helpers into cloudflare/header.js (inside makeHelpers(env), indented');
+  console.error('by two spaces), then re-run: node cloudflare/port.js');
+  console.error('');
+  process.exit(1);
+}
+console.log('Drift guard OK: every server.js helper referenced by the route block exists in header.js/footer.js (' + serverHelperNames.size + ' checked)');
+
 fs.writeFileSync(path.join(__dirname, 'worker.js'), header + block + footer);
 console.log('Wrote cloudflare/worker.js (' + (header + block + footer).split('\n').length + ' lines)');
 console.log('header.js and footer.js are hand-written (not generated) — edit those directly for anything');
