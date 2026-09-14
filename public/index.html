@@ -1091,6 +1091,41 @@ body.nav-open .nav-backdrop{display:block}
   }
 }
 
+/* ===== فاز ۱ — نوار ثبت هوشمند ===== */
+.smartbar{display:flex;gap:8px;align-items:center;margin:2px 0 14px;padding:10px 12px;
+  background:var(--panel);border:1px solid var(--border);border-radius:16px}
+.smartbar input{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--border);border-radius:12px;
+  color:var(--text);font:inherit;font-family:var(--fh);font-size:14.5px;padding:9px 14px}
+.smartbar input:focus{outline:none;border-color:var(--acc)}
+.smartbar button{flex:none;background:var(--acc);color:#062028;border:none;border-radius:12px;
+  padding:9px 18px;font-family:var(--fh);font-size:14px;font-weight:800;cursor:pointer}
+.smartbar button:disabled{opacity:.55;cursor:default}
+.smartbar .sbhint{flex:none;color:var(--faint);font-size:12.5px}
+@media(max-width:760px){.smartbar .sbhint{display:none}}
+.sbdone{display:flex;flex-wrap:wrap;gap:6px;margin:-6px 0 12px}
+.sbdone span{background:color-mix(in srgb,var(--good) 12%,transparent);color:var(--good);
+  border:1px solid color-mix(in srgb,var(--good) 35%,transparent);border-radius:999px;
+  font-size:12.5px;padding:3px 11px;font-family:var(--fh)}
+/* ===== فاز ۱ — ردیف ۵: عادت‌ها + خلاصه ===== */
+.home-row.r5{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px;align-items:start}
+@media(max-width:900px){.home-row.r5{grid-template-columns:1fr}}
+.habchips{display:flex;flex-wrap:wrap;gap:8px;padding:4px 2px 2px}
+.habchip{display:flex;align-items:center;gap:7px;border:1.5px solid var(--border);border-radius:999px;
+  background:var(--panel2);color:var(--muted);font-family:var(--fh);font-size:13.5px;padding:7px 14px;cursor:pointer}
+.habchip .st{color:var(--faint);font-size:11.5px}
+.habchip.on{background:color-mix(in srgb,var(--good) 14%,transparent);border-color:var(--good);color:var(--good)}
+.habchip.on .st{color:var(--good)}
+.habempty{color:var(--faint);font-size:13.5px;padding:6px 2px}
+.rcsec{margin:2px 0 10px}
+.rcsec b{display:block;font-family:var(--fh);font-size:13px;color:var(--muted);margin-bottom:4px}
+.rcsec .rclist{display:flex;flex-direction:column;gap:5px}
+.rcitem{display:flex;gap:8px;align-items:baseline;font-size:14px;color:var(--text);
+  background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:6px 11px}
+.rcitem.over{border-color:color-mix(in srgb,var(--bad) 45%,transparent);color:var(--bad)}
+.rcitem .dt{margin-right:auto;color:var(--faint);font-size:12px;white-space:nowrap}
+.rcnote{color:var(--faint);font-size:12.5px;margin-top:8px}
+.rcai{margin-top:10px;padding:10px 13px;border-radius:12px;line-height:1.9;font-size:14px;
+  background:color-mix(in srgb,var(--acc) 7%,transparent);border:1px solid color-mix(in srgb,var(--acc) 25%,transparent);color:var(--text)}
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
@@ -1100,6 +1135,14 @@ body.nav-open .nav-backdrop{display:block}
 <div class="wrap">
 
 <div class="home">
+
+  <!-- فاز ۱ — ثبت هوشمند: متن آزاد → رکورد ساخت‌یافته -->
+  <div class="smartbar" id="smartBar">
+    <input type="text" id="sbIn" placeholder="ثبت هوشمند: مثلاً «۱۲۰ هزار تومان اسنپ» یا «حال ۸» یا «یادآوری فردا ساعت ۱۰ بانک» — فقط بنویس" autocomplete="off">
+    <button type="button" id="sbGo">ثبت</button>
+    <span class="sbhint">متن آزاد → تراکنش / کار / مود / خواب / یادآوری / سریال</span>
+  </div>
+  <div class="sbdone" id="sbDone"></div>
 
   <!-- ردیف ۱ — یک‌ستونه: تاریخ -->
   <div class="home-row r1">
@@ -1375,6 +1418,18 @@ body.nav-open .nav-backdrop{display:block}
 </div>
   </div>
 </div>
+</div>
+
+<!-- فاز ۱ — ردیف ۵: عادت‌های امروز + خلاصهٔ امروز/فردا -->
+<div class="home-row r5">
+  <div class="mcard" id="habCard">
+    <div class="mhead"><h4>🧿 عادت‌های امروز</h4><span class="cnt" id="habCnt"></span></div>
+    <div class="habchips" id="habChips"><span class="habempty">در حال دریافت…</span></div>
+  </div>
+  <div class="mcard" id="recapCard">
+    <div class="mhead"><h4>🧭 خلاصهٔ امروز و فردا</h4><span class="cnt" id="recapCnt"></span></div>
+    <div id="recapBody"><span class="habempty">در حال دریافت…</span></div>
+  </div>
 </div>
 
 </div>
@@ -2831,5 +2886,101 @@ document.addEventListener('click',function(e){
 </script>
 
 <script src="/app-lock.js" defer></script>
+<script>
+/* ===== فاز ۱ — ثبت هوشمند + چیپ‌های عادت + خلاصهٔ امروز/فردا =====
+   فقط از APIهای موجود در server.js استفاده می‌کند، هیچ بک‌اند جدیدی لازم نیست:
+   POST /api/ai/process · GET /api/habits · POST /api/habits/:id/toggle
+   GET /api/ai/tomorrow-priorities · GET /api/ai/report?period=daily
+*/
+(function(){
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]})}
+  var faD='۰۱۲۳۴۵۶۷۸۹';
+  function fa(n){return String(n).replace(/\d/g,function(d){return faD[d]})}
+  function J(url,opt){return fetch(url,Object.assign({credentials:'include'},opt)).then(function(r){return r.json().then(function(d){return{ok:r.ok,st:r.status,d:d}})})}
+  function hide401(){['smartBar','habCard','recapCard'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none'});var d=document.getElementById('sbDone');if(d)d.style.display='none'}
+
+  /* ---------- ثبت هوشمند ---------- */
+  var sbIn=document.getElementById('sbIn'),sbGo=document.getElementById('sbGo'),sbDone=document.getElementById('sbDone');
+  function sbSubmit(){
+    var text=(sbIn.value||'').trim(); if(!text)return;
+    sbGo.disabled=true; sbGo.textContent='…';
+    J('/api/ai/process',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text})})
+      .then(function(x){
+        sbGo.disabled=false; sbGo.textContent='ثبت';
+        if(x.st===401){location.href='/design/login-page.html';return}
+        if(!x.ok){toast((x.d&&x.d.error)||'ثبت هوشمند انجام نشد');return}
+        var done=x.d.done||[];
+        if(!done.length){toast('چیز قابل‌تشخیصی در متن پیدا نشد — ساده‌تر و صریح‌تر بنویس');return}
+        sbDone.innerHTML=done.map(function(s){return '<span>✓ '+esc(s)+'</span>'}).join('');
+        sbIn.value='';
+        toast(fa(done.length)+' مورد ثبت شد ✓');
+        setTimeout(function(){location.reload()},1100);
+      })
+      .catch(function(){sbGo.disabled=false;sbGo.textContent='ثبت';toast('خطای شبکه — ثبت نشد')});
+  }
+  sbGo.addEventListener('click',sbSubmit);
+  sbIn.addEventListener('keydown',function(e){if(e.key==='Enter')sbSubmit()});
+
+  /* ---------- چیپ‌های عادت امروز ---------- */
+  var habChips=document.getElementById('habChips'),habCnt=document.getElementById('habCnt');
+  function loadHabits(){
+    J('/api/habits').then(function(x){
+      if(x.st===401){hide401();return}
+      if(!x.ok){habChips.innerHTML='<span class="habempty">عادت‌ها دریافت نشد</span>';return}
+      var items=x.d.items||[];
+      if(!items.length){habChips.innerHTML='<span class="habempty">هنوز عادتی نداری — از صفحهٔ «امروز» یا تنظیمات اضافه کن.</span>';habCnt.textContent='';return}
+      var doneN=items.filter(function(h){return h.done}).length;
+      habCnt.textContent=fa(doneN)+' از '+fa(items.length);
+      habChips.innerHTML=items.map(function(h){
+        return '<button type="button" class="habchip'+(h.done?' on':'')+'" data-id="'+esc(h.id)+'" title="کلیک = انجام شد / برگشت">'
+          +esc(h.icon||'✓')+' '+esc(h.name)
+          +(h.streak?'<span class="st">🔥'+fa(h.streak)+'</span>':'')
+          +'</button>';
+      }).join('');
+    }).catch(function(){habChips.innerHTML='<span class="habempty">خطای شبکه</span>'});
+  }
+  habChips.addEventListener('click',function(e){
+    var b=e.target.closest?e.target.closest('.habchip'):null; if(!b)return;
+    J('/api/habits/'+encodeURIComponent(b.getAttribute('data-id'))+'/toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+      .then(function(x){ if(x.ok)loadHabits(); else toast((x.d&&x.d.error)||'تغییر عادت انجام نشد') })
+      .catch(function(){toast('خطای شبکه')});
+  });
+
+  /* ---------- خلاصهٔ امروز و فردا ---------- */
+  var recapBody=document.getElementById('recapBody'),recapCnt=document.getElementById('recapCnt');
+  function loadRecap(){
+    J('/api/ai/tomorrow-priorities').then(function(x){
+      if(x.st===401)return;
+      if(!x.ok){recapBody.innerHTML='<span class="habempty">خلاصه دریافت نشد</span>';return}
+      var d=x.d,html='';
+      var over=d.overdueTasks||[],due=d.dueTomorrowTasks||[],pend=d.pendingHabits||[];
+      var parts=[];
+      if(over.length)parts.push(fa(over.length)+' عقب‌افتاده');
+      if(due.length)parts.push(fa(due.length)+' برای فردا');
+      if(pend.length)parts.push(fa(pend.length)+' عادت مانده');
+      recapCnt.textContent=parts.join(' · ');
+      if(over.length)html+='<div class="rcsec"><b>⛔ عقب‌افتاده‌ها</b><div class="rclist">'
+        +over.slice(0,5).map(function(t){return '<div class="rcitem over">'+esc(t.title)+'<span class="dt">'+esc(t.deadline||'')+'</span></div>'}).join('')
+        +'</div></div>';
+      if(due.length)html+='<div class="rcsec"><b>📌 سررسید فردا</b><div class="rclist">'
+        +due.slice(0,5).map(function(t){return '<div class="rcitem">'+esc(t.title)+'</div>'}).join('')
+        +'</div></div>';
+      if(pend.length)html+='<div class="rcsec"><b>🧿 عادت‌های تیک‌نخوردهٔ امروز</b><div class="rclist">'
+        +pend.slice(0,6).map(function(h){return '<div class="rcitem">'+esc(h.icon||'✓')+' '+esc(h.name)+'</div>'}).join('')
+        +'</div></div>';
+      if(!html)html='<span class="habempty">هیچ چیز عقب‌افتاده یا منتظر فردا نیست ✓</span>';
+      recapBody.innerHTML=html;
+      /* روایت AI فقط اگر کلید روی سرور باشد؛ وگرنه یک یادداشت شفاف */
+      J('/api/ai/report?period=daily').then(function(y){
+        if(y.ok&&y.d&&y.d.report)recapBody.insertAdjacentHTML('beforeend','<div class="rcai">🤖 '+esc(y.d.report)+'</div>');
+        else if(y.st===503)recapBody.insertAdjacentHTML('beforeend','<div class="rcnote">بخش روایی خلاصه خاموش است — کلید AI_PROVIDER_API_KEY روی سرور تنظیم نشده.</div>');
+      }).catch(function(){});
+    }).catch(function(){recapBody.innerHTML='<span class="habempty">خطای شبکه</span>'});
+  }
+
+  loadHabits();
+  loadRecap();
+})();
+</script>
 </body>
 </html>
