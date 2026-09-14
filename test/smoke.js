@@ -302,7 +302,12 @@ async function main() {
     check('receipt upload sets a /uploads path', !!(receiptSave.receipt && receiptSave.receipt.startsWith('/uploads/')));
     const uploadedFileExists = fs.existsSync(path.join(ROOT, 'public', receiptSave.receipt));
     check('receipt file actually written to disk', uploadedFileExists);
-    const receiptServed = await fetch(`${BASE}${receiptSave.receipt}`);
+    // /uploads/* is private on purpose (same guard in server.js and the Worker):
+    // anonymous fetch must 401, and an authenticated fetch — like a browser <img>
+    // tag, which always sends same-origin cookies — must serve the image bytes.
+    const receiptAnon = await fetch(`${BASE}${receiptSave.receipt}`);
+    check('private uploads reject anonymous fetch -> 401 (receipts are per-user)', receiptAnon.status === 401);
+    const receiptServed = await fetch(`${BASE}${receiptSave.receipt}`, { headers: { Cookie: cookie } });
     check('uploaded receipt is served with an image content-type, not text/plain', (receiptServed.headers.get('content-type') || '').startsWith('image/'));
     if (uploadedFileExists) fs.unlinkSync(path.join(ROOT, 'public', receiptSave.receipt));
 
@@ -787,6 +792,7 @@ async function main() {
     check('transfers are never proposed for recategorization', !preview.d.changes.some(c => c.id === recatTransfer.id));
 
     const applied = await recatPost({ apply: true });
+    await new Promise(r => setTimeout(r, 80)); /* write() is an async chain on the Node server; let it flush before reading db.json */
     check('apply reports applied=true and revertible=true', applied.d.applied === true && applied.d.revertible === true);
     check('apply actually changed the دسته on disk', catOf(byTitle['اسنپ'].id) === 'حمل‌ونقل' && catOf(byTitle['شارژ ساختمان مرداد'].id) === 'مسکن');
     check('apply kept the previous دسته for undo', (readDb().transactions.find(t => t.id === byTitle['اسنپ'].id) || {}).catPrev === 'متفرقه');
@@ -830,6 +836,7 @@ async function main() {
     check('scanned = matched + untouched (no silently dropped records)', countsAddUp.d.scanned === countsAddUp.d.matched + countsAddUp.d.alreadyOk + countsAddUp.d.noMatch);
     const rawCatTx = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'هتل رامسر', amount: 9000000, kind: 'expense', category: 'خورد و خوراک', date: today() }) }).then(r => r.json());
     const rawApply = await recatPost({ scope: 'all', apply: true });
+    await new Promise(r => setTimeout(r, 80)); /* write() is an async chain on the Node server; let it flush before reading db.json */
     const rawProposed = rawApply.d.changes.find(c => c.id === rawCatTx.id);
     const rawRec = readDb().transactions.find(t => t.id === rawCatTx.id);
     check('a non-canonical raw category is proposed for a real change', !!rawProposed && rawProposed.to === 'سفر');

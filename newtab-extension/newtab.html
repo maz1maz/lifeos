@@ -1,0 +1,41 @@
+<!doctype html>
+<!-- پوستهٔ سبک افزونه: صفحهٔ واقعی (public/newtab.html) داخل iframe لود می‌شود تا
+     هم سینگل‌سورس بماند، هم کوکی/لاگین و CORS هیچ مسئله‌ای نسازند.
+     اگر سلف‌هست کردی، فقط APP را عوض کن. -->
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>هِسته — امروز</title>
+<style>
+  html,body{margin:0;height:100%;background:#080b12}
+  iframe{border:0;width:100%;height:100dvh;display:block}
+  #fallback{display:none;color:#98a6bd;font-family:Tahoma,sans-serif;text-align:center;padding:60px 20px;line-height:2}
+  #fallback a{color:#22d3ee}
+</style>
+</head>
+<body>
+<iframe id="app" title="هِسته"></iframe>
+<div id="fallback">هِسته در دسترس نیست (آفلاین یا سرور خواب است).<br><a href="#" id="retry">تلاش دوباره</a></div>
+<script>
+var APP = 'https://pdmaz.hamidreza-mazlaghani.workers.dev/newtab.html';
+var f = document.getElementById('app');
+try {
+  var custom = localStorage.getItem('nt-app');
+  if (custom) APP = custom;
+} catch (e) {}
+// ?app=... روی آدرس افزونه هم برای یک‌بار عوض‌کردن دستی APP کار می‌کند
+try {
+  var q = new URLSearchParams(location.search).get('app');
+  if (q) { APP = q; try { localStorage.setItem('nt-app', q); } catch (e) {} }
+} catch (e) {}
+var loaded = false;
+f.onload = function () { loaded = true; };
+f.src = APP;
+document.getElementById('retry').onclick = function (e) { e.preventDefault(); location.reload(); };
+setTimeout(function () {
+  // اگر تا ۱۲ ثانیه لود نشد، احتمالاً آفلاین‌ایم — پیام روشن به‌جای صفحهٔ سفید
+  if (!loaded) document.getElementById('fallback').style.display = 'block';
+}, 12000);
+</script>
+</body>
+</html>
