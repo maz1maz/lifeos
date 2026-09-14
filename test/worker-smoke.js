@@ -223,6 +223,29 @@ async function main() {
   check('document attach -> 503 (no bot token, pre-network)', (await call(`/api/documents/${doc.id}/attach`, { method: 'POST', cookie, body: { image: 'data:image/png;base64,iVBORw0KGgo=' } })).status === 503);
   check('backup-to-telegram -> 503 (no bot token, pre-network)', (await call('/api/backup/telegram', { method: 'POST', cookie, body: {} })).status === 503);
 
+  // [W8] «درآمد لحاظ نشود» روی خودِ آرتیفکت دیپلوی‌شده. این helper تازه است، یعنی دقیقاً
+  // همان کلاس باگی که یک‌بار پروداکشن را ۵۰۰ کرد (هلپر تعریف‌شده ولی export‌نشده) این‌جا
+  // هم پوشش داده می‌شود: اگر isIncomeTx در یکی از دو فهرست جا بیفتد، /api/finance و
+  // PATCH این‌جا قرمز می‌شوند، نه روی سرور واقعی.
+  console.log('\n[W8] notIncome on the deployed artifact (helper must be exported)');
+  await call('/api/accounts', { method: 'POST', cookie, body: { name: 'W8', openingBalance: 0 } });
+  const w8income = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'حقوق W8', amount: 9_000_000, kind: 'income', category: 'درآمد', account: 'W8', date: today() } })).d;
+  const w8pass = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'انتقال W8', amount: 2_500_000, kind: 'income', category: 'درآمد', account: 'W8', date: today() } })).d;
+  const fin1 = (await call(`/api/finance?month=${today().slice(0, 7)}`, { cookie })).d;
+  check('finance counts both receives before opting out', fin1.income >= 11_500_000 && fin1.incomeOffCount === 0);
+  const off = await call(`/api/transactions/${w8pass.id}`, { method: 'PATCH', cookie, body: { notIncome: true } });
+  check('PATCH notIncome:true -> 200 on the worker (isIncomeTx route path works)', off.status === 200 && off.d && off.d.notIncome === true);
+  const fin2 = (await call(`/api/finance?month=${today().slice(0, 7)}`, { cookie })).d;
+  check('finance income drops by exactly the opted-out amount', fin1.income - fin2.income === 2_500_000);
+  check('opted-out amount is reported, not silently dropped', fin2.incomeOffCount === 1 && fin2.incomeOffSum === 2_500_000);
+  const accs = (await call('/api/accounts', { cookie })).d;
+  const w8acc = (accs.accounts || []).find(a => a.name === 'W8');
+  check('account balance still holds the real money (9M + 2.5M)', w8acc && Math.round(w8acc.balance) === 11_500_000);
+  const rows = (await call(`/api/transactions?from=${today()}&to=${today()}`, { cookie })).d;
+  check('the flag round-trips through GET /api/transactions', (rows.items || []).find(x => x.id === w8pass.id)?.notIncome === true);
+  const w8salary = (rows.items || []).find(x => x.id === w8income.id);
+  check('a normal receive keeps no flag', w8salary && w8salary.notIncome === undefined);
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

@@ -252,6 +252,7 @@ function makeHelpers(env) {
   function correlationLabel(r){if(r===null)return{strength:'داده کافی نیست',direction:null};let a=Math.abs(r),direction=r>=0?'مثبت':'منفی',strength=a<0.2?'ناچیز':a<0.5?'ضعیف':a<0.7?'متوسط':'قوی';return{strength,direction}}
   function parseSleepHours(v){if(!v)return null;let m=String(v).match(/(\d+(?:\.\d+)?)/);return m?Number(m[1]):null}
   const CATEGORY_KEYWORDS=[['خوراک',/نان|رستوران|شام|ناهار|صبحانه|غذا|کافه|سوپرمارکت|میوه|قصاب|نانوایی|فست\s?فود/],['حمل‌ونقل',/تاکسی|اسنپ|تپسی|بنزین|پمپ\s?بنزین|مترو|اتوبوس|پارکینگ|تعمیر\s?ماشین|بلیط|مسافرت/],['قبض',/قبض|برق|آب و فاضلاب|گاز|اینترنت|تلفن|شارژ\s?خط|بیمه/],['سلامت',/دکتر|پزشک|دارو|داروخانه|بیمارستان|درمانگاه|دندانپزشک|آزمایشگاه/],['تفریح',/سینما|کنسرت|بازی|فیلم|پارک|تفریح|بولینگ|بیلیارد/],['پوشاک',/لباس|کفش|پوشاک|مانتو|شلوار|کاپشن|عینک|کیف/],['آموزش',/کتاب|دوره|کلاس|آموزش|شهریه|دانشگاه/],['مسکن',/اجاره|رهن|شارژ\s?ساختمان|مسکن/]];
+  function isIncomeTx(x){return !!x&&x.kind==='income'&&!x.notIncome} /* «درآمد لحاظ نشود»: ماندهٔ حساب دست‌نخورده می‌ماند، آمار درآمد نه */
   function suggestCategoryKeyword(title){let t=String(title||'');for(const[cat,re]of CATEGORY_KEYWORDS)if(re.test(t))return cat;return null}
   // ---------------------------------------------------------------------------
   // دسته‌بندی مجدد گروهی تراکنش‌ها («متفرقه»ها)
@@ -606,7 +607,7 @@ function makeHelpers(env) {
         return tgSend(chatId,lines.length?lines.join('\n'):'هنوز دارایی‌ای ثبت نشده.');
       }
       if(cmd==='/گزارش_ماه'){
-        let month=d.slice(0,7),t=db.transactions.filter(x=>x.userId===user.id&&x.date.startsWith(month)),expense=t.filter(x=>x.kind==='expense').reduce((n,x)=>n+x.amount,0),income=t.filter(x=>x.kind==='income').reduce((n,x)=>n+x.amount,0);
+        let month=d.slice(0,7),t=db.transactions.filter(x=>x.userId===user.id&&x.date.startsWith(month)),expense=t.filter(x=>x.kind==='expense').reduce((n,x)=>n+x.amount,0),income=t.filter(isIncomeTx).reduce((n,x)=>n+x.amount,0);
         return tgSend(chatId,`گزارش ${month}:\nدرآمد: ${income.toLocaleString('fa-IR')}\nهزینه: ${expense.toLocaleString('fa-IR')}\nمانده: ${(income-expense).toLocaleString('fa-IR')}`);
       }
 
@@ -736,7 +737,7 @@ function makeHelpers(env) {
     if(remsOpen.length){ lines.push('🔔 یادآوری باز:'); remsOpen.forEach(r=>lines.push('• '+(r.time?r.time+' · ':'')+r.title)); }
     let txs=db.transactions.filter(x=>x.userId===user.id&&x.date===d);
     let expense=txs.filter(x=>x.kind==='expense').reduce((n,x)=>n+x.amount,0);
-    let income=txs.filter(x=>x.kind==='income').reduce((n,x)=>n+x.amount,0);
+    let income=txs.filter(isIncomeTx).reduce((n,x)=>n+x.amount,0);
     lines.push('💸 هزینه: '+expense.toLocaleString('fa-IR')+' تومان'+(income?(' · درآمد '+income.toLocaleString('fa-IR')):''));
     if(txs.filter(x=>x.kind==='expense').length){
       let by={}; txs.filter(x=>x.kind==='expense').forEach(x=>by[x.category||'متفرقه']=(by[x.category||'متفرقه']||0)+x.amount);
@@ -785,7 +786,7 @@ function makeHelpers(env) {
   return { read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
     jalaliToGregorianIso, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel, seasonStatsFromEpisodes, seasonTotAired, fetchTvMazeShowFull, progressFromShow, ensureSeriesTvMazeData, clampEpisodeAgainstSeason,
-    parseSleepHours, suggestCategoryKeyword, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
+    parseSleepHours, suggestCategoryKeyword, isIncomeTx, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
     refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, checkRateLimit, clearRateLimit, clientIp, hashPin, genLinkCode, tgApi, tgSend, tgSendDocument, redactForBackup, backupDbToTelegram, handleTelegramMessage, tgCheckReports, fetchTehranWeatherBrief, buildMorningBrief, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
     SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI, AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY };
@@ -796,7 +797,7 @@ async function handleApi(request, env) {
   const { read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
     jalaliToGregorianIso, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel, seasonStatsFromEpisodes, seasonTotAired, fetchTvMazeShowFull, progressFromShow, ensureSeriesTvMazeData, clampEpisodeAgainstSeason,
-    parseSleepHours, suggestCategoryKeyword, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
+    parseSleepHours, suggestCategoryKeyword, isIncomeTx, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
     refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, checkRateLimit, clearRateLimit, clientIp, hashPin, genLinkCode, tgApi, tgSend, tgSendDocument, redactForBackup, backupDbToTelegram, handleTelegramMessage, tgCheckReports, fetchTehranWeatherBrief, buildMorningBrief, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
     SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI, AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY } = H;

@@ -138,15 +138,16 @@ async function main() {
   const fixedLines = await runVerifyScript(await loadWorker(fixedSrc), makeEnv());
   // The script prints Persian numerals («چک ۳»), so match those. Each check shows up
   // twice on purpose (once live, once inside the copy-paste block) — so assert on all.
-  const FA = ['۱', '۲', '۳', '۴'];
+  const FA = ['۱', '۲', '۳', '۴', '۵'];
   const checks = (lines, n) => lines.filter((l) => l.includes(`چک ${FA[n - 1]} `));
   const allGreen = (lines, n) => { const c = checks(lines, n); return c.length >= 1 && c.every((l) => l.startsWith('✅')); };
-  check('script wired into real worker (4 check lines + session line)', fixedLines.length >= 5, fixedLines.length + ' lines');
+  check('script wired into real worker (5 check lines + session line)', fixedLines.length >= 6, fixedLines.length + ' lines');
   check('no ❌ at all', fixedLines.every((l) => !l.startsWith('❌')), fixedLines.filter((l) => l.startsWith('❌')).join(' | '));
   check('check 1 (/newtab.html) green', allGreen(fixedLines, 1));
   check('check 2 (title PATCH) green', allGreen(fixedLines, 2));
   check('check 3 (category PATCH) green — the route that 500’d', allGreen(fixedLines, 3));
   check('check 4 (recategorize preview) green — the button that 500’d', allGreen(fixedLines, 4));
+  check('check 5 (finance-page asset with the notIncome switch) green', allGreen(fixedLines, 5));
 
   console.log('\n[V2] the SAME script on the pre-fix worker (helpers not exported)');
   const brokenLines = await runVerifyScript(await loadWorker(brokenSrc), makeEnv());
@@ -157,6 +158,7 @@ async function main() {
   check('check 4 goes red with 500', allRedWith500(brokenLines, 4));
   check('check 2 (title-only) stays green — short-circuits before the helper', allGreen(brokenLines, 2));
   check('check 1 (/newtab.html) stays green — assets are not affected', allGreen(brokenLines, 1));
+  check('check 5 stays green on the pre-fix worker — it reads assets, not helpers', allGreen(brokenLines, 5));
   check('the 500s are the ReferenceError the fix removed',
     brokenLines.internalErrors.length >= 2 && brokenLines.internalErrors.every((m) => /is not defined/.test(m)),
     brokenLines.internalErrors.join(' | '));

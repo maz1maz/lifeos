@@ -858,6 +858,65 @@ async function main() {
     const unauth = await fetch(`${BASE}/api/transactions/recategorize`, { method: 'POST', headers: { Cookie: 'sid=not-a-real-session' }, body: '{}' });
     check('recategorize with an invalid cookie -> 401 (not a crash)', unauth.status === 401);
 
+    /* [43] «درآمد لحاظ نشود» (notIncome) — خواستهٔ واقعی: بعضی دریافت‌ها درآمد نیستند
+       (انتقال بین کارت‌های خودم، اصل پول، پول برگشتی). کاربر می‌خواهد خودش تعیین کند
+       کدام دریافت درآمد شمرده شود. قاعدهٔ توافق‌شده: فقط از آمار درآمد بیرون می‌رود،
+       ماندهٔ حساب دست‌نخورده می‌ماند.
+       همهٔ انتظارها «تفاضلی» نوشته شده‌اند تا دادهٔ تست‌های قبلی روی نتیجه اثر نگذارد. */
+    console.log('\n[43] notIncome: «این دریافت درآمد نیست» — آمار درآمد نه، ماندهٔ حساب بله');
+    const ACC = 'حساب تست notIncome';
+    const mkAcc = (name) => fetch(`${BASE}/api/accounts`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name, openingBalance: 0 }) });
+    const accRes = await mkAcc(ACC);
+    check('dedicated test account created', accRes.status === 201 || accRes.status === 409);
+    const mkTx = (title, amount, kind) => fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title, amount, kind, category: kind === 'income' ? 'درآمد' : 'متفرقه', account: ACC, date: today() }) }).then(r => r.json());
+    const salary = await mkTx('حقوق تست ۱', 10_000_000, 'income');
+    const passing = await mkTx('انتقال بین کارت‌های خودم', 4_000_000, 'income');
+    await mkTx('هزینه تست ۱', 1_000_000, 'expense');
+    const finance = () => fetch(`${BASE}/api/finance?month=${today().slice(0, 7)}`, { headers: authHeaders }).then(r => r.json());
+    const balanceOf = async (name) => {
+      const a = await fetch(`${BASE}/api/accounts`, { headers: authHeaders }).then(r => r.json());
+      const row = (a.accounts || []).find(x => x.name === name);
+      return row ? Math.round(row.balance) : null;
+    };
+    const financeBefore = await finance();
+    check('before: nothing is opted out', financeBefore.incomeOffCount === 0);
+    check('before: the three rows add up on the account (10M + 4M − 1M)', (await balanceOf(ACC)) === 13_000_000);
+    const reportsTodayIncome = async () => {
+      const r = await fetch(`${BASE}/api/reports?month=${today().slice(0, 7)}`, { headers: authHeaders }).then(x => x.json());
+      const row = (r.days || []).find(x => x.date === today());
+      return row ? row.income : null;
+    };
+    const reportBefore = await reportsTodayIncome();
+
+    const offRes = await fetch(`${BASE}/api/transactions/${passing.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ notIncome: true }) });
+    const offTx = await offRes.json();
+    check('PATCH notIncome:true -> 200 and flag persisted', offRes.status === 200 && offTx.notIncome === true);
+    const financeAfter = await finance();
+    check('income drops by exactly the opted-out amount', financeBefore.income - financeAfter.income === 4_000_000, `${financeBefore.income} -> ${financeAfter.income}`);
+    check('expense is untouched by the flag', financeAfter.expense === financeBefore.expense);
+    check('opted-out rows are reported (count + sum) instead of silently vanishing', financeAfter.incomeOffCount === 1 && financeAfter.incomeOffSum === 4_000_000);
+    check('balance now reflects only counted income', financeAfter.balance === financeAfter.income - financeAfter.expense);
+
+    // قلبِ تصمیم: پول واقعاً وارد کارت شده، پس ماندهٔ حساب نباید عوض شود
+    check('account balance is UNCHANGED — real money still counts there', (await balanceOf(ACC)) === 13_000_000);
+    check('/api/reports daily row excludes the opted-out receive too', reportBefore - (await reportsTodayIncome()) === 4_000_000);
+    const listRows = await fetch(`${BASE}/api/transactions?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json());
+    const listRow = (listRows.items || []).find(x => x.id === passing.id);
+    check('GET /api/transactions exposes the flag (what the finance page reads)', listRow && listRow.notIncome === true);
+    check('a normal receive keeps no flag', (listRows.items || []).find(x => x.id === salary.id)?.notIncome === undefined);
+
+    // برگشت‌پذیری
+    const backOn = await fetch(`${BASE}/api/transactions/${passing.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ notIncome: false }) }).then(r => r.json());
+    const financeReverted = await finance();
+    check('notIncome:false clears the flag from the record', backOn.notIncome === undefined);
+    check('income is back where it started after reverting', financeReverted.income === financeBefore.income && financeReverted.incomeOffCount === 0);
+    check('account balance still 13M after the round-trip', (await balanceOf(ACC)) === 13_000_000);
+
+    // فقط صاحب تراکنش می‌تواند این تغییر را بزند
+    const foreign = await fetch(`${BASE}/api/transactions/${passing.id}`, { method: 'PATCH', headers: headers2, body: JSON.stringify({ notIncome: true }) });
+    check('another user cannot flip the flag on someone else\'s transaction', foreign.status === 404);
+    const stillClean = await finance();
+    check('…and nothing changed for the owner', stillClean.incomeOffCount === 0 && stillClean.income === financeBefore.income);
 
   } finally {
     child.kill();
