@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>هِسته — امروز</title>
+<!--
+  صفحهٔ فوق‌سبک تب جدید (هدف: زیر ۱۰۰KB، بدون فونت/کتابخانه/بیلد).
+  فقط APIهای موجود: /api/me · /api/dashboard · /api/ai/process · /api/daily · /api/tasks
+  آب‌وهوا مستقیم از Open-Meteo (رایگان، بدون کلید) با شهر انتخابی کاربر.
+  دو حالت استفاده:
+    ۱) افزونهٔ کروم: پوشهٔ newtab-extension/ را با Load unpacked نصب کن
+       (آدرس APP در آن فایل را اگر سلف‌هست کردی عوض کن).
+    ۲) صفحهٔ خانگی مرورگر: همین آدرس را به‌عنوان Homepage/Startup page بگذار.
+-->
+<style>
+:root{--bg:#080b12;--panel:#111826;--panel2:#182131;--border:#1e2839;--text:#eef1f7;
+  --muted:#98a6bd;--faint:#66748c;--acc:#22d3ee;--good:#34d399;--warn:#fbbf24;--bad:#f87171}
+@media(prefers-color-scheme:light){
+  :root{--bg:#f3f5fa;--panel:#fff;--panel2:#eef1f8;--border:#e4e8f1;--text:#161b28;
+    --muted:#5c687f;--faint:#8b95ac}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.8}
+.wrap{max-width:620px;margin:0 auto;padding:26px 16px 60px}
+header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.greet{font-size:20px;font-weight:800}
+.dates{display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13.5px;margin-top:2px}
+.dates b{color:var(--text);font-size:15.5px}
+.open{flex:none;background:var(--acc);color:#062028;text-decoration:none;font-weight:800;font-size:14px;
+  border-radius:12px;padding:8px 18px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:12px 14px;margin-bottom:12px}
+.card h3{margin:0 0 8px;font-size:14.5px;color:var(--muted);font-weight:700}
+.card.dim{opacity:.92}
+.wx{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);
+  border-radius:14px;padding:8px 14px;margin-bottom:12px;font-size:14px;color:var(--muted)}
+.wx b{color:var(--text);font-size:17px}
+.wx .wic{font-size:22px}
+.wx small{margin-right:auto;color:var(--faint);font-size:12px}
+.trow{display:flex;gap:9px;align-items:center;padding:7px 2px;border-top:1px dashed var(--border);font-size:14.5px}
+.trow:first-of-type{border-top:none}
+.trow .ck{flex:none;width:20px;height:20px;border:2px solid var(--faint);border-radius:7px;background:none;cursor:pointer;padding:0}
+.trow.done .tt{text-decoration:line-through;color:var(--faint)}
+.trow.done .ck{background:var(--good);border-color:var(--good)}
+.trow .dt{margin-right:auto;color:var(--faint);font-size:12px;white-space:nowrap}
+.over{color:var(--bad);font-size:13px;margin-top:6px}
+.empty{color:var(--faint);font-size:13.5px}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.mchip{background:var(--panel2);border:1.5px solid var(--border);border-radius:999px;font-size:17px;
+  padding:3px 12px;cursor:pointer;line-height:1.6}
+.mchip.on{border-color:var(--acc);background:rgba(34,211,238,.12)}
+.wrow{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+#waterBtn{background:var(--panel2);border:1.5px solid var(--border);border-radius:999px;color:var(--text);
+  font-family:inherit;font-size:13.5px;padding:5px 15px;cursor:pointer}
+#waterBtn:disabled{opacity:.5}
+#waterStat{color:var(--muted);font-size:13px}
+.qin{display:flex;gap:8px}
+.qin input{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--border);border-radius:12px;
+  color:var(--text);font-family:inherit;font-size:14px;padding:9px 13px}
+.qin input:focus{outline:none;border-color:var(--acc)}
+.qin button{flex:none;background:var(--acc);color:#062028;border:none;border-radius:12px;
+  padding:9px 18px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.qin button:disabled{opacity:.55}
+.qdone{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.qdone:empty{display:none}
+.qdone span{background:rgba(52,211,153,.12);color:var(--good);border:1px solid rgba(52,211,153,.35);
+  border-radius:999px;font-size:12.5px;padding:2px 11px}
+.yday{font-size:14px;color:var(--muted)}
+.yday b{color:var(--text)}
+.login{text-align:center;padding:30px 10px}
+.login a{display:inline-block;margin-top:10px;background:var(--acc);color:#062028;text-decoration:none;
+  font-weight:800;border-radius:12px;padding:10px 26px}
+.toast{position:fixed;bottom:22px;right:50%;transform:translateX(50%);background:var(--acc);color:#062028;
+  font-weight:700;font-size:14px;border-radius:12px;padding:9px 22px;opacity:0;pointer-events:none;transition:.25s;z-index:9}
+.toast.show{opacity:1}
+.src{font-size:11.5px;color:var(--faint);text-align:center;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="greet" id="greet">…</div>
+      <div class="dates"><b id="dShamsi">…</b><span id="dQamari"></span><span id="dGreg" dir="ltr"></span></div>
+    </div>
+    <a class="open" id="openApp" href="/">هِسته ←</a>
+  </header>
+
+  <div id="main">
+    <div class="wx" id="wx"><span class="wic">…</span><span>در حال دریافت آب‌وهوا…</span></div>
+
+    <section class="card">
+      <h3>✅ کارهای بعدی</h3>
+      <div id="tasks"><div class="empty">در حال دریافت…</div></div>
+      <div class="over" id="overdue"></div>
+    </section>
+
+    <section class="card">
+      <h3>⚡ ثبت سریع</h3>
+      <div class="chips" id="moodChips" title="حال امروز"></div>
+      <div class="wrow">
+        <button type="button" id="waterBtn">💧 +۱ لیوان آب</button>
+        <span id="waterStat"></span>
+      </div>
+      <div class="qin">
+        <input type="text" id="qIn" placeholder="بنویس: «۵۰ هزار ناهار» یا «فردا ساعت ۱۰ بانک»…" autocomplete="off">
+        <button type="button" id="qGo">ثبت</button>
+      </div>
+      <div class="qdone" id="qDone"></div>
+    </section>
+
+    <section class="card dim">
+      <h3>🕰 خلاصهٔ دیروز</h3>
+      <div class="yday" id="yday">در حال دریافت…</div>
+    </section>
+    <div class="src" id="cacheNote"></div>
+  </div>
+
+  <div class="login" id="loginBox" hidden>
+    <div style="font-size:17px">برای دیدن امروزت، اول وارد هِسته شو 👇</div>
+    <a id="loginLink" href="/design/login-page.html">ورود به هِسته</a>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var faD='۰۱۲۳۴۵۶۷۸۹';
+function fa(n){return String(n).replace(/\d/g,function(d){return faD[d]})}
+function fmt(n){return fa(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,','))}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show')},1900)}
+function J(url,opt){return fetch(url,Object.assign({credentials:'include'},opt)).then(function(r){return r.text().then(function(t){var d=null;try{d=t?JSON.parse(t):null}catch(e){}return{ok:r.ok,st:r.status,d:d}})})}
+
+/* تاریخ تهران */
+function tehranISO(off){
+  try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+(off||0)*864e5))}
+  catch(e){var d=new Date(Date.now()+(off||0)*864e5);return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+}
+function tehranHour(){try{return +new Intl.DateTimeFormat('en',{timeZone:'Asia/Tehran',hour:'numeric',hour12:false}).format(new Date())}catch(e){return new Date().getHours()}}
+var TODAY=tehranISO(0),YDAY=tehranISO(-1);
+
+/* سربرگ: سلام + سه تقویم */
+(function header(){
+  var h=tehranHour(),g=h<5?'نیمه‌شب بخیر 🌙':h<12?'صبح بخیر ☀️':h<17?'ظهر بخیر 🌤️':h<20?'عصر بخیر 🌇':'شب بخیر 🌙';
+  document.getElementById('greet').textContent=g;
+  try{document.getElementById('dShamsi').textContent=new Intl.DateTimeFormat('fa-IR',{timeZone:'Asia/Tehran',weekday:'long',day:'numeric',month:'long'}).format(new Date())}catch(e){document.getElementById('dShamsi').textContent=TODAY}
+  try{document.getElementById('dQamari').textContent=new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura',{timeZone:'Asia/Tehran',day:'numeric',month:'long',year:'numeric'}).format(new Date())+' قمری'}catch(e){/* مرورگر قدیمی: قمری نداریم */}
+  try{document.getElementById('dGreg').textContent=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tehran',day:'numeric',month:'short',year:'numeric'}).format(new Date())}catch(e){}
+})();
+
+function showLogin(){
+  document.getElementById('main').hidden=true;
+  document.getElementById('loginBox').hidden=false;
+}
+
+/* کش سبک: تب جدید مدام باز می‌شود؛ اگر آفلاین بودیم آخرین وضعیت را نشان بده */
+function cacheGet(k,maxAge){try{var c=JSON.parse(localStorage.getItem(k)||'null');if(c&&Date.now()-c.at<maxAge)return c.d}catch(e){}return null}
+function cacheSet(k,d){try{localStorage.setItem(k,JSON.stringify({at:Date.now(),d:d}))}catch(e){}}
+
+/* آب‌وهوا: شهر انتخابی کاربر، مستقیم از Open-Meteo */
+var WMO={0:['صاف','☀️'],1:['صاف تا کمی ابری','🌤️'],2:['نیمه‌ابری','⛅'],3:['ابری','☁️'],45:['مه','🌫️'],48:['مه یخ‌زده','🌫️'],
+  51:['نم‌نم سبک','🌦️'],53:['نم‌نم','🌦️'],55:['نم‌نم شدید','🌦️'],61:['باران سبک','🌧️'],63:['باران','🌧️'],65:['باران شدید','🌧️'],
+  71:['برف سبک','🌨️'],73:['برف','🌨️'],75:['برف سنگین','🌨️'],80:['رگبار سبک','🌧️'],81:['رگبار','🌧️'],82:['رگبار شدید','⛈️'],95:['رعدوبرق','⛈️'],96:['رعدوبرق و تگرگ','⛈️'],99:['رعدوبرق و تگرگ','⛈️']};
+function renderWx(city,temp,code,fromCache){
+  var w=WMO[code]||['—','🌡️'];
+  document.getElementById('wx').innerHTML='<span class="wic">'+w[1]+'</span><b>'+fa(Math.round(temp))+'°</b>'
+    +'<span>'+esc(city)+' · '+w[0]+'</span><small>'+(fromCache?'آخرین وضعیت':'Open-Meteo')+'</small>';
+}
+function loadWx(city){
+  city=city||{name:'تهران',lat:35.6892,lon:51.389};
+  var ck='nt-wx',cached=cacheGet(ck,30*60*1000);
+  if(cached&&cached.city===city.name){renderWx(city.name,cached.temp,cached.code,true)}
+  fetch('https://api.open-meteo.com/v1/forecast?latitude='+city.lat+'&longitude='+city.lon+'&current=temperature_2m,weather_code&timezone=Asia%2FTehran')
+    .then(function(r){return r.json()}).then(function(d){
+      if(d&&d.current){renderWx(city.name,d.current.temperature_2m,d.current.weather_code,false);cacheSet(ck,{city:city.name,temp:d.current.temperature_2m,code:d.current.weather_code})}
+      else if(!cached)document.getElementById('wx').innerHTML='<span class="wic">🌡️</span><span>آب‌وهوا در دسترس نیست</span>';
+    }).catch(function(){if(!cached)document.getElementById('wx').innerHTML='<span class="wic">🌡️</span><span>آب‌وهوا در دسترس نیست (آفلاین؟)</span>'});
+}
+
+/* مود و آب */
+var MOODS=[[2,'😞'],[4,'😐'],[6,'🙂'],[8,'😄'],[10,'🤩']];
+var dailyCache={mood:null,water:0};
+function renderMoodWater(){
+  document.getElementById('moodChips').innerHTML=MOODS.map(function(m){
+    return '<button type="button" class="mchip'+(dailyCache.mood===m[0]?' on':'')+'" data-m="'+m[0]+'" title="حال '+fa(m[0])+'">'+m[1]+'</button>';
+  }).join('');
+  var glasses=Math.round((+dailyCache.water||0)/250);
+  document.getElementById('waterStat').textContent=glasses>0?('امروز '+fa(glasses)+' لیوان 💧'):'امروز هنوز آب ثبت نشده';
+}
+document.getElementById('moodChips').addEventListener('click',function(e){
+  var b=e.target.closest?e.target.closest('[data-m]'):null;if(!b)return;
+  var v=+b.getAttribute('data-m');
+  J('/api/daily',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:TODAY,mood:v})})
+    .then(function(x){if(x.st===401){showLogin();return}if(!x.ok){toast('ثبت نشد');return}dailyCache.mood=v;renderMoodWater();toast('حال '+fa(v)+' ثبت شد ✓')})
+    .catch(function(){toast('خطای شبکه')});
+});
+document.getElementById('waterBtn').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;
+  var next=(+dailyCache.water||0)+250;
+  J('/api/daily',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:TODAY,water:next})})
+    .then(function(x){btn.disabled=false;if(x.st===401){showLogin();return}if(!x.ok){toast('ثبت نشد');return}dailyCache.water=next;renderMoodWater();toast('نوش جان! 💧')})
+    .catch(function(){btn.disabled=false;toast('خطای شبکه')});
+});
+
+/* کارها */
+function taskRow(t){
+  var dt=t.date===TODAY?'امروز':(t.date===tehranISO(1)?'فردا':esc(String(t.date||'').slice(5).replace('-','/')));
+  return '<div class="trow'+(t.done?' done':'')+'"><button type="button" class="ck" data-id="'+esc(t.id)+'" title="انجام شد"></button>'
+    +'<span class="tt">'+esc(t.title)+'</span><span class="dt">'+dt+'</span></div>';
+}
+function renderTasks(dash){
+  var open=(dash.tasks||[]).filter(function(t){return!t.done}).sort(function(a,b){return String(a.date).localeCompare(String(b.date))}).slice(0,3);
+  document.getElementById('tasks').innerHTML=open.length?open.map(taskRow).join(''):'<div class="empty">کاری برای امروز نداری — از «ثبت سریع» اضافه کن ✓</div>';
+  var od=(dash.overdueTasks||[]).length;
+  document.getElementById('overdue').textContent=od?('⛔ '+fa(od)+' کار عقب‌افتاده داری — در هِسته ببین'):'';
+}
+document.getElementById('tasks').addEventListener('click',function(e){
+  var b=e.target.closest?e.target.closest('.ck'):null;if(!b)return;
+  var id=b.getAttribute('data-id'),row=b.parentNode;
+  row.classList.add('done');
+  J('/api/tasks/'+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({done:true})})
+    .then(function(x){if(x.st===401){showLogin();return}if(!x.ok){row.classList.remove('done');toast('ثبت نشد');return}toast('آفرین! ✓');setTimeout(refresh,900)})
+    .catch(function(){row.classList.remove('done');toast('خطای شبکه')});
+});
+
+/* خلاصهٔ دیروز */
+function renderYday(d){
+  var el=document.getElementById('yday');
+  var tasks=d.tasks||[],done=tasks.filter(function(t){return t.done}).length;
+  var spent=(d.transactions||[]).filter(function(t){return t.kind!=='income'}).reduce(function(n,t){return n+(+t.amount||0)},0);
+  var mood=d.daily&&d.daily.mood!=null?d.daily.mood:null;
+  if(!tasks.length&&!spent&&mood==null){el.textContent='دیروز چیزی ثبت نشده.';return}
+  var parts=[];
+  if(tasks.length)parts.push('کارها <b>'+fa(done)+' از '+fa(tasks.length)+'</b>');
+  if(spent)parts.push('خرج <b>'+fmt(spent)+'</b> تومان');
+  if(mood!=null)parts.push('حال <b>'+fa(mood)+'</b>');
+  el.innerHTML=parts.join(' · ');
+}
+
+/* ثبت سریع یک‌خطی */
+var qIn=document.getElementById('qIn'),qGo=document.getElementById('qGo'),qDone=document.getElementById('qDone');
+function qSubmit(){
+  var text=(qIn.value||'').trim();if(!text)return;
+  qGo.disabled=true;qGo.textContent='…';
+  J('/api/ai/process',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text})})
+    .then(function(x){
+      qGo.disabled=false;qGo.textContent='ثبت';
+      if(x.st===401){showLogin();return}
+      if(!x.ok){toast((x.d&&x.d.error)||'ثبت نشد');return}
+      var done=x.d.done||[];
+      if(!done.length){toast('چیز قابل‌تشخیصی پیدا نشد');return}
+      qDone.innerHTML=done.map(function(s){return '<span>✓ '+esc(s)+'</span>'}).join('');
+      qIn.value='';toast(fa(done.length)+' مورد ثبت شد ✓');setTimeout(refresh,1200);
+    }).catch(function(){qGo.disabled=false;qGo.textContent='ثبت';toast('خطای شبکه')});
+}
+qGo.addEventListener('click',qSubmit);
+qIn.addEventListener('keydown',function(e){if(e.key==='Enter')qSubmit()});
+
+/* بارگذاری اصلی */
+function refresh(){
+  J('/api/me').then(function(m){
+    if(m.st===401||!m.ok){showLogin();return}
+    var u=(m.d&&m.d.user)||{};
+    if(u.name)document.getElementById('greet').textContent=document.getElementById('greet').textContent+'، '+u.name.split(' ')[0];
+    loadWx(u.weather||null);
+    return J('/api/dashboard?date='+TODAY).then(function(x){
+      if(x.st===401){showLogin();return}
+      if(x.ok&&x.d){
+        cacheSet('nt-dash',x.d);document.getElementById('cacheNote').textContent='';
+        renderTasks(x.d);
+        dailyCache.mood=x.d.daily&&x.d.daily.mood!=null?x.d.daily.mood:null;
+        dailyCache.water=x.d.daily?+x.d.daily.water||0:0;
+        renderMoodWater();
+      }else{
+        var c=cacheGet('nt-dash',24*3600*1000);
+        if(c){renderTasks(c);document.getElementById('cacheNote').textContent='آفلاین — آخرین وضعیت ذخیره‌شده'}
+        else document.getElementById('tasks').innerHTML='<div class="empty">دریافت نشد (آفلاین؟)</div>';
+      }
+      return J('/api/dashboard?date='+YDAY).then(function(y){
+        if(y.ok&&y.d){cacheSet('nt-yday',y.d);renderYday(y.d)}
+        else{var c2=cacheGet('nt-yday',7*24*3600*1000);if(c2)renderYday(c2);else document.getElementById('yday').textContent='دریافت نشد.'}
+      });
+    });
+  }).catch(function(){
+    var c=cacheGet('nt-dash',24*3600*1000);
+    if(c){renderTasks(c);document.getElementById('cacheNote').textContent='آفلاین — آخرین وضعیت ذخیره‌شده'}
+    else showLogin();
+  });
+}
+renderMoodWater();
+refresh();
+})();
+</script>
+</body>
+</html>

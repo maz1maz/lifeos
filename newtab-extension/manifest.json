@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "هِسته — تب جدید",
+  "version": "0.1.0",
+  "description": "تب جدید مرورگر: تاریخ شمسی و قمری، ۳ کار بعدی، ثبت سریع و خلاصهٔ دیروز — از روی هِستهٔ خودت.",
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  }
+}

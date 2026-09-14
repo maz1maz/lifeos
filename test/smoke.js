@@ -302,7 +302,12 @@ async function main() {
     check('receipt upload sets a /uploads path', !!(receiptSave.receipt && receiptSave.receipt.startsWith('/uploads/')));
     const uploadedFileExists = fs.existsSync(path.join(ROOT, 'public', receiptSave.receipt));
     check('receipt file actually written to disk', uploadedFileExists);
-    const receiptServed = await fetch(`${BASE}${receiptSave.receipt}`);
+    // /uploads/* is private on purpose (same guard in server.js and the Worker):
+    // anonymous fetch must 401, and an authenticated fetch — like a browser <img>
+    // tag, which always sends same-origin cookies — must serve the image bytes.
+    const receiptAnon = await fetch(`${BASE}${receiptSave.receipt}`);
+    check('private uploads reject anonymous fetch -> 401 (receipts are per-user)', receiptAnon.status === 401);
+    const receiptServed = await fetch(`${BASE}${receiptSave.receipt}`, { headers: { Cookie: cookie } });
     check('uploaded receipt is served with an image content-type, not text/plain', (receiptServed.headers.get('content-type') || '').startsWith('image/'));
     if (uploadedFileExists) fs.unlinkSync(path.join(ROOT, 'public', receiptSave.receipt));
 

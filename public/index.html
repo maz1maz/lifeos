@@ -876,6 +876,34 @@ body.nav-open .nav-backdrop{display:block}
 .sbdone span{background:color-mix(in srgb,var(--good) 12%,transparent);color:var(--good);
   border:1px solid color-mix(in srgb,var(--good) 35%,transparent);border-radius:999px;
   font-size:12.5px;padding:3px 11px;font-family:var(--fh)}
+/* ===== ثبت سریع — کادر فشردهٔ بالای صفحهٔ امروز ===== */
+.qadd{margin:2px 0 12px;padding:10px 12px;background:var(--panel);border:1px solid var(--border);border-radius:16px}
+.qatabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+.qatab{background:var(--panel2);border:1.5px solid var(--border);border-radius:999px;color:var(--muted);
+  font-family:var(--fh);font-size:13px;font-weight:700;padding:5px 13px;cursor:pointer}
+.qatab.on{background:color-mix(in srgb,var(--acc) 14%,transparent);border-color:var(--acc);color:var(--acc)}
+.qarow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.qarow input,.qarow select{background:var(--panel2);border:1px solid var(--border);border-radius:12px;
+  color:var(--text);font:inherit;font-family:var(--fh);font-size:14px;padding:9px 12px;min-width:0}
+.qarow input:focus,.qarow select:focus{outline:none;border-color:var(--acc)}
+#qaAmt{flex:0 1 130px}
+#qaTitle{flex:1 1 160px}
+#qaGo{flex:none;background:var(--acc);color:#062028;border:none;border-radius:12px;
+  padding:9px 20px;font-family:var(--fh);font-size:14px;font-weight:800;cursor:pointer}
+#qaGo:disabled{opacity:.55;cursor:default}
+.qaopts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--muted)}
+.qaopts select{background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);
+  font-family:var(--fh);font-size:13px;padding:5px 9px}
+.qaopts input[type=time]{background:var(--panel2);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-family:var(--fh);font-size:13px;padding:4px 9px}
+.qaopts .dchip{font-size:12.5px;padding:4px 12px;cursor:pointer}
+.qahint{color:var(--faint);font-size:12.5px}
+.qaacc{color:var(--faint);font-size:12.5px;margin-right:auto}
+.qadone{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.qadone:empty{display:none}
+.qadone span{background:color-mix(in srgb,var(--good) 12%,transparent);color:var(--good);
+  border:1px solid color-mix(in srgb,var(--good) 35%,transparent);border-radius:999px;
+  font-size:12.5px;padding:3px 11px;font-family:var(--fh)}
 /* ===== فاز ۱ — ردیف ۵: عادت‌ها + خلاصه ===== */
 .home-row.r5{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px;align-items:start}
 @media(max-width:900px){.home-row.r5{grid-template-columns:1fr}}
@@ -925,6 +953,24 @@ body.nav-open .nav-backdrop{display:block}
 <div class="wrap">
 
 <div class="home">
+
+  <!-- ثبت سریع: یک کادر فشرده برای رایج‌ترین ثبت‌ها (هزینه/دریافت/کار/یادآوری/یادداشت) -->
+  <div class="qadd" id="qAdd">
+    <div class="qatabs" id="qaTabs">
+      <button type="button" class="qatab on" data-qa="expense">💸 هزینه</button>
+      <button type="button" class="qatab" data-qa="income">💰 دریافت</button>
+      <button type="button" class="qatab" data-qa="task">✅ کار</button>
+      <button type="button" class="qatab" data-qa="reminder">🔔 یادآوری</button>
+      <button type="button" class="qatab" data-qa="note">📝 یادداشت</button>
+    </div>
+    <div class="qarow">
+      <input type="text" id="qaAmt" inputmode="numeric" placeholder="مبلغ (تومان)" autocomplete="off">
+      <input type="text" id="qaTitle" placeholder="شرح — مثلاً: ناهار" autocomplete="off">
+      <button type="button" id="qaGo">ثبت</button>
+    </div>
+    <div class="qaopts" id="qaOpts"></div>
+    <div class="qadone" id="qaDone"></div>
+  </div>
 
   <!-- فاز ۱ — ثبت هوشمند: متن آزاد → رکورد ساخت‌یافته -->
   <div class="smartbar" id="smartBar">
@@ -2938,6 +2984,168 @@ document.addEventListener('click',function(e){
 
   loadHabits();
   loadRecap();
+})();
+</script>
+<script>
+/* ===== ثبت سریع بالای صفحهٔ امروز =====
+   فقط از APIهای موجود استفاده می‌کند (بک‌اند جدید لازم نیست):
+   POST /api/transactions · POST /api/tasks · POST /api/reminders · POST /api/inbox
+   بعد از هر ثبت، همان آرایه‌ها و رندرهای سراسری صفحه به‌روز می‌شوند (بدون ریلود):
+   TODAYTX/renderTx · TASKS/renderTasks · FUTURES/renderFutures
+*/
+(function(){
+  var tabsEl=document.getElementById('qaTabs'),amtEl=document.getElementById('qaAmt'),
+      titleEl=document.getElementById('qaTitle'),goEl=document.getElementById('qaGo'),
+      optsEl=document.getElementById('qaOpts'),doneEl=document.getElementById('qaDone');
+  if(!tabsEl||!goEl||!titleEl)return;
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  function J(url,opt){return fetch(url,Object.assign({credentials:'include'},opt)).then(function(r){return r.json().then(function(d){return{ok:r.ok,st:r.status,d:d}})})}
+  function say(m){if(typeof toastB==='function')toastB(m);else if(typeof toast==='function')toast(m)}
+  function parseAmt(s){
+    s=String(s==null?'':s).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)})
+      .replace(/[٠-٩]/g,function(c){return '٠١٢٣٤٥٦٧٨٩'.indexOf(c)}).replace(/[^0-9]/g,'');
+    return parseInt(s,10)||0;
+  }
+  function isoToday(){return (typeof homeIsoFromOff==='function')?homeIsoFromOff(0):new Date().toISOString().slice(0,10)}
+  function chip(html){doneEl.innerHTML='<span>✓ '+html+'</span>';setTimeout(function(){doneEl.innerHTML=''},6000)}
+
+  var TAB='expense';
+  try{if(localStorage.getItem('qa-tab'))TAB=localStorage.getItem('qa-tab')}catch(e){}
+  var QA={dayOff:0,cat:'auto',time:''};
+  var PH={expense:'شرح — مثلاً: ناهار',income:'شرح — مثلاً: حقوق',task:'عنوان کار…',
+    reminder:'عنوان یادآوری…',note:'یادداشت سریع…'};
+
+  function catOptions(){
+    var list=(typeof CATS!=='undefined'&&CATS.length)?CATS:[['متفرقه','🔖'],['درآمد','📥']];
+    return '<option value="auto">✨ سرفصل خودکار</option>'+list.map(function(c){
+      return '<option value="'+esc(c[0])+'">'+esc(c[1]||'')+' '+esc(c[0])+'</option>';
+    }).join('');
+  }
+  function accName(){
+    var a=(typeof TXACC!=='undefined'&&TXACC)?String(TXACC):'بدون حساب';
+    return a.replace(/^\S+\s/,'')||a;
+  }
+  function renderOpts(){
+    if(TAB==='expense'||TAB==='income'){
+      optsEl.innerHTML='<select id="qaCat">'+catOptions()+'</select>'
+        +'<span class="qaacc">از حساب: '+esc(accName())+'</span>';
+      var sel=document.getElementById('qaCat');
+      sel.value=QA.cat;
+      sel.addEventListener('change',function(){QA.cat=sel.value});
+    }else if(TAB==='task'){
+      optsEl.innerHTML='<span class="qahint">برای:</span>'
+        +'<span class="dchip'+(QA.dayOff===0?' on':'')+'" data-qd="0">امروز</span>'
+        +'<span class="dchip'+(QA.dayOff===1?' on':'')+'" data-qd="1">فردا</span>';
+      optsEl.querySelectorAll('[data-qd]').forEach(function(c){
+        c.addEventListener('click',function(){QA.dayOff=+c.getAttribute('data-qd');renderOpts()});
+      });
+    }else if(TAB==='reminder'){
+      optsEl.innerHTML='<input type="time" id="qaTime" value="'+esc(QA.time)+'">'
+        +'<span class="qahint">ساعت (اختیاری) — در سرور ذخیره می‌شود و در گزارش صبح تلگرام می‌آید</span>';
+      document.getElementById('qaTime').addEventListener('change',function(e){QA.time=e.target.value||''});
+    }else{
+      optsEl.innerHTML='<span class="qahint">به اینباکس می‌رود؛ بعداً می‌توانی به کار یا یادداشت روزانه تبدیلش کنی</span>';
+    }
+  }
+  function setTab(t){
+    TAB=t;
+    try{localStorage.setItem('qa-tab',t)}catch(e){}
+    tabsEl.querySelectorAll('.qatab').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-qa')===t)});
+    var money=(t==='expense'||t==='income');
+    amtEl.style.display=money?'':'none';
+    titleEl.placeholder=PH[t]||'';
+    doneEl.innerHTML='';
+    renderOpts();
+    (money?amtEl:titleEl).focus();
+  }
+  tabsEl.querySelectorAll('.qatab').forEach(function(b){
+    b.addEventListener('click',function(){setTab(b.getAttribute('data-qa'))});
+  });
+
+  function submit(){
+    var t=titleEl.value.trim();
+    if(TAB==='expense'||TAB==='income'){
+      var a=parseAmt(amtEl.value);
+      if(!a){say('مبلغ باید بیشتر از صفر باشد');amtEl.focus();return}
+      if(!t){say('شرح تراکنش را بنویس');titleEl.focus();return}
+      var c=(QA.cat&&QA.cat!=='auto')?QA.cat:((typeof suggestCat==='function'&&suggestCat(t))||(TAB==='income'?'درآمد':'متفرقه'));
+      var acc=accName(),kind=TAB;
+      goEl.disabled=true;
+      J('/api/transactions',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({title:t,amount:a,category:c,kind:kind,account:acc,date:isoToday()})})
+        .then(function(x){
+          goEl.disabled=false;
+          if(x.st===401){location.href='/design/login-page.html';return}
+          if(!x.ok){say((x.d&&x.d.error)||'ذخیره نشد');return}
+          try{
+            if(typeof TODAYTX!=='undefined')TODAYTX.push({id:x.d.id,t:t,a:a,c:c,k:kind,tags:[]});
+            if(typeof renderTx==='function')renderTx();
+          }catch(e){}
+          var cm=(typeof catMeta==='function')?catMeta(c):[c,''];
+          chip(esc(cm[1]||'')+' '+esc(t)+' · '+(typeof fmtFull==='function'?fmtFull(a):a)+' تومان');
+          say('ذخیره شد ✓');
+          amtEl.value='';titleEl.value='';QA.cat='auto';
+          var sel=document.getElementById('qaCat');if(sel)sel.value='auto';
+          amtEl.focus();
+        })
+        .catch(function(){goEl.disabled=false;say('خطای شبکه — ثبت نشد')});
+    }else if(TAB==='task'){
+      if(!t){say('عنوان کار را بنویس');titleEl.focus();return}
+      var off=QA.dayOff||0;
+      var date=(typeof homeIsoFromOff==='function')?homeIsoFromOff(off):isoToday();
+      goEl.disabled=true;
+      J('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({title:t,date:date,deadline:date,priority:'medium'})})
+        .then(function(x){
+          goEl.disabled=false;
+          if(x.st===401){location.href='/design/login-page.html';return}
+          if(!x.ok){say((x.d&&x.d.error)||'ذخیره نشد');return}
+          try{
+            var meta=off===0?'امروز':((typeof dayName==='function')?dayName(off):'');
+            if(typeof TASKS!=='undefined')TASKS.push({id:x.d.id,t:t,p:0,meta:meta,done:false,date:date,off:off});
+            if(typeof renderTasks==='function')renderTasks();
+            if(off>0&&typeof FUTURES!=='undefined'){FUTURES.push({id:x.d.id,t:t,off:off,date:date});if(typeof renderFutures==='function')renderFutures()}
+          }catch(e){}
+          chip('✅ '+esc(t)+(off===1?' · فردا':''));
+          say(off>0?'برای فردا ذخیره شد ✓':'کار ذخیره شد ✓');
+          titleEl.value='';QA.dayOff=0;renderOpts();titleEl.focus();
+        })
+        .catch(function(){goEl.disabled=false;say('خطای شبکه — ثبت نشد')});
+    }else if(TAB==='reminder'){
+      if(!t){say('عنوان یادآوری را بنویس');titleEl.focus();return}
+      goEl.disabled=true;
+      J('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({title:t,date:isoToday(),time:QA.time||null})})
+        .then(function(x){
+          goEl.disabled=false;
+          if(x.st===401){location.href='/design/login-page.html';return}
+          if(!x.ok){say((x.d&&x.d.error)||'ذخیره نشد');return}
+          chip('🔔 '+esc(t)+(QA.time?' · '+esc(QA.time):''));
+          say('یادآوری ذخیره شد ✓');
+          titleEl.value='';titleEl.focus();
+        })
+        .catch(function(){goEl.disabled=false;say('خطای شبکه — ثبت نشد')});
+    }else{
+      if(!t){say('متن یادداشت را بنویس');titleEl.focus();return}
+      goEl.disabled=true;
+      J('/api/inbox',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({text:t})})
+        .then(function(x){
+          goEl.disabled=false;
+          if(x.st===401){location.href='/design/login-page.html';return}
+          if(!x.ok){say((x.d&&x.d.error)||'ذخیره نشد');return}
+          chip('📝 در اینباکس ذخیره شد');
+          say('یادداشت ذخیره شد ✓');
+          titleEl.value='';titleEl.focus();
+        })
+        .catch(function(){goEl.disabled=false;say('خطای شبکه — ثبت نشد')});
+    }
+  }
+  goEl.addEventListener('click',submit);
+  amtEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();titleEl.focus()}});
+  titleEl.addEventListener('keydown',function(e){if(e.key==='Enter')submit()});
+
+  setTab(['expense','income','task','reminder','note'].indexOf(TAB)>-1?TAB:'expense');
 })();
 </script>
 <script>
