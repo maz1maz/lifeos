@@ -246,6 +246,27 @@ async function main() {
   const w8salary = (rows.items || []).find(x => x.id === w8income.id);
   check('a normal receive keeps no flag', w8salary && w8salary.notIncome === undefined);
 
+  // [W9] ریال/تومان روی خودِ آرتیفکت دیپلوی‌شده. stripBalanceNotes/stripRefNumbers تازه‌اند:
+  // اگر از فهرست exportها جا بیفتند، مسیر پیامک بانکی روی Cloudflare می‌شکند در حالی که
+  // `node server.js` سالم است — همان کلاس باگی که این فایل برایش نوشته شده.
+  console.log('\n[W9] rial/toman + balance guard on the deployed artifact');
+  const w9ids = async () => new Set((((await call(`/api/transactions?from=${today()}&to=${today()}`, { cookie })).d.items) || []).map(x => x.id));
+  const w9parse = async (text) => {
+    const before = await w9ids();
+    const res = await call('/api/ai/process', { method: 'POST', cookie, body: { text } });
+    const items = ((await call(`/api/transactions?from=${today()}&to=${today()}`, { cookie })).d.items) || [];
+    return { status: res.status, actions: (res.d && res.d.actions) || [], created: items.filter(x => !before.has(x.id)) };
+  };
+  const w9sms = await w9parse('۲۴بلو انتقال پل حمیدرضا عزیز 15,000,000 ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23');
+  check('worker: reported SMS parses to 1,500,000 تومان', w9sms.status === 200 && w9sms.actions.length === 1 && w9sms.actions[0].amount === 1_500_000, JSON.stringify(w9sms.actions));
+  check('worker: stored row has the converted amount, never the balance', w9sms.created.length === 1 && w9sms.created[0].amount === 1_500_000);
+  const w9bal = await w9parse('موجودی: 3,879,270,699 ریال');
+  check('worker: balance-only text creates nothing (stripBalanceNotes must be exported)', w9bal.status === 200 && w9bal.actions.length === 0 && w9bal.created.length === 0);
+  const w9ref = await w9parse('شناسه پرداخت ۱۲۳۴۵۶۷۸۹۰');
+  check('worker: reference-number-only text creates nothing (stripRefNumbers must be exported)', w9ref.status === 200 && w9ref.actions.length === 0 && w9ref.created.length === 0);
+  const w9toman = await w9parse('خرید ۱۵,۰۰۰,۰۰۰ تومان');
+  check('worker: تومان amounts are unchanged (no divide by 10)', w9toman.actions.length === 1 && w9toman.actions[0].amount === 15_000_000);
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

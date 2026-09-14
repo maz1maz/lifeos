@@ -918,6 +918,63 @@ async function main() {
     const stillClean = await finance();
     check('…and nothing changed for the owner', stillClean.incomeOffCount === 0 && stillClean.income === financeBefore.income);
 
+    /* [44] ریال/تومان — باگ واقعی گزارش‌شده: پیامک بانکی «۱۵,۰۰۰,۰۰۰ ریال» به‌صورت
+       ۱۵,۰۰۰,۰۰۰ تومان ثبت شده بود، و پیامکی که فقط «موجودی:» داشت مبلغش از
+       روی موجودی (۳.۸ میلیارد) ساخته شده بود. قانون کاربر: «هر چی می‌زنم تومانه،
+       مگر کنارش نوشته باشم ریال». */
+    console.log('\n[44] rial/toman: «ریال» is divided by 10, «موجودی» is never the amount');
+    const txIdsToday = async () => new Set((((await fetch(`${BASE}/api/transactions?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json())).items) || []).map(x => x.id));
+    const parseText = async (text) => {
+      const before = await txIdsToday();
+      const res = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text }) }).then(r => r.json());
+      const items = ((await fetch(`${BASE}/api/transactions?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json())).items) || [];
+      return { actions: res.actions || [], created: items.filter(x => !before.has(x.id)) };
+    };
+
+    // ۱) پیامکِ گزارش‌شده: مبلغ در متن نیست، فقط «موجودی» هست → هیچ تراکنشی نباید ساخته شود
+    const smsBalanceOnly = '۲۴بلو انتقال پل حمیدرضا عزیز، ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23';
+    const rBalanceOnly = await parseText(smsBalanceOnly);
+    check('SMS with only a balance creates nothing (no 3,879,270,699 phantom expense)', rBalanceOnly.actions.length === 0 && rBalanceOnly.created.length === 0);
+
+    // ۲) همان پیامک با مبلغ در متن → ۱۵,۰۰۰,۰۰۰ ریال = ۱,۵۰۰,۰۰۰ تومان (باگ اصلی کاربر)
+    const smsWithAmount = '۲۴بلو انتقال پل حمیدرضا عزیز 15,000,000 ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23';
+    const rSms = await parseText(smsWithAmount);
+    check('reported SMS: 15,000,000 ریال -> 1,500,000 تومان (was 15,000,000)', rSms.actions.length === 1 && rSms.actions[0].amount === 1_500_000, JSON.stringify(rSms.actions));
+    check('reported SMS: the stored transaction carries the converted amount', rSms.created.length === 1 && rSms.created[0].amount === 1_500_000);
+    check('reported SMS: the balance never leaks into the stored amount', rSms.created.length === 1 && rSms.created[0].amount !== 3_879_270_699);
+
+    // ۳) مبلغِ برچسب‌خوردهٔ «ریال» در حالت‌های دیگرِ ورودی
+    const rRialWord = await parseText('۱۵,۰۰۰,۰۰۰ ریال انتقال به حمیدرضا');
+    check('«۱۵,۰۰۰,۰۰۰ ریال …» -> 1,500,000 تومان', rRialWord.actions.length === 1 && rRialWord.actions[0].amount === 1_500_000);
+    const rRialNoSep = await parseText('خرید ۱۵۰۰۰۰۰۰ ریال');
+    check('bare ۱۵۰۰۰۰۰۰ ریال -> 1,500,000 تومان', rRialNoSep.actions.length === 1 && rRialNoSep.actions[0].amount === 1_500_000);
+    const rMillionRial = await parseText('۱۵ میلیون ریال انتقال');
+    check('«۱۵ میلیون ریال» -> 1,500,000 تومان', rMillionRial.actions.length === 1 && rMillionRial.actions[0].amount === 1_500_000);
+
+    // ۴) تومان (پیش‌فرض کاربر و متن‌های بدون واحد) دست‌نخورده می‌ماند
+    const rToman = await parseText('خرید ۱۵,۰۰۰,۰۰۰ تومان');
+    check('«۱۵,۰۰۰,۰۰۰ تومان» stays 15,000,000 (no divide)', rToman.actions.length === 1 && rToman.actions[0].amount === 15_000_000);
+    const rDefault = await parseText('حقوق ۲۵ میلیون');
+    check('unlabelled amount keeps toman default (۲۵ میلیون -> 25,000,000)', rDefault.actions.length === 1 && rDefault.actions[0].amount === 25_000_000);
+    const rNoUnit = await parseText('خرید لپ تاپ 45000000');
+    check('unlabelled number 45000000 stays 45,000,000', rNoUnit.actions.length === 1 && rNoUnit.actions[0].amount === 45_000_000);
+
+    // ۵) وقتی هم مبلغ هست هم موجودی، برنده مبلغ است نه عددِ بزرگ‌ترِ موجودی
+    const rMixed = await parseText('خرید ۲۵۰,۰۰۰ تومان موجودی: ۳,۸۷۹,۲۷۰,۶۹۹ ریال');
+    check('amount wins over a bigger «موجودی» figure', rMixed.actions.length === 1 && rMixed.actions[0].amount === 250_000 && rMixed.created[0].amount === 250_000);
+
+    // ۶) متن‌های بانکی بدون مبلغ (فقط مانده / فقط شناسه) چیزی نمی‌سازند
+    const rBal = await parseText('موجودی: ۳,۸۷۹,۲۷۰,۶۹۹ ریال');
+    check('balance-only text creates nothing', rBal.actions.length === 0 && rBal.created.length === 0);
+    const rRef = await parseText('شناسه پرداخت ۱۲۳۴۵۶۷۸۹۰');
+    check('reference-number-only text creates nothing', rRef.actions.length === 0 && rRef.created.length === 0);
+
+    // ۷) مسیر پیامکِ واریز/برداشتِ تومانی هنوز مثل قبل کار می‌کند
+    const rSmsToman = await parseText('خرید ۱۵۰,۰۰۰ تومان از حساب شما کسر شد موجودی: ۳,۸۷۹,۲۷۰,۶۹۹ ریال');
+    check('toman SMS unchanged: ۱۵۰,۰۰۰ تومان -> 150,000', rSmsToman.actions.length === 1 && rSmsToman.actions[0].amount === 150_000);
+    const rDeposit = await parseText('به حساب شما ۲۵,۰۰۰,۰۰۰ ریال واریز شد. موجودی: ۹۰,۰۰۰,۰۰۰ ریال');
+    check('rial deposit: 2,500,000 تومان and kind=income', rDeposit.actions.length === 1 && rDeposit.actions[0].amount === 2_500_000 && rDeposit.actions[0].kind === 'income');
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
