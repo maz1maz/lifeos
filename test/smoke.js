@@ -923,11 +923,13 @@ async function main() {
        روی موجودی (۳.۸ میلیارد) ساخته شده بود. قانون کاربر: «هر چی می‌زنم تومانه،
        مگر کنارش نوشته باشم ریال». */
     console.log('\n[44] rial/toman: «ریال» is divided by 10, «موجودی» is never the amount');
-    const txIdsToday = async () => new Set((((await fetch(`${BASE}/api/transactions?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json())).items) || []).map(x => x.id));
+    // پنجرهٔ پهن (کل سال): بعضی متن‌ها تاریخ خودشان را دارند (مثل ۱۴۰۵.۰۶.۲۳) نه تاریخ امروز
+    const WINDOW = 'from=2026-01-01&to=2026-12-31';
+    const txIdsNow = async () => new Set((((await fetch(`${BASE}/api/transactions?${WINDOW}`, { headers: authHeaders }).then(r => r.json())).items) || []).map(x => x.id));
     const parseText = async (text) => {
-      const before = await txIdsToday();
+      const before = await txIdsNow();
       const res = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text }) }).then(r => r.json());
-      const items = ((await fetch(`${BASE}/api/transactions?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json())).items) || [];
+      const items = ((await fetch(`${BASE}/api/transactions?${WINDOW}`, { headers: authHeaders }).then(r => r.json())).items) || [];
       return { actions: res.actions || [], created: items.filter(x => !before.has(x.id)) };
     };
 
@@ -961,6 +963,19 @@ async function main() {
     const rTwoAmounts = await parseText('خرید ۲۰۰,۰۰۰ تومان و کارمزد ۵,۰۰۰ ریال');
     check('toman amount stays whole even when a rial figure shares the text', rTwoAmounts.actions.length === 1 && rTwoAmounts.actions[0].amount === 200_000);
 
+    // ۳c) پیام واقعیِ کاربر: سرصفحهٔ «مبلغ/بابت/تاریخ» که خودش می‌زند + پیامک بانک که پیست می‌کند
+    const compositeMsg = 'مبلغ: ۱۵٬۰۰۰٬۰۰۰ تومان\nبابت: نظافت منزل\nتاریخ: Sep 14, 2026 at 23:29\n\nبلو\nانتقال پل\nحمیدرضا عزیز، 15,000,000 ریال از حساب شما پرید.\nموجودی: 3,879,270,699 ریال\n۱۵:۴۰\n۱۴۰۵.۰۶.۲۳';
+    const rComposite = await parseText(compositeMsg);
+    check('the real combined message -> 1,500,000 تومان with the بابت as title', rComposite.actions.length === 1 && rComposite.actions[0].amount === 1_500_000 && rComposite.actions[0].title === 'نظافت منزل', JSON.stringify(rComposite.actions));
+    check('…and the Telegram date (Sep 14, 2026) becomes the transaction date', rComposite.actions[0].date === '2026-09-14');
+    check('…and the balance never leaks in', rComposite.created.length === 1 && rComposite.created[0].amount === 1_500_000);
+    const compositeAscii = 'مبلغ: 15,000,000 تومان\nبابت: نظافت منزل\nSep 14, 2026 at 23:29\n\nحمیدرضا عزیز، 15,000,000 ریال از حساب شما پرید.\nموجودی: 3,879,270,699 ریال';
+    const rCompositeAscii = await parseText(compositeAscii);
+    check('the bank\'s own «… ریال …» line wins over the typed «مبلغ: … تومان» header', rCompositeAscii.actions.length === 1 && rCompositeAscii.actions[0].amount === 1_500_000);
+    const typedOnly = 'مبلغ: ۱۵٬۰۰۰٬۰۰۰ تومان\nبابت: بنزین\n۱۴۰۵.۰۶.۲۲';
+    const rTypedOnly = await parseText(typedOnly);
+    check('typed header alone (٬ separator) -> 15,000,000 تومان, clean title + jalali date', rTypedOnly.actions.length === 1 && rTypedOnly.actions[0].amount === 15_000_000 && rTypedOnly.actions[0].title === 'بنزین' && rTypedOnly.actions[0].date === '2026-09-13');
+
     // ۴) تومان (پیش‌فرض کاربر و متن‌های بدون واحد) دست‌نخورده می‌ماند
     const rToman = await parseText('خرید ۱۵,۰۰۰,۰۰۰ تومان');
     check('«۱۵,۰۰۰,۰۰۰ تومان» stays 15,000,000 (no divide)', rToman.actions.length === 1 && rToman.actions[0].amount === 15_000_000);
@@ -984,6 +999,66 @@ async function main() {
     check('toman SMS unchanged: ۱۵۰,۰۰۰ تومان -> 150,000', rSmsToman.actions.length === 1 && rSmsToman.actions[0].amount === 150_000);
     const rDeposit = await parseText('به حساب شما ۲۵,۰۰۰,۰۰۰ ریال واریز شد. موجودی: ۹۰,۰۰۰,۰۰۰ ریال');
     check('rial deposit: 2,500,000 تومان and kind=income', rDeposit.actions.length === 1 && rDeposit.actions[0].amount === 2_500_000 && rDeposit.actions[0].kind === 'income');
+
+    /* [45] یادآوری سرِ ماه + مطابقت صورتحساب بانکی: «سر هر ماه یادآوری کن فایل اکسل
+       بانکی ماه قبل رو وارد کنم، اونوقت مطابقت بده» — یعنی بعد از آپلود، ردیف‌هایی که
+       قبلاً دستی/خودکار ثبت شده‌اند شناسایی شوند و فقط ردیف‌های جامانده اضافه شوند.
+       نکته: فایل صورتحساب بانک‌های ایران ریالی است، پس مبالغ فایل ÷۱۰ می‌شوند تا با
+       تراکنش‌های تومانی اپ قابل مقایسه باشند. */
+    console.log('\n[45] monthly bank-statement reminder + reconciliation against already-entered rows');
+    {
+      // کاربر تازه: هیچ ردیف بانکی در پنجرهٔ ماه قبل ندارد تا یادآوری واقعاً ساخته شود
+      const email3 = 'smoke-rem-' + Date.now() + '@example.com';
+      await fetch(`${BASE}/api/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Rem', email: email3, password: 'secret123' }) });
+      const login3 = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email3, password: 'secret123' }) });
+      const auth3 = { 'Content-Type': 'application/json', Cookie: login3.headers.get('set-cookie').split(';')[0] };
+      const check3 = (date) => fetch(`${BASE}/api/reminders/statement-check`, { method: 'POST', headers: auth3, body: JSON.stringify(date ? { date } : {}) }).then(r => r.json());
+      const addTx = (tx) => fetch(`${BASE}/api/transactions`, { method: 'POST', headers: auth3, body: JSON.stringify(Object.assign({ account: 'بدون حساب' }, tx)) }).then(r => r.json());
+      const importCsv = (csv) => fetch(`${BASE}/api/transactions/import-bank/preview`, { method: 'POST', headers: auth3, body: JSON.stringify({ fileType: 'csv', filename: 'bank.csv', fileBase64: Buffer.from('\ufeff' + csv, 'utf8').toString('base64') }) }).then(r => r.json());
+      const commitItems = (items) => fetch(`${BASE}/api/transactions/import-bank/commit`, { method: 'POST', headers: auth3, body: JSON.stringify({ items, account: 'بدون حساب' }) }).then(r => r.json());
+
+      // ۱۴۰۵/۰۷/۰۱ = ۲۰۲۶-۰۹-۲۳ → «اول ماه»؛ ماه قبل شهریور (۱۴۰۵/۰۶)
+      const first = await check3('2026-09-23');
+      check('on the 1st of the month a reminder is created', first.created === 1, JSON.stringify(first));
+      check('…for the PREVIOUS month (شهریور), not the current one', first.month === 'شهریور' && first.from === '2026-08-23' && first.to === '2026-09-22', JSON.stringify(first));
+      check('…and it is the bank-statement reminder, tagged for dedupe', !!first.reminder && /صورت.?حساب/.test(first.reminder.title) && first.reminder.auto === 'bank-import:1405-06', JSON.stringify(first.reminder));
+      const again = await check3('2026-09-23');
+      check('running the check twice the same day does not duplicate the reminder', again.created === 0 && !!again.reminder && again.reminder.id === first.reminder.id, JSON.stringify(again));
+      const midMonth = await check3('2026-09-10');
+      check('mid-month the check stays silent (checked:false, no reminder)', midMonth.created === 0 && midMonth.checked === false, JSON.stringify(midMonth));
+
+      // ردیفی که کاربر قبلاً دستی ثبت کرده و عیناً در فایل بانکی هم هست:
+      // ۱,۵۰۰,۰۰۰ ریال فایل = ۱۵۰,۰۰۰ تومان
+      const manual = await addTx({ title: 'نظافت منزل', amount: 150_000, kind: 'expense', date: '2026-09-14' });
+      check('a manual row is recorded (this is the one that must NOT be duplicated)', !!manual.id && manual.amount === 150_000);
+      const csv = ['تاریخ,شرح,واریز,برداشت,شماره سند',
+        '1405/06/23,نظافت منزل,0,"1,500,000",9001',             // همان ردیف دستی → تکراری
+        '1405/06/21,خرید نان,0,"500,000",9002',                  // جامانده → اضافه شود
+        '1405/06/25,واریز حقوق,"12,000,000",0,9003'].join('\n'); // جامانده → اضافه شود
+      const preview = await importCsv(csv);
+      check('preview flags the already-entered row instead of offering it again', preview.newCount === 2 && preview.alreadyCount === 1, JSON.stringify({ new: preview.newCount, already: preview.alreadyCount, near: preview.nearDuplicateCount }));
+      check('preview keeps the bank rial->toman conversion straight (1,500,000 ریال = 150,000 تومان)', (preview.items || [])[0]?.amount === 150_000, JSON.stringify((preview.items || []).map(x => [x.date, x.title, x.amount])));
+      check('the already-entered row is marked duplicate, the others are not', (preview.items || [])[0]?.duplicate === true && (preview.items || [])[0]?.dupReason === 'same-date' && (preview.items || [])[1]?.duplicate === false, JSON.stringify((preview.items || []).map(x => [x.title, x.duplicate, x.dupReason])));
+      const commit = await commitItems(preview.items);
+      check('commit imports only the missing rows and reports the skipped one', commit.imported === 2 && commit.skippedExisting === 1, JSON.stringify(commit));
+      const after = await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth3 }).then(r => r.json());
+      const mine = (after.items || []).filter(x => ['نظافت منزل', 'برداشت بانکی', 'واریز بانکی'].includes(x.title));
+      check('the manual row survives exactly once (no duplicate of the already-entered row)', mine.filter(x => x.title === 'نظافت منزل').length === 1, JSON.stringify(mine.map(x => [x.title, x.amount])));
+      check('the two missing rows are added alongside the manual one', mine.length === 3 && mine.find(x => x.title === 'واریز بانکی')?.amount === 1_200_000, JSON.stringify(mine.map(x => [x.title, x.amount])));
+
+      // کاربر همان فایل را ماه بعد هم آپلود می‌کند → این بار هیچ‌چیز نباید اضافه شود
+      const second = await importCsv(csv);
+      const secondCommit = await commitItems(second.items);
+      check('uploading the same statement again imports nothing new', second.newCount === 0 && second.duplicateCount === 3 && secondCommit.imported === 0 && secondCommit.skippedExisting === 3, JSON.stringify({ preview: [second.newCount, second.duplicateCount], commit: secondCommit }));
+      const after2 = await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth3 }).then(r => r.json());
+      check('…and the transaction list is unchanged by the second upload', (after2.items || []).length === (after.items || []).length, JSON.stringify([(after2.items || []).length, (after.items || []).length]));
+
+      // ردیف یک روز جابه‌جا (احتمالاً همان تراکنش با تاریخ متفاوت) → هشدار، نه حذف بی‌صدا
+      await addTx({ title: 'تاکسی', amount: 70_000, kind: 'expense', date: '2026-09-13' });
+      const near = await importCsv('تاریخ,شرح,واریز,برداشت,شماره سند\n1405/06/21,تاکسی,0,"700,000",7777');
+      check('a row one day off an existing row is flagged as a near-duplicate for the user to decide', near.nearDuplicateCount === 1 && (near.items || [])[0]?.nearDuplicate === true && (near.items || [])[0]?.dupReason === 'near-date', JSON.stringify({ near: near.nearDuplicateCount, items: near.items }));
+      check('…and the near-duplicate is still offered for import (user unchecks it, the app does not decide silently)', near.newCount === 1 && (near.items || [])[0]?.duplicate !== true, JSON.stringify(near.items));
+    }
 
   } finally {
     child.kill();

@@ -96,7 +96,8 @@ async function runScheduled(env) {
   const changed2 = await H.refreshPricesAndAlerts(db);
   const { changed: changed3 } = await H.syncAllNewsSources(db).catch(() => ({ changed: false }));
   const changed4 = await H.backupDbToTelegram(db).catch(() => false);
-  if (changed1 || changed2 || changed3 || changed4) await H.write(db);
+  const changed5 = (await H.ensureStatementReminder(db).catch(() => ({ created: 0 }))).created > 0;
+  if (changed1 || changed2 || changed3 || changed4 || changed5) await H.write(db);
 }
 
 let TGJU_CACHE = null;

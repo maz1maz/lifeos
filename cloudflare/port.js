@@ -295,6 +295,132 @@ if (missingHProps.length) {
 }
 console.log('Export-list guard OK: ' + returnList.length + ' helpers exported via return {...} + destructuring, all route-referenced helpers wired (' + exportCandidates.size + ' candidates checked)');
 
+// ---------------------------------------------------------------------------
+// Helper-parity guard: the two guards above only prove a helper EXISTS on both
+// sides, not that it does the same thing. Real drift hid behind that once:
+// server.js divided bank-statement amounts by 10 (rial -> toman) while the
+// hand-written header.js copy did not, so `node server.js` imported correct
+// numbers and the deployed Worker stored every imported row 10x too large.
+// Rule: a helper defined in BOTH server.js and header.js/footer.js must be the
+// same code (compared with whitespace, comments and stray semicolons ignored).
+// Platform-bound helpers are listed below — anything else that drifts fails the
+// build.
+// ---------------------------------------------------------------------------
+// Replace comment characters with spaces (same length) so that comparison
+// ignores comments but string/regex contents are never mangled.
+function stripComments(text){
+  let out=text.split(''), i=0, inStr=null;
+  while(i<text.length){
+    const c=text[i];
+    if(inStr){ if(c==='\\'){i+=2;continue} if(c===inStr)inStr=null; i++; continue }
+    if(c==='"'||c==="'"||c==='`'){inStr=c;i++;continue}
+    if(c==='/'&&text[i+1]==='/'){const j=text.indexOf('\n',i);const e=j<0?text.length:j;for(let k=i;k<e;k++)out[k]=' ';i=e;continue}
+    if(c==='/'&&text[i+1]==='*'){let j=text.indexOf('*/',i+2);if(j<0)j=text.length;else j+=2;for(let k=i;k<j;k++)out[k]=' ';i=j;continue}
+    if(c==='/'){
+      let k=i-1; while(k>=0&&/\s/.test(text[k]))k--;
+      const pc=text[k]||'';
+      const word=(text.slice(Math.max(0,k-10),k+1).match(/([A-Za-z_$][\w$]*)$/)||[''])[0];
+      if(/^(return|typeof|case|in|of|new|delete|void|instanceof|yield|await|do|else)$/.test(word) || '(,=:[!&|?{};+-*%~^<>'.includes(pc)){
+        i++; let cls=false;
+        while(i<text.length){const ch=text[i]; if(ch==='\\'){i+=2;continue} if(ch==='[')cls=true; else if(ch===']')cls=false; else if(ch==='/'&&!cls)break; i++}
+        i++; while(i<text.length&&/[a-z]/.test(text[i]))i++;
+        continue;
+      }
+    }
+    i++;
+  }
+  return out.join('');
+}
+// Extract function bodies by matching delimiters with a single tokenizing scan.
+// (Delimiter maps make the result immune to braces inside strings/regex literals
+// and inside comments, which made a naive brace counter run away and merge
+// unrelated functions.)
+function extractFns(rawText){
+  const text=stripComments(rawText);
+  const parenClose=new Map(), braceClose=new Map();
+  const pstack=[], bstack=[];
+  let i=0, inStr=null;
+  while(i<text.length){
+    const c=text[i];
+    if(inStr){ if(c==='\\'){i+=2;continue} if(c===inStr)inStr=null; i++; continue }
+    if(c==='"'||c==="'"||c==='`'){inStr=c;i++;continue}
+    if(c==='/'){
+      let k=i-1; while(k>=0&&/\s/.test(text[k]))k--;
+      const pc=text[k]||'';
+      const word=(text.slice(Math.max(0,k-10),k+1).match(/([A-Za-z_$][\w$]*)$/)||[''])[0];
+      if(/^(return|typeof|case|in|of|new|delete|void|instanceof|yield|await|do|else)$/.test(word) || '(,=:[!&|?{};+-*%~^<>'.includes(pc)){
+        i++; let cls=false;
+        while(i<text.length){const ch=text[i]; if(ch==='\\'){i+=2;continue} if(ch==='[')cls=true; else if(ch===']')cls=false; else if(ch==='/'&&!cls)break; i++}
+        i++; while(i<text.length&&/[a-z]/.test(text[i]))i++;
+        continue;
+      }
+    }
+    if(c==='(')pstack.push(i);
+    else if(c===')'){ const o=pstack.pop(); if(o!==undefined)parenClose.set(o,i); }
+    else if(c==='{')bstack.push(i);
+    else if(c==='}'){ const o=bstack.pop(); if(o!==undefined)braceClose.set(o,i); }
+    i++;
+  }
+  extractFns.leftoverDepth=bstack.length;
+  const out={};
+  const re=/(?:^|\n)[ \t]*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/g;
+  let m;
+  while((m=re.exec(text))){
+    const open=m.index+m[0].length-1;
+    const cp=parenClose.get(open);
+    if(cp===undefined)continue;
+    let j=cp+1;
+    while(j<text.length&&/\s/.test(text[j]))j++;
+    if(text[j]!=='{')continue;
+    const end=braceClose.get(j);
+    if(end===undefined)continue;
+    out[m[1]]=(out[m[1]]||'')+text.slice(open,end+1);
+  }
+  return out;
+}
+
+const fnNorm = s => {
+  let t = s.replace(/\s+/g, '');
+  t = t.replace(/;+(?=})/g, '').replace(/\{;/g, '{').replace(/;{2,}/g, ';');
+  t = t.replace(/;+(?=})/g, '').replace(/\{;/g, '{');
+  return t;
+};
+// Deliberately different on each platform (Node vs Worker runtime wiring).
+const PLATFORM_HELPERS = new Set([
+  'read', 'write', 'body', 'hash', 'sidCookie', 'clientIp', 'hashPin', 'genLinkCode', 'today',
+  'handleTelegramMessage', 'tgCheckReports', 'refreshPricesAndAlerts',
+]);
+const serverFns = extractFns(src);
+const workerSide = header + footer;
+const workerFns = extractFns(workerSide);
+if (extractFns.leftoverDepth !== 0) {
+  console.error('');
+  console.error('ERROR: helper-parity guard could not balance braces in header.js + footer.js');
+  console.error('(leftover depth ' + extractFns.leftoverDepth + ') — the comparison below cannot be trusted.');
+  console.error('Usually this means a regex literal or template string confused the scanner; fix the');
+  console.error('scanner in port.js before shipping.');
+  console.error('');
+  process.exit(1);
+}
+const shared = Object.keys(serverFns).filter(n => workerFns[n]);
+const drifted = shared.filter(n => !PLATFORM_HELPERS.has(n) && fnNorm(serverFns[n]) !== fnNorm(workerFns[n]));
+if (drifted.length) {
+  console.error('');
+  console.error('ERROR: helper(s) exist in BOTH server.js and cloudflare/header.js|footer.js but with');
+  console.error('DIFFERENT code — the Node server and the deployed Worker would behave differently.');
+  console.error('(This is how the rial/toman bug shipped: server.js divided statement amounts by 10 and');
+  console.error('the Worker copy did not, so imports on the live app were 10x too large.)');
+  console.error('');
+  console.error('  drifted: ' + drifted.sort().join(', '));
+  console.error('');
+  console.error('Fix: make the two copies the same code (whitespace/comments/stray semicolons are ignored),');
+  console.error('or — if the difference is genuinely platform-bound — add the name to PLATFORM_HELPERS in');
+  console.error('port.js with a comment saying why.');
+  console.error('');
+  process.exit(1);
+}
+console.log('Helper-parity guard OK: ' + shared.length + ' helpers shared by server.js and header.js/footer.js are the same code (' + PLATFORM_HELPERS.size + ' platform-specific exceptions)');
+
 fs.writeFileSync(path.join(__dirname, 'worker.js'), header + block + footer);
 console.log('Wrote cloudflare/worker.js (' + (header + block + footer).split('\n').length + ' lines)');
 console.log('header.js and footer.js are hand-written (not generated) — edit those directly for anything');
