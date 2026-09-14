@@ -312,6 +312,28 @@ async function main() {
     check('worker: a row one day off an existing row is flagged near-duplicate, not dropped', w10near.nearDuplicateCount === 1 && (w10near.items || [])[0]?.nearDuplicate === true && w10near.newCount === 1, JSON.stringify(w10near));
   }
 
+  // [W11] پوکر/بت روی خودِ آرتیفکت: متن پوکر/بت نباید تراکنش بسازد. (هم هلپر تازه‌ی
+  // parseGambleText باید در هر دو نسخه یکی باشد، هم مسیر /api/ai/process روی ورکر.)
+  console.log('\n[W11] poker/bet messages never become transactions (deployed artifact)');
+  {
+    const w11email = `wsmoke_gamble_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W11', email: w11email, password: 'secret123' } });
+    const w11login = await call('/api/auth/login', { method: 'POST', body: { email: w11email, password: 'secret123' } });
+    const c11 = String((typeof w11login.headers.getSetCookie === 'function' ? w11login.headers.getSetCookie()[0] : w11login.headers.get('set-cookie')) || '').split(';')[0];
+    const say11 = async (text) => (await call('/api/ai/process', { method: 'POST', cookie: c11, body: { text } })).d;
+    const rows11 = async () => ((await call('/api/transactions?from=2026-01-01&to=2026-12-31', { cookie: c11 })).d.items) || [];
+    const pk11 = async () => ((await call('/api/poker', { cookie: c11 })).d.items) || [];
+
+    const w11s = await say11('پوکر خانه دوستان ۵۰ میلیون ورودی ۴۲ میلیون خروجی');
+    check('worker: poker text creates no transaction', (await rows11()).length === 0, JSON.stringify(await rows11()));
+    check('worker: poker text becomes a poker session (50M in / 42M out)', (w11s.actions || [])[0]?.type === 'poker' && w11s.actions[0].buyIn === 50_000_000 && w11s.actions[0].cashOut === 42_000_000, JSON.stringify(w11s.actions));
+    check('worker: the session is stored in the poker panel data', (await pk11()).length === 1 && (await pk11())[0].cashOut === 42_000_000);
+    const w11b = await say11('بت ۵۰ میلیون واریز کردم');
+    check('worker: bet text creates no transaction', (await rows11()).length === 0 && (w11b.done || []).some(x => /Inbox/.test(x)), JSON.stringify(w11b.done));
+    const w11c = await say11('خرید نان ۵۰۰ هزار');
+    check('worker: normal expense text still works', (w11c.actions || []).length === 1 && (await rows11()).length === 1 && (await rows11())[0].amount === 500_000, JSON.stringify(w11c.actions));
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

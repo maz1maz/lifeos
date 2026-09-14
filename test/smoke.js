@@ -1060,6 +1060,37 @@ async function main() {
       check('…and the near-duplicate is still offered for import (user unchecks it, the app does not decide silently)', near.newCount === 1 && (near.items || [])[0]?.duplicate !== true, JSON.stringify(near.items));
     }
 
+    /* [46] پوکر/بت در تراکنش‌ها ثبت نشود: «پولش دلاری بهم می‌دن که جدا ثبت می‌کنم یا تومانی
+       که به حساب بانکم می‌آید یا خودم تراکنش می‌زنم» — پس متن پوکر/بت هرگز نباید تراکنش
+       بسازد. اگر دو عدد با ورودی/خروجی داشت، به سشن پوکر تبدیل می‌شود. */
+    console.log('\n[46] poker/bet texts never create transactions (they go to the poker panel instead)');
+    {
+      const email4 = 'smoke-gamble-' + Date.now() + '@example.com';
+      await fetch(`${BASE}/api/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'G', email: email4, password: 'secret123' }) });
+      const login4 = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email4, password: 'secret123' }) });
+      const auth4 = { 'Content-Type': 'application/json', Cookie: login4.headers.get('set-cookie').split(';')[0] };
+      const txs4 = async () => ((await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth4 }).then(r => r.json())).items) || [];
+      const say = (text) => fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: auth4, body: JSON.stringify({ text }) }).then(r => r.json());
+
+      const session = await say('پوکر خانه دوستان ۵۰ میلیون ورودی ۴۲ میلیون خروجی');
+      check('a poker message does not create a transaction', (await txs4()).length === 0, JSON.stringify(await txs4()));
+      check('…it becomes a poker session with the right numbers', (session.actions || [])[0]?.type === 'poker' && session.actions[0].buyIn === 50_000_000 && session.actions[0].cashOut === 42_000_000, JSON.stringify(session.actions));
+      const pk = ((await fetch(`${BASE}/api/poker`, { headers: auth4 }).then(r => r.json())).items) || [];
+      check('…and the session is really stored (panel data)', pk.length === 1 && pk[0].buyIn === 50_000_000 && pk[0].cashOut === 42_000_000 && pk[0].location === 'خانه دوستان', JSON.stringify(pk));
+      const onl = await say('پوکر آنلاین ورودی ۱۰ میلیون خروجی ۱۲ میلیون');
+      check('online poker: in=10M out=12M, location آنلاین', (onl.actions || [])[0]?.buyIn === 10_000_000 && onl.actions[0].cashOut === 12_000_000 && onl.actions[0].location === 'آنلاین', JSON.stringify(onl.actions));
+      const vague = await say('پوکر ۵ میلیون باختم');
+      check('a vague poker message creates neither transaction nor session', (await txs4()).length === 0 && (await fetch(`${BASE}/api/poker`, { headers: auth4 }).then(r => r.json())).items.length === 2, JSON.stringify(vague.actions));
+      check('…the text is kept in the inbox instead of being silently dropped', (vague.done || []).some(x => /Inbox/.test(x)), JSON.stringify(vague.done));
+      const bet = await say('بت ۵۰ میلیون واریز کردم');
+      check('a bet message does not create a transaction either', (await txs4()).length === 0, JSON.stringify(bet.actions));
+      const control = await say('خرید نان ۵۰۰ هزار');
+      const after = await txs4();
+      check('normal text still creates a transaction (the guard is not a blanket mute)', (control.actions || []).length === 1 && after.length === 1 && after[0].amount === 500_000, JSON.stringify(control.actions));
+      const fin = await fetch(`${BASE}/api/finance?month=2026-09`, { headers: auth4 }).then(r => r.json());
+      check('poker/bet money never leaks into the finance totals', fin.expense === 500_000 && fin.income === 0, JSON.stringify({ income: fin.income, expense: fin.expense }));
+    }
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
