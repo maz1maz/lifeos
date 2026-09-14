@@ -19,8 +19,21 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const EMPTY_DB = { users: [], sessions: [], transactions: [], tasks: [], inbox: [], daily: [], investments: [], accounts: [], budgets: [], projects: [], timeEntries: [], habits: [], habitLogs: [], subscriptions: [], debts: [], footballTeams: [], matches: [], news: [], movies: [] };
 
 let pass = 0, fail = 0;
-function today() { return new Date().toISOString().slice(0, 10); }
-function daysAgo(n) { let dt = new Date(); dt.setUTCDate(dt.getUTCDate() - n); return dt.toISOString().slice(0, 10); }
+function today() {
+  try {
+    const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = {};
+    for (const p of f.formatToParts(new Date())) if (p.type !== 'literal') parts[p.type] = p.value;
+    return parts.year + '-' + parts.month + '-' + parts.day;
+  } catch (e) {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+function daysAgo(n) {
+  let dt = new Date(today() + 'T12:00:00Z');
+  dt.setUTCDate(dt.getUTCDate() - n);
+  return dt.toISOString().slice(0, 10);
+}
 function startFixtureFeedServer(xml) {
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'application/xml' }); res.end(xml); });
@@ -401,7 +414,7 @@ async function main() {
     check('correlation sample size reflects the 4 seeded days', correlations.sampleSize === 4);
 
     const overdueTaskAi = await fetch(`${BASE}/api/tasks`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'تسک عقب‌افتاده برای تست', deadline: daysAgo(1) }) }).then(r => r.json());
-    const tomorrowDate = (() => { const dt = new Date(); dt.setUTCDate(dt.getUTCDate() + 1); return dt.toISOString().slice(0, 10); })();
+    const tomorrowDate = daysAgo(-1);
     const dueTomorrowTask = await fetch(`${BASE}/api/tasks`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'تسک فردا برای تست', deadline: tomorrowDate }) }).then(r => r.json());
     const habitForTomorrow = await fetch(`${BASE}/api/habits`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'عادت تست فردا' }) }).then(r => r.json());
     const tomorrowPriorities = await fetch(`${BASE}/api/ai/tomorrow-priorities`, { headers: authHeaders }).then(r => r.json());
@@ -712,6 +725,28 @@ async function main() {
     const clearCity = await fetch(`${BASE}/api/me`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ weather: null }) });
     const meNoCity = await fetch(`${BASE}/api/me`, { headers: authHeaders }).then(r => r.json());
     check('city resets to null (Tehran default)', clearCity.status === 200 && meNoCity.user.weather === null);
+
+    console.log('\n[40] bank message parsing: copy app, rial SMS, deposit, old simple text');
+    const bankAppMsg = 'مبلغ: ۱۵,۰۰۰,۰۰۰ تومان\nبابت: نظافت منزل\n۱۴۰۵.۰۶.۲۳\nموجودی: ۵۰,۰۰۰,۰۰۰ تومان';
+    const bankAppRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: bankAppMsg }) }).then(r => r.json());
+    check('bank copy app: amount, kind, and title parsed', bankAppRes.actions.length === 1 && bankAppRes.actions[0].amount === 15000000 && bankAppRes.actions[0].title === 'نظافت منزل' && bankAppRes.actions[0].kind === 'expense');
+    check('bank copy app: jalali date converts to Gregorian ISO', bankAppRes.actions.length === 1 && bankAppRes.actions[0].date === '2026-09-14');
+
+    const bankSmsExpense = '۵۰۰,۰۰۰ ریال از حساب شما کسر شد.\nخرید فروشگاهی\nموجودی: ۲,۰۰۰,۰۰۰ ریال';
+    const bankSmsExpRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: bankSmsExpense }) }).then(r => r.json());
+    check('bank SMS expense: rial divided by 10 to toman', bankSmsExpRes.actions.length === 1 && bankSmsExpRes.actions[0].amount === 50000 && bankSmsExpRes.actions[0].kind === 'expense');
+
+    const bankSmsDeposit = '۱,۲۰۰,۰۰۰ ریال به حساب شما واریز شد.\nواریز حقوق';
+    const bankSmsDepRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: bankSmsDeposit }) }).then(r => r.json());
+    check('bank SMS deposit: detects income kind and converts amount', bankSmsDepRes.actions.length === 1 && bankSmsDepRes.actions[0].amount === 120000 && bankSmsDepRes.actions[0].kind === 'income');
+
+    const bankEngDate = 'مبلغ: ۲۵۰,۰۰۰ تومان\nبابت: کتاب\nSep 14, 2026';
+    const bankEngRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: bankEngDate }) }).then(r => r.json());
+    check('bank message with English date parsed correctly', bankEngRes.actions.length === 1 && bankEngRes.actions[0].amount === 250000 && bankEngRes.actions[0].date === '2026-09-14');
+
+    const simpleOldText = '۵۰ هزار ناهار';
+    const simpleRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: simpleOldText }) }).then(r => r.json());
+    check('traditional simple text still parses correctly without bank pattern', simpleRes.actions.length === 1 && simpleRes.actions[0].amount === 50000 && simpleRes.actions[0].title.includes('ناهار'));
 
   } finally {
     child.kill();
