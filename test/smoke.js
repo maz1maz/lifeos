@@ -951,6 +951,16 @@ async function main() {
     const rMillionRial = await parseText('۱۵ میلیون ریال انتقال');
     check('«۱۵ میلیون ریال» -> 1,500,000 تومان', rMillionRial.actions.length === 1 && rMillionRial.actions[0].amount === 1_500_000);
 
+    // ۳b) «ریال» می‌تواند قبل از عدد هم بیاید، و جداکنندهٔ هزارگان عربی (٬) هم رایج است
+    const rRialBefore = await parseText('ریال ۱۵,۰۰۰,۰۰۰ انتقال به حمیدرضا');
+    check('unit before the number («ریال ۱۵,۰۰۰,۰۰۰») -> 1,500,000 تومان', rRialBefore.actions.length === 1 && rRialBefore.actions[0].amount === 1_500_000);
+    const rArabicSep = await parseText('انتقال ۱۵٬۰۰۰٬۰۰۰ ریال از حساب شما پرید');
+    check('Arabic thousands separator (٬) also divides by 10', rArabicSep.actions.length === 1 && rArabicSep.actions[0].amount === 1_500_000);
+    const rRialWordNotUnit = await parseText('انتقال ریال به تومان ۲۰۰,۰۰۰');
+    check('a stray «ریال» word does not divide an unlabelled ۲۰۰,۰۰۰', rRialWordNotUnit.actions.length === 1 && rRialWordNotUnit.actions[0].amount === 200_000);
+    const rTwoAmounts = await parseText('خرید ۲۰۰,۰۰۰ تومان و کارمزد ۵,۰۰۰ ریال');
+    check('toman amount stays whole even when a rial figure shares the text', rTwoAmounts.actions.length === 1 && rTwoAmounts.actions[0].amount === 200_000);
+
     // ۴) تومان (پیش‌فرض کاربر و متن‌های بدون واحد) دست‌نخورده می‌ماند
     const rToman = await parseText('خرید ۱۵,۰۰۰,۰۰۰ تومان');
     check('«۱۵,۰۰۰,۰۰۰ تومان» stays 15,000,000 (no divide)', rToman.actions.length === 1 && rToman.actions[0].amount === 15_000_000);

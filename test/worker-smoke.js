@@ -264,6 +264,8 @@ async function main() {
   check('worker: balance-only text creates nothing (stripBalanceNotes must be exported)', w9bal.status === 200 && w9bal.actions.length === 0 && w9bal.created.length === 0);
   const w9ref = await w9parse('شناسه پرداخت ۱۲۳۴۵۶۷۸۹۰');
   check('worker: reference-number-only text creates nothing (stripRefNumbers must be exported)', w9ref.status === 200 && w9ref.actions.length === 0 && w9ref.created.length === 0);
+  const w9before = await w9parse('ریال ۱۵,۰۰۰,۰۰۰ انتقال به حمیدرضا');
+  check('worker: «ریال» written before the number also divides by 10', w9before.actions.length === 1 && w9before.actions[0].amount === 1_500_000);
   const w9toman = await w9parse('خرید ۱۵,۰۰۰,۰۰۰ تومان');
   check('worker: تومان amounts are unchanged (no divide by 10)', w9toman.actions.length === 1 && w9toman.actions[0].amount === 15_000_000);
 
