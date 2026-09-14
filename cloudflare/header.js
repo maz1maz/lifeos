@@ -253,6 +253,123 @@ function makeHelpers(env) {
   function parseSleepHours(v){if(!v)return null;let m=String(v).match(/(\d+(?:\.\d+)?)/);return m?Number(m[1]):null}
   const CATEGORY_KEYWORDS=[['خوراک',/نان|رستوران|شام|ناهار|صبحانه|غذا|کافه|سوپرمارکت|میوه|قصاب|نانوایی|فست\s?فود/],['حمل‌ونقل',/تاکسی|اسنپ|تپسی|بنزین|پمپ\s?بنزین|مترو|اتوبوس|پارکینگ|تعمیر\s?ماشین|بلیط|مسافرت/],['قبض',/قبض|برق|آب و فاضلاب|گاز|اینترنت|تلفن|شارژ\s?خط|بیمه/],['سلامت',/دکتر|پزشک|دارو|داروخانه|بیمارستان|درمانگاه|دندانپزشک|آزمایشگاه/],['تفریح',/سینما|کنسرت|بازی|فیلم|پارک|تفریح|بولینگ|بیلیارد/],['پوشاک',/لباس|کفش|پوشاک|مانتو|شلوار|کاپشن|عینک|کیف/],['آموزش',/کتاب|دوره|کلاس|آموزش|شهریه|دانشگاه/],['مسکن',/اجاره|رهن|شارژ\s?ساختمان|مسکن/]];
   function suggestCategoryKeyword(title){let t=String(title||'');for(const[cat,re]of CATEGORY_KEYWORDS)if(re.test(t))return cat;return null}
+  // ---------------------------------------------------------------------------
+  // دسته‌بندی مجدد گروهی تراکنش‌ها («متفرقه»ها)
+  //
+  // سه لایه، همه قطعی و آفلاین (بدون AI، بدون کلید):
+  //   ۱) نقشهٔ کلیدواژهٔ غنی‌شده (دسته‌های قبلی + سفر/هدیه/حیوانات + تفکیک بیمه و شارژ)
+  //   ۲) قانون «بلندترین کلیدواژهٔ تطبیق‌شده برنده است» تا ترتیب دسته‌ها نتیجه را
+  //      خراب نکند: «شارژ ساختمان» → مسکن (نه قبض که «شارژ» دارد)،
+  //      «بیمه شخص ثالث» → حمل‌ونقل (نه قبض که «بیمه» دارد).
+  //   ۳) کلیدواژه‌های دلخواه خود کاربر که از UI می‌آید (مثلاً نام یک فروشگاه محلی).
+  // تطبیق روی متن نرمال‌شده انجام می‌شود: رقم فارسی/عربی → انگلیسی، ي→ی، ك→ک،
+  // نیم‌فاصله → فاصله، حذف اعراب و فاصله‌های اضافی.
+  // ---------------------------------------------------------------------------
+  const INCOME_KEYWORDS = [
+    ['حقوق', /حقوق|دستمزد|مزایا|پاداش|عیدی|سنوات|حق\s?الزحمه|کارانه/],
+    ['درآمد', /درآمد|فروش|دریافت|واریز|اجاره\s?بها|سود|بهره|سپرده|رفاند|بازگشت\s?وجه|برگشت\s?از\s?خرید|یارانه|مهریه|ارث|طلب|دیون/],
+  ];
+  // نام‌های متفاوتی که کاربرها/درون‌ریزی بانک برای یک دسته می‌نویسند → نام رسمی.
+  const CATEGORY_SYNONYMS = [
+    [/^(خوراک|خورد\s*و\s*خوراک|مواد\s*غذایی|غذا)$/, 'خوراک'],
+    [/^(حمل|حمل\s*و\s*نقل|رفت\s*و\s*آمد|ترابری|تردد)$/, 'حمل‌ونقل'],
+    [/^(قبض|قبوض|قبض\s*و\s*شارژ|صورتحساب|صورت\s*حساب)$/, 'قبض'],
+    [/^(سلامت|بهداشت|درمان|پزشکی)$/, 'سلامت'],
+    [/^(تفریح|سرگرمی)$/, 'تفریح'],
+    [/^(پوشاک|لباس)$/, 'پوشاک'],
+    [/^(آموزش|تحصیل|تحصیلات)$/, 'آموزش'],
+    [/^(مسکن|خانه)$/, 'مسکن'],
+    [/^(سفر|مسافرت)$/, 'سفر'],
+    [/^(هدیه|کمک|خیریه)$/, 'هدیه و کمک'],
+    [/^(حیوانات|حیوان\s*خانگی|پت)$/, 'حیوانات خانگی'],
+    [/^(متفرقه|سایر|عمومی|دیگر)$/, 'متفرقه'],
+    [/^(درآمد|دریافتی)$/, 'درآمد'],
+  ];
+  // دسته‌های جدید و کلیدواژه‌های تکمیلی. ترتیب مهم نیست (قانون بلندترین تطبیق)،
+  // فقط در تساویِ طول، موردی که زودتر ثبت شده برنده است.
+  const EXTRA_CATEGORY_RULES = [
+    ['مسکن', /شارژ\s?ساختمان|شارژ\s?آپارتمان|شارژ\s?مجتمع|مدیر\s?ساختمان|آسانسور|نظافت\s?ساختمان|نگهبانی|تعمیرات\s?منزل|تعمیر\s?خانه|رنگ\s?ساختمان|ابزار|یراق|کاشی|سرامیک|مبل|فرش|موکت|لوازم\s?خانگی|یخچال|لباسشویی|کولر|پکیج|بخاری|بازسازی|املاک|کمیسیون\s?املاک|پرداخت\s?به\s?مدیر/],
+    ['قبض', /آب\s?بها|برق|گاز|قبض|مالیات|عوارض|جریمه|خلافی|شارژ\s?خط|شارژ\s?سیم|شارژ\s?موبایل|شارژ\s?اعتبار|اینترنت|بسته\s?اینترنتی|مخابرات|همراه\s?اول|ایرانسل|رایتل|شاتل|آسیاتک|پارس\s?پک|های\s?وب/],
+    ['حمل‌ونقل', /بیمه\s?شخص\s?ثالث|بیمه\s?ثالث|بیمه\s?خودرو|بیمه\s?ماشین|بنزین|گازوئیل|سی\s?ان\s?جی|گاز\s?خودرو|سوخت|کارواش|تعمیر\s?ماشین|تعمیر\s?خودرو|تعمیرگاه|مکانیک|باک|کرایه|بلیط|اتوبوس|مترو|قطار|راه\s?آهن|دربست|وانت|باربری|الوپیک|پیک|تپسی|اسنپ|پارکینگ|عوارضی/],
+    ['سلامت', /بیمه\s?درمان|بیمه\s?سلامت|بیمه\s?تکمیلی|تکمیلی|دندان|دندانپزشک|داروخانه|دارو|پزشک|دکتر|درمانگاه|بیمارستان|آزمایش|سونوگرافی|فیزیوتراپی|روانپزشک|روانشناس|مشاوره|کلینیک|ویزیت|تزریقات|واکسن|عینک|لنز|سمعک|پرستار/],
+    ['خوراک', /اسنپ\s?فود|دیجی\s?کالا\s?جت|سوپر\s?مارکت|مینی\s?مارکت|هایپر|هایپر\s?استار|تره\s?بار|جانبو|افق\s?کوروش|قنادی|شیرینی|بستنی|آبمیوه|پیتزا|ساندویچ|کباب|تهیه\s?غذا|بیرون\s?بر|تحویل\s?غذا|لواشک|نوشیدنی|نوشابه|لبنیات|سبزیجات|صیفیجات|خواروبار|بقالی|مارکت|رستوران|کافه/],
+    ['سفر', /سفر|مسافرت|هتل|اقامتگاه|بوم\s?گردی|ویلا|تور|بلیط\s?هواپیما|بلیط\s?قطار|پرواز|فرودگاه|مسافرخانه|رزرو\s?هتل|علی\s?بابا|فلای\s?تودی|قایق|تفریح\s?دریایی/],
+    ['هدیه و کمک', /هدیه|کادو|پیشکش|صدقه|کمک|خیریه|نذری|وقف|اعانه|گل\s?فروشی|دسته\s?گل|محرم|خیرات|حمایت\s?از/],
+    ['حیوانات خانگی', /حیوان\s?خانگی|گربه|سگ|پت\s?شاپ|دامپزشک|غذای\s?حیوان|آکواریوم|پرنده|ماهی\s?زینتی/],
+    ['پوشاک', /کفش|کتونی|کلاه|شال|روسری|تی\s?شرت|بلوز|دامن|لباس\s?زیر|جوراب|کمربند|ساعت\s?مچی|زیورآلات|طلا|نقره|جواهر|حلقه|دستبند|گردنبند|انگشتر|عطر|ادکلن|لوازم\s?آرایش|آرایشی|شامپو|خمیردندان|صابون|مانتو|شلوار|کاپشن|پالتو|کیف/],
+    ['آموزش', /کتاب|دوره|کلاس|آموزش|شهریه|دانشگاه|مدرسه|معلم|کنکور|قلم\s?چی|یادگیری|لپ\s?تاپ|آزمون|مقاله|ثبت\s?نام\s?کلاس|آموزشگاه/],
+    ['تفریح', /سینما|تئاتر|کنسرت|گیم|بازی|پلی\s?استیشن|نتفلیکس|فیلیمو|نماوا|اسپاتیفای|اشتراک|پارک|شهربازی|اتاق\s?فرار|استخر|باشگاه|ورزش|دوچرخه|تفریحی|گردش|کوهنوردی|بیلیارد|بولینگ/],
+  ];
+  // source رگولارها را به فهرست کلیدواژهٔ ساده تبدیل می‌کنیم (بدون ساخت RegExp
+  // پویا: سریع‌تر است و کلیدواژهٔ دلخواه کاربر هرگز به‌عنوان الگو اجرا نمی‌شود).
+  function keywordAlts(re) { return String(re.source).split('|').map(function (s) { return s.trim() }).filter(Boolean) }
+  function keywordToLiteral(w) {
+    return String(w || '')
+      .replace(/\\s\*/g, ' ')
+      .replace(/\\s\+/g, ' ')
+      .replace(/\\s\?/g, ' ')
+      .replace(/\\s/g, ' ')
+      .replace(/[\\()[\]{}.^$*+?|]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  function normalizeCatText(s) {
+    return enNum(String(s || ''))
+      .replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/ؤ/g, 'و').replace(/ة/g, 'ه')
+      .replace(/[\u200c\u200f\u200e\ufeff\u200d]/g, ' ')
+      .replace(/[\u064B-\u0652\u0670\u0640]/g, '')
+      .replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+  function normalizeCategoryName(s) { let t = String(s || '').trim(); if (!t) return null; for (const [re, to] of CATEGORY_SYNONYMS) if (re.test(t)) return to; return t }
+  const CATEGORY_RULE_WORDS = (function () {
+    let out = [];
+    for (const [cat, re] of CATEGORY_KEYWORDS) for (const a of keywordAlts(re)) { let w = normalizeCatText(keywordToLiteral(a)); if (w.length > 1) out.push({ cat, word: w }) }
+    for (const [cat, re] of EXTRA_CATEGORY_RULES) for (const a of keywordAlts(re)) { let w = normalizeCatText(keywordToLiteral(a)); if (w.length > 1) out.push({ cat, word: w }) }
+    return out;
+  })();
+  const INCOME_RULE_WORDS = (function () {
+    let out = [];
+    for (const [cat, re] of INCOME_KEYWORDS) for (const a of keywordAlts(re)) { let w = normalizeCatText(keywordToLiteral(a)); if (w.length > 1) out.push({ cat, word: w }) }
+    return out;
+  })();
+  // بلندترین کلیدواژهٔ تطبیق‌شده برنده است؛ در تساوی، موردِ زودتر ثبت‌شده.
+  function matchCategoryByText(text, extraRules) {
+    let t = normalizeCatText(text);
+    if (!t) return null;
+    let best = null, rank = 0;
+    for (const r of CATEGORY_RULE_WORDS) {
+      if (t.indexOf(r.word) >= 0 && (!best || r.word.length > best.len || (r.word.length === best.len && rank < best.rank))) best = { cat: r.cat, len: r.word.length, rank, word: r.word };
+      rank++;
+    }
+    if (Array.isArray(extraRules)) for (let i = 0; i < extraRules.length; i++) {
+      let r = extraRules[i]; if (!r) continue;
+      let w = normalizeCatText(String(r.word || r.keyword || ''));
+      if (w.length < 2) continue;
+      if (t.indexOf(w) >= 0 && (!best || w.length >= best.len)) best = { cat: normalizeCategoryName(String(r.cat || r.category || 'متفرقه')) || 'متفرقه', len: w.length, rank: -1, word: w };
+    }
+    if (!best) return null;
+    return { category: best.cat, keyword: best.word, matched: best.len };
+  }
+  // خروجی: {category, keyword, reason} — اگر category null باشد یعنی «تغییری لازم نیست».
+  // reason یکی از: transfer | income-keyword | income-default | keyword | same | no-match
+  function categorizeTransaction(t, extraRules) {
+    let title = normalizeCatText(t && t.title), kind = String((t && t.kind) || 'expense');
+    let cur = normalizeCategoryName(t && t.category) || 'متفرقه';
+    if (kind === 'transfer') return { category: null, keyword: null, reason: 'transfer' };
+    let text = title;
+    if (t && Array.isArray(t.tags) && t.tags.length) text += ' ' + normalizeCatText(t.tags.join(' '));
+    if (kind === 'income') {
+      for (const r of INCOME_RULE_WORDS) if (text.indexOf(r.word) >= 0) {
+        if (r.cat === cur) return { category: null, keyword: r.word, reason: 'same' };
+        return { category: r.cat, keyword: r.word, reason: 'income-keyword' };
+      }
+      if (cur === 'درآمد') return { category: null, keyword: null, reason: 'same' };
+      return { category: 'درآمد', keyword: null, reason: 'income-default' };
+    }
+    let hit = matchCategoryByText(text, extraRules);
+    if (hit && hit.category && hit.category !== cur && normalizeCategoryName(hit.category) !== cur) return { category: hit.category, keyword: hit.keyword, reason: 'keyword' };
+    return { category: null, keyword: hit ? hit.keyword : null, reason: hit ? 'same' : 'no-match' };
+  }
   function decodeXmlEntities(s){return String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<[^>]+>/g,' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#0?39;/g,"'").replace(/&apos;/g,"'").replace(/\s+/g,' ').trim()}
   function extractTag(block,tag){let m=block.match(new RegExp('<'+tag+'[^>]*>([\\s\\S]*?)<\\/'+tag+'>','i'));return m?m[1]:''}
   function extractAttr(block,tag,attr){let m=block.match(new RegExp('<'+tag+'[^>]*\\b'+attr+'=["\']([^"\']*)["\']','i'));return m?m[1]:''}
@@ -494,7 +611,7 @@ function makeHelpers(env) {
       }
 
       if(cmd==='/گزارش_صبح'||cmd==='/صبح'){
-        let w=await fetchTehranWeatherBrief();
+        let w=await fetchTehranWeatherBrief(user.weather);
         return tgSend(chatId,await buildMorningBrief(db,user,d,w),{reply_markup:tgMainKeyboard()});
       }
       if(cmd==='/گزارش_شب'||cmd==='/شب'){
@@ -526,17 +643,21 @@ function makeHelpers(env) {
   const WMO_FA={0:['صاف','☀️'],1:['کمی ابری','🌤'],2:['نیمه‌ابری','⛅'],3:['ابری','☁️'],45:['مه','🌫'],48:['مه','🌫'],51:['نم‌نم','🌦'],53:['نم‌نم','🌦'],55:['نم‌نم','🌦'],61:['باران سبک','🌧'],63:['باران','🌧'],65:['باران شدید','🌧'],71:['برف سبک','🌨'],73:['برف','🌨'],75:['برف','❄️'],80:['رگبار','🌦'],81:['رگبار','🌦'],82:['رگبار شدید','🌦'],95:['رعدوبرق','⛈'],96:['رعدوبرق','⛈'],99:['رعدوبرق','⛈']};
   function tehranHourNow(){let p=tehranParts(new Date());return Number(p.hour)}
   function tehranMinuteNow(){let p=tehranParts(new Date());return Number(p.minute)}
-  async function fetchTehranWeatherBrief(){
+  // فاز ۲ — شهر انتخابی: مختصات از user.weather؛ بدون آن تهران. کش ۳۰ دقیقه‌ای بر اساس مختصات.
+  async function fetchTehranWeatherBrief(loc){
+    const _wc=fetchTehranWeatherBrief._cache||(fetchTehranWeatherBrief._cache={});
+    const lat=loc&&isFinite(Number(loc.lat))?Number(loc.lat):35.69, lon=loc&&isFinite(Number(loc.lon))?Number(loc.lon):51.39, wkey=lat+','+lon;
+    if(_wc[wkey]&&Date.now()-_wc[wkey].at<30*60*1000)return _wc[wkey].d;
     try{
       let [w,aq]=await Promise.all([
-        fetch('https://api.open-meteo.com/v1/forecast?latitude=35.69&longitude=51.39&current=temperature_2m,weather_code,relative_humidity_2m,apparent_temperature,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,sunrise,sunset&timezone=Asia%2FTehran&forecast_days=2').then(r=>r.json()),
-        fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude=35.69&longitude=51.39&current=european_aqi,pm2_5&timezone=Asia%2FTehran').then(r=>r.json()).catch(()=>null)
+        fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=temperature_2m,weather_code,relative_humidity_2m,apparent_temperature,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,sunrise,sunset&timezone=auto&forecast_days=2').then(r=>r.json()),
+        fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude='+lat+'&longitude='+lon+'&current=european_aqi,pm2_5&timezone=auto').then(r=>r.json()).catch(()=>null)
       ]);
       if(!w||!w.current)return null;
       let code=w.current.weather_code,pair=WMO_FA[code]||['—','🌡'];
       let aqi=aq&&aq.current?aq.current.european_aqi:null;
       let aqiLabel=aqi==null?null:(aqi<=40?'خوب':aqi<=60?'متوسط':aqi<=80?'ضعیف':'ناسالم');
-      return{
+      const out={
         temp:Math.round(w.current.temperature_2m),
         feel:Math.round(w.current.apparent_temperature),
         hum:Math.round(w.current.relative_humidity_2m),
@@ -549,6 +670,8 @@ function makeHelpers(env) {
         sunset:(w.daily&&w.daily.sunset&&w.daily.sunset[0]||'').slice(11,16),
         aqi, aqiLabel
       };
+      _wc[wkey]={at:Date.now(),d:out};
+      return out;;
     }catch(e){return null}
   }
   function formatWeatherLine(w){
@@ -638,9 +761,6 @@ function makeHelpers(env) {
     if(!TELEGRAM_BOT_TOKEN)return false;
     let d=today(), changed=false, hh=tehranHourNow();
     db.reminders??=[]; db.tasks??=[];
-    let weather=null;
-    let needMorning=db.users.some(u=>u.telegramUserId&&(u.tgMorningHour!=null?Number(u.tgMorningHour):9)===hh&&u.tgLastMorning!==d);
-    if(needMorning) weather=await fetchTehranWeatherBrief();
     for(const user of db.users){
       if(!user.telegramUserId)continue;
       let morningH=user.tgMorningHour!=null?Number(user.tgMorningHour):9;
@@ -648,7 +768,7 @@ function makeHelpers(env) {
       if(user.tgReports===false)continue;
       if(hh===morningH&&user.tgMorningOn!==false&&user.tgLastMorning!==d){
         user.tgLastMorning=d; changed=true;
-        let text=await buildMorningBrief(db,user,d,weather);
+        let text=await buildMorningBrief(db,user,d,await fetchTehranWeatherBrief(user.weather));
         await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
       }
       if(hh===eveningH&&user.tgEveningOn!==false&&user.tgLastEvening!==d){

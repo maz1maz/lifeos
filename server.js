@@ -215,6 +215,123 @@ function correlationLabel(r){if(r===null)return{strength:'داده کافی نی
 function parseSleepHours(v){if(!v)return null;let m=String(v).match(/(\d+(?:\.\d+)?)/);return m?Number(m[1]):null}
 const CATEGORY_KEYWORDS=[['خوراک',/نان|رستوران|شام|ناهار|صبحانه|غذا|کافه|سوپرمارکت|میوه|قصاب|نانوایی|فست\s?فود/],['حمل‌ونقل',/تاکسی|اسنپ|تپسی|بنزین|پمپ\s?بنزین|مترو|اتوبوس|پارکینگ|تعمیر\s?ماشین|بلیط|مسافرت/],['قبض',/قبض|برق|آب و فاضلاب|گاز|اینترنت|تلفن|شارژ\s?خط|بیمه/],['سلامت',/دکتر|پزشک|دارو|داروخانه|بیمارستان|درمانگاه|دندانپزشک|آزمایشگاه/],['تفریح',/سینما|کنسرت|بازی|فیلم|پارک|تفریح|بولینگ|بیلیارد/],['پوشاک',/لباس|کفش|پوشاک|مانتو|شلوار|کاپشن|عینک|کیف/],['آموزش',/کتاب|دوره|کلاس|آموزش|شهریه|دانشگاه/],['مسکن',/اجاره|رهن|شارژ\s?ساختمان|مسکن/]];
 function suggestCategoryKeyword(title){let t=String(title||'');for(const[cat,re]of CATEGORY_KEYWORDS)if(re.test(t))return cat;return null}
+// ---------------------------------------------------------------------------
+// دسته‌بندی مجدد گروهی تراکنش‌ها («متفرقه»ها)
+//
+// سه لایه، همه قطعی و آفلاین (بدون AI، بدون کلید):
+//   ۱) نقشهٔ کلیدواژهٔ غنی‌شده (دسته‌های قبلی + سفر/هدیه/حیوانات + تفکیک بیمه و شارژ)
+//   ۲) قانون «بلندترین کلیدواژهٔ تطبیق‌شده برنده است» تا ترتیب دسته‌ها نتیجه را
+//      خراب نکند: «شارژ ساختمان» → مسکن (نه قبض که «شارژ» دارد)،
+//      «بیمه شخص ثالث» → حمل‌ونقل (نه قبض که «بیمه» دارد).
+//   ۳) کلیدواژه‌های دلخواه خود کاربر که از UI می‌آید (مثلاً نام یک فروشگاه محلی).
+// تطبیق روی متن نرمال‌شده انجام می‌شود: رقم فارسی/عربی → انگلیسی، ي→ی، ك→ک،
+// نیم‌فاصله → فاصله، حذف اعراب و فاصله‌های اضافی.
+// ---------------------------------------------------------------------------
+const INCOME_KEYWORDS = [
+  ['حقوق', /حقوق|دستمزد|مزایا|پاداش|عیدی|سنوات|حق\s?الزحمه|کارانه/],
+  ['درآمد', /درآمد|فروش|دریافت|واریز|اجاره\s?بها|سود|بهره|سپرده|رفاند|بازگشت\s?وجه|برگشت\s?از\s?خرید|یارانه|مهریه|ارث|طلب|دیون/],
+];
+// نام‌های متفاوتی که کاربرها/درون‌ریزی بانک برای یک دسته می‌نویسند → نام رسمی.
+const CATEGORY_SYNONYMS = [
+  [/^(خوراک|خورد\s*و\s*خوراک|مواد\s*غذایی|غذا)$/, 'خوراک'],
+  [/^(حمل|حمل\s*و\s*نقل|رفت\s*و\s*آمد|ترابری|تردد)$/, 'حمل‌ونقل'],
+  [/^(قبض|قبوض|قبض\s*و\s*شارژ|صورتحساب|صورت\s*حساب)$/, 'قبض'],
+  [/^(سلامت|بهداشت|درمان|پزشکی)$/, 'سلامت'],
+  [/^(تفریح|سرگرمی)$/, 'تفریح'],
+  [/^(پوشاک|لباس)$/, 'پوشاک'],
+  [/^(آموزش|تحصیل|تحصیلات)$/, 'آموزش'],
+  [/^(مسکن|خانه)$/, 'مسکن'],
+  [/^(سفر|مسافرت)$/, 'سفر'],
+  [/^(هدیه|کمک|خیریه)$/, 'هدیه و کمک'],
+  [/^(حیوانات|حیوان\s*خانگی|پت)$/, 'حیوانات خانگی'],
+  [/^(متفرقه|سایر|عمومی|دیگر)$/, 'متفرقه'],
+  [/^(درآمد|دریافتی)$/, 'درآمد'],
+];
+// دسته‌های جدید و کلیدواژه‌های تکمیلی. ترتیب مهم نیست (قانون بلندترین تطبیق)،
+// فقط در تساویِ طول، موردی که زودتر ثبت شده برنده است.
+const EXTRA_CATEGORY_RULES = [
+  ['مسکن', /شارژ\s?ساختمان|شارژ\s?آپارتمان|شارژ\s?مجتمع|مدیر\s?ساختمان|آسانسور|نظافت\s?ساختمان|نگهبانی|تعمیرات\s?منزل|تعمیر\s?خانه|رنگ\s?ساختمان|ابزار|یراق|کاشی|سرامیک|مبل|فرش|موکت|لوازم\s?خانگی|یخچال|لباسشویی|کولر|پکیج|بخاری|بازسازی|املاک|کمیسیون\s?املاک|پرداخت\s?به\s?مدیر/],
+  ['قبض', /آب\s?بها|برق|گاز|قبض|مالیات|عوارض|جریمه|خلافی|شارژ\s?خط|شارژ\s?سیم|شارژ\s?موبایل|شارژ\s?اعتبار|اینترنت|بسته\s?اینترنتی|مخابرات|همراه\s?اول|ایرانسل|رایتل|شاتل|آسیاتک|پارس\s?پک|های\s?وب/],
+  ['حمل‌ونقل', /بیمه\s?شخص\s?ثالث|بیمه\s?ثالث|بیمه\s?خودرو|بیمه\s?ماشین|بنزین|گازوئیل|سی\s?ان\s?جی|گاز\s?خودرو|سوخت|کارواش|تعمیر\s?ماشین|تعمیر\s?خودرو|تعمیرگاه|مکانیک|باک|کرایه|بلیط|اتوبوس|مترو|قطار|راه\s?آهن|دربست|وانت|باربری|الوپیک|پیک|تپسی|اسنپ|پارکینگ|عوارضی/],
+  ['سلامت', /بیمه\s?درمان|بیمه\s?سلامت|بیمه\s?تکمیلی|تکمیلی|دندان|دندانپزشک|داروخانه|دارو|پزشک|دکتر|درمانگاه|بیمارستان|آزمایش|سونوگرافی|فیزیوتراپی|روانپزشک|روانشناس|مشاوره|کلینیک|ویزیت|تزریقات|واکسن|عینک|لنز|سمعک|پرستار/],
+  ['خوراک', /اسنپ\s?فود|دیجی\s?کالا\s?جت|سوپر\s?مارکت|مینی\s?مارکت|هایپر|هایپر\s?استار|تره\s?بار|جانبو|افق\s?کوروش|قنادی|شیرینی|بستنی|آبمیوه|پیتزا|ساندویچ|کباب|تهیه\s?غذا|بیرون\s?بر|تحویل\s?غذا|لواشک|نوشیدنی|نوشابه|لبنیات|سبزیجات|صیفیجات|خواروبار|بقالی|مارکت|رستوران|کافه/],
+  ['سفر', /سفر|مسافرت|هتل|اقامتگاه|بوم\s?گردی|ویلا|تور|بلیط\s?هواپیما|بلیط\s?قطار|پرواز|فرودگاه|مسافرخانه|رزرو\s?هتل|علی\s?بابا|فلای\s?تودی|قایق|تفریح\s?دریایی/],
+  ['هدیه و کمک', /هدیه|کادو|پیشکش|صدقه|کمک|خیریه|نذری|وقف|اعانه|گل\s?فروشی|دسته\s?گل|محرم|خیرات|حمایت\s?از/],
+  ['حیوانات خانگی', /حیوان\s?خانگی|گربه|سگ|پت\s?شاپ|دامپزشک|غذای\s?حیوان|آکواریوم|پرنده|ماهی\s?زینتی/],
+  ['پوشاک', /کفش|کتونی|کلاه|شال|روسری|تی\s?شرت|بلوز|دامن|لباس\s?زیر|جوراب|کمربند|ساعت\s?مچی|زیورآلات|طلا|نقره|جواهر|حلقه|دستبند|گردنبند|انگشتر|عطر|ادکلن|لوازم\s?آرایش|آرایشی|شامپو|خمیردندان|صابون|مانتو|شلوار|کاپشن|پالتو|کیف/],
+  ['آموزش', /کتاب|دوره|کلاس|آموزش|شهریه|دانشگاه|مدرسه|معلم|کنکور|قلم\s?چی|یادگیری|لپ\s?تاپ|آزمون|مقاله|ثبت\s?نام\s?کلاس|آموزشگاه/],
+  ['تفریح', /سینما|تئاتر|کنسرت|گیم|بازی|پلی\s?استیشن|نتفلیکس|فیلیمو|نماوا|اسپاتیفای|اشتراک|پارک|شهربازی|اتاق\s?فرار|استخر|باشگاه|ورزش|دوچرخه|تفریحی|گردش|کوهنوردی|بیلیارد|بولینگ/],
+];
+// source رگولارها را به فهرست کلیدواژهٔ ساده تبدیل می‌کنیم (بدون ساخت RegExp
+// پویا: سریع‌تر است و کلیدواژهٔ دلخواه کاربر هرگز به‌عنوان الگو اجرا نمی‌شود).
+function keywordAlts(re) { return String(re.source).split('|').map(function (s) { return s.trim() }).filter(Boolean) }
+function keywordToLiteral(w) {
+  return String(w || '')
+    .replace(/\\s\*/g, ' ')
+    .replace(/\\s\+/g, ' ')
+    .replace(/\\s\?/g, ' ')
+    .replace(/\\s/g, ' ')
+    .replace(/[\\()[\]{}.^$*+?|]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function normalizeCatText(s) {
+  return enNum(String(s || ''))
+    .replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/ؤ/g, 'و').replace(/ة/g, 'ه')
+    .replace(/[\u200c\u200f\u200e\ufeff\u200d]/g, ' ')
+    .replace(/[\u064B-\u0652\u0670\u0640]/g, '')
+    .replace(/\s+/g, ' ').trim().toLowerCase();
+}
+function normalizeCategoryName(s) { let t = String(s || '').trim(); if (!t) return null; for (const [re, to] of CATEGORY_SYNONYMS) if (re.test(t)) return to; return t }
+const CATEGORY_RULE_WORDS = (function () {
+  let out = [];
+  for (const [cat, re] of CATEGORY_KEYWORDS) for (const a of keywordAlts(re)) { let w = normalizeCatText(keywordToLiteral(a)); if (w.length > 1) out.push({ cat, word: w }) }
+  for (const [cat, re] of EXTRA_CATEGORY_RULES) for (const a of keywordAlts(re)) { let w = normalizeCatText(keywordToLiteral(a)); if (w.length > 1) out.push({ cat, word: w }) }
+  return out;
+})();
+const INCOME_RULE_WORDS = (function () {
+  let out = [];
+  for (const [cat, re] of INCOME_KEYWORDS) for (const a of keywordAlts(re)) { let w = normalizeCatText(keywordToLiteral(a)); if (w.length > 1) out.push({ cat, word: w }) }
+  return out;
+})();
+// بلندترین کلیدواژهٔ تطبیق‌شده برنده است؛ در تساوی، موردِ زودتر ثبت‌شده.
+function matchCategoryByText(text, extraRules) {
+  let t = normalizeCatText(text);
+  if (!t) return null;
+  let best = null, rank = 0;
+  for (const r of CATEGORY_RULE_WORDS) {
+    if (t.indexOf(r.word) >= 0 && (!best || r.word.length > best.len || (r.word.length === best.len && rank < best.rank))) best = { cat: r.cat, len: r.word.length, rank, word: r.word };
+    rank++;
+  }
+  if (Array.isArray(extraRules)) for (let i = 0; i < extraRules.length; i++) {
+    let r = extraRules[i]; if (!r) continue;
+    let w = normalizeCatText(String(r.word || r.keyword || ''));
+    if (w.length < 2) continue;
+    if (t.indexOf(w) >= 0 && (!best || w.length >= best.len)) best = { cat: normalizeCategoryName(String(r.cat || r.category || 'متفرقه')) || 'متفرقه', len: w.length, rank: -1, word: w };
+  }
+  if (!best) return null;
+  return { category: best.cat, keyword: best.word, matched: best.len };
+}
+// خروجی: {category, keyword, reason} — اگر category null باشد یعنی «تغییری لازم نیست».
+// reason یکی از: transfer | income-keyword | income-default | keyword | same | no-match
+function categorizeTransaction(t, extraRules) {
+  let title = normalizeCatText(t && t.title), kind = String((t && t.kind) || 'expense');
+  let cur = normalizeCategoryName(t && t.category) || 'متفرقه';
+  if (kind === 'transfer') return { category: null, keyword: null, reason: 'transfer' };
+  let text = title;
+  if (t && Array.isArray(t.tags) && t.tags.length) text += ' ' + normalizeCatText(t.tags.join(' '));
+  if (kind === 'income') {
+    for (const r of INCOME_RULE_WORDS) if (text.indexOf(r.word) >= 0) {
+      if (r.cat === cur) return { category: null, keyword: r.word, reason: 'same' };
+      return { category: r.cat, keyword: r.word, reason: 'income-keyword' };
+    }
+    if (cur === 'درآمد') return { category: null, keyword: null, reason: 'same' };
+    return { category: 'درآمد', keyword: null, reason: 'income-default' };
+  }
+  let hit = matchCategoryByText(text, extraRules);
+  if (hit && hit.category && hit.category !== cur && normalizeCategoryName(hit.category) !== cur) return { category: hit.category, keyword: hit.keyword, reason: 'keyword' };
+  return { category: null, keyword: hit ? hit.keyword : null, reason: hit ? 'same' : 'no-match' };
+}
 // درون‌ریزی صورت‌حساب بانک: تبدیل تاریخ شمسی به میلادی (معکوس دقیق همون الگوریتم ۳۳ سالهٔ jalali() سمت کلاینت، با تست رفت‌وبرگشت روی ۸۶۴ تاریخ تأیید شده).
 function jalaliToGregorianIso(jy,jm,jd){let gy;if(jy>979){gy=1600;jy-=979}else{gy=621}let days=(365*jy)+(Math.floor(jy/33)*8)+Math.floor(((jy%33)+3)/4)+78+jd+((jm<7)?(jm-1)*31:((jm-7)*30)+186);gy+=400*Math.floor(days/146097);days%=146097;if(days>36524){gy+=100*Math.floor(--days/36524);days%=36524;if(days>=365)days++}gy+=4*Math.floor(days/1461);days%=1461;if(days>365){gy+=Math.floor((days-1)/365);days=(days-1)%365}let gd=days+1,isLeap=(gy%4===0&&gy%100!==0)||(gy%400===0),sal=[0,31,isLeap?29:28,31,30,31,30,31,31,30,31,30,31],gm;for(gm=1;gm<=12;gm++){if(gd<=sal[gm])break;gd-=sal[gm]}return gy+'-'+String(gm).padStart(2,'0')+'-'+String(gd).padStart(2,'0')}
 // پارسر CSV دستی (RFC4180-ایش: فیلد با کوتیشن، کاما و newline داخل کوتیشن، کوتیشن دوبل برای escape).
@@ -392,10 +509,14 @@ async function handleRequest(req,res){try{let u=new URL(req.url,'http://x'), p=u
  if(p==='/api/transactions/export'&&req.method==='GET'){let db=read(),user=auth(req,res,db),items=filterTransactions(db,user.id,u),header=['تاریخ','شرح','دسته','نوع','حساب','مبلغ'],rows=items.map(x=>[x.date,x.title,x.category,x.kind==='income'?'درآمد':x.kind==='transfer'?'انتقال':'هزینه',x.account,x.amount]);let csv='﻿'+[header,...rows].map(r=>r.map(csvEscape).join(',')).join('\r\n');res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="tabarakat.csv"'});return res.end(csv)}
  if(p==='/api/transactions'&&req.method==='GET'){let db=read(),user=auth(req,res,db);advanceRecurringTransactions(db,user.id)&&write(db);return json(res,200,{items:filterTransactions(db,user.id,u)})}
  if(p.startsWith('/api/transactions/')&&p.endsWith('/receipt')&&req.method==='POST'){let db=read(),user=auth(req,res,db),r=db.transactions.find(x=>x.id===p.split('/')[3]&&x.userId===user.id);if(!r)return json(res,404,{error:'تراکنش پیدا نشد.'});let d=await body(req),m=/^data:image\/(png|jpe?g|webp);base64,(.+)$/.exec(d.image||'');if(!m)return json(res,400,{error:'تصویر معتبر نیست.'});let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),Buffer.from(m[2],'base64'));r.receipt='/uploads/'+filename;write(db);return json(res,200,r)}
- if(p.startsWith('/api/transactions/')&&(req.method==='PATCH'||req.method==='DELETE')){let db=read(),user=auth(req,res,db);let ix=db.transactions.findIndex(x=>x.id===p.split('/').pop()&&x.userId===user.id);if(ix<0)return json(res,404,{error:'تراکنش پیدا نشد.'});if(req.method==='DELETE'){db.transactions.splice(ix,1);write(db);return json(res,200,{ok:true})}let d=await body(req),r=db.transactions[ix];for(const k of ['title','amount','category','kind','account','date','toAccount','recurrence'])if(d[k]!==undefined)r[k]=k==='amount'?Number(d[k]):d[k];if(d.tags!==undefined)r.tags=Array.isArray(d.tags)?d.tags.map(x=>String(x).trim()).filter(Boolean).slice(0,12):String(d.tags||'').split(/[،,]+/).map(x=>x.trim()).filter(Boolean).slice(0,12);write(db);return json(res,200,r)}
+ if(p.startsWith('/api/transactions/')&&(req.method==='PATCH'||req.method==='DELETE')){let db=read(),user=auth(req,res,db);let ix=db.transactions.findIndex(x=>x.id===p.split('/').pop()&&x.userId===user.id);if(ix<0)return json(res,404,{error:'تراکنش پیدا نشد.'});if(req.method==='DELETE'){db.transactions.splice(ix,1);write(db);return json(res,200,{ok:true})}let d=await body(req),r=db.transactions[ix];for(const k of ['title','amount','category','kind','account','date','toAccount','recurrence'])if(d[k]!==undefined){if(k==='category'&&normalizeCategoryName(d[k])!==normalizeCategoryName(r.category))r.catManual=true;r[k]=k==='amount'?Number(d[k]):d[k]}if(d.tags!==undefined)r.tags=Array.isArray(d.tags)?d.tags.map(x=>String(x).trim()).filter(Boolean).slice(0,12):String(d.tags||'').split(/[،,]+/).map(x=>x.trim()).filter(Boolean).slice(0,12);write(db);return json(res,200,r)}
  if(p==='/api/transactions'&&req.method==='POST'){let db=read(),user=auth(req,res,db);let d=await body(req);if(!d.title||!Number(d.amount))return json(res,400,{error:'شرح و مبلغ الزامی است.'});let r={id:id(),userId:user.id,title:d.title.trim(),amount:Number(d.amount),category:d.category||'متفرقه',kind:d.kind||'expense',account:d.account||'بدون حساب',date:d.date||today(),recurrence:d.recurrence||null,recurrenceId:d.recurrence?id():null,receipt:null,tripId:d.tripId||null,tags:Array.isArray(d.tags)?d.tags.map(x=>String(x).trim()).filter(Boolean).slice(0,12):(d.tags?String(d.tags).split(/[،,]+/).map(x=>x.trim()).filter(Boolean).slice(0,12):[]),createdAt:Date.now()};db.transactions.push(r);write(db);return json(res,201,r)}
  if(p==='/api/transactions/seal-toman'&&req.method==='POST'){let db=read(),user=auth(req,res,db),n=0;db.transactions.forEach(x=>{if(x.userId===user.id&&x.bankRef&&!x.rialFixed){x.rialFixed=true;n++}});db.accounts.forEach(x=>{if(x.userId===user.id&&!x.rialFixed){x.rialFixed=true;n++}});write(db);return json(res,200,{ok:true,sealed:n})} if(p==='/api/transactions/repair-rial-toman'&&req.method==='POST'){let db=read(),user=auth(req,res,db),d=await body(req),force=!!d.force;if(!force)return json(res,400,{error:'برای تبدیل ریال→تومان force:true لازم است.'});let txs=db.transactions.filter(x=>x.userId===user.id&&x.bankRef&&!x.rialFixed);let fixed=0;for(const t of txs){t.amount=Math.round(Number(t.amount)/10);t.rialFixed=true;fixed++}if(d.fixAccounts){for(const a of db.accounts.filter(x=>x.userId===user.id&&!x.rialFixed)){a.openingBalance=Math.round(Number(a.openingBalance||0)/10);a.rialFixed=true}}write(db);return json(res,200,{fixed,message:fixed+' تراکنش از ریال به تومان اصلاح شد'})} if(p==='/api/transactions/import-bank/preview'&&req.method==='POST'){let db=read(),user=auth(req,res,db),d=await body(req);if(!d.fileBase64)return json(res,400,{error:'فایل لازم است.'});if((String(d.fileType||d.filename||'').match(/xlsx|xls/i))&&!XLSX)return json(res,503,{error:'ماژول Excel روی سرور نصب نیست.'});let rows;try{if(d.fileType==='csv'){let text=Buffer.from(d.fileBase64,'base64').toString('utf8');rows=parseCsvRows(text)}else{let wb=XLSX.read(Buffer.from(d.fileBase64,'base64'),{type:'buffer'}),ws=wb.Sheets[wb.SheetNames[0]];rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''})}}catch(e){return json(res,400,{error:'خوندن فایل شکست خورد: '+e.message})}let parsed;try{parsed=parseBankStatementRows(rows)}catch(e){return json(res,400,{error:e.message})}if(!parsed.length)return json(res,400,{error:'هیچ تراکنشی توی فایل پیدا نشد. مطمئنی فرمتش با نمونه‌ای که قبلاً بررسی شد یکیه؟'});let existingRefs=new Set(db.transactions.filter(x=>x.userId===user.id&&x.bankRef).map(x=>x.bankRef)),items=parsed.map(x=>({...x,duplicate:x.bankRef?existingRefs.has(x.bankRef):false})),fresh=items.filter(x=>!x.duplicate);return json(res,200,{items,totalIncome:fresh.filter(x=>x.kind==='income').reduce((n,x)=>n+x.amount,0),totalExpense:fresh.filter(x=>x.kind==='expense').reduce((n,x)=>n+x.amount,0),totalTransfer:fresh.filter(x=>x.kind==='transfer').reduce((n,x)=>n+x.amount,0),duplicateCount:items.length-fresh.length})}
  if(p==='/api/transactions/import-bank/commit'&&req.method==='POST'){let db=read(),user=auth(req,res,db),d=await body(req),items=Array.isArray(d.items)?d.items:[],account=(d.account||'بدون حساب').trim()||'بدون حساب';if(!items.length)return json(res,400,{error:'موردی برای درون‌ریزی انتخاب نشده.'});let existingRefs=new Set(db.transactions.filter(x=>x.userId===user.id&&x.bankRef).map(x=>x.bankRef)),imported=0,skipped=0;for(const it of items){if(!it||!it.date||!it.title||!Number(it.amount)||!it.kind){skipped++;continue}if(it.bankRef&&existingRefs.has(it.bankRef)){skipped++;continue}let toSepordeh=it.kind==='transfer'&&it.rawType==='دریافت از سپرده',r={id:id(),userId:user.id,title:String(it.title).trim(),amount:Number(it.amount),category:it.category||'متفرقه',kind:it.kind,account:toSepordeh?'سپرده‌های بانکی':account,date:it.date,recurrence:null,recurrenceId:null,receipt:null,tripId:null,bankRef:it.bankRef||null,rialFixed:true,tags:Array.isArray(it.tags)?it.tags:[],createdAt:Date.now()};if(it.kind==='transfer')r.toAccount=toSepordeh?account:'سپرده‌های بانکی';db.transactions.push(r);if(it.bankRef)existingRefs.add(it.bankRef);imported++}write(db);return json(res,200,{imported,skipped})}
+ // دسته‌بندی مجدد گروهی تراکنش‌ها — پیش‌فرض «فقط پیش‌نمایش» است و هیچ چیزی را تغییر
+ // نمی‌دهد مگر apply:true. هر تغییر catPrev را روی رکورد نگه می‌دارد تا {revert:true}
+ // بتواند کل عملیات را برگرداند (عملیات گروهی روی دادهٔ مالی باید برگشت‌پذیر باشد).
+ if(p==='/api/transactions/recategorize'&&req.method==='POST'){let db=read(),user=auth(req,res,db),d=await body(req);if(d.revert){let n=0;for(const t of db.transactions){if(t.userId===user.id&&t.catPrev){t.category=t.catPrev;delete t.catPrev;delete t.catRule;delete t.catAt;n++}}write(db);return json(res,200,{reverted:n,message:n?'دستهٔ '+n+' تراکنش به حالت قبل برگشت.':'چیزی برای بازگردانی نیست (عملیات قبلی revert شده یا انجام نشده).'})}let rules=[];if(Array.isArray(d.rules))for(const r of d.rules.slice(0,40)){if(!r)continue;let w=String(r.word||r.keyword||'').trim().slice(0,40),c=String(r.cat||r.category||'').trim().slice(0,24);if(w.length>1&&c)rules.push({word:w,cat:c})}let scope=String(d.scope||'misc'),from=d.from?String(d.from):null,to=d.to?String(d.to):null,expenseOnly=!!d.expenseOnly,minAmount=d.minAmount!=null&&d.minAmount!==''?Number(d.minAmount):null,account=d.account?String(d.account):null,limit=Math.min(Number(d.limit)||400,2000);let mine=db.transactions.filter(t=>t.userId===user.id&&t.kind!=='transfer');if(from)mine=mine.filter(t=>String(t.date||'')>=from);if(to)mine=mine.filter(t=>String(t.date||'')<=to);if(account)mine=mine.filter(t=>String(t.account||'')===account);if(minAmount!=null&&isFinite(minAmount))mine=mine.filter(t=>Number(t.amount)>=minAmount);if(expenseOnly)mine=mine.filter(t=>t.kind!=='income');if(scope==='misc')mine=mine.filter(t=>(normalizeCategoryName(t.category)||'متفرقه')==='متفرقه');else if(scope==='auto')mine=mine.filter(t=>!t.catManual);let changes=[],summary={},skippedSame=0,skippedNoMatch=0,sumAmount=0;for(const t of mine){let r=categorizeTransaction(t,rules);if(!r.category){if(r.reason==='no-match')skippedNoMatch++;else skippedSame++;continue}let cur=normalizeCategoryName(t.category)||'متفرقه',rawCat=String(t.category||'').trim()||'متفرقه';if(normalizeCategoryName(r.category)===cur){skippedSame++;continue}changes.push({id:t.id,date:t.date||null,title:String(t.title||''),amount:Number(t.amount)||0,kind:t.kind||'expense',account:t.account||null,from:rawCat,to:r.category,keyword:r.keyword||null});summary[r.category]=summary[r.category]||{count:0,sum:0};summary[r.category].count++;summary[r.category].sum+=Number(t.amount)||0;sumAmount+=Number(t.amount)||0;if(d.apply){t.catPrev=rawCat;t.catRule=r.keyword||null;t.catAt=Date.now();t.category=r.category}}if(d.apply&&changes.length)write(db);return json(res,200,{applied:!!d.apply&&changes.length>0,scanned:mine.length,matched:changes.length,changesTotal:changes.length,changes:changes.slice(0,limit),truncated:changes.length>limit,untouched:skippedSame+skippedNoMatch,noMatch:skippedNoMatch,alreadyOk:skippedSame,sumAmount,summary,scope,rulesUsed:rules.length,revertible:!!d.apply&&changes.length>0})}
  if(p==='/api/tasks'&&req.method==='GET'){let db=read(),user=auth(req,res,db),date=u.searchParams.get('date'),from=u.searchParams.get('from'),to=u.searchParams.get('to');let items=db.tasks.filter(x=>x.userId===user.id&&!x.isReminder);if(date)items=items.filter(x=>x.date===date);else if(from||to)items=items.filter(x=>x.date>=(from||'0000-01-01')&&x.date<=(to||'9999-12-31'));return json(res,200,{items:items.sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0))})} if(p==='/api/tasks'&&req.method==='POST'){let db=read(),user=auth(req,res,db);let d=await body(req);if(!d.title)return json(res,400,{error:'عنوان کار لازم است.'});let r={id:id(),userId:user.id,title:d.title.trim(),date:d.date||today(),done:false,priority:d.priority||'medium',deadline:d.deadline||null,projectId:d.projectId||null,parentTaskId:d.parentTaskId||null,recurrence:d.recurrence||null,startTime:d.startTime||null,durationMinutes:d.durationMinutes?Number(d.durationMinutes):null,createdAt:Date.now()};db.tasks.push(r);write(db);return json(res,201,r)}
  if(p.startsWith('/api/tasks/')&&req.method==='DELETE'){let db=read(),user=auth(req,res,db);let ix=db.tasks.findIndex(x=>x.id===p.split('/').pop()&&x.userId===user.id);if(ix<0)return json(res,404,{error:'تسک پیدا نشد.'});let dead=new Set([db.tasks[ix].id]),grew=true;while(grew){grew=false;for(const t of db.tasks)if(t.parentTaskId&&dead.has(t.parentTaskId)&&!dead.has(t.id)){dead.add(t.id);grew=true}}db.tasks=db.tasks.filter(x=>!dead.has(x.id));write(db);return json(res,200,{ok:true})}
  if(p.startsWith('/api/tasks/')&&req.method==='PATCH'){let db=read(),user=auth(req,res,db);let r=db.tasks.find(x=>x.id===p.split('/').pop()&&x.userId===user.id);if(!r)return json(res,404,{error:'پیدا نشد'});let d=await body(req),wasDone=r.done;for(const k of ['title','done','priority','deadline','projectId','parentTaskId','recurrence','date','startTime'])if(d[k]!==undefined)r[k]=d[k];if(d.durationMinutes!==undefined)r.durationMinutes=d.durationMinutes?Number(d.durationMinutes):null;if(r.done&&!wasDone&&r.recurrence){let next=new Date(r.date+'T12:00:00');if(r.recurrence==='weekly')next.setDate(next.getDate()+7);else if(r.recurrence==='monthly')next.setMonth(next.getMonth()+1);else next.setDate(next.getDate()+1);db.tasks.push({id:id(),userId:user.id,title:r.title,date:next.toISOString().slice(0,10),done:false,priority:r.priority,deadline:null,projectId:r.projectId,parentTaskId:null,recurrence:r.recurrence,createdAt:Date.now()})}write(db);return json(res,200,r)}

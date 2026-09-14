@@ -80,6 +80,7 @@ async function main() {
       ['POST', '/api/ai/chat'], ['GET', '/api/ai/report'],
       ['GET', '/api/ai/correlations'], ['GET', '/api/ai/tomorrow-priorities'],
       ['POST', '/api/ai/suggest-category'],
+      ['POST', '/api/transactions/recategorize'],
       ['GET', '/api/football/remote/fixtures'], ['GET', '/api/football/remote/odds?fixture=1'],
       ['GET', '/api/football/remote/1xbet/sports'], ['GET', '/api/football/remote/1xbet/leagues?sportId=1'],
       ['GET', '/api/football/remote/1xbet/matches?sportId=1&leagueId=1'], ['GET', '/api/football/remote/1xbet/odds?matchId=1'],
@@ -747,6 +748,109 @@ async function main() {
     const simpleOldText = '۵۰ هزار ناهار';
     const simpleRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: simpleOldText }) }).then(r => r.json());
     check('traditional simple text still parses correctly without bank pattern', simpleRes.actions.length === 1 && simpleRes.actions[0].amount === 50000 && simpleRes.actions[0].title.includes('ناهار'));
+
+    console.log('\n[41] bulk recategorization of «متفرقه» transactions (preview → apply → revert)');
+    const recatSeed = [
+      { title: 'شارژ ساختمان مرداد', amount: 2500000, kind: 'expense' },   // longest-match → مسکن, not قبض
+      { title: 'اسنپ', amount: 85000, kind: 'expense' },                     // → حمل‌ونقل
+      { title: 'بیمه شخص ثالث', amount: 4200000, kind: 'expense' },          // → حمل‌ونقل, not قبض
+      { title: 'سوپرمارکت جانبو', amount: 640000, kind: 'expense' },         // → خوراک
+      { title: 'داروخانه', amount: 310000, kind: 'expense' },                // → سلامت
+      { title: 'هتل رامسر', amount: 8800000, kind: 'expense' },              // → سفر
+      { title: 'واریز حقوق شهریور', amount: 45000000, kind: 'income' },      // → حقوق
+      { title: 'یه چیز کاملاً بی‌ربط', amount: 1000, kind: 'expense' },      // → no match, stays
+    ];
+    for (const t of recatSeed) await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ ...t, date: today() }) });
+    const recatTransfer = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'انتقال به سپرده', amount: 5000000, kind: 'recatTransfer', category: 'انتقال', date: today() }) }).then(r => r.json());
+
+    const readDb = () => JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+    const catOf = (id) => (readDb().transactions.find(t => t.id === id) || {}).category;
+    const recatPost = (body) => fetch(`${BASE}/api/transactions/recategorize`, { method: 'POST', headers: authHeaders, body: JSON.stringify(body) }).then(r => r.json().then(d => ({ status: r.status, d })));
+
+    const preview = await recatPost({});
+    check('preview returns 200', preview.status === 200);
+    check('preview is not applied by default', preview.d.applied === false);
+    const seedTitles = recatSeed.map(t => t.title);
+    const seedChanges = preview.d.changes.filter(c => seedTitles.includes(c.title));
+    check('preview proposes exactly the 7 matchable seeded transactions', seedChanges.length === 7 && preview.d.matched >= 7);
+    check('preview leaves the unmatchable seeded one alone', !preview.d.changes.some(c => c.title === 'یه چیز کاملاً بی‌ربط') && preview.d.noMatch >= 1);
+    const byTitle = Object.fromEntries(preview.d.changes.map(c => [c.title, c]));
+    check('«شارژ ساختمان» → مسکن (longest keyword beats قبض\'s bare «شارژ»)', byTitle['شارژ ساختمان مرداد'] && byTitle['شارژ ساختمان مرداد'].to === 'مسکن');
+    check('«بیمه شخص ثالث» → حمل‌ونقل (longest keyword beats قبض\'s bare «بیمه»)', byTitle['بیمه شخص ثالث'] && byTitle['بیمه شخص ثالث'].to === 'حمل‌ونقل');
+    check('«اسنپ» → حمل‌ونقل', byTitle['اسنپ'] && byTitle['اسنپ'].to === 'حمل‌ونقل');
+    check('«سوپرمارکت جانبو» → خوراک', byTitle['سوپرمارکت جانبو'] && byTitle['سوپرمارکت جانبو'].to === 'خوراک');
+    check('«هتل رامسر» → سفر', byTitle['هتل رامسر'] && byTitle['هتل رامسر'].to === 'سفر');
+    check('income «واریز حقوق شهریور» → حقوق', byTitle['واریز حقوق شهریور'] && byTitle['واریز حقوق شهریور'].to === 'حقوق');
+    const seededSum = seedChanges.reduce((n, c) => n + c.amount, 0);
+    check('summary totals the money moving out of «متفرقه»', seededSum === 2500000 + 85000 + 4200000 + 640000 + 310000 + 8800000 + 45000000 && preview.d.sumAmount >= seededSum);
+    check('preview wrote nothing to disk', catOf(byTitle['اسنپ'].id) === 'متفرقه');
+    check('transfers are never proposed for recategorization', !preview.d.changes.some(c => c.id === recatTransfer.id));
+
+    const applied = await recatPost({ apply: true });
+    check('apply reports applied=true and revertible=true', applied.d.applied === true && applied.d.revertible === true);
+    check('apply actually changed the دسته on disk', catOf(byTitle['اسنپ'].id) === 'حمل‌ونقل' && catOf(byTitle['شارژ ساختمان مرداد'].id) === 'مسکن');
+    check('apply kept the previous دسته for undo', (readDb().transactions.find(t => t.id === byTitle['اسنپ'].id) || {}).catPrev === 'متفرقه');
+    check('recatTransfer untouched by apply', catOf(recatTransfer.id) === 'انتقال');
+
+    const rerun = await recatPost({});
+    check('second preview is idempotent — nothing left to fix in متفرقه', rerun.d.matched === 0 && rerun.d.scanned >= 8);
+
+    const allScope = await recatPost({ scope: 'all' });
+    const allBig = await recatPost({ scope: 'all', minAmount: 1e12 });
+    check('scope=all widens the scan beyond «متفرقه» only', allScope.status === 200 && allScope.d.scanned >= applied.d.scanned);
+    check('minAmount filters the scan down', allBig.status === 200 && allBig.d.scanned <= allScope.d.scanned && allBig.d.matched === 0);
+
+    const customRule = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'فروشگاه برادران نوری', amount: 730000, kind: 'expense', date: today() }) }).then(r => r.json());
+    const noRule = await recatPost({});
+    check('unknown merchant is not guessed without a user rule', !noRule.d.changes.some(c => c.id === customRule.id));
+    const withRule = await recatPost({ rules: [{ word: 'برادران نوری', cat: 'خوراک' }] });
+    const proposed = withRule.d.changes.find(c => c.id === customRule.id);
+    check('user-defined keyword maps the merchant to the chosen دسته', !!proposed && proposed.to === 'خوراک' && proposed.keyword === 'برادران نوری');
+
+    const manualTx = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'داروخانه', amount: 500000, kind: 'expense', category: 'متفرقه', date: today() }) }).then(r => r.json());
+    await fetch(`${BASE}/api/transactions/${manualTx.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ category: 'هدیه و کمک' }) });
+    check('manual دسته edit is flagged catManual', (readDb().transactions.find(t => t.id === manualTx.id) || {}).catManual === true);
+    const autoScope = await recatPost({ scope: 'auto', apply: true });
+    check("scope=auto never overwrites a hand-picked دسته", catOf(manualTx.id) === 'هدیه و کمک' && !autoScope.d.changes.some(c => c.id === manualTx.id));
+
+    const reverted = await recatPost({ revert: true });
+    check('revert restores every bulk-changed دسته', reverted.d.reverted > 0 && catOf(byTitle['اسنپ'].id) === 'متفرقه' && catOf(byTitle['شارژ ساختمان مرداد'].id) === 'متفرقه');
+    check('revert leaves hand-picked دسته alone', catOf(manualTx.id) === 'هدیه و کمک');
+    const revertAgain = await recatPost({ revert: true });
+    check('second revert is a no-op', revertAgain.d.reverted === 0);
+
+    console.log('\n[41b] synonyms must not create phantom changes or corrupt undo');
+    const salaryTx = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'واریز حقوق مهر', amount: 48000000, kind: 'income', category: 'حقوق', date: today() }) }).then(r => r.json());
+    const allScan = await recatPost({ scope: 'all' });
+    check('«حقوق» is a distinct category, not silently folded into «درآمد»', !allScan.d.changes.some(c => c.id === salaryTx.id));
+    const foodTx = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'رستوران', amount: 300000, kind: 'expense', category: 'خورد و خوراک', date: today() }) }).then(r => r.json());
+    const synScan = await recatPost({ scope: 'all' });
+    check('a synonym spelling («خورد و خوراک») is not proposed as a change to itself', !synScan.d.changes.some(c => c.id === foodTx.id));
+    const countsAddUp = await recatPost({ scope: 'all' });
+    check('scanned = matched + untouched (no silently dropped records)', countsAddUp.d.scanned === countsAddUp.d.matched + countsAddUp.d.alreadyOk + countsAddUp.d.noMatch);
+    const rawCatTx = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'هتل رامسر', amount: 9000000, kind: 'expense', category: 'خورد و خوراک', date: today() }) }).then(r => r.json());
+    const rawApply = await recatPost({ scope: 'all', apply: true });
+    const rawProposed = rawApply.d.changes.find(c => c.id === rawCatTx.id);
+    const rawRec = readDb().transactions.find(t => t.id === rawCatTx.id);
+    check('a non-canonical raw category is proposed for a real change', !!rawProposed && rawProposed.to === 'سفر');
+    check('catPrev stores the RAW previous category for lossless undo', rawRec.catPrev === 'خورد و خوراک' && rawProposed.from === 'خورد و خوراک');
+    await recatPost({ revert: true });
+    await new Promise(r => setTimeout(r, 80)); /* write() is an async chain on the Node server; let it flush before reading db.json */
+    check('undo restores the exact raw spelling, not the normalized one', catOf(rawCatTx.id) === 'خورد و خوراک');
+
+    console.log('\n[42] recategorization is scoped to the signed-in user');
+    const email2 = `smoke2_${Date.now()}@example.com`;
+    await fetch(`${BASE}/api/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Other', email: email2, password: 'secret123' }) });
+    const login2 = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email2, password: 'secret123' }) });
+    const headers2 = { 'Content-Type': 'application/json', Cookie: login2.headers.get('set-cookie').split(';')[0] };
+    const otherTx = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: headers2, body: JSON.stringify({ title: 'اسنپ', amount: 120000, kind: 'expense', date: today() }) }).then(r => r.json());
+    const otherPreview = await fetch(`${BASE}/api/transactions/recategorize`, { method: 'POST', headers: headers2, body: JSON.stringify({}) }).then(r => r.json());
+    check('second user sees only their own transaction', otherPreview.scanned === 1 && otherPreview.matched === 1);
+    const firstApply = await recatPost({ apply: true });
+    check("first user's apply does not touch the second user's data", catOf(otherTx.id) === 'متفرقه' && firstApply.status === 200);
+    const unauth = await fetch(`${BASE}/api/transactions/recategorize`, { method: 'POST', headers: { Cookie: 'sid=not-a-real-session' }, body: '{}' });
+    check('recategorize with an invalid cookie -> 401 (not a crash)', unauth.status === 401);
+
 
   } finally {
     child.kill();

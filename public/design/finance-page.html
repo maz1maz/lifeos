@@ -189,6 +189,20 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .psum.show{display:grid}
 .psum div{border:1px solid var(--border);border-radius:12px;padding:7px;text-align:center;font-size:12.5px;color:var(--muted)}
 .psum b{font-family:var(--fh);font-size:15px;display:block;color:var(--text)}
+.rcsum{display:none;margin-bottom:12px}
+.rcsum.show{display:block}
+.rcsum .rctot{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.9}
+.rcsum .rctot b{font-family:var(--fh);color:var(--text);font-size:15px}
+.rcchips{display:flex;flex-wrap:wrap;gap:6px}
+.rcchip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:12.5px;background:var(--panel)}
+.rcchip i{width:8px;height:8px;border-radius:99px;display:inline-block;flex:none}
+.rcrow{display:flex;gap:8px;align-items:center;padding:6px 13px;font-size:13px;border-bottom:1px solid var(--border)}
+.rcrow:last-child{border-bottom:none}
+.rcrow .rt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcrow .rkw{color:var(--faint);font-size:11.5px}
+.rcrow .ra{font-family:var(--fh);direction:ltr;flex:none;color:var(--faint);font-size:12.5px}
+.rcrow .rfrom{color:var(--faint);flex:none;text-decoration:line-through}
+.rcrow .rto{font-weight:700;flex:none}
 .ipbar{height:9px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:10px;display:none}
 .ipbar.show{display:block}
 .ipbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--good));border-radius:99px;transition:width .18s}
@@ -456,7 +470,7 @@ body.nav-open .nav-backdrop{display:block}
 </head>
 <body>
 <div class="wrap">
-  <div class="ptools"><button class="iconbtn" id="eyeBtn">👁</button><button class="btn" id="impBtn">📥 درون‌ریزی اکسل بانک</button></div>
+  <div class="ptools"><button class="iconbtn" id="eyeBtn">👁</button><button class="btn" id="recatBtn">🧹 دسته‌بندی متفرقه‌ها</button><button class="btn" id="impBtn">📥 درون‌ریزی اکسل بانک</button></div>
 
   <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html" class="on">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/football-page.html">⚽ فوتبال</a><a href="/design/series-page.html">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
@@ -637,6 +651,36 @@ body.nav-open .nav-backdrop{display:block}
   <div style="margin-top:14px;text-align:center"><button class="addh" style="display:inline-flex;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:11px;padding:7px 16px;font-family:var(--fh);font-size:14px;cursor:pointer" id="closeImp">بستن</button></div>
 </div>
 
+<!-- دسته‌بندی مجدد «متفرقه»ها -->
+<div class="drawer" id="recatDrawer">
+  <h3>🧹 دسته‌بندی مجدد «متفرقه»ها</h3>
+  <div class="sub">تراکنش‌هایی که دسته‌شان «متفرقه» مانده با کلیدواژهٔ فارسی مرتب می‌شوند — کاملاً آفلاین و بدون AI. اول <b>پیش‌نمایش</b> بگیر، بعد اعمال کن؛ هر زمان خواستی با یک کلیک برمی‌گردد.</div>
+
+  <div class="frow"><label>محدوده</label>
+    <select id="rcScope">
+      <option value="misc" selected>فقط تراکنش‌های «متفرقه»</option>
+      <option value="auto">همهٔ تراکنش‌ها، به‌جز آن‌هایی که دستی دسته داده‌ام</option>
+      <option value="all">همهٔ تراکنش‌ها</option>
+    </select>
+  </div>
+  <div class="frow"><label>حداقل مبلغ (تومان — اختیاری)</label><input id="rcMin" placeholder="مثلاً ۱۰۰۰۰۰" style="direction:ltr" inputmode="numeric"></div>
+  <div class="frow"><label>کلیدواژه‌های دلخواه (اختیاری) — هر خط: <span style="direction:ltr;display:inline-block">کلمه = دسته</span></label>
+    <textarea id="rcRules" rows="3" placeholder="برادران نوری = خوراک
+کلینیک مهر = سلامت" style="width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:12px;color:var(--text);padding:8px 12px;font:inherit;box-sizing:border-box;resize:vertical"></textarea>
+    <div class="ed-tags-hint">برای فروشگاه‌ها یا عبارت‌هایی که سیستم نمی‌شناسد — مثلاً نام سوپرمارکت محله‌ات.</div>
+  </div>
+  <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;color:var(--muted);margin-bottom:12px;cursor:pointer">
+    <input type="checkbox" id="rcExpOnly" style="width:auto"> فقط هزینه‌ها (درآمدها دست نخورند)
+  </label>
+
+  <div class="rcsum" id="rcSum"></div>
+  <div class="prevrows" id="rcRows"></div>
+  <button class="btn" id="rcPreview" style="width:100%">🔍 پیش‌نمایش</button>
+  <button class="btn" id="rcApply" style="width:100%;margin-top:10px;display:none">✅ اعمال کن</button>
+  <button id="rcRevert" style="width:100%;margin-top:10px;display:none;background:none;border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);color:var(--warn);border-radius:12px;padding:9px;font-family:var(--fh);font-size:14px;cursor:pointer">↩️ بازگرداندن آخرین دسته‌بندی گروهی</button>
+  <div style="margin-top:14px;text-align:center"><button class="addh" style="display:inline-flex;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:11px;padding:7px 16px;font-family:var(--fh);font-size:14px;cursor:pointer" id="closeRecat">بستن</button></div>
+</div>
+
 <!-- افزودن حساب -->
 <div class="drawer" id="accDrawer">
   <h3>💳 حساب / کارت جدید</h3>
@@ -675,8 +719,8 @@ function pick(arr){return arr[Math.floor(R()*arr.length)]}
 function ri(a,b){return Math.floor(a+R()*(b-a+1))}
 
 /* ============ داده (شروع خالی) ============ */
-var CATS={'خوراک':'var(--acc)','حمل‌ونقل':'#fb923c','قبض':'#a78bfa','سلامت':'var(--good)','تفریح':'#f472b6','پوشاک':'#60a5fa','آموزش':'#fbbf24','مسکن':'#f87171','متفرقه':'var(--faint)','حقوق':'var(--good)'};
-var CATI={'خوراک':'🍞','حمل‌ونقل':'🚕','قبض':'🧾','سلامت':'💊','تفریح':'🎬','پوشاک':'👕','آموزش':'📚','مسکن':'🏠','متفرقه':'🔖','حقوق':'💰'};
+var CATS={'خوراک':'var(--acc)','حمل‌ونقل':'#fb923c','قبض':'#a78bfa','سلامت':'var(--good)','تفریح':'#f472b6','پوشاک':'#60a5fa','آموزش':'#fbbf24','مسکن':'#f87171','سفر':'#2dd4bf','هدیه و کمک':'#f9a8d4','حیوانات خانگی':'#a3e635','متفرقه':'var(--faint)','حقوق':'var(--good)','درآمد':'#4ade80'};
+var CATI={'خوراک':'🍞','حمل‌ونقل':'🚕','قبض':'🧾','سلامت':'💊','تفریح':'🎬','پوشاک':'👕','آموزش':'📚','مسکن':'🏠','سفر':'✈️','هدیه و کمک':'🎁','حیوانات خانگی':'🐾','متفرقه':'🔖','حقوق':'💰','درآمد':'📥'};
 var MON=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
 var MONTHS=[];/* {y,m} از مهر ۱۴۰۲ تا شهریور ۱۴۰۵ */
 for(var i=0;i<24;i++){var am=1403*12+6+i;MONTHS.push({y:Math.floor(am/12),m:am%12+1})}
@@ -1190,7 +1234,7 @@ function openEdit(type,obj){
     selw.style.display='none'}
   edD.classList.add('open');ovl.classList.add('open');
 }
-function closeEd(){edD.classList.remove('open');if(!impDrawer.classList.contains('open')&&!accDrawer.classList.contains('open'))ovl.classList.remove('open')}
+function closeEd(){edD.classList.remove('open');var rc=document.getElementById('recatDrawer');if(!impDrawer.classList.contains('open')&&!accDrawer.classList.contains('open')&&!(rc&&rc.classList.contains('open')))ovl.classList.remove('open')}
 function num(v){return String(v).replace(/[^0-9.]/g,'')}
 document.getElementById('edSave').addEventListener('click',function(){
   var o=ED.obj;if(!o)return;
@@ -1314,8 +1358,126 @@ ovl.addEventListener('click',function(){
   impDrawer.classList.remove('open');
   if(typeof accDrawer!=='undefined'&&accDrawer)accDrawer.classList.remove('open');
   if(typeof edD!=='undefined'&&edD)edD.classList.remove('open');
+  var rc=document.getElementById('recatDrawer');if(rc)rc.classList.remove('open');
   ovl.classList.remove('open');
 });
+
+/* ============ دسته‌بندی مجدد گروهی «متفرقه»ها ============ */
+/* پیش‌فرض همیشه «پیش‌نمایش» است: هیچ تراکنشی تا وقتی خودت «اعمال کن» را نزنی تغییر نمی‌کند،
+   و بعد از اعمال هم با «بازگرداندن» همه‌چیز به حالت قبل برمی‌گردد (catPrev سمت سرور). */
+(function(){
+  var recatDrawer=document.getElementById('recatDrawer');
+  if(!recatDrawer) return;
+  var ovlR=document.getElementById('ovl');
+  var rowsEl=document.getElementById('rcRows'), sumEl=document.getElementById('rcSum');
+  var btnP=document.getElementById('rcPreview'), btnA=document.getElementById('rcApply'), btnR=document.getElementById('rcRevert');
+  var previewed=false;
+
+  function esc(s){return String(s==null?'':s).replace(/[<>&]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c]})}
+  function catColor(c){return (typeof CATS!=='undefined'&&CATS[c])||'var(--faint)'}
+  function catIcon(c){return (typeof CATI!=='undefined'&&CATI[c])||'🔖'}
+  function toEnDigits(s){return String(s||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)})}
+
+  function collect(apply){
+    var body={};
+    if(apply) body.apply=true;
+    var sc=document.getElementById('rcScope'); body.scope=sc?sc.value:'misc';
+    var mv=toEnDigits(document.getElementById('rcMin')?document.getElementById('rcMin').value:'').replace(/[^\d.]/g,'');
+    if(mv&&Number(mv)>0) body.minAmount=Number(mv);
+    var eo=document.getElementById('rcExpOnly'); if(eo&&eo.checked) body.expenseOnly=true;
+    var ta=document.getElementById('rcRules'), rules=[];
+    if(ta) String(ta.value||'').split('\n').forEach(function(line){
+      var parts=line.split('=');
+      if(parts.length<2) return;
+      var c=parts[parts.length-1].trim(), w=parts.slice(0,parts.length-1).join('=').trim();
+      if(w.length>1&&c) rules.push({word:w,cat:c});
+    });
+    if(rules.length) body.rules=rules;
+    return body;
+  }
+
+  function render(res){
+    var sum=res.summary||{}, keys=Object.keys(sum).sort(function(a,b){return sum[b].sum-sum[a].sum});
+    var head='<div class="rctot">'+fa(String(res.matched||0))+' تراکنش با جمع <b>'+fmt(res.sumAmount||0)+'</b> تومان دسته می‌گیرد'
+      +'<br><span style="color:var(--faint)">'+fa(String(res.scanned||0))+' تراکنش بررسی شد · '+fa(String(res.noMatch||0))+' مورد هیچ کلیدواژه‌ای نداشت و «متفرقه» می‌ماند'
+      +((res.applied?'':' — این فقط پیش‌نمایش است، چیزی تغییر نکرد')+'')+'</span></div>';
+    if(keys.length) head+='<div class="rcchips">'+keys.map(function(k){
+      return '<span class="rcchip"><i style="background:'+catColor(k)+'"></i>'+catIcon(k)+' '+esc(k)+' · '+fa(String(sum[k].count))+' · '+fmt(sum[k].sum)+'</span>';
+    }).join('')+'</div>';
+    sumEl.innerHTML=head; sumEl.classList.add('show');
+
+    var ch=res.changes||[];
+    if(!ch.length){
+      rowsEl.innerHTML='<div class="empty">موردی برای تغییر پیدا نشد 🎉</div>';
+      rowsEl.classList.add('show');
+      btnA.style.display='none';
+      return;
+    }
+    rowsEl.innerHTML=ch.slice(0,60).map(function(c){
+      return '<div class="rcrow"><span class="rt">'+esc(c.title)+(c.keyword?' <span class="rkw">«'+esc(c.keyword)+'»</span>':'')+'</span>'
+        +'<span class="ra">'+fmt(c.amount)+'</span>'
+        +'<span class="rfrom">'+esc(c.from)+'</span><span style="color:var(--faint);flex:none">←</span>'
+        +'<span class="rto" style="color:'+catColor(c.to)+'">'+catIcon(c.to)+' '+esc(c.to)+'</span></div>';
+    }).join('')+(res.truncated?'<div class="rcrow" style="color:var(--faint)">… و بقیه — در پیش‌نمایش فقط بخشی نشان داده می‌شود ولی همه اعمال می‌شوند</div>':'');
+    rowsEl.classList.add('show');
+    btnA.style.display='block';
+    btnA.textContent=(res.applied?'✅ اعمال شد — ':'✅ اعمال کن — ')+fa(String(res.changesTotal||ch.length))+' تراکنش';
+  }
+
+  function call(body,btn,label){
+    if(btn){btn.disabled=true;btn._t=btn.textContent;btn.textContent='⏳ '+label+'…'}
+    return fetch('/api/transactions/recategorize',{
+      method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})
+    }).then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})}).then(function(x){
+      if(btn){btn.disabled=false;if(btn._t)btn.textContent=btn._t}
+      if(!x.ok){toast((x.d&&x.d.error)||'خطا در درخواست');return null}
+      return x.d;
+    }).catch(function(e){
+      if(btn){btn.disabled=false;if(btn._t)btn.textContent=btn._t}
+      console.error(e);toast('خطای شبکه');return null;
+    });
+  }
+
+  btnP.addEventListener('click',function(){
+    call(collect(false),btnP,'بررسی').then(function(res){
+      if(!res) return;
+      previewed=true;
+      render(res);
+      btnR.style.display='block';
+      if(!res.matched) toast('چیزی برای دسته‌بندی پیدا نشد');
+      else toast(fa(String(res.matched))+' مورد آمادهٔ دسته‌بندی — پیش‌نمایش را ببین');
+    });
+  });
+
+  btnA.addEventListener('click',function(){
+    if(!previewed){toast('اول «پیش‌نمایش» را بزن');return}
+    call(collect(true),btnA,'اعمال').then(function(res){
+      if(!res) return;
+      render(res);
+      toast(res.applied?(fa(String(res.changesTotal))+' تراکنش دسته‌بندی شد ✓'):'چیزی اعمال نشد');
+      if(res.applied&&typeof loadFinanceFromApi==='function') loadFinanceFromApi();
+    });
+  });
+
+  btnR.addEventListener('click',function(){
+    call({revert:true},btnR,'بازگرداندن').then(function(res){
+      if(!res) return;
+      toast(res.reverted?(fa(String(res.reverted))+' تراکنش به دستهٔ قبلی برگشت ✓'):'چیزی برای بازگردانی نیست');
+      sumEl.classList.remove('show');rowsEl.classList.remove('show');rowsEl.innerHTML='';
+      btnA.style.display='none';previewed=false;
+      if(res.reverted&&typeof loadFinanceFromApi==='function') loadFinanceFromApi();
+    });
+  });
+
+  document.getElementById('recatBtn').addEventListener('click',function(){
+    recatDrawer.classList.add('open');if(ovlR)ovlR.classList.add('open');
+    btnR.style.display='block';
+  });
+  document.getElementById('closeRecat').addEventListener('click',function(){
+    recatDrawer.classList.remove('open');if(ovlR)ovlR.classList.remove('open');
+  });
+})();
+
 
 document.getElementById('fBank').addEventListener('click',function(e){
   if(e.target && e.target.id==='bankFile') return;
