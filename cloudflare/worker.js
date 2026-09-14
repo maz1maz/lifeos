@@ -309,7 +309,7 @@ async function fetchTvMazeNextEpisode(show){try{let tvShow=null;if(show.tvdbId){
       }
 
       if(cmd==='/گزارش_صبح'||cmd==='/صبح'){
-        let w=await fetchTehranWeatherBrief();
+        let w=await fetchTehranWeatherBrief(user.weather);
         return tgSend(chatId,await buildMorningBrief(db,user,d,w),{reply_markup:tgMainKeyboard()});
       }
       if(cmd==='/گزارش_شب'||cmd==='/شب'){
@@ -338,17 +338,21 @@ async function fetchTvMazeNextEpisode(show){try{let tvShow=null;if(show.tvdbId){
   const WMO_FA={0:['صاف','☀️'],1:['کمی ابری','🌤'],2:['نیمه‌ابری','⛅'],3:['ابری','☁️'],45:['مه','🌫'],48:['مه','🌫'],51:['نم‌نم','🌦'],53:['نم‌نم','🌦'],55:['نم‌نم','🌦'],61:['باران سبک','🌧'],63:['باران','🌧'],65:['باران شدید','🌧'],71:['برف سبک','🌨'],73:['برف','🌨'],75:['برف','❄️'],80:['رگبار','🌦'],81:['رگبار','🌦'],82:['رگبار شدید','🌦'],95:['رعدوبرق','⛈'],96:['رعدوبرق','⛈'],99:['رعدوبرق','⛈']};
   function tehranHourNow(){let p=tehranParts(new Date());return Number(p.hour)}
   function tehranMinuteNow(){let p=tehranParts(new Date());return Number(p.minute)}
-  async function fetchTehranWeatherBrief(){
+  // فاز ۲ — شهر انتخابی: مختصات از user.weather؛ بدون آن تهران. کش ۳۰ دقیقه‌ای بر اساس مختصات.
+  async function fetchTehranWeatherBrief(loc){
+    const _wc=fetchTehranWeatherBrief._cache||(fetchTehranWeatherBrief._cache={});
+    const lat=loc&&isFinite(Number(loc.lat))?Number(loc.lat):35.69, lon=loc&&isFinite(Number(loc.lon))?Number(loc.lon):51.39, wkey=lat+','+lon;
+    if(_wc[wkey]&&Date.now()-_wc[wkey].at<30*60*1000)return _wc[wkey].d;
     try{
       let [w,aq]=await Promise.all([
-        fetch('https://api.open-meteo.com/v1/forecast?latitude=35.69&longitude=51.39&current=temperature_2m,weather_code,relative_humidity_2m,apparent_temperature,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,sunrise,sunset&timezone=Asia%2FTehran&forecast_days=2').then(r=>r.json()),
-        fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude=35.69&longitude=51.39&current=european_aqi,pm2_5&timezone=Asia%2FTehran').then(r=>r.json()).catch(()=>null)
+        fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=temperature_2m,weather_code,relative_humidity_2m,apparent_temperature,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,sunrise,sunset&timezone=auto&forecast_days=2').then(r=>r.json()),
+        fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude='+lat+'&longitude='+lon+'&current=european_aqi,pm2_5&timezone=auto').then(r=>r.json()).catch(()=>null)
       ]);
       if(!w||!w.current)return null;
       let code=w.current.weather_code,pair=WMO_FA[code]||['—','🌡'];
       let aqi=aq&&aq.current?aq.current.european_aqi:null;
       let aqiLabel=aqi==null?null:(aqi<=40?'خوب':aqi<=60?'متوسط':aqi<=80?'ضعیف':'ناسالم');
-      return{
+      const out={
         temp:Math.round(w.current.temperature_2m),
         feel:Math.round(w.current.apparent_temperature),
         hum:Math.round(w.current.relative_humidity_2m),
@@ -361,6 +365,8 @@ async function fetchTvMazeNextEpisode(show){try{let tvShow=null;if(show.tvdbId){
         sunset:(w.daily&&w.daily.sunset&&w.daily.sunset[0]||'').slice(11,16),
         aqi, aqiLabel
       };
+      _wc[wkey]={at:Date.now(),d:out};
+      return out;;
     }catch(e){return null}
   }
   function formatWeatherLine(w){
@@ -450,9 +456,6 @@ async function fetchTvMazeNextEpisode(show){try{let tvShow=null;if(show.tvdbId){
     if(!TELEGRAM_BOT_TOKEN)return false;
     let d=today(), changed=false, hh=tehranHourNow();
     db.reminders??=[]; db.tasks??=[];
-    let weather=null;
-    let needMorning=db.users.some(u=>u.telegramUserId&&(u.tgMorningHour!=null?Number(u.tgMorningHour):9)===hh&&u.tgLastMorning!==d);
-    if(needMorning) weather=await fetchTehranWeatherBrief();
     for(const user of db.users){
       if(!user.telegramUserId)continue;
       let morningH=user.tgMorningHour!=null?Number(user.tgMorningHour):9;
@@ -460,7 +463,7 @@ async function fetchTvMazeNextEpisode(show){try{let tvShow=null;if(show.tvdbId){
       if(user.tgReports===false)continue;
       if(hh===morningH&&user.tgMorningOn!==false&&user.tgLastMorning!==d){
         user.tgLastMorning=d; changed=true;
-        let text=await buildMorningBrief(db,user,d,weather);
+        let text=await buildMorningBrief(db,user,d,await fetchTehranWeatherBrief(user.weather));
         await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
       }
       if(hh===eveningH&&user.tgEveningOn!==false&&user.tgLastEvening!==d){
@@ -507,8 +510,8 @@ async function handleApi(request, env) {
  if(p==='/api/auth/google'&&req.method==='GET'){if(!GOOGLE_CLIENT_ID||!GOOGLE_CLIENT_SECRET||!GOOGLE_REDIRECT_URI)return json(res,503,{error:'ورود گوگل هنوز در تنظیمات سرور فعال نشده است.'});let state=randHex(24),q=new URLSearchParams({client_id:GOOGLE_CLIENT_ID,redirect_uri:GOOGLE_REDIRECT_URI,response_type:'code',scope:'openid email profile',state,prompt:'select_account'});res.writeHead(302,{'Location':'https://accounts.google.com/o/oauth2/v2/auth?'+q,'Set-Cookie':`google_state=${state}; HttpOnly; SameSite=Lax; Path=/; Max-Age=600`});return res.end()}
  if(p==='/api/auth/google/callback'&&req.method==='GET'){let db=await read(),code=u.searchParams.get('code'),state=u.searchParams.get('state');if(!code||!state||cookie(req).google_state!==state)return json(res,400,{error:'تأیید امنیتی ورود گوگل ناموفق بود. دوباره تلاش کن.'});if(!GOOGLE_CLIENT_ID||!GOOGLE_CLIENT_SECRET||!GOOGLE_REDIRECT_URI)return json(res,503,{error:'تنظیمات گوگل کامل نیست.'});let token=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:GOOGLE_CLIENT_ID,client_secret:GOOGLE_CLIENT_SECRET,redirect_uri:GOOGLE_REDIRECT_URI,grant_type:'authorization_code'})}).then(r=>r.json());if(!token.access_token)return json(res,401,{error:'دریافت مجوز گوگل ناموفق بود.'});let profile=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:'Bearer '+token.access_token}}).then(r=>r.json());if(!profile.email||!profile.sub)return json(res,401,{error:'اطلاعات حساب گوگل کامل نیست.'});let user=db.users.find(x=>x.googleId===profile.sub)||db.users.find(x=>x.email===profile.email.toLowerCase());if(!user){user={id:id(),name:profile.name||profile.email.split('@')[0],email:profile.email.toLowerCase(),googleId:profile.sub,createdAt:Date.now()};db.users.push(user)}else if(!user.googleId)user.googleId=profile.sub;let sid=id();db.sessions.push({id:sid,userId:user.id});await write(db);res.writeHead(302,{'Location':'/','Set-Cookie':[sidCookie(sid),'google_state=; HttpOnly; Path=/; Max-Age=0']});return res.end()}
  if(p==='/api/auth/logout'&&req.method==='POST'){let db=await read(),sid=cookie(req).sid;db.sessions=db.sessions.filter(x=>x.id!==sid);await write(db);res.writeHead(200,{'Set-Cookie':'sid=; HttpOnly; Path=/; Max-Age=0'});return res.end('{}')}
- if(p==='/api/me'&&req.method==='GET'){let db=await read(),user=me(req,db);return json(res,200,{user:user&&{name:user.name,email:user.email,telegramUserId:user.telegramUserId||null,tgMorningHour:user.tgMorningHour!=null?user.tgMorningHour:9,tgEveningHour:user.tgEveningHour!=null?user.tgEveningHour:23,tgReports:user.tgReports!==false,pinEnabled:!!user.pinHash,spotifyConnected:!!user.spotifyRefreshToken,youtubeConnected:!!user.youtubeRefreshToken}})}
- if(p==='/api/me'&&req.method==='PATCH'){let db=await read(),user=auth(req,res,db),d=await body(req);if(d.telegramUserId!==undefined){if(d.telegramUserId===null||d.telegramUserId==='')user.telegramUserId=null;else return json(res,400,{error:'برای اتصال تلگرام از «ساخت کد اتصال» استفاده کن؛ شناسه را دستی وارد نکن.'})}if(d.tgMorningHour!==undefined){let h=Number(d.tgMorningHour);if(h>=0&&h<=23)user.tgMorningHour=h;}if(d.tgEveningHour!==undefined){let h=Number(d.tgEveningHour);if(h>=0&&h<=23)user.tgEveningHour=h;}if(d.tgReports!==undefined)user.tgReports=!!d.tgReports;if(d.tgMorningOn!==undefined)user.tgMorningOn=!!d.tgMorningOn;if(d.tgEveningOn!==undefined)user.tgEveningOn=!!d.tgEveningOn;await write(db);return json(res,200,{ok:true})}
+ if(p==='/api/me'&&req.method==='GET'){let db=await read(),user=me(req,db);return json(res,200,{user:user&&{name:user.name,email:user.email,telegramUserId:user.telegramUserId||null,tgMorningHour:user.tgMorningHour!=null?user.tgMorningHour:9,tgEveningHour:user.tgEveningHour!=null?user.tgEveningHour:23,tgReports:user.tgReports!==false,pinEnabled:!!user.pinHash,spotifyConnected:!!user.spotifyRefreshToken,youtubeConnected:!!user.youtubeRefreshToken,weather:user.weather||null}})}
+ if(p==='/api/me'&&req.method==='PATCH'){let db=await read(),user=auth(req,res,db),d=await body(req);if(d.telegramUserId!==undefined){if(d.telegramUserId===null||d.telegramUserId==='')user.telegramUserId=null;else return json(res,400,{error:'برای اتصال تلگرام از «ساخت کد اتصال» استفاده کن؛ شناسه را دستی وارد نکن.'})}if(d.tgMorningHour!==undefined){let h=Number(d.tgMorningHour);if(h>=0&&h<=23)user.tgMorningHour=h;}if(d.tgEveningHour!==undefined){let h=Number(d.tgEveningHour);if(h>=0&&h<=23)user.tgEveningHour=h;}if(d.tgReports!==undefined)user.tgReports=!!d.tgReports;if(d.tgMorningOn!==undefined)user.tgMorningOn=!!d.tgMorningOn;if(d.tgEveningOn!==undefined)user.tgEveningOn=!!d.tgEveningOn;if(d.weather!==undefined){if(d.weather===null)user.weather=null;else{const w=d.weather||{},wlat=Number(w.lat),wlon=Number(w.lon);if(!w.name||String(w.name).trim().length>40||!isFinite(wlat)||wlat<-90||wlat>90||!isFinite(wlon)||wlon<-180||wlon>180)return json(res,400,{error:'اطلاعات شهر معتبر نیست (نام و عرض/طول جغرافیایی لازم است).'});user.weather={name:String(w.name).trim().slice(0,40),lat:Math.round(wlat*10000)/10000,lon:Math.round(wlon*10000)/10000}}}await write(db);return json(res,200,{ok:true})}
 
  if(p==='/api/telegram/link-code'&&req.method==='POST'){let db=await read(),user=auth(req,res,db);db.telegramLinkCodes??=[];db.telegramLinkCodes=db.telegramLinkCodes.filter(c=>c.expiresAt>Date.now()||c.usedAt);let code=genLinkCode();db.telegramLinkCodes.push({id:id(),userId:user.id,code,createdAt:Date.now(),expiresAt:Date.now()+15*60*1000,usedAt:null});await write(db);return json(res,200,{code,expiresInSec:900,botHint:'در بات بفرست: /start '+code})}
  if(p==='/api/telegram/unlink'&&req.method==='POST'){let db=await read(),user=auth(req,res,db);user.telegramUserId=null;await write(db);return json(res,200,{ok:true})}

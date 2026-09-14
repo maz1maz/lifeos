@@ -1126,6 +1126,26 @@ body.nav-open .nav-backdrop{display:block}
 .rcnote{color:var(--faint);font-size:12.5px;margin-top:8px}
 .rcai{margin-top:10px;padding:10px 13px;border-radius:12px;line-height:1.9;font-size:14px;
   background:color-mix(in srgb,var(--acc) 7%,transparent);border:1px solid color-mix(in srgb,var(--acc) 25%,transparent);color:var(--text)}
+/* ===== فاز ۲ — انتخاب شهر ===== */
+.wcitybtn{flex:none;background:var(--panel2);border:1px solid var(--border);border-radius:9px;
+  color:var(--muted);font-size:13px;padding:2px 8px;cursor:pointer;margin-right:6px}
+.wcitybtn:hover{color:var(--acc);border-color:var(--acc)}
+.citypop{position:fixed;z-index:150;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:min(420px,92vw);background:var(--bg);border:1px solid var(--border2);border-radius:18px;
+  padding:16px;box-shadow:0 24px 60px -18px rgba(0,0,0,.7)}
+.citypop input{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:12px;
+  color:var(--text);font:inherit;font-family:var(--fh);font-size:14.5px;padding:10px 14px}
+.citypop input:focus{outline:none;border-color:var(--acc)}
+.cityres{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:46vh;overflow:auto}
+.cityitem{display:flex;gap:8px;align-items:baseline;text-align:right;background:var(--panel);
+  border:1px solid var(--border);border-radius:12px;padding:9px 13px;cursor:pointer;color:var(--text);font-family:var(--fh);font-size:14px}
+.cityitem:hover{border-color:var(--acc)}
+.cityitem small{color:var(--faint);font-size:12px;margin-right:auto}
+.cityempty{color:var(--faint);font-size:13px;padding:6px 2px}
+.citycur{margin-top:10px;color:var(--muted);font-size:12.5px;display:flex;gap:8px;align-items:center;justify-content:space-between}
+.citycur button{background:none;border:1px solid var(--border);border-radius:9px;color:var(--faint);
+  font:inherit;font-size:12px;padding:3px 10px;cursor:pointer}
+.citycur button:hover{color:var(--bad);border-color:var(--bad)}
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 </head>
@@ -1217,7 +1237,8 @@ body.nav-open .nav-backdrop{display:block}
         <div class="wt"><span id="wTemp">—</span><small>°C</small></div>
         <div class="wd">
           <b id="wDesc">—</b>
-          <small id="wCity">تهران، ایران · الان</small>
+          <small id="wCity">تهران · الان</small>
+          <button type="button" class="wcitybtn" id="wCityBtn" title="تغییر شهر آب‌وهوا">📍</button>
         </div>
       </div>
 
@@ -1430,6 +1451,13 @@ body.nav-open .nav-backdrop{display:block}
     <div class="mhead"><h4>🧭 خلاصهٔ امروز و فردا</h4><span class="cnt" id="recapCnt"></span></div>
     <div id="recapBody"><span class="habempty">در حال دریافت…</span></div>
   </div>
+</div>
+
+<!-- فاز ۲ — پاپ‌اور انتخاب شهر -->
+<div class="citypop" id="cityPop" hidden>
+  <input type="text" id="cityIn" placeholder="نام شهر… مثلاً شیراز، رشت، berlin" autocomplete="off">
+  <div class="cityres" id="cityRes"></div>
+  <div class="citycur" id="cityCur"></div>
 </div>
 
 </div>
@@ -1861,19 +1889,29 @@ function renderWeather(d){
   document.getElementById('wdays').innerHTML=html;
   document.getElementById('wUpd').textContent=d.live?('به‌روز · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})):'آفلاین · اسنپ‌شات امروز';
 }
-(function(){
-  var cached=null;
-  try{cached=JSON.parse(localStorage.getItem('weather-cache-tehran')||'null')}catch(e){}
-  if(cached&&Date.now()-cached.at<36e5){renderWeather(Object.assign({},cached.d,{live:true}));return}
-  Promise.all([
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=35.69&longitude=51.39&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,relative_humidity_2m,apparent_temperature,precipitation&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,sunrise,sunset&timezone=auto&forecast_days=6').then(function(r){return r.json()}),
-    fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude=35.69&longitude=51.39&current=european_aqi,pm2_5,pm10&timezone=auto').then(function(r){return r.json()})
+/* ===== فاز ۲ — هوا با شهر انتخابی: window.__city روی سرور ذخیره می‌شود (/api/me → user.weather) ===== */
+window.__city=window.__city||{name:'تهران',lat:35.69,lon:51.39};
+function applyCityLabels(){
+  var c=window.__city;
+  var wc=document.getElementById('wCity'); if(wc)wc.textContent=c.name+' · الان';
+  var mp=document.getElementById('mcPlace'); if(mp)mp.textContent='امروز '+c.name;
+}
+function loadWeather(force){
+  var c=window.__city,key='weather-cache-'+c.lat+','+c.lon,cached=null;
+  if(!force){try{cached=JSON.parse(localStorage.getItem(key)||'null')}catch(e){}}
+  if(cached&&Date.now()-cached.at<36e5){renderWeather(Object.assign({},cached.d,{live:true}));return Promise.resolve()}
+  return Promise.all([
+    fetch('https://api.open-meteo.com/v1/forecast?latitude='+c.lat+'&longitude='+c.lon+'&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,relative_humidity_2m,apparent_temperature,precipitation&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,sunrise,sunset&timezone=auto&forecast_days=6').then(function(r){return r.json()}),
+    fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude='+c.lat+'&longitude='+c.lon+'&current=european_aqi,pm2_5,pm10&timezone=auto').then(function(r){return r.json()})
   ]).then(function(res){
     var d={current:res[0].current,daily:res[0].daily,aqi:{eaqi:res[1].current.european_aqi,pm25:res[1].current.pm2_5,pm10:res[1].current.pm10}};
-    try{localStorage.setItem('weather-cache-tehran',JSON.stringify({at:Date.now(),d:d}))}catch(e){}
+    try{localStorage.setItem(key,JSON.stringify({at:Date.now(),d:d}))}catch(e){}
     renderWeather(Object.assign({},d,{live:true}));
   }).catch(function(){renderWeather(Object.assign({},WSAP,{live:false}))});
-})();
+}
+fetch('/api/me',{credentials:'include'}).then(function(r){return r.ok?r.json():null}).then(function(d){
+  if(d&&d.user&&d.user.weather)window.__city=d.user.weather;
+}).catch(function(){}).then(function(){applyCityLabels();loadWeather()});
 
 
 /* ================= NEW EPISODES ================= */
@@ -2980,6 +3018,67 @@ document.addEventListener('click',function(e){
 
   loadHabits();
   loadRecap();
+})();
+</script>
+<script>
+/* ===== فاز ۲ — انتخاب شهر برای آب‌وهوا =====
+   جست‌وجوی شهر: Open-Meteo Geocoding (رایگان، بدون کلید، فارسی).
+   ذخیره: PATCH /api/me {weather} → سمت سرور برای هر کاربر نگه داشته می‌شود،
+   پس گزارش صبح تلگرام هم همان شهر را می‌گیرد.
+*/
+(function(){
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]})}
+  var pop=document.getElementById('cityPop'),inp=document.getElementById('cityIn'),
+      res=document.getElementById('cityRes'),cur=document.getElementById('cityCur'),
+      btn=document.getElementById('wCityBtn');
+  if(!pop||!btn)return;
+  function openPop(){pop.hidden=false;inp.value='';res.innerHTML='';renderCur();setTimeout(function(){inp.focus()},30)}
+  function closePop(){pop.hidden=true}
+  function renderCur(){
+    var c=window.__city||{name:'تهران'};
+    cur.innerHTML='<span>شهر فعلی: <b>'+esc(c.name)+'</b></span>'+(c.name!=='تهران'?'<button type="button" id="cityReset">برگشت به تهران</button>':'');
+    var rb=document.getElementById('cityReset');
+    if(rb)rb.addEventListener('click',function(){saveCity(null)});
+  }
+  btn.addEventListener('click',function(e){e.stopPropagation();if(pop.hidden)openPop();else closePop()});
+  document.addEventListener('click',function(e){if(!pop.hidden&&!pop.contains(e.target)&&e.target!==btn)closePop()});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closePop()});
+  var tm=null;
+  inp.addEventListener('input',function(){clearTimeout(tm);tm=setTimeout(search,350)});
+  inp.addEventListener('keydown',function(e){if(e.key==='Enter'){clearTimeout(tm);search()}});
+  function search(){
+    var q=(inp.value||'').trim();
+    if(q.length<2){res.innerHTML='';return}
+    res.innerHTML='<div class="cityempty">در حال جست‌وجو…</div>';
+    fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=6&language=fa&format=json')
+      .then(function(r){return r.json()}).then(function(d){
+        var list=(d&&d.results)||[];
+        if(!list.length){res.innerHTML='<div class="cityempty">پیدا نشد — یک املا دیگر یا نام انگلیسی امتحان کن.</div>';return}
+        res.innerHTML=list.map(function(x,i){
+          return '<button type="button" class="cityitem" data-i="'+i+'">'+esc(x.name)
+            +'<small>'+esc([x.admin1,x.country].filter(Boolean).join('، '))+'</small></button>';
+        }).join('');
+        res.querySelectorAll('.cityitem').forEach(function(b){
+          b.addEventListener('click',function(){
+            var x=list[+b.getAttribute('data-i')];
+            saveCity({name:x.name,lat:x.latitude,lon:x.longitude});
+          });
+        });
+      }).catch(function(){res.innerHTML='<div class="cityempty">خطای شبکه در جست‌وجوی شهر</div>'});
+  }
+  function saveCity(w){
+    fetch('/api/me',{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({weather:w})})
+      .then(function(r){return r.json().then(function(d){return{ok:r.ok,st:r.status,d:d}})})
+      .then(function(x){
+        if(x.st===401){toast('برای ذخیرهٔ شهر اول وارد شو');return}
+        if(!x.ok){toast((x.d&&x.d.error)||'ذخیرهٔ شهر انجام نشد');return}
+        window.__city=w||{name:'تهران',lat:35.69,lon:51.39};
+        if(typeof applyCityLabels==='function')applyCityLabels();
+        if(typeof loadWeather==='function')loadWeather(true);
+        toast('شهر شد: '+window.__city.name+' ✓');
+        closePop();
+      }).catch(function(){toast('خطای شبکه')});
+  }
 })();
 </script>
 </body>

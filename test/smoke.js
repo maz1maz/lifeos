@@ -702,6 +702,17 @@ async function main() {
     const tmdbImportNoId = await fetch(`${BASE}/api/movies/from-tmdb`, { method: 'POST', headers: authHeaders, body: JSON.stringify({}) });
     check('TMDB import requires tmdbId + mediaType -> 400 before any network call', tmdbImportNoId.status === 400);
 
+    console.log('\n[39] weather city selection: per-user save, round-trip, validation');
+    const cityPatch = await fetch(`${BASE}/api/me`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ weather: { name: 'شیراز', lat: 29.5918, lon: 52.5838 } }) });
+    check('PATCH /api/me accepts a valid city -> 200', cityPatch.status === 200);
+    const meWithCity = await fetch(`${BASE}/api/me`, { headers: authHeaders }).then(r => r.json());
+    check('city round-trips on the user profile', !!(meWithCity.user && meWithCity.user.weather) && meWithCity.user.weather.name === 'شیراز' && Math.abs(meWithCity.user.weather.lat - 29.5918) < 0.001);
+    const badCity = await fetch(`${BASE}/api/me`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ weather: { name: 'هیچاکجا', lat: 999, lon: 0 } }) });
+    check('invalid latitude is rejected -> 400', badCity.status === 400);
+    const clearCity = await fetch(`${BASE}/api/me`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ weather: null }) });
+    const meNoCity = await fetch(`${BASE}/api/me`, { headers: authHeaders }).then(r => r.json());
+    check('city resets to null (Tehran default)', clearCity.status === 200 && meNoCity.user.weather === null);
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
