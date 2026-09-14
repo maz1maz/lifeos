@@ -21,7 +21,7 @@ const beforeRouteCount = (block.match(/ if\(p===/g) || []).length + (block.match
 // 1) Special-case Node-only crypto/fs/Buffer usages (must run before the generic pass
 //    so their own read()/write() calls still get caught by step 2).
 const specialCases = [
-  ["let buf=Buffer.from(m[3],'base64');if(buf.length>12*1024*1024)return json(res,400,{error:'حجم فایل حداکثر ۱۲ مگابایت.'});let filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),buf);r.fileUrl='/uploads/'+filename;r.fileMime=mime;r.fileName=d.fileName||filename;write(db);return json(res,200,r)}", "let buf=bytesFromBase64(m[3]);if(buf.byteLength>12*1024*1024)return json(res,400,{error:'حجم فایل حداکثر ۱۲ مگابایت.'});let filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره\u200cسازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,buf,{httpMetadata:{contentType:mime},customMetadata:{userId:user.id}});r.fileUrl='/uploads/'+filename;r.fileMime=mime;r.fileName=d.fileName||filename;await write(db);return json(res,200,r)}"],
+  ["let buf=Buffer.from(m[3],'base64');if(buf.length>12*1024*1024)return json(res,400,{error:'حجم فایل حداکثر ۱۲ مگابایت.'});let filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),buf);r.fileUrl='/uploads/'+filename;r.fileMime=mime;r.fileName=d.fileName||filename;write(db);return json(res,200,r)}", "let buf=bytesFromBase64(m[3]);if(buf.byteLength>12*1024*1024)return json(res,400,{error:'حجم فایل حداکثر ۱۲ مگابایت.'});let filename=id()+'.'+ext;if(!TELEGRAM_BOT_TOKEN||!user.telegramUserId)return json(res,503,{error:'برای آپلود فایل، اول بات تلگرام را از تنظیمات → اتصال‌ها وصل کن.'});let tgFileId=await tgSendDocument(user.telegramUserId,buf,d.fileName||filename,mime,'📎 سند: '+(r.title||''));r.fileUrl='/uploads/'+filename;r.fileTgId=tgFileId;r.fileMime=mime;r.fileName=d.fileName||filename;await write(db);return json(res,200,r)}"],
   [`crypto.randomBytes(16).toString('hex')`, `randHex(16)`],
   [`crypto.randomBytes(24).toString('hex')`, `randHex(24)`],
   [`hash(d.password,salt)`, `await hash(d.password,salt)`],
@@ -30,16 +30,17 @@ const specialCases = [
   [`Buffer.from(SPOTIFY_CLIENT_ID+':'+SPOTIFY_CLIENT_SECRET).toString('base64')`, `b64(SPOTIFY_CLIENT_ID+':'+SPOTIFY_CLIENT_SECRET)`],
   [`Buffer.from(d.fileBase64,'base64').toString('utf8')`, `textFromBase64(d.fileBase64)`],
   [`XLSX.read(Buffer.from(d.fileBase64,'base64'),{type:'buffer'})`, `XLSX.read(bytesFromBase64(d.fileBase64),{type:'array'})`],
-  [`Buffer.from(d.libraryCsvBase64,'base64').toString('utf8')`, `textFromBase64(d.libraryCsvBase64)`],
-  [`Buffer.from(d.watchesCsvBase64,'base64').toString('utf8')`, `textFromBase64(d.watchesCsvBase64)`],
+  [`Buffer.from(String(d.libraryCsvBase64||'').replace(/^data:[^;]+;base64,/,''),'base64').toString('utf8')`, `textFromBase64(String(d.libraryCsvBase64||'').replace(/^data:[^;]+;base64,/,''))`],
+  [`Buffer.from(String(d.watchesCsvBase64||'').replace(/^data:[^;]+;base64,/,''),'base64').toString('utf8')`, `textFromBase64(String(d.watchesCsvBase64||'').replace(/^data:[^;]+;base64,/,''))`],
   [
     `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),Buffer.from(m[2],'base64'));r.receipt='/uploads/'+filename;write(db);return json(res,200,r)}`,
-    `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]},customMetadata:{userId:user.id}});r.receipt='/uploads/'+filename;await write(db);return json(res,200,r)}`,
+    `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!TELEGRAM_BOT_TOKEN||!user.telegramUserId)return json(res,503,{error:'برای آپلود رسید، اول بات تلگرام را از تنظیمات → اتصال‌ها وصل کن.'});let tgFileId=await tgSendDocument(user.telegramUserId,bytesFromBase64(m[2]),filename,'image/'+m[1],'🧾 رسید تراکنش: '+(r.title||''));r.receipt='/uploads/'+filename;r.receiptTgId=tgFileId;r.receiptMime='image/'+m[1];await write(db);return json(res,200,r)}`,
   ],
   [
     `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;fs.writeFileSync(path.join(UPLOADS_DIR,filename),Buffer.from(m[2],'base64'));r.fileUrl='/uploads/'+filename;write(db);return json(res,200,r)}`,
     `let ext=m[1]==='jpeg'?'jpg':m[1],filename=id()+'.'+ext;if(!env.UPLOADS)return json(res,503,{error:'ذخیره‌سازی فایل (R2) هنوز روی این استقرار فعال نشده است.'});await env.UPLOADS.put(filename,bytesFromBase64(m[2]),{httpMetadata:{contentType:'image/'+m[1]},customMetadata:{userId:user.id}});r.fileUrl='/uploads/'+filename;await write(db);return json(res,200,r)}`,
   ],
+  [`let bin=Buffer.from(mm[2],'base64');res.writeHead(200,{'Content-Type':mm[1],'Content-Length':String(bin.length)});return res.end(bin)}`, `let bin=bytesFromBase64(mm[2]);res.writeHead(200,{'Content-Type':mm[1],'Content-Length':String(bin.byteLength)});return res.end(bin)}`],
 ];
 let specialCounts = [];
 for (const [find, replace] of specialCases) {

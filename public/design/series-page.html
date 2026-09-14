@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>سریال‌ها · هسته</title>
+<!-- build: episode-clamp-fix-v2 -->
+
+<link rel="stylesheet" href="/shared-theme.css">
 <link rel="stylesheet" href="/assets/css/core.css">
 <link rel="preload" href="/assets/fonts/Estedad.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -17,18 +20,7 @@
 /* font externalized */
 /* font externalized */
 
-:root{
-  --bg:#0a0e17; --panel:rgba(255,255,255,.035); --panel2:rgba(255,255,255,.07);
-  --border:#1d2a44; --border2:#31446b;
-  --text:#e8eaf0; --muted:#95a4be; --faint:#647694;
-  --acc:#22d3ee; --good:#34d399; --warn:#fbbf24; --bad:#f87171;
-  --fh:'Estedad',Tahoma,sans-serif; --fb:'Shabnam',Tahoma,sans-serif;
-}
-html[data-mode="light"]{
-  --bg:#f4f5fa; --panel:#ffffff; --panel2:#eef1f8;
-  --border:#e3e7f1; --border2:#c9d2e5;
-  --text:#1b2233; --muted:#5c687f; --faint:#8b95ac;
-}
+/* توکن‌های رنگ/سایه از /shared-theme.css میان */
 
 /* ===== nav ===== */
 .nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;gap:16px;padding:10px 22px;
@@ -72,7 +64,7 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .tools{display:flex;gap:8px}
 .iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:17px;cursor:pointer}
 .lead{color:var(--muted);font-size:15px;margin:0 0 18px}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow-card)}
 .mhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .mhead h4{font-family:var(--fh);font-size:18px;margin:0;flex:1}
 .status{font-size:13px;border-radius:99px;padding:2px 12px;font-family:var(--fh);font-weight:700;flex:none}
@@ -459,6 +451,14 @@ html[data-mode="light"] #docSearch{color-scheme:light}
 .sx-dactions .p{background:var(--acc);color:#062028}
 .sx-dactions .g{background:var(--panel2);color:var(--text);border:1px solid var(--border2)}
 .sx-dmeta{font-size:12.5px;color:var(--faint);margin-top:14px;line-height:1.7}
+.sx-shtitle{font-family:var(--fh);font-size:13.5px;font-weight:700;margin-top:16px;margin-bottom:8px;color:var(--text)}
+.sx-shist{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto}
+.sx-shrow{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:8px 10px;border-radius:10px;background:var(--panel2);border:1px solid var(--border)}
+.sx-shrow.cur{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 10%,var(--panel2))}
+.sx-shrow b{flex:none;font-family:var(--fh);font-size:12.5px}
+.sx-shrow span{color:var(--faint);flex:1;min-width:0}
+.sx-shrow span:last-child{flex:none;color:var(--muted);text-align:left}
+.sx-shdone{color:var(--good) !important}
 .sx-panel{padding:20px 18px 36px}
 .sx-panel h3{font-family:var(--fh);font-size:18px;margin:0 0 6px}
 .sx-panel .hint{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.7}
@@ -491,7 +491,7 @@ html[data-mode="light"] #docSearch{color-scheme:light}
 </head>
 <body>
 <div class="wrap series-page">
-<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/series-page.html" class="on">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
+<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/football-page.html">⚽ فوتبال</a><a href="/design/series-page.html" class="on">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 
   <header class="sx-head">
@@ -503,7 +503,9 @@ html[data-mode="light"] #docSearch{color-scheme:light}
     <input class="sx-search" id="sxSearch" type="search" placeholder="جستجو در آرشیو…" autocomplete="off">
     <button type="button" class="sx-btn primary" id="sxAddBtn">＋ افزودن</button>
     <button type="button" class="sx-btn ghost" id="sxImpBtn">📥 Bingers</button>
+    <button type="button" class="sx-btn ghost" id="sxSyncBtn" title="اطلاعات فصل/قسمت واقعی رو از TVMaze می‌گیره — لازمه بعد از ایمپورت Bingers">🔄 همگام‌سازی با TVMaze</button>
   </div>
+  <div id="sxSyncNotice" style="display:none;margin:8px 2px 0;font-size:13px;color:var(--muted)"></div>
 
   <div class="sx-stats" id="sxStats"></div>
 
@@ -732,6 +734,12 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
       if (d.status || d.showStatus) TV[w.k].status = d.status || d.showStatus;
       if (d.seasons) TV[w.k].seasons = d.seasons;
       if (d.name) TV[w.k].name = d.name;
+      if (d.posterUrl && !TV[w.k].img) TV[w.k].img = d.posterUrl;
+      if (d.note && !TV[w.k].summary) TV[w.k].summary = d.note;
+      if (d.network && !TV[w.k].network) TV[w.k].network = d.network;
+      if (d.genre && (!TV[w.k].genres || !TV[w.k].genres.length)) TV[w.k].genres = [d.genre];
+      if (d.year && !TV[w.k].year) TV[w.k].year = d.year;
+      if (d.tmdbRating != null && TV[w.k].rating == null) TV[w.k].rating = d.tmdbRating;
     }
 
     var by = d.bySeason || d.seasonEpisodes || {};
@@ -897,7 +905,9 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
     if (meta.bySeason) {
       var ns = (Number(x.season) || 1) + 1;
       var n = meta.bySeason[ns] || meta.bySeason[String(ns)];
-      if (n && (Number(n.total) > 0 || Number(n.aired) > 0)) return false;
+      /* فقط وقتی فصل بعد واقعاً حداقل یک قسمت پخش‌شده داره «در حال دیدن» بمونه؛
+         صرفِ اینکه TVMaze سفارش فصل بعد رو ثبت کرده (بدون تاریخ پخش) به این معنی نیست که چیزی برای دیدن هست */
+      if (n && Number(n.aired) > 0) return false;
     }
 
     if (meta.next && meta.next.date) return daysTo(meta.next.date) > 0;
@@ -945,12 +955,17 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
 
   function matchQ(x) {
     if (!q) return true;
-    var meta = S(x.k);
-    var blob = [
-      meta.name || '', x.k, meta.network || '', meta.year || '',
-      x.cur, x.tot, x.season
-    ].join(' ').toLowerCase();
-    return blob.indexOf(q) >= 0;
+    try {
+      var meta = S(x.k) || {};
+      var blob = [
+        meta.name || '', x.k || '', meta.network || '', meta.year || '',
+        x.cur, x.tot, x.season
+      ].join(' ').toLowerCase();
+      return blob.indexOf(q) >= 0;
+    } catch (e) {
+      /* یک رکورد بدشکل (مثلاً از ایمپورت Bingers) نباید کل جستجو رو خراب کنه */
+      return String((x && x.k) || '').toLowerCase().indexOf(q) >= 0;
+    }
   }
 
   function patchMovie(id, body) {
@@ -986,7 +1001,7 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
     if (tot > 0 && cur >= tot) {
       var ns = (Number(x.season) || 1) + 1;
       var n = meta.bySeason && (meta.bySeason[ns] || meta.bySeason[String(ns)]);
-      if (n && (Number(n.total) > 0 || Number(n.aired) > 0)) canAdv = true;
+      if (n && Number(n.aired) > 0) canAdv = true;
     }
 
     if (waiting) {
@@ -1028,7 +1043,8 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
         fa(x.season || 1) + (tot ? (' · ' + fa(cur) + '/' + fa(tot)) : '') + '</div>';
     }
 
-    var metaLine = 'فصل ' + fa(x.season || 1);
+    var totalSeasons = meta.bySeason ? Object.keys(meta.bySeason).map(Number).filter(function (n) { return n > 0; }).length : 0;
+    var metaLine = 'فصل ' + fa(x.season || 1) + (totalSeasons > 1 ? (' از ' + fa(totalSeasons)) : '');
     if (tot > 0) metaLine += ' · ' + fa(cur) + ' از ' + fa(tot);
     if (x.seasonKnown && (tot === 0 || mw < tot)) {
       metaLine += ' <span style="opacity:.8">(پخش ' + fa(mw) + ')</span>';
@@ -1101,36 +1117,88 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
   /* ═══════════════════════════════════════════
      Render
   ═══════════════════════════════════════════ */
+  var _promoted = Object.create(null);
+  /* «تمام‌شده» فقط با کلیک روی +۱ تشخیص داده می‌شد — سریالی که از ایمپورت Bingers مستقیماً
+     دقیقاً روی آخرین قسمتِ آخرین فصل وارد شده (بدون اینکه هیچ‌وقت این اپ خودش +۱ زده باشه)
+     هیچ‌وقت اون تشخیص رو رد نمی‌کرد و برای همیشه توی «در حال دیدن» می‌موند. این تابع هر رندر
+     چک می‌کنه و اگه واقعاً تمام‌شده (طبق وضعیت واقعی TVMaze)، خودکار منتقلش می‌کنه. */
+  function promoteFinishedShows() {
+    var moved = false;
+    WATCHING.slice().forEach(function (w) {
+      clampCur(w);
+      var tot = Number(w.tot) || 0;
+      var cur = Number(w.cur) || 0;
+      if (!(tot > 0 && cur >= tot)) return;
+      var meta = S(w.k);
+      if (!isShowEnded(meta)) return;
+      var seas = meta.bySeason || {};
+      var maxS = Object.keys(seas).map(Number).filter(function (n) { return n > 0; })
+        .sort(function (a, b) { return b - a; })[0] || (w.season || 1);
+      if ((w.season || 1) < maxS) return;
+      if (_promoted[w.k]) return;
+      _promoted[w.k] = true;
+      WATCHING = WATCHING.filter(function (x) { return x.k !== w.k; });
+      if (!DONE.some(function (d) { return d.k === w.k; })) {
+        DONE.push({ k: w.k, id: w.id, tvmazeId: w.tvmazeId });
+      }
+      patchMovie(w.id, { status: 'completed' });
+      moved = true;
+    });
+    return moved;
+  }
+
   function render() {
     dedupeAll();
+    promoteFinishedShows();
 
-    var act = [];
-    var wait = [];
+    var searching = !!q;
+
+    /* شمارش‌ها (پیل‌ها/کارت‌های آماری بالا) همیشه باید دقیقاً با چیزی که پایین نشون داده
+       می‌شه یکی باشن — وقتی سرچ فعاله، شمارش‌ها هم روی نتایج فیلترشده حساب می‌شن، نه کل لیست،
+       وگرنه عدد «۳۳» بالا با لیست خالی پایین تناقض پیدا می‌کنه. */
+    var actAll = [], waitAll = [];
     WATCHING.forEach(function (x) {
-      if (!matchQ(x)) return;
-      if (isWaiting(x)) wait.push(x);
-      else act.push(x);
+      if (isWaiting(x)) waitAll.push(x); else actAll.push(x);
     });
+    var act = searching ? actAll.filter(matchQ) : actAll;
+    var wait = searching ? waitAll.filter(matchQ) : waitAll;
+    var done = searching ? DONE.filter(matchQ) : DONE;
+    var list = searching ? LIST.filter(matchQ) : LIST;
 
-    var done = DONE.filter(matchQ);
-    var list = LIST.filter(matchQ);
     var box = document.getElementById('sxGrid');
     if (!box) return;
 
+    /* یک رکورد بدشکل نباید کل رندر رو با throw خراب کنه — هر کارت جدا محافظت می‌شه */
+    function safeMap(arr, fn) {
+      var out = [];
+      arr.forEach(function (x) {
+        try { out.push(fn(x)); } catch (e) { /* این یکی رد می‌شه، بقیه نمایش داده می‌شن */ }
+      });
+      return out;
+    }
+
     var html = '';
-    if (tab === 'watching') {
-      html = act.length ? act.map(function (x) { return cardWatch(x, false); }).join('') : emptyHtml('watching');
+    if (searching) {
+      /* سرچ باید همه‌جا رو بگرده، نه فقط تبِ فعلی رو */
+      var combined = safeMap(act, function (x) { return cardWatch(x, false); })
+        .concat(safeMap(wait, function (x) { return cardWatch(x, true); }))
+        .concat(safeMap(done, cardDone))
+        .concat(safeMap(list, cardList));
+      html = combined.length ? combined.join('') :
+        '<div class="sx-empty"><b>🔍</b>چیزی برای «' + esc(q) + '» پیدا نشد</div>';
+    } else if (tab === 'watching') {
+      html = act.length ? safeMap(act, function (x) { return cardWatch(x, false); }).join('') : emptyHtml('watching');
     } else if (tab === 'waiting') {
-      html = wait.length ? wait.map(function (x) { return cardWatch(x, true); }).join('') : emptyHtml('waiting');
+      html = wait.length ? safeMap(wait, function (x) { return cardWatch(x, true); }).join('') : emptyHtml('waiting');
     } else if (tab === 'done') {
-      html = done.length ? done.map(cardDone).join('') : emptyHtml('done');
+      html = done.length ? safeMap(done, cardDone).join('') : emptyHtml('done');
     } else {
-      html = list.length ? list.map(cardList).join('') : emptyHtml('list');
+      html = list.length ? safeMap(list, cardList).join('') : emptyHtml('list');
     }
     box.innerHTML = html;
 
-    var allAct = WATCHING.filter(function (x) { return !isWaiting(x); }).length;
-    var allWait = WATCHING.filter(isWaiting).length;
+    var allAct = act.length;
+    var allWait = wait.length;
 
     var nW = document.getElementById('nW');
     var nWait = document.getElementById('nWait');
@@ -1138,17 +1206,17 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
     var nL = document.getElementById('nL');
     if (nW) nW.textContent = fa(allAct);
     if (nWait) nWait.textContent = fa(allWait);
-    if (nD) nD.textContent = fa(DONE.length);
-    if (nL) nL.textContent = fa(LIST.length);
+    if (nD) nD.textContent = fa(done.length);
+    if (nL) nL.textContent = fa(list.length);
 
     var st = document.getElementById('sxStats');
     if (st) {
-      var news = WATCHING.filter(function (x) { return x.newEp && !isWaiting(x); }).length;
+      var news = act.filter(function (x) { return x.newEp; }).length;
       st.innerHTML =
-        '<div class="sx-stat"><b>' + fa(allAct) + '</b><span>در حال دیدن</span></div>' +
-        '<div class="sx-stat"><b style="color:var(--warn)">' + fa(allWait) + '</b><span>در انتظار</span></div>' +
-        '<div class="sx-stat"><b style="color:var(--good)">' + fa(news) + '</b><span>قسمت تازه</span></div>' +
-        '<div class="sx-stat"><b>' + fa(DONE.length) + '</b><span>تمام‌شده</span></div>';
+        '<div class="sx-stat" data-t="watching" style="cursor:pointer"><b>' + fa(allAct) + '</b><span>در حال دیدن</span></div>' +
+        '<div class="sx-stat" data-t="waiting" style="cursor:pointer"><b style="color:var(--warn)">' + fa(allWait) + '</b><span>در انتظار</span></div>' +
+        '<div class="sx-stat" style="cursor:default"><b style="color:var(--good)">' + fa(news) + '</b><span>قسمت تازه</span></div>' +
+        '<div class="sx-stat" data-t="done" style="cursor:pointer"><b>' + fa(done.length) + '</b><span>تمام‌شده</span></div>';
     }
 
     var newsList = WATCHING.filter(function (x) { return x.newEp && !isWaiting(x); });
@@ -1226,8 +1294,33 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
           totalEpisodes: tot,
           currentSeason: w.season,
           airedInSeason: w.aired
-        });
+        }).then(function (res) { reconcileAfterPatch(w, res, old); });
         closeDetail();
+        render();
+        return;
+      }
+    }
+
+    /* اگه همین قسمت آخرِ فصل بود و فصل بعد واقعاً قسمت پخش‌شده داره،
+       دیگه منتظر یه کلیک جدا برای «شروع فصل بعد» نمی‌مونیم — خودکار می‌ریم قسمت ۱ فصل بعد */
+    if (tot > 0 && v >= tot && !isShowEnded(meta)) {
+      var ns0 = (Number(w.season) || 1) + 1;
+      var n0 = meta.bySeason && (meta.bySeason[ns0] || meta.bySeason[String(ns0)]);
+      if (n0 && Number(n0.aired) > 0) {
+        w.season = ns0;
+        w.cur = 0;
+        w.tot = Number(n0.total) || Number(n0.aired) || 0;
+        w.aired = Number(n0.aired) || 0;
+        w.cap = w.aired;
+        clampCur(w);
+        toast((meta.name || w.k) + ' → فصل ' + fa(ns0));
+        patchMovie(w.id, {
+          status: 'watching',
+          currentSeason: w.season,
+          currentEpisode: 0,
+          totalEpisodes: w.tot,
+          airedInSeason: w.aired
+        }).then(function (res) { reconcileAfterPatch(w, res, old); });
         render();
         return;
       }
@@ -1239,7 +1332,32 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
       totalEpisodes: tot || null,
       currentSeason: w.season || 1,
       airedInSeason: w.aired
-    });
+    }).then(function (res) { reconcileAfterPatch(w, res, old); });
+    render();
+  }
+
+  /* ذخیره‌ی قسمت فقط وقتی واقعیه که سرور تأییدش کنه — اگه PATCH شکست بخوره (خطای شبکه/سرور)،
+     دیگه نباید عدد نادرست فقط سمت مرورگر بمونه؛ برمی‌گردونیم به آخرین وضعیت واقعی و به کاربر می‌گیم. */
+  function reconcileAfterPatch(w, res, fallbackCur) {
+    if (!w) return;
+    if (res && res.ok && res.d) {
+      var d = res.d;
+      if (d.currentEpisode != null) w.cur = Number(d.currentEpisode) || 0;
+      if (d.currentSeason != null) w.season = Number(d.currentSeason) || w.season || 1;
+      if (d.totalEpisodes != null) w.tot = Number(d.totalEpisodes) || 0;
+      if (d.airedInSeason != null) { w.aired = Number(d.airedInSeason); w.cap = w.aired; }
+      if (d.seasonEpisodes) {
+        w.seasonKnown = true;
+        w._seasonLoaded = true;
+        if (typeof TV === 'object') {
+          if (!TV[w.k]) TV[w.k] = {};
+          TV[w.k].bySeason = d.seasonEpisodes;
+        }
+      }
+    } else {
+      w.cur = fallbackCur;
+      toast('ذخیره نشد — دوباره امتحان کن');
+    }
     render();
   }
 
@@ -1263,12 +1381,16 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
       w.seasonKnown = true;
       clampCur(w);
 
+      var prevSeason = Number(w.season) - 1, prevCur = w.cur;
       patchMovie(w.id, {
         status: 'watching',
         currentSeason: w.season,
         currentEpisode: 0,
         totalEpisodes: w.tot,
         airedInSeason: w.aired
+      }).then(function (res) {
+        if (!(res && res.ok)) { w.season = prevSeason; w.cur = prevCur; }
+        reconcileAfterPatch(w, res, prevCur);
       });
       toast('فصل ' + fa(w.season) + ' · ' + fa(w.tot) + ' قسمت · پخش ' + fa(w.aired));
       render();
@@ -1288,6 +1410,41 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
   var ovl = document.getElementById('sxOvl');
   var detail = document.getElementById('sxDetail');
 
+  /* تاریخچهٔ فصل به فصل — طبق درخواستت، سمت چپِ جزئیات باید نشون بده هر فصل چند قسمته و کجاش هستی */
+  function seasonHistoryHtml(meta, w) {
+    var by = meta && meta.bySeason;
+    if (!by) return '';
+    var seasons = Object.keys(by).map(Number).filter(function (n) { return n > 0; }).sort(function (a, b) { return a - b; });
+    if (!seasons.length) return '';
+    var curSeason = w ? (Number(w.season) || 1) : null;
+    var rows = seasons.map(function (sn) {
+      var s = by[sn] || by[String(sn)] || {};
+      var total = Number(s.total) || 0;
+      var aired = Number(s.aired);
+      if (!Number.isFinite(aired)) aired = total;
+      var airLabel = (total > 0 && aired < total) ? (fa(aired) + ' از ' + fa(total) + ' پخش‌شده') : (fa(total) + ' قسمت');
+      var isCur = w && sn === curSeason;
+      var curWatched = isCur ? (Number(w.cur) || 0) : 0;
+      var status;
+      if (isCur && aired > 0 && curWatched >= aired) {
+        /* همینِ فصل فعلی هم کامل دیده شده — دیگه «تو تا قسمت X دیدی» معنی نداره، مثل فصل‌های قبل تیک بخوره */
+        status = '<span class="sx-shdone">✓ ' + (total > 0 && aired < total ? 'تا جایی که پخش شده دیدی' : 'تمام دیدی') + '</span>';
+      } else if (isCur) {
+        status = '<b>تو تا قسمت ' + fa(curWatched) + ' دیدی</b>';
+      } else if (w && sn < curSeason) {
+        status = '<span class="sx-shdone">✓ تمام دیدی</span>';
+      } else if (total > 0 && aired >= total) {
+        status = '<span class="sx-shdone">✓ تمام پخش شده</span>';
+      } else if (aired > 0) {
+        status = '<span>در حال پخش</span>';
+      } else {
+        status = '<span>هنوز پخش نشده</span>';
+      }
+      return '<div class="sx-shrow' + (isCur ? ' cur' : '') + '"><b>فصل ' + fa(sn) + '</b><span>' + airLabel + '</span>' + status + '</div>';
+    }).join('');
+    return '<div class="sx-shtitle">تاریخچهٔ فصل‌ها (' + fa(seasons.length) + ' فصل)</div><div class="sx-shist">' + rows + '</div>';
+  }
+
   function openDetail(k) {
     var meta = S(k);
     var w = findWatch(k);
@@ -1305,7 +1462,8 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
     if (dn) {
       chip = '<span class="sx-chip end">تمام‌کرده‌ام</span>';
       upd = 'این سریال را تمام کرده‌ای.';
-      acts = '<button type="button" class="p" data-rew="' + esc(k) + '">از اول شروع</button>';
+      acts = '<button type="button" class="p" data-rew="' + esc(k) + '">از اول شروع</button>' +
+        '<button type="button" class="g" data-undone="' + esc(k) + '">تمام نشده — برگردون به در حال دیدن</button>';
     } else if (w) {
       chip = '<span class="sx-chip run">' + (waiting ? 'در انتظار فصل بعد' : 'در حال دیدن') + '</span>';
       if (waiting) {
@@ -1329,7 +1487,7 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
         if (tot > 0 && w.cur >= tot) {
           var ns = (Number(w.season) || 1) + 1;
           var n = S(k).bySeason && (S(k).bySeason[ns] || S(k).bySeason[String(ns)]);
-          if (n && (Number(n.total) > 0 || Number(n.aired) > 0)) {
+          if (n && Number(n.aired) > 0) {
             acts += '<button type="button" class="p" data-adv="' + esc(k) + '">شروع فصل ' + fa(ns) + '</button>';
           }
         } else if (canInc(w)) {
@@ -1362,7 +1520,9 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
       (meta.network ? ('شبکه: ' + esc(meta.network) + '<br>') : '') +
       (meta.year ? ('سال: ' + fa(meta.year) + '<br>') : '') +
       (meta.genres && meta.genres.length ? ('ژانر: ' + esc(meta.genres.map(gfa).join(' · '))) : '') +
-      '</div></div>';
+      '</div>' +
+      seasonHistoryHtml(meta, w) +
+      '</div>';
 
     detail.classList.add('open');
     ovl.classList.add('show');
@@ -1537,6 +1697,21 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
       return true;
     }
 
+    if ((b = e.target.closest('[data-undone]'))) {
+      e.preventDefault(); e.stopPropagation();
+      var uk = b.getAttribute('data-undone');
+      var d1 = findDone(uk);
+      if (d1 && d1.id) {
+        toast('برمی‌گردونیم به در حال دیدن…');
+        patchMovie(d1.id, { status: 'watching' }).then(function (res) {
+          if (res && res.ok) { location.reload(); }
+          else { toast('ذخیره نشد — دوباره امتحان کن'); }
+        });
+      }
+      if (fromDetail) closeDetail();
+      return true;
+    }
+
     if ((b = e.target.closest('[data-rew]'))) {
       e.preventDefault(); e.stopPropagation();
       var rk = b.getAttribute('data-rew');
@@ -1647,6 +1822,18 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
     });
   });
 
+  /* کارت‌های آمار بالای صفحه هم مثل تب‌ها کلیک‌پذیرن — محتواشون هر رندر عوض می‌شه،
+     پس delegate روی خودِ #sxStats که هیچ‌وقت جایگزین نمی‌شه */
+  var sxStatsBox = document.getElementById('sxStats');
+  if (sxStatsBox) {
+    sxStatsBox.addEventListener('click', function (e) {
+      var el = e.target.closest('[data-t]');
+      if (!el) return;
+      tab = el.getAttribute('data-t');
+      render();
+    });
+  }
+
   var search = document.getElementById('sxSearch');
   if (search) {
     var deb;
@@ -1658,6 +1845,44 @@ var TV={"Shogun": {"name": "Shōgun", "img": "data:image/jpeg;base64,/9j/4AAQSkZ
       }, 120);
     });
   }
+
+  /* همگام‌سازی دسته‌ای با TVMaze — لازمه چون ایمپورت Bingers فقط شماره‌ی فصل/قسمتی که
+     خودمون وارد کردیم رو ذخیره می‌کنه، هیچ‌وقت تعداد واقعی قسمت‌های هر فصل یا وضعیت
+     «در انتظار فصل بعد» رو از TVMaze نمی‌گیره. این دکمه یکی‌یکی (با هم‌روندی محدود،
+     که هم به TVMaze فشار نیاره هم درخواست‌ها تایم‌اوت نشن) همه‌ی سریال‌های «در حال دیدن»
+     و «واچ‌لیست» رو با /refresh-episodes همگام می‌کنه. */
+  function syncAllWithTvMaze() {
+    var btn = document.getElementById('sxSyncBtn');
+    var notice = document.getElementById('sxSyncNotice');
+    var targets = WATCHING.concat(LIST).filter(function (w) { return !w.seasonKnown; });
+    if (!targets.length) { toast('همه چیز از قبل همگام است'); return; }
+    btn.disabled = true;
+    notice.style.display = 'block';
+    var done = 0, failed = 0, total = targets.length, CONCURRENCY = 6, i = 0;
+    function progress() {
+      notice.textContent = 'همگام‌سازی با TVMaze… ' + fa(done + failed) + ' از ' + fa(total) +
+        (failed ? ' (' + fa(failed) + ' ناموفق)' : '');
+    }
+    progress();
+    function worker() {
+      if (i >= targets.length) return Promise.resolve();
+      var w = targets[i++];
+      return ensureSeasonTot(w, true).then(function () {
+        done++; progress();
+      }).catch(function () {
+        failed++; progress();
+      }).then(worker);
+    }
+    var pool = [];
+    for (var c = 0; c < CONCURRENCY; c++) pool.push(worker());
+    Promise.all(pool).then(function () {
+      btn.disabled = false;
+      notice.textContent = 'همگام‌سازی تمام شد — ' + fa(done) + ' موفق' + (failed ? '، ' + fa(failed) + ' ناموفق (سریال پیدا نشد یا نام مطابقت نداشت)' : '') + '.';
+      render();
+      setTimeout(function () { notice.style.display = 'none'; }, 6000);
+    });
+  }
+  document.getElementById('sxSyncBtn').addEventListener('click', syncAllWithTvMaze);
 
   document.getElementById('sxAlertSaw').addEventListener('click', function () {
     WATCHING.forEach(function (w) {
