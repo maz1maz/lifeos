@@ -1,0 +1,230 @@
+// Worker smoke test: exercises the REAL cloudflare/worker.js artifact in-process,
+// with an in-memory fake for the D1 `kv` table.
+//
+// Why this exists: `node server.js` never sees makeHeaders' `return {...}` or the
+// handleApi destructuring, so test/smoke.js stays green even when a helper is
+// defined but not exported — while every request to the affected routes dies
+// with ReferenceError (HTTP 500) on Cloudflare. This test imports worker.js
+// itself, so that exact bug class fails here. Any HTTP 500 anywhere in this
+// file is an automatic failure (see call()).
+//
+// Run with: npm test  (or) node test/worker-smoke.js
+// Zero new prerequisites: the static `xlsx` import is stubbed out (the single
+// route that needs it is skipped here; production bundles the real package via
+// wrangler). Routes that need real network (tgju, news sync) or secrets are
+// asserted at their pre-network 503/400 guards instead.
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { pathToFileURL } = require('url');
+
+const ROOT = path.join(__dirname, '..');
+let pass = 0, fail = 0;
+function check(name, cond, extra) {
+  if (cond) { pass++; console.log(`  ok  - ${name}`); }
+  else { fail++; console.log(`  FAIL- ${name}` + (extra ? `  [${extra}]` : '')); }
+}
+function today() {
+  try {
+    const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = {};
+    for (const p of f.formatToParts(new Date())) if (p.type !== 'literal') parts[p.type] = p.value;
+    return parts.year + '-' + parts.month + '-' + parts.day;
+  } catch (e) {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+function daysAgo(n) {
+  const dt = new Date(today() + 'T12:00:00Z');
+  dt.setUTCDate(dt.getUTCDate() - n);
+  return dt.toISOString().slice(0, 10);
+}
+
+// In-memory fake for the only D1 surface worker.js touches:
+//   SELECT value FROM kv WHERE key='db'  -> .first()
+//   INSERT INTO kv ... ON CONFLICT DO UPDATE -> .bind(json, ts).run()
+function makeEnv() {
+  const store = { value: null };
+  return {
+    DB: {
+      prepare(sql) {
+        const st = {
+          _params: [],
+          bind(...p) { st._params = p; return st; },
+          async first() {
+            if (sql.startsWith('SELECT value FROM kv')) return store.value === null ? null : { value: store.value };
+            throw new Error('unexpected SQL in harness: ' + sql);
+          },
+          async run() {
+            if (sql.startsWith('INSERT INTO kv')) { store.value = st._params[0]; return { success: true }; }
+            throw new Error('unexpected SQL in harness: ' + sql);
+          },
+        };
+        return st;
+      },
+    },
+    ASSETS: { fetch: async () => new Response('not found', { status: 404 }) },
+    // No secrets on purpose — same as test/smoke.js (no .env there either).
+  };
+}
+
+async function main() {
+  // worker.js is an ES module (`export default`); copy it next to this file as
+  // .mjs so node imports it as ESM, with the `xlsx` bare import stubbed out.
+  const workerSrc = fs.readFileSync(path.join(ROOT, 'cloudflare', 'worker.js'), 'utf8');
+  const XLSX_IMPORT = "import * as XLSX from 'xlsx';";
+  if (!workerSrc.includes(XLSX_IMPORT)) throw new Error('xlsx import line changed — update the worker-smoke harness stub');
+  const tmpFile = path.join(__dirname, '.tmp-worker.mjs');
+  fs.writeFileSync(tmpFile, workerSrc.replace(
+    XLSX_IMPORT,
+    'const XLSX = null; // harness stub: seal-toman import route is skipped in worker-smoke (production bundles real xlsx)'
+  ));
+  let worker;
+  try {
+    worker = (await import(pathToFileURL(tmpFile).href)).default;
+  } finally {
+    fs.rmSync(tmpFile, { force: true });
+  }
+  if (!worker || typeof worker.fetch !== 'function') throw new Error('worker.js did not export { fetch }');
+
+  const env = makeEnv();
+  async function call(p, { method = 'GET', cookie = null, body = null } = {}) {
+    const headers = {};
+    if (cookie) headers.cookie = cookie;
+    let b;
+    if (body !== null) { headers['content-type'] = 'application/json'; b = JSON.stringify(body); }
+    const res = await worker.fetch(new Request('https://worker-smoke.local' + p, { method, headers, body: b }), env, {});
+    const text = await res.text();
+    let d = null;
+    try { d = text ? JSON.parse(text) : null; } catch (e) { /* non-JSON body */ }
+    // The whole point of this file: any 500 (e.g. ReferenceError from a helper
+    // that is defined but not exported) fails immediately, with the route shown.
+    if (res.status === 500) check(`no 500 on ${method} ${p}`, false, String(text).slice(0, 160));
+    return { status: res.status, d, text, headers: res.headers };
+  }
+
+  console.log('\n[W1] auth on the worker artifact');
+  const email = `wsmoke_${Date.now()}@example.com`;
+  const signup = await call('/api/auth/signup', { method: 'POST', body: { name: 'Wsmoke', email, password: 'secret123' } });
+  check('signup -> 201', signup.status === 201);
+  const setCookies = typeof signup.headers.getSetCookie === 'function' ? signup.headers.getSetCookie() : [signup.headers.get('set-cookie')];
+  const sidCookie = String(setCookies[0] || '').split(';')[0];
+  check('signup sets an sid cookie', sidCookie.startsWith('sid='));
+  const wrongPw = await call('/api/auth/login', { method: 'POST', body: { email, password: 'WRONG' } });
+  check('login wrong password -> 401', wrongPw.status === 401);
+  const login = await call('/api/auth/login', { method: 'POST', body: { email, password: 'secret123' } });
+  check('login correct password -> 200', login.status === 200);
+  const cookie = String((typeof login.headers.getSetCookie === 'function' ? login.headers.getSetCookie()[0] : login.headers.get('set-cookie')) || '').split(';')[0];
+  const badAuth = await call('/api/tasks', { method: 'POST', cookie: 'sid=not-a-real-session', body: { title: 'x' } });
+  check('invalid cookie on mutating route -> 401 (not a crash)', badAuth.status === 401);
+
+  console.log('\n[W2] REGRESSION: the two routes that 500’d with ReferenceError on deploy');
+  const tx = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'اسنپ', amount: 85000, kind: 'expense', date: today() } })).d;
+  const patched = await call(`/api/transactions/${tx.id}`, { method: 'PATCH', cookie, body: { category: 'حمل‌ونقل' } });
+  check('PATCH transaction category -> 200 (normalizeCategoryName wired)', patched.status === 200);
+  check('manual category edit flags catManual', patched.d && patched.d.catManual === true);
+  await call('/api/transactions', { method: 'POST', cookie, body: { title: 'داروخانه', amount: 310000, kind: 'expense', date: today() } });
+  const preview = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: {} });
+  check('recategorize preview -> 200 (categorizeTransaction wired)', preview.status === 200 && preview.d && preview.d.applied === false && preview.d.matched >= 1);
+  const applied = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: { apply: true } });
+  check('recategorize apply -> 200', applied.status === 200 && applied.d && applied.d.applied === true);
+  const reverted = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: { revert: true } });
+  check('recategorize revert -> 200', reverted.status === 200 && typeof reverted.d.reverted === 'number');
+
+  console.log('\n[W3] core CRUD across domains (broad ReferenceError net)');
+  const task = (await call('/api/tasks', { method: 'POST', cookie, body: { title: 'w-t1', date: today() } })).d;
+  check('task create -> 201', !!task.id);
+  check('task patch -> 200', (await call(`/api/tasks/${task.id}`, { method: 'PATCH', cookie, body: { done: true } })).status === 200);
+  check('task delete -> 200', (await call(`/api/tasks/${task.id}`, { method: 'DELETE', cookie })).status === 200);
+  check('transactions list -> 200', (await call(`/api/transactions?from=2000-01-01&to=2030-01-01`, { cookie })).status === 200);
+  const accA = (await call('/api/accounts', { method: 'POST', cookie, body: { name: 'WA', openingBalance: 1000 } })).d;
+  const accB = (await call('/api/accounts', { method: 'POST', cookie, body: { name: 'WB', openingBalance: 0 } })).d;
+  check('accounts create -> 201', !!accA.id && !!accB.id);
+  check('transfer -> 201', (await call('/api/transfers', { method: 'POST', cookie, body: { fromAccount: 'WA', toAccount: 'WB', amount: 400 } })).status === 201);
+  check('budgets save -> 201', (await call('/api/budgets', { method: 'POST', cookie, body: { category: 'خوراک', limit: 500, month: today().slice(0, 7) } })).status === 201);
+  const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
+  check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
+  const sub = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'Wsub', amount: 50, nextDate: daysAgo(-3) } })).d;
+  check('subscription pay -> 200', (await call(`/api/subscriptions/${sub.id}/pay`, { method: 'POST', cookie, body: {} })).status === 200);
+  const rem = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'w-rem', date: today() } })).d;
+  check('reminder -> 201 then 200 on patch', !!rem.id && (await call(`/api/reminders/${rem.id}`, { method: 'PATCH', cookie, body: { done: true } })).status === 200);
+  const inbox = (await call('/api/inbox', { method: 'POST', cookie, body: { text: 'w-note' } })).d;
+  check('inbox -> 201 then convert -> 200', !!inbox.id && (await call(`/api/inbox/${inbox.id}/convert`, { method: 'POST', cookie, body: { type: 'task' } })).status === 200);
+  check('daily PUT/GET round-trip', (await call('/api/daily', { method: 'PUT', cookie, body: { date: today(), mood: 8, water: 500 } })).status === 200
+    && (await call(`/api/daily?date=${today()}`, { cookie })).d.item.mood === 8);
+  const t0 = await call('/api/timer/start', { method: 'POST', cookie, body: { title: 'w' } });
+  check('timer start/stop', t0.status === 201 && (await call('/api/timer/stop', { method: 'POST', cookie, body: {} })).status === 200);
+  const ex = (await call('/api/exercise', { method: 'POST', cookie, body: { type: 'run', minutes: 20 } })).d;
+  check('exercise log + delete', !!ex.id && (await call(`/api/exercise/${ex.id}`, { method: 'DELETE', cookie })).status === 200);
+  check('media-log -> 201', (await call('/api/media-log', { method: 'POST', cookie, body: { source: 'spotify', title: 'wt' } })).status === 201);
+
+  console.log('\n[W4] telegram link + spotify/youtube guards');
+  check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
+  check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');
+  const integ = await call('/api/integrations', { cookie });
+  check('integrations shows telegram connected', integ.d.telegram.connected === true && integ.d.telegram.userId === '123456789');
+  check('unlink telegram -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } })).status === 200);
+  check('spotify connect -> 503 (no creds, pre-network)', (await call('/api/integrations/spotify/connect', { cookie })).status === 503);
+  check('youtube connect -> 503 (no creds, pre-network)', (await call('/api/integrations/youtube/connect', { cookie })).status === 503);
+  check('spotify recent -> 400 when unconnected', (await call('/api/integrations/spotify/recent', { cookie })).status === 400);
+
+  console.log('\n[W5] movies + TMDB validation order');
+  const mov = (await call('/api/movies', { method: 'POST', cookie, body: { title: 'W', type: 'movie', status: 'completed', rating: 5, durationMinutes: 100, date: today() } })).d;
+  check('movie create -> 201', !!mov.id);
+  check('movie stats -> 200', (await call('/api/movies/stats', { cookie })).d.totalMinutes === 100);
+  check('TMDB search without q -> 400 (not 503)', (await call('/api/movies/tmdb/search', { cookie })).status === 400);
+  check('TMDB import without ids -> 400 (not 503)', (await call('/api/movies/from-tmdb', { method: 'POST', cookie, body: {} })).status === 400);
+
+  console.log('\n[W6] ai + dashboard + finance surfaces');
+  check('ai/process bank msg -> 200 with actions', ((await call('/api/ai/process', { method: 'POST', cookie, body: { text: '۵۰ هزار ناهار' } })).d.done || []).length > 0);
+  check('suggest-category -> 200', (await call('/api/ai/suggest-category', { method: 'POST', cookie, body: { title: 'ناهار رستوران' } })).d.category === 'خوراک');
+  check('correlations -> 200', (await call('/api/ai/correlations?days=30', { cookie })).status === 200);
+  check('tomorrow-priorities -> 200', (await call('/api/ai/tomorrow-priorities', { cookie })).status === 200);
+  check('ai/chat -> 503 with no key', (await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'hi' } })).status === 503);
+  check('ai/report -> 503 with no key', (await call('/api/ai/report?period=daily', { cookie })).status === 503);
+  const dash = await call(`/api/dashboard?date=${today()}`, { cookie });
+  check('dashboard -> 200 with shape', dash.status === 200 && Array.isArray(dash.d.tasks) && Array.isArray(dash.d.transactions));
+  check('finance -> 200', (await call(`/api/finance?month=${today().slice(0, 7)}`, { cookie })).status === 200);
+  check('insights -> 200', (await call('/api/insights', { cookie })).status === 200);
+  check('search -> 200', (await call('/api/search?q=w', { cookie })).status === 200);
+  const csv = await call('/api/transactions/export?from=2000-01-01&to=2030-01-01', { cookie });
+  check('CSV export -> 200 csv', csv.status === 200 && (csv.headers.get('content-type') || '').includes('csv'));
+
+  console.log('\n[W7] portfolio + football + long tail (GET sweep: any 500 fails)');
+  check('invest buy -> 201', (await call('/api/investments/tx', { method: 'POST', cookie, body: { symbol: 'BTC', assetType: 'crypto', type: 'buy', quantity: 1, price: 100, date: today() } })).status === 201);
+  check('portfolio -> 200', (await call('/api/portfolio', { cookie })).status === 200);
+  check('portfolio history -> 200', (await call('/api/portfolio/history?days=30', { cookie })).status === 200);
+  const alert = (await call('/api/investments/alerts', { method: 'POST', cookie, body: { symbol: 'BTC', condition: 'price_above', value: 150 } })).d;
+  check('alert create + delete', !!alert.id && (await call(`/api/investments/alerts/${alert.id}`, { method: 'DELETE', cookie })).status === 200);
+  check('stock refresh -> 503 (no key, pre-network)', (await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'AAPL', assetType: 'stock' } })).status === 503);
+  const match = (await call('/api/football/matches', { method: 'POST', cookie, body: { home: 'A', away: 'B', date: today() } })).d;
+  check('football match + accuracy', !!match.id && (await call('/api/football/accuracy', { cookie })).status === 200);
+  check('football fixtures -> 503 (no key, pre-network)', (await call('/api/football/remote/fixtures', { cookie })).status === 503);
+  const sweeps = [
+    '/api/habits', '/api/habits/history?from=2020-01-01&to=2030-01-01', '/api/weekly-review?from=' + today() + '&to=' + today(),
+    '/api/news', '/api/news/sources', '/api/news/weekly-summary', '/api/contacts', '/api/learning', '/api/bookmarks',
+    '/api/shopping', '/api/trips', '/api/documents', '/api/goals?period=monthly', '/api/wins', '/api/decisions',
+    '/api/life-review?period=monthly&key=' + today().slice(0, 7), '/api/one-year-ago', '/api/media-log',
+    '/api/timer', '/api/exercise?from=' + today() + '&to=' + today(), '/api/days?from=' + today() + '&to=' + today(),
+    '/api/reminders', '/api/investments/tx', '/api/investments/alerts',
+  ];
+  for (const p of sweeps) {
+    const r = await call(p, { cookie });
+    check(`GET ${p.split('?')[0]} -> 200`, r.status === 200);
+  }
+  const habit = (await call('/api/habits', { method: 'POST', cookie, body: { name: 'wh' } })).d;
+  check('habit toggle -> 200', !!habit.id && (await call(`/api/habits/${habit.id}/toggle`, { method: 'POST', cookie, body: { date: today() } })).status === 200);
+  const shop = (await call('/api/shopping', { method: 'POST', cookie, body: { title: 'ws' } })).d;
+  check('shopping buy -> 200', !!shop.id && (await call(`/api/shopping/${shop.id}/buy`, { method: 'POST', cookie, body: { price: 10 } })).status === 200);
+  const trip = (await call('/api/trips', { method: 'POST', cookie, body: { destination: 'WT' } })).d;
+  check('trip + checklist', !!trip.id && (await call(`/api/trips/${trip.id}/checklist`, { method: 'POST', cookie, body: { text: 'w' } })).status === 201);
+  const doc = (await call('/api/documents', { method: 'POST', cookie, body: { title: 'wd', type: 'warranty' } })).d;
+  check('document create -> 201', !!doc.id);
+  check('document attach -> 503 (no bot token, pre-network)', (await call(`/api/documents/${doc.id}/attach`, { method: 'POST', cookie, body: { image: 'data:image/png;base64,iVBORw0KGgo=' } })).status === 503);
+  check('backup-to-telegram -> 503 (no bot token, pre-network)', (await call('/api/backup/telegram', { method: 'POST', cookie, body: {} })).status === 503);
+
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+}
+
+main().catch(e => { console.error(e); process.exit(1); });

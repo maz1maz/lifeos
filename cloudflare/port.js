@@ -140,11 +140,160 @@ if (missing.length) {
   console.error('  missing: ' + missing.sort().join(', '));
   console.error('');
   console.error('Fix: copy those helpers into cloudflare/header.js (inside makeHelpers(env), indented');
-  console.error('by two spaces), then re-run: node cloudflare/port.js');
+  console.error('by two spaces), add them to BOTH the `return {...}` and the handleApi destructuring');
+  console.error('(`const {...} = H`), then re-run: node cloudflare/port.js');
   console.error('');
   process.exit(1);
 }
 console.log('Drift guard OK: every server.js helper referenced by the route block exists in header.js/footer.js (' + serverHelperNames.size + ' checked)');
+
+// ---------------------------------------------------------------------------
+// Export-list guard: inside runRoutes(), helpers are visible ONLY through the
+// handleApi destructuring (`const {...} = H`), which must mirror makeHelpers'
+// `return {...}`. A helper that is defined but missing from either list throws
+// ReferenceError at runtime on Cloudflare — this exact bug shipped once (two
+// routes returned 500 while `node server.js` and `npm test` stayed green,
+// because the drift guard above only checks textual existence). Fail loudly.
+// ---------------------------------------------------------------------------
+function parseIdentList(inner) {
+  return inner.split(',').map(s => s.trim()).filter(Boolean);
+}
+// makeHelpers' `return {...}`: the last 2-space `return {` before handleApi.
+const handleApiAt = header.indexOf('async function handleApi');
+if (handleApiAt === -1) throw new Error('handleApi not found in header.js — structure changed, update port.js markers');
+const retAt = header.lastIndexOf('\n  return {', handleApiAt);
+if (retAt === -1) throw new Error('makeHelpers return {...} not found — structure changed, update port.js markers');
+const retEnd = header.indexOf('};', retAt);
+const returnList = parseIdentList(header.slice(retAt + '\n  return {'.length, retEnd));
+// handleApi's `const {...} = H` destructuring.
+const destMatch = header.match(/const\s*\{([^}]*)\}\s*=\s*H;/);
+if (!destMatch) throw new Error('handleApi destructuring (`const {...} = H`) not found — structure changed, update port.js markers');
+const destructureList = parseIdentList(destMatch[1]);
+const returnSet = new Set(returnList), destructureSet = new Set(destructureList);
+
+// 1) The two lists must mirror each other exactly (order-insensitive).
+const onlyReturn = returnList.filter(n => !destructureSet.has(n));
+const onlyDestructure = destructureList.filter(n => !returnSet.has(n));
+if (onlyReturn.length || onlyDestructure.length) {
+  console.error('');
+  console.error('ERROR: makeHelpers return {...} and the handleApi destructuring drifted apart.');
+  console.error('They must list exactly the same helpers, or runRoutes() gets an undefined binding');
+  console.error('and throws ReferenceError on Cloudflare.');
+  console.error('');
+  if (onlyReturn.length) console.error('  only in return {...}: ' + onlyReturn.sort().join(', '));
+  if (onlyDestructure.length) console.error('  only in destructuring: ' + onlyDestructure.sort().join(', '));
+  console.error('');
+  console.error('Fix: make both lists identical in cloudflare/header.js, then re-run: node cloudflare/port.js');
+  console.error('');
+  process.exit(1);
+}
+
+// Identifiers a declaration fragment actually DECLARES: directly followed by
+// `=`, and not a property access (`env.X`). Deliberately strict (`,`-followed
+// names are ignored) so parameters (`f(a, b)`), destructured loop vars and
+// regex flags can never false-positive.
+function declaredNames(fragment) {
+  const clean = fragment.replace(/'[^'\n]*'/g, "''").replace(/"[^"\n]*"/g, '""');
+  const out = [];
+  const re = /[A-Za-z_$][\w$]*(?=\s*=)/g;
+  let m;
+  while ((m = re.exec(clean)) !== null) {
+    if (m.index > 0 && clean[m.index - 1] === '.') continue;
+    out.push(m[0]);
+  }
+  return out;
+}
+// makeHelpers-level definitions: exactly-2-space-indented declarations inside
+// the makeHelpers body only (never handleApi's own `req`/`res`, never nested
+// function bodies). Multi-line const/let/var continuations are followed only
+// for plain `NAME = value, ...` chains — never into array/object literals or
+// IIFE bodies, whose inner locals (`let out`, ...) are not helper-level.
+// Route-local names (`db`, `m`, ...) and worker-module names (`XLSX`) never
+// match this, so they can never false-positive below.
+function collectHelperLevelDefs(headerText, makeHelpersAt, handleApiAt) {
+  const names = new Set();
+  const body = headerText.slice(makeHelpersAt, handleApiAt).split('\n');
+  let cont = false;
+  for (const l of body) {
+    let m;
+    if ((m = l.match(/^  (?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/)) || (m = l.match(/^  class\s+([A-Za-z_$][\w$]*)/))) {
+      names.add(m[1]); cont = false; continue;
+    }
+    if (/^  (?:const|let|var)\s/.test(l)) {
+      const rest = l.replace(/^  (?:const|let|var)\s+/, '');
+      for (const n of declaredNames(rest)) names.add(n);
+      const head = rest.trimStart();
+      cont = !/;\s*$/.test(l) && !/^[[({]/.test(head) && !/\(function\b/.test(l) && !/=>/.test(l);
+      continue;
+    }
+    if (cont && /^\s+/.test(l)) {
+      for (const n of declaredNames(l)) names.add(n);
+      cont = !/;\s*$/.test(l);
+      continue;
+    }
+    cont = false;
+  }
+  return names;
+}
+const makeHelpersAt = header.indexOf('function makeHelpers(env)');
+if (makeHelpersAt === -1) throw new Error('makeHelpers not found in header.js — structure changed, update port.js markers');
+const helperLevelDefs = collectHelperLevelDefs(header, makeHelpersAt, handleApiAt);
+
+// 2) Every helper the ported route block uses must be exported through BOTH
+// lists. Only names defined at makeHelpers level can be "forgotten exports" —
+// anything else is module-scope (visible directly, e.g. XLSX) or a route-local
+// that collided with a collected server.js name (e.g. `m`).
+const exportCandidates = new Set([...serverHelperNames, ...helperLevelDefs]);
+const unexported = [];
+for (const name of exportCandidates) {
+  if (!referencedIn(block, name)) continue;
+  if (returnSet.has(name) && destructureSet.has(name)) continue;
+  if (!helperLevelDefs.has(name)) continue;
+  unexported.push(name);
+}
+if (unexported.length) {
+  console.error('');
+  console.error('ERROR: helper(s) are defined in makeHelpers(env) but NOT exported to runRoutes().');
+  console.error('Every request to those routes throws ReferenceError (HTTP 500) on Cloudflare,');
+  console.error('while `node server.js` and `npm test` keep passing locally.');
+  console.error('');
+  console.error('  defined but not exported: ' + unexported.sort().join(', '));
+  console.error('');
+  console.error('Fix: add those names to BOTH the `return {...}` at the end of makeHelpers(env)');
+  console.error('AND the `const {...} = H` destructuring in handleApi (both in cloudflare/header.js),');
+  console.error('then re-run: node cloudflare/port.js');
+  console.error('');
+  process.exit(1);
+}
+
+// 3) Every name in the export lists must actually be defined (catches typos in
+// the lists themselves), and every H.<name> used by footer.js (webhook/cron
+// handlers reach helpers as properties) must be in the return list.
+// (workerDefs misses non-first names of multi-name consts like the env block,
+// so union it with the stricter helper-level parse.)
+const definedAnywhere = new Set([...workerDefs, ...helperLevelDefs]);
+const bogusExports = returnList.filter(n => !definedAnywhere.has(n));
+if (bogusExports.length) {
+  console.error('');
+  console.error('ERROR: name(s) in the export lists are not defined anywhere in header.js/footer.js');
+  console.error('(probably a typo — the binding would always be undefined):');
+  console.error('');
+  console.error('  undefined exports: ' + [...new Set(bogusExports)].sort().join(', '));
+  console.error('');
+  process.exit(1);
+}
+const footerHRefs = new Set();
+for (const m of footer.matchAll(/(?<![\w$])H\.([A-Za-z_$][\w$]*)/g)) footerHRefs.add(m[1]);
+const missingHProps = [...footerHRefs].filter(n => !returnSet.has(n));
+if (missingHProps.length) {
+  console.error('');
+  console.error('ERROR: footer.js uses H.<name> propertie(s) that are not in the makeHelpers return list:');
+  console.error('');
+  console.error('  missing H properties: ' + missingHProps.sort().join(', '));
+  console.error('');
+  process.exit(1);
+}
+console.log('Export-list guard OK: ' + returnList.length + ' helpers exported via return {...} + destructuring, all route-referenced helpers wired (' + exportCandidates.size + ' candidates checked)');
 
 fs.writeFileSync(path.join(__dirname, 'worker.js'), header + block + footer);
 console.log('Wrote cloudflare/worker.js (' + (header + block + footer).split('\n').length + ' lines)');
