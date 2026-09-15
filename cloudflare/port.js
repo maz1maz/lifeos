@@ -388,6 +388,8 @@ const fnNorm = s => {
 // Deliberately different on each platform (Node vs Worker runtime wiring).
 const PLATFORM_HELPERS = new Set([
   'read', 'write', 'body', 'hash', 'sidCookie', 'clientIp', 'hashPin', 'genLinkCode', 'today',
+  // Workers are HTTPS-only, while the Node development server must allow an insecure localhost OAuth cookie.
+  'googleCalendarStateCookie',
   'handleTelegramMessage', 'tgCheckReports', 'refreshPricesAndAlerts',
 ]);
 const serverFns = extractFns(src);

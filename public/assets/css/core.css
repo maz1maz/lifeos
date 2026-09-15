@@ -3,25 +3,10 @@
  * فونت: /assets/fonts/Estedad.woff2 (یک‌بار، نه base64 در هر HTML)
  */
 :root {
-  --bg: #0a0e1a;
-  --card: #121826;
-  --text: #e8eef7;
-  --muted: #8b9bb4;
-  --acc: #22d3ee;
-  --good: #34d399;
-  --warn: #fbbf24;
-  --danger: #f87171;
-  --border: rgba(255, 255, 255, 0.08);
-  --fh: 'Estedad', Tahoma, sans-serif;
+  /* رنگ‌های اصلی از shared-theme.css می‌آیند تا با ورود به این صفحات عوض نشوند. */
+  --card: var(--panel);
+  --danger: var(--bad);
   --radius: 12px;
-}
-
-html[data-mode='light'] {
-  --bg: #f4f7fb;
-  --card: #ffffff;
-  --text: #0f172a;
-  --muted: #64748b;
-  --border: rgba(15, 23, 42, 0.1);
 }
 
 @font-face {

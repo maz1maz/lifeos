@@ -7,7 +7,7 @@ signup، login، سشن، تسک، داشبورد و متن فارسی همه ب
 ## چیزهایی که همین الان واقعی و آماده‌ست
 
 - **دیتابیس D1** به نام `pdmaz-db` ساخته شده و حساب واقعی‌ات (بدون سشن‌های قدیمی) داخلش کپی شده.
-- **کد کامل Worker** در [`worker.js`](worker.js) — پورت کامل و تست‌شدهٔ همهٔ ۱۴۰ مسیر API از `server.js`، دیپلوی‌شده و کارش زنده تأیید شده.
+- **کد کامل Worker** در [`worker.js`](worker.js) — پورت کامل و تست‌شدهٔ همهٔ مسیرهای API از `server.js`، دیپلوی‌شده و کارش زنده تأیید شده.
 - **`wrangler.toml`** با تنظیمات دیتابیس، فایل‌های استاتیک (`public/`)، و Cron هر ۱۵ دقیقه (برای گزارش تلگرام، قیمت‌های زنده و همگام‌سازی خودکار RSS، چون Worker برخلاف `server.js` نمی‌تونه یک تایمر دائمی داشته باشه).
 
 ⚠️ یک باگ واقعی در `cloudflare/port.js` پیدا و رفع شد که باعث می‌شد هر «ذخیره» به‌جای دادهٔ واقعی، یک دامپ بی‌ربط بنویسه (جزئیات در REMAINING-WORK.md). اگر دوباره `node cloudflare/port.js` رو اجرا کردی (مثلاً بعد از تغییر در `server.js`)، حتماً قبل از اعتماد به خروجی، یک‌بار با `wrangler dev --remote` یک signup/login واقعی تست کن.
@@ -27,6 +27,7 @@ cd cloudflare
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put GOOGLE_REDIRECT_URI   # باید https://pdmaz.<subdomain>.workers.dev/api/auth/google/callback باشه
+npx wrangler secret put GOOGLE_CALENDAR_REDIRECT_URI  # https://pdmaz.<subdomain>.workers.dev/api/integrations/google-calendar/callback
 npx wrangler secret put API_FOOTBALL_KEY
 npx wrangler secret put TMDB_API_KEY
 npx wrangler secret put TELEGRAM_BOT_TOKEN
@@ -41,7 +42,15 @@ npx wrangler secret put STOCK_API_KEY
 ```
 هر کدوم رو نداشتی، رد کن — همون رفتار «هنوز فعال نشده» رو می‌ده که توی نسخهٔ محلی هم داشت.
 
-مهم: هر Redirect URI (گوگل، اسپاتیفای، یوتیوب) باید توی کنسول همون سرویس (Google Cloud Console / Spotify Developer Dashboard) هم به‌عنوان آدرس مجاز اضافه بشه، وگرنه ورود با خطا مواجه می‌شه.
+مهم: هر Redirect URI (گوگل، Google Calendar، اسپاتیفای، یوتیوب) باید توی کنسول همون سرویس (Google Cloud Console / Spotify Developer Dashboard) هم به‌عنوان آدرس مجاز اضافه بشه، وگرنه ورود با خطا مواجه می‌شه.
+
+#### راه‌اندازی یک‌بارهٔ Google Calendar
+1. در Google Cloud همان پروژهٔ OAuth برو به **APIs & Services → Library** و **Google Calendar API** را Enable کن.
+2. در OAuth Client، این Authorized redirect URI را دقیقاً اضافه کن: `https://<دامنه>/api/integrations/google-calendar/callback`.
+3. مقدار همان URI را با `wrangler secret put GOOGLE_CALENDAR_REDIRECT_URI` ذخیره و Worker را deploy کن.
+4. در هسته برو به **تنظیمات → Google Calendar → اتصال امن با گوگل** و consent را تأیید کن؛ رمز یا توکن را هیچ‌جا دستی وارد نکن.
+
+اسکوپ‌ها عمداً محدودند: خواندن تقویم‌های قابل‌مشاهده + نوشتن فقط در تقویم ثانویه‌ای که خود LifeOS می‌سازد. همگام‌سازی Cron هر ۱۵ دقیقه انجام می‌شود و از خود صفحهٔ تقویم هم می‌توان دستی sync کرد.
 
 ### ۴) وب‌هوک تلگرام (اگر بات رو فعال کردی)
 بعد از اولین deploy، این را یک‌بار اجرا کن تا تلگرام پیام‌ها رو به‌جای Long Polling مستقیم به Worker بفرسته:

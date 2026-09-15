@@ -6,6 +6,7 @@
 <title>فوتبال · هسته</title>
 
 <link rel="stylesheet" href="/shared-theme.css">
+<script src="/shared-ui.js"></script>
 <link rel="stylesheet" href="/assets/css/core.css">
 <link rel="preload" href="/assets/fonts/Estedad.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -16,6 +17,7 @@
 .navlinks a.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);font-weight:700}
 
 /* ===== سربرگ ===== */
+.wrap{max-width:1500px;margin:0 auto;padding:18px 22px 80px}
 .fb-head{padding:8px 2px 4px}
 .fb-head h1{margin:0 0 4px;font-family:var(--fh);font-size:26px}
 .fb-head p{margin:0;color:var(--faint);font-size:14px}
@@ -26,23 +28,27 @@
 .fb-tab:hover{border-color:var(--acc);color:var(--text)}
 .fb-tab.on{background:color-mix(in srgb,var(--acc) 14%,transparent);border-color:var(--acc);color:var(--acc)}
 
-/* ===== کارت‌ها ===== */
-.fb-card{background:var(--panel);border:1.5px solid var(--border2);border-radius:20px;padding:16px 18px;margin-top:14px;box-shadow:var(--shadow-card)}
+/* ===== دو ستون: جدول چپ، بازی‌ها راست ===== */
+.fb-layout{display:grid;grid-template-columns:minmax(390px,.88fr) minmax(480px,1.12fr);gap:14px;align-items:start;direction:ltr}
+.fb-card{min-width:0;background:var(--panel);border:1.5px solid var(--border2);border-radius:20px;padding:16px 18px;margin:0;box-shadow:var(--shadow-card);direction:rtl}
+.fb-table-card{grid-column:1}
+.fb-matches-card{grid-column:2}
 .fb-card h3{margin:0 0 12px;font-family:var(--fh);font-size:16px;display:flex;align-items:center;gap:8px}
 .fb-note{font-size:12.5px;color:var(--faint);margin-top:10px}
 .fb-loading,.fb-empty{padding:24px 4px;text-align:center;color:var(--faint);font-size:14px}
 
-/* ===== جدول ===== */
+/* ===== جدول فشرده ===== */
 .fb-tablewrap{overflow-x:auto}
-table.fb-table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:460px}
-table.fb-table th{color:var(--faint);font-weight:600;font-size:12px;padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)}
+table.fb-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:370px;table-layout:auto}
+table.fb-table th{color:var(--faint);font-weight:600;font-size:11px;padding:4px 3px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap}
 table.fb-table th.fb-tteam{text-align:right}
-table.fb-table td{padding:8px;text-align:center;border-bottom:1px dashed var(--border);font-variant-numeric:tabular-nums}
+table.fb-table td{padding:5px 3px;text-align:center;border-bottom:1px dashed var(--border);font-variant-numeric:tabular-nums;white-space:nowrap}
 table.fb-table tr:last-child td{border-bottom:none}
-table.fb-table td.fb-trank{color:var(--faint);font-weight:700;width:28px}
-table.fb-table td.fb-tteam{text-align:right;display:flex;align-items:center;gap:8px;border-bottom:1px dashed var(--border)}
-table.fb-table td.fb-tteam img{width:20px;height:20px;object-fit:contain;border-radius:50%;flex:none}
-table.fb-table td.fb-tpts{font-weight:800;color:var(--text)}
+table.fb-table td.fb-trank{color:var(--faint);font-weight:700;width:22px}
+table.fb-table td.fb-tteam{text-align:right;display:flex;align-items:center;gap:5px;border-bottom:1px dashed var(--border);min-width:112px}
+table.fb-table td.fb-tteam span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.fb-table td.fb-tteam img{width:17px;height:17px;object-fit:contain;border-radius:50%;flex:none}
+table.fb-table td.fb-tpts{font-weight:800;color:var(--text);padding-inline:5px}
 table.fb-table tr:nth-child(-n+4) td.fb-trank{color:var(--good)}
 
 /* ===== لیست بازی‌ها (هم‌تراز با ویجت صفحهٔ امروز) ===== */
@@ -66,12 +72,21 @@ table.fb-table tr:nth-child(-n+4) td.fb-trank{color:var(--good)}
 .grow .gtag .glive{color:var(--bad);font-size:12px;white-space:nowrap;font-weight:700}
 .grow .gtag .gdone{color:var(--faint);font-size:12px;white-space:nowrap;font-weight:600}
 
+@media(max-width:980px){
+  .fb-layout{grid-template-columns:1fr;direction:rtl}
+  .fb-table-card,.fb-matches-card{grid-column:auto}
+  .fb-matches-card{order:1}
+  .fb-table-card{order:2}
+}
 @media(max-width:640px){
-  .fb-tabs{gap:6px}
-  .fb-tab{padding:8px 12px;font-size:13px}
+  .wrap{padding:14px 12px 70px}
+  .fb-tabs{gap:6px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+  .fb-tab{padding:8px 12px;font-size:13px;flex:none}
   .fb-card{padding:14px 12px}
+  table.fb-table{min-width:350px;font-size:12px}
 }
 </style>
+<link rel="stylesheet" href="/shared-shell.css">
 </head>
 <body>
 <div class="wrap">
@@ -79,20 +94,22 @@ table.fb-table tr:nth-child(-n+4) td.fb-trank{color:var(--good)}
 
 <header class="fb-head">
   <h1>⚽ فوتبال</h1>
-  <p>لیگ‌های بزرگ اروپا و ایران · جدول و بازی‌ها و نتایج</p>
+  <p>لیگ‌های بزرگ اروپا، ایران و آسیا · جدول و بازی‌ها و نتایج</p>
 </header>
 
 <div class="fb-tabs" id="fbTabs"></div>
 
-<div class="fb-card">
-  <h3>🏆 جدول <span id="fbTableLeague" style="color:var(--faint);font-weight:500;font-size:13px"></span></h3>
-  <div class="fb-tablewrap"><div id="fbTable" class="fb-loading">در حال دریافت…</div></div>
-</div>
+<div class="fb-layout">
+  <section class="fb-card fb-table-card">
+    <h3>🏆 جدول <span id="fbTableLeague" style="color:var(--faint);font-weight:500;font-size:13px"></span></h3>
+    <div class="fb-tablewrap"><div id="fbTable" class="fb-loading">در حال دریافت…</div></div>
+  </section>
 
-<div class="fb-card">
-  <h3>📅 بازی‌ها و نتایج</h3>
-  <div id="fbMatches" class="fb-loading">در حال دریافت…</div>
-  <div class="fb-note" id="fbNote"></div>
+  <section class="fb-card fb-matches-card">
+    <h3>📅 بازی‌ها و نتایج <small style="color:var(--faint);font-size:11.5px;font-weight:500">جدید به قدیم</small></h3>
+    <div id="fbMatches" class="fb-loading">در حال دریافت…</div>
+    <div class="fb-note" id="fbNote"></div>
+  </section>
 </div>
 
 </div>
@@ -108,7 +125,9 @@ table.fb-table tr:nth-child(-n+4) td.fb-trank{color:var(--good)}
     {id:'ger.1',label:'آلمان',flag:'🇩🇪'},
     {id:'fra.1',label:'فرانسه',flag:'🇫🇷'},
     {id:'por.1',label:'پرتغال',flag:'🇵🇹'},
-    {id:'uefa.champions',label:'لیگ قهرمانان اروپا',flag:'🏆'}
+    {id:'uefa.champions',label:'لیگ قهرمانان اروپا',flag:'🏆'},
+    {id:'uefa.europa',label:'لیگ اروپا',flag:'🇪🇺'},
+    {id:'afc.champions',label:'لیگ نخبگان آسیا',flag:'🌏'}
   ];
   function fa(n){return String(n).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[d]})}
   function cl(x){return String(x==null?'':x).replace(/[<>&]/g,'')}
@@ -189,12 +208,12 @@ table.fb-table tr:nth-child(-n+4) td.fb-trank{color:var(--good)}
     if(!items||!items.length){el.innerHTML='<div class="fb-empty">بازی‌ای در بازهٔ نزدیک پیدا نشد</div>';note.textContent='';return}
     var tehranToday=(function(){try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return new Date().toISOString().slice(0,10)}})();
     var byDate={},order=[];
-    items.forEach(function(m){
+    items.slice().sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''))}).forEach(function(m){
       var d='';try{d=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(m.date))}catch(e){d=String(m.date||'').slice(0,10)}
       if(!byDate[d]){byDate[d]=[];order.push(d)}
       byDate[d].push(m);
     });
-    order.sort();
+    order.sort(function(a,b){return b.localeCompare(a)});
     var h='';
     order.forEach(function(d){
       var label;

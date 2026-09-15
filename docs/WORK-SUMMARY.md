@@ -1,8 +1,8 @@
 # WORK-SUMMARY — خلاصهٔ وضعیت برای نشست بعدی
 
-آخرین به‌روزرسانی: ۱۵ سپتامبر ۲۰۲۶ (بامداد) / ۲۴ شهریور ۱۴۰۵
-مخزن: `maz1maz/lifeos` · برنچ این به‌روزرسانی: `arena/01a0a21e-lifeos`
-(نشست قبلی `arena/01a0a204-lifeos` با PR #5 مرج شد → `master` = `f55394d`)
+آخرین به‌روزرسانی: ۱۵ سپتامبر ۲۰۲۶ / ۲۴ شهریور ۱۴۰۵
+مخزن: `maz1maz/lifeos` · برنچ این به‌روزرسانی: `arena/01a0a58a-lifeos`
+(کارهای نشست‌های قبل با PR #6 مرج شد → نقطهٔ شروع این نشست: `master` = `a8ef6fc`)
 
 > این فایل برای این ساخته شد که **دفعهٔ بعد لازم نباشد لیست کارها را دوباره بنویسی**.
 > کافی است بگویی: «طبق `docs/WORK-SUMMARY.md` فلان کار را انجام بده».
@@ -14,25 +14,40 @@
 
 ## 🔁 برای شروع نشست بعدی (Resume) — همین یک جمله را کپی کن
 
-> **دستور ادامه:** «طبق `docs/WORK-SUMMARY.md` و `REMAINING-WORK.md` ادامه بده — شاخهٔ `arena/01a0a21e-lifeos`»
+> **دستور ادامه:** «طبق `docs/WORK-SUMMARY.md` و `REMAINING-WORK.md` ادامه بده — شاخهٔ `arena/01a0a58a-lifeos`»
 
 آخرین به‌روزرسانی این بلوک: ۱۵ سپتامبر ۲۰۲۶ / ۲۴ شهریور ۱۴۰۵ (tip شاخه را با `git log -1 --oneline` ببین)
 
 **وضعیت لحظه‌ای**
-- شاخه `arena/01a0a21e-lifeos` — همه‌چیز کامیت و پوش شده، درخت تمیز. PR #6 باز است (منتظر مرج خودت).
-- بیس‌لاین تست‌ها: `npm test` → **۴۶۱/۰** (smoke) + **۱۲۵/۰** (worker-smoke) + **۱۶/۰** (verify-script).
+- شاخه `arena/01a0a58a-lifeos` — تغییرات رابط کاربری و لیگ‌های تکمیلی فوتبال کامیت و پوش شده‌اند؛ PR #8 باز است.
+- بیس‌لاین تست‌ها: `npm test` → **۴۶۲/۰** (smoke) + **۱۲۶/۰** (worker-smoke) + **۱۶/۰** (verify-script) + **۶۷/۰** (UI smoke).
 - گاردهای `cloudflare/port.js`: Drift ۱۶۴ · Export-list ۱۳۱ · Helper-parity ۱۳۲. اگر یکی قرمز شد، `worker.js` را دستی ویرایش نکن؛ `server.js` را درست کن و `node cloudflare/port.js` بزن.
-- نسخهٔ لایو (`pdmaz…workers.dev`) تا `wrangler deploy` نزنی از ریپو عقب‌تر است.
+- نسخهٔ لایو (`pdmaz…workers.dev`) تا مرج PR #8 و deploy بعدی از این تغییرات عقب‌تر است.
 
 **کارهایی که فقط خودت می‌توانی انجام بدهی (باز)**
-1. مرج PR #6 → بعد `cd cloudflare` و `npx wrangler deploy` (تا این کار، «بت»، «💵 دلار»، رفع ریال و گارد پوکر روی برنامهٔ واقعی فعال نمی‌شود).
-2. اصلاح دستی ردیف اشتباه قدیمی: صفحهٔ مالی → `✎` روی همان تراکنش → مبلغ را `۱٬۵۰۰٬۰۰۰` بگذار (۱۵٬۰۰۰٬۰۰۰ ریال بود که اشتباه تومان ذخیره شده بود).
-3. بعد از دیپلوی، `docs/verify-live.console.js` را در کنسول مرورگر بزن و خروجی‌اش را بفرست.
+1. ابتدا preview/PR #8 را از نظر ظاهری تأیید و سپس PR را مرج کن؛ برای انتشار روی Cloudflare، deploy بعدی پروژه را انجام بده.
+2. برای دادهٔ زندهٔ ستون سهام آمریکا، secret با نام `STOCK_API_KEY` (سرویس Twelve Data) باید در محیط مقصد تنظیم شده باشد؛ بدون آن endpoint عمداً 503 می‌دهد.
+3. اصلاح دستی ردیف اشتباه قدیمی: صفحهٔ مالی → `✎` روی همان تراکنش → مبلغ را `۱٬۵۰۰٬۰۰۰` بگذار (۱۵٬۰۰۰٬۰۰۰ ریال بود که اشتباه تومان ذخیره شده بود).
 
 **آخرین کارهای نشست قبل (به ترتیب)**
 `f435efb` notIncome · `299bafe` ریال ÷۱۰ · `edb5539` ریال قبل از عدد · `b88e31a` یادآوری سرِ ماه + گارد هم‌کدی هلپرها · `aad4281` پوکر/بت دیگر تراکنش نمی‌سازد · `24768aa` سرفصل «بت» (دلاری) · `c172fab` «💵 دلار» در پورتفو · `7435d43` نمونهٔ ظاهری پورتفو.
 
 ---
+
+## تازه‌ها — ادامهٔ ۲۴ شهریور: تم و منوی مشترک + بازار + فوتبال + اینباکس
+
+1. **تم سراسری و ماندگار:** `public/shared-ui.js` پیش از رسم صفحه حالت ذخیره‌شده را اعمال می‌کند، کلید مرجع `lifeos-mode` را با کلید قدیمی `mode` همگام نگه می‌دارد و تغییر حالت را بین تب‌ها نیز sync می‌کند. این فایل در صفحهٔ امروز، ورود و همهٔ صفحات اصلی منو بارگذاری می‌شود.
+2. **نوار منوی یکسان:** `public/shared-shell.css` به‌عنوان آخرین stylesheet پوستهٔ ثابت desktop/mobile، فونت Estedad، اندازه‌ها و حالت active را در همهٔ صفحات یکسان می‌کند. لینک‌های ۱۲ صفحهٔ دارای nav نیز به یک ترتیب canonical سیزده‌تایی رسیده‌اند؛ فوتبال دیگر فونت منو را عوض نمی‌کند.
+3. **بازار چهارستونه:** فلزات، کریپتو، بازار تومان و سهام آمریکا اکنون چهار فرزند همان grid هستند؛ در تبلت دو و در موبایل یک ستون می‌شوند. دادهٔ زندهٔ سهام همچنان طبق قرارداد موجود به `STOCK_API_KEY` نیاز دارد.
+4. **فوتبال:** روی desktop جدول فشرده در چپ و بازی‌ها در راست است؛ گروه‌های تاریخ و خود بازی‌ها از جدید به قدیم مرتب می‌شوند. روی موبایل بازی‌ها قبل از جدول در یک ستون قرار می‌گیرند.
+5. **مقصد یادداشت ثبت سریع:** یادداشت در endpoint موجود Inbox ذخیره می‌شود و حالا بالای صفحهٔ امروز در کارت «اینباکس یادداشت‌ها» فوراً دیده می‌شود؛ هر مورد از همان‌جا به «کار امروز» یا «روزنگار امروز» تبدیل می‌شود.
+6. **لیگ‌های تکمیلی فوتبال:** دو تب «لیگ اروپا» و «لیگ نخبگان آسیا» به UI اضافه شدند. لیگ اروپا از قبل در catalog سرور بود؛ لیگ نخبگان با شناسهٔ ESPN `afc.champions`، شناسهٔ TheSportsDB برابر `4719` و شناسهٔ ورزش۳ برابر `26` به هر دو runtime نود و Worker افزوده شد.
+7. **تست/تحویل:** `test/ui-smoke.js` به `npm test` وصل است. اجرای کامل نهایی: ۴۶۲/۰ + ۱۲۶/۰ + ۱۶/۰ + ۶۷/۰. preview محلی نیز signup، ثبت/نمایش/تبدیل Inbox، catalog لیگ‌های تازه و پاسخ صفحات/assetها را تأیید کرد. تغییرات در PR #8 پوش شده‌اند.
+
+فایل‌های اصلی این نشست: `public/shared-ui.js` · `public/shared-shell.css` · `public/index.html` ·
+`public/design/market-page.html` · `public/design/football-page.html` · `public/assets/css/core.css` ·
+`server.js` · `cloudflare/header.js` · `cloudflare/worker.js` · صفحات اصلی `public/design/*-page.html` ·
+`test/ui-smoke.js` · `test/smoke.js` · `test/worker-smoke.js` · `package.json`.
 
 ## تازه‌ها — نشست ۲۳ شهریور ۱۴۰۵ (۱۴ سپتامبر ۲۰۲۶)
 
@@ -538,3 +553,49 @@ cd cloudflare && npx wrangler deploy
 - مسیرهای `/api/investments/price` و `/price/refresh` برای dollar خطای ۴۰۰ می‌دهند («قیمت لازم نیست — هر دلار همیشه ۱ دلار است»).
 - رگرسیون: کریپتو/سهام همان قواعد قبلی را دارند (نماد + قیمت لازم) — چک شده در `[48]`/`[W13]`.
 - بیس‌لاین بعد از این تغییر: `smoke 461/0` · `worker-smoke 125/0` · `verify-script 16/0`.
+
+
+---
+
+## اتصال دوطرفهٔ Google Calendar (۱۵ سپتامبر ۲۰۲۶ / ۲۴ شهریور ۱۴۰۵)
+
+**تصمیم‌های تأییدشده:** همگام‌سازی دوطرفه، ارسال هر دو نوع **کار + یادآوری**، و نوشتن در یک تقویم ثانویهٔ جدا با نام **LifeOS** (نه `primary`).
+
+### رفتار نهایی
+- صفحهٔ تقویم هسته حالا کارها، یادآوری‌ها، مناسبت‌ها و رویدادهای تقویم‌های قابل‌مشاهدهٔ گوگل را در نمای شمسی و میلادی یک‌جا نشان می‌دهد.
+- کار/یادآوری ساعت‌دار به event زمانی در timezone `Asia/Tehran` تبدیل می‌شود؛ مورد بدون ساعت all-day است.
+- فقط eventهای دارای private metadata خود LifeOS ساخته/ویرایش/حذف می‌شوند؛ eventهای مدیریت‌شده در feed دوباره نمایش داده نمی‌شوند، پس duplicate نداریم.
+- ویرایش بدون تعارضِ event مدیریت‌شده در گوگل (عنوان، تاریخ، ساعت، مدت و وضعیت) به task/reminder هسته برمی‌گردد. اگر هر دو طرف از sync قبلی تغییر کرده باشند، نسخهٔ هسته برنده است و conflict در آمار sync گزارش می‌شود.
+- حذف task/reminder در هسته، event برچسب‌خوردهٔ همان مورد را از گوگل پاک می‌کند. حذف event در گوگل **هرگز دادهٔ هسته را پاک نمی‌کند** و sync بعدی آن را دوباره می‌سازد.
+- sync از صفحهٔ تقویم و تنظیمات دستی است، در هر session مرورگر خودکار هم اجرا می‌شود، و Node/Worker هر ۱۵ دقیقه background sync دارند. هر نوبت حداکثر ۳۵ mutation انجام می‌دهد؛ موارد بیشتر با `pending` در نوبت‌های بعدی ادامه می‌یابند.
+
+### امنیت و OAuth
+- redirect مستقل: `GOOGLE_CALENDAR_REDIRECT_URI=/api/integrations/google-calendar/callback`.
+- scope حداقلی: `calendar.readonly` + `calendar.calendarlist.readonly` + `calendar.app.created`؛ برنامه مجوز full-calendar write نمی‌گیرد.
+- state cookie از نوع HttpOnly/SameSite=Lax، refresh token فقط سمت سرور، و status/feed هرگز token را به مرورگر برنمی‌گردانند.
+- backupهای Node و Worker refresh tokenها، password/PIN و sessionهای زنده را حذف می‌کنند.
+- قطع اتصال فقط grant محلی را کنار می‌گذارد و تقویم/eventهای کاربر را در گوگل نگه می‌دارد.
+
+### APIهای اضافه‌شده
+- `GET /api/integrations/google-calendar/status`
+- `GET /api/integrations/google-calendar/connect`
+- `GET /api/integrations/google-calendar/callback`
+- `POST /api/integrations/google-calendar/disconnect`
+- `POST /api/integrations/google-calendar/sync`
+- `GET /api/calendar/feed?from=YYYY-MM-DD&to=YYYY-MM-DD`
+
+### فایل‌های اصلی
+| فایل | تغییر |
+|---|---|
+| `server.js` | OAuth/token helpers، ساخت تقویم LifeOS، sync conflict-safe/idempotent، feed و background sync |
+| `cloudflare/header.js` / `footer.js` / `worker.js` | parity کامل Worker، Cron sync و redaction secrets؛ artifact با `node cloudflare/port.js` بازتولید شد |
+| `public/design/settings-page.html` | کارت اتصال/وضعیت/sync/disconnect و توضیح سیاست تعارض/حذف |
+| `public/design/calendar-page.html` | feed ماه قابل‌مشاهده، نمایش task/reminder/Google، legend و sync bar |
+| `.env.example` / `cloudflare/README.md` / `wrangler.toml` | راه‌اندازی Google Cloud، redirect و secret جدید |
+| `test/smoke.js` | fake واقعی Calendar API: OAuth، timed/all-day، idempotency، inbound edit، delete safety و disconnect |
+| `test/worker-smoke.js` / `test/ui-smoke.js` | قرارداد Worker و UI/امنیت |
+
+### مرحلهٔ شخصی باقی‌مانده (خارج از کد)
+Google Calendar API باید در پروژهٔ Google Cloud Enable شود، callback دقیق در Authorized redirect URIs ثبت و `GOOGLE_CALENDAR_REDIRECT_URI` روی deployment تنظیم شود. بعد از deploy، خود کاربر یک‌بار از **تنظیمات → Google Calendar → اتصال امن با گوگل** consent می‌دهد؛ هیچ رمز یا token دستی لازم نیست.
+
+**بیس‌لاین کامل:** `481 passed, 0 failed` + `130 passed, 0 failed` + `16 passed, 0 failed` + `UI smoke: 76 passed, 0 failed`.
