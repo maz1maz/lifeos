@@ -1197,8 +1197,192 @@ async function main() {
       // UI: صفحهٔ مالی باید گزینهٔ دلار داشته باشد و نماد/قیمت را برایش غیرفعال کند
       const page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
       check('the finance page offers 💵 دلار and disables symbol/price for it',
-        page.includes('<option value="dollar">💵 دلار</option>') && page.includes("symEl.disabled=isD") && page.includes("assetType:'dollar', type:'buy', quantity:qty"),
+        page.includes('<option value="dollar">💵 دلار</option>') && page.includes("symEl.disabled=isFx") && page.includes("isFx?{assetType:tval, type:'buy', quantity:qty}"),
         'finance-page.html');
+    }
+
+    /* [49] پورتفو: «یورو» دقیقاً مثل «دلار» — بدون نماد، بدون قیمت، فقط مقدار.
+       هر یورو = ۱ یورو، پس ارزش تومانی‌اش = مقدار × نرخ یورو (نه نرخ دلار). */
+    console.log('\n[49] portfolio: 💶 euro holding (mirror of the dollar row, its own currency)');
+    {
+      /* از کاربر دومِ [42] استفاده می‌شود: مسیر signup روی ۵ تلاش در ۱۵ دقیقه محدود است
+         و هر بار ساخت کاربر جدید، تست‌های بعدی را با ۴۲9 می‌شکست. */
+      const login6 = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email2, password: 'secret123' }) });
+      if (!login6.headers.get('set-cookie')) throw new Error('euro test needs the second user to be able to log in');
+      const a6 = { 'Content-Type': 'application/json', Cookie: login6.headers.get('set-cookie').split(';')[0] };
+      const buy6 = (body) => fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: a6, body: JSON.stringify(body) });
+      const pf6 = () => fetch(`${BASE}/api/portfolio`, { headers: a6 }).then(r => r.json());
+
+      const e1res = await buy6({ assetType: 'euro', quantity: 300 });
+      const e1b = await e1res.json();
+      check('a euro holding is accepted with an amount only (symbol fixed to EUR, price fixed to 1)', e1res.status === 201 && e1b.symbol === 'EUR' && e1b.assetType === 'euro' && e1b.price === 1, JSON.stringify(e1b));
+      const p1 = await pf6();
+      const eur = p1.items.find(x => x.assetType === 'euro');
+      check('…and shows as one EUR holding with price 1 and value = amount', !!eur && eur.quantity === 300 && eur.currentPrice === 1 && eur.marketValue === 300 && eur.currency === 'EUR', JSON.stringify(eur && { qty: eur.quantity, price: eur.currentPrice, val: eur.marketValue, cur: eur.currency }));
+      check('…with zero profit/loss and its OWN totals bucket (EUR, never mixed into USD)', eur.unrealizedPnl === 0 && p1.totals.EUR && p1.totals.EUR.value === 300 && !p1.totals.USD, JSON.stringify(p1.totals));
+
+      await buy6({ assetType: 'euro', quantity: 150 });
+      const p2 = await pf6();
+      const eurRows = p2.items.filter(x => x.assetType === 'euro');
+      check('buying again merges into the same euro row (300 + 150 = 450)', eurRows.length === 1 && eurRows[0].quantity === 450, JSON.stringify(eurRows.map(x => x.quantity)));
+
+      await buy6({ assetType: 'dollar', quantity: 100 });
+      const p3 = await pf6();
+      const dRow = p3.items.find(x => x.assetType === 'dollar'), eRow = p3.items.find(x => x.assetType === 'euro');
+      check('a dollar row is a separate row/currency — the euro shortcut did not merge them', !!dRow && !!eRow && dRow.symbol === 'USD' && dRow.quantity === 100 && eRow.symbol === 'EUR' && eRow.quantity === 450 && p3.totals.USD.value === 100 && p3.totals.EUR.value === 450, JSON.stringify(p3.totals));
+
+      const noQty = await buy6({ assetType: 'euro' });
+      const noQtyBody = await noQty.json();
+      check('an empty amount is rejected with 400 and a euro-specific message', noQty.status === 400 && /یورو/.test(noQtyBody.error || ''), JSON.stringify([noQty.status, noQtyBody]));
+
+      const stray = await buy6({ assetType: 'euro', quantity: 10, price: 999999 });
+      const p4 = await pf6();
+      check('a stray price is ignored — a euro is always €1', stray.status === 201 && p4.items.find(x => x.assetType === 'euro').currentPrice === 1 && p4.items.find(x => x.assetType === 'euro').quantity === 460, JSON.stringify(p4.items.find(x => x.assetType === 'euro')));
+
+      const assetPrices = (JSON.parse(fs.readFileSync(DB_PATH, 'utf8')).assetPrices || []).filter(x => x.userId === e1b.userId);
+      check('no price row is created for the euro holding (قیمت لازم نیست)', !assetPrices.some(x => x.symbol === 'EUR' || x.symbol === 'USD'), JSON.stringify(assetPrices.map(x => x.symbol)));
+
+      const sell = await buy6({ assetType: 'euro', type: 'sell', quantity: 60 });
+      const p5 = await pf6();
+      check('selling euros reduces the same row (460 − 60 = 400)', sell.status === 201 && p5.items.find(x => x.assetType === 'euro').quantity === 400, JSON.stringify(p5.items.find(x => x.assetType === 'euro').quantity));
+
+      const pricePost = await fetch(`${BASE}/api/investments/price`, { method: 'POST', headers: a6, body: JSON.stringify({ symbol: 'EUR', price: 300000, assetType: 'euro' }) });
+      const priceRefresh = await fetch(`${BASE}/api/investments/price/refresh`, { method: 'POST', headers: a6, body: JSON.stringify({ symbol: 'USD', assetType: 'dollar' }) });
+      const ppBody = await pricePost.json();
+      check('recording/refreshing a price for دلار or یورو is refused with a clear message', pricePost.status === 400 && priceRefresh.status === 400 && /قیمت لازم نیست/.test(ppBody.error || ''), JSON.stringify([pricePost.status, priceRefresh.status, ppBody]));
+
+      const cryptoSym = await buy6({ assetType: 'crypto', quantity: 1 });
+      const goldNoSym = await buy6({ assetType: 'gold', quantity: 1, price: 5 });
+      check('crypto still needs a symbol and gold still needs one (the FX shortcut is dollar/euro only)', cryptoSym.status === 400 && goldNoSym.status === 400, JSON.stringify([cryptoSym.status, goldNoSym.status]));
+
+      const other = await fetch(`${BASE}/api/portfolio`, { headers: authHeaders }).then(r => r.json());
+      check('euro rows are per-user (the main test user sees none of them)', !(other.items || []).some(x => x.assetType === 'euro'), JSON.stringify((other.items || []).map(x => x.symbol)));
+
+      const page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
+      check('the finance page offers 💶 یورو next to 💵 دلار and disables symbol/price for both',
+        page.includes('<option value="euro">💶 یورو</option>') && /isD=tval===\'dollar\',isE=tval===\'euro\',isFx=isD\|\|isE/.test(page.replace(/\s+/g, '')) && page.includes("symEl.disabled=isFx") && page.includes('body:JSON.stringify(isFx?{assetType:tval, type:\'buy\', quantity:qty}'),
+        'finance-page.html');
+      check('the euro value is converted with its own rate (EURT) and both totals are shown in one line',
+        page.includes('function fxMul(h){return h.cur===\'$\'?USDT:(h.cur===\'€\'?EURT:1)}') && page.includes("qtyOf('EUR')") && page.includes('💶 <b>\'+fa(eq)+\' یورو'),
+        'finance-page.html');
+      check('the rates come from /api/tgju when it is reachable (÷۱۰, ریال→تومان) and fall back to the static pair',
+        page.includes('function loadFxRates()') && page.includes('price_dollar_rl') && page.includes('price_eur') && page.includes('USDT=Math.round(num(dl)/10)') && page.includes('loadFinanceFromApi();\nloadFxRates();'),
+        'finance-page.html');
+    }
+
+    /* [50] «بت»: ترتیب همیشه با تاریخ کامل، یک ردیف برای هر روز، ویرایش روی همان روز،
+       و «بهترین/بدترین» واقعاً بیشترین/کمترین (نه اولین/آخرین). */
+    console.log('\n[50] bet: date-ordered rows, one row per day, best/worst by value');
+    {
+      const login7 = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email2, password: 'secret123' }) });
+      if (!login7.headers.get('set-cookie')) throw new Error('bet ordering test needs the second user to be able to log in');
+      const a7 = { 'Content-Type': 'application/json', Cookie: login7.headers.get('set-cookie').split(';')[0] };
+      const put7 = (body) => fetch(`${BASE}/api/bet`, { method: 'POST', headers: a7, body: JSON.stringify(body) }).then(r => r.json());
+      const get7 = (q) => fetch(`${BASE}/api/bet${q || ''}`, { headers: a7 }).then(r => r.json());
+
+      // سه روز، عمداً به‌هم‌ریخته ثبت می‌شوند (۵، بعد ۳، بعد ۴)
+      const r5 = await put7({ date: '2026-10-05', start: 180, balance: 200 });
+      const r3 = await put7({ date: '2026-10-03', start: 100, balance: 150 });
+      const r4 = await put7({ date: '2026-10-04', start: 150, balance: 240 });
+      const g1 = await get7('?month=2026-10');
+      check('items come back ordered by the real date, not by the order they were typed',
+        JSON.stringify(g1.items.map(x => x.date)) === JSON.stringify(['2026-10-03', '2026-10-04', '2026-10-05']) && JSON.stringify(g1.items.map(x => x.result)) === JSON.stringify([50, 90, 20]),
+        JSON.stringify(g1.items.map(x => ({ d: x.date, r: x.result }))));
+      check('the whole month is a win streak, so «بدترین» is the SMALLEST win (not the first/last row)',
+        g1.stats.days === 3 && g1.stats.profit === 160 && g1.stats.wins === 3 && g1.stats.losses === 0 && g1.stats.best.result === 90 && g1.stats.best.date === '2026-10-04' && g1.stats.worst.result === 20 && g1.stats.worst.date === '2026-10-05',
+        JSON.stringify({ best: g1.stats.best, worst: g1.stats.worst, profit: g1.stats.profit }));
+      const patchDup = await fetch(`${BASE}/api/bet/${r5.day.id}`, { method: 'PATCH', headers: a7, body: JSON.stringify({ date: '2026-10-04' }) });
+      check('moving a day onto an already-saved day is refused (one row per day)', patchDup.status === 409, String(patchDup.status));
+      const patchOk = await fetch(`${BASE}/api/bet/${r5.day.id}`, { method: 'PATCH', headers: a7, body: JSON.stringify({ date: '2026-10-02' }) });
+      const g2 = await get7('?month=2026-10');
+      check('moving a day to a free date works and the order is recomputed', patchOk.status === 200 && JSON.stringify(g2.items.map(x => x.date)) === JSON.stringify(['2026-10-02', '2026-10-03', '2026-10-04']), JSON.stringify(g2.items.map(x => x.date)));
+      const g3 = await get7('');
+      check('with no day before today there is no invented «دیروز: ۰» — the suggestion is null', g3.suggestedStart === null && g3.suggestedDate === null, JSON.stringify({ s: g3.suggestedStart, d: g3.suggestedDate }));
+      const yd = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      await put7({ date: yd, start: 50, balance: 62.5 });
+      const g4 = await get7('');
+      check('the auto-fill suggestion points at the last saved day and says which day it was',
+        Math.abs(g4.suggestedStart - 62.5) < 0.011 && g4.suggestedDate === yd, JSON.stringify({ s: g4.suggestedStart, d: g4.suggestedDate }));
+      const fin7 = await fetch(`${BASE}/api/finance?month=2026-10`, { headers: a7 }).then(r => r.json());
+      check('the bet ledger still touches no transaction (also for the moved and added rows)', fin7.income === 0 && fin7.expense === 0, JSON.stringify({ i: fin7.income, e: fin7.expense }));
+
+      const page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
+      check('the bet card sorts by the ISO date (not by day-of-month)', page.includes("var all=BET.slice().sort(function(a,b){var c=String(a.date).localeCompare(String(b.date))"), 'finance-page.html');
+      check('the bet chart reads oldest→newest even inside an RTL page, and today is highlighted', page.includes('#btMini{direction:ltr') && page.includes("(x.date===todayIso()?") && page.includes("#btMini .pkm.today span{color:var(--acc)") && page.includes('.txi.today{'), 'finance-page.html');
+      check('every money value is isolated with <bdi dir=ltr> so «+$37» never renders as «$37+»', page.includes("function btLtr(v){return '<bdi dir=\"ltr\">'+v+'</bdi>'}") && page.includes("btLtr(btSigned(x.res))") && page.includes("btLtr(btSigned(profit))"), 'finance-page.html');
+      check('best/worst are labelled with words (order cannot be misread) and coloured by sign', page.includes('بهترین </small>') && page.includes('بدترین </small>') && page.includes("x.res>0?'var(--good)':(x.res<0?'var(--bad)':'var(--muted)')") && page.includes('(بدترین روز هم برد بود)'), 'finance-page.html');
+      check('clicking ✎ on a row moves the date button to THAT day (before: it saved onto whatever the button showed)', page.includes("BTDATE={mi:x.mi,d:x.d};"), 'finance-page.html');
+      /* رندرکردنِ بلوک بت با DOM ساختگی: این کلاس باگ (فراخوانی تابعی که فقط داخل یک
+         IIFE دیگر تعریف شده) قبلاً صفحه را با ReferenceError می‌کشت. */
+      const betRegion = (() => {
+        const i = page.indexOf('/* ============ بت (دلاری) ============');
+        const j = page.indexOf('/* ============ ویرایشگر عمومی ============');
+        if (i < 0 || j < 0 || j <= i) throw new Error('bet block not found in finance-page.html');
+        return page.slice(i, j);
+      })();
+      const bare = betRegion.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/'[^'\n]*'/g, ''); /* بدون کامنت و رشته — وگرنه CSS و متن‌ها شلوغ می‌کنند */
+      const localFns = new Set([...bare.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m => m[1]));
+      const localVars = new Set([...bare.matchAll(/(?:var|let|const)\s+([A-Za-z_$][\w$]*)/g)].map(m => m[1]));
+      const topLevel = new Set([...page.matchAll(/^(?:var|let|const|function)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]));
+      const BUILTINS = new Set(['if', 'for', 'while', 'switch', 'catch', 'return', 'typeof', 'function', 'new', 'fetch', 'parseFloat', 'parseInt', 'String', 'Number', 'Math', 'Date', 'JSON', 'Array', 'Object', 'Boolean', 'RegExp', 'Promise', 'isNaN', 'isFinite', 'setTimeout', 'setInterval', 'encodeURIComponent', 'decodeURIComponent', 'document', 'window', 'location', 'localStorage', 'console', 'confirm', 'alert']);
+      const calls = [...bare.matchAll(/(?:^|[^.\w$])([a-zA-Z_$][\w$]*)\s*\(/g)].map(m => m[1]);
+      const missing = [...new Set(calls)].filter(n => !localFns.has(n) && !localVars.has(n) && !topLevel.has(n) && !BUILTINS.has(n));
+      check('every function the bet block calls exists at page top level (this is how the esc() crash was caught)',
+        missing.length === 0, JSON.stringify(missing));
+
+      check('the auto-fill label says «دیروز» only for an actual yesterday and otherwise names the day', page.includes('d.suggestedDate!==btPrevDay(todayIso())') && page.includes("lab='دیروز'") && page.includes('function btPrevDay(iso){'), 'finance-page.html');
+      check('the ۲۴-month window is rolling, so nothing disappears once the new month starts', page.includes('var MBASE=(function(){try{var t=jToday();return t.jy*12+t.jm-1-23}') && page.includes('function jMi(jy,jm)') && !page.includes('(1403*12+6);'), 'finance-page.html');
+    }
+
+    /* [51] پنجرهٔ ۲۴ماهه صفحهٔ مالی: کالندرِ داخل HTML را واقعاً اجرا می‌کند.
+       با پنجرهٔ ثابت، از اول مهر ۱۴۰۵ isoToMiD برای «امروز» null می‌داد و ردیف‌های
+       بت/پوکر/تراکنش بی‌صدا از صفحه غیب می‌شدند. */
+    console.log('\n[51] finance-page calendar: the 24-month window rolls with the real date');
+    {
+      const page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
+      const lines = page.split('\n');
+      // برچینشِ بلوک‌ها: از خطِ شروع تا خطی که دقیقاً «}» است
+      function block2(startNeedle) {
+        const i = lines.findIndex(l => l.includes(startNeedle));
+        if (i < 0) throw new Error('block not found: ' + startNeedle);
+        let j = i;
+        while (j < lines.length && lines[j].trimEnd() !== '}') j++;
+        return lines.slice(i, j + 1).join('\n');
+      }
+      const cal = (() => {
+        const i = lines.findIndex(l => l.startsWith('var MON=['));
+        const j = lines.findIndex(l => l.startsWith('var DATA='));
+        if (i < 0 || j < 0 || j <= i) throw new Error('MONTHS block not found');
+        return lines.slice(i, j).join('\n');
+      })();
+      const jalali = (() => {
+        const i = lines.findIndex(l => l.includes('/* ===== تقویم شمسی ====='));
+        const j = lines.findIndex(l => l.startsWith('var CALMON='));
+        if (i < 0 || j < 0 || j <= i) throw new Error('jalali block not found');
+        return lines.slice(i, j).join('\n');
+      })();
+      const code = [jalali, cal, block2('function jalaliMiDToIso(mi,d){'), block2('function isoToMiD(iso){')].join('\n');
+      const api = new Function(code + '\n; return {MONTHS:MONTHS,MBASE:MBASE,jMi:jMi,jMiClamp:jMiClamp,isoToMiD:isoToMiD,jalaliMiDToIso:jalaliMiDToIso,jToday:jToday,MON:MON}')();
+      const t = today();
+      const tj = api.jToday();
+      const last = api.MONTHS[api.MONTHS.length - 1];
+      check('the last bucket of the window IS the current month (24 buckets, ending today)', api.MONTHS.length === 24 && last.y === tj.jy && last.m === tj.jm, JSON.stringify({ last, tj }));
+      const md = api.isoToMiD(t);
+      check('a real date round-trips through the page calendar and lands on the newest bucket', !!md && md.mi === api.MONTHS.length - 1 && api.jalaliMiDToIso(md.mi, md.d) === t, JSON.stringify(md));
+      const first = api.MONTHS[0];
+      check('the window is exactly ۲۴ ماه wide (nothing older is silently cut in)', (last.y * 12 + last.m) - (first.y * 12 + first.m) === 23, JSON.stringify({ first, last }));
+      check('the day-before and the first-of-this-month both resolve to the same bucket', api.isoToMiD(api.jalaliMiDToIso(md.mi, 1)).mi === md.mi && api.isoToMiD(api.jalaliMiDToIso(md.mi, 1)).d === 1, JSON.stringify(api.isoToMiD(api.jalaliMiDToIso(md.mi, 1))));
+      // ساعت را جابه‌جا می‌کنیم (ساعت را نمی‌شود عوض کرد، ولی jToday را می‌شود جعل کرد):
+      // اگر امروز ۱ مهر ۱۴۰۵ باشد، پنجرهٔ لغیان باید با امروز بیاید؛ پنجرهٔ قدیمی
+      // روی شهریور قفل می‌ماند و isoToMiD برای همهٔ ردیف‌های تازه null می‌داد.
+      const codeOct = code.replace(/function jToday\(\)[^\n]*\n/, 'var jToday = function(){return {jy:1405, jm:7, jd:1}};\n');
+      if (codeOct === code) throw new Error('jToday could not be stubbed — the page changed shape');
+      const oct = new Function(codeOct + '\n; return {MONTHS:MONTHS,isoToMiD:isoToMiD,jalaliMiDToIso:jalaliMiDToIso}')();
+      const octLast = oct.MONTHS[oct.MONTHS.length - 1];
+      check('simulated ۱ مهر ۱۴۰۵: the window follows the date and the new month still resolves (the old fixed window dropped every row here)',
+        octLast.y === 1405 && octLast.m === 7 && oct.isoToMiD('2026-09-23').mi === oct.MONTHS.length - 1 && oct.jalaliMiDToIso(oct.MONTHS.length - 1, 1) === '2026-09-23',
+        JSON.stringify({ octLast, md: oct.isoToMiD('2026-09-23') }));
+      check('the old hard-coded window is gone from the page', !/for\(var i=0;i<24;i\+\+\)\{var am=1403\*12\+6\+i/.test(page) && page.includes('var MBASE='), 'finance-page.html');
     }
 
   } finally {

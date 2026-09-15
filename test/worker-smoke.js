@@ -403,6 +403,66 @@ async function main() {
     check('worker: crypto still requires a price (shortcut is dollar-only)', w13crypto.status === 400, String(w13crypto.status));
   }
 
+  // [W14] «یورو» روی آرتیفکت دیپلوی‌شده — دقیقاً مثل دلار: فقط مقدار، هر یورو = ۱ یورو،
+  // ارز خودش (EUR) و هیچ ردیف قیمتی برایش ساخته نمی‌شود.
+  console.log('\n[W14] portfolio: euro holding on the deployed artifact (amount only)');
+  {
+    const w14email = `wsmoke_eur_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W14', email: w14email, password: 'secret123' } });
+    const w14login = await call('/api/auth/login', { method: 'POST', body: { email: w14email, password: 'secret123' } });
+    const c14 = String((typeof w14login.headers.getSetCookie === 'function' ? w14login.headers.getSetCookie()[0] : w14login.headers.get('set-cookie')) || '').split(';')[0];
+    const w14buy = (body) => call('/api/investments/tx', { method: 'POST', cookie: c14, body });
+    const w14pf = () => call('/api/portfolio', { cookie: c14 });
+
+    const w14a = await w14buy({ assetType: 'euro', quantity: 300 });
+    const w14p1 = await w14pf();
+    const w14eur = (w14p1.d.items || []).find(x => x.assetType === 'euro');
+    check('worker: a euro holding needs only an amount (price fixed at €1, own EUR currency)',
+      w14a.status === 201 && !!w14eur && w14eur.symbol === 'EUR' && w14eur.currentPrice === 1 && w14eur.marketValue === 300 && w14eur.currency === 'EUR' && w14eur.unrealizedPnl === 0,
+      JSON.stringify(w14eur && { sym: w14eur.symbol, price: w14eur.currentPrice, val: w14eur.marketValue, cur: w14eur.currency }));
+    check('worker: totals are bucketed per currency (EUR here, no USD bucket invented)', w14p1.d.totals.EUR && w14p1.d.totals.EUR.value === 300 && !w14p1.d.totals.USD, JSON.stringify(w14p1.d.totals));
+    await w14buy({ assetType: 'euro', quantity: 150 });
+    const w14rows = ((await w14pf()).d.items || []).filter(x => x.assetType === 'euro');
+    check('worker: buying again merges into one euro row (450)', w14rows.length === 1 && w14rows[0].quantity === 450, JSON.stringify(w14rows.map(x => x.quantity)));
+    const w14bad = await w14buy({ assetType: 'euro' });
+    check('worker: an empty euro amount is a 400 with a euro-specific message', w14bad.status === 400 && /یورو/.test((w14bad.d && w14bad.d.error) || ''), JSON.stringify(w14bad.d));
+    const w14price = await call('/api/investments/price', { method: 'POST', cookie: c14, body: { symbol: 'EUR', price: 300000, assetType: 'euro' } });
+    const w14refresh = await call('/api/investments/price/refresh', { method: 'POST', cookie: c14, body: { symbol: 'USD', assetType: 'dollar' } });
+    check('worker: recording/refreshing a price for دلار or یورو is refused on the artifact too', w14price.status === 400 && w14refresh.status === 400 && /قیمت لازم نیست/.test((w14price.d && w14price.d.error) || ''), JSON.stringify([w14price.status, w14refresh.status]));
+    const w14crypto = await w14buy({ assetType: 'crypto', symbol: 'BTC', quantity: 1 });
+    check('worker: crypto still requires a price (the FX shortcut is dollar/euro only)', w14crypto.status === 400, String(w14crypto.status));
+  }
+
+  // [W15] «بت» روی آرتیفکت: ترتیب با تاریخ کامل، یک ردیف برای هر روز، بهترین/بدترین با مقدار
+  console.log('\n[W15] bet ledger on the deployed artifact (date order, one row per day, best/worst by value)');
+  {
+    const w15email = `wsmoke_betord_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W15', email: w15email, password: 'secret123' } });
+    const w15login = await call('/api/auth/login', { method: 'POST', body: { email: w15email, password: 'secret123' } });
+    const c15 = String((typeof w15login.headers.getSetCookie === 'function' ? w15login.headers.getSetCookie()[0] : w15login.headers.get('set-cookie')) || '').split(';')[0];
+    const w15put = (body) => call('/api/bet', { method: 'POST', cookie: c15, body });
+    const w15get = (q) => call(`/api/bet${q || ''}`, { cookie: c15 });
+    const a5 = await w15put({ date: '2026-10-05', start: 180, balance: 200 });
+    await w15put({ date: '2026-10-03', start: 100, balance: 150 });
+    await w15put({ date: '2026-10-04', start: 150, balance: 240 });
+    const w15g1 = (await w15get('?month=2026-10')).d;
+    check('worker: rows are ordered by the real date whatever order they arrived in',
+      JSON.stringify((w15g1.items || []).map(x => x.date)) === JSON.stringify(['2026-10-03', '2026-10-04', '2026-10-05']),
+      JSON.stringify((w15g1.items || []).map(x => x.date)));
+    check('worker: best is the biggest and worst the smallest win (when every day is a win)',
+      w15g1.stats.best.result === 90 && w15g1.stats.best.date === '2026-10-04' && w15g1.stats.worst.result === 20 && w15g1.stats.worst.date === '2026-10-05' && w15g1.stats.profit === 160 && w15g1.stats.losses === 0,
+      JSON.stringify({ best: w15g1.stats.best, worst: w15g1.stats.worst }));
+    const w15dup = await call(`/api/bet/${a5.d.day.id}`, { method: 'PATCH', cookie: c15, body: { date: '2026-10-04' } });
+    check('worker: a second row on the same day is refused (409, not a silent duplicate)', w15dup.status === 409, JSON.stringify([w15dup.status, w15dup.d]));
+    const w15move = await call(`/api/bet/${a5.d.day.id}`, { method: 'PATCH', cookie: c15, body: { date: '2026-10-02' } });
+    const w15g2 = (await w15get('?month=2026-10')).d;
+    check('worker: moving a day to a free date re-orders the whole month', w15move.status === 200 && JSON.stringify((w15g2.items || []).map(x => x.date)) === JSON.stringify(['2026-10-02', '2026-10-03', '2026-10-04']), JSON.stringify((w15g2.items || []).map(x => x.date)));
+    const w15sug = (await w15get('')).d;
+    check('worker: no day before today means no invented zero suggestion', w15sug.suggestedStart === null && w15sug.suggestedDate === null, JSON.stringify({ s: w15sug.suggestedStart, d: w15sug.suggestedDate }));
+    const w15tx = ((await call('/api/transactions?from=2026-01-01&to=2026-12-31', { cookie: c15 })).d.items) || [];
+    check('worker: the reordered/moved bet rows still create no transaction', w15tx.length === 0, JSON.stringify(w15tx.length));
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }
