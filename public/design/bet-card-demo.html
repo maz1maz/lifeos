@@ -31,6 +31,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);margin:0;paddi
 .pks small{color:var(--faint);font-size:12.5px;display:block}
 .pks b{font-family:var(--fh);font-size:17px}
 .pkmini{display:flex;align-items:flex-end;gap:4px;height:56px;margin-top:12px}
+#btMini{direction:ltr;height:62px;border-bottom:1px solid var(--border2);padding-bottom:2px}
+#btMini .pkm.today span{color:var(--acc);font-weight:700}
+
 .pkm{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:3px;align-items:center;height:100%}
 .pkm i{display:block;width:70%;border-radius:4px;min-height:3px}
 .pkm i.pos{background:color-mix(in srgb,var(--good) 70%,transparent)}
@@ -62,45 +65,58 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);margin:0;paddi
 var MON=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
 var faD={'0':'۰','1':'۱','2':'۲','3':'۳','4':'۴','5':'۵','6':'۶','7':'۷','8':'۸','9':'۹'};
 function fa(n){return String(n).replace(/\d/g,function(d){return faD[d]})}
-/* دادهٔ نمونه — همان شکل پاسخ /api/bet */
+/* دادهٔ نمونه — همان شکل پاسخ /api/bet. عمداً «به‌هم‌ریخته» چیده شده تا مشخص شود
+   ترتیب با تاریخ کامل ساخته می‌شود، نه با ترتیب ورود. */
 var BET=[
- {id:'a1',d:1,dep:0,wd:0,start:100,bal:118,res:18},
- {id:'a2',d:2,dep:0,wd:0,start:118,bal:96,res:-22},
- {id:'a3',d:3,dep:50,wd:0,start:96,bal:160,res:14},
- {id:'a4',d:4,dep:0,wd:0,start:160,bal:148,res:-12},
- {id:'a5',d:5,dep:0,wd:0,start:148,bal:175,res:27},
- {id:'a6',d:8,dep:0,wd:0,start:175,bal:151,res:-24},
- {id:'a7',d:9,dep:0,wd:0,start:151,bal:190,res:39},
- {id:'a8',d:10,dep:0,wd:40,start:190,bal:142,res:-8},
- {id:'a9',d:11,dep:0,wd:0,start:142,bal:161,res:19},
- {id:'a10',d:12,dep:0,wd:0,start:161,bal:147,res:-14},
- {id:'a11',d:15,dep:0,wd:0,start:147,bal:180,res:33},
- {id:'a12',d:16,dep:0,wd:0,start:180,bal:169,res:-11},
- {id:'a13',d:17,dep:0,wd:0,start:169,bal:183,res:14}
+ {id:'a3',date:'2026-09-03',d:3,dep:50,wd:0,start:96,bal:160,res:14},
+ {id:'a1',date:'2026-09-01',d:1,dep:0,wd:0,start:100,bal:118,res:18},
+ {id:'a9',date:'2026-09-09',d:9,dep:0,wd:0,start:151,bal:190,res:39},
+ {id:'a2',date:'2026-09-02',d:2,dep:0,wd:0,start:118,bal:96,res:-22},
+ {id:'a13',date:'2026-09-17',d:17,dep:0,wd:0,start:169,bal:183,res:14},
+ {id:'a4',date:'2026-09-04',d:4,dep:0,wd:0,start:160,bal:148,res:-12},
+ {id:'a8',date:'2026-09-10',d:10,dep:0,wd:40,start:190,bal:142,res:-8},
+ {id:'a5',date:'2026-09-05',d:5,dep:0,wd:0,start:148,bal:175,res:27},
+ {id:'a12',date:'2026-09-16',d:16,dep:0,wd:0,start:180,bal:169,res:-11},
+ {id:'a6',date:'2026-09-08',d:8,dep:0,wd:0,start:175,bal:151,res:-24},
+ {id:'a11',date:'2026-09-15',d:15,dep:0,wd:0,start:147,bal:180,res:33},
+ {id:'a10',date:'2026-09-12',d:12,dep:0,wd:0,start:147,bal:147,res:0},
+ {id:'a7',date:'2026-09-13',d:13,dep:0,wd:0,start:147,bal:161,res:19}
 ];
 function btMoney(n){n=Math.round(Number(n||0)*100)/100;return '$'+(Math.abs(n)%1===0?String(Math.abs(n)):Math.abs(n).toFixed(2))}
 function btSigned(n){return (n>=0?'+':'−')+btMoney(n)}
+function btLtr(v){return '<bdi dir="ltr">'+v+'</bdi>'}
+function btDayLabel(x){return x.date==='2026-09-17'?'امروز':fa(x.d)+' '+MON[5]}
 (function renderBet(){
-  var ms=BET.slice().sort(function(a,b){return a.d-b.d});
-  var profit=ms.reduce(function(s,x){return s+x.res},0);
+  var ms=BET.slice().sort(function(a,b){var c=String(a.date).localeCompare(String(b.date));return c||(a.id<b.id?-1:1)});
+  var profit=Math.round(ms.reduce(function(s,x){return s+x.res},0)*100)/100;
   var wins=ms.filter(function(x){return x.res>0}).length,losses=ms.filter(function(x){return x.res<0}).length;
-  var best=ms.reduce(function(a,x){return (!a||x.res>a.res)?x:a},null);
-  var worst=ms.reduce(function(a,x){return (!a||x.res<a.res)?x:a},null);
+  var best=null,worst=null;
+  ms.forEach(function(x){if(!best||x.res>best.res)best=x;if(!worst||x.res<worst.res)worst=x});
+  var cell=function(x){
+    var c=x.res>0?'var(--good)':(x.res<0?'var(--bad)':'var(--muted)');
+    return '<span style="color:'+c+'">'+btLtr(btSigned(x.res))+' <small style="color:var(--faint);font-weight:400">'+btDayLabel(x)+'</small></span>';
+  };
+  var bw='<small style="color:var(--faint)">بهترین </small>'+cell(best);
+  if(worst&&worst.id!==best.id){
+    bw+='<span style="color:var(--faint)"> · </span><small style="color:var(--faint)">بدترین </small>'+cell(worst);
+    if(worst.res>=0)bw+='<small style="color:var(--faint)"> (بدترین روز هم برد بود)</small>';
+  }
   document.getElementById('btStats').innerHTML=
-   '<div class="pks"><small>سود / زیان ماه</small><b style="color:'+(profit>=0?'var(--good)':'var(--bad)')+'">'+btSigned(profit)+'</b></div>'
+   '<div class="pks"><small>سود / زیان ماه</small><b style="color:'+(profit>=0?'var(--good)':'var(--bad)')+'">'+btLtr(btSigned(profit))+'</b></div>'
   +'<div class="pks"><small>روزها</small><b>'+fa(ms.length)+' <span style="font-size:12px;color:var(--muted)">('+fa(wins)+' برد · '+fa(losses)+' باخت)</span></b></div>'
   +'<div class="pks"><small>وین‌ریت</small><b>'+fa(Math.round(wins/ms.length*100))+'٪</b></div>'
-  +'<div class="pks"><small>بهترین / بدترین روز</small><b style="font-size:14.5px"><span style="color:var(--good)">'+btSigned(best.res)+'</span> · <span style="color:var(--bad)">'+btSigned(worst.res)+'</span></b></div>';
+  +'<div class="pks"><small>بهترین و بدترین روز</small><b style="font-size:14.5px">'+bw+'</b></div>';
   var mx=1;ms.forEach(function(x){mx=Math.max(mx,Math.abs(x.res))});
   document.getElementById('btMini').innerHTML=ms.map(function(x){
     var hh=Math.max(5,Math.round(Math.abs(x.res)/mx*42));
-    return '<div class="pkm" title="'+fa(x.d)+' — '+btSigned(x.res)+'"><i class="'+(x.res>=0?'pos':'neg')+'" style="height:'+hh+'px"></i><span>'+fa(x.d)+'</span></div>';
+    var tt=btDayLabel(x)+' — '+(x.res>0?'برد ':x.res<0?'باخت ':'بدون تغییر ')+btSigned(x.res);
+    return '<div class="pkm'+(x.date==='2026-09-17'?' today':'')+'" title="'+tt+'"><i class="'+(x.res>=0?'pos':'neg')+'" style="height:'+hh+'px"></i><span>'+fa(x.d)+'</span></div>';
   }).join('');
   document.getElementById('btList').innerHTML=ms.slice().reverse().map(function(x){
-    return '<div class="txi"><span class="catdot" style="background:'+(x.res>=0?'var(--good)':'var(--bad)')+'"></span>'
-     +'<span class="d">'+fa(x.d)+' '+MON[5]+'</span>'
-     +'<span class="t">🎯 <small>داشتم '+btMoney(x.start)+' · واریز '+btMoney(x.dep)+' · برداشت '+btMoney(x.wd)+' · موجودی '+btMoney(x.bal)+'</small></span>'
-     +'<span class="amt '+(x.res>=0?'inc':'exp')+'">'+btSigned(x.res)+'</span>'
+    return '<div class="txi'+(x.date==='2026-09-17'?' today':'')+'"><span class="catdot" style="background:'+(x.res>0?'var(--good)':x.res<0?'var(--bad)':'var(--faint)')+'"></span>'
+     +'<span class="d">'+btDayLabel(x)+'</span>'
+     +'<span class="t">🎯 <small>داشتم '+btLtr(btMoney(x.start))+' · واریز '+btLtr(btMoney(x.dep))+' · برداشت '+btLtr(btMoney(x.wd))+' · موجودی '+btLtr(btMoney(x.bal))+'</small></span>'
+     +'<span class="amt '+(x.res>=0?'inc':'exp')+'">'+btLtr(btSigned(x.res))+'</span>'
      +'<button class="rowedit">✎</button><button class="rowedit">🗑</button></div>';
   }).join('');
 })();

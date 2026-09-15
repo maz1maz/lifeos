@@ -403,6 +403,161 @@ async function main() {
     check('worker: crypto still requires a price (shortcut is dollar-only)', w13crypto.status === 400, String(w13crypto.status));
   }
 
+  // [W14] «یورو» روی آرتیفکت دیپلوی‌شده — دقیقاً مثل دلار: فقط مقدار، هر یورو = ۱ یورو،
+  // ارز خودش (EUR) و هیچ ردیف قیمتی برایش ساخته نمی‌شود.
+  console.log('\n[W14] portfolio: euro holding on the deployed artifact (amount only)');
+  {
+    const w14email = `wsmoke_eur_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W14', email: w14email, password: 'secret123' } });
+    const w14login = await call('/api/auth/login', { method: 'POST', body: { email: w14email, password: 'secret123' } });
+    const c14 = String((typeof w14login.headers.getSetCookie === 'function' ? w14login.headers.getSetCookie()[0] : w14login.headers.get('set-cookie')) || '').split(';')[0];
+    const w14buy = (body) => call('/api/investments/tx', { method: 'POST', cookie: c14, body });
+    const w14pf = () => call('/api/portfolio', { cookie: c14 });
+
+    const w14a = await w14buy({ assetType: 'euro', quantity: 300 });
+    const w14p1 = await w14pf();
+    const w14eur = (w14p1.d.items || []).find(x => x.assetType === 'euro');
+    check('worker: a euro holding needs only an amount (price fixed at €1, own EUR currency)',
+      w14a.status === 201 && !!w14eur && w14eur.symbol === 'EUR' && w14eur.currentPrice === 1 && w14eur.marketValue === 300 && w14eur.currency === 'EUR' && w14eur.unrealizedPnl === 0,
+      JSON.stringify(w14eur && { sym: w14eur.symbol, price: w14eur.currentPrice, val: w14eur.marketValue, cur: w14eur.currency }));
+    check('worker: totals are bucketed per currency (EUR here, no USD bucket invented)', w14p1.d.totals.EUR && w14p1.d.totals.EUR.value === 300 && !w14p1.d.totals.USD, JSON.stringify(w14p1.d.totals));
+    await w14buy({ assetType: 'euro', quantity: 150 });
+    const w14rows = ((await w14pf()).d.items || []).filter(x => x.assetType === 'euro');
+    check('worker: buying again merges into one euro row (450)', w14rows.length === 1 && w14rows[0].quantity === 450, JSON.stringify(w14rows.map(x => x.quantity)));
+    const w14bad = await w14buy({ assetType: 'euro' });
+    check('worker: an empty euro amount is a 400 with a euro-specific message', w14bad.status === 400 && /یورو/.test((w14bad.d && w14bad.d.error) || ''), JSON.stringify(w14bad.d));
+    const w14price = await call('/api/investments/price', { method: 'POST', cookie: c14, body: { symbol: 'EUR', price: 300000, assetType: 'euro' } });
+    const w14refresh = await call('/api/investments/price/refresh', { method: 'POST', cookie: c14, body: { symbol: 'USD', assetType: 'dollar' } });
+    check('worker: recording/refreshing a price for دلار or یورو is refused on the artifact too', w14price.status === 400 && w14refresh.status === 400 && /قیمت لازم نیست/.test((w14price.d && w14price.d.error) || ''), JSON.stringify([w14price.status, w14refresh.status]));
+    const w14crypto = await w14buy({ assetType: 'crypto', symbol: 'BTC', quantity: 1 });
+    check('worker: crypto still requires a price (the FX shortcut is dollar/euro only)', w14crypto.status === 400, String(w14crypto.status));
+  }
+
+  // [W15] «بت» روی آرتیفکت: ترتیب با تاریخ کامل، یک ردیف برای هر روز، بهترین/بدترین با مقدار
+  console.log('\n[W15] bet ledger on the deployed artifact (date order, one row per day, best/worst by value)');
+  {
+    const w15email = `wsmoke_betord_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W15', email: w15email, password: 'secret123' } });
+    const w15login = await call('/api/auth/login', { method: 'POST', body: { email: w15email, password: 'secret123' } });
+    const c15 = String((typeof w15login.headers.getSetCookie === 'function' ? w15login.headers.getSetCookie()[0] : w15login.headers.get('set-cookie')) || '').split(';')[0];
+    const w15put = (body) => call('/api/bet', { method: 'POST', cookie: c15, body });
+    const w15get = (q) => call(`/api/bet${q || ''}`, { cookie: c15 });
+    const a5 = await w15put({ date: '2026-10-05', start: 180, balance: 200 });
+    await w15put({ date: '2026-10-03', start: 100, balance: 150 });
+    await w15put({ date: '2026-10-04', start: 150, balance: 240 });
+    const w15g1 = (await w15get('?month=2026-10')).d;
+    check('worker: rows are ordered by the real date whatever order they arrived in',
+      JSON.stringify((w15g1.items || []).map(x => x.date)) === JSON.stringify(['2026-10-03', '2026-10-04', '2026-10-05']),
+      JSON.stringify((w15g1.items || []).map(x => x.date)));
+    check('worker: best is the biggest and worst the smallest win (when every day is a win)',
+      w15g1.stats.best.result === 90 && w15g1.stats.best.date === '2026-10-04' && w15g1.stats.worst.result === 20 && w15g1.stats.worst.date === '2026-10-05' && w15g1.stats.profit === 160 && w15g1.stats.losses === 0,
+      JSON.stringify({ best: w15g1.stats.best, worst: w15g1.stats.worst }));
+    const w15dup = await call(`/api/bet/${a5.d.day.id}`, { method: 'PATCH', cookie: c15, body: { date: '2026-10-04' } });
+    check('worker: a second row on the same day is refused (409, not a silent duplicate)', w15dup.status === 409, JSON.stringify([w15dup.status, w15dup.d]));
+    const w15move = await call(`/api/bet/${a5.d.day.id}`, { method: 'PATCH', cookie: c15, body: { date: '2026-10-02' } });
+    const w15g2 = (await w15get('?month=2026-10')).d;
+    check('worker: moving a day to a free date re-orders the whole month', w15move.status === 200 && JSON.stringify((w15g2.items || []).map(x => x.date)) === JSON.stringify(['2026-10-02', '2026-10-03', '2026-10-04']), JSON.stringify((w15g2.items || []).map(x => x.date)));
+    const w15sug = (await w15get('')).d;
+    check('worker: no day before today means no invented zero suggestion', w15sug.suggestedStart === null && w15sug.suggestedDate === null, JSON.stringify({ s: w15sug.suggestedStart, d: w15sug.suggestedDate }));
+    const w15tx = ((await call('/api/transactions?from=2026-01-01&to=2026-12-31', { cookie: c15 })).d.items) || [];
+    check('worker: the reordered/moved bet rows still create no transaction', w15tx.length === 0, JSON.stringify(w15tx.length));
+  }
+
+  console.log('\n[W16] the login gate vs Cloudflare\'s extensionless asset URLs');
+  {
+    // Cloudflare serves static assets with "clean" URLs: `/x.html` answers 307 →
+    // `/x` and `/x` is what actually gets served. That means one page view reaches
+    // the Worker gate TWICE, and the second time the path has no extension — so the
+    // gate must treat both forms of the login page as public, or an anonymous
+    // visitor spins in a redirect loop (and the console script's check 1 used to
+    // call the healthy rewrite a failure, which is what this section pins).
+    const fileFor = (q) => path.join(ROOT, 'public', q === '/' ? 'index.html' : q.replace(/^\//, ''));
+    const readIfFile = (f) => (fs.existsSync(f) && fs.statSync(f).isFile() ? fs.readFileSync(f) : null);
+    const htmlRes = (buf) => new Response(buf, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+    const cfAssets = {
+      fetch: async (req) => {
+        const p = new URL(req.url).pathname;
+        if (p.endsWith('.html')) {
+          const clean = p === '/index.html' ? '/' : p.slice(0, -'.html'.length);
+          const target = clean === '/' ? fileFor('/') : fileFor(clean) + '.html';
+          if (readIfFile(target) !== null) return new Response(null, { status: 307, headers: { location: clean } });
+        }
+        const own = readIfFile(fileFor(p));
+        if (own !== null) return htmlRes(own);
+        const viaClean = path.extname(p) ? null : readIfFile(fileFor(p) + '.html');
+        return viaClean === null ? new Response('not found', { status: 404 }) : htmlRes(viaClean);
+      },
+    };
+    const w16env = Object.assign({}, env, { ASSETS: cfAssets });
+    async function w16hop(w, p, cookie) {
+      const headers = {};
+      if (cookie) headers.cookie = cookie;
+      let url = 'https://worker-smoke.local' + p;
+      let res = await w.fetch(new Request(url, { headers }), w16env, {});
+      const chain = [p];
+      for (let i = 0; i < 6 && res.status >= 300 && res.status < 400; i++) {
+        const loc = res.headers.get('location');
+        if (!loc) break;
+        url = new URL(loc, url).toString();
+        chain.push(new URL(url).pathname);
+        res = await w.fetch(new Request(url, { headers }), w16env, {});
+      }
+      const text = await res.text();
+      return { status: res.status, chain, text, looping: res.status >= 300 && res.status < 400 };
+    }
+    const w16anon = await w16hop(worker, '/newtab.html', null);
+    check('worker: an anonymous /newtab.html lands on the login page through the rewrite (no loop)',
+      !w16anon.looping && w16anon.status === 200 && /id="fEmail"/.test(w16anon.text)
+        && w16anon.chain.join(' ') === '/newtab.html /design/login-page.html /design/login-page',
+      JSON.stringify({ chain: w16anon.chain, status: w16anon.status }));
+    const w16login = await w16hop(worker, '/design/login-page', null);
+    check('worker: the extensionless login URL is public too, so the rewrite has nowhere to loop',
+      !w16login.looping && w16login.status === 200 && /id="fEmail"/.test(w16login.text),
+      JSON.stringify({ chain: w16login.chain, status: w16login.status }));
+    const w16email = `wsmoke_gate_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W16', email: w16email, password: 'secret123' } });
+    const w16lg = await call('/api/auth/login', { method: 'POST', body: { email: w16email, password: 'secret123' } });
+    const c16 = String((typeof w16lg.headers.getSetCookie === 'function' ? w16lg.headers.getSetCookie()[0] : w16lg.headers.get('set-cookie')) || '').split(';')[0];
+    const w16auth = await w16hop(worker, '/newtab.html', c16);
+    check('worker: with a session the rewrite is harmless and the real newtab is served',
+      !w16auth.looping && w16auth.status === 200 && /id="qIn"/.test(w16auth.text)
+        && w16auth.chain.join(' ') === '/newtab.html /newtab',
+      JSON.stringify({ chain: w16auth.chain, status: w16auth.status }));
+    const w16gateLine = "const isPublic = /^\\/design\\/login-page(\\.html)?$/.test(url.pathname)";
+    if (!workerSrc.includes(w16gateLine)) throw new Error('the isPublic line changed shape — update this guard');
+    const w16brokenSrc = workerSrc
+      .replace(XLSX_IMPORT, 'const XLSX = null; // harness stub (see the loader above)')
+      .replace(w16gateLine, "const isPublic = /^\\/design\\/login-page\\.html$/.test(url.pathname)");
+    const w16tmp = path.join(__dirname, '.tmp-w16-worker.mjs');
+    fs.writeFileSync(w16tmp, w16brokenSrc);
+    let w16broken;
+    try {
+      w16broken = (await import(pathToFileURL(w16tmp).href + '?v=' + Math.random())).default;
+    } finally {
+      fs.rmSync(w16tmp, { force: true });
+    }
+    const w16loop = await w16hop(w16broken, '/newtab.html', null);
+    check('[W16] teeth: a gate that only knows /design/login-page.html loops every anonymous visitor',
+      w16loop.looping, JSON.stringify(w16loop.chain));
+  }
+  console.log('\n[W17] the monthly charts on the deployed asset (shared scale, short labels, honest empty state)');
+  {
+    // public/design/finance-page.html ships as a Worker asset, so the deploy *is* this
+    // file — its shape is worth pinning here: the two 24-bar charts were unreadable on
+    // the live app (clipped month names, a private y-scale per card, «undefined»
+    // printed next to any category missing from the icon map).
+    const w17page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
+    check('asset: the range switch, the shared-scale readout and the dynamic titles are in the shipped file',
+      w17page.includes('id="chRange"') && w17page.includes('id="chScale"') && w17page.includes('id="chExpTitle"'));
+    check('asset: the old hardcoded «جمع ۲۴ ماه» footnote is gone (it lied the moment the range changed)',
+      !w17page.includes('\u062c\u0645\u0639 \u06f2\u06f4 \u0645\u0627\u0647'));
+    check('asset: bars read oldest→newest from the left, like the bet chart',
+      /\.chart\{[^}]*direction:ltr/.test(w17page));
+    check('asset: no bare CATI[...] concatenation is shipped (that printed «undefined» beside a category)',
+      !/CATI\[[^\]]+\]\s*\+/.test(w17page) && w17page.includes('function catIco(') && w17page.includes('function catTxt('));
+    check('asset: the zero-month and empty-window states exist in the shipped CSS',
+      w17page.includes('.ccol.zero .cbar{') && w17page.includes('.chart-empty{'));
+  }
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }
