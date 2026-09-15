@@ -450,12 +450,12 @@ function renderLocal(t){
 function renderLive(items){
   var box=document.getElementById('results');
   var rows=(items||[]).slice(0,8).map(function(it){
-    var name=it.title||it.name||'؟',yr=(it.release_date||it.first_air_date||'').slice(0,4);
-    var img=it.poster_path?(String(it.poster_path).indexOf('http')===0?it.poster_path:'https://image.tmdb.org/t/p/w200'+it.poster_path):'';
+    var name=it.title||it.name||'؟',yr=String(it.date||'').slice(0,4);
+    var img=it.posterUrl||'';
     if(!img)return '';
     return '<div class="sres"><img src="'+img+'" alt="">'
       +'<div class="st"><b>'+name+'</b><small>'+fa(yr)+' · TMDB ● زنده</small></div>'
-      +'<button class="addbtn" data-addlive="'+encodeURIComponent(JSON.stringify({name:name,img:img,year:yr}))+'">➕ افزودن</button></div>';
+      +'<button class="addbtn" data-addlive="'+encodeURIComponent(JSON.stringify({name:name,img:img,year:yr,tmdbId:it.tmdbId,mediaType:it.mediaType||'movie'}))+'">➕ افزودن</button></div>';
   }).join('');
   box.innerHTML=rows||'<div class="nores">چیزی پیدا نشد</div>';
 }
@@ -566,8 +566,8 @@ document.addEventListener('click',function(e){
   if(b=e.target.closest('[data-addlive]')){
     var d;try{d=JSON.parse(decodeURIComponent(b.dataset.addlive))}catch(e2){return}
     var lk='lv'+Date.now();LIVEINFO[lk]={name:d.name,img:d.img,year:d.year,genre:'TMDB',dir:'—',min:0};
-    fetch('/api/movies',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({title:d.name,type:'movie',status:'watchlist',year:d.year||null})
+    fetch('/api/movies/from-tmdb',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tmdbId:d.tmdbId,mediaType:d.mediaType||'movie',status:'watchlist'})
     }).then(function(r){return r.json().then(function(j){return{ok:r.ok,status:r.status,d:j}})})
     .then(function(x){
       if(x.status===401){location.href='/design/login-page.html';return}
