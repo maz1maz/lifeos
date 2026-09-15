@@ -1091,6 +1091,70 @@ async function main() {
       check('poker/bet money never leaks into the finance totals', fin.expense === 500_000 && fin.income === 0, JSON.stringify({ income: fin.income, expense: fin.expense }));
     }
 
+    /* [47] بخش «بت» (دلاری): هر روز «مبلغی که داشتم» + واریز/برداشت اختیاری + موجودی سایت.
+       سود/زیان روز = موجودی − مبلغ ابتدای روز − واریز + برداشت، پس پولی که تازه به سایت
+       می‌دهم اشتباهی «برد» حساب نمی‌شود. «مبلغی که داشتم» خودکار از موجودی دیروز می‌آید.
+       مثل پوکر، این بخش هیچ تراکنشی نمی‌سازد. */
+    console.log('\n[47] «بت» daily ledger: win/loss per day, monthly chart stats, never touches transactions');
+    {
+      const email5 = 'smoke-bet-' + Date.now() + '@example.com';
+      await fetch(`${BASE}/api/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'B', email: email5, password: 'secret123' }) });
+      const login5 = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email5, password: 'secret123' }) });
+      const auth5 = { 'Content-Type': 'application/json', Cookie: login5.headers.get('set-cookie').split(';')[0] };
+      const put = (body) => fetch(`${BASE}/api/bet`, { method: 'POST', headers: auth5, body: JSON.stringify(body) }).then(r => r.json());
+      const betOf = () => fetch(`${BASE}/api/bet`, { headers: auth5 }).then(r => r.json());
+      const txt = (body) => fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: auth5, body: JSON.stringify(body) }).then(r => r.json());
+      const month = () => fetch(`${BASE}/api/bet?month=2026-09`, { headers: auth5 }).then(r => r.json());
+      const base0 = await put({ date: '2026-09-09', balance: 500 });
+      check('the very first entry is a baseline (no phantom win on the first day ever)', base0.day.result === 0 && base0.day.start === 500, JSON.stringify(base0.day));
+      await fetch(`${BASE}/api/bet/${base0.day.id}`, { method: 'DELETE', headers: auth5 });
+
+      const d1 = await put({ date: '2026-09-10', deposit: 100, balance: 120 });
+      check('first day: deposit $100 -> balance $120 = +20 win', d1.day?.result === 20 && d1.day.start === 0, JSON.stringify(d1.day));
+      const d2 = await put({ date: '2026-09-11', balance: 95 });
+      check('next day: «مبلغی که داشتم» is auto-filled from yesterday ($120) -> -25 loss', d2.day?.result === -25 && d2.day.start === 120, JSON.stringify(d2.day));
+      const d3 = await put({ date: '2026-09-12', deposit: 50, balance: 160 });
+      check('a $50 top-up is NOT counted as a win (160-95-50 = +15)', d3.day?.result === 15, JSON.stringify(d3.day));
+      const d4 = await put({ date: '2026-09-13', withdraw: 40, balance: 130 });
+      check('a $40 withdrawal is NOT counted as a loss (130-160+40 = +10)', d4.day?.result === 10, JSON.stringify(d4.day));
+      const st = (await month()).stats;
+      check('monthly stats: profit, win-rate, best and worst day', st.days === 4 && st.profit === 20 && st.wins === 3 && st.losses === 1 && st.winRate === 75 && st.best.result === 20 && st.worst.result === -25, JSON.stringify({ days: st.days, profit: st.profit, wins: st.wins, losses: st.losses, rate: st.winRate, best: st.best && st.best.result, worst: st.worst && st.worst.result }));
+      check('deposits/withdrawals are reported separately from profit', st.deposits === 150 && st.withdrawals === 40, JSON.stringify({ dep: st.deposits, wd: st.withdrawals }));
+      const up = await put({ date: '2026-09-13', withdraw: 40, balance: 140 });
+      const st2 = (await month()).stats;
+      check('saving the same date again updates that day (one row per day)', up.day.result === 20 && st2.days === 4 && st2.profit === 30, JSON.stringify({ days: st2.days, profit: st2.profit }));
+      const noBal = await fetch(`${BASE}/api/bet`, { method: 'POST', headers: auth5, body: JSON.stringify({ date: '2026-09-14' }) });
+      check('balance is required (400 with a clear error)', noBal.status === 400, String(noBal.status));
+      const delId = up.day.id;
+      await fetch(`${BASE}/api/bet/${delId}`, { method: 'DELETE', headers: auth5 });
+      const st3 = (await month()).stats;
+      check('deleting a day recomputes the month', st3.days === 3 && st3.profit === 10, JSON.stringify({ days: st3.days, profit: st3.profit }));
+      const rows = ((await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth5 }).then(r => r.json())).items) || [];
+      const fin = await fetch(`${BASE}/api/finance?month=2026-09`, { headers: auth5 }).then(r => r.json());
+      check('the bet ledger never creates a transaction or moves the finance totals', rows.length === 0 && fin.income === 0 && fin.expense === 0, JSON.stringify({ rows: rows.length, income: fin.income, expense: fin.expense }));
+      const other = ((await fetch(`${BASE}/api/bet?month=2026-09`, { headers: authHeaders }).then(r => r.json())).items) || [];
+      check('bet days are per-user (the main test user sees none of them)', other.length === 0, JSON.stringify(other.length));
+      // typing the bet balance also works from Telegram/text: «بت موجودی ۳۰۰ دلار»
+      // (the row for today is created/updated in place - one row per day - and still no transaction)
+      const todayIso = today(); /* سرور هم با تایم‌زون تهران تاریخ می‌زند */
+      const s0 = (await fetch(`${BASE}/api/bet`, { headers: auth5 }).then(r => r.json())).suggestedStart;
+      const t1 = await txt({ text: 'بت موجودی ۳۰۰ دلار' });
+      const r1 = await betOf();
+      const row1 = (r1.items || []).find(x => x.date === todayIso);
+      check('typing the bet balance logs today as a bet day, «مبلغی که داشتم» auto-filled from yesterday',
+        !!((t1.actions || []).find(x => x.type === 'betDay')) && !!row1 && row1.balance === 300 && row1.start === s0 && row1.result === 300 - s0,
+        JSON.stringify({ actions: t1.actions, row: row1, suggestedStart: s0 }));
+      await txt({ text: 'بت موجودی ۳۵۰ دلار' });
+      const r2 = await betOf();
+      const rowsToday = (r2.items || []).filter(x => x.date === todayIso);
+      check('the second message of the same day updates that day (+$50) instead of adding a row',
+        rowsToday.length === 1 && rowsToday[0].balance === 350 && rowsToday[0].result === 350 - s0,
+        JSON.stringify(rowsToday));
+      const dep = await txt({ text: 'بت ۵۰ دلار واریز کردم' });
+      const rows3 = ((await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth5 }).then(r => r.json())).items) || [];
+      check('a deposit phrase stays an Inbox note (no bet day, no transaction)', !(dep.actions || []).some(x => x.type === 'betDay') && rows3.length === 0, JSON.stringify(dep.actions));
+    }
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });

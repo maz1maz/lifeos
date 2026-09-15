@@ -605,6 +605,23 @@ body.nav-open .nav-backdrop{display:block}
     <div class="txlist" id="pkList" style="margin-top:10px"></div>
   </div>
 
+  <div class="card">
+    <div class="mhead"><h4>🎯 بت <span style="font-size:12px;color:var(--faint)">(دلاری)</span></h4><span style="color:var(--faint);font-size:13px">هر روز موجودی سایت بت — برد یا باخت همون روز</span></div>
+    <div class="pkstats" id="btStats"></div>
+    <div class="pkmini" id="btMini"></div>
+    <div class="addh pkrow">
+      <button id="btDate" style="background:var(--panel);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font:inherit;font-size:13.5px;padding:6px 12px;cursor:pointer">امروز</button>
+      <input id="btStart" placeholder="مبلغی که داشتم ($)" style="width:132px;direction:ltr" inputmode="decimal">
+      <input id="btDep" placeholder="واریز ($)" style="width:104px;direction:ltr" inputmode="decimal">
+      <input id="btWd" placeholder="برداشت ($)" style="width:104px;direction:ltr" inputmode="decimal">
+      <input id="btBal" placeholder="موجودی سایت ($)" style="width:124px;direction:ltr" inputmode="decimal">
+      <button id="btAdd">➕ ثبت روز</button>
+      <button id="btCancel" style="display:none;background:var(--panel);border:1.5px solid var(--border);border-radius:10px;color:var(--muted);font:inherit;font-size:13px;padding:6px 10px;cursor:pointer">انصراف</button>
+    </div>
+    <div class="dbnote">سود/زیان هر روز = موجودی پایان روز − «مبلغی که داشتم» − واریز + برداشت. «مبلغی که داشتم» خودش از موجودی روز قبل پر می‌شود؛ فقط روزی که پول تازه‌ای به سایت دادم یا برداشتم، آن دو کادر را پر می‌کنم. این بخش هیچ تراکنشی نمی‌سازد.</div>
+    <div class="txlist" id="btList" style="margin-top:10px"></div>
+  </div>
+
 <div class="card">
     <div class="mhead"><h4>🧾 تاریخچه تراکنش‌ها</h4><span id="histCount" style="color:var(--faint);font-size:13px"></span></div>
     <div class="histbar">
@@ -1189,6 +1206,114 @@ document.getElementById('pkAdd').addEventListener('click',function(){
     document.getElementById('pkBuy').value='';document.getElementById('pkOut').value='';
   }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
 });
+/* ============ بت (دلاری) ============ */
+var BET=[];var BTEDIT=null;
+var BTDATE=(function(){var t=jToday();return{mi:(t.jy*12+t.jm-1)-(1403*12+6),d:t.jd}})();
+function btMonthIdx(){var t=jToday();var cur=(t.jy*12+t.jm-1)-(1403*12+6);return Math.max(0,Math.min(23,curMi))}
+function btIso(){var mi=Math.max(0,Math.min(23,BTDATE.mi));return jalaliMiDToIso(mi,BTDATE.d)}
+function btNum(v){var n=parseFloat(faToEn(String(v||'')).replace(/[^0-9.]/g,''));return isFinite(n)?n:null}
+function btMoney(n){n=Math.round(Number(n||0)*100)/100;return '$'+(Math.abs(n)%1===0?String(Math.abs(n)):Math.abs(n).toFixed(2))}
+function btSigned(n){return (n>=0?'+':'−')+btMoney(n)}
+function btPut(id,o){return fetch('/api/bet'+(id?('/'+encodeURIComponent(id)):''),{method:id?'PATCH':'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)})}
+function btReset(){
+  BTEDIT=null;
+  ['btStart','btDep','btWd','btBal'].forEach(function(i){document.getElementById(i).value=''});
+  document.getElementById('btAdd').textContent='➕ ثبت روز';
+  document.getElementById('btCancel').style.display='none';
+}
+function renderBet(){
+  var ms=BET.filter(function(x){return x.mi===curMi}).sort(function(a,b){return a.d-b.d});
+  var profit=ms.reduce(function(s,x){return s+x.res},0);
+  var wins=ms.filter(function(x){return x.res>0}).length;
+  var losses=ms.filter(function(x){return x.res<0}).length;
+  var best=ms.reduce(function(a,x){return (!a||x.res>a.res)?x:a},null);
+  var worst=ms.reduce(function(a,x){return (!a||x.res<a.res)?x:a},null);
+  document.getElementById('btStats').innerHTML=
+   '<div class="pks"><small>سود / زیان ماه</small><b style="color:'+(profit>=0?'var(--good)':'var(--bad)')+'">'+btSigned(profit)+'</b></div>'
+  +'<div class="pks"><small>روزها</small><b>'+fa(ms.length)+' <span style="font-size:12px;color:var(--muted)">('+fa(wins)+' برد · '+fa(losses)+' باخت)</span></b></div>'
+  +'<div class="pks"><small>وین‌ریت</small><b>'+fa(ms.length?Math.round(wins/ms.length*100):0)+'٪</b></div>'
+  +'<div class="pks"><small>بهترین / بدترین روز</small><b style="font-size:14.5px"><span style="color:var(--good)">'+(best?btSigned(best.res):'—')+'</span> · <span style="color:var(--bad)">'+(worst?btSigned(worst.res):'—')+'</span></b></div>';
+  var mx=1;ms.forEach(function(x){mx=Math.max(mx,Math.abs(x.res))});
+  document.getElementById('btMini').innerHTML=ms.length?ms.map(function(x){
+    var hh=Math.max(5,Math.round(Math.abs(x.res)/mx*42));
+    return '<div class="pkm" title="'+fa(x.d)+' — '+btSigned(x.res)+'">'
+     +'<i class="'+(x.res>=0?'pos':'neg')+'" style="height:'+hh+'px"></i><span>'+fa(x.d)+'</span></div>';
+  }).join(''):'';
+  document.getElementById('btList').innerHTML=ms.length?ms.slice().reverse().map(function(x){
+    return '<div class="txi"><span class="catdot" style="background:'+(x.res>=0?'var(--good)':'var(--bad)')+'"></span>'
+     +'<span class="d">'+fa(x.d)+' '+MON[MONTHS[curMi].m-1]+'</span>'
+     +'<span class="t">🎯 <small>داشتم '+btMoney(x.start)+' · واریز '+btMoney(x.dep)+' · برداشت '+btMoney(x.wd)+' · موجودی '+btMoney(x.bal)+'</small></span>'
+     +'<span class="amt '+(x.res>=0?'inc':'exp')+'">'+btSigned(x.res)+'</span>'
+     +'<button class="rowedit" data-bted="'+x.id+'">✎</button>'
+     +'<button class="rowedit" data-btdel="'+x.id+'">🗑</button></div>';
+  }).join(''):'<div class="empty">این ماه هنوز روزی ثبت نشده — موجودی سایت بت را وارد کن</div>';
+}
+function loadBet(){
+  return fetch('/api/bet',{credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+    if(!d||!d.items) return;
+    BET.length=0;
+    d.items.forEach(function(x){var md=isoToMiD(x.date); if(!md) return;
+      BET.push({id:x.id,mi:md.mi,d:md.d,date:x.date,start:x.start,dep:x.deposit,wd:x.withdraw,bal:x.balance,res:x.result,note:x.note||''});
+    });
+    if(d.suggestedStart!=null) document.getElementById('btStart').placeholder='مبلغی که داشتم ($) — دیروز: '+btMoney(d.suggestedStart);
+    renderBet();
+  }).catch(function(){});
+}
+document.getElementById('btDate').addEventListener('click',function(){
+  var btn=this;
+  openCal(btn,function(p){
+    var mi=(p.jy*12+p.jm-1)-(1403*12+6);
+    if(mi<0||mi>23){toast('خارج از بازه‌ی نمونه (مهر ۱۴۰۳ تاکنون)');return}
+    BTDATE={mi:mi,d:p.jd};
+    var t=jToday();
+    btn.textContent=(p.jd===t.jd&&p.jm===t.jm&&p.jy===t.jy)?'امروز':fa(p.jd)+' '+MON[p.jm-1];
+    if(mi!==curMi){curMi=mi;renderHist();renderCatsIns()}
+    renderBet();
+  });
+});
+document.getElementById('btAdd').addEventListener('click',function(){
+  var bal=btNum(document.getElementById('btBal').value);
+  if(bal===null){toast('موجودی سایت بت را بنویس');return}
+  var body={date:btIso(),balance:bal};
+  var sv=document.getElementById('btStart').value,dv=document.getElementById('btDep').value,wv=document.getElementById('btWd').value;
+  if(String(sv).trim()!=='')body.start=btNum(sv);
+  if(String(dv).trim()!=='')body.deposit=btNum(dv);
+  if(String(wv).trim()!=='')body.withdraw=btNum(wv);
+  var btn=this;btn.disabled=true;
+  btPut(BTEDIT,body).then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})})
+   .then(function(x){
+     btn.disabled=false;
+     if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
+     var day=x.d&&x.d.day;
+     toast(day?('ثبت شد — '+(day.result>=0?'برد ':'باخت ')+btMoney(day.result)):'ثبت شد');
+     btReset();
+     return loadBet();
+   }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
+});
+document.getElementById('btCancel').addEventListener('click',btReset);
+document.getElementById('btList').addEventListener('click',function(e){
+  var ed=e.target.getAttribute&&e.target.getAttribute('data-bted');
+  var del=e.target.getAttribute&&e.target.getAttribute('data-btdel');
+  if(ed){
+    var x=null;BET.forEach(function(y){if(y.id===ed)x=y});
+    if(!x)return;
+    BTEDIT=x.id;
+    document.getElementById('btStart').value=x.start;
+    document.getElementById('btDep').value=x.dep||'';
+    document.getElementById('btWd').value=x.wd||'';
+    document.getElementById('btBal').value=x.bal;
+    document.getElementById('btAdd').textContent='💾 ذخیره ویرایش';
+    document.getElementById('btCancel').style.display='';
+    document.getElementById('btStart').focus();
+    toast('روز '+fa(x.d)+' برای ویرایش آمد');
+  }
+  if(del){
+    if(!confirm('این روز حذف شود؟'))return;
+    fetch('/api/bet/'+encodeURIComponent(del),{method:'DELETE',credentials:'include'})
+      .then(function(r){return r.json()}).then(function(){toast('حذف شد');loadBet()}).catch(function(){toast('حذف نشد')});
+  }
+});
+
 function faToEn(s){return String(s||'').replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)})}
 /* ============ ویرایشگر عمومی ============ */
 var EDARR={tx:DATA,acc:ACCS,pk:PK,hold:HOLD,debt:DEBTS};
@@ -1679,8 +1804,8 @@ document.getElementById('hAdd').addEventListener('click',function(){
 });
 
 /* ============ تاریخچه: کنترل‌ها ============ */
-document.getElementById('mPrev').addEventListener('click',function(){if(curMi>0){curMi--;renderHist();renderCatsIns()}});
-document.getElementById('mNext').addEventListener('click',function(){if(curMi<23){curMi++;renderHist();renderCatsIns()}});
+document.getElementById('mPrev').addEventListener('click',function(){if(curMi>0){curMi--;renderHist();renderCatsIns();renderBet()}});
+document.getElementById('mNext').addEventListener('click',function(){if(curMi<23){curMi++;renderHist();renderCatsIns();renderBet()}});
 document.querySelectorAll('.seg button').forEach(function(b){
   b.addEventListener('click',function(){
     document.querySelectorAll('.seg button').forEach(function(x){x.classList.remove('on')});
@@ -1722,7 +1847,8 @@ function loadFinanceFromApi(){
     fetch('/api/transactions?from=2024-01-01&to=2030-12-31',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
     fetch('/api/debts',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
     fetch('/api/portfolio',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
-    fetch('/api/poker',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
+    fetch('/api/poker',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/bet',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
   ]).then(function(res){
     if(res[0].status===401){ /* مهمان — فقط local */ return; }
     // accounts
@@ -1787,13 +1913,22 @@ function loadFinanceFromApi(){
         PK.push({_u:UID++, id:s.id, mi:md.mi, d:md.d, bi:s.buyIn, co:s.cashOut, loc:s.location||'—'});
       });
     }
+    // bet (USD daily ledger)
+    if(res[5] && res[5].ok && res[5].d && res[5].d.items){
+      BET.length=0;
+      res[5].d.items.forEach(function(x){
+        var md=isoToMiD(x.date); if(!md) return;
+        BET.push({id:x.id,mi:md.mi,d:md.d,date:x.date,start:x.start,dep:x.deposit,wd:x.withdraw,bal:x.balance,res:x.result,note:x.note||''});
+      });
+      if(res[5].d.suggestedStart!=null) document.getElementById('btStart').placeholder='مبلغی که داشتم ($) — دیروز: '+btMoney(res[5].d.suggestedStart);
+    }
     // keep EDARR refs in sync (arrays mutated in place — already same refs)
-    renderHero();renderAccs();renderDebts();renderHist();renderChart();renderCatsIns();renderPort();renderPoker();
+    renderHero();renderAccs();renderDebts();renderHist();renderChart();renderCatsIns();renderPort();renderPoker();renderBet();
     sealTomanAmountsOnce();
   }).catch(function(e){ console.error(e); toast('بارگذاری مالی ناموفق'); });
 }
 
-renderHero();renderAccs();renderDebts();renderHist();renderChart();renderCatsIns();renderPort();renderPoker();
+renderHero();renderAccs();renderDebts();renderHist();renderChart();renderCatsIns();renderPort();renderPoker();renderBet();
 loadFinanceFromApi();
 
 /* ===== nav auth ===== */

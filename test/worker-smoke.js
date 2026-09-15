@@ -334,6 +334,49 @@ async function main() {
     check('worker: normal expense text still works', (w11c.actions || []).length === 1 && (await rows11()).length === 1 && (await rows11())[0].amount === 500_000, JSON.stringify(w11c.actions));
   }
 
+  // [W12] بخش «بت» روی آرتیفکت دیپلوی‌شده: هلپرهای تازه (betRollup/betAutoStart/betDaysOf)
+  // باید در هر دو فهرست export باشند، وگرنه مسیر /api/bet روی کلودفلر ۵۰۰ می‌شود.
+  console.log('\n[W12] bet ledger on the deployed artifact (USD, one row per day)');
+  {
+    const w12email = `wsmoke_bet_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W12', email: w12email, password: 'secret123' } });
+    const w12login = await call('/api/auth/login', { method: 'POST', body: { email: w12email, password: 'secret123' } });
+    const c12 = String((typeof w12login.headers.getSetCookie === 'function' ? w12login.headers.getSetCookie()[0] : w12login.headers.get('set-cookie')) || '').split(';')[0];
+    const put12 = async (body) => (await call('/api/bet', { method: 'POST', cookie: c12, body })).d;
+    const w12base = await put12({ date: '2026-09-09', balance: 500 });
+    check('worker: the very first entry is a baseline (no phantom win)', w12base.day.result === 0 && w12base.day.start === 500, JSON.stringify(w12base.day));
+    await call(`/api/bet/${w12base.day.id}`, { method: 'DELETE', cookie: c12 });
+    const w12a = await put12({ date: '2026-09-10', deposit: 100, balance: 120 });
+    const w12b = await put12({ date: '2026-09-11', balance: 95 });
+    const w12c = await put12({ date: '2026-09-12', deposit: 50, balance: 160 });
+    check('worker: day results are computed correctly (+20, −25, +15)', w12a.day.result === 20 && w12b.day.result === -25 && w12b.day.start === 120 && w12c.day.result === 15, JSON.stringify([w12a.day.result, w12b.day.start, w12b.day.result, w12c.day.result]));
+    const w12m = await call('/api/bet?month=2026-09', { cookie: c12 });
+    check('worker: monthly stats (profit / wins / losses / win-rate)', w12m.d.stats.days === 3 && w12m.d.stats.profit === 10 && w12m.d.stats.wins === 2 && w12m.d.stats.losses === 1 && w12m.d.stats.winRate === 67, JSON.stringify(w12m.d.stats));
+    const w12bad = await call('/api/bet', { method: 'POST', cookie: c12, body: { date: '2026-09-13' } });
+    check('worker: balance is required (400)', w12bad.status === 400);
+    const w12rows = ((await call('/api/transactions?from=2026-01-01&to=2026-12-31', { cookie: c12 })).d.items) || [];
+    check('worker: the bet ledger never creates a transaction', w12rows.length === 0, JSON.stringify(w12rows.length));
+    const w12del = await call(`/api/bet/${w12c.day.id}`, { method: 'DELETE', cookie: c12 });
+    const w12m2 = await call('/api/bet?month=2026-09', { cookie: c12 });
+    check('worker: deleting a day works and recomputes', w12del.d.ok === true && w12m2.d.stats.days === 2 && w12m2.d.stats.profit === -5, JSON.stringify(w12m2.d.stats));
+    // the bet balance can also be typed as text (one row per day, never a transaction)
+    const w12today = (typeof today === 'function') ? today() : new Date().toISOString().slice(0, 10);
+    const w12s0 = (await call('/api/bet', { cookie: c12 })).d.suggestedStart;
+    const w12t1 = await call('/api/ai/process', { method: 'POST', cookie: c12, body: { text: 'بت موجودی ۳۰۰ دلار' } });
+    const w12r1 = await call('/api/bet', { cookie: c12 });
+    const w12row = ((w12r1.d && w12r1.d.items) || []).find(x => x.date === w12today);
+    check('worker: typing the bet balance logs today (betDay action, start auto-filled from yesterday)',
+      !!((w12t1.d && w12t1.d.actions) || []).find(x => x.type === 'betDay') && !!w12row && w12row.balance === 300 && w12row.start === w12s0 && w12row.result === 300 - w12s0,
+      JSON.stringify({ actions: w12t1.d && w12t1.d.actions, row: w12row }));
+    await call('/api/ai/process', { method: 'POST', cookie: c12, body: { text: 'بت موجودی ۳۵۰ دلار' } });
+    const w12r2 = await call('/api/bet', { cookie: c12 });
+    const w12rowsT = ((w12r2.d && w12r2.d.items) || []).filter(x => x.date === w12today);
+    const w12tx = ((await call('/api/transactions?from=2026-01-01&to=2026-12-31', { cookie: c12 })).d.items) || [];
+    check('worker: the second text of the same day updates it (+$50, still one row, no transactions)',
+      w12rowsT.length === 1 && w12rowsT[0].balance === 350 && w12rowsT[0].result === 350 - w12s0 && w12tx.length === 0,
+      JSON.stringify({ rows: w12rowsT, tx: w12tx.length }));
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }
