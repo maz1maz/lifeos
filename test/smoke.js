@@ -1155,6 +1155,52 @@ async function main() {
       check('a deposit phrase stays an Inbox note (no bet day, no transaction)', !(dep.actions || []).some(x => x.type === 'betDay') && rows3.length === 0, JSON.stringify(dep.actions));
     }
 
+    /* [48] پورتفو: «دلار» بدون نماد و بدون قیمت — فقط مقدار.
+       هر دلار همیشه ۱ دلار است، پس ارزشش = مقدار × نرخ دلار تومان. */
+    console.log('\n[48] portfolio: 💵 dollar holding needs only an amount (no symbol, no price)');
+    {
+      const buyDollar = (body) => fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify(body) });
+      const pf = () => fetch(`${BASE}/api/portfolio`, { headers: authHeaders }).then(r => r.json());
+
+      const d1 = await buyDollar({ assetType: 'dollar', quantity: 500 });
+      check('a dollar holding is accepted with an amount only (no symbol, no price)', d1.status === 201, String(d1.status));
+      const p1 = await pf();
+      const usd = p1.items.find(x => x.assetType === 'dollar');
+      check('…and shows up as one USD holding with price 1 and value = amount', !!usd && usd.symbol === 'USD' && usd.quantity === 500 && usd.currentPrice === 1 && usd.marketValue === 500 && usd.currency === 'USD', JSON.stringify(usd && { sym: usd.symbol, qty: usd.quantity, price: usd.currentPrice, val: usd.marketValue, cur: usd.currency }));
+      check('…with zero profit/loss (no fake gain against the dollar itself)', usd.unrealizedPnl === 0 && p1.totals.USD.value === 500 + (p1.items.filter(x => x.assetType !== 'dollar').reduce((s2, x) => s2 + x.marketValue, 0)), JSON.stringify(p1.totals.USD));
+
+      const d2 = await buyDollar({ assetType: 'dollar', quantity: 250 });
+      const p2 = await pf();
+      const usd2 = p2.items.filter(x => x.assetType === 'dollar');
+      check('buying again merges into the same dollar row (500 + 250 = 750)', d2.status === 201 && usd2.length === 1 && usd2[0].quantity === 750, JSON.stringify(usd2.map(x => x.quantity)));
+
+      const noQty = await buyDollar({ assetType: 'dollar' });
+      const noQtyBody = await noQty.json();
+      check('an empty amount is rejected with a dollar-specific message', noQty.status === 400 && /دلار/.test(noQtyBody.error || ''), JSON.stringify(noQtyBody));
+
+      const withPrice = await buyDollar({ assetType: 'dollar', quantity: 10, price: 999999 });
+      const p3 = await pf();
+      const usd3 = p3.items.find(x => x.assetType === 'dollar');
+      check('a stray price is ignored — a dollar is always $1', withPrice.status === 201 && usd3.currentPrice === 1 && usd3.quantity === 760, JSON.stringify({ price: usd3.currentPrice, qty: usd3.quantity }));
+
+      check('no price row is created for the dollar holding (قیمت لازم نیست)', !(JSON.parse(fs.readFileSync(DB_PATH, 'utf8')).assetPrices || []).some(x => x.symbol === 'USD'), 'assetPrices has USD');
+
+      const sell = await buyDollar({ assetType: 'dollar', type: 'sell', quantity: 100 });
+      const p4 = await pf();
+      check('selling dollars reduces the same row (760 − 100 = 660)', sell.status === 201 && p4.items.find(x => x.assetType === 'dollar').quantity === 660, JSON.stringify(p4.items.filter(x => x.assetType === 'dollar').map(x => x.quantity)));
+
+      // رگرسیون: کریپتو/سهام باید همان قواعد قبلی را داشته باشند
+      const cryptoSym = await buyDollar({ assetType: 'crypto', quantity: 1 });
+      const cryptoPrice = await buyDollar({ assetType: 'crypto', symbol: 'ETH', quantity: 1 });
+      check('crypto still requires both symbol and price (the dollar shortcut did not loosen it)', cryptoSym.status === 400 && cryptoPrice.status === 400, JSON.stringify([cryptoSym.status, cryptoPrice.status]));
+
+      // UI: صفحهٔ مالی باید گزینهٔ دلار داشته باشد و نماد/قیمت را برایش غیرفعال کند
+      const page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
+      check('the finance page offers 💵 دلار and disables symbol/price for it',
+        page.includes('<option value="dollar">💵 دلار</option>') && page.includes("symEl.disabled=isD") && page.includes("assetType:'dollar', type:'buy', quantity:qty"),
+        'finance-page.html');
+    }
+
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });

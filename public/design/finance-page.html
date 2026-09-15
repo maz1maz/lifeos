@@ -576,14 +576,15 @@ body.nav-open .nav-backdrop{display:block}
   </div>
 
   <div class="card">
-    <div class="mhead"><h4>📈 پورتفو</h4><span style="color:var(--faint);font-size:13px">کریپتو · سهام · طلا</span></div>
+    <div class="mhead"><h4>📈 پورتفو</h4><span style="color:var(--faint);font-size:13px">دلار · کریپتو · سهام · طلا</span></div>
     <div class="ptotal"><b id="pTotal">—</b><span class="chg" id="pChg">—</span></div>
+    <div class="dbnote" id="pDollar" style="display:none"></div>
     <div class="alloc" id="alloc"></div>
     <div class="alloclg" id="allocLg"></div>
     <div id="holdings"></div>
     <div class="alerts" id="pAlerts"></div>
     <div class="addh">
-      <select id="hType"><option value="crypto">کریپتو</option><option value="stock">سهام</option><option value="gold">طلا</option></select>
+      <select id="hType"><option value="dollar">💵 دلار</option><option value="crypto">کریپتو</option><option value="stock">سهام</option><option value="gold">طلا</option></select>
       <input id="hSym" placeholder="نماد — BTC" style="width:90px;direction:ltr">
       <input id="hQty" placeholder="تعداد" style="width:80px;direction:ltr" inputmode="decimal">
       <input id="hPrice" placeholder="قیمت هر واحد" style="width:120px;direction:ltr" inputmode="decimal">
@@ -796,7 +797,7 @@ var HIDDEN=false;
 var USDT=22720;
 var HOLD=[]; /* خالی */
 HOLD.forEach(function(a){a._u=UID++});
-var ACOLOR={'کریپتو':'#fbbf24','سهام':'#60a5fa','طلا':'var(--acc)'};
+var ACOLOR={'دلار':'#3dd68c','کریپتو':'#fbbf24','سهام':'#60a5fa','طلا':'var(--acc)'};
 
 /* ============ رندر هیرو ============ */
 function renderHero(){
@@ -943,6 +944,11 @@ function renderPort(){
   document.getElementById('pTotal').textContent=fmtC(tot)+' تومان';
   document.getElementById('pChg').innerHTML='<span class="'+(chg>=0?'up':'dn')+'">'+(chg>=0?'▲ +':'▼ ')+fmtC(Math.abs(chg))+' امروز</span> <span style="color:var(--faint);font-size:13px">(دلار '+fa(USDT/1000)+' هزار)</span>';
   var byType={};HOLD.forEach(function(h){var v=h.qty*h.price*(h.cur==='$'?USDT:1);byType[h.type]=(byType[h.type]||0)+v});
+  var dm=HOLD.filter(function(h){return h.dollar});
+  var dq=dm.reduce(function(s2,h){return s2+h.qty},0);
+  var dEl=document.getElementById('pDollar');
+  if(dq>0){dEl.style.display='';dEl.innerHTML='💵 <b>'+fa(dq)+' دلار</b> = '+fmtC(dq*USDT)+' تومان <span style="color:var(--faint)">(نرخ '+fa(USDT)+')</span>'}
+  else dEl.style.display='none';
   document.getElementById('alloc').innerHTML=Object.keys(byType).map(function(t){
     return '<i style="width:'+(byType[t]/tot*100)+'%;background:'+ACOLOR[t]+'"></i>'}).join('');
   document.getElementById('allocLg').innerHTML=Object.keys(byType).map(function(t){
@@ -950,8 +956,8 @@ function renderPort(){
   document.getElementById('holdings').innerHTML=HOLD.map(function(h){
     var v=h.qty*h.price*(h.cur==='$'?USDT:1);
     return '<div class="hrow"><span class="sym">'+h.sym+'<small>'+h.type+'</small></span>'
-     +'<span class="qty">'+fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):fmt(h.price)+' تومان')+'</span>'
-     +'<span class="chg '+(h.chg>=0?'up':'dn')+'">'+(h.chg>=0?'▲ +':'▼ ')+fa(h.chg)+'٪</span>'
+     +'<span class="qty">'+(h.dollar?fa(h.qty)+' دلار':fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):fmt(h.price)+' تومان'))+'</span>'
+     +(h.dollar?'<span class="chg"></span>':'<span class="chg '+(h.chg>=0?'up':'dn')+'">'+(h.chg>=0?'▲ +':'▼ ')+fa(h.chg)+'٪</span>')
      +'<span class="val">'+fmtC(v)+'</span><button class="rowedit" data-ed="hold" data-u="'+h._u+'">✎</button></div>';
   }).join('');
   document.getElementById('pAlerts').innerHTML=
@@ -1780,26 +1786,42 @@ document.getElementById('aSave').addEventListener('click',function(){
 });
 
 /* ============ افزودن دارایی ============ */
+(function(){
+  var sel=document.getElementById('hType'),symEl=document.getElementById('hSym'),prEl=document.getElementById('hPrice');
+  function sync(){
+    var isD=sel.value==='dollar';
+    symEl.disabled=isD;prEl.disabled=isD;
+    symEl.style.opacity=isD?'.45':'';prEl.style.opacity=isD?'.45':'';
+    symEl.placeholder=isD?'نماد لازم نیست':'نماد — BTC';
+    prEl.placeholder=isD?'قیمت لازم نیست':'قیمت هر واحد';
+  }
+  sel.addEventListener('change',sync);sync();
+})();
 document.getElementById('hAdd').addEventListener('click',function(){
   var sym=document.getElementById('hSym').value.trim().toUpperCase();
   var qty=parseFloat(String(document.getElementById('hQty').value).replace(/[^0-9.]/g,''));
   var price=parseFloat(String(document.getElementById('hPrice').value).replace(/[^0-9.]/g,''));
   var type=document.getElementById('hType');
-  var tval=type.value; // crypto|stock|gold
+  var tval=type.value; // dollar|crypto|stock|gold
   var tname=type.options[type.selectedIndex].text;
-  if(!sym||!qty||!price){toast('نماد، تعداد و قیمت را کامل کن');return}
+  var isD=tval==='dollar';
+  if(isD){
+    /* «دلار» نماد و قیمت ندارد — فقط مقدار. هر دلار = ۱ دلار */
+    if(!qty){toast('مقدار دلار را بنویس');return}
+    sym='USD';price=1;tname='دلار';
+  }else if(!sym||!qty||!price){toast('نماد، تعداد و قیمت را کامل کن');return}
   var btn=this; btn.disabled=true;
   fetch('/api/investments/tx',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({symbol:sym, assetType:tval, type:'buy', quantity:qty, price:price})
+    body:JSON.stringify(isD?{assetType:'dollar', type:'buy', quantity:qty}:{symbol:sym, assetType:tval, type:'buy', quantity:qty, price:price})
   }).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
   .then(function(x){
     btn.disabled=false;
     if(x.status===401){location.href='/design/login-page.html';return}
     if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
-    HOLD.push({_u:UID++, id:x.d.id, sym:sym, type:tname, qty:qty, price:price, cur:tval==='crypto'||tval==='stock'?'$':'تومان', chg:0});
+    HOLD.push({_u:UID++, id:x.d.id, dollar:isD, sym:isD?'💵':sym, type:tname, qty:qty, price:price, cur:isD||tval==='crypto'||tval==='stock'?'$':'تومان', chg:0});
     renderPort();renderHero();
     document.getElementById('hSym').value='';document.getElementById('hQty').value='';document.getElementById('hPrice').value='';
-    toast(sym+' ذخیره شد ✓');
+    toast(isD?(fa(qty)+' دلار ذخیره شد ✓'):(sym+' ذخیره شد ✓'));
   }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
 });
 
@@ -1901,8 +1923,8 @@ function loadFinanceFromApi(){
     if(res[3].ok && res[3].d && res[3].d.items){
       HOLD.length=0;
       res[3].d.items.forEach(function(h){
-        var tmap={crypto:'کریپتو',stock:'سهام',gold:'طلا',other:'سایر'};
-        HOLD.push({_u:UID++, sym:h.symbol, type:tmap[h.assetType]||h.assetType||'کریپتو', qty:h.quantity||h.qty||0, price:h.currentPrice!=null?h.currentPrice:(h.price||h.avgCost||0), cur:(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'تومان', chg:h.chg||0});
+        var tmap={crypto:'کریپتو',stock:'سهام',gold:'طلا',dollar:'دلار',other:'سایر'};
+        HOLD.push({_u:UID++, dollar:h.assetType==='dollar', sym:h.assetType==='dollar'?'💵':h.symbol, type:tmap[h.assetType]||h.assetType||'کریپتو', qty:h.quantity||h.qty||0, price:h.currentPrice!=null?h.currentPrice:(h.price||h.avgCost||0), cur:(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'تومان', chg:h.chg||0});
       });
     }
     // poker

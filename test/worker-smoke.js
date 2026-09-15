@@ -377,6 +377,32 @@ async function main() {
       JSON.stringify({ rows: w12rowsT, tx: w12tx.length }));
   }
 
+  // [W13] «دلار» روی آرتیفکت دیپلوی‌شده: بدون نماد و بدون قیمت، هر دلار = ۱ دلار
+  console.log('\n[W13] portfolio: dollar holding on the deployed artifact (amount only)');
+  {
+    const w13email = `wsmoke_usd_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W13', email: w13email, password: 'secret123' } });
+    const w13login = await call('/api/auth/login', { method: 'POST', body: { email: w13email, password: 'secret123' } });
+    const c13 = String((typeof w13login.headers.getSetCookie === 'function' ? w13login.headers.getSetCookie()[0] : w13login.headers.get('set-cookie')) || '').split(';')[0];
+    const w13buy = (body) => call('/api/investments/tx', { method: 'POST', cookie: c13, body });
+    const w13pf = () => call('/api/portfolio', { cookie: c13 });
+
+    const w13a = await w13buy({ assetType: 'dollar', quantity: 500 });
+    const w13p1 = await w13pf();
+    const w13usd = (w13p1.d.items || []).find(x => x.assetType === 'dollar');
+    check('worker: a dollar holding needs only an amount (price fixed at $1)',
+      w13a.status === 201 && !!w13usd && w13usd.currentPrice === 1 && w13usd.marketValue === 500 && w13usd.unrealizedPnl === 0,
+      JSON.stringify(w13usd && { qty: w13usd.quantity, price: w13usd.currentPrice, val: w13usd.marketValue }));
+    await w13buy({ assetType: 'dollar', quantity: 250 });
+    const w13p2 = await w13pf();
+    const w13rows = (w13p2.d.items || []).filter(x => x.assetType === 'dollar');
+    check('worker: buying again merges into one dollar row (750)', w13rows.length === 1 && w13rows[0].quantity === 750, JSON.stringify(w13rows.map(x => x.quantity)));
+    const w13bad = await w13buy({ assetType: 'dollar' });
+    check('worker: an empty dollar amount is a 400 with a dollar-specific message', w13bad.status === 400 && /دلار/.test((w13bad.d && w13bad.d.error) || ''), JSON.stringify(w13bad.d));
+    const w13crypto = await w13buy({ assetType: 'crypto', symbol: 'BTC', quantity: 1 });
+    check('worker: crypto still requires a price (shortcut is dollar-only)', w13crypto.status === 400, String(w13crypto.status));
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }
