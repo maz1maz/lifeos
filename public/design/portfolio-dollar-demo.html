@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نمونهٔ «💵 دلار» در پورتفو — lifeos</title>
+<link rel="stylesheet" href="/shared-theme.css">
+<style>
+body{background:var(--bg);color:var(--text);font-family:var(--fb);margin:0;padding:22px}
+.wrap{max-width:1000px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow-card)}
+.mhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.mhead h4{font-family:var(--fh);font-size:17.5px;margin:0;flex:1}
+.ptotal{display:flex;align-items:baseline;gap:10px;margin-top:6px}
+.ptotal b{font-family:var(--fh);font-size:26px}
+.chg{font-size:13.5px;color:var(--muted)}
+.alloc{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--panel2);margin:10px 0 6px}
+.alloc i{height:100%}
+.alloclg{font-size:12.5px;color:var(--muted)}
+.alloclg i{display:inline-block;width:8px;height:8px;border-radius:99px;vertical-align:middle}
+.dbnote{margin-top:6px;font-size:12.5px;color:var(--muted);line-height:1.45}
+.hrow{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:12px;padding:8px 12px;margin-top:8px}
+.hrow .sym{font-family:var(--fh);font-size:14.5px;display:flex;gap:6px;align-items:center;min-width:120px}
+.hrow .sym small{color:var(--faint);font-size:11.5px}
+.hrow .qty{flex:1;color:var(--muted);font-size:13px;direction:ltr;text-align:right}
+.hrow .chg{min-width:64px;text-align:center;font-size:13px}
+.hrow .chg.up{color:var(--good)}.hrow .chg.dn{color:var(--bad)}
+.hrow .val{font-family:var(--fh);font-size:15px;min-width:110px;text-align:left}
+.rowedit{background:none;border:none;color:var(--faint);cursor:pointer;font-size:14px;padding:2px 5px}
+.addh{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+.addh select,.addh input{background:var(--panel);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font:inherit;font-size:13.5px;padding:7px 10px;outline:none}
+.addh select{min-width:120px}
+.addh button{background:var(--acc);color:#062028;border:none;border-radius:10px;padding:6px 14px;font:inherit;font-size:13.5px;cursor:pointer}
+.hint{color:var(--faint);font-size:13px;margin:0 0 14px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="hint">نمونهٔ ظاهری کارت پورتفو با دارایی <b>💵 دلار</b> (دادهٔ ساختگی). نکته: کادر «نماد» و «قیمت» برای دلار <b>غیرفعال</b> و محو است و فقط مقدار می‌ماند.</p>
+  <div class="card">
+    <div class="mhead"><h4>📈 پورتفو</h4><span style="color:var(--faint);font-size:13px">دلار · کریپتو · سهام · طلا</span></div>
+    <div class="ptotal"><b id="pTotal">—</b><span class="chg" id="pChg">—</span></div>
+    <div class="dbnote" id="pDollar"></div>
+    <div class="alloc" id="alloc"></div>
+    <div class="alloclg" id="allocLg"></div>
+    <div id="holdings"></div>
+    <div class="addh">
+      <select id="hType"><option value="dollar">💵 دلار</option><option value="crypto">کریپتو</option><option value="stock">سهام</option><option value="gold">طلا</option></select>
+      <input id="hSym" style="width:110px;direction:ltr">
+      <input id="hQty" placeholder="مقدار / تعداد" style="width:110px;direction:ltr">
+      <input id="hPrice" style="width:120px;direction:ltr">
+      <button>➕ افزودن</button>
+    </div>
+  </div>
+</div>
+<script>
+var USDT=22720;
+var faD={'0':'۰','1':'۱','2':'۲','3':'۳','4':'۴','5':'۵','6':'۶','7':'۷','8':'۸','9':'۹'};
+function fa(n){return String(n).replace(/\d/g,d=>faD[d])}
+function fmt(n){return Math.round(n).toLocaleString('en-US')}
+function fmtC(n){return Math.round(n).toLocaleString('en-US')}
+var ACOLOR={'دلار':'#3dd68c','کریپتو':'#fbbf24','سهام':'#60a5fa','طلا':'var(--acc)'};
+var HOLD=[
+ {dollar:true,sym:'💵',type:'دلار',qty:750,price:1,cur:'$',chg:0},
+ {sym:'BTC',type:'کریپتو',qty:0.12,price:61200,cur:'$',chg:1.2},
+ {sym:'AAPL',type:'سهام',qty:5,price:228,cur:'$',chg:-0.4},
+ {sym:'طلا ۱۸',type:'طلا',qty:3,price:6800000,cur:'تومان',chg:0.6}
+];
+function renderPort(){
+  var tot=HOLD.reduce((s,h)=>s+h.qty*h.price*(h.cur==='$'?USDT:1),0);
+  var chg=HOLD.reduce((s,h)=>s+h.qty*h.price*(h.cur==='$'?USDT:1)*h.chg/100,0);
+  document.getElementById('pTotal').textContent=fmtC(tot)+' تومان';
+  document.getElementById('pChg').innerHTML='<span style="color:'+(chg>=0?'var(--good)':'var(--bad)')+'">'+(chg>=0?'▲ +':'▼ ')+fmtC(Math.abs(chg))+' امروز</span> <span style="color:var(--faint);font-size:13px">(دلار '+fa(USDT/1000)+' هزار)</span>';
+  var byType={};HOLD.forEach(h=>{var v=h.qty*h.price*(h.cur==='$'?USDT:1);byType[h.type]=(byType[h.type]||0)+v});
+  document.getElementById('alloc').innerHTML=Object.keys(byType).map(t=>'<i style="width:'+(byType[t]/tot*100)+'%;background:'+ACOLOR[t]+'"></i>').join('');
+  document.getElementById('allocLg').innerHTML=Object.keys(byType).map(t=>'<span>'+t+' <i style="background:'+ACOLOR[t]+'"></i> '+fa(Math.round(byType[t]/tot*100))+'٪</span>').join(' · ');
+  var dm=HOLD.filter(h=>h.dollar),dq=dm.reduce((s,h)=>s+h.qty,0);
+  var dEl=document.getElementById('pDollar');
+  if(dq>0){dEl.style.display='';dEl.innerHTML='💵 <b>'+fa(dq)+' دلار</b> = '+fmtC(dq*USDT)+' تومان <span style="color:var(--faint)">(نرخ '+fa(USDT)+')</span>'}
+  else dEl.style.display='none';
+  document.getElementById('holdings').innerHTML=HOLD.map(h=>{
+    var v=h.qty*h.price*(h.cur==='$'?USDT:1);
+    return '<div class="hrow"><span class="sym">'+h.sym+'<small>'+h.type+'</small></span>'
+     +'<span class="qty">'+(h.dollar?fa(h.qty)+' دلار':fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):fmt(h.price)+' تومان'))+'</span>'
+     +(h.dollar?'<span class="chg"></span>':'<span class="chg '+(h.chg>=0?'up':'dn')+'">'+(h.chg>=0?'▲ +':'▼ ')+fa(h.chg)+'٪</span>')
+     +'<span class="val">'+fmtC(v)+'</span><button class="rowedit">✎</button></div>';
+  }).join('');
+}
+renderPort();
+/* وقتی «دلار» انتخاب است، نماد و قیمت غیرفعال و محو می‌شوند */
+(function(){
+  var sel=document.getElementById('hType'),symEl=document.getElementById('hSym'),prEl=document.getElementById('hPrice');
+  function sync(){
+    var isD=sel.value==='dollar';
+    symEl.disabled=isD;prEl.disabled=isD;
+    symEl.style.opacity=isD?'.45':'';prEl.style.opacity=isD?'.45':'';
+    symEl.placeholder=isD?'نماد لازم نیست':'نماد — BTC';
+    prEl.placeholder=isD?'قیمت لازم نیست':'قیمت هر واحد';
+  }
+  sel.addEventListener('change',sync);sync();
+})();
+</script>
+</body>
+</html>

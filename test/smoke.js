@@ -858,6 +858,348 @@ async function main() {
     const unauth = await fetch(`${BASE}/api/transactions/recategorize`, { method: 'POST', headers: { Cookie: 'sid=not-a-real-session' }, body: '{}' });
     check('recategorize with an invalid cookie -> 401 (not a crash)', unauth.status === 401);
 
+    /* [43] «درآمد لحاظ نشود» (notIncome) — خواستهٔ واقعی: بعضی دریافت‌ها درآمد نیستند
+       (انتقال بین کارت‌های خودم، اصل پول، پول برگشتی). کاربر می‌خواهد خودش تعیین کند
+       کدام دریافت درآمد شمرده شود. قاعدهٔ توافق‌شده: فقط از آمار درآمد بیرون می‌رود،
+       ماندهٔ حساب دست‌نخورده می‌ماند.
+       همهٔ انتظارها «تفاضلی» نوشته شده‌اند تا دادهٔ تست‌های قبلی روی نتیجه اثر نگذارد. */
+    console.log('\n[43] notIncome: «این دریافت درآمد نیست» — آمار درآمد نه، ماندهٔ حساب بله');
+    const ACC = 'حساب تست notIncome';
+    const mkAcc = (name) => fetch(`${BASE}/api/accounts`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name, openingBalance: 0 }) });
+    const accRes = await mkAcc(ACC);
+    check('dedicated test account created', accRes.status === 201 || accRes.status === 409);
+    const mkTx = (title, amount, kind) => fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title, amount, kind, category: kind === 'income' ? 'درآمد' : 'متفرقه', account: ACC, date: today() }) }).then(r => r.json());
+    const salary = await mkTx('حقوق تست ۱', 10_000_000, 'income');
+    const passing = await mkTx('انتقال بین کارت‌های خودم', 4_000_000, 'income');
+    await mkTx('هزینه تست ۱', 1_000_000, 'expense');
+    const finance = () => fetch(`${BASE}/api/finance?month=${today().slice(0, 7)}`, { headers: authHeaders }).then(r => r.json());
+    const balanceOf = async (name) => {
+      const a = await fetch(`${BASE}/api/accounts`, { headers: authHeaders }).then(r => r.json());
+      const row = (a.accounts || []).find(x => x.name === name);
+      return row ? Math.round(row.balance) : null;
+    };
+    const financeBefore = await finance();
+    check('before: nothing is opted out', financeBefore.incomeOffCount === 0);
+    check('before: the three rows add up on the account (10M + 4M − 1M)', (await balanceOf(ACC)) === 13_000_000);
+    const reportsTodayIncome = async () => {
+      const r = await fetch(`${BASE}/api/reports?month=${today().slice(0, 7)}`, { headers: authHeaders }).then(x => x.json());
+      const row = (r.days || []).find(x => x.date === today());
+      return row ? row.income : null;
+    };
+    const reportBefore = await reportsTodayIncome();
+
+    const offRes = await fetch(`${BASE}/api/transactions/${passing.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ notIncome: true }) });
+    const offTx = await offRes.json();
+    check('PATCH notIncome:true -> 200 and flag persisted', offRes.status === 200 && offTx.notIncome === true);
+    const financeAfter = await finance();
+    check('income drops by exactly the opted-out amount', financeBefore.income - financeAfter.income === 4_000_000, `${financeBefore.income} -> ${financeAfter.income}`);
+    check('expense is untouched by the flag', financeAfter.expense === financeBefore.expense);
+    check('opted-out rows are reported (count + sum) instead of silently vanishing', financeAfter.incomeOffCount === 1 && financeAfter.incomeOffSum === 4_000_000);
+    check('balance now reflects only counted income', financeAfter.balance === financeAfter.income - financeAfter.expense);
+
+    // قلبِ تصمیم: پول واقعاً وارد کارت شده، پس ماندهٔ حساب نباید عوض شود
+    check('account balance is UNCHANGED — real money still counts there', (await balanceOf(ACC)) === 13_000_000);
+    check('/api/reports daily row excludes the opted-out receive too', reportBefore - (await reportsTodayIncome()) === 4_000_000);
+    const listRows = await fetch(`${BASE}/api/transactions?from=${today()}&to=${today()}`, { headers: authHeaders }).then(r => r.json());
+    const listRow = (listRows.items || []).find(x => x.id === passing.id);
+    check('GET /api/transactions exposes the flag (what the finance page reads)', listRow && listRow.notIncome === true);
+    check('a normal receive keeps no flag', (listRows.items || []).find(x => x.id === salary.id)?.notIncome === undefined);
+
+    // برگشت‌پذیری
+    const backOn = await fetch(`${BASE}/api/transactions/${passing.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ notIncome: false }) }).then(r => r.json());
+    const financeReverted = await finance();
+    check('notIncome:false clears the flag from the record', backOn.notIncome === undefined);
+    check('income is back where it started after reverting', financeReverted.income === financeBefore.income && financeReverted.incomeOffCount === 0);
+    check('account balance still 13M after the round-trip', (await balanceOf(ACC)) === 13_000_000);
+
+    // فقط صاحب تراکنش می‌تواند این تغییر را بزند
+    const foreign = await fetch(`${BASE}/api/transactions/${passing.id}`, { method: 'PATCH', headers: headers2, body: JSON.stringify({ notIncome: true }) });
+    check('another user cannot flip the flag on someone else\'s transaction', foreign.status === 404);
+    const stillClean = await finance();
+    check('…and nothing changed for the owner', stillClean.incomeOffCount === 0 && stillClean.income === financeBefore.income);
+
+    /* [44] ریال/تومان — باگ واقعی گزارش‌شده: پیامک بانکی «۱۵,۰۰۰,۰۰۰ ریال» به‌صورت
+       ۱۵,۰۰۰,۰۰۰ تومان ثبت شده بود، و پیامکی که فقط «موجودی:» داشت مبلغش از
+       روی موجودی (۳.۸ میلیارد) ساخته شده بود. قانون کاربر: «هر چی می‌زنم تومانه،
+       مگر کنارش نوشته باشم ریال». */
+    console.log('\n[44] rial/toman: «ریال» is divided by 10, «موجودی» is never the amount');
+    // پنجرهٔ پهن (کل سال): بعضی متن‌ها تاریخ خودشان را دارند (مثل ۱۴۰۵.۰۶.۲۳) نه تاریخ امروز
+    const WINDOW = 'from=2026-01-01&to=2026-12-31';
+    const txIdsNow = async () => new Set((((await fetch(`${BASE}/api/transactions?${WINDOW}`, { headers: authHeaders }).then(r => r.json())).items) || []).map(x => x.id));
+    const parseText = async (text) => {
+      const before = await txIdsNow();
+      const res = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text }) }).then(r => r.json());
+      const items = ((await fetch(`${BASE}/api/transactions?${WINDOW}`, { headers: authHeaders }).then(r => r.json())).items) || [];
+      return { actions: res.actions || [], created: items.filter(x => !before.has(x.id)) };
+    };
+
+    // ۱) پیامکِ گزارش‌شده: مبلغ در متن نیست، فقط «موجودی» هست → هیچ تراکنشی نباید ساخته شود
+    const smsBalanceOnly = '۲۴بلو انتقال پل حمیدرضا عزیز، ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23';
+    const rBalanceOnly = await parseText(smsBalanceOnly);
+    check('SMS with only a balance creates nothing (no 3,879,270,699 phantom expense)', rBalanceOnly.actions.length === 0 && rBalanceOnly.created.length === 0);
+
+    // ۲) همان پیامک با مبلغ در متن → ۱۵,۰۰۰,۰۰۰ ریال = ۱,۵۰۰,۰۰۰ تومان (باگ اصلی کاربر)
+    const smsWithAmount = '۲۴بلو انتقال پل حمیدرضا عزیز 15,000,000 ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23';
+    const rSms = await parseText(smsWithAmount);
+    check('reported SMS: 15,000,000 ریال -> 1,500,000 تومان (was 15,000,000)', rSms.actions.length === 1 && rSms.actions[0].amount === 1_500_000, JSON.stringify(rSms.actions));
+    check('reported SMS: the stored transaction carries the converted amount', rSms.created.length === 1 && rSms.created[0].amount === 1_500_000);
+    check('reported SMS: the balance never leaks into the stored amount', rSms.created.length === 1 && rSms.created[0].amount !== 3_879_270_699);
+
+    // ۳) مبلغِ برچسب‌خوردهٔ «ریال» در حالت‌های دیگرِ ورودی
+    const rRialWord = await parseText('۱۵,۰۰۰,۰۰۰ ریال انتقال به حمیدرضا');
+    check('«۱۵,۰۰۰,۰۰۰ ریال …» -> 1,500,000 تومان', rRialWord.actions.length === 1 && rRialWord.actions[0].amount === 1_500_000);
+    const rRialNoSep = await parseText('خرید ۱۵۰۰۰۰۰۰ ریال');
+    check('bare ۱۵۰۰۰۰۰۰ ریال -> 1,500,000 تومان', rRialNoSep.actions.length === 1 && rRialNoSep.actions[0].amount === 1_500_000);
+    const rMillionRial = await parseText('۱۵ میلیون ریال انتقال');
+    check('«۱۵ میلیون ریال» -> 1,500,000 تومان', rMillionRial.actions.length === 1 && rMillionRial.actions[0].amount === 1_500_000);
+
+    // ۳b) «ریال» می‌تواند قبل از عدد هم بیاید، و جداکنندهٔ هزارگان عربی (٬) هم رایج است
+    const rRialBefore = await parseText('ریال ۱۵,۰۰۰,۰۰۰ انتقال به حمیدرضا');
+    check('unit before the number («ریال ۱۵,۰۰۰,۰۰۰») -> 1,500,000 تومان', rRialBefore.actions.length === 1 && rRialBefore.actions[0].amount === 1_500_000);
+    const rArabicSep = await parseText('انتقال ۱۵٬۰۰۰٬۰۰۰ ریال از حساب شما پرید');
+    check('Arabic thousands separator (٬) also divides by 10', rArabicSep.actions.length === 1 && rArabicSep.actions[0].amount === 1_500_000);
+    const rRialWordNotUnit = await parseText('انتقال ریال به تومان ۲۰۰,۰۰۰');
+    check('a stray «ریال» word does not divide an unlabelled ۲۰۰,۰۰۰', rRialWordNotUnit.actions.length === 1 && rRialWordNotUnit.actions[0].amount === 200_000);
+    const rTwoAmounts = await parseText('خرید ۲۰۰,۰۰۰ تومان و کارمزد ۵,۰۰۰ ریال');
+    check('toman amount stays whole even when a rial figure shares the text', rTwoAmounts.actions.length === 1 && rTwoAmounts.actions[0].amount === 200_000);
+
+    // ۳c) پیام واقعیِ کاربر: سرصفحهٔ «مبلغ/بابت/تاریخ» که خودش می‌زند + پیامک بانک که پیست می‌کند
+    const compositeMsg = 'مبلغ: ۱۵٬۰۰۰٬۰۰۰ تومان\nبابت: نظافت منزل\nتاریخ: Sep 14, 2026 at 23:29\n\nبلو\nانتقال پل\nحمیدرضا عزیز، 15,000,000 ریال از حساب شما پرید.\nموجودی: 3,879,270,699 ریال\n۱۵:۴۰\n۱۴۰۵.۰۶.۲۳';
+    const rComposite = await parseText(compositeMsg);
+    check('the real combined message -> 1,500,000 تومان with the بابت as title', rComposite.actions.length === 1 && rComposite.actions[0].amount === 1_500_000 && rComposite.actions[0].title === 'نظافت منزل', JSON.stringify(rComposite.actions));
+    check('…and the Telegram date (Sep 14, 2026) becomes the transaction date', rComposite.actions[0].date === '2026-09-14');
+    check('…and the balance never leaks in', rComposite.created.length === 1 && rComposite.created[0].amount === 1_500_000);
+    const compositeAscii = 'مبلغ: 15,000,000 تومان\nبابت: نظافت منزل\nSep 14, 2026 at 23:29\n\nحمیدرضا عزیز، 15,000,000 ریال از حساب شما پرید.\nموجودی: 3,879,270,699 ریال';
+    const rCompositeAscii = await parseText(compositeAscii);
+    check('the bank\'s own «… ریال …» line wins over the typed «مبلغ: … تومان» header', rCompositeAscii.actions.length === 1 && rCompositeAscii.actions[0].amount === 1_500_000);
+    const typedOnly = 'مبلغ: ۱۵٬۰۰۰٬۰۰۰ تومان\nبابت: بنزین\n۱۴۰۵.۰۶.۲۲';
+    const rTypedOnly = await parseText(typedOnly);
+    check('typed header alone (٬ separator) -> 15,000,000 تومان, clean title + jalali date', rTypedOnly.actions.length === 1 && rTypedOnly.actions[0].amount === 15_000_000 && rTypedOnly.actions[0].title === 'بنزین' && rTypedOnly.actions[0].date === '2026-09-13');
+
+    // ۴) تومان (پیش‌فرض کاربر و متن‌های بدون واحد) دست‌نخورده می‌ماند
+    const rToman = await parseText('خرید ۱۵,۰۰۰,۰۰۰ تومان');
+    check('«۱۵,۰۰۰,۰۰۰ تومان» stays 15,000,000 (no divide)', rToman.actions.length === 1 && rToman.actions[0].amount === 15_000_000);
+    const rDefault = await parseText('حقوق ۲۵ میلیون');
+    check('unlabelled amount keeps toman default (۲۵ میلیون -> 25,000,000)', rDefault.actions.length === 1 && rDefault.actions[0].amount === 25_000_000);
+    const rNoUnit = await parseText('خرید لپ تاپ 45000000');
+    check('unlabelled number 45000000 stays 45,000,000', rNoUnit.actions.length === 1 && rNoUnit.actions[0].amount === 45_000_000);
+
+    // ۵) وقتی هم مبلغ هست هم موجودی، برنده مبلغ است نه عددِ بزرگ‌ترِ موجودی
+    const rMixed = await parseText('خرید ۲۵۰,۰۰۰ تومان موجودی: ۳,۸۷۹,۲۷۰,۶۹۹ ریال');
+    check('amount wins over a bigger «موجودی» figure', rMixed.actions.length === 1 && rMixed.actions[0].amount === 250_000 && rMixed.created[0].amount === 250_000);
+
+    // ۶) متن‌های بانکی بدون مبلغ (فقط مانده / فقط شناسه) چیزی نمی‌سازند
+    const rBal = await parseText('موجودی: ۳,۸۷۹,۲۷۰,۶۹۹ ریال');
+    check('balance-only text creates nothing', rBal.actions.length === 0 && rBal.created.length === 0);
+    const rRef = await parseText('شناسه پرداخت ۱۲۳۴۵۶۷۸۹۰');
+    check('reference-number-only text creates nothing', rRef.actions.length === 0 && rRef.created.length === 0);
+
+    // ۷) مسیر پیامکِ واریز/برداشتِ تومانی هنوز مثل قبل کار می‌کند
+    const rSmsToman = await parseText('خرید ۱۵۰,۰۰۰ تومان از حساب شما کسر شد موجودی: ۳,۸۷۹,۲۷۰,۶۹۹ ریال');
+    check('toman SMS unchanged: ۱۵۰,۰۰۰ تومان -> 150,000', rSmsToman.actions.length === 1 && rSmsToman.actions[0].amount === 150_000);
+    const rDeposit = await parseText('به حساب شما ۲۵,۰۰۰,۰۰۰ ریال واریز شد. موجودی: ۹۰,۰۰۰,۰۰۰ ریال');
+    check('rial deposit: 2,500,000 تومان and kind=income', rDeposit.actions.length === 1 && rDeposit.actions[0].amount === 2_500_000 && rDeposit.actions[0].kind === 'income');
+
+    /* [45] یادآوری سرِ ماه + مطابقت صورتحساب بانکی: «سر هر ماه یادآوری کن فایل اکسل
+       بانکی ماه قبل رو وارد کنم، اونوقت مطابقت بده» — یعنی بعد از آپلود، ردیف‌هایی که
+       قبلاً دستی/خودکار ثبت شده‌اند شناسایی شوند و فقط ردیف‌های جامانده اضافه شوند.
+       نکته: فایل صورتحساب بانک‌های ایران ریالی است، پس مبالغ فایل ÷۱۰ می‌شوند تا با
+       تراکنش‌های تومانی اپ قابل مقایسه باشند. */
+    console.log('\n[45] monthly bank-statement reminder + reconciliation against already-entered rows');
+    {
+      // کاربر تازه: هیچ ردیف بانکی در پنجرهٔ ماه قبل ندارد تا یادآوری واقعاً ساخته شود
+      const email3 = 'smoke-rem-' + Date.now() + '@example.com';
+      await fetch(`${BASE}/api/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Rem', email: email3, password: 'secret123' }) });
+      const login3 = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email3, password: 'secret123' }) });
+      const auth3 = { 'Content-Type': 'application/json', Cookie: login3.headers.get('set-cookie').split(';')[0] };
+      const check3 = (date) => fetch(`${BASE}/api/reminders/statement-check`, { method: 'POST', headers: auth3, body: JSON.stringify(date ? { date } : {}) }).then(r => r.json());
+      const addTx = (tx) => fetch(`${BASE}/api/transactions`, { method: 'POST', headers: auth3, body: JSON.stringify(Object.assign({ account: 'بدون حساب' }, tx)) }).then(r => r.json());
+      const importCsv = (csv) => fetch(`${BASE}/api/transactions/import-bank/preview`, { method: 'POST', headers: auth3, body: JSON.stringify({ fileType: 'csv', filename: 'bank.csv', fileBase64: Buffer.from('\ufeff' + csv, 'utf8').toString('base64') }) }).then(r => r.json());
+      const commitItems = (items) => fetch(`${BASE}/api/transactions/import-bank/commit`, { method: 'POST', headers: auth3, body: JSON.stringify({ items, account: 'بدون حساب' }) }).then(r => r.json());
+
+      // ۱۴۰۵/۰۷/۰۱ = ۲۰۲۶-۰۹-۲۳ → «اول ماه»؛ ماه قبل شهریور (۱۴۰۵/۰۶)
+      const first = await check3('2026-09-23');
+      check('on the 1st of the month a reminder is created', first.created === 1, JSON.stringify(first));
+      check('…for the PREVIOUS month (شهریور), not the current one', first.month === 'شهریور' && first.from === '2026-08-23' && first.to === '2026-09-22', JSON.stringify(first));
+      check('…and it is the bank-statement reminder, tagged for dedupe', !!first.reminder && /صورت.?حساب/.test(first.reminder.title) && first.reminder.auto === 'bank-import:1405-06', JSON.stringify(first.reminder));
+      const again = await check3('2026-09-23');
+      check('running the check twice the same day does not duplicate the reminder', again.created === 0 && !!again.reminder && again.reminder.id === first.reminder.id, JSON.stringify(again));
+      const midMonth = await check3('2026-09-10');
+      check('mid-month the check stays silent (checked:false, no reminder)', midMonth.created === 0 && midMonth.checked === false, JSON.stringify(midMonth));
+
+      // ردیفی که کاربر قبلاً دستی ثبت کرده و عیناً در فایل بانکی هم هست:
+      // ۱,۵۰۰,۰۰۰ ریال فایل = ۱۵۰,۰۰۰ تومان
+      const manual = await addTx({ title: 'نظافت منزل', amount: 150_000, kind: 'expense', date: '2026-09-14' });
+      check('a manual row is recorded (this is the one that must NOT be duplicated)', !!manual.id && manual.amount === 150_000);
+      const csv = ['تاریخ,شرح,واریز,برداشت,شماره سند',
+        '1405/06/23,نظافت منزل,0,"1,500,000",9001',             // همان ردیف دستی → تکراری
+        '1405/06/21,خرید نان,0,"500,000",9002',                  // جامانده → اضافه شود
+        '1405/06/25,واریز حقوق,"12,000,000",0,9003'].join('\n'); // جامانده → اضافه شود
+      const preview = await importCsv(csv);
+      check('preview flags the already-entered row instead of offering it again', preview.newCount === 2 && preview.alreadyCount === 1, JSON.stringify({ new: preview.newCount, already: preview.alreadyCount, near: preview.nearDuplicateCount }));
+      check('preview keeps the bank rial->toman conversion straight (1,500,000 ریال = 150,000 تومان)', (preview.items || [])[0]?.amount === 150_000, JSON.stringify((preview.items || []).map(x => [x.date, x.title, x.amount])));
+      check('the already-entered row is marked duplicate, the others are not', (preview.items || [])[0]?.duplicate === true && (preview.items || [])[0]?.dupReason === 'same-date' && (preview.items || [])[1]?.duplicate === false, JSON.stringify((preview.items || []).map(x => [x.title, x.duplicate, x.dupReason])));
+      const commit = await commitItems(preview.items);
+      check('commit imports only the missing rows and reports the skipped one', commit.imported === 2 && commit.skippedExisting === 1, JSON.stringify(commit));
+      const after = await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth3 }).then(r => r.json());
+      const mine = (after.items || []).filter(x => ['نظافت منزل', 'برداشت بانکی', 'واریز بانکی'].includes(x.title));
+      check('the manual row survives exactly once (no duplicate of the already-entered row)', mine.filter(x => x.title === 'نظافت منزل').length === 1, JSON.stringify(mine.map(x => [x.title, x.amount])));
+      check('the two missing rows are added alongside the manual one', mine.length === 3 && mine.find(x => x.title === 'واریز بانکی')?.amount === 1_200_000, JSON.stringify(mine.map(x => [x.title, x.amount])));
+
+      // کاربر همان فایل را ماه بعد هم آپلود می‌کند → این بار هیچ‌چیز نباید اضافه شود
+      const second = await importCsv(csv);
+      const secondCommit = await commitItems(second.items);
+      check('uploading the same statement again imports nothing new', second.newCount === 0 && second.duplicateCount === 3 && secondCommit.imported === 0 && secondCommit.skippedExisting === 3, JSON.stringify({ preview: [second.newCount, second.duplicateCount], commit: secondCommit }));
+      const after2 = await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth3 }).then(r => r.json());
+      check('…and the transaction list is unchanged by the second upload', (after2.items || []).length === (after.items || []).length, JSON.stringify([(after2.items || []).length, (after.items || []).length]));
+
+      // ردیف یک روز جابه‌جا (احتمالاً همان تراکنش با تاریخ متفاوت) → هشدار، نه حذف بی‌صدا
+      await addTx({ title: 'تاکسی', amount: 70_000, kind: 'expense', date: '2026-09-13' });
+      const near = await importCsv('تاریخ,شرح,واریز,برداشت,شماره سند\n1405/06/21,تاکسی,0,"700,000",7777');
+      check('a row one day off an existing row is flagged as a near-duplicate for the user to decide', near.nearDuplicateCount === 1 && (near.items || [])[0]?.nearDuplicate === true && (near.items || [])[0]?.dupReason === 'near-date', JSON.stringify({ near: near.nearDuplicateCount, items: near.items }));
+      check('…and the near-duplicate is still offered for import (user unchecks it, the app does not decide silently)', near.newCount === 1 && (near.items || [])[0]?.duplicate !== true, JSON.stringify(near.items));
+    }
+
+    /* [46] پوکر/بت در تراکنش‌ها ثبت نشود: «پولش دلاری بهم می‌دن که جدا ثبت می‌کنم یا تومانی
+       که به حساب بانکم می‌آید یا خودم تراکنش می‌زنم» — پس متن پوکر/بت هرگز نباید تراکنش
+       بسازد. اگر دو عدد با ورودی/خروجی داشت، به سشن پوکر تبدیل می‌شود. */
+    console.log('\n[46] poker/bet texts never create transactions (they go to the poker panel instead)');
+    {
+      const email4 = 'smoke-gamble-' + Date.now() + '@example.com';
+      await fetch(`${BASE}/api/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'G', email: email4, password: 'secret123' }) });
+      const login4 = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email4, password: 'secret123' }) });
+      const auth4 = { 'Content-Type': 'application/json', Cookie: login4.headers.get('set-cookie').split(';')[0] };
+      const txs4 = async () => ((await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth4 }).then(r => r.json())).items) || [];
+      const say = (text) => fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: auth4, body: JSON.stringify({ text }) }).then(r => r.json());
+
+      const session = await say('پوکر خانه دوستان ۵۰ میلیون ورودی ۴۲ میلیون خروجی');
+      check('a poker message does not create a transaction', (await txs4()).length === 0, JSON.stringify(await txs4()));
+      check('…it becomes a poker session with the right numbers', (session.actions || [])[0]?.type === 'poker' && session.actions[0].buyIn === 50_000_000 && session.actions[0].cashOut === 42_000_000, JSON.stringify(session.actions));
+      const pk = ((await fetch(`${BASE}/api/poker`, { headers: auth4 }).then(r => r.json())).items) || [];
+      check('…and the session is really stored (panel data)', pk.length === 1 && pk[0].buyIn === 50_000_000 && pk[0].cashOut === 42_000_000 && pk[0].location === 'خانه دوستان', JSON.stringify(pk));
+      const onl = await say('پوکر آنلاین ورودی ۱۰ میلیون خروجی ۱۲ میلیون');
+      check('online poker: in=10M out=12M, location آنلاین', (onl.actions || [])[0]?.buyIn === 10_000_000 && onl.actions[0].cashOut === 12_000_000 && onl.actions[0].location === 'آنلاین', JSON.stringify(onl.actions));
+      const vague = await say('پوکر ۵ میلیون باختم');
+      check('a vague poker message creates neither transaction nor session', (await txs4()).length === 0 && (await fetch(`${BASE}/api/poker`, { headers: auth4 }).then(r => r.json())).items.length === 2, JSON.stringify(vague.actions));
+      check('…the text is kept in the inbox instead of being silently dropped', (vague.done || []).some(x => /Inbox/.test(x)), JSON.stringify(vague.done));
+      const bet = await say('بت ۵۰ میلیون واریز کردم');
+      check('a bet message does not create a transaction either', (await txs4()).length === 0, JSON.stringify(bet.actions));
+      const control = await say('خرید نان ۵۰۰ هزار');
+      const after = await txs4();
+      check('normal text still creates a transaction (the guard is not a blanket mute)', (control.actions || []).length === 1 && after.length === 1 && after[0].amount === 500_000, JSON.stringify(control.actions));
+      const fin = await fetch(`${BASE}/api/finance?month=2026-09`, { headers: auth4 }).then(r => r.json());
+      check('poker/bet money never leaks into the finance totals', fin.expense === 500_000 && fin.income === 0, JSON.stringify({ income: fin.income, expense: fin.expense }));
+    }
+
+    /* [47] بخش «بت» (دلاری): هر روز «مبلغی که داشتم» + واریز/برداشت اختیاری + موجودی سایت.
+       سود/زیان روز = موجودی − مبلغ ابتدای روز − واریز + برداشت، پس پولی که تازه به سایت
+       می‌دهم اشتباهی «برد» حساب نمی‌شود. «مبلغی که داشتم» خودکار از موجودی دیروز می‌آید.
+       مثل پوکر، این بخش هیچ تراکنشی نمی‌سازد. */
+    console.log('\n[47] «بت» daily ledger: win/loss per day, monthly chart stats, never touches transactions');
+    {
+      const email5 = 'smoke-bet-' + Date.now() + '@example.com';
+      await fetch(`${BASE}/api/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'B', email: email5, password: 'secret123' }) });
+      const login5 = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email5, password: 'secret123' }) });
+      const auth5 = { 'Content-Type': 'application/json', Cookie: login5.headers.get('set-cookie').split(';')[0] };
+      const put = (body) => fetch(`${BASE}/api/bet`, { method: 'POST', headers: auth5, body: JSON.stringify(body) }).then(r => r.json());
+      const betOf = () => fetch(`${BASE}/api/bet`, { headers: auth5 }).then(r => r.json());
+      const txt = (body) => fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: auth5, body: JSON.stringify(body) }).then(r => r.json());
+      const month = () => fetch(`${BASE}/api/bet?month=2026-09`, { headers: auth5 }).then(r => r.json());
+      const base0 = await put({ date: '2026-09-09', balance: 500 });
+      check('the very first entry is a baseline (no phantom win on the first day ever)', base0.day.result === 0 && base0.day.start === 500, JSON.stringify(base0.day));
+      await fetch(`${BASE}/api/bet/${base0.day.id}`, { method: 'DELETE', headers: auth5 });
+
+      const d1 = await put({ date: '2026-09-10', deposit: 100, balance: 120 });
+      check('first day: deposit $100 -> balance $120 = +20 win', d1.day?.result === 20 && d1.day.start === 0, JSON.stringify(d1.day));
+      const d2 = await put({ date: '2026-09-11', balance: 95 });
+      check('next day: «مبلغی که داشتم» is auto-filled from yesterday ($120) -> -25 loss', d2.day?.result === -25 && d2.day.start === 120, JSON.stringify(d2.day));
+      const d3 = await put({ date: '2026-09-12', deposit: 50, balance: 160 });
+      check('a $50 top-up is NOT counted as a win (160-95-50 = +15)', d3.day?.result === 15, JSON.stringify(d3.day));
+      const d4 = await put({ date: '2026-09-13', withdraw: 40, balance: 130 });
+      check('a $40 withdrawal is NOT counted as a loss (130-160+40 = +10)', d4.day?.result === 10, JSON.stringify(d4.day));
+      const st = (await month()).stats;
+      check('monthly stats: profit, win-rate, best and worst day', st.days === 4 && st.profit === 20 && st.wins === 3 && st.losses === 1 && st.winRate === 75 && st.best.result === 20 && st.worst.result === -25, JSON.stringify({ days: st.days, profit: st.profit, wins: st.wins, losses: st.losses, rate: st.winRate, best: st.best && st.best.result, worst: st.worst && st.worst.result }));
+      check('deposits/withdrawals are reported separately from profit', st.deposits === 150 && st.withdrawals === 40, JSON.stringify({ dep: st.deposits, wd: st.withdrawals }));
+      const up = await put({ date: '2026-09-13', withdraw: 40, balance: 140 });
+      const st2 = (await month()).stats;
+      check('saving the same date again updates that day (one row per day)', up.day.result === 20 && st2.days === 4 && st2.profit === 30, JSON.stringify({ days: st2.days, profit: st2.profit }));
+      const noBal = await fetch(`${BASE}/api/bet`, { method: 'POST', headers: auth5, body: JSON.stringify({ date: '2026-09-14' }) });
+      check('balance is required (400 with a clear error)', noBal.status === 400, String(noBal.status));
+      const delId = up.day.id;
+      await fetch(`${BASE}/api/bet/${delId}`, { method: 'DELETE', headers: auth5 });
+      const st3 = (await month()).stats;
+      check('deleting a day recomputes the month', st3.days === 3 && st3.profit === 10, JSON.stringify({ days: st3.days, profit: st3.profit }));
+      const rows = ((await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth5 }).then(r => r.json())).items) || [];
+      const fin = await fetch(`${BASE}/api/finance?month=2026-09`, { headers: auth5 }).then(r => r.json());
+      check('the bet ledger never creates a transaction or moves the finance totals', rows.length === 0 && fin.income === 0 && fin.expense === 0, JSON.stringify({ rows: rows.length, income: fin.income, expense: fin.expense }));
+      const other = ((await fetch(`${BASE}/api/bet?month=2026-09`, { headers: authHeaders }).then(r => r.json())).items) || [];
+      check('bet days are per-user (the main test user sees none of them)', other.length === 0, JSON.stringify(other.length));
+      // typing the bet balance also works from Telegram/text: «بت موجودی ۳۰۰ دلار»
+      // (the row for today is created/updated in place - one row per day - and still no transaction)
+      const todayIso = today(); /* سرور هم با تایم‌زون تهران تاریخ می‌زند */
+      const s0 = (await fetch(`${BASE}/api/bet`, { headers: auth5 }).then(r => r.json())).suggestedStart;
+      const t1 = await txt({ text: 'بت موجودی ۳۰۰ دلار' });
+      const r1 = await betOf();
+      const row1 = (r1.items || []).find(x => x.date === todayIso);
+      check('typing the bet balance logs today as a bet day, «مبلغی که داشتم» auto-filled from yesterday',
+        !!((t1.actions || []).find(x => x.type === 'betDay')) && !!row1 && row1.balance === 300 && row1.start === s0 && row1.result === 300 - s0,
+        JSON.stringify({ actions: t1.actions, row: row1, suggestedStart: s0 }));
+      await txt({ text: 'بت موجودی ۳۵۰ دلار' });
+      const r2 = await betOf();
+      const rowsToday = (r2.items || []).filter(x => x.date === todayIso);
+      check('the second message of the same day updates that day (+$50) instead of adding a row',
+        rowsToday.length === 1 && rowsToday[0].balance === 350 && rowsToday[0].result === 350 - s0,
+        JSON.stringify(rowsToday));
+      const dep = await txt({ text: 'بت ۵۰ دلار واریز کردم' });
+      const rows3 = ((await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth5 }).then(r => r.json())).items) || [];
+      check('a deposit phrase stays an Inbox note (no bet day, no transaction)', !(dep.actions || []).some(x => x.type === 'betDay') && rows3.length === 0, JSON.stringify(dep.actions));
+    }
+
+    /* [48] پورتفو: «دلار» بدون نماد و بدون قیمت — فقط مقدار.
+       هر دلار همیشه ۱ دلار است، پس ارزشش = مقدار × نرخ دلار تومان. */
+    console.log('\n[48] portfolio: 💵 dollar holding needs only an amount (no symbol, no price)');
+    {
+      const buyDollar = (body) => fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify(body) });
+      const pf = () => fetch(`${BASE}/api/portfolio`, { headers: authHeaders }).then(r => r.json());
+
+      const d1 = await buyDollar({ assetType: 'dollar', quantity: 500 });
+      check('a dollar holding is accepted with an amount only (no symbol, no price)', d1.status === 201, String(d1.status));
+      const p1 = await pf();
+      const usd = p1.items.find(x => x.assetType === 'dollar');
+      check('…and shows up as one USD holding with price 1 and value = amount', !!usd && usd.symbol === 'USD' && usd.quantity === 500 && usd.currentPrice === 1 && usd.marketValue === 500 && usd.currency === 'USD', JSON.stringify(usd && { sym: usd.symbol, qty: usd.quantity, price: usd.currentPrice, val: usd.marketValue, cur: usd.currency }));
+      check('…with zero profit/loss (no fake gain against the dollar itself)', usd.unrealizedPnl === 0 && p1.totals.USD.value === 500 + (p1.items.filter(x => x.assetType !== 'dollar').reduce((s2, x) => s2 + x.marketValue, 0)), JSON.stringify(p1.totals.USD));
+
+      const d2 = await buyDollar({ assetType: 'dollar', quantity: 250 });
+      const p2 = await pf();
+      const usd2 = p2.items.filter(x => x.assetType === 'dollar');
+      check('buying again merges into the same dollar row (500 + 250 = 750)', d2.status === 201 && usd2.length === 1 && usd2[0].quantity === 750, JSON.stringify(usd2.map(x => x.quantity)));
+
+      const noQty = await buyDollar({ assetType: 'dollar' });
+      const noQtyBody = await noQty.json();
+      check('an empty amount is rejected with a dollar-specific message', noQty.status === 400 && /دلار/.test(noQtyBody.error || ''), JSON.stringify(noQtyBody));
+
+      const withPrice = await buyDollar({ assetType: 'dollar', quantity: 10, price: 999999 });
+      const p3 = await pf();
+      const usd3 = p3.items.find(x => x.assetType === 'dollar');
+      check('a stray price is ignored — a dollar is always $1', withPrice.status === 201 && usd3.currentPrice === 1 && usd3.quantity === 760, JSON.stringify({ price: usd3.currentPrice, qty: usd3.quantity }));
+
+      check('no price row is created for the dollar holding (قیمت لازم نیست)', !(JSON.parse(fs.readFileSync(DB_PATH, 'utf8')).assetPrices || []).some(x => x.symbol === 'USD'), 'assetPrices has USD');
+
+      const sell = await buyDollar({ assetType: 'dollar', type: 'sell', quantity: 100 });
+      const p4 = await pf();
+      check('selling dollars reduces the same row (760 − 100 = 660)', sell.status === 201 && p4.items.find(x => x.assetType === 'dollar').quantity === 660, JSON.stringify(p4.items.filter(x => x.assetType === 'dollar').map(x => x.quantity)));
+
+      // رگرسیون: کریپتو/سهام باید همان قواعد قبلی را داشته باشند
+      const cryptoSym = await buyDollar({ assetType: 'crypto', quantity: 1 });
+      const cryptoPrice = await buyDollar({ assetType: 'crypto', symbol: 'ETH', quantity: 1 });
+      check('crypto still requires both symbol and price (the dollar shortcut did not loosen it)', cryptoSym.status === 400 && cryptoPrice.status === 400, JSON.stringify([cryptoSym.status, cryptoPrice.status]));
+
+      // UI: صفحهٔ مالی باید گزینهٔ دلار داشته باشد و نماد/قیمت را برایش غیرفعال کند
+      const page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
+      check('the finance page offers 💵 دلار and disables symbol/price for it',
+        page.includes('<option value="dollar">💵 دلار</option>') && page.includes("symEl.disabled=isD") && page.includes("assetType:'dollar', type:'buy', quantity:qty"),
+        'finance-page.html');
+    }
 
   } finally {
     child.kill();

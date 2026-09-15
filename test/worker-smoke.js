@@ -223,6 +223,186 @@ async function main() {
   check('document attach -> 503 (no bot token, pre-network)', (await call(`/api/documents/${doc.id}/attach`, { method: 'POST', cookie, body: { image: 'data:image/png;base64,iVBORw0KGgo=' } })).status === 503);
   check('backup-to-telegram -> 503 (no bot token, pre-network)', (await call('/api/backup/telegram', { method: 'POST', cookie, body: {} })).status === 503);
 
+  // [W8] «درآمد لحاظ نشود» روی خودِ آرتیفکت دیپلوی‌شده. این helper تازه است، یعنی دقیقاً
+  // همان کلاس باگی که یک‌بار پروداکشن را ۵۰۰ کرد (هلپر تعریف‌شده ولی export‌نشده) این‌جا
+  // هم پوشش داده می‌شود: اگر isIncomeTx در یکی از دو فهرست جا بیفتد، /api/finance و
+  // PATCH این‌جا قرمز می‌شوند، نه روی سرور واقعی.
+  console.log('\n[W8] notIncome on the deployed artifact (helper must be exported)');
+  await call('/api/accounts', { method: 'POST', cookie, body: { name: 'W8', openingBalance: 0 } });
+  const w8income = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'حقوق W8', amount: 9_000_000, kind: 'income', category: 'درآمد', account: 'W8', date: today() } })).d;
+  const w8pass = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'انتقال W8', amount: 2_500_000, kind: 'income', category: 'درآمد', account: 'W8', date: today() } })).d;
+  const fin1 = (await call(`/api/finance?month=${today().slice(0, 7)}`, { cookie })).d;
+  check('finance counts both receives before opting out', fin1.income >= 11_500_000 && fin1.incomeOffCount === 0);
+  const off = await call(`/api/transactions/${w8pass.id}`, { method: 'PATCH', cookie, body: { notIncome: true } });
+  check('PATCH notIncome:true -> 200 on the worker (isIncomeTx route path works)', off.status === 200 && off.d && off.d.notIncome === true);
+  const fin2 = (await call(`/api/finance?month=${today().slice(0, 7)}`, { cookie })).d;
+  check('finance income drops by exactly the opted-out amount', fin1.income - fin2.income === 2_500_000);
+  check('opted-out amount is reported, not silently dropped', fin2.incomeOffCount === 1 && fin2.incomeOffSum === 2_500_000);
+  const accs = (await call('/api/accounts', { cookie })).d;
+  const w8acc = (accs.accounts || []).find(a => a.name === 'W8');
+  check('account balance still holds the real money (9M + 2.5M)', w8acc && Math.round(w8acc.balance) === 11_500_000);
+  const rows = (await call(`/api/transactions?from=${today()}&to=${today()}`, { cookie })).d;
+  check('the flag round-trips through GET /api/transactions', (rows.items || []).find(x => x.id === w8pass.id)?.notIncome === true);
+  const w8salary = (rows.items || []).find(x => x.id === w8income.id);
+  check('a normal receive keeps no flag', w8salary && w8salary.notIncome === undefined);
+
+  // [W9] ریال/تومان روی خودِ آرتیفکت دیپلوی‌شده. stripBalanceNotes/stripRefNumbers تازه‌اند:
+  // اگر از فهرست exportها جا بیفتند، مسیر پیامک بانکی روی Cloudflare می‌شکند در حالی که
+  // `node server.js` سالم است — همان کلاس باگی که این فایل برایش نوشته شده.
+  console.log('\n[W9] rial/toman + balance guard on the deployed artifact');
+  const w9ids = async () => new Set((((await call(`/api/transactions?from=${today()}&to=${today()}`, { cookie })).d.items) || []).map(x => x.id));
+  const w9parse = async (text) => {
+    const before = await w9ids();
+    const res = await call('/api/ai/process', { method: 'POST', cookie, body: { text } });
+    const items = ((await call(`/api/transactions?from=${today()}&to=${today()}`, { cookie })).d.items) || [];
+    return { status: res.status, actions: (res.d && res.d.actions) || [], created: items.filter(x => !before.has(x.id)) };
+  };
+  const w9sms = await w9parse('۲۴بلو انتقال پل حمیدرضا عزیز 15,000,000 ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23');
+  check('worker: reported SMS parses to 1,500,000 تومان', w9sms.status === 200 && w9sms.actions.length === 1 && w9sms.actions[0].amount === 1_500_000, JSON.stringify(w9sms.actions));
+  check('worker: stored row has the converted amount, never the balance', w9sms.created.length === 1 && w9sms.created[0].amount === 1_500_000);
+  const w9bal = await w9parse('موجودی: 3,879,270,699 ریال');
+  check('worker: balance-only text creates nothing (stripBalanceNotes must be exported)', w9bal.status === 200 && w9bal.actions.length === 0 && w9bal.created.length === 0);
+  const w9ref = await w9parse('شناسه پرداخت ۱۲۳۴۵۶۷۸۹۰');
+  check('worker: reference-number-only text creates nothing (stripRefNumbers must be exported)', w9ref.status === 200 && w9ref.actions.length === 0 && w9ref.created.length === 0);
+  const w9composite = await w9parse('مبلغ: ۱۵٬۰۰۰٬۰۰۰ تومان\nبابت: نظافت منزل\nتاریخ: Sep 14, 2026 at 23:29\n\nبلو\nانتقال پل\nحمیدرضا عزیز، 15,000,000 ریال از حساب شما پرید.\nموجودی: 3,879,270,699 ریال');
+  check('worker: user\'s real combined message -> 1,500,000 تومان, title=نظافت منزل', w9composite.actions.length === 1 && w9composite.actions[0].amount === 1_500_000 && w9composite.actions[0].title === 'نظافت منزل', JSON.stringify(w9composite.actions));
+  const w9before = await w9parse('ریال ۱۵,۰۰۰,۰۰۰ انتقال به حمیدرضا');
+  check('worker: «ریال» written before the number also divides by 10', w9before.actions.length === 1 && w9before.actions[0].amount === 1_500_000);
+  const w9toman = await w9parse('خرید ۱۵,۰۰۰,۰۰۰ تومان');
+  check('worker: تومان amounts are unchanged (no divide by 10)', w9toman.actions.length === 1 && w9toman.actions[0].amount === 15_000_000);
+
+  // [W10] یادآوری سرِ ماه + مطابقت صورتحساب روی خودِ آرتیفکت دیپلوی‌شده.
+  // matchBankStatementItems / ensureStatementReminder / jalaliMonthLabel توابع تازه‌اند:
+  // اگر از فهرست exportها یا از makeHelpers جا بیفتند، این مسیرها روی Cloudflare ۵۰۰
+  // می‌شوند در حالی که `node server.js` سالم است (همان باگی که این فایل شکار می‌کند).
+  console.log('\n[W10] monthly reminder + statement reconciliation on the deployed artifact');
+  {
+    const w10email = `wsmoke_rem_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W10', email: w10email, password: 'secret123' } });
+    const w10login = await call('/api/auth/login', { method: 'POST', body: { email: w10email, password: 'secret123' } });
+    const c10 = String((typeof w10login.headers.getSetCookie === 'function' ? w10login.headers.getSetCookie()[0] : w10login.headers.get('set-cookie')) || '').split(';')[0];
+    const w10check = async (date) => (await call('/api/reminders/statement-check', { method: 'POST', cookie: c10, body: date ? { date } : {} })).d;
+    const w10csv = ['تاریخ,شرح,واریز,برداشت,شماره سند',
+      '1405/06/23,نظافت منزل,0,"1,500,000",9001',
+      '1405/06/21,خرید نان,0,"500,000",9002',
+      '1405/06/25,واریز حقوق,"12,000,000",0,9003'].join('\n');
+    const w10preview = async (csv) => (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'csv', filename: 'bank.csv', fileBase64: Buffer.from('\ufeff' + csv, 'utf8').toString('base64') } })).d;
+
+    const w10first = await w10check('2026-09-23');
+    check('worker: 1st of the month -> bank-statement reminder for the previous month', w10first.created === 1 && w10first.month === 'شهریور' && !!w10first.reminder && w10first.reminder.auto === 'bank-import:1405-06', JSON.stringify(w10first));
+    const w10again = await w10check('2026-09-23');
+    check('worker: the reminder is not duplicated on a second check', w10again.created === 0 && !!w10again.reminder && w10again.reminder.id === w10first.reminder.id, JSON.stringify(w10again));
+    const w10mid = await w10check('2026-09-10');
+    check('worker: mid-month check does nothing', w10mid.created === 0 && w10mid.checked === false, JSON.stringify(w10mid));
+
+    const w10manual = (await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'نظافت منزل', amount: 150_000, kind: 'expense', account: 'بدون حساب', date: '2026-09-14' } })).d;
+    check('worker: manual row recorded for the reconciliation test', !!w10manual && w10manual.amount === 150_000);
+    const w10p1 = await w10preview(w10csv);
+    check('worker: preview skips the already-entered row (1 already / 2 new)', w10p1.newCount === 2 && w10p1.alreadyCount === 1, JSON.stringify({ n: w10p1.newCount, a: w10p1.alreadyCount, d: w10p1.duplicateCount }));
+    check('worker: فایل ریالی درست تقسیم بر ۱۰ می‌شود (1,500,000 ریال = 150,000 تومان)', (w10p1.items || [])[0]?.amount === 150_000, JSON.stringify((w10p1.items || []).map(x => [x.title, x.amount])));
+    const w10c1 = (await call('/api/transactions/import-bank/commit', { method: 'POST', cookie: c10, body: { items: w10p1.items, account: 'بدون حساب' } })).d;
+    check('worker: commit imports only the missing rows', w10c1.imported === 2 && w10c1.skippedExisting === 1, JSON.stringify(w10c1));
+    const w10rows = ((await call(`/api/transactions?from=2026-01-01&to=2026-12-31`, { cookie: c10 })).d.items || []);
+    check('worker: the manual row was not duplicated', w10rows.filter(x => x.title === 'نظافت منزل').length === 1, JSON.stringify(w10rows.map(x => [x.title, x.amount])));
+    const w10p2 = await w10preview(w10csv);
+    const w10c2 = (await call('/api/transactions/import-bank/commit', { method: 'POST', cookie: c10, body: { items: w10p2.items, account: 'بدون حساب' } })).d;
+    check('worker: re-uploading the same statement adds nothing', w10p2.newCount === 0 && w10c2.imported === 0 && w10c2.skippedExisting === 3, JSON.stringify({ p: w10p2.newCount, c: w10c2 }));
+    await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'تاکسی', amount: 70_000, kind: 'expense', account: 'بدون حساب', date: '2026-09-13' } });
+    const w10near = await w10preview('تاریخ,شرح,واریز,برداشت,شماره سند\n1405/06/21,تاکسی,0,"700,000",7777');
+    check('worker: a row one day off an existing row is flagged near-duplicate, not dropped', w10near.nearDuplicateCount === 1 && (w10near.items || [])[0]?.nearDuplicate === true && w10near.newCount === 1, JSON.stringify(w10near));
+  }
+
+  // [W11] پوکر/بت روی خودِ آرتیفکت: متن پوکر/بت نباید تراکنش بسازد. (هم هلپر تازه‌ی
+  // parseGambleText باید در هر دو نسخه یکی باشد، هم مسیر /api/ai/process روی ورکر.)
+  console.log('\n[W11] poker/bet messages never become transactions (deployed artifact)');
+  {
+    const w11email = `wsmoke_gamble_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W11', email: w11email, password: 'secret123' } });
+    const w11login = await call('/api/auth/login', { method: 'POST', body: { email: w11email, password: 'secret123' } });
+    const c11 = String((typeof w11login.headers.getSetCookie === 'function' ? w11login.headers.getSetCookie()[0] : w11login.headers.get('set-cookie')) || '').split(';')[0];
+    const say11 = async (text) => (await call('/api/ai/process', { method: 'POST', cookie: c11, body: { text } })).d;
+    const rows11 = async () => ((await call('/api/transactions?from=2026-01-01&to=2026-12-31', { cookie: c11 })).d.items) || [];
+    const pk11 = async () => ((await call('/api/poker', { cookie: c11 })).d.items) || [];
+
+    const w11s = await say11('پوکر خانه دوستان ۵۰ میلیون ورودی ۴۲ میلیون خروجی');
+    check('worker: poker text creates no transaction', (await rows11()).length === 0, JSON.stringify(await rows11()));
+    check('worker: poker text becomes a poker session (50M in / 42M out)', (w11s.actions || [])[0]?.type === 'poker' && w11s.actions[0].buyIn === 50_000_000 && w11s.actions[0].cashOut === 42_000_000, JSON.stringify(w11s.actions));
+    check('worker: the session is stored in the poker panel data', (await pk11()).length === 1 && (await pk11())[0].cashOut === 42_000_000);
+    const w11b = await say11('بت ۵۰ میلیون واریز کردم');
+    check('worker: bet text creates no transaction', (await rows11()).length === 0 && (w11b.done || []).some(x => /Inbox/.test(x)), JSON.stringify(w11b.done));
+    const w11c = await say11('خرید نان ۵۰۰ هزار');
+    check('worker: normal expense text still works', (w11c.actions || []).length === 1 && (await rows11()).length === 1 && (await rows11())[0].amount === 500_000, JSON.stringify(w11c.actions));
+  }
+
+  // [W12] بخش «بت» روی آرتیفکت دیپلوی‌شده: هلپرهای تازه (betRollup/betAutoStart/betDaysOf)
+  // باید در هر دو فهرست export باشند، وگرنه مسیر /api/bet روی کلودفلر ۵۰۰ می‌شود.
+  console.log('\n[W12] bet ledger on the deployed artifact (USD, one row per day)');
+  {
+    const w12email = `wsmoke_bet_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W12', email: w12email, password: 'secret123' } });
+    const w12login = await call('/api/auth/login', { method: 'POST', body: { email: w12email, password: 'secret123' } });
+    const c12 = String((typeof w12login.headers.getSetCookie === 'function' ? w12login.headers.getSetCookie()[0] : w12login.headers.get('set-cookie')) || '').split(';')[0];
+    const put12 = async (body) => (await call('/api/bet', { method: 'POST', cookie: c12, body })).d;
+    const w12base = await put12({ date: '2026-09-09', balance: 500 });
+    check('worker: the very first entry is a baseline (no phantom win)', w12base.day.result === 0 && w12base.day.start === 500, JSON.stringify(w12base.day));
+    await call(`/api/bet/${w12base.day.id}`, { method: 'DELETE', cookie: c12 });
+    const w12a = await put12({ date: '2026-09-10', deposit: 100, balance: 120 });
+    const w12b = await put12({ date: '2026-09-11', balance: 95 });
+    const w12c = await put12({ date: '2026-09-12', deposit: 50, balance: 160 });
+    check('worker: day results are computed correctly (+20, −25, +15)', w12a.day.result === 20 && w12b.day.result === -25 && w12b.day.start === 120 && w12c.day.result === 15, JSON.stringify([w12a.day.result, w12b.day.start, w12b.day.result, w12c.day.result]));
+    const w12m = await call('/api/bet?month=2026-09', { cookie: c12 });
+    check('worker: monthly stats (profit / wins / losses / win-rate)', w12m.d.stats.days === 3 && w12m.d.stats.profit === 10 && w12m.d.stats.wins === 2 && w12m.d.stats.losses === 1 && w12m.d.stats.winRate === 67, JSON.stringify(w12m.d.stats));
+    const w12bad = await call('/api/bet', { method: 'POST', cookie: c12, body: { date: '2026-09-13' } });
+    check('worker: balance is required (400)', w12bad.status === 400);
+    const w12rows = ((await call('/api/transactions?from=2026-01-01&to=2026-12-31', { cookie: c12 })).d.items) || [];
+    check('worker: the bet ledger never creates a transaction', w12rows.length === 0, JSON.stringify(w12rows.length));
+    const w12del = await call(`/api/bet/${w12c.day.id}`, { method: 'DELETE', cookie: c12 });
+    const w12m2 = await call('/api/bet?month=2026-09', { cookie: c12 });
+    check('worker: deleting a day works and recomputes', w12del.d.ok === true && w12m2.d.stats.days === 2 && w12m2.d.stats.profit === -5, JSON.stringify(w12m2.d.stats));
+    // the bet balance can also be typed as text (one row per day, never a transaction)
+    const w12today = (typeof today === 'function') ? today() : new Date().toISOString().slice(0, 10);
+    const w12s0 = (await call('/api/bet', { cookie: c12 })).d.suggestedStart;
+    const w12t1 = await call('/api/ai/process', { method: 'POST', cookie: c12, body: { text: 'بت موجودی ۳۰۰ دلار' } });
+    const w12r1 = await call('/api/bet', { cookie: c12 });
+    const w12row = ((w12r1.d && w12r1.d.items) || []).find(x => x.date === w12today);
+    check('worker: typing the bet balance logs today (betDay action, start auto-filled from yesterday)',
+      !!((w12t1.d && w12t1.d.actions) || []).find(x => x.type === 'betDay') && !!w12row && w12row.balance === 300 && w12row.start === w12s0 && w12row.result === 300 - w12s0,
+      JSON.stringify({ actions: w12t1.d && w12t1.d.actions, row: w12row }));
+    await call('/api/ai/process', { method: 'POST', cookie: c12, body: { text: 'بت موجودی ۳۵۰ دلار' } });
+    const w12r2 = await call('/api/bet', { cookie: c12 });
+    const w12rowsT = ((w12r2.d && w12r2.d.items) || []).filter(x => x.date === w12today);
+    const w12tx = ((await call('/api/transactions?from=2026-01-01&to=2026-12-31', { cookie: c12 })).d.items) || [];
+    check('worker: the second text of the same day updates it (+$50, still one row, no transactions)',
+      w12rowsT.length === 1 && w12rowsT[0].balance === 350 && w12rowsT[0].result === 350 - w12s0 && w12tx.length === 0,
+      JSON.stringify({ rows: w12rowsT, tx: w12tx.length }));
+  }
+
+  // [W13] «دلار» روی آرتیفکت دیپلوی‌شده: بدون نماد و بدون قیمت، هر دلار = ۱ دلار
+  console.log('\n[W13] portfolio: dollar holding on the deployed artifact (amount only)');
+  {
+    const w13email = `wsmoke_usd_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W13', email: w13email, password: 'secret123' } });
+    const w13login = await call('/api/auth/login', { method: 'POST', body: { email: w13email, password: 'secret123' } });
+    const c13 = String((typeof w13login.headers.getSetCookie === 'function' ? w13login.headers.getSetCookie()[0] : w13login.headers.get('set-cookie')) || '').split(';')[0];
+    const w13buy = (body) => call('/api/investments/tx', { method: 'POST', cookie: c13, body });
+    const w13pf = () => call('/api/portfolio', { cookie: c13 });
+
+    const w13a = await w13buy({ assetType: 'dollar', quantity: 500 });
+    const w13p1 = await w13pf();
+    const w13usd = (w13p1.d.items || []).find(x => x.assetType === 'dollar');
+    check('worker: a dollar holding needs only an amount (price fixed at $1)',
+      w13a.status === 201 && !!w13usd && w13usd.currentPrice === 1 && w13usd.marketValue === 500 && w13usd.unrealizedPnl === 0,
+      JSON.stringify(w13usd && { qty: w13usd.quantity, price: w13usd.currentPrice, val: w13usd.marketValue }));
+    await w13buy({ assetType: 'dollar', quantity: 250 });
+    const w13p2 = await w13pf();
+    const w13rows = (w13p2.d.items || []).filter(x => x.assetType === 'dollar');
+    check('worker: buying again merges into one dollar row (750)', w13rows.length === 1 && w13rows[0].quantity === 750, JSON.stringify(w13rows.map(x => x.quantity)));
+    const w13bad = await w13buy({ assetType: 'dollar' });
+    check('worker: an empty dollar amount is a 400 with a dollar-specific message', w13bad.status === 400 && /دلار/.test((w13bad.d && w13bad.d.error) || ''), JSON.stringify(w13bad.d));
+    const w13crypto = await w13buy({ assetType: 'crypto', symbol: 'BTC', quantity: 1 });
+    check('worker: crypto still requires a price (shortcut is dollar-only)', w13crypto.status === 400, String(w13crypto.status));
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }
