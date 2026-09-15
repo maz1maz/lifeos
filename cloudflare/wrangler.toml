@@ -31,6 +31,7 @@ crons = ["*/15 * * * *"]
 # Secrets (never put real values here — this file is committed to git).
 # Set each with: wrangler secret put NAME
 #   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
+#   GOOGLE_CALENDAR_REDIRECT_URI  # also enable Google Calendar API in Google Cloud
 #   API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN
 #   SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI
 #   AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY

@@ -124,6 +124,13 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .oitem .oi{font-size:20px}
 .oitem b{font-family:var(--fh);font-size:14.5px;display:block}
 .oitem small{color:var(--faint);font-size:12.5px}
+.btn[href]{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;line-height:1.5}
+.gcal-ava{width:58px;height:58px;border-radius:16px;flex:none;display:grid;place-items:center;font-family:var(--fh);font-size:28px;font-weight:900;color:#4285f4;background:#fff;border:1px solid #e5e7eb;box-shadow:0 7px 18px rgba(66,133,244,.16)}
+.gcal-meta{margin-top:9px;font-size:13px;color:var(--muted);line-height:1.9}
+.gcal-note{margin-top:13px;padding:10px 12px;border-radius:13px;background:color-mix(in srgb,#4285f4 8%,var(--panel2));border:1px solid color-mix(in srgb,#4285f4 24%,var(--border));color:var(--muted);font-size:13px;line-height:1.9}
+.gcal-note b{color:var(--text)}
+.gcal-actions .btn[hidden]{display:none}
+@media(max-width:560px){.gcal-actions{display:grid!important;grid-template-columns:1fr 1fr}.gcal-actions .btn{padding-inline:10px}.gcal-actions #gcalConnect{grid-column:1/-1}}
 .specline{color:var(--faint);font-size:14px;margin-top:20px;border-top:1px dashed var(--border);padding-top:14px}
 #toast{position:fixed;bottom:22px;right:50%;transform:translateX(50%);background:var(--acc);color:#062028;
   font-family:var(--fh);font-weight:700;font-size:15px;border-radius:13px;padding:10px 22px;opacity:0;
@@ -289,6 +296,29 @@ body.nav-open .nav-backdrop{display:block}
   <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/football-page.html">⚽ فوتبال</a><a href="/design/series-page.html">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html" class="on">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
   <p class="lead">تلگرام، حساب کاربری و سرویس‌های وصل‌شونده</p>
+
+  <!-- Google Calendar -->
+  <div class="card" id="googleCalendarCard">
+    <div class="mhead"><h4>📅 Google Calendar</h4><span class="status st-off" id="gcalSt">در حال بررسی…</span></div>
+    <div class="tgbox">
+      <div class="gcal-ava" aria-hidden="true">G</div>
+      <div class="tgmain">
+        <b>تقویم اختصاصی LifeOS</b>
+        <small>همگام‌سازی دوطرفهٔ کارها و یادآوری‌ها، همراه با نمایش رویدادهای گوگل در تقویم هسته</small>
+        <div class="inrow gcal-actions">
+          <a class="btn" id="gcalConnect" href="/api/integrations/google-calendar/connect">اتصال امن با گوگل</a>
+          <button class="btn" id="gcalSync" type="button" hidden>↻ همگام‌سازی الان</button>
+          <button class="btn ghost" id="gcalDisconnect" type="button" hidden>قطع اتصال</button>
+          <a class="btn ghost" id="gcalOpen" href="https://calendar.google.com/calendar/u/0/r" target="_blank" rel="noopener" hidden>بازکردن Google Calendar ↗</a>
+        </div>
+        <div class="gcal-meta" id="gcalMeta">وضعیت اتصال در حال دریافت است…</div>
+      </div>
+    </div>
+    <div class="gcal-note">
+      <b>چه چیزی همگام می‌شود؟</b> کار یا یادآوریِ ساعت‌دار به رویداد زمانی و مورد بدون ساعت به رویداد تمام‌روز می‌رود. هسته فقط در تقویم جداگانهٔ <b>LifeOS</b> می‌نویسد؛ رویدادهای تقویم‌های قابل‌مشاهدهٔ گوگل را در صفحهٔ تقویم می‌خواند. ویرایش رویداد مدیریت‌شده در گوگل به هسته برمی‌گردد، اما حذف آن در گوگل دادهٔ هسته را پاک نمی‌کند. اگر یک مورد هم‌زمان در هر دو طرف عوض شود، نسخهٔ هسته نگه داشته می‌شود.
+    </div>
+  </div>
+
 
   <!-- تلگرام -->
   <div class="card">
@@ -549,6 +579,46 @@ fetch('/api/me').then(function(r){return r.json()}).then(function(d){
   if(d&&d.user)refreshPinSt(!!d.user.pinEnabled);
 }).catch(function(){});
 
+
+/* Google Calendar */
+var GCAL=null;
+function gcalDate(v){if(!v)return 'هنوز همگام نشده';try{return new Date(v).toLocaleString('fa-IR',{dateStyle:'medium',timeStyle:'short'})}catch(e){return v}}
+function renderGcal(g){
+  GCAL=g||{};
+  var st=document.getElementById('gcalSt'),meta=document.getElementById('gcalMeta');
+  var connect=document.getElementById('gcalConnect'),sync=document.getElementById('gcalSync'),disconnect=document.getElementById('gcalDisconnect'),open=document.getElementById('gcalOpen');
+  if(!g||!g.configured){
+    st.textContent='نیاز به تنظیم سرور';st.className='status st-warn';
+    meta.textContent='شناسه OAuth یا نشانی بازگشت Google Calendar روی سرور تنظیم نشده است.';
+    connect.className='btn ghost';connect.setAttribute('aria-disabled','true');connect.onclick=function(e){e.preventDefault();toast('تنظیمات Google Calendar روی سرور کامل نیست')};
+    connect.hidden=!!g.connected;sync.hidden=true;disconnect.hidden=!g.connected;open.hidden=!g.connected;return;
+  }
+  connect.onclick=null;connect.className='btn';connect.setAttribute('aria-disabled','false');
+  if(!g.connected){
+    st.textContent='وصل نیست';st.className='status st-off';meta.textContent='برای ساخت تقویم LifeOS و نمایش رویدادهای گوگل، اتصال امن را تأیید کن.';
+    connect.hidden=false;sync.hidden=true;disconnect.hidden=true;open.hidden=true;return;
+  }
+  st.textContent=g.lastError?'متصل · نیاز به بررسی':'متصل ✓';st.className='status '+(g.lastError?'st-warn':'st-on');
+  connect.hidden=true;sync.hidden=false;disconnect.hidden=false;open.hidden=false;
+  var account=g.email?('حساب: '+g.email+' · '):'';
+  meta.textContent=account+'آخرین همگام‌سازی موفق: '+gcalDate(g.lastSyncAt)+(g.pending?' · '+fa(g.pending)+' مورد در صف نوبت بعد':'')+(g.lastError?' · '+g.lastError:'');
+}
+function loadGcal(){return fetch('/api/integrations/google-calendar/status',{credentials:'same-origin'}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'خطا');return d})}).then(function(d){renderGcal(d);return d}).catch(function(e){var m=document.getElementById('gcalMeta');if(m)m.textContent=e.message||'دریافت وضعیت ناموفق بود'})}
+document.getElementById('gcalSync').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='در حال همگام‌سازی…';
+  fetch('/api/integrations/google-calendar/sync',{method:'POST',credentials:'same-origin'})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+    .then(function(x){if(!x.ok||x.d.ok===false)throw new Error(x.d.error||'بخشی از همگام‌سازی ناموفق بود');var s=x.d.stats||{};toast('همگام شد ✓  ساخت '+fa(s.created||0)+' · به‌روزرسانی '+fa(s.updated||0)+' · دریافت از گوگل '+fa(s.imported||0)+(s.pending?' · مانده '+fa(s.pending):'')+(s.conflicts?' · تعارض '+fa(s.conflicts):''));return loadGcal()})
+    .catch(function(e){toast(e.message||'همگام‌سازی ناموفق بود');loadGcal()})
+    .finally(function(){btn.disabled=false;btn.textContent='↻ همگام‌سازی الان'});
+});
+document.getElementById('gcalDisconnect').addEventListener('click',function(){
+  if(!confirm('اتصال قطع شود؟ تقویم LifeOS و رویدادهای موجود در حساب گوگل باقی می‌مانند.'))return;
+  fetch('/api/integrations/google-calendar/disconnect',{method:'POST',credentials:'same-origin'})
+    .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'خطا');return d})})
+    .then(function(){toast('اتصال Google Calendar قطع شد');loadGcal()}).catch(function(e){toast(e.message||'خطا')});
+});
+(function(){try{var u=new URL(location.href),r=u.searchParams.get('calendar');if(r){var msgs={connected:'Google Calendar وصل و همگام شد ✓','connected-sync-error':'اتصال ذخیره شد؛ همگام‌سازی اولیه نیاز به بررسی دارد',cancelled:'اتصال گوگل لغو شد','state-error':'تأیید امنیتی اتصال ناموفق بود؛ دوباره تلاش کن','token-error':'دریافت مجوز گوگل ناموفق بود'};toast(msgs[r]||'وضعیت اتصال به‌روز شد');u.searchParams.delete('calendar');history.replaceState(null,'',u.pathname+u.search)}}catch(e){}loadGcal()})();
 
 /* وضعیت واقعی (در اپ زنده) */
 fetch('/api/integrations').then(function(r){return r.json()}).then(function(d){

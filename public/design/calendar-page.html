@@ -104,6 +104,13 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 body.zoom1{zoom:1.1111}
 .wrap{max-width:1400px;margin:0 auto;padding:22px 20px 80px}
 .lead{color:var(--muted);font-size:15px;margin:4px 0 16px}
+.calendar-sync{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,color-mix(in srgb,#4285f4 10%,var(--panel)),var(--panel));border:1px solid color-mix(in srgb,#4285f4 28%,var(--border));border-radius:17px;padding:11px 14px;margin:0 0 14px;box-shadow:var(--shadow-card)}
+.calendar-sync .gmark{width:38px;height:38px;border-radius:11px;background:#fff;color:#4285f4;display:grid;place-items:center;font-family:var(--fh);font-weight:900;font-size:20px;flex:none}
+.calendar-sync .copy{flex:1;min-width:0;line-height:1.65}.calendar-sync .copy b{font-family:var(--fh);font-size:14px;display:block}.calendar-sync .copy small{color:var(--muted);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calendar-sync .actions{display:flex;gap:7px;flex-wrap:wrap}.calendar-sync button,.calendar-sync a{border-radius:10px;padding:6px 11px;font-family:var(--fh);font-size:12.5px;font-weight:700;text-decoration:none;cursor:pointer}.calendar-sync button{background:#4285f4;color:#fff;border:0}.calendar-sync button:disabled{opacity:.55;cursor:wait}.calendar-sync a{background:var(--panel2);border:1px solid var(--border);color:var(--text)}
+.cell .dot.task{background:var(--good)}.cell .dot.reminder{background:var(--warn)}.cell .dot.google{background:#4285f4}.cell .dot.done{opacity:.4}
+.erow.personal{border-color:color-mix(in srgb,var(--acc) 30%,var(--border))}.erow.google{border-color:color-mix(in srgb,#4285f4 35%,var(--border))}.erow.done{opacity:.65}.erow a{color:inherit;text-decoration:none}.erow a:hover b{color:var(--acc)}
+@media(max-width:650px){.calendar-sync{align-items:flex-start;flex-wrap:wrap}.calendar-sync .copy{min-width:calc(100% - 54px)}.calendar-sync .actions{width:100%}.calendar-sync .actions>*{flex:1;text-align:center}}
 .cal-shell{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,0.75fr);gap:16px;align-items:start}
 @media(max-width:980px){.cal-shell{grid-template-columns:1fr}}
 .cal-card,.side-card{background:var(--panel);border:1.5px solid var(--border2);border-radius:20px;padding:18px 20px;box-shadow:var(--shadow-card)}
@@ -119,8 +126,7 @@ body.zoom1{zoom:1.1111}
 .wdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;direction:rtl}
 .wdays span{text-align:center;font-size:12.5px;color:var(--faint);font-family:var(--fh);padding:4px 0}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;direction:rtl}
-/* legacy cell base superseded by design block */
-.cell-legacy-disabled{display:none}
+.cell{min-width:0;min-height:92px;padding:9px;background:var(--panel2);border:1px solid var(--border);border-radius:13px;display:flex;flex-direction:column;gap:6px;overflow:hidden;position:relative;cursor:pointer;transition:border-color .18s,transform .18s,background .18s}
 .cell:hover{border-color:var(--acc);transform:translateY(-1px)}
 .cell.empty{background:transparent;border-color:transparent;cursor:default;min-height:0}
 .cell.empty:hover{transform:none}
@@ -166,14 +172,14 @@ body.zoom1{zoom:1.1111}
 .cal-col .note-card textarea{min-height:140px}
 /* تقویم میلادی: سلول فقط شماره روز */
 .cell.g-clean{
-  min-height:52px; display:flex; align-items:center; justify-content:center;
+  min-height:52px; display:flex; align-items:center; justify-content:center; position:relative;
   padding:8px !important;
 }
 .cell.g-clean .dn{font-size:16px; margin:0}
 .cell.g-clean .g,
 .cell.g-clean .ev,
-.cell.g-clean .dots,
 .cell.g-clean .tag-sel{display:none !important}
+.cell.g-clean .dots{display:flex!important;position:absolute;left:50%;bottom:5px;transform:translateX(-50%);margin:0;flex-wrap:nowrap}
 
 .note-card .nhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .note-card .nhead h3{font-family:var(--fh);font-size:18px;margin:0;flex:1;min-width:160px}
@@ -407,7 +413,12 @@ body.nav-open .nav-backdrop{display:block}
 <nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/calendar-page.html" class="on">📅 تقویم</a><a href="/design/finance-page.html">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/football-page.html">⚽ فوتبال</a><a href="/design/series-page.html">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap">
-  <div class="lead">تقویم شمسی کامل — مناسبت‌ها، تعطیلات رسمی و شرح هر روز</div>
+  <div class="lead">تقویم شمسی و میلادی — مناسبت‌ها، کارها، یادآوری‌ها و رویدادهای Google Calendar</div>
+  <div class="calendar-sync" id="calendarSyncBar">
+    <span class="gmark" aria-hidden="true">G</span>
+    <div class="copy"><b id="calendarSyncTitle">تقویم هسته</b><small id="calendarSyncText">در حال دریافت کارها و رویدادها…</small></div>
+    <div class="actions"><button type="button" id="calendarSyncBtn">↻ همگام‌سازی</button><a href="/design/settings-page.html#googleCalendarCard" id="calendarSettingsLink">تنظیم اتصال</a></div>
+  </div>
   <div class="cal-shell">
     <div class="cal-col">
     <div class="cal-card">
@@ -436,12 +447,15 @@ body.nav-open .nav-backdrop{display:block}
         <span><i style="background:#c084fc"></i> روز انتخاب‌شده</span>
         <span><i style="background:var(--bad)"></i> تعطیل / جمعه</span>
         <span><i style="background:var(--muted)"></i> مناسبت</span>
+        <span><i style="background:var(--good)"></i> کار</span>
+        <span><i style="background:var(--warn)"></i> یادآوری</span>
+        <span><i style="background:#4285f4"></i> Google Calendar</span>
         <span><i style="background:#c084fc"></i> یادداشت</span>
       </div>
       <div class="stats">
         <div class="stat"><b id="stDays">—</b><small>روز ماه</small></div>
         <div class="stat"><b id="stHol">—</b><small>تعطیل رسمی</small></div>
-        <div class="stat"><b id="stEv">—</b><small>مناسبت</small></div>
+        <div class="stat"><b id="stEv">—</b><small>رویداد</small></div>
       </div>
     </div>
     <div class="note-card" id="dayNoteCard">
@@ -469,7 +483,7 @@ body.nav-open .nav-backdrop{display:block}
       </div>
       <div class="elist" id="sideEvents"><div class="erow"><span class="ic">😊</span><div><b>مناسبتی ثبت نشده</b><small>روز خودت باشد</small></div></div></div>
       <div class="month-list">
-        <h4>مناسبت‌های این ماه</h4>
+        <h4>رویدادهای این ماه</h4>
         <div id="monthEvents"></div>
       </div>
     </div>
@@ -499,6 +513,7 @@ var CALMON=['فروردین','اردیبهشت','خرداد','تیر','مردا�
 var HOL={"14030101": "جشن نوروز/جشن سال نو", "14030102": "عیدنوروز", "14030103": "عیدنوروز", "14030104": "عیدنوروز", "14030112": "روز جمهوری اسلامی", "14030113": "شهادت حضرت علی (ع)", "14030122": "عید سعید فطر", "14030123": "تعطیل به مناسبت عید سعید فطر", "14030215": "شهادت امام جعفر صادق (ع)", "14030314": "رحلت حضرت امام خمینی", "14030315": "قیام 15 خرداد", "14030328": "عید سعید قربان", "14030405": "عید سعید غدیر خم", "14030425": "تاسوعای حسینی", "14030426": "عاشورای حسینی", "14030604": "اربعین حسینی", "14030612": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14030614": "شهادت امام رضا (ع)", "14030622": "شهادت امام حسن عسکری (ع)", "14030631": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14030915": "شهادت حضرت فاطمه زهرا (س)", "14031025": "ولادت امام علی (ع) و روز پدر", "14031109": "مبعث رسول اکرم (ص)", "14031122": "پیروزی انقلاب اسلامی", "14031126": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14031229": "روز ملی شدن صنعت نفت ایران", "14031230": "آخرین روز سال", "14040101": "جشن نوروز/جشن سال نو", "14040102": "شهادت حضرت علی (ع)", "14040103": "عیدنوروز", "14040104": "عیدنوروز", "14040111": "عید سعید فطر", "14040112": "تعطیل به مناسبت عید سعید فطر", "14040113": "جشن سیزده به در", "14040204": "شهادت امام جعفر صادق (ع)", "14040314": "رحلت حضرت امام خمینی", "14040315": "قیام 15 خرداد", "14040316": "عید سعید قربان", "14040324": "عید سعید غدیر خم", "14040414": "تاسوعای حسینی", "14040415": "عاشورای حسینی", "14040523": "اربعین حسینی", "14040531": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14040602": "شهادت امام رضا (ع)", "14040610": "شهادت امام حسن عسکری (ع)", "14040619": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14040903": "شهادت حضرت فاطمه زهرا (س)", "14041013": "ولادت امام علی (ع) و روز پدر", "14041027": "مبعث رسول اکرم (ص)", "14041115": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14041122": "پیروزی انقلاب اسلامی", "14041220": "شهادت حضرت علی (ع)", "14041229": "روز ملی شدن صنعت نفت ایران", "14050101": "عید سعید فطر", "14050102": "تعطیل به مناسبت عید سعید فطر", "14050103": "عیدنوروز", "14050104": "عیدنوروز", "14050112": "روز جمهوری اسلامی", "14050113": "جشن سیزده به در", "14050125": "شهادت امام جعفر صادق (ع)", "14050306": "عید سعید قربان", "14050314": "عید سعید غدیر خم", "14050315": "قیام 15 خرداد", "14050403": "تاسوعای حسینی", "14050404": "عاشورای حسینی", "14050513": "اربعین حسینی", "14050521": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14050522": "شهادت امام رضا (ع)", "14050530": "شهادت امام حسن عسکری (ع)", "14050608": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14050822": "شهادت حضرت فاطمه زهرا (س)", "14051002": "ولادت امام علی (ع) و روز پدر", "14051016": "مبعث رسول اکرم (ص)", "14051104": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14051122": "پیروزی انقلاب اسلامی", "14051209": "شهادت حضرت علی (ع)", "14051219": "عید سعید فطر", "14051220": "تعطیل به مناسبت عید سعید فطر", "14051229": "روز ملی شدن صنعت نفت ایران", "14060101": "جشن نوروز/جشن سال نو", "14060102": "عیدنوروز", "14060103": "عیدنوروز", "14060104": "عیدنوروز", "14060112": "روز جمهوری اسلامی", "14060113": "جشن سیزده به در", "14060114": "شهادت امام جعفر صادق (ع)", "14060227": "عید سعید قربان", "14060304": "عید سعید غدیر خم", "14060314": "رحلت حضرت امام خمینی", "14060315": "قیام 15 خرداد", "14060325": "تاسوعای حسینی", "14060326": "عاشورای حسینی", "14060503": "اربعین حسینی", "14060511": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14060512": "شهادت امام رضا (ع)", "14060520": "شهادت امام حسن عسکری (ع)", "14060529": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14060812": "شهادت حضرت فاطمه زهرا (س)", "14060921": "ولادت امام علی (ع) و روز پدر", "14061005": "مبعث رسول اکرم (ص)", "14061023": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14061122": "پیروزی انقلاب اسلامی", "14061129": "شهادت حضرت علی (ع)", "14061208": "عید سعید فطر", "14061209": "تعطیل به مناسبت عید سعید فطر", "14061229": "روز ملی شدن صنعت نفت ایران", "14070101": "جشن نوروز/جشن سال نو", "14070102": "عیدنوروز", "14070103": "شهادت امام جعفر صادق (ع)", "14070104": "عیدنوروز", "14070112": "روز جمهوری اسلامی", "14070113": "جشن سیزده به در", "14070217": "عید سعید قربان", "14070225": "عید سعید غدیر خم", "14070314": "تاسوعای حسینی", "14070315": "عاشورای حسینی", "14070424": "اربعین حسینی", "14070501": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14070502": "شهادت امام رضا (ع)", "14070510": "شهادت امام حسن عسکری (ع)", "14070519": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14070801": "شهادت حضرت فاطمه زهرا (س)", "14070911": "ولادت امام علی (ع) و روز پدر", "14070925": "مبعث رسول اکرم (ص)", "14071012": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14071118": "شهادت حضرت علی (ع)", "14071122": "پیروزی انقلاب اسلامی", "14071127": "عید سعید فطر", "14071128": "تعطیل به مناسبت عید سعید فطر", "14071221": "شهادت امام جعفر صادق (ع)", "14071229": "روز ملی شدن صنعت نفت ایران", "14080101": "جشن نوروز/جشن سال نو", "14080102": "عیدنوروز", "14080103": "عیدنوروز", "14080104": "عیدنوروز", "14080112": "روز جمهوری اسلامی", "14080113": "جشن سیزده به در", "14080206": "عید سعید قربان", "14080214": "عید سعید غدیر خم", "14080303": "تاسوعای حسینی", "14080304": "عاشورای حسینی", "14080314": "رحلت حضرت امام خمینی", "14080315": "قیام 15 خرداد", "14080413": "اربعین حسینی", "14080421": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14080423": "شهادت امام رضا (ع)", "14080431": "شهادت امام حسن عسکری (ع)", "14080509": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14080721": "شهادت حضرت فاطمه زهرا (س)", "14080830": "ولادت امام علی (ع) و روز پدر", "14080914": "مبعث رسول اکرم (ص)", "14081002": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14081107": "شهادت حضرت علی (ع)", "14081117": "عید سعید فطر", "14081118": "تعطیل به مناسبت عید سعید فطر", "14081122": "پیروزی انقلاب اسلامی", "14081211": "شهادت امام جعفر صادق (ع)", "14081229": "روز ملی شدن صنعت نفت ایران", "14081230": "آخرین روز سال"};
 
 var EVENTS={"14050601": [{"t": "روز بزرگداشت ابوعلی سینا و روز پزشک"}], "14050602": [{"t": "آغاز هفته دولت"}], "14050603": [{"t": "میلاد رسول اکرم به روایت اهل سنت[ ۱۲ ربیع الاول ]"}], "14050604": [{"t": "زادروز کوروش بزرگ"}, {"t": "شهریور روز،جشن شهریورگان"}], "14050605": [{"t": "روز بزرگداشت محمدبن زکریای رازی و روز داروساز"}], "14050608": [{"t": "انفجار در دفتر نخست‌وزیری جمهوری اسلامی ایران، روز مبارزه با تروریسم"}, {"t": "میلاد رسول اکرم و امام جعفر صادق (ع)[ ۱۷ ربیع الاول ]", "h": 1}], "14050611": [{"t": "روز ملی صنعت چاپ"}], "14050612": [{"t": "سالروز شهادت رئیسعلی دلواری، سردار بزرگ میهن و فرمانده قیام جنوب علیه اشغالگران انگلیسی"}], "14050613": [{"t": "روز بزرگداشت ابوریحان بیرونی"}], "14050619": [{"t": "روز جهانی پیشگیری از خودکشی[ September 10 ]"}], "14050620": [{"t": "حمله به برج‌های دوقلوی مرکز تجارت جهانی[ September 11 ]"}], "14050621": [{"t": "روز سینما"}], "14050627": [{"t": "روز شعر و ادب پارسی و روز بزرگداشت استاد شهریار"}], "14050629": [{"t": "ولادت امام حسن عسکری (ع)[ ۸ ربیع الثانی ]"}], "14050630": [{"t": "روز جهانی صلح[ September 21 ]"}], "14050631": [{"t": "آغاز هفته دفاع مقدس"}, {"t": "وفات حضرت معصومه (س)[ ۱۰ ربیع الثانی ]"}], "14050701": [{"t": "آغاز حمله مغول به ایران در پاییز 598 خورشیدی"}], "14050704": [{"t": "روز گرامیداشت سربازان وطن"}], "14050705": [{"t": "روز جهانی جهانگردی[ September 27 ]"}], "14050707": [{"t": "روز آتش نشانی و ایمنی"}, {"t": "سقوط هواپیمای حامل جمعی از فرماندهان جنگ (کلاهدوز، نامجو، فلاحی، فکوری، جهان آرا) در سال 1360"}, {"t": "روز بزرگداشت شمس تبریزی"}], "14050708": [{"t": "روزبزرگداشت مولوی"}, {"t": "روز جهانی ناشنوایان[ September 30 ]"}, {"t": "روز جهانی ترجمه و مترجم[ September 30 ]"}], "14050709": [{"t": "روز جهانی سالمندان[ October 1 ]"}], "14050710": [{"t": "مهر روز،جشن مهرگان"}], "14050712": [{"t": "آغاز هفته جهانی فضا[ October 4 ]"}], "14050713": [{"t": "روز جهانی معلم[ October 5 ]"}], "14050714": [{"t": "روز دامپزشکی"}], "14050716": [{"t": "روز ملی کودک"}], "14050717": [{"t": "روز جهانی پست[ October 9 ]"}], "14050718": [{"t": "روز جهانی مبارزه با حکم اعدام[ October 10 ]"}], "14050719": [{"t": "روز جهانی دختر[ October 11 ]"}], "14050720": [{"t": "روز بزرگداشت حافظ"}], "14050721": [{"t": "روز پیروزی کاوه و فریدون بر ضحاک"}], "14050722": [{"t": "روز جهانی استاندارد[ October 14 ]"}], "14050723": [{"t": "روز جهانی عصای سفید[ October 15 ]"}], "14050724": [{"t": "ولادت حضرت زینب (س) و روز پرستار و بهورز[ ۵ جمادی الاول ]"}, {"t": "روز جهانی غذا[ October 16 ]"}], "14050725": [{"t": "روز جهانی ریشه کنی فقر[ October 17 ]"}], "14050726": [{"t": "روز تربیت بدنی و ورزش"}], "14050728": [{"t": "زادروز ستارخان ملقب به سردار ملی و از سرداران جنبش مشروطه ایران"}], "14050729": [{"t": "روز ملی کوهنورد"}]};
+var DYNAMIC_EVENTS={}, FEED_CACHE={}, activeFeedKey='', CALENDAR_CONNECTED=false, calendarFeedLoading=false;
 var WK=['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه'];
 var WK_ICO=['🌙','☀️','📘','🌿','✏️','🎯','🎉']; /* ش ی د س چ پ ج */
 var NOTE_KEY='cal-day-notes-v1';
@@ -529,7 +544,7 @@ function parseQuery(){
 }
 function eventsFor(jy,jm,jd){
   var k=keyOf(jy,jm,jd);
-  var list=(EVENTS[k]||[]).slice();
+  var list=(DYNAMIC_EVENTS[k]||[]).slice().concat((EVENTS[k]||[]).slice());
   var hol=HOL[k];
   if(hol){
     // avoid duplicate if EVENTS already has similar
@@ -538,6 +553,11 @@ function eventsFor(jy,jm,jd){
   }
   return list;
 }
+function eventIcon(e){if(e.kind==='task')return e.done?'✅':'📋';if(e.kind==='reminder')return e.done?'✅':'🔔';if(e.kind==='google')return '🟦';return e.h?'🎉':'•'}
+function eventMeta(e){if(e.kind==='task')return (e.time?e.time+' · ':'تمام‌روز · ')+(e.done?'کار انجام‌شده':'کار هسته');if(e.kind==='reminder')return (e.time?e.time+' · ':'تمام‌روز · ')+(e.done?'یادآوری انجام‌شده':'یادآوری هسته');if(e.kind==='google')return (e.time?e.time+' · ':'تمام‌روز · ')+(e.calendarName||'Google Calendar');return e.h?'تعطیل / مناسبت ویژه':'مناسبت و یادروز'}
+function eventDotClass(e){return e.h?'h':((e.kind||'')+(e.done?' done':''))}
+function safeGoogleUrl(value){try{var u=new URL(value);return u.protocol==='https:'&&(u.hostname==='google.com'||u.hostname.endsWith('.google.com'))?u.href:''}catch(e){return''}}
+function renderEventRow(e){var cls='erow'+(e.kind==='google'?' google':(e.kind?' personal':''))+(e.done?' done':''),body='<span class="ic">'+eventIcon(e)+'</span><div><b>'+esc(e.t)+'</b><small>'+esc(eventMeta(e))+'</small></div>',url=e.kind==='google'&&safeGoogleUrl(e.url);return '<div class="'+cls+'">'+(url?'<a href="'+esc(url)+'" target="_blank" rel="noopener" style="display:flex;gap:10px;align-items:flex-start;width:100%">'+body+'</a>':body)+'</div>'}
 function renderSide(){
   var jy=sel.jy,jm=sel.jm,jd=sel.jd;
   document.getElementById('sideNum').textContent=fa(jd);
@@ -554,11 +574,9 @@ function renderSide(){
   document.getElementById('sideBadges').innerHTML=badges;
   var box=document.getElementById('sideEvents');
   if(!list.length){
-    box.innerHTML='<div class="erow"><span class="ic">😊</span><div><b>مناسبتی برای این روز ثبت نشده</b><small>روز خودت باشد</small></div></div>';
+    box.innerHTML='<div class="erow"><span class="ic">😊</span><div><b>رویدادی برای این روز ثبت نشده</b><small>روز خودت باشد</small></div></div>';
   } else {
-    box.innerHTML=list.map(function(e){
-      return '<div class="erow"><span class="ic">'+(e.h?'🎉':'•')+'</span><div><b>'+esc(e.t)+'</b><small>'+(e.h?'تعطیل / مناسبت ویژه':'مناسبت و یادروز')+'</small></div></div>';
-    }).join('');
+    box.innerHTML=list.map(renderEventRow).join('');
   }
   /* برچسب و آیکن روز انتخاب‌شده + باکس یادداشت */
   var ico=WK_ICO[w]||'📅';
@@ -575,9 +593,9 @@ function renderMonthList(){
     nEv+=list.length;
     var isH=list.some(function(e){return e.h})||!!HOL[keyOf(vy,vm,d)];
     if(isH)nHol++;
-    html+='<div class="mrow'+(isH?' hol':'')+'" data-goto="'+d+'"><span class="d">'+fa(d)+'</span><span>'+list.map(function(e){return esc(e.t)}).join(' · ')+'</span></div>';
+    html+='<div class="mrow'+(isH?' hol':'')+'" data-goto="'+d+'"><span class="d">'+fa(d)+'</span><span>'+list.map(function(e){return eventIcon(e)+' '+(e.time?'<span dir="ltr">'+esc(e.time)+'</span> · ':'')+esc(e.t)}).join(' · ')+'</span></div>';
   }
-  document.getElementById('monthEvents').innerHTML=html||'<div style="color:var(--faint);font-size:13.5px;padding:8px 0">در این ماه مناسبت ثبت‌شده‌ای در فهرست نیست</div>';
+  document.getElementById('monthEvents').innerHTML=html||'<div style="color:var(--faint);font-size:13.5px;padding:8px 0">در این ماه رویدادی در فهرست نیست</div>';
   document.getElementById('stDays').textContent=fa(len);
   document.getElementById('stHol').textContent=fa(nHol);
   document.getElementById('stEv').textContent=fa(nEv);
@@ -611,6 +629,51 @@ function jalaliRangeLabel(gy,gm){
   if(j1.jy===j2.jy) return CALMON[j1.jm-1]+' – '+CALMON[j2.jm-1]+' '+fa(j1.jy);
   return CALMON[j1.jm-1]+' '+fa(j1.jy)+' – '+CALMON[j2.jm-1]+' '+fa(j2.jy);
 }
+function feedRangeForView(){
+  if(calMode==='greg'){
+    ensureGregCursor();
+    return{from:gy+'-'+('0'+gm).slice(-2)+'-01',to:gy+'-'+('0'+gm).slice(-2)+'-'+('0'+gMonthLen(gy,gm)).slice(-2)};
+  }
+  var first=d2g(j2d(vy,vm,1)),last=d2g(j2d(vy,vm,monthLen(vy,vm)));
+  return{from:first.gy+'-'+('0'+first.gm).slice(-2)+'-'+('0'+first.gd).slice(-2),to:last.gy+'-'+('0'+last.gm).slice(-2)+'-'+('0'+last.gd).slice(-2)};
+}
+function addDynamicEvent(date,item){var p=String(date||'').split('-').map(Number);if(p.length!==3||!p[0]||!p[1]||!p[2])return;var j=g2j(p[0],p[1],p[2]),k=keyOf(j.jy,j.jm,j.jd);(DYNAMIC_EVENTS[k]=DYNAMIC_EVENTS[k]||[]).push({t:item.title||'رویداد',kind:item.kind||item.source||'google',source:item.source||'',time:item.time||null,done:!!item.done,url:item.url||null,calendarName:item.calendarName||'',color:item.color||''})}
+function applyCalendarFeed(data){
+  DYNAMIC_EVENTS={};
+  (data&&data.items||[]).forEach(function(item){
+    var date=item.startDate||item.date;if(!date)return;addDynamicEvent(date,item);
+    if(item.allDay&&item.endDate&&item.endDate>date){var d=date;for(var n=0;n<60;n++){d=(function(x){var z=new Date(x+'T12:00:00Z');z.setUTCDate(z.getUTCDate()+1);return z.toISOString().slice(0,10)})(d);if(d>=item.endDate)break;addDynamicEvent(d,item)}}
+  });
+}
+function calendarSyncSummary(data){
+  var el=document.getElementById('calendarSyncText'),title=document.getElementById('calendarSyncTitle'),btn=document.getElementById('calendarSyncBtn');if(!el||!title||!btn)return;
+  CALENDAR_CONNECTED=!!(data&&data.connected);var items=data&&data.items||[],g=items.filter(function(x){return x.source==='google'}).length,l=items.length-g;
+  title.textContent=CALENDAR_CONNECTED?'Google Calendar · LifeOS':'تقویم هسته';btn.textContent=CALENDAR_CONNECTED?'↻ همگام‌سازی':'اتصال Google Calendar';
+  if(data&&data.googleError)el.textContent='کارها نمایش داده شدند؛ دریافت گوگل ناموفق بود: '+data.googleError;
+  else if(CALENDAR_CONNECTED)el.textContent=fa(l)+' کار/یادآوری · '+fa(g)+' رویداد گوگل در این بازه'+(data.pending?' · '+fa(data.pending)+' مورد در صف sync بعدی':'')+(data.partial?' · دریافت بعضی تقویم‌ها ناموفق بود':'');
+  else el.textContent=fa(l)+' کار/یادآوری هسته · برای نمایش رویدادهای گوگل اتصال را فعال کن';
+}
+function ensureCalendarFeed(){
+  var range=feedRangeForView(),key=range.from+'|'+range.to;if(activeFeedKey===key)return;activeFeedKey=key;
+  if(FEED_CACHE[key]){applyCalendarFeed(FEED_CACHE[key]);calendarSyncSummary(FEED_CACHE[key]);setTimeout(renderCal,0);return}
+  calendarFeedLoading=true;var text=document.getElementById('calendarSyncText');if(text)text.textContent='در حال دریافت رویدادهای این ماه…';
+  fetch('/api/calendar/feed?from='+encodeURIComponent(range.from)+'&to='+encodeURIComponent(range.to),{credentials:'same-origin'})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+    .then(function(x){if(!x.ok)throw new Error(x.d&&x.d.error||'دریافت تقویم ناموفق بود');FEED_CACHE[key]=x.d;if(activeFeedKey!==key)return;applyCalendarFeed(x.d);calendarSyncSummary(x.d);renderCal();maybeAutoCalendarSync(x.d)})
+    .catch(function(e){if(activeFeedKey===key&&text)text.textContent=e.message||'دریافت تقویم ناموفق بود'})
+    .finally(function(){calendarFeedLoading=false});
+}
+function reloadCalendarFeed(){FEED_CACHE={};activeFeedKey='';DYNAMIC_EVENTS={};renderCal()}
+function syncCalendarNow(silent){
+  if(!CALENDAR_CONNECTED){location.href='/design/settings-page.html#googleCalendarCard';return}
+  var btn=document.getElementById('calendarSyncBtn'),text=document.getElementById('calendarSyncText');btn.disabled=true;btn.textContent='در حال همگام‌سازی…';
+  fetch('/api/integrations/google-calendar/sync',{method:'POST',credentials:'same-origin'})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+    .then(function(x){if(!x.ok||x.d.ok===false)throw new Error(x.d&&x.d.error||'بخشی از همگام‌سازی ناموفق بود');var s=x.d.stats||{};if(text)text.textContent='همگام شد ✓ · ساخت '+fa(s.created||0)+' · به‌روزرسانی '+fa(s.updated||0)+' · دریافت از گوگل '+fa(s.imported||0)+(s.pending?' · مانده '+fa(s.pending):'')+(s.conflicts?' · تعارض '+fa(s.conflicts):'');reloadCalendarFeed()})
+    .catch(function(e){if(text)text.textContent=e.message||'همگام‌سازی ناموفق بود';if(!silent)btn.textContent='تلاش دوباره'})
+    .finally(function(){btn.disabled=false;if(CALENDAR_CONNECTED)btn.textContent='↻ همگام‌سازی'});
+}
+function maybeAutoCalendarSync(data){if(!data||!data.connected)return;try{var at=Number(sessionStorage.getItem('lifeos-gcal-sync-at')||0);if(Date.now()-at<10*60*1000)return;sessionStorage.setItem('lifeos-gcal-sync-at',String(Date.now()));setTimeout(function(){syncCalendarNow(true)},120)}catch(e){}}
 function setCalMode(mode){
   calMode = mode==='greg' ? 'greg' : 'jalali';
   var head=document.querySelector('.cal-head'); if(head) head.setAttribute('data-mode', calMode);
@@ -664,14 +727,15 @@ function renderCal(){
       var isHol=list.some(function(e){return e.h})||!!HOL[keyOf(j.jy,j.jm,j.jd)];
       var hasN=(typeof hasNote==='function'&&hasNote(j.jy,j.jm,j.jd));
       var cls='cell'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(isHol?' hol':'')+(hasN?' has-note':'');
-      var dots=list.slice(0,3).map(function(e){return '<span class="dot'+(e.h?' h':'')+'"></span>'}).join('');
+      var dots=list.slice(0,4).map(function(e){return '<span class="dot '+eventDotClass(e)+'"></span>'}).join('');
       if(hasN) dots+='<span class="dot n" title="یادداشت"></span>';
       var evtxt=list.slice(0,2).map(function(e){return esc(e.t)}).join(' · ');
       var wday=((firstCol+d-1)%7);
       var tag=isSel?('<span class="tag-sel">'+(typeof WK_ICO!=='undefined'&&WK_ICO[wday]?WK_ICO[wday]:'📌')+' انتخاب</span>'):'';
       cls+=' g-clean';
-      html+='<div class="'+cls+'" data-gd="'+d+'" data-d="'+j.jd+'" data-jy="'+j.jy+'" data-jm="'+j.jm+'" title="'+(isT?'امروز':(isSel?'انتخاب‌شده':''))+'" role="button" tabindex="0">'
+      html+='<div class="'+cls+'" data-gd="'+d+'" data-d="'+j.jd+'" data-jy="'+j.jy+'" data-jm="'+j.jm+'" title="'+esc(list.map(function(e){return e.t}).join(' | ')||(isT?'امروز':(isSel?'انتخاب‌شده':'')))+'" role="button" tabindex="0">'
         +'<span class="dn">'+d+'</span>'
+        +(dots?'<div class="dots">'+dots+'</div>':'')
         +'</div>';
     }
   } else {
@@ -693,7 +757,7 @@ function renderCal(){
       var g=d2g(j2d(vy,vm,d));
       var hasN=(typeof hasNote==='function'&&hasNote(vy,vm,d));
       var cls='cell'+(isT?' today':'')+(isSel?' sel':'')+(isFri?' fri':'')+(isHol?' hol':'')+(hasN?' has-note':'');
-      var dots=list.slice(0,3).map(function(e){return '<span class="dot'+(e.h?' h':'')+'"></span>'}).join('');
+      var dots=list.slice(0,4).map(function(e){return '<span class="dot '+eventDotClass(e)+'"></span>'}).join('');
       if(hasNote(vy,vm,d)) dots+='<span class="dot n" title="یادداشت"></span>';
       var evtxt=list.slice(0,2).map(function(e){return esc(e.t)}).join(' · ');
       var wday=((firstCol+d-1)%7);
@@ -716,6 +780,7 @@ function renderCal(){
     u.searchParams.set('cal', calMode);
     history.replaceState(null,'',u.pathname+u.search);
   }catch(e){}
+  ensureCalendarFeed();
 }
 function shiftMonth(delta){
   if(calMode==='greg'){
@@ -774,6 +839,7 @@ document.getElementById('goToday').onclick=function(){
 };
 document.getElementById('pickMon').onclick=showMonPick;
 document.getElementById('pickYear').onclick=showYearPick;
+document.getElementById('calendarSyncBtn').onclick=function(){syncCalendarNow(false)};
 
 /* تعویض شمسی/میلادی */
 (function(){

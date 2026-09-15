@@ -553,3 +553,49 @@ cd cloudflare && npx wrangler deploy
 - مسیرهای `/api/investments/price` و `/price/refresh` برای dollar خطای ۴۰۰ می‌دهند («قیمت لازم نیست — هر دلار همیشه ۱ دلار است»).
 - رگرسیون: کریپتو/سهام همان قواعد قبلی را دارند (نماد + قیمت لازم) — چک شده در `[48]`/`[W13]`.
 - بیس‌لاین بعد از این تغییر: `smoke 461/0` · `worker-smoke 125/0` · `verify-script 16/0`.
+
+
+---
+
+## اتصال دوطرفهٔ Google Calendar (۱۵ سپتامبر ۲۰۲۶ / ۲۴ شهریور ۱۴۰۵)
+
+**تصمیم‌های تأییدشده:** همگام‌سازی دوطرفه، ارسال هر دو نوع **کار + یادآوری**، و نوشتن در یک تقویم ثانویهٔ جدا با نام **LifeOS** (نه `primary`).
+
+### رفتار نهایی
+- صفحهٔ تقویم هسته حالا کارها، یادآوری‌ها، مناسبت‌ها و رویدادهای تقویم‌های قابل‌مشاهدهٔ گوگل را در نمای شمسی و میلادی یک‌جا نشان می‌دهد.
+- کار/یادآوری ساعت‌دار به event زمانی در timezone `Asia/Tehran` تبدیل می‌شود؛ مورد بدون ساعت all-day است.
+- فقط eventهای دارای private metadata خود LifeOS ساخته/ویرایش/حذف می‌شوند؛ eventهای مدیریت‌شده در feed دوباره نمایش داده نمی‌شوند، پس duplicate نداریم.
+- ویرایش بدون تعارضِ event مدیریت‌شده در گوگل (عنوان، تاریخ، ساعت، مدت و وضعیت) به task/reminder هسته برمی‌گردد. اگر هر دو طرف از sync قبلی تغییر کرده باشند، نسخهٔ هسته برنده است و conflict در آمار sync گزارش می‌شود.
+- حذف task/reminder در هسته، event برچسب‌خوردهٔ همان مورد را از گوگل پاک می‌کند. حذف event در گوگل **هرگز دادهٔ هسته را پاک نمی‌کند** و sync بعدی آن را دوباره می‌سازد.
+- sync از صفحهٔ تقویم و تنظیمات دستی است، در هر session مرورگر خودکار هم اجرا می‌شود، و Node/Worker هر ۱۵ دقیقه background sync دارند. هر نوبت حداکثر ۳۵ mutation انجام می‌دهد؛ موارد بیشتر با `pending` در نوبت‌های بعدی ادامه می‌یابند.
+
+### امنیت و OAuth
+- redirect مستقل: `GOOGLE_CALENDAR_REDIRECT_URI=/api/integrations/google-calendar/callback`.
+- scope حداقلی: `calendar.readonly` + `calendar.calendarlist.readonly` + `calendar.app.created`؛ برنامه مجوز full-calendar write نمی‌گیرد.
+- state cookie از نوع HttpOnly/SameSite=Lax، refresh token فقط سمت سرور، و status/feed هرگز token را به مرورگر برنمی‌گردانند.
+- backupهای Node و Worker refresh tokenها، password/PIN و sessionهای زنده را حذف می‌کنند.
+- قطع اتصال فقط grant محلی را کنار می‌گذارد و تقویم/eventهای کاربر را در گوگل نگه می‌دارد.
+
+### APIهای اضافه‌شده
+- `GET /api/integrations/google-calendar/status`
+- `GET /api/integrations/google-calendar/connect`
+- `GET /api/integrations/google-calendar/callback`
+- `POST /api/integrations/google-calendar/disconnect`
+- `POST /api/integrations/google-calendar/sync`
+- `GET /api/calendar/feed?from=YYYY-MM-DD&to=YYYY-MM-DD`
+
+### فایل‌های اصلی
+| فایل | تغییر |
+|---|---|
+| `server.js` | OAuth/token helpers، ساخت تقویم LifeOS، sync conflict-safe/idempotent، feed و background sync |
+| `cloudflare/header.js` / `footer.js` / `worker.js` | parity کامل Worker، Cron sync و redaction secrets؛ artifact با `node cloudflare/port.js` بازتولید شد |
+| `public/design/settings-page.html` | کارت اتصال/وضعیت/sync/disconnect و توضیح سیاست تعارض/حذف |
+| `public/design/calendar-page.html` | feed ماه قابل‌مشاهده، نمایش task/reminder/Google، legend و sync bar |
+| `.env.example` / `cloudflare/README.md` / `wrangler.toml` | راه‌اندازی Google Cloud، redirect و secret جدید |
+| `test/smoke.js` | fake واقعی Calendar API: OAuth، timed/all-day، idempotency، inbound edit، delete safety و disconnect |
+| `test/worker-smoke.js` / `test/ui-smoke.js` | قرارداد Worker و UI/امنیت |
+
+### مرحلهٔ شخصی باقی‌مانده (خارج از کد)
+Google Calendar API باید در پروژهٔ Google Cloud Enable شود، callback دقیق در Authorized redirect URIs ثبت و `GOOGLE_CALENDAR_REDIRECT_URI` روی deployment تنظیم شود. بعد از deploy، خود کاربر یک‌بار از **تنظیمات → Google Calendar → اتصال امن با گوگل** consent می‌دهد؛ هیچ رمز یا token دستی لازم نیست.
+
+**بیس‌لاین کامل:** `481 passed, 0 failed` + `130 passed, 0 failed` + `16 passed, 0 failed` + `UI smoke: 76 passed, 0 failed`.

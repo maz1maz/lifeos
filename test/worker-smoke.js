@@ -407,6 +407,20 @@ async function main() {
     check('worker: crypto still requires a price (shortcut is dollar-only)', w13crypto.status === 400, String(w13crypto.status));
   }
 
+  console.log('\n[W14] Google Calendar routes on the deployed Worker artifact');
+  {
+    const wt = await call('/api/tasks', { method: 'POST', cookie, body: { title: 'Worker calendar task', date: '2026-09-20', startTime: '08:30', durationMinutes: 45 } });
+    const wr = await call('/api/reminders', { method: 'POST', cookie, body: { title: 'Worker calendar reminder', date: '2026-09-21' } });
+    const ws = await call('/api/integrations/google-calendar/status', { cookie });
+    check('worker: calendar status route is present and reports missing server config safely', ws.status === 200 && ws.d.configured === false && ws.d.connected === false && ws.d.writeMode === 'dedicated-calendar', JSON.stringify(ws.d));
+    const wf = await call('/api/calendar/feed?from=2026-09-19&to=2026-09-22', { cookie });
+    check('worker: calendar feed returns local timed tasks and all-day reminders while Google is disconnected', wf.status === 200 && wf.d.connected === false && wf.d.items.some(x => x.id === 'task:' + wt.d.id && x.time === '08:30' && x.allDay === false) && wf.d.items.some(x => x.id === 'reminder:' + wr.d.id && x.allDay === true), JSON.stringify(wf.d));
+    const wc = await call('/api/integrations/google-calendar/connect', { cookie });
+    check('worker: OAuth connect fails closed with a clear 503 when secrets are absent', wc.status === 503 && /Google Calendar/.test(wc.d.error || ''), JSON.stringify(wc.d));
+    const wy = await call('/api/integrations/google-calendar/sync', { method: 'POST', cookie, body: {} });
+    check('worker: manual sync requires a connected account', wy.status === 400 && /وصل/.test(wy.d.error || ''), JSON.stringify(wy.d));
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

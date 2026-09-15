@@ -137,5 +137,38 @@ check('inbox items can become a task or a daily note',
   home.includes("data-inbox-to=\"task\"") && home.includes("data-inbox-to=\"note\"") &&
   home.includes("'/api/inbox/'+encodeURIComponent(id)+'/convert'"));
 
+const calendar = read('public/design/calendar-page.html');
+const settings = read('public/design/settings-page.html');
+check('settings exposes a real Google Calendar OAuth/sync/disconnect card',
+  settings.includes('id="googleCalendarCard"') && settings.includes('/api/integrations/google-calendar/connect') &&
+  settings.includes('/api/integrations/google-calendar/sync') && settings.includes('/api/integrations/google-calendar/disconnect'));
+check('settings explains the dedicated LifeOS calendar and non-destructive delete policy',
+  settings.includes('تقویم اختصاصی LifeOS') && settings.includes('حذف آن در گوگل دادهٔ هسته را پاک نمی‌کند'));
+check('calendar loads the unified local + Google event feed for the visible month',
+  calendar.includes("fetch('/api/calendar/feed?from='") && calendar.includes('function feedRangeForView()') &&
+  calendar.includes('function applyCalendarFeed(data)'));
+check('calendar visually distinguishes tasks, reminders and Google events',
+  calendar.includes('.dot.task') && calendar.includes('.dot.reminder') && calendar.includes('.dot.google') &&
+  calendar.includes('Google Calendar</span>'));
+check('calendar supports manual and session-throttled automatic sync',
+  calendar.includes('id="calendarSyncBtn"') && calendar.includes("fetch('/api/integrations/google-calendar/sync'") &&
+  calendar.includes("sessionStorage.getItem('lifeos-gcal-sync-at')"));
+const serverSource = read('server.js');
+const workerHeader = read('cloudflare/header.js');
+check('Node and Worker backups redact Calendar refresh tokens and live sessions',
+  serverSource.includes('delete u.googleCalendarRefreshToken') && workerHeader.includes('delete u.googleCalendarRefreshToken') &&
+  serverSource.includes('clone.sessions=[]') && workerHeader.includes('clone.sessions=[]'));
+check('Google OAuth uses read-only visible-calendar access plus app-created-calendar write access, never full calendar scope',
+  serverSource.includes('auth/calendar.readonly') && serverSource.includes('auth/calendar.app.created') &&
+  !serverSource.includes("SCOPES='https://www.googleapis.com/auth/calendar'"));
+for (const file of ['public/design/calendar-page.html','public/design/settings-page.html']) {
+  const html = read(file);
+  let syntaxOk = true, detail = '';
+  for (const m of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)) {
+    try { new vm.Script(m[1], { filename: file }); } catch (e) { syntaxOk = false; detail = e.message; break; }
+  }
+  check(`${path.basename(file)} inline scripts parse`, syntaxOk, detail);
+}
+
 console.log(`\nUI smoke: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

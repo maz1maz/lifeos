@@ -40,6 +40,60 @@ function startFixtureFeedServer(xml) {
     server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
   });
 }
+function startGoogleCalendarFixtureServer() {
+  return new Promise((resolve) => {
+    const state = { calendarCreated: false, calendarId: 'lifeos-calendar@test', nextId: 1, events: new Map() };
+    const server = http.createServer(async (req, res) => {
+      const u = new URL(req.url, 'http://fixture');
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const raw = Buffer.concat(chunks).toString('utf8');
+      let body = {};
+      try { body = raw && String(req.headers['content-type'] || '').includes('json') ? JSON.parse(raw) : Object.fromEntries(new URLSearchParams(raw)); } catch (e) { body = {}; }
+      const send = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(data === null ? '' : JSON.stringify(data)); };
+      if (u.pathname === '/auth') return send(200, { ok: true });
+      if (u.pathname === '/token' && req.method === 'POST') return send(200, body.grant_type === 'authorization_code' ? { access_token: 'fixture-access', refresh_token: 'fixture-refresh', scope: 'calendar scopes' } : { access_token: 'fixture-access' });
+      if (u.pathname === '/userinfo') return send(200, { email: 'calendar.fixture@example.com', id: 'fixture-google-account' });
+      if (u.pathname === '/calendar/v3/users/me/calendarList') {
+        const items = [{ id: 'primary', summary: 'تقویم شخصی', primary: true, selected: true, accessRole: 'owner', backgroundColor: '#4285f4' }];
+        if (state.calendarCreated) items.push({ id: state.calendarId, summary: 'LifeOS', description: 'تقویم اختصاصی همگام‌سازی هسته · [LifeOS managed]', selected: true, accessRole: 'owner', backgroundColor: '#34a853' });
+        return send(200, { items });
+      }
+      if (u.pathname === '/calendar/v3/calendars' && req.method === 'POST') { state.calendarCreated = true; return send(200, { id: state.calendarId, ...body }); }
+      const calMeta = u.pathname.match(/^\/calendar\/v3\/calendars\/([^/]+)$/);
+      if (calMeta && req.method === 'GET') {
+        const cid = decodeURIComponent(calMeta[1]);
+        return cid === 'primary' || (state.calendarCreated && cid === state.calendarId) ? send(200, { id: cid, summary: cid === 'primary' ? 'تقویم شخصی' : 'LifeOS' }) : send(404, { error: { message: 'not found' } });
+      }
+      const eventsPath = u.pathname.match(/^\/calendar\/v3\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/);
+      if (eventsPath) {
+        const cid = decodeURIComponent(eventsPath[1]), eventId = eventsPath[2] ? decodeURIComponent(eventsPath[2]) : null;
+        if (req.method === 'GET' && !eventId) {
+          if (cid === 'primary') return send(200, { items: [{ id: 'external-1', summary: 'جلسهٔ گوگل', start: { dateTime: '2026-09-22T12:30:00+03:30' }, end: { dateTime: '2026-09-22T13:30:00+03:30' }, htmlLink: 'https://calendar.google.com/calendar/event?eid=external-1' }] });
+          let items = [...state.events.values()].filter(x => x.calendarId === cid);
+          if (u.searchParams.get('privateExtendedProperty')) items = items.filter(x => x.extendedProperties?.private?.lifeosManaged === '1');
+          return send(200, { items });
+        }
+        if (req.method === 'POST' && !eventId) {
+          const id = 'fixture-event-' + state.nextId++;
+          const event = { ...body, id, calendarId: cid, htmlLink: 'https://calendar.google.com/calendar/event?eid=' + id, updated: new Date().toISOString() };
+          state.events.set(id, event); return send(200, event);
+        }
+        if (req.method === 'PATCH' && eventId) {
+          const old = state.events.get(eventId); if (!old) return send(404, { error: { message: 'not found' } });
+          const event = { ...old, ...body, id: eventId, calendarId: cid, updated: new Date().toISOString() };
+          state.events.set(eventId, event); return send(200, event);
+        }
+        if (req.method === 'DELETE' && eventId) { if (!state.events.has(eventId)) return send(404, { error: { message: 'not found' } }); state.events.delete(eventId); res.writeHead(204); return res.end(); }
+      }
+      send(404, { error: { message: 'fixture route not found: ' + req.method + ' ' + u.pathname } });
+    });
+    server.listen(0, '127.0.0.1', () => {
+      const base = `http://127.0.0.1:${server.address().port}`;
+      resolve({ server, state, base });
+    });
+  });
+}
 function check(name, cond) {
   if (cond) { pass++; console.log(`  ok  - ${name}`); }
   else { fail++; console.log(`  FAIL- ${name}`); }
@@ -54,7 +108,14 @@ async function waitForServer() {
 
 async function main() {
   fs.writeFileSync(DB_PATH, JSON.stringify(EMPTY_DB, null, 2));
-  const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT), DB_PATH }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const googleFixture = await startGoogleCalendarFixtureServer();
+  const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: {
+    ...process.env, PORT: String(PORT), DB_PATH,
+    GOOGLE_CLIENT_ID: 'fixture-client', GOOGLE_CLIENT_SECRET: 'fixture-secret',
+    GOOGLE_CALENDAR_REDIRECT_URI: `${BASE}/api/integrations/google-calendar/callback`,
+    GOOGLE_CALENDAR_AUTH_URL: googleFixture.base + '/auth', GOOGLE_CALENDAR_TOKEN_URL: googleFixture.base + '/token',
+    GOOGLE_CALENDAR_API_BASE: googleFixture.base + '/calendar/v3', GOOGLE_CALENDAR_USERINFO_URL: googleFixture.base + '/userinfo'
+  }, stdio: ['ignore', 'pipe', 'pipe'] });
   let crashed = false;
   child.on('exit', (code, signal) => { if (code !== null && code !== 0) crashed = true; });
   child.stderr.on('data', d => process.stderr.write(`[server] ${d}`));
@@ -74,6 +135,9 @@ async function main() {
       ['PATCH', '/api/me'], ['GET', '/api/integrations'],
       ['POST', '/api/integrations/spotify/disconnect'], ['POST', '/api/integrations/youtube/disconnect'],
       ['GET', '/api/integrations/spotify/connect'], ['GET', '/api/integrations/youtube/connect'],
+      ['GET', '/api/integrations/google-calendar/status'], ['GET', '/api/integrations/google-calendar/connect'], ['GET', '/api/integrations/google-calendar/callback'],
+      ['POST', '/api/integrations/google-calendar/disconnect'], ['POST', '/api/integrations/google-calendar/sync'],
+      ['GET', '/api/calendar/feed?from=2026-09-01&to=2026-09-30'],
       ['GET', '/api/integrations/spotify/recent'], ['GET', '/api/integrations/youtube/playlists'],
       ['GET', '/api/integrations/youtube/playlist-items?playlistId=x'],
       ['POST', '/api/media-log'], ['GET', '/api/media-log'],
@@ -1206,8 +1270,80 @@ async function main() {
         'finance-page.html');
     }
 
+    /* [49] Google Calendar: OAuth, dedicated LifeOS calendar, two-way managed
+       event edits, read-only external feed, and non-destructive Google deletes. */
+    console.log('\n[49] Google Calendar: dedicated LifeOS calendar + safe two-way sync');
+    {
+      const c49 = cookie;
+      const h49 = authHeaders;
+      const task49 = await fetch(`${BASE}/api/tasks`, { method: 'POST', headers: h49, body: JSON.stringify({ title: 'کار ساعت‌دار', date: '2026-09-20', startTime: '10:15', durationMinutes: 60 }) }).then(r => r.json());
+      const rem49 = await fetch(`${BASE}/api/reminders`, { method: 'POST', headers: h49, body: JSON.stringify({ title: 'یادآوری تمام‌روز', date: '2026-09-21' }) }).then(r => r.json());
+
+      const connect49 = await fetch(`${BASE}/api/integrations/google-calendar/connect`, { headers: { Cookie: c49 }, redirect: 'manual' });
+      const stateCookie49 = connect49.headers.get('set-cookie').split(';')[0];
+      const authLocation49 = new URL(connect49.headers.get('location'));
+      const state49 = authLocation49.searchParams.get('state');
+      const scope49 = authLocation49.searchParams.get('scope') || '';
+      check('calendar connect uses OAuth state + offline consent + least-privilege scopes', connect49.status === 302 && !!state49 && authLocation49.searchParams.get('access_type') === 'offline' && scope49.includes('calendar.readonly') && scope49.includes('calendar.app.created') && !scope49.includes('auth/calendar '), authLocation49.toString());
+
+      const callback49 = await fetch(`${BASE}/api/integrations/google-calendar/callback?code=fixture-code&state=${encodeURIComponent(state49)}`, { headers: { Cookie: `${c49}; ${stateCookie49}` }, redirect: 'manual' });
+      check('OAuth callback stores the grant and returns to settings', callback49.status === 302 && /calendar=connected/.test(callback49.headers.get('location') || ''), callback49.headers.get('location') || '');
+      check('sync creates one dedicated calendar named LifeOS', googleFixture.state.calendarCreated === true, JSON.stringify(googleFixture.state));
+
+      let managed49 = [...googleFixture.state.events.values()];
+      const taskEvent49 = managed49.find(x => x.extendedProperties?.private?.lifeosType === 'task' && x.extendedProperties.private.lifeosId === task49.id);
+      const remEvent49 = managed49.find(x => x.extendedProperties?.private?.lifeosType === 'reminder' && x.extendedProperties.private.lifeosId === rem49.id);
+      check('dated tasks and reminders are idempotently tagged as managed Google events', managed49.length >= 2 && !!taskEvent49 && !!remEvent49 && managed49.every(x => x.extendedProperties.private.lifeosManaged === '1'), JSON.stringify(managed49.map(x => x.extendedProperties && x.extendedProperties.private)));
+      check('timed task becomes a Tehran timed event; untimed reminder becomes all-day', !!taskEvent49.start?.dateTime && taskEvent49.start.dateTime.includes('T10:15:00') && taskEvent49.end.dateTime.includes('T11:15:00') && remEvent49.start?.date === '2026-09-21' && remEvent49.end?.date === '2026-09-22', JSON.stringify({ task: taskEvent49.start, reminder: remEvent49.start }));
+
+      const status49 = await fetch(`${BASE}/api/integrations/google-calendar/status`, { headers: { Cookie: c49 } }).then(r => r.json());
+      check('status exposes account/sync metadata but never a refresh token', status49.connected === true && status49.calendarName === 'LifeOS' && status49.email === 'calendar.fixture@example.com' && !!status49.lastSyncAt && !JSON.stringify(status49).includes('fixture-refresh'), JSON.stringify(status49));
+      const feed49 = await fetch(`${BASE}/api/calendar/feed?from=2026-09-19&to=2026-09-25`, { headers: { Cookie: c49 } }).then(r => r.json());
+      check('calendar feed combines local task/reminder with external Google events and hides managed duplicates', feed49.connected === true && feed49.items.some(x => x.id === 'task:' + task49.id) && feed49.items.some(x => x.id === 'reminder:' + rem49.id) && feed49.items.filter(x => x.source === 'google').length === 1 && feed49.items.some(x => x.title === 'جلسهٔ گوگل'), JSON.stringify(feed49.items.map(x => ({ source: x.source, title: x.title }))));
+      const repeat49 = await fetch(`${BASE}/api/integrations/google-calendar/sync`, { method: 'POST', headers: h49, body: '{}' }).then(r => r.json());
+      check('repeating sync is idempotent (no duplicate or pointless update)', repeat49.stats?.created === 0 && repeat49.stats?.updated === 0 && repeat49.stats?.deleted === 0 && repeat49.stats?.unchanged >= managed49.length, JSON.stringify(repeat49.stats));
+
+      // Edit a managed event in Google. Because the local item still matches the
+      // previous private snapshot, this is an unambiguous inbound edit.
+      taskEvent49.summary = '📋 عنوان ویرایش‌شده در گوگل';
+      taskEvent49.start = { dateTime: '2026-09-24T14:00:00+03:30', timeZone: 'Asia/Tehran' };
+      taskEvent49.end = { dateTime: '2026-09-24T14:45:00+03:30', timeZone: 'Asia/Tehran' };
+      googleFixture.state.events.set(taskEvent49.id, taskEvent49);
+      const inbound49 = await fetch(`${BASE}/api/integrations/google-calendar/sync`, { method: 'POST', headers: h49, body: '{}' }).then(r => r.json());
+      const tasksAfter49 = await fetch(`${BASE}/api/tasks?from=2026-09-01&to=2026-09-30`, { headers: { Cookie: c49 } }).then(r => r.json());
+      const taskAfter49 = tasksAfter49.items.find(x => x.id === task49.id);
+      check('an unambiguous Google edit flows back into the LifeOS task', inbound49.stats?.imported === 1 && taskAfter49.title === 'عنوان ویرایش‌شده در گوگل' && taskAfter49.date === '2026-09-24' && taskAfter49.startTime === '14:00' && taskAfter49.durationMinutes === 45, JSON.stringify({ stats: inbound49.stats, task: taskAfter49 }));
+
+      // Change both sides after the same snapshot: deterministic policy keeps
+      // LifeOS and reports a conflict instead of silently overwriting local data.
+      await fetch(`${BASE}/api/tasks/${task49.id}`, { method: 'PATCH', headers: h49, body: JSON.stringify({ title: 'نسخهٔ هسته در تعارض' }) });
+      const conflictedEvent49 = [...googleFixture.state.events.values()].find(x => x.extendedProperties?.private?.lifeosId === task49.id);
+      conflictedEvent49.summary = '📋 نسخهٔ گوگل در تعارض';
+      googleFixture.state.events.set(conflictedEvent49.id, conflictedEvent49);
+      const conflict49 = await fetch(`${BASE}/api/integrations/google-calendar/sync`, { method: 'POST', headers: h49, body: '{}' }).then(r => r.json());
+      const conflictLocal49 = await fetch(`${BASE}/api/tasks?from=2026-09-01&to=2026-09-30`, { headers: { Cookie: c49 } }).then(r => r.json());
+      const conflictRemote49 = [...googleFixture.state.events.values()].find(x => x.extendedProperties?.private?.lifeosId === task49.id);
+      check('simultaneous edits are reported as a conflict and deterministically keep LifeOS', conflict49.stats?.conflicts === 1 && conflictLocal49.items.find(x => x.id === task49.id)?.title === 'نسخهٔ هسته در تعارض' && conflictRemote49.summary === '📋 نسخهٔ هسته در تعارض', JSON.stringify({ stats: conflict49.stats, local: conflictLocal49.items.find(x => x.id === task49.id), remote: conflictRemote49.summary }));
+
+      await fetch(`${BASE}/api/reminders/${rem49.id}`, { method: 'DELETE', headers: h49 });
+      const deleteSync49 = await fetch(`${BASE}/api/integrations/google-calendar/sync`, { method: 'POST', headers: h49, body: '{}' }).then(r => r.json());
+      check('deleting a LifeOS reminder deletes only its tagged Google event', deleteSync49.stats?.deleted === 1 && ![...googleFixture.state.events.values()].some(x => x.extendedProperties?.private?.lifeosId === rem49.id), JSON.stringify(deleteSync49.stats));
+
+      const currentTaskEvent49 = [...googleFixture.state.events.values()].find(x => x.extendedProperties?.private?.lifeosId === task49.id);
+      googleFixture.state.events.delete(currentTaskEvent49.id);
+      const restore49 = await fetch(`${BASE}/api/integrations/google-calendar/sync`, { method: 'POST', headers: h49, body: '{}' }).then(r => r.json());
+      const stillLocal49 = await fetch(`${BASE}/api/tasks?from=2026-09-01&to=2026-09-30`, { headers: { Cookie: c49 } }).then(r => r.json());
+      check('deleting a managed event in Google never destroys LifeOS data; sync safely recreates it', restore49.stats?.created === 1 && stillLocal49.items.some(x => x.id === task49.id) && [...googleFixture.state.events.values()].some(x => x.extendedProperties?.private?.lifeosId === task49.id), JSON.stringify(restore49.stats));
+
+      const beforeDisconnect49 = googleFixture.state.events.size;
+      await fetch(`${BASE}/api/integrations/google-calendar/disconnect`, { method: 'POST', headers: h49, body: '{}' });
+      const feedDisconnected49 = await fetch(`${BASE}/api/calendar/feed?from=2026-09-19&to=2026-09-25`, { headers: { Cookie: c49 } }).then(r => r.json());
+      check('disconnect keeps the Google calendar/events but stops remote reads', googleFixture.state.events.size === beforeDisconnect49 && feedDisconnected49.connected === false && feedDisconnected49.items.every(x => x.source === 'lifeos'), JSON.stringify({ remote: googleFixture.state.events.size, feed: feedDisconnected49.items }));
+    }
+
   } finally {
     child.kill();
+    googleFixture.server.close();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
   }
 
