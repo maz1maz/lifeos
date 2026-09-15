@@ -815,6 +815,7 @@ async function main() {
 
     const manualTx = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'داروخانه', amount: 500000, kind: 'expense', category: 'متفرقه', date: today() }) }).then(r => r.json());
     await fetch(`${BASE}/api/transactions/${manualTx.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ category: 'هدیه و کمک' }) });
+    await new Promise(r => setTimeout(r, 80)); /* write() is chained; do not race the direct db.json assertion below */
     check('manual دسته edit is flagged catManual', (readDb().transactions.find(t => t.id === manualTx.id) || {}).catManual === true);
     const autoScope = await recatPost({ scope: 'auto', apply: true });
     check("scope=auto never overwrites a hand-picked دسته", catOf(manualTx.id) === 'هدیه و کمک' && !autoScope.d.changes.some(c => c.id === manualTx.id));

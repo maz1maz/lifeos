@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "test": "node test/smoke.js && node test/worker-smoke.js && node test/verify-script-smoke.js"
+    "test": "node test/smoke.js && node test/worker-smoke.js && node test/verify-script-smoke.js && node test/ui-smoke.js"
   },
   "description": "Personal life dashboard MVP",
   "dependencies": {
