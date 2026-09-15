@@ -119,14 +119,27 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .msum div small{color:var(--faint);font-size:12.5px}
 
 /* chart */
-.chart{display:flex;align-items:flex-end;gap:3px;height:170px;margin-top:14px;padding:0 2px}
-.ccol{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;min-width:0}
+.chart{display:flex;align-items:flex-end;gap:3px;height:176px;margin-top:14px;padding:0 2px;position:relative;direction:ltr}
+.ccol{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;min-width:0;direction:rtl}
 .cpair{display:flex;gap:2px;align-items:flex-end;height:128px;width:100%;justify-content:center}
-.cbar{width:44%;max-width:15px;border-radius:4px 4px 0 0;transition:height .6s cubic-bezier(.2,.8,.2,1);min-height:2px}
+.cbar{width:56%;max-width:16px;border-radius:3px 3px 0 0;transition:height .45s cubic-bezier(.2,.8,.2,1);min-height:2px}
 .cbar.e{background:linear-gradient(to top, color-mix(in srgb,var(--bad) 55%,transparent), color-mix(in srgb,var(--bad) 85%,transparent))}
 .cbar.i{background:linear-gradient(to top, color-mix(in srgb,var(--good) 45%,transparent), color-mix(in srgb,var(--good) 80%,transparent))}
+.ccol.zero .cbar{background:color-mix(in srgb,var(--muted) 42%,transparent);min-height:2px}
+.cval{font-size:9.5px;line-height:12px;height:12px;color:var(--faint);white-space:nowrap;direction:ltr}
+.clab{font-size:10px;line-height:15px;height:15px;color:var(--faint);white-space:nowrap}
 .ccol.now .cpair{outline:1.5px dashed var(--acc);outline-offset:2px;border-radius:5px}
-.clab{font-size:10.5px;color:var(--faint);white-space:nowrap}
+.ccol.now .clab{color:var(--acc);font-weight:700}
+.ccol:hover .clab{color:var(--text)}
+.cgrid{position:absolute;left:0;right:0;pointer-events:none;border-top:1px dashed color-mix(in srgb,var(--acc) 62%,transparent)}
+.cgrid b{position:absolute;right:3px;left:auto;top:-7px;font-size:9.5px;font-weight:600;color:var(--acc);background:color-mix(in srgb,var(--panel) 84%,transparent);padding:0 4px;border-radius:4px;direction:rtl}
+.chart-empty{display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:0 12px;color:var(--faint);font-size:13px;text-align:center;line-height:1.7}
+.chrange{display:flex;gap:4px;align-items:center;margin-inline-start:auto}
+.chbtn{font:inherit;font-size:11.5px;line-height:1;padding:4px 9px;border-radius:99px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer}
+.chbtn:hover{color:var(--text);border-color:var(--border2)}
+.chbtn.on{border-color:var(--acc);color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent);font-weight:700}
+.chsub{font-size:11.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chart-note{margin:7px 0 0;font-size:11px;color:var(--faint);line-height:1.7}
 .legend{display:flex;gap:16px;justify-content:center;font-size:13px;color:var(--muted);margin-top:8px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-start:5px;vertical-align:-1px}
 
@@ -553,14 +566,16 @@ body.nav-open .nav-backdrop{display:block}
 
   <div class="charts-pair">
     <div class="card chart-card">
-      <div class="mhead"><h4>📉 هزینه‌ها — ۲۴ ماه</h4><span style="color:var(--faint);font-size:13px">مجموع خرج هر ماه</span></div>
+      <div class="mhead"><h4 id="chExpTitle">📉 هزینه‌ها</h4><span class="chrange" id="chRange"></span></div>
       <div class="chart chart-exp" id="chartExp"></div>
       <div class="chart-foot" id="chartExpFoot"></div>
+      <p class="chart-note">ستون‌ها از چپ: قدیمی‌ترین ← تازه‌ترین · خط‌چین: میانگین ماه‌های همین بازه · ★ ماه جاری · روی هر ستون بایست (یا بزن) تا مبلغ و تعداد تراکنش را ببینی</p>
     </div>
     <div class="card chart-card">
-      <div class="mhead"><h4>📈 دریافت‌ها — ۲۴ ماه</h4><span style="color:var(--faint);font-size:13px">مجموع درآمد هر ماه</span></div>
+      <div class="mhead"><h4 id="chIncTitle">📈 دریافت‌ها</h4><span class="chsub" id="chScale"></span></div>
       <div class="chart chart-inc" id="chartInc"></div>
       <div class="chart-foot" id="chartIncFoot"></div>
+      <p class="chart-note">دریافت‌هایی که «این دریافت درآمد نیست» خورده‌اند (انتقال، قرض، بازگشت وجه) شمرده نمی‌شوند</p>
     </div>
   </div>
 
@@ -896,7 +911,7 @@ function renderHist(){
   document.getElementById('histList').innerHTML=rows.length?rows.map(function(x){
     return '<div class="txi"><span class="catdot" style="background:'+(CATS[x.c]||'var(--faint)')+'"></span>'
      +'<span class="d">'+fa(x.d)+'</span>'
-     +'<span class="t">'+x.t+' <small>'+CATI[x.c]+' '+x.c+'</small>'+tagsHtml(x.tags)+'</span>'
+     +'<span class="t">'+x.t+' <small>'+catIco(x.c)+' '+catTxt(x.c)+'</small>'+tagsHtml(x.tags)+'</span>'
      +'<span class="amt '+(x.k==='income'?(x.ni?'inc ni':'inc'):'exp')+'">'+(x.k==='income'?'+':'−')+fmt(x.a)+(x.ni?'<small class="niTag">خارج از درآمد</small>':'')+'</span>'
      +(x.receipt?'<a class="rowedit" style="text-decoration:none" href="'+x.receipt+'" target="_blank" rel="noopener" title="دیدن رسید">🧾</a>':'<button class="rowedit" data-attach="tx" data-u="'+x._u+'" title="افزودن رسید">📎</button>')
      +'<button class="rowedit" data-ed="tx" data-u="'+x._u+'">✎</button></div>';
@@ -909,29 +924,88 @@ function renderHist(){
   +'<div><b>'+fmtC(Math.round(exp/30))+'</b><small>میانگین هزینه روزانه</small></div>';
 }
 
-/* ============ چارت ۲۴ ماهه ============ */
-function renderChart(){
-  var exp=[],inc=[],mxE=1,mxI=1,sumE=0,sumI=0;
-  MONTHS.forEach(function(M,mi){
-    var e=0,n=0;DATA.forEach(function(x){if(x.mi===mi){if(x.k==='expense')e+=x.a;else if(x.k==='income'&&!x.ni)n+=x.a}});
-    exp.push(e);inc.push(n);sumE+=e;sumI+=n;mxE=Math.max(mxE,e);mxI=Math.max(mxI,n);
-  });
-  function bars(vals, mx, kind){
-    return MONTHS.map(function(M,mi){
-      var h=vals[mi]?Math.max(3,Math.round(vals[mi]/mx*100)):2;
-      var lab=kind==='exp'?'هزینه':'دریافت';
-      return '<div class="ccol'+(mi===23?' now':'')+'" title="'+MON[M.m-1]+' '+fa(M.y)+' — '+lab+' '+fmtC(vals[mi])+'">'
-       +'<div class="cpair"><div class="cbar" style="height:'+h+'%"></div></div>'
-       +'<div class="clab">'+(mi%3===0||mi===23?MON[M.m-1]:'')+'</div></div>';
-    }).join('');
+/* ============ چارت ماهانهٔ هزینه/دریافت ============ */
+/* نسخهٔ قبلی دو کارت ۲۴ستونی بود که نام کامل ماه‌ها زیرش می‌ریخت («آبان» در ستون
+   ۲۰پیکسلی جا نمی‌شد و برعکس می‌شکست)، هر کارت مقیاس جدا داشت (پس قدِ ستون‌های دو
+   کارت قابل مقایسه نبود)، هیچ محور یا میانگینی نداشت و ماهِ صفر دقیقاً مثل
+   ماهِ پرهزینه دیده می‌شد. اینجا:
+   · بازهٔ انتخابی ۶/۱۲/۲۴ ماه با پیش‌فرض ۱۲ (در localStorage می‌ماند) — ۲۴ ماه با
+     دادهٔ واقعی تقریباً یک کارِ بی‌فایدهٔ پر از صفر است؛
+   · برچسب کوتاه ماه (+ سال فقط وقتی سال عوض می‌شود)،
+   · یک مقیاس مشترک برای هر دو کارت، پس ستون‌ها واقعاً قابل مقایسه‌اند،
+   · خط‌چین «میانگین» تا معلوم شود کدام ماه بالا/پایینِ میانگین است،
+   · مبلغ بالای ستونِ بیشینه و ستونِ ماه جاری؛ بقیه با hover (تولتیپ: مبلغ + تعداد تراکنش)،
+   · ستون صفر کم‌رنگ، و اگر کل بازه خالی بود پیام روشن به‌جای سیبِ ستون‌های هم‌قد،
+   · چیدمان چپ‌به‌راست (قدیمی‌ترین در چپ) تا با کارت «بت» یکی باشد؛ داخل هر ستون
+   جهت دوباره rtl شده تا متن فارسیِ برچسب‌ها نریزد. */
+var CH_RANGES=[6,12,24];
+var CH_SHORT=['فرو','ارد','خرد','تی','مرد','شه','مهر','آبا','آذر','دی','بهم','اسف'];
+var CH_PLOT=128,CH_AXIS=15;/* ارتفاع پرِ ستون‌ها و خط برچسب‌ها (px) — همان دو مقدارِ .cpair و .clab */
+var CH_WIN=(function(){try{var v=parseInt(localStorage.getItem('haste.chwin'),10);return CH_RANGES.indexOf(v)>=0?v:12}catch(e){return 12}})();
+function chSpan(){var n=Math.max(2,Math.min(CH_WIN||12,MONTHS.length));return {n:n,from:MONTHS.length-n,last:MONTHS.length-1}}
+function chSum(a){var s=0;for(var i=0;i<a.length;i++)s+=a[i];return s}
+function chMax(a){var m=0;for(var i=0;i<a.length;i++)if(a[i]>m)m=a[i];return m}
+function chPeak(a){var bi=-1,bv=0;for(var i=0;i<a.length;i++)if(a[i]>bv){bv=a[i];bi=i}return bi}
+function chShort(mi){var M=MONTHS[mi];return CH_SHORT[M.m-1]||MON[M.m-1]}
+function chYy(M){var y=M.y%100;return fa((y<10?'0':'')+y)}
+function catIco(c){return (typeof CATI!=='undefined'&&CATI&&CATI[c])||'🏷️'}
+function catTxt(c){c=(c==null?'':String(c));return (c&&c!=='undefined'&&c!=='null')?c:'بدون دسته'}
+function chTotals(){
+  var sp=chSpan(),exp=[],inc=[],ce=[],ci=[];
+  for(var mi=sp.from;mi<=sp.last;mi++){
+    var e=0,n=0,ae=0,ai=0;
+    DATA.forEach(function(x){if(x.mi!==mi)return;if(x.k==='expense'){e+=x.a;ae++}else if(x.k==='income'&&!x.ni){n+=x.a;ai++}});
+    exp.push(e);inc.push(n);ce.push(ae);ci.push(ai);
   }
-  var elE=document.getElementById('chartExp'), elI=document.getElementById('chartInc');
-  if(elE) elE.innerHTML=bars(exp,mxE,'exp');
-  if(elI) elI.innerHTML=bars(inc,mxI,'inc');
-  var fE=document.getElementById('chartExpFoot'), fI=document.getElementById('chartIncFoot');
-  if(fE) fE.innerHTML='<span>جمع ۲۴ ماه: <b style="color:var(--bad)">'+fmtC(sumE)+'</b></span><span>بیشینه ماه: '+fmtC(mxE)+'</span>';
-  if(fI) fI.innerHTML='<span>جمع ۲۴ ماه: <b style="color:var(--good)">'+fmtC(sumI)+'</b></span><span>بیشینه ماه: '+fmtC(mxI)+'</span>';
+  return {sp:sp,exp:exp,inc:inc,ce:ce,ci:ci};
 }
+function chBars(vals,cnts,kind,ownMax,sharedMax,sp){
+  if(chSum(vals)<=0) return '<div class="chart-empty">در '+fa(vals.length)+' ماه اخیر '+(kind==='exp'?'هزینه‌ای':'دریافتی')+' ثبت نشده — بازه را بزرگ‌تر کن یا فیلتر ماه را نگاه کن</div>';
+  var av=Math.round(chSum(vals)/Math.max(1,vals.length));
+  var g=Math.max(2,Math.min(99,Math.round(av/sharedMax*100)));
+  var out='<div class="cgrid" style="bottom:'+(CH_AXIS+Math.round(g*CH_PLOT/100))+'px"><b>میانگین '+fmtC(av)+'</b></div>';
+  for(var k=0;k<vals.length;k++){
+    var mi=sp.from+k,M=MONTHS[mi],v=vals[k],isNow=mi===sp.last,isPeak=ownMax>0&&v===ownMax;
+    var newYear=k===0||(mi>0&&MONTHS[mi-1]&&MONTHS[mi].y!==MONTHS[mi-1].y);
+    out+='<div class="ccol'+(isNow?' now':'')+(v>0?'':' zero')+'" title="'+MON[M.m-1]+' '+fa(M.y)+' — '+(kind==='exp'?'هزینه':'دریافت')+' '+fmt(v)+' تومان · '+(cnts[k]?fa(cnts[k])+' تراکنش':'بدون تراکنش')+'">'
+     +'<div class="cval">'+((isPeak||isNow)&&v>0?fmtC(v):'')+'</div>'
+     +'<div class="cpair"><div class="cbar '+(kind==='exp'?'e':'i')+'" style="height:'+(v>0?Math.max(3,Math.round(v/sharedMax*100)):0)+'%"></div></div>'
+     +'<div class="clab">'+chShort(mi)+(newYear?' '+chYy(M):'')+(isNow?' ★':'')+'</div></div>';
+  }
+  return out;
+}
+function chFoot(el,color,sum,n,peak,peakMi){
+  if(!el) return;
+  var M=peakMi>=0&&peakMi<MONTHS.length?MONTHS[peakMi]:null;
+  el.innerHTML='<span>جمع '+fa(n)+' ماه: <b style="color:'+(sum>0?color:'var(--muted)')+'">'+(sum>0?fmtC(sum):'—')+'</b></span>'
+   +'<span>میانگین ماه: '+(sum>0?fmtC(Math.round(sum/Math.max(1,n))):'—')+'</span>'
+   +'<span>بیشینهٔ ماه: '+(peak>0&&M?fmtC(peak)+' ('+chShort(peakMi)+' '+chYy(M)+')':'—')+'</span>';
+}
+function renderChartRange(){
+  var el=document.getElementById('chRange'); if(!el) return;
+  el.innerHTML=CH_RANGES.map(function(n){return '<button type="button" class="chbtn'+(n===CH_WIN?' on':'')+'" data-n="'+n+'" title="هر دو نمودار روی '+fa(n)+' ماه اخیر">'+fa(n)+' ماه</button>'}).join('');
+}
+function renderChart(){
+  var T=chTotals(),sp=T.sp,pe=chMax(T.exp),pi=chMax(T.inc),shared=Math.max(pe,pi,1);
+  var elE=document.getElementById('chartExp'),elI=document.getElementById('chartInc');
+  if(elE) elE.innerHTML=chBars(T.exp,T.ce,'exp',pe,shared,sp);
+  if(elI) elI.innerHTML=chBars(T.inc,T.ci,'inc',pi,shared,sp);
+  chFoot(document.getElementById('chartExpFoot'),'var(--bad)',chSum(T.exp),T.exp.length,pe,sp.from+chPeak(T.exp));
+  chFoot(document.getElementById('chartIncFoot'),'var(--good)',chSum(T.inc),T.inc.length,pi,sp.from+chPeak(T.inc));
+  var tE=document.getElementById('chExpTitle'),tI=document.getElementById('chIncTitle'),sc=document.getElementById('chScale');
+  if(tE) tE.textContent='📉 هزینه‌ها — '+fa(T.exp.length)+' ماه';
+  if(tI) tI.textContent='📈 دریافت‌ها — '+fa(T.exp.length)+' ماه';
+  if(sc) sc.textContent=shared>1?'مقیاس هر دو نمودار: تا '+fmtC(shared):'';
+  renderChartRange();
+}
+(function(){var el=document.getElementById('chRange');if(!el)return;
+  el.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest?e.target.closest('button[data-n]'):null; if(!b) return;
+    var n=parseInt(b.getAttribute('data-n'),10); if(CH_RANGES.indexOf(n)<0) return;
+    CH_WIN=n; try{localStorage.setItem('haste.chwin',String(n))}catch(err){}
+    renderChart();
+  });
+})();
 
 /* ============ سرفصل‌ها + آمار ============ */
 function renderCatsIns(){
@@ -940,7 +1014,7 @@ function renderCatsIns(){
   var arr=Object.keys(three).map(function(c){return [c,three[c]]}).sort(function(a,b){return b[1]-a[1]}).slice(0,6);
   var mx=arr.length?arr[0][1]:1;
   document.getElementById('catBars').innerHTML=arr.map(function(c){
-    return '<div class="bc"><span class="n">'+CATI[c[0]]+' '+c[0]+'</span>'
+    return '<div class="bc"><span class="n">'+catIco(c[0])+' '+catTxt(c[0])+'</span>'
      +'<span class="bar"><i style="width:'+Math.round(c[1]/mx*100)+'%;background:'+(CATS[c[0]]||'var(--faint)')+'"></i></span>'
      +'<span class="v">'+fmtC(c[1])+'</span></div>';
   }).join('')||'<div class="empty">هنوز داده‌ای نیست</div>';
@@ -958,7 +1032,7 @@ function renderCatsIns(){
   document.getElementById('insights').innerHTML=
    '<div class="insrow"><span class="ic">📌</span><span>هزینه ماه جاری <b>'+(dif>=0?'<span class="dn">▲ '+fa(dif)+'٪</span> بیشتر':'<span class="up">▼ '+fa(-dif)+'٪</span> کمتر')+'</b> از میانگین ۳ ماه قبل</span></div>'
   +'<div class="insrow"><span class="ic">🔥</span><span>بزرگ‌ترین هزینه ماه: <b>'+bigT+'</b> — '+fmtC(bigA)+' تومان</span></div>'
-  +'<div class="insrow"><span class="ic">🔁</span><span>پرتکرارترین سرفصل: <b>'+CATI[top]+' '+top+'</b> ('+fa(cnt[top]||0)+' بار)</span></div>'
+  +'<div class="insrow"><span class="ic">🔁</span><span>پرتکرارترین سرفصل: <b>'+catIco(top)+' '+catTxt(top)+'</b> ('+fa(cnt[top]||0)+' بار)</span></div>'
   +'<div class="insrow"><span class="ic">📅</span><span>میانگین هزینه روزانه: <b>'+fmtC(Math.round(monthExp(curMi)/30))+'</b> تومان</span></div>'
   +'<div class="insrow"><span class="ic">🎉</span><span>دریافتی سال ۱۴۰۵ تا الان: <b>'+fmtC(yInc)+'</b> تومان</span></div>';
 }
@@ -1086,8 +1160,8 @@ function renderDebtList(list, listEl, sumEl, kind){
       if(debtCur(d)==='USD') usd+=r; else irt+=r;
     });
     var remParts=[];
-    if(irt) remParts.push(fmtC(irt)+' ت');
-    if(usd) remParts.push('$'+Number(usd).toLocaleString('en-US',{maximumFractionDigits:2}));
+    if(irt) remParts.push(fmtC(irt)+' تومان');
+    if(usd) remParts.push('<bdi dir="ltr">$'+Number(usd).toLocaleString('en-US',{maximumFractionDigits:2})+'</bdi>');
     if(!remParts.length) remParts.push('۰');
     return '<div><b style="color:'+(isRec?'var(--good)':'var(--bad)')+'">'+remParts.join(' + ')+'</b><small>جمع مانده</small></div>'
       +'<div><b>'+fa(list.length)+'</b><small>تعداد</small></div>';

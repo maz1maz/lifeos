@@ -540,6 +540,24 @@ async function main() {
     check('[W16] teeth: a gate that only knows /design/login-page.html loops every anonymous visitor',
       w16loop.looping, JSON.stringify(w16loop.chain));
   }
+  console.log('\n[W17] the monthly charts on the deployed asset (shared scale, short labels, honest empty state)');
+  {
+    // public/design/finance-page.html ships as a Worker asset, so the deploy *is* this
+    // file — its shape is worth pinning here: the two 24-bar charts were unreadable on
+    // the live app (clipped month names, a private y-scale per card, «undefined»
+    // printed next to any category missing from the icon map).
+    const w17page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
+    check('asset: the range switch, the shared-scale readout and the dynamic titles are in the shipped file',
+      w17page.includes('id="chRange"') && w17page.includes('id="chScale"') && w17page.includes('id="chExpTitle"'));
+    check('asset: the old hardcoded «جمع ۲۴ ماه» footnote is gone (it lied the moment the range changed)',
+      !w17page.includes('\u062c\u0645\u0639 \u06f2\u06f4 \u0645\u0627\u0647'));
+    check('asset: bars read oldest→newest from the left, like the bet chart',
+      /\.chart\{[^}]*direction:ltr/.test(w17page));
+    check('asset: no bare CATI[...] concatenation is shipped (that printed «undefined» beside a category)',
+      !/CATI\[[^\]]+\]\s*\+/.test(w17page) && w17page.includes('function catIco(') && w17page.includes('function catTxt('));
+    check('asset: the zero-month and empty-window states exist in the shipped CSS',
+      w17page.includes('.ccol.zero .cbar{') && w17page.includes('.chart-empty{'));
+  }
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

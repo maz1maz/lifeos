@@ -1402,6 +1402,119 @@ async function main() {
       check('the tolerance is exercised, not just asserted: the harness serves a 307 rewrite and a no-asset deploy',
         /makeEnv\('cf'\)/.test(hs) && /makeEnv\('none'\)/.test(hs) && /status: 307/.test(hs), 'verify-script-smoke.js');
     }
+    console.log('\n[53] finance-page monthly charts: readable scale, honest empty state, short labels');
+    {
+      const page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
+      const lines = page.split('\n');
+      const ln = (needle, from) => {
+        const i = lines.findIndex((l, n) => n >= (from || 0) && l.includes(needle));
+        if (i < 0) throw new Error('anchor not found: ' + needle);
+        return i;
+      };
+      const jalali = (() => {
+        const i = lines.findIndex(l => l.includes('/* ===== \u062a\u0642\u0648\u06cc\u0645 \u0634\u0645\u0633\u06cc ====='));
+        const j = lines.findIndex(l => l.startsWith('var CALMON='));
+        if (i < 0 || j < 0 || j <= i) throw new Error('jalali block not found');
+        return lines.slice(i, j).join('\n');
+      })();
+      const head = page.slice(page.indexOf('var faD='), page.indexOf('var DATA=[];') + 'var DATA=[];'.length);
+      if (page.indexOf('var faD=') < 0 || head.length < 200) throw new Error('chart helpers block not found');
+      const cStart = ln('var CH_RANGES=');
+      let cEnd = cStart;
+      while (cEnd < lines.length && lines[cEnd].trim() !== '})();') cEnd++;
+      if (cEnd >= lines.length) throw new Error('chart range handler not closed');
+      const chart = lines.slice(cStart, cEnd + 1).join('\n');
+
+      // the chart code runs as-is, against a stub DOM (same trick [51] uses for the calendar)
+      const stub = [
+        'var els={}, store={};',
+        'var localStorage={getItem:function(k){return store[k]===undefined?null:store[k]},setItem:function(k,v){store[k]=String(v)}};',
+        'var document={getElementById:function(id){return els[id]||(els[id]={innerHTML:"",textContent:"",_h:{},addEventListener:function(t,f){this._h[t]=f}})}};',
+      ].join('\n');
+      const api = new Function('DATA', stub + '\n' + jalali + '\n' + head + '\n' + chart
+        + '\nreturn {MONTHS:MONTHS,MON:MON,CH_WIN:CH_WIN,chSpan:chSpan,chTotals:chTotals,chShort:chShort,catIco:catIco,catTxt:catTxt,renderChart:renderChart,els:els,store:store,DATA:DATA}')(
+        [] /* filled below */);
+      const M = api.MONTHS, last = M.length - 1;
+      const rows = [
+        { mi: last, a: 9500000, k: 'expense', c: '\u062e\u0648\u0631\u0627\u06a9' },
+        { mi: last - 2, a: 45000000, k: 'expense', c: '\u0642\u0628\u0636' },
+        { mi: last - 9, a: 3000000, k: 'expense', c: null },
+        { mi: last - 1, a: 400000000, k: 'income', c: '\u062d\u0642\u0648\u0642' },
+        { mi: last - 3, a: 900000000, k: 'income', ni: true, c: '\u0627\u0646\u062a\u0642\u0627\u0644' },
+      ];
+      api.DATA.push.apply(api.DATA, rows);
+      api.renderChart();
+      const exp = api.els['chartExp'].innerHTML, inc = api.els['chartInc'].innerHTML;
+      const heights = (h) => (h.match(/class="cbar [ei]" style="height:(\d+)%"/g) || []).map(s => +s.match(/height:(\d+)%/)[1]);
+      const labels = (h) => (h.match(/<div class="clab">([^<]*)<\/div>/g) || []).map(s => s.replace(/<[^>]+>/g, ''));
+
+      check('the chart defaults to 12 months while the calendar still keeps 24 buckets', api.chSpan().n === 12 && M.length === 24, JSON.stringify(api.chSpan()));
+      const lb = labels(exp);
+      check('every month in the window gets a label (the old one printed only every third bar)',
+        lb.length === 12 && lb.every(s => s.trim().length > 0), JSON.stringify(lb));
+      const fullNames = M.slice(api.chSpan().from).map(m => api.MON[m.m - 1]);
+      const monthPart = lb.map(s => s.replace(/ \u2605$/, '').split(' ')[0]);
+      check('labels are abbreviated so they cannot overflow a narrow column (the old full names broke mid-word)',
+        monthPart.every((s, i) => s.length <= 3 || s.length === fullNames[i].length) && lb.every(s => s.length <= 8) && fullNames.some(n => n.length > 4),
+        JSON.stringify({ lb, fullNames }));
+      const he = heights(exp), hi = heights(inc);
+      check('both cards share ONE scale, so a bar in one is comparable with a bar in the other',
+        Math.max.apply(null, hi) === 100 && Math.max.apply(null, he) < 100 && Math.max.apply(null, he) > 0,
+        JSON.stringify({ exp: he, inc: hi }));
+      check('the notIncome transfer is excluded from the income bars (still 400M, not 1.3B)',
+        Math.round(api.chTotals().inc.reduce((a, b) => a + b, 0)) === 400000000, JSON.stringify(api.chTotals().inc));
+      check('the average gridline is drawn over the bars with its value', /class="cgrid" style="bottom:\d+px"><b>[^<]*[\d\u06f0-\u06f9]/.test(exp), exp.slice(0, 90));
+      check('the peak bar and the current month are labelled with their value, the rest stay clean',
+        (exp.match(/<div class="cval">[^<]+<\/div>/g) || []).length === 2, JSON.stringify(exp.match(/<div class="cval">([^<]*)</g)));
+      check('a zero month is a faint tick (not a phantom bar, not a gap)', /class="ccol zero[^"]*"[^>]*>[\s\S]{0,120}?height:0%/.test(exp));
+      check('the current month is marked and the newest bar is the one marked', /class="ccol now[^"]*"/.test(exp) && / ★<\/div><\/div>$/.test(exp.trim() ? exp : ''), JSON.stringify(lb.slice(-2)));
+
+      // empty window: say so, instead of drawing 12 identical stubs
+      api.DATA.length = 0;
+      api.renderChart();
+      const emptyHtml = api.els['chartExp'].innerHTML;
+      check('an empty range says it plainly and draws no bars', /chart-empty/.test(emptyHtml) && heights(emptyHtml).length === 0, emptyHtml.slice(0, 80));
+      check('with no data there is no gridline and no fake «0» readouts', !/cgrid/.test(emptyHtml) && api.els['chartExpFoot'].innerHTML.indexOf('\u06f0') < 0, api.els['chartExpFoot'].innerHTML);
+      check('the shared-scale caption hides itself when there is nothing to scale', api.els['chScale'].textContent === '', JSON.stringify(api.els['chScale'].textContent));
+
+      // the range switch
+      api.DATA.push.apply(api.DATA, rows);
+      const btnHtml = api.els['chRange'].innerHTML;
+      check('three range buttons, the active one marked', (btnHtml.match(/class="chbtn/g) || []).length === 3 && /class="chbtn on" data-n="12"/.test(btnHtml), btnHtml);
+      api.els['chRange']._h.click({ target: { closest: () => ({ getAttribute: () => '24' }) } });
+      check('clicking «۲۴ ماه» widens BOTH charts and is remembered (localStorage)',
+        api.chSpan().n === 24 && api.store['haste.chwin'] === '24', JSON.stringify({ n: api.chSpan().n, ls: api.store }));
+      api.els['chRange']._h.click({ target: { closest: () => ({ getAttribute: () => 'bogus' }) } });
+      check('a bad range value is ignored (no NaN window)', api.chSpan().n === 24);
+
+      // the «undefined» icon bug from the live screenshot
+      const UNCAT = '\u0627\u0646\u062a\u0642\u0627\u0644'; // a category the icon map has no entry for
+      const TAG = String.fromCodePoint(0x1f3f7) + '\uFE0F';
+      check('a category without an icon gets a fallback instead of the word «undefined»',
+        api.catIco(UNCAT) === TAG && api.catIco('\u062e\u0648\u0631\u0627\u06a9') !== 'undefined' && api.catIco(undefined) === TAG, JSON.stringify(api.catIco(UNCAT)));
+      check('a missing category is named, not printed as null/undefined',
+        api.catTxt(null) === '\u0628\u062f\u0648\u0646 \u062f\u0633\u062a\u0647' && api.catTxt('undefined') === '\u0628\u062f\u0648\u0646 \u062f\u0633\u062a\u0647' && api.catTxt(UNCAT) === UNCAT, JSON.stringify(api.catTxt(undefined)));
+      check('no bare CATI[...] concatenation is left in the page (that is what printed «undefined»)',
+        !/CATI\[[^\]]+\]\s*\+/.test(page) && !/\+\s*CATI\[[^\]]+\]/.test(page));
+      const dl = lines[ln("if(irt) remParts.push(fmtC(irt)+")];
+      const ul = lines[ln("if(usd) remParts.push")];
+      check('the debt summary spells «تومان» and isolates the $ part (RTL flipped «+$300» into garbage)',
+        dl.indexOf("' تومان'") >= 0 && /<bdi dir="ltr">/.test(ul), JSON.stringify([dl, ul]));
+
+      // the class of bug that bit the deploy: a helper the block calls must exist
+      {
+        const body = chart.replace(/\/\*[\s\S]*?\*\//g, '');
+        const names = new Set();
+        body.replace(/'[^']*'/g, '').replace(/\b([A-Za-z_$][\w$]*)\s*\(/g, (m, n) => { names.add(n); return m; });
+        const defs = new Set();
+        (stub + '\n' + jalali + '\n' + head + '\n' + chart).replace(/\bfunction\s+([A-Za-z_$][\w$]*)/g, (m, n) => { defs.add(n); return m; });
+        (stub + '\n' + jalali + '\n' + head + '\n' + chart).replace(/\b(var|let|const)\s+([A-Za-z_$][\w$]*)/g, (m, k, n) => { defs.add(n); return m; });
+        const BUILTIN = new Set(['if', 'for', 'while', 'return', 'typeof', 'Function', 'catch', 'function', 'parseInt', 'String', 'Number', 'Math', 'JSON', 'Date', 'Array', 'Object', 'Set', 'isNaN', 'forEach', 'map', 'filter', 'reduce', 'join', 'push', 'sort', 'slice', 'replace', 'indexOf', 'split', 'toFixed', 'max', 'min', 'round', 'abs', 'length', 'getItem', 'setItem', 'getElementById', 'addEventListener', 'querySelector', 'textContent', 'innerHTML', 'localeCompare', 'trim', 'some', 'every', 'find', 'findIndex', 'startsWith', 'endsWith', 'includes', 'getAttribute', 'closest', 'parseInt', 'isNaN']);
+        const missing = [...names].filter(n => !defs.has(n) && !BUILTIN.has(n));
+        check('every function the chart block calls exists at page top level (the ReferenceError class that broke the deploy)',
+          missing.length === 0, 'missing: ' + missing.join(','));
+      }
+    }
   } finally {
     child.kill();
     fs.rmSync(path.dirname(DB_PATH), { recursive: true, force: true });
