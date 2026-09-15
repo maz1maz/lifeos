@@ -434,7 +434,11 @@ async function main() {
     const aiReportNoKey = await fetch(`${BASE}/api/ai/report?period=daily`, { headers: authHeaders });
     check('AI report -> 503 with no AI_PROVIDER_API_KEY configured (not a crash)', aiReportNoKey.status === 503);
 
-    console.log('\n[31] football data sources: RapidAPI-backed routes (API-FOOTBALL fallback, 1xbet-api, sportapi7) degrade gracefully with no key');
+    console.log('\n[31] football data sources: free leagues + RapidAPI-backed routes degrade gracefully with no key');
+    const freeFootballLeagues = await fetch(`${BASE}/api/football/remote/free/leagues`, { headers: authHeaders }).then(r => r.json());
+    check('free football catalog includes UEFA Europa + AFC Champions League Elite',
+      freeFootballLeagues.items.some(l => l.id === 'uefa.europa') &&
+      freeFootballLeagues.items.some(l => l.id === 'afc.champions' && l.name === 'لیگ نخبگان آسیا'));
     const fixturesNoKey = await fetch(`${BASE}/api/football/remote/fixtures`, { headers: authHeaders });
     check('fixtures -> 503 with neither API_FOOTBALL_KEY nor RAPIDAPI_KEY configured', fixturesNoKey.status === 503);
     const oddsNoFixture = await fetch(`${BASE}/api/football/remote/odds`, { headers: authHeaders });

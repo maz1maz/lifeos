@@ -19,8 +19,8 @@
 آخرین به‌روزرسانی این بلوک: ۱۵ سپتامبر ۲۰۲۶ / ۲۴ شهریور ۱۴۰۵ (tip شاخه را با `git log -1 --oneline` ببین)
 
 **وضعیت لحظه‌ای**
-- شاخه `arena/01a0a58a-lifeos` — تغییرات رابط کاربری در `37c67b9` کامیت و پوش شده‌اند؛ PR #8 باز است.
-- بیس‌لاین تست‌ها: `npm test` → **۴۶۱/۰** (smoke) + **۱۲۵/۰** (worker-smoke) + **۱۶/۰** (verify-script) + **۶۶/۰** (UI smoke).
+- شاخه `arena/01a0a58a-lifeos` — تغییرات رابط کاربری و لیگ‌های تکمیلی فوتبال کامیت و پوش شده‌اند؛ PR #8 باز است.
+- بیس‌لاین تست‌ها: `npm test` → **۴۶۲/۰** (smoke) + **۱۲۶/۰** (worker-smoke) + **۱۶/۰** (verify-script) + **۶۷/۰** (UI smoke).
 - گاردهای `cloudflare/port.js`: Drift ۱۶۴ · Export-list ۱۳۱ · Helper-parity ۱۳۲. اگر یکی قرمز شد، `worker.js` را دستی ویرایش نکن؛ `server.js` را درست کن و `node cloudflare/port.js` بزن.
 - نسخهٔ لایو (`pdmaz…workers.dev`) تا مرج PR #8 و deploy بعدی از این تغییرات عقب‌تر است.
 
@@ -41,11 +41,13 @@
 3. **بازار چهارستونه:** فلزات، کریپتو، بازار تومان و سهام آمریکا اکنون چهار فرزند همان grid هستند؛ در تبلت دو و در موبایل یک ستون می‌شوند. دادهٔ زندهٔ سهام همچنان طبق قرارداد موجود به `STOCK_API_KEY` نیاز دارد.
 4. **فوتبال:** روی desktop جدول فشرده در چپ و بازی‌ها در راست است؛ گروه‌های تاریخ و خود بازی‌ها از جدید به قدیم مرتب می‌شوند. روی موبایل بازی‌ها قبل از جدول در یک ستون قرار می‌گیرند.
 5. **مقصد یادداشت ثبت سریع:** یادداشت در endpoint موجود Inbox ذخیره می‌شود و حالا بالای صفحهٔ امروز در کارت «اینباکس یادداشت‌ها» فوراً دیده می‌شود؛ هر مورد از همان‌جا به «کار امروز» یا «روزنگار امروز» تبدیل می‌شود.
-6. **تست/تحویل:** `test/ui-smoke.js` با ۶۶ assertion به `npm test` وصل شد. اجرای کامل نهایی: ۴۶۱/۰ + ۱۲۵/۰ + ۱۶/۰ + ۶۶/۰. preview محلی نیز signup، ثبت/نمایش/تبدیل Inbox و پاسخ صفحات/assetهای تازه را تأیید کرد. تغییرات در `37c67b9` پوش و PR #8 باز شد.
+6. **لیگ‌های تکمیلی فوتبال:** دو تب «لیگ اروپا» و «لیگ نخبگان آسیا» به UI اضافه شدند. لیگ اروپا از قبل در catalog سرور بود؛ لیگ نخبگان با شناسهٔ ESPN `afc.champions`، شناسهٔ TheSportsDB برابر `4719` و شناسهٔ ورزش۳ برابر `26` به هر دو runtime نود و Worker افزوده شد.
+7. **تست/تحویل:** `test/ui-smoke.js` به `npm test` وصل است. اجرای کامل نهایی: ۴۶۲/۰ + ۱۲۶/۰ + ۱۶/۰ + ۶۷/۰. preview محلی نیز signup، ثبت/نمایش/تبدیل Inbox، catalog لیگ‌های تازه و پاسخ صفحات/assetها را تأیید کرد. تغییرات در PR #8 پوش شده‌اند.
 
 فایل‌های اصلی این نشست: `public/shared-ui.js` · `public/shared-shell.css` · `public/index.html` ·
 `public/design/market-page.html` · `public/design/football-page.html` · `public/assets/css/core.css` ·
-صفحات اصلی `public/design/*-page.html` · `test/ui-smoke.js` · `package.json`.
+`server.js` · `cloudflare/header.js` · `cloudflare/worker.js` · صفحات اصلی `public/design/*-page.html` ·
+`test/ui-smoke.js` · `test/smoke.js` · `test/worker-smoke.js` · `package.json`.
 
 ## تازه‌ها — نشست ۲۳ شهریور ۱۴۰۵ (۱۴ سپتامبر ۲۰۲۶)
 

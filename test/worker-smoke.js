@@ -199,6 +199,10 @@ async function main() {
   check('stock refresh -> 503 (no key, pre-network)', (await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'AAPL', assetType: 'stock' } })).status === 503);
   const match = (await call('/api/football/matches', { method: 'POST', cookie, body: { home: 'A', away: 'B', date: today() } })).d;
   check('football match + accuracy', !!match.id && (await call('/api/football/accuracy', { cookie })).status === 200);
+  const freeFootballLeagues = (await call('/api/football/remote/free/leagues', { cookie })).d.items;
+  check('football catalog has Europa + AFC Elite on the deployed artifact',
+    freeFootballLeagues.some(l => l.id === 'uefa.europa') &&
+    freeFootballLeagues.some(l => l.id === 'afc.champions' && l.name === 'لیگ نخبگان آسیا'));
   check('football fixtures -> 503 (no key, pre-network)', (await call('/api/football/remote/fixtures', { cookie })).status === 503);
   const sweeps = [
     '/api/habits', '/api/habits/history?from=2020-01-01&to=2030-01-01', '/api/weekly-review?from=' + today() + '&to=' + today(),

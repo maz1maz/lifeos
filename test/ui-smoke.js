@@ -124,6 +124,9 @@ check('football groups and sorts match dates newest first',
   football.includes('order.sort(function(a,b){return b.localeCompare(a)})'));
 check('football standings are horizontally compact',
   football.includes('min-width:370px') && football.includes('padding:5px 3px'));
+check('football exposes UEFA Europa and AFC Champions League Elite tabs',
+  football.includes("{id:'uefa.europa',label:'لیگ اروپا'") &&
+  football.includes("{id:'afc.champions',label:'لیگ نخبگان آسیا'"));
 
 const home = read('public/index.html');
 check('today page exposes a visible quick-note inbox',
