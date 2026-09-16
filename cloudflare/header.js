@@ -24,7 +24,7 @@ function makeHelpers(env) {
     let x = row ? JSON.parse(row.value) : { users: [], sessions: [], transactions: [], tasks: [], inbox: [], daily: [] };
     x.investments ??= []; x.accounts ??= []; x.budgets ??= []; x.projects ??= []; x.timeEntries ??= []; x.habits ??= []; x.habitLogs ??= [];
     x.subscriptions ??= []; x.debts ??= []; x.footballTeams ??= []; x.matches ??= []; x.news ??= []; x.movies ??= []; x.timers ??= [];
-    x.exercise ??= []; x.weeklyNotes ??= []; x.mediaLog ??= []; x.investmentTx ??= []; x.assetPrices ??= []; x.priceAlerts ??= []; x.portfolioSnapshots ??= []; x.newsSources ??= []; x.contacts ??= []; x.contactLogs ??= []; x.learning ??= []; x.bookmarks ??= []; x.shoppingItems ??= []; x.trips ??= []; x.tripChecklist ??= []; x.documents ??= []; x.betDays ??= []; x.goals ??= []; x.wins ??= []; x.decisions ??= []; x.lifeReviews ??= []; x.pokerSessions ??= []; x.reminders ??= []; x.telegramLinkCodes ??= [];
+    x.exercise ??= []; x.weeklyNotes ??= []; x.mediaLog ??= []; x.investmentTx ??= []; x.assetPrices ??= []; x.priceAlerts ??= []; x.portfolioSnapshots ??= []; x.newsSources ??= []; x.contacts ??= []; x.contactLogs ??= []; x.learning ??= []; x.bookmarks ??= []; x.shoppingItems ??= []; x.trips ??= []; x.tripChecklist ??= []; x.documents ??= []; x.betDays ??= []; x.goals ??= []; x.wins ??= []; x.decisions ??= []; x.lifeReviews ??= []; x.pokerSessions ??= []; x.reminders ??= []; x.telegramLinkCodes ??= []; x.daily ??= []; x.tasks ??= []; x.inbox ??= [];
     return x;
   }
   async function write(db) {

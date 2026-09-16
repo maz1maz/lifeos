@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>یادداشت‌ها · LifeOS</title>
+<link rel="stylesheet" href="/shared-theme.css">
+<link rel="stylesheet" href="/shared-shell.css">
+<script src="/shared-ui.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-size:16.5px;line-height:1.7;
+  background-image:radial-gradient(1000px 560px at 85% -6%, color-mix(in srgb,var(--acc) 10%,transparent), transparent 62%),
+    radial-gradient(900px 500px at -8% 100%, color-mix(in srgb,var(--acc) 5%,transparent), transparent 58%);
+  background-attachment:fixed}
+.wrap{max-width:900px;margin:0 auto;padding:14px 22px 100px}
+.card{background:var(--panel);border:1.5px solid var(--border2);border-radius:20px;padding:18px 20px;box-shadow:var(--shadow-card)}
+.page-title{font-family:var(--fh);font-size:26px;font-weight:800;margin:18px 0 4px}
+.page-sub{color:var(--muted);font-size:14px;margin:0 0 16px}
+.addbox{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.addbox textarea{width:100%;min-height:64px;resize:vertical;background:var(--panel2);border:1.5px solid var(--border);border-radius:14px;color:var(--text);font:inherit;font-family:var(--fb);padding:12px 14px;outline:none;transition:border-color .2s}
+.addbox textarea:focus{border-color:var(--acc)}
+.addrow{display:flex;justify-content:space-between;align-items:center}
+.addrow small{color:var(--faint);font-size:12.5px}
+.addrow button{background:linear-gradient(135deg,var(--acc) 0%,var(--acc2) 100%);color:#062028;border:none;border-radius:11px;padding:9px 22px;font:inherit;font-family:var(--fh);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 14px -4px color-mix(in srgb,var(--acc) 55%,transparent),inset 0 1px 0 rgba(255,255,255,.25)}
+.addrow button:hover{filter:brightness(1.08)}
+.searchrow{margin-bottom:14px}
+.searchrow input{width:100%;background:var(--panel2);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font:inherit;padding:10px 14px;outline:none;transition:border-color .2s}
+.searchrow input:focus{border-color:var(--acc)}
+.notes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.note-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
+.note-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--acc) 35%,var(--border2));box-shadow:var(--shadow-card-hover)}
+.note-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.8;flex:1;position:relative;z-index:1}
+.note-text[contenteditable="true"]{outline:none;border:1px dashed var(--acc);border-radius:8px;padding:4px 6px}
+.note-time{color:var(--faint);font-size:12px;position:relative;z-index:1}
+.note-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;position:relative;z-index:1}
+.note-actions button{border:1px solid var(--border);border-radius:9px;background:var(--panel2);color:var(--muted);font:inherit;font-size:12px;padding:5px 9px;cursor:pointer;white-space:nowrap}
+.note-actions button:hover{border-color:var(--acc);color:var(--acc)}
+.note-actions button.danger:hover{border-color:var(--bad);color:var(--bad)}
+.empty{grid-column:1/-1;color:var(--faint);font-size:14px;padding:30px 10px;text-align:center;border:1px dashed var(--border);border-radius:16px}
+#toast{position:fixed;bottom:22px;right:50%;transform:translateX(50%);background:var(--acc);color:#062028;font-family:var(--fh);font-weight:700;font-size:15px;border-radius:13px;padding:10px 22px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<nav class="nav"><a class="brand" href="/">هـ</a><div class="navlinks"><a href="/">🏠 امروز</a><a href="/design/calendar-page.html">📅 تقویم</a><a href="/design/finance-page.html">💰 مالی</a><a href="/design/market-page.html">📈 بازار</a><a href="/design/football-page.html">⚽ فوتبال</a><a href="/design/series-page.html">🎬 سریال‌ها</a><a href="/design/movies-page.html">🎞 فیلم‌ها</a><a href="/design/spotify-page.html">🎵 موسیقی</a><a href="/design/youtube-page.html">▶️ یوتیوب</a><a href="/design/notes-page.html" class="on">📝 یادداشت‌ها</a><a href="/design/documents-page.html">📄 مدارک</a><a href="/design/contacts-page.html">👥 مخاطبین</a><a href="/design/settings-page.html">⚙️ تنظیمات</a></div><div class="navtools"><button class="iconbtn" id="modeBtn" type="button">🌙</button><span id="navAuth"></span></div></nav>
+<script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
+<div class="wrap">
+  <div class="page-title">📝 یادداشت‌ها</div>
+  <p class="page-sub">هرچی می‌خوای بعداً مرتبش کنی رو همین‌جا بریز — بعد به کار یا یادآوری تبدیلش کن یا فقط نگهش دار.</p>
+
+  <div class="card addbox">
+    <textarea id="noteIn" placeholder="یادداشت جدید..."></textarea>
+    <div class="addrow"><small>Ctrl+Enter برای ثبت سریع</small><button type="button" id="noteAdd">➕ ثبت یادداشت</button></div>
+  </div>
+
+  <div class="searchrow"><input type="text" id="noteSearch" placeholder="جستجو در یادداشت‌ها..."></div>
+
+  <div class="notes-grid" id="notesGrid"><div class="empty">در حال دریافت...</div></div>
+</div>
+<div id="toast"></div>
+<script>
+var NOTES=[];
+function fa(n){var d='۰۱۲۳۴۵۶۷۸۹';return String(n).replace(/\d/g,function(c){return d[c]})}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000)}
+function esc(s){return String(s||'').replace(/[<>&]/g,function(c){return({'<':'&lt;','>':'&gt;','&':'&amp;'})[c]})}
+function relTime(ts){
+  var diff=Math.max(0,Date.now()-Number(ts||0));
+  var m=Math.floor(diff/60000);
+  if(m<1)return 'همین حالا';
+  if(m<60)return fa(m)+' دقیقه پیش';
+  var h=Math.floor(m/60);
+  if(h<24)return fa(h)+' ساعت پیش';
+  var d=Math.floor(h/24);
+  if(d<30)return fa(d)+' روز پیش';
+  return new Date(Number(ts)).toLocaleDateString('fa-IR');
+}
+function renderNotes(filter){
+  var grid=document.getElementById('notesGrid');
+  var list=NOTES;
+  if(filter)list=list.filter(function(n){return n.text.indexOf(filter)>-1});
+  if(!list.length){grid.innerHTML='<div class="empty">'+(filter?'چیزی پیدا نشد':'هنوز یادداشتی نیست — بالا یکی بنویس')+'</div>';return}
+  grid.innerHTML=list.map(function(n){
+    return '<div class="note-card glow-teal">'
+      +'<div class="note-text" data-id="'+n.id+'">'+esc(n.text)+'</div>'
+      +'<div class="note-time">'+relTime(n.createdAt)+'</div>'
+      +'<div class="note-actions">'
+      +'<button type="button" data-edit="'+n.id+'">✎ ویرایش</button>'
+      +'<button type="button" data-conv="task" data-id="'+n.id+'">✅ کار</button>'
+      +'<button type="button" data-conv="reminder" data-id="'+n.id+'">🔔 یادآوری</button>'
+      +'<button type="button" class="danger" data-del="'+n.id+'">🗑 حذف</button>'
+      +'</div></div>';
+  }).join('');
+}
+function loadNotes(){
+  fetch('/api/inbox',{credentials:'include'}).then(function(r){
+    if(r.status===401){location.href='/design/login-page.html';return null}
+    return r.json();
+  }).then(function(d){
+    if(!d)return;
+    NOTES=(d.items||[]).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0)});
+    renderNotes(document.getElementById('noteSearch').value.trim());
+  }).catch(function(){document.getElementById('notesGrid').innerHTML='<div class="empty">خطای شبکه — دوباره امتحان کن</div>'});
+}
+function addNote(){
+  var inp=document.getElementById('noteIn'),v=inp.value.trim(); if(!v)return;
+  var btn=document.getElementById('noteAdd'); btn.disabled=true;
+  fetch('/api/inbox',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:v})})
+    .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
+    .then(function(x){
+      btn.disabled=false;
+      if(x.status===401){location.href='/design/login-page.html';return}
+      if(!x.ok){toast((x.d&&x.d.error)||'ثبت نشد');return}
+      NOTES.unshift(x.d); inp.value=''; renderNotes(''); toast('ثبت شد ✓');
+    }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
+}
+document.getElementById('noteAdd').addEventListener('click',addNote);
+document.getElementById('noteIn').addEventListener('keydown',function(e){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))addNote()});
+document.getElementById('noteSearch').addEventListener('input',function(){renderNotes(this.value.trim())});
+
+document.getElementById('notesGrid').addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b)return;
+  var q=document.getElementById('noteSearch').value.trim();
+  if(b.dataset.del){
+    var id=b.dataset.del;
+    if(!confirm('این یادداشت پاک بشه؟'))return;
+    fetch('/api/inbox/'+encodeURIComponent(id),{method:'DELETE',credentials:'include'})
+      .then(function(r){if(r.status===401){location.href='/design/login-page.html';return null}return r.json()})
+      .then(function(x){if(x==null)return;NOTES=NOTES.filter(function(n){return n.id!==id});renderNotes(q);toast('حذف شد')});
+    return;
+  }
+  if(b.dataset.conv){
+    var type=b.dataset.conv,id2=b.dataset.id;
+    fetch('/api/inbox/'+encodeURIComponent(id2)+'/convert',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type})})
+      .then(function(r){if(r.status===401){location.href='/design/login-page.html';return null}return r.json().then(function(d){return{ok:r.ok,d:d}})})
+      .then(function(x){
+        if(x==null)return;
+        if(!x.ok){toast((x.d&&x.d.error)||'انجام نشد');return}
+        NOTES=NOTES.filter(function(n){return n.id!==id2});renderNotes(q);
+        toast(type==='task'?'به کار تبدیل شد ✓':'به یادآوری تبدیل شد ✓');
+      });
+    return;
+  }
+  if(b.dataset.edit){
+    var id3=b.dataset.edit;
+    var el=document.querySelector('.note-text[data-id="'+id3+'"]');
+    if(!el)return;
+    if(el.getAttribute('contenteditable')==='true'){
+      var text=el.textContent.trim(); if(!text)return;
+      el.setAttribute('contenteditable','false');
+      b.textContent='✎ ویرایش';
+      fetch('/api/inbox/'+encodeURIComponent(id3),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text})})
+        .then(function(r){if(r.status===401){location.href='/design/login-page.html';return null}return r.json()})
+        .then(function(d){if(d==null)return;var n=NOTES.find(function(x){return x.id===id3});if(n)n.text=d.text||text;toast('ذخیره شد ✓')});
+    }else{
+      el.setAttribute('contenteditable','true'); el.focus();
+      b.textContent='✔ ذخیره';
+    }
+    return;
+  }
+});
+
+(function(){fetch('/api/me').then(function(r){return r.json()}).then(function(d){
+  var b=document.getElementById('navAuth');if(!b)return;
+  if(d&&d.user){var n=String(d.user.name||'').replace(/[<>&"]/g,'');
+    b.innerHTML='<span class="navuser">'+n+'</span> <button class="navout" id="navOut">خروج</button>';
+    document.getElementById('navOut').onclick=function(){fetch('/api/auth/logout',{method:'POST'}).finally(function(){location.href='/design/login-page.html'})};
+  }else b.innerHTML='<a class="navin" href="/design/login-page.html">ورود</a>';
+}).catch(function(){var b=document.getElementById('navAuth');if(b)b.innerHTML='<a class="navin" href="/design/login-page.html">ورود</a>'})})();
+
+loadNotes();
+</script>
+</body>
+</html>
