@@ -159,7 +159,7 @@ function betRollup(all,month){let items=[],prev=null,st={month:month||null,days:
   // ریال خودکار به تومان تبدیل می‌شه (تقسیم بر ۱۰) و خط «موجودی:» نادیده گرفته می‌شه.
   function parseBankMessage(t,base){
     t=stripRefNumbers(stripBalanceNotes(t)); // «موجودی: …» و شمارهٔ پیگیری مبلغ نیستند
-    const mFor=t.match(/بابت:\s*([^\n]+)/);
+    const mFor=t.match(/بابت:?\s*([^\n]+)/);
     const mAmt=t.match(/مبلغ:\s*([\d.,،٬٫\s]+?)\s*(تومان|تومن|ریال)/);
     const mSms=t.match(/(\d[\d.,،٬]*)\s*ریال\s*(?:از حساب شما\s*(?:پرید|کسر شد|برداشت شد|خارج شد|کم شد)|به حساب شما\s*(?:واریز شد|افزوده شد|اضافه شد|افزایش یافت))/);
     const mSms2=t.match(/(?:از حساب شما\s*(?:پرید|کسر شد|برداشت شد|خارج شد|کم شد)|به حساب شما\s*(?:واریز شد|افزوده شد|اضافه شد|افزایش یافت))[^\d]{0,30}?(\d[\d.,،٬]*)\s*ریال/);
