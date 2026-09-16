@@ -259,8 +259,10 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
 .charts-pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
 @media(max-width:820px){.charts-pair{grid-template-columns:1fr}}
 .chart-card .chart{height:160px}
-.chart.chart-exp .cbar,.chart-exp .cbar{width:70%;max-width:18px;background:linear-gradient(to top, color-mix(in srgb,var(--bad) 55%,transparent), var(--bad))}
-.chart.chart-inc .cbar,.chart-inc .cbar{width:70%;max-width:18px;background:linear-gradient(to top, color-mix(in srgb,var(--good) 55%,transparent), var(--good))}
+.chart.chart-exp .cbar,.chart-exp .cbar{width:70%;max-width:18px;background:linear-gradient(to top, color-mix(in srgb,var(--bad) 55%,transparent), var(--bad));transition:height .55s cubic-bezier(.22,.61,.36,1),filter .2s ease}
+.chart.chart-inc .cbar,.chart-inc .cbar{width:70%;max-width:18px;background:linear-gradient(to top, color-mix(in srgb,var(--good) 55%,transparent), var(--good));transition:height .55s cubic-bezier(.22,.61,.36,1),filter .2s ease}
+.chart-exp .ccol:hover .cbar{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--bad) 65%,transparent))}
+.chart-inc .ccol:hover .cbar{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--good) 65%,transparent))}
 .chart-foot{margin-top:10px;font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .chart .ccol.now .cbar{outline:2px solid color-mix(in srgb,var(--acc) 50%,transparent);outline-offset:1px}
 
@@ -904,7 +906,7 @@ function renderChart(){
       var h=vals[mi]?Math.max(3,Math.round(vals[mi]/mx*100)):2;
       var lab=kind==='exp'?'هزینه':'دریافت';
       return '<div class="ccol'+(mi===23?' now':'')+'" title="'+MON[M.m-1]+' '+fa(M.y)+' — '+lab+' '+fmtC(vals[mi])+'">'
-       +'<div class="cpair"><div class="cbar" style="height:'+h+'%"></div></div>'
+       +'<div class="cpair"><div class="cbar" data-h="'+h+'" style="height:0%;transition-delay:'+(mi*14)+'ms"></div></div>'
        +'<div class="clab">'+(mi%3===0||mi===23?MON[M.m-1]:'')+'</div></div>';
     }).join('');
   }
@@ -914,6 +916,9 @@ function renderChart(){
   var fE=document.getElementById('chartExpFoot'), fI=document.getElementById('chartIncFoot');
   if(fE) fE.innerHTML='<span>جمع ۲۴ ماه: <b style="color:var(--bad)">'+fmtC(sumE)+'</b></span><span>بیشینه ماه: '+fmtC(mxE)+'</span>';
   if(fI) fI.innerHTML='<span>جمع ۲۴ ماه: <b style="color:var(--good)">'+fmtC(sumI)+'</b></span><span>بیشینه ماه: '+fmtC(mxI)+'</span>';
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+    document.querySelectorAll('#chartExp .cbar,#chartInc .cbar').forEach(function(el){el.style.height=el.dataset.h+'%'});
+  })});
 }
 
 /* ============ سرفصل‌ها + آمار ============ */
@@ -1246,6 +1251,15 @@ function btIso(){var mi=Math.max(0,Math.min(23,BTDATE.mi));return jalaliMiDToIso
 function btNum(v){var n=parseFloat(faToEn(String(v||'')).replace(/[^0-9.]/g,''));return isFinite(n)?n:null}
 function btMoney(n){n=Math.round(Number(n||0)*100)/100;return '$'+(Math.abs(n)%1===0?String(Math.abs(n)):Math.abs(n).toFixed(2))}
 function btSigned(n){return (n>=0?'+':'−')+btMoney(n)}
+function sparkline(data,color){
+  if(!data||data.length<2)return '';
+  var max=Math.max.apply(null,data),min=Math.min.apply(null,data),range=(max-min)||1;
+  var pts=data.map(function(v,i){return (i/(data.length-1)*100).toFixed(1)+','+(28-((v-min)/range)*24).toFixed(1)}).join(' ');
+  return '<svg viewBox="0 0 100 32" preserveAspectRatio="none" style="width:100%;height:32px;display:block;margin-top:8px" aria-hidden="true">'
+    +'<polygon points="0,32 '+pts+' 100,32" fill="'+color+'" fill-opacity=".16"/>'
+    +'<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2" vector-effect="non-scaling-stroke"/>'
+    +'</svg>';
+}
 function btPut(id,o){return fetch('/api/bet'+(id?('/'+encodeURIComponent(id)):''),{method:id?'PATCH':'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)})}
 function btReset(){
   BTEDIT=null;
@@ -1261,8 +1275,9 @@ function renderBet(){
   var decided=ms.filter(function(x){return x.res!==0});
   var best=decided.reduce(function(a,x){return (!a||x.res>a.res)?x:a},null);
   var worst=decided.reduce(function(a,x){return (!a||x.res<a.res)?x:a},null);
+  var cum=0,cumTrend=ms.map(function(x){cum+=x.res;return cum});
   document.getElementById('btStats').innerHTML=
-   '<div class="pks"><small>سود / زیان ماه</small><b style="color:'+(profit>=0?'var(--good)':'var(--bad)')+'">'+btSigned(profit)+'</b></div>'
+   '<div class="pks"><small>سود / زیان ماه</small><b style="color:'+(profit>=0?'var(--good)':'var(--bad)')+'">'+btSigned(profit)+'</b>'+sparkline(cumTrend,profit>=0?'var(--good)':'var(--bad)')+'</div>'
   +'<div class="pks"><small>روزها</small><b>'+fa(ms.length)+' <span style="font-size:12px;color:var(--muted)">('+fa(wins)+' برد · '+fa(losses)+' باخت)</span></b></div>'
   +'<div class="pks"><small>وین‌ریت</small><b>'+fa((wins+losses)?Math.round(wins/(wins+losses)*100):0)+'٪</b></div>'
   +'<div class="pks"><small>بهترین / بدترین روز</small><b style="font-size:14.5px"><span style="color:'+(best&&best.res<0?'var(--bad)':'var(--good)')+'">▲ '+(best?btSigned(best.res):'—')+'</span> · <span style="color:'+(worst&&worst.res<0?'var(--bad)':'var(--good)')+'">▼ '+(worst?btSigned(worst.res):'—')+'</span></b></div>';
