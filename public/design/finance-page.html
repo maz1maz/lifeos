@@ -104,6 +104,9 @@ body{margin:0;padding-top:64px;background:var(--bg);color:var(--text);font-famil
   color:var(--text);font:inherit;font-size:14.5px;padding:6px 12px;outline:none}
 .hsearch:focus{border-color:var(--acc)}
 .txlist{display:flex;flex-direction:column;gap:6px}
+.btnf{display:inline-flex;gap:4px;background:var(--panel2);border-radius:10px;padding:3px}
+.btnf button{border:none;background:transparent;color:var(--faint);font:inherit;font-size:12.5px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;transition:background .15s,color .15s}
+.btnf button.on{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .txi{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:7px 12px}
 .txi .catdot{width:9px;height:9px;border-radius:99px;flex:none}
 .txi .d{color:var(--faint);font-size:12.5px;direction:ltr;flex:none;width:38px}
@@ -623,7 +626,8 @@ body.nav-open .nav-backdrop{display:block}
       <button id="btCancel" style="display:none;background:var(--panel);border:1.5px solid var(--border);border-radius:10px;color:var(--muted);font:inherit;font-size:13px;padding:6px 10px;cursor:pointer">انصراف</button>
     </div>
     <div class="dbnote">سود/زیان هر روز = موجودی پایان روز − «مبلغی که داشتم» − واریز + برداشت. «مبلغی که داشتم» خودش از موجودی روز قبل پر می‌شود؛ فقط روزی که پول تازه‌ای به سایت دادم یا برداشتم، آن دو کادر را پر می‌کنم. این بخش هیچ تراکنشی نمی‌سازد.</div>
-    <div class="txlist" id="btList" style="margin-top:10px"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px"><div class="btnf" id="btFilter"><button class="on" data-f="همه">همه</button><button data-f="برد">برد</button><button data-f="باخت">باخت</button></div></div>
+    <div class="txlist" id="btList" style="margin-top:8px"></div>
   </div>
 
 <div class="card">
@@ -873,7 +877,7 @@ function renderHist(){
     &&(!tagFilter||(x.tags||[]).indexOf(tagFilter)>-1)}).sort(function(a,b){return b.d-a.d});
   document.getElementById('histCount').textContent=rows.length?fa(rows.length)+' تراکنش':'';
   document.getElementById('histList').innerHTML=rows.length?rows.map(function(x){
-    return '<div class="txi"><span class="catdot" style="background:'+(CATS[x.c]||'var(--faint)')+'"></span>'
+    return '<div class="txi"><span class="catdot" style="background:'+(CATS[x.c]||'var(--faint)')+';box-shadow:0 0 8px color-mix(in srgb,'+(CATS[x.c]||'var(--faint)')+' 60%,transparent)"></span>'
      +'<span class="d">'+fa(x.d)+'</span>'
      +'<span class="t">'+x.t+' <small>'+CATI[x.c]+' '+x.c+'</small>'+tagsHtml(x.tags)+'</span>'
      +'<span class="amt '+(x.k==='income'?(x.ni?'inc ni':'inc'):'exp')+'">'+(x.k==='income'?'+':'−')+fmt(x.a)+(x.ni?'<small class="niTag">خارج از درآمد</small>':'')+'</span>'
@@ -1185,7 +1189,7 @@ function renderPoker(){
   }).join('');
   document.getElementById('pkList').innerHTML=ms.length?ms.slice().reverse().map(function(x){
     var pr=x.co-x.bi;
-    return '<div class="txi"><span class="catdot" style="background:'+(pr>=0?'var(--good)':'var(--bad)')+'"></span>'
+    return '<div class="txi"><span class="catdot" style="background:'+(pr>=0?'var(--good)':'var(--bad)')+';box-shadow:0 0 8px color-mix(in srgb,'+(pr>=0?'var(--good)':'var(--bad)')+' 60%,transparent)"></span>'
      +'<span class="d">'+fa(x.d)+'</span>'
      +'<span class="t">♠ '+(x.loc)+' <small>ورود '+fmtC(x.bi)+' · خروج '+fmtC(x.co)+'</small></span>'
      +'<span class="amt '+(pr>=0?'inc':'exp')+'">'+(pr>=0?'+':'−')+fmt(Math.abs(pr))+'</span><button class="rowedit" data-ed="pk" data-u="'+x._u+'">✎</button></div>';
@@ -1235,7 +1239,7 @@ function betStartLabel(startDate,startAmount){
   var lbl=md?(fa(md.d)+' '+MON[MONTHS[md.mi].m-1]):startDate;
   return 'آخرین ثبت ('+lbl+'): '+btMoney(startAmount);
 }
-var BET=[];var BTEDIT=null;
+var BET=[];var BTEDIT=null;var BET_FILTER='همه';
 var BTDATE=(function(){var t=jToday();return{mi:(t.jy*12+t.jm-1)-(1403*12+6),d:t.jd}})();
 function btMonthIdx(){var t=jToday();var cur=(t.jy*12+t.jm-1)-(1403*12+6);return Math.max(0,Math.min(23,curMi))}
 function btIso(){var mi=Math.max(0,Math.min(23,BTDATE.mi));return jalaliMiDToIso(mi,BTDATE.d)}
@@ -1268,14 +1272,15 @@ function renderBet(){
     return '<div class="pkm" title="'+fa(x.d)+' — '+btSigned(x.res)+'">'
      +'<i class="'+(x.res>=0?'pos':'neg')+'" style="height:'+hh+'px"></i><span>'+fa(x.d)+'</span></div>';
   }).join(''):'';
-  document.getElementById('btList').innerHTML=ms.length?ms.slice().reverse().map(function(x){
-    return '<div class="txi"><span class="catdot" style="background:'+(x.res>=0?'var(--good)':'var(--bad)')+'"></span>'
+  var msFiltered=ms.filter(function(x){return BET_FILTER==='برد'?x.res>0:BET_FILTER==='باخت'?x.res<0:true});
+  document.getElementById('btList').innerHTML=msFiltered.length?msFiltered.slice().reverse().map(function(x){
+    return '<div class="txi"><span class="catdot" style="background:'+(x.res>=0?'var(--good)':'var(--bad)')+';box-shadow:0 0 8px color-mix(in srgb,'+(x.res>=0?'var(--good)':'var(--bad)')+' 60%,transparent)"></span>'
      +'<span class="d">'+fa(x.d)+' '+MON[MONTHS[curMi].m-1]+'</span>'
      +'<span class="t">🎯 <small>داشتم '+btMoney(x.start)+' · واریز '+btMoney(x.dep)+' · برداشت '+btMoney(x.wd)+' · موجودی '+btMoney(x.bal)+'</small></span>'
      +'<span class="amt '+(x.res>=0?'inc':'exp')+'">'+btSigned(x.res)+'</span>'
      +'<button class="rowedit" data-bted="'+x.id+'">✎</button>'
      +'<button class="rowedit" data-btdel="'+x.id+'">🗑</button></div>';
-  }).join(''):'<div class="empty">این ماه هنوز روزی ثبت نشده — موجودی سایت بت را وارد کن</div>';
+  }).join(''):(ms.length?'<div class="empty">با این فیلتر روزی پیدا نشد</div>':'<div class="empty">این ماه هنوز روزی ثبت نشده — موجودی سایت بت را وارد کن</div>');
 }
 function loadBet(){
   return fetch('/api/bet',{credentials:'include'}).then(function(r){return r.json()}).then(function(d){
@@ -1288,6 +1293,12 @@ function loadBet(){
     renderBet();
   }).catch(function(){});
 }
+document.getElementById('btFilter').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-f]'); if(!b)return;
+  BET_FILTER=b.dataset.f;
+  this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b)});
+  renderBet();
+});
 document.getElementById('btDate').addEventListener('click',function(){
   var btn=this;
   openCal(btn,function(p){
