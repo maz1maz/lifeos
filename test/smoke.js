@@ -1266,8 +1266,22 @@ async function main() {
       // UI: صفحهٔ مالی باید گزینهٔ دلار داشته باشد و نماد/قیمت را برایش غیرفعال کند
       const page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
       check('the finance page offers 💵 دلار and disables symbol/price for it',
-        page.includes('<option value="dollar">💵 دلار</option>') && page.includes("symEl.disabled=isD") && page.includes("assetType:'dollar', type:'buy', quantity:qty"),
+        page.includes('<option value="dollar">💵 دلار</option>') && page.includes("symEl.disabled=isD") && page.includes("assetType:tval, type:'buy', quantity:qty"),
         'finance-page.html');
+
+      // یورو باید همان میان‌بر دلار را داشته باشد: فقط مقدار، بدون نماد/قیمت
+      const buyEuro = (body) => fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify(body) });
+      const e1 = await buyEuro({ assetType: 'euro', quantity: 200 });
+      check('a euro holding is accepted with an amount only (no symbol, no price)', e1.status === 201, String(e1.status));
+      const p5 = await pf();
+      const eur = p5.items.find(x => x.assetType === 'euro');
+      check('…and shows up as one EUR holding with price 1 and value = amount', !!eur && eur.symbol === 'EUR' && eur.quantity === 200 && eur.currentPrice === 1 && eur.marketValue === 200 && eur.currency === 'EUR', JSON.stringify(eur && { sym: eur.symbol, qty: eur.quantity, price: eur.currentPrice, val: eur.marketValue, cur: eur.currency }));
+
+      const noEuroQty = await buyEuro({ assetType: 'euro' });
+      const noEuroQtyBody = await noEuroQty.json();
+      check('an empty euro amount is rejected with a euro-specific message', noEuroQty.status === 400 && /یورو/.test(noEuroQtyBody.error || ''), JSON.stringify(noEuroQtyBody));
+
+      check('the finance page offers 💶 یورو too', page.includes('<option value="euro">💶 یورو</option>'), 'finance-page.html');
     }
 
     /* [49] Google Calendar: OAuth, dedicated LifeOS calendar, two-way managed

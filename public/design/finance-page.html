@@ -578,15 +578,16 @@ body.nav-open .nav-backdrop{display:block}
   </div>
 
   <div class="card">
-    <div class="mhead"><h4>📈 پورتفو</h4><span style="color:var(--faint);font-size:13px">دلار · کریپتو · سهام · طلا</span></div>
+    <div class="mhead"><h4>📈 پورتفو</h4><span style="color:var(--faint);font-size:13px">دلار · یورو · کریپتو · سهام · طلا</span></div>
     <div class="ptotal"><b id="pTotal">—</b><span class="chg" id="pChg">—</span></div>
     <div class="dbnote" id="pDollar" style="display:none"></div>
+    <div class="dbnote" id="pEuro" style="display:none"></div>
     <div class="alloc" id="alloc"></div>
     <div class="alloclg" id="allocLg"></div>
     <div id="holdings"></div>
     <div class="alerts" id="pAlerts"></div>
     <div class="addh">
-      <select id="hType"><option value="dollar">💵 دلار</option><option value="crypto">کریپتو</option><option value="stock">سهام</option><option value="gold">طلا</option></select>
+      <select id="hType"><option value="dollar">💵 دلار</option><option value="euro">💶 یورو</option><option value="crypto">کریپتو</option><option value="stock">سهام</option><option value="gold">طلا</option></select>
       <input id="hSym" placeholder="نماد — BTC" style="width:90px;direction:ltr">
       <input id="hQty" placeholder="تعداد" style="width:80px;direction:ltr" inputmode="decimal">
       <input id="hPrice" placeholder="قیمت هر واحد" style="width:120px;direction:ltr" inputmode="decimal">
@@ -797,14 +798,16 @@ var HIDDEN=false;
 
 /* ============ پورتفو ============ */
 var USDT=22720;
+var EURT=24540;
+function curRate(cur){return cur==='$'?USDT:(cur==='€'?EURT:1)}
 var HOLD=[]; /* خالی */
 HOLD.forEach(function(a){a._u=UID++});
-var ACOLOR={'دلار':'#3dd68c','کریپتو':'#fbbf24','سهام':'#60a5fa','طلا':'var(--acc)'};
+var ACOLOR={'دلار':'#3dd68c','یورو':'#818cf8','کریپتو':'#fbbf24','سهام':'#60a5fa','طلا':'var(--acc)'};
 
 /* ============ رندر هیرو ============ */
 function renderHero(){
   var cash=ACCS.reduce(function(s,a){return s+a.b},0);
-  var port=HOLD.reduce(function(s,h){return s+h.qty*h.price*(h.cur==='$'?USDT:1)},0);
+  var port=HOLD.reduce(function(s,h){return s+h.qty*h.price*curRate(h.cur)},0);
   var net=cash+port-DEBT()+CREDIT();
   function v(n){return HIDDEN?'••••':fmtC(n)+' <small class="u">تومان</small>'}
   document.getElementById('hero').innerHTML=
@@ -941,25 +944,32 @@ function renderCatsIns(){
 
 /* ============ پورتفو ============ */
 function renderPort(){
-  var tot=HOLD.reduce(function(s,h){return s+h.qty*h.price*(h.cur==='$'?USDT:1)},0);
-  var chg=HOLD.reduce(function(s,h){return s+h.qty*h.price*(h.cur==='$'?USDT:1)*h.chg/100},0);
+  var tot=HOLD.reduce(function(s,h){return s+h.qty*h.price*curRate(h.cur)},0);
+  var chg=HOLD.reduce(function(s,h){return s+h.qty*h.price*curRate(h.cur)*h.chg/100},0);
   document.getElementById('pTotal').textContent=fmtC(tot)+' تومان';
   document.getElementById('pChg').innerHTML='<span class="'+(chg>=0?'up':'dn')+'">'+(chg>=0?'▲ +':'▼ ')+fmtC(Math.abs(chg))+' امروز</span> <span style="color:var(--faint);font-size:13px">(دلار '+fa(USDT/1000)+' هزار)</span>';
-  var byType={};HOLD.forEach(function(h){var v=h.qty*h.price*(h.cur==='$'?USDT:1);byType[h.type]=(byType[h.type]||0)+v});
+  var byType={};HOLD.forEach(function(h){var v=h.qty*h.price*curRate(h.cur);byType[h.type]=(byType[h.type]||0)+v});
   var dm=HOLD.filter(function(h){return h.dollar});
   var dq=dm.reduce(function(s2,h){return s2+h.qty},0);
   var dEl=document.getElementById('pDollar');
   if(dq>0){dEl.style.display='';dEl.innerHTML='💵 <b>'+fa(dq)+' دلار</b> = '+fmtC(dq*USDT)+' تومان <span style="color:var(--faint)">(نرخ '+fa(USDT)+')</span>'}
   else dEl.style.display='none';
+  var em=HOLD.filter(function(h){return h.euro});
+  var eq=em.reduce(function(s2,h){return s2+h.qty},0);
+  var eEl=document.getElementById('pEuro');
+  if(eq>0){eEl.style.display='';eEl.innerHTML='💶 <b>'+fa(eq)+' یورو</b> = '+fmtC(eq*EURT)+' تومان <span style="color:var(--faint)">(نرخ '+fa(EURT)+')</span>'}
+  else eEl.style.display='none';
   document.getElementById('alloc').innerHTML=Object.keys(byType).map(function(t){
     return '<i style="width:'+(byType[t]/tot*100)+'%;background:'+ACOLOR[t]+'"></i>'}).join('');
   document.getElementById('allocLg').innerHTML=Object.keys(byType).map(function(t){
     return '<span>'+t+' <i style="background:'+ACOLOR[t]+'"></i> '+fa(Math.round(byType[t]/tot*100))+'٪</span>'}).join(' · ');
   document.getElementById('holdings').innerHTML=HOLD.map(function(h){
-    var v=h.qty*h.price*(h.cur==='$'?USDT:1);
+    var v=h.qty*h.price*curRate(h.cur);
+    var isFace=h.dollar||h.euro;
+    var faceLabel=h.dollar?'دلار':'یورو';
     return '<div class="hrow"><span class="sym">'+h.sym+'<small>'+h.type+'</small></span>'
-     +'<span class="qty">'+(h.dollar?fa(h.qty)+' دلار':fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):fmt(h.price)+' تومان'))+'</span>'
-     +(h.dollar?'<span class="chg"></span>':'<span class="chg '+(h.chg>=0?'up':'dn')+'">'+(h.chg>=0?'▲ +':'▼ ')+fa(h.chg)+'٪</span>')
+     +'<span class="qty">'+(isFace?fa(h.qty)+' '+faceLabel:fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):h.cur==='€'?'€'+fmt(h.price):fmt(h.price)+' تومان'))+'</span>'
+     +(isFace?'<span class="chg"></span>':'<span class="chg '+(h.chg>=0?'up':'dn')+'">'+(h.chg>=0?'▲ +':'▼ ')+fa(h.chg)+'٪</span>')
      +'<span class="val">'+fmtC(v)+'</span><button class="rowedit" data-ed="hold" data-u="'+h._u+'">✎</button></div>';
   }).join('');
   document.getElementById('pAlerts').innerHTML=
@@ -1215,6 +1225,16 @@ document.getElementById('pkAdd').addEventListener('click',function(){
   }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
 });
 /* ============ بت (دلاری) ============ */
+function tehranTodayIso(){var p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()),o={};p.forEach(function(x){o[x.type]=x.value});return o.year+'-'+o.month+'-'+o.day}
+function betStartLabel(startDate,startAmount){
+  if(startDate==null)return null;
+  var t=tehranTodayIso(),y=new Date(t+'T12:00:00');y.setDate(y.getDate()-1);
+  var yIso=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
+  if(startDate===yIso)return 'دیروز: '+btMoney(startAmount);
+  var md=isoToMiD(startDate);
+  var lbl=md?(fa(md.d)+' '+MON[MONTHS[md.mi].m-1]):startDate;
+  return 'آخرین ثبت ('+lbl+'): '+btMoney(startAmount);
+}
 var BET=[];var BTEDIT=null;
 var BTDATE=(function(){var t=jToday();return{mi:(t.jy*12+t.jm-1)-(1403*12+6),d:t.jd}})();
 function btMonthIdx(){var t=jToday();var cur=(t.jy*12+t.jm-1)-(1403*12+6);return Math.max(0,Math.min(23,curMi))}
@@ -1263,7 +1283,7 @@ function loadBet(){
     d.items.forEach(function(x){var md=isoToMiD(x.date); if(!md) return;
       BET.push({id:x.id,mi:md.mi,d:md.d,date:x.date,start:x.start,dep:x.deposit,wd:x.withdraw,bal:x.balance,res:x.result,note:x.note||''});
     });
-    if(d.suggestedStart!=null) document.getElementById('btStart').placeholder='مبلغی که داشتم ($) — دیروز: '+btMoney(d.suggestedStart);
+    if(d.suggestedStart!=null){var _bl=betStartLabel(d.suggestedStartDate,d.suggestedStart);if(_bl)document.getElementById('btStart').placeholder='مبلغی که داشتم ($) — '+_bl;}
     renderBet();
   }).catch(function(){});
 }
@@ -1791,7 +1811,7 @@ document.getElementById('aSave').addEventListener('click',function(){
 (function(){
   var sel=document.getElementById('hType'),symEl=document.getElementById('hSym'),prEl=document.getElementById('hPrice');
   function sync(){
-    var isD=sel.value==='dollar';
+    var isD=sel.value==='dollar'||sel.value==='euro';
     symEl.disabled=isD;prEl.disabled=isD;
     symEl.style.opacity=isD?'.45':'';prEl.style.opacity=isD?'.45':'';
     symEl.placeholder=isD?'نماد لازم نیست':'نماد — BTC';
@@ -1804,26 +1824,26 @@ document.getElementById('hAdd').addEventListener('click',function(){
   var qty=parseFloat(String(document.getElementById('hQty').value).replace(/[^0-9.]/g,''));
   var price=parseFloat(String(document.getElementById('hPrice').value).replace(/[^0-9.]/g,''));
   var type=document.getElementById('hType');
-  var tval=type.value; // dollar|crypto|stock|gold
+  var tval=type.value; // dollar|euro|crypto|stock|gold
   var tname=type.options[type.selectedIndex].text;
-  var isD=tval==='dollar';
+  var isD=tval==='dollar'||tval==='euro';
   if(isD){
-    /* «دلار» نماد و قیمت ندارد — فقط مقدار. هر دلار = ۱ دلار */
-    if(!qty){toast('مقدار دلار را بنویس');return}
-    sym='USD';price=1;tname='دلار';
+    /* «دلار/یورو» نماد و قیمت ندارد — فقط مقدار. هر واحد = ۱ واحد */
+    if(!qty){toast('مقدار را بنویس');return}
+    sym=tval==='dollar'?'USD':'EUR';price=1;tname=tval==='dollar'?'دلار':'یورو';
   }else if(!sym||!qty||!price){toast('نماد، تعداد و قیمت را کامل کن');return}
   var btn=this; btn.disabled=true;
   fetch('/api/investments/tx',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(isD?{assetType:'dollar', type:'buy', quantity:qty}:{symbol:sym, assetType:tval, type:'buy', quantity:qty, price:price})
+    body:JSON.stringify(isD?{assetType:tval, type:'buy', quantity:qty}:{symbol:sym, assetType:tval, type:'buy', quantity:qty, price:price})
   }).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
   .then(function(x){
     btn.disabled=false;
     if(x.status===401){location.href='/design/login-page.html';return}
     if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
-    HOLD.push({_u:UID++, id:x.d.id, dollar:isD, sym:isD?'💵':sym, type:tname, qty:qty, price:price, cur:isD||tval==='crypto'||tval==='stock'?'$':'تومان', chg:0});
+    HOLD.push({_u:UID++, id:x.d.id, dollar:tval==='dollar', euro:tval==='euro', sym:tval==='dollar'?'💵':tval==='euro'?'💶':sym, type:tname, qty:qty, price:price, cur:tval==='dollar'||tval==='crypto'||tval==='stock'?'$':tval==='euro'?'€':'تومان', chg:0});
     renderPort();renderHero();
     document.getElementById('hSym').value='';document.getElementById('hQty').value='';document.getElementById('hPrice').value='';
-    toast(isD?(fa(qty)+' دلار ذخیره شد ✓'):(sym+' ذخیره شد ✓'));
+    toast(isD?(fa(qty)+' '+(tval==='dollar'?'دلار':'یورو')+' ذخیره شد ✓'):(sym+' ذخیره شد ✓'));
   }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
 });
 
@@ -1925,8 +1945,9 @@ function loadFinanceFromApi(){
     if(res[3].ok && res[3].d && res[3].d.items){
       HOLD.length=0;
       res[3].d.items.forEach(function(h){
-        var tmap={crypto:'کریپتو',stock:'سهام',gold:'طلا',dollar:'دلار',other:'سایر'};
-        HOLD.push({_u:UID++, dollar:h.assetType==='dollar', sym:h.assetType==='dollar'?'💵':h.symbol, type:tmap[h.assetType]||h.assetType||'کریپتو', qty:h.quantity||h.qty||0, price:h.currentPrice!=null?h.currentPrice:(h.price||h.avgCost||0), cur:(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'تومان', chg:h.chg||0});
+        var tmap={crypto:'کریپتو',stock:'سهام',gold:'طلا',dollar:'دلار',euro:'یورو',other:'سایر'};
+        var hcur=h.currency==='EUR'?'€':(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'تومان';
+        HOLD.push({_u:UID++, dollar:h.assetType==='dollar', euro:h.assetType==='euro', sym:h.assetType==='dollar'?'💵':h.assetType==='euro'?'💶':h.symbol, type:tmap[h.assetType]||h.assetType||'کریپتو', qty:h.quantity||h.qty||0, price:h.currentPrice!=null?h.currentPrice:(h.price||h.avgCost||0), cur:hcur, chg:h.chg||0});
       });
     }
     // poker
@@ -1944,7 +1965,7 @@ function loadFinanceFromApi(){
         var md=isoToMiD(x.date); if(!md) return;
         BET.push({id:x.id,mi:md.mi,d:md.d,date:x.date,start:x.start,dep:x.deposit,wd:x.withdraw,bal:x.balance,res:x.result,note:x.note||''});
       });
-      if(res[5].d.suggestedStart!=null) document.getElementById('btStart').placeholder='مبلغی که داشتم ($) — دیروز: '+btMoney(res[5].d.suggestedStart);
+      if(res[5].d.suggestedStart!=null){var _bl2=betStartLabel(res[5].d.suggestedStartDate,res[5].d.suggestedStart);if(_bl2)document.getElementById('btStart').placeholder='مبلغی که داشتم ($) — '+_bl2;}
     }
     // keep EDARR refs in sync (arrays mutated in place — already same refs)
     renderHero();renderAccs();renderDebts();renderHist();renderChart();renderCatsIns();renderPort();renderPoker();renderBet();
