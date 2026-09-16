@@ -1039,16 +1039,6 @@ body.nav-open .nav-backdrop{display:block}
     toggle.addEventListener('click',function(e){var b=e.target.closest('button[data-am]');if(b)setMode(b.dataset.am,true)});
   })();</script>
 
-  <section class="inbox-card" id="inboxCard" aria-labelledby="inboxTitle">
-    <div class="mhead">
-      <h4 id="inboxTitle">📥 یادداشت‌ها</h4>
-      <span id="inboxCount">—</span>
-      <a href="/design/notes-page.html" class="inbox-full-link">مدیریت کامل ←</a>
-    </div>
-    <p class="inbox-help">یادداشت‌های سریع؛ برای ویرایش، حذف یا تبدیل هرکدام به کار/یادآوری، صفحه‌ی «یادداشت‌ها» رو باز کن.</p>
-    <div class="inbox-list" id="inboxList"><div class="inbox-empty">در حال دریافت یادداشت‌ها…</div></div>
-  </section>
-
   <!-- ردیف ۱ — یک‌ستونه: تاریخ -->
   <!-- ردیف یکپارچه: ستون۱=تاریخ/هوا/بازارها · ستون۲=تقویم/کارها/بازی‌ها · ستون۳+۴=افزودن سریع/دستیار/تراکنش‌ها/ثبت‌روزانه -->
 <div class="home-row r2r3 reveal">
@@ -1163,6 +1153,7 @@ body.nav-open .nav-backdrop{display:block}
         <div class="qhead"><span>🔔 یادآوری‌ها</span><span class="qsub" id="qRemSub"></span></div>
         <div class="taskadd remadd">
           <input type="text" id="remIn" placeholder="یادآوری جدید... بنویس و Enter بزن" autocomplete="off">
+          <input type="time" id="remTime" title="ساعت یادآوری (اختیاری)" style="flex:none;width:110px">
           <button type="button" id="remAdd">افزودن</button>
         </div>
         <div class="daychips" id="remChips">
@@ -2184,13 +2175,15 @@ function remColor(c){
   if(c==='acc')return'var(--acc)';
   return'color-mix(in srgb,var(--faint) 60%,transparent)';
 }
-function remWhenLabel(off){
-  if(off===0)return'امروز';
-  if(off===1)return'فردا';
-  if(off===3)return'۳ روز';
-  if(off===7)return'۷ روز';
-  if(typeof dayName==='function')return dayName(off);
-  return fa(off)+' روز دیگر';
+function remWhenLabel(off,time){
+  var base;
+  if(off===0)base='امروز';
+  else if(off===1)base='فردا';
+  else if(off===3)base='۳ روز';
+  else if(off===7)base='۷ روز';
+  else if(typeof dayName==='function')base=dayName(off);
+  else base=fa(off)+' روز دیگر';
+  return time?(base+' ساعت '+fa(time)):base;
 }
 /* کلید سورت: روز نسبت به امروز (نزدیک → دور). doneها آخر */
 function remSortKey(x){
@@ -2248,18 +2241,19 @@ function renderRems(){
 function addRem(){
   var inp=document.getElementById('remIn'); if(!inp)return;
   var v=inp.value.trim(); if(!v)return;
-  var when=remWhenLabel(remSelOff);
+  var timeInp=document.getElementById('remTime'),time=timeInp&&timeInp.value?timeInp.value:null;
+  var when=remWhenLabel(remSelOff,time);
   var color=remSelOff===0?'acc':(remSelOff<=1?'warn':(remSelOff<=3?'warn':'faint'));
   var off=remSelOff;
   var date=(typeof homeIsoFromOff==='function')?homeIsoFromOff(off):(new Date(Date.now()+off*864e5).toISOString().slice(0,10));
   fetch('/api/reminders',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({title:v,date:date,whenLabel:when})
+    body:JSON.stringify({title:v,date:date,time:time,whenLabel:when})
   }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
   .then(function(x){
     if(x.status===401){location.href='/design/login-page.html';return}
     if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
-    REMS.unshift({id:x.d.id,t:v, when:when, color:color, done:false, off:off, at:Date.now(), date:date});
-    saveRems(); inp.value=''; remSelOff=0;
+    REMS.unshift({id:x.d.id,t:v, when:when, color:color, done:false, off:off, at:Date.now(), date:date, time:time});
+    saveRems(); inp.value=''; remSelOff=0; if(timeInp)timeInp.value='';
     document.querySelectorAll('#remChips .dchip').forEach(function(ch){
       ch.classList.toggle('on', ch.dataset.r==='0');
     });
@@ -2316,6 +2310,8 @@ function addRem(){
   var addBtn=document.getElementById('remAdd'), inp=document.getElementById('remIn');
   if(addBtn)addBtn.addEventListener('click',addRem);
   if(inp)inp.addEventListener('keydown',function(e){if(e.key==='Enter')addRem()});
+  var timeInp0=document.getElementById('remTime');
+  if(timeInp0)timeInp0.addEventListener('keydown',function(e){if(e.key==='Enter')addRem()});
   document.querySelectorAll('#remChips .dchip[data-r]').forEach(function(c){
     c.addEventListener('click',function(){
       document.querySelectorAll('#remChips .dchip').forEach(function(x){x.classList.remove('on')});
