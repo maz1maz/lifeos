@@ -1463,7 +1463,8 @@ function openEdit(type,obj){
     var ni=document.getElementById('efNote'); if(ni) ni.value=obj.note||'';
   }
   if(type==='hold'){document.getElementById('edTitle').textContent='ویرایش دارایی';
-    setf('ef1','نماد',obj.sym,true);setf('ef2','تعداد',obj.qty,true);setf('ef3','قیمت هر واحد',obj.price,true);
+    var _hcur=obj.cur==='$'?'دلار':obj.cur==='€'?'یورو':'تومان — نه ریال';
+    setf('ef1','نماد',obj.sym,true);setf('ef2','تعداد',obj.qty,true);setf('ef3','قیمت هر واحد ('+_hcur+')',obj.price,true);
     selw.style.display='none'}
   edD.classList.add('open');ovl.classList.add('open');
 }
@@ -1881,10 +1882,11 @@ document.getElementById('aSave').addEventListener('click',function(){
   var sel=document.getElementById('hType'),symEl=document.getElementById('hSym'),prEl=document.getElementById('hPrice');
   function sync(){
     var isD=sel.value==='dollar'||sel.value==='euro';
+    var isUsd=sel.value==='crypto'||sel.value==='stock';
     symEl.disabled=isD;prEl.disabled=isD;
     symEl.style.opacity=isD?'.45':'';prEl.style.opacity=isD?'.45':'';
     symEl.placeholder=isD?'نماد لازم نیست':'نماد — BTC';
-    prEl.placeholder=isD?'قیمت لازم نیست':'قیمت هر واحد';
+    prEl.placeholder=isD?'قیمت لازم نیست':(isUsd?'قیمت هر واحد (دلار)':'قیمت هر واحد (تومان — نه ریال)');
   }
   sel.addEventListener('change',sync);sync();
 })();
