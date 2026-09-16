@@ -1963,9 +1963,16 @@ function loadFinanceFromApi(){
     fetch('/api/debts',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
     fetch('/api/portfolio',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
     fetch('/api/poker',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
-    fetch('/api/bet',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})})
+    fetch('/api/bet',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}),
+    fetch('/api/tgju',{credentials:'include'}).then(function(r){return r.json().then(function(d){return {ok:r.ok,status:r.status,d:d}})}).catch(function(){return {ok:false}})
   ]).then(function(res){
     if(res[0].status===401){ /* مهمان — فقط local */ return; }
+    // نرخ زنده‌ی دلار/یورو برای تبدیل پورتفو — قبل از پردازش دارایی‌ها ست می‌شود
+    if(res[6]&&res[6].ok&&res[6].d&&res[6].d.items){
+      var _tgi=res[6].d.items,_usd=_tgi.price_dollar_rl,_eur=_tgi.price_eur;
+      if(_usd&&_usd.p)USDT=Math.round(_usd.p/10);
+      if(_eur&&_eur.p)EURT=Math.round(_eur.p/10);
+    }
     // accounts
     if(res[0].ok && res[0].d && res[0].d.accounts){
       ACCS.length=0;
