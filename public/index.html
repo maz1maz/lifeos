@@ -449,8 +449,10 @@ body.zoom1{zoom:1.1111}
 .wcard-wide .wstat .wv{font-size:14px}
 .wcard-wide .wstat .wl{font-size:11.5px}
 .wcard-wide .wdays{margin-top:8px;gap:6px}
-.wcard-wide .wday{padding:5px 2px}
-.wcard-wide .wday .di{font-size:19px;margin:1px 0}
+.wcard-wide .wday{padding:4px 2px}
+.wcard-wide .wday .dn{font-size:11px}
+.wcard-wide .wday .di{font-size:15px;margin:1px 0}
+.wcard-wide .wday .tp{font-size:12.5px}
 .wcard-wide .wfoot{margin-top:6px}
 @media(max-width:900px){
   .wcard-wide{grid-template-columns:1fr}
@@ -784,10 +786,11 @@ body.nav-open .nav-backdrop{display:block}
 .home-row.r2r3 > .wcard{grid-column:3 / span 2;grid-row:1;height:100%;box-sizing:border-box;overflow:hidden}
 .home-row.r2r3 > .tr-combo{grid-column:2;grid-row:2}
 .home-row.r2r3 > #mkSum{grid-column:1;grid-row:2}
-.home-row.r2r3 > #gamesCard{grid-column:2;grid-row:3}
+.home-row.r2r3 > #gamesCard{grid-column:3;grid-row:2}
+.home-row.r2r3 > .epcard{grid-column:4;grid-row:2}
 .home-row.r2r3 > .hc-tx-wide{
   grid-column:3 / span 2;
-  grid-row:2 / span 2;
+  grid-row:3;
   display:flex;
   flex-direction:column;
   gap:14px;
@@ -797,7 +800,8 @@ body.nav-open .nav-backdrop{display:block}
 /* وقتی هم‌ردیف با کارت دیگه هم‌ارتفاع می‌شه، خودش و پنل داخلی‌ش باید کل اون ارتفاع رو پر کنن؛
    لیست داخلی در فضای باقی‌مونده اسکرول می‌خوره — نه کل کارت */
 .home-row.r2r3 > #mkSum,
-.home-row.r2r3 > #gamesCard{
+.home-row.r2r3 > #gamesCard,
+.home-row.r2r3 > .epcard{
   height:100%;
   box-sizing:border-box;
   display:flex;
@@ -806,10 +810,12 @@ body.nav-open .nav-backdrop{display:block}
 }
 .home-row.r2r3 > #mkSum > .mhead,
 .home-row.r2r3 > #gamesCard > .mhead,
+.home-row.r2r3 > .epcard > .mhead,
 .home-row.r2r3 > #mkSum > .mfoot,
 .home-row.r2r3 > #gamesCard > .mfoot{flex:0 0 auto}
 .home-row.r2r3 > #mkSum #sumRows,
-.home-row.r2r3 > #gamesCard #gamesList{flex:1 1 auto;min-height:0;overflow-y:auto}
+.home-row.r2r3 > #gamesCard #gamesList,
+.home-row.r2r3 > .epcard #epList{flex:1 1 auto;min-height:0;overflow-y:auto}
 .home-row.r2r3 > .tr-combo{height:100%;box-sizing:border-box;display:flex;flex-direction:column}
 .home-row.r2r3 > .tr-combo .tr-panel{flex:1 1 auto;min-height:0;height:100%;overflow:hidden}
 .home-row.r2r3 > .tr-combo .tr-sec{flex:1 1 0;min-height:0;overflow:hidden}
@@ -818,8 +824,10 @@ body.nav-open .nav-backdrop{display:block}
 /* موبایل/تبلت: هر کارت دوباره ارتفاع طبیعی خودش رو می‌گیره و به ترتیب اصلی ستون‌ها زیر هم می‌شینه */
 @media(max-width:1279px) and (min-width:901px){
   .home-row.r2r3{grid-template-columns:repeat(2, minmax(0,1fr)) !important}
-  .home-row.r2r3 > .wcard{grid-column:1 / -1 !important;grid-row:4 !important;height:auto !important}
-  .home-row.r2r3 > .hc-tx-wide{grid-column:1 / -1 !important;grid-row:5 !important}
+  .home-row.r2r3 > #gamesCard{grid-column:1 / -1 !important;grid-row:3 !important;height:auto !important}
+  .home-row.r2r3 > .epcard{grid-column:1 / -1 !important;grid-row:4 !important;height:auto !important}
+  .home-row.r2r3 > .wcard{grid-column:1 / -1 !important;grid-row:5 !important;height:auto !important}
+  .home-row.r2r3 > .hc-tx-wide{grid-column:1 / -1 !important;grid-row:6 !important}
 }
 @media(max-width:900px){
   .home-row.r2r3{grid-template-columns:1fr !important}
@@ -829,6 +837,7 @@ body.nav-open .nav-backdrop{display:block}
   .home-row.r2r3 > .tr-combo,
   .home-row.r2r3 > #mkSum,
   .home-row.r2r3 > #gamesCard,
+  .home-row.r2r3 > .epcard,
   .home-row.r2r3 > .hc-tx-wide{
     grid-column:1 !important;
     grid-row:auto !important;
@@ -842,9 +851,11 @@ body.nav-open .nav-backdrop{display:block}
   .home-row.r2r3 > .minical{order:4}
   .home-row.r2r3 > .tr-combo{order:5}
   .home-row.r2r3 > #gamesCard{order:6}
-  .home-row.r2r3 > .hc-tx-wide{order:7}
+  .home-row.r2r3 > .epcard{order:7}
+  .home-row.r2r3 > .hc-tx-wide{order:8}
   .home-row.r2r3 > #mkSum #sumRows,
   .home-row.r2r3 > #gamesCard #gamesList,
+  .home-row.r2r3 > .epcard #epList,
   .home-row.r2r3 > .tr-combo .tr-panel,
   .home-row.r2r3 > .tr-combo .tr-sec,
   .home-row.r2r3 > .tr-combo #taskList,
@@ -864,8 +875,7 @@ body.nav-open .nav-backdrop{display:block}
   align-items:start;
 }
 .hc-bot-row > .c3wrap,
-.hc-bot-row > .mcard,
-.hc-bot-row > .epcard{
+.hc-bot-row > .mcard{
   background:var(--panel);
   border:1.5px solid var(--border2);
   border-radius:20px;
@@ -1094,6 +1104,15 @@ body.nav-open .nav-backdrop{display:block}
     <div class="gwrap" id="gamesList">در حال دریافت…</div>
     <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
   </div>
+<div class="epcard">
+    <div class="mhead">
+      <h4>🎬 سریال‌ها</h4>
+      <span class="cnt" id="epCnt">—</span>
+      <span style="font-size:14px;color:var(--acc);cursor:pointer" id="epGoAll">سریال‌های من ←</span>
+    </div>
+    <div id="epList"></div>
+    <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
+</div>
 <div class="wcard glow-teal wcard-wide reveal" style="transition-delay:80ms">
       <div class="wnow">
         <div class="wic" id="wIcon">—</div>
@@ -1208,16 +1227,6 @@ body.nav-open .nav-backdrop{display:block}
 </div>
 </div>
 
-<div class="hc-bot-row" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-<div class="epcard">
-    <div class="mhead">
-      <h4>🎬 سریال‌ها</h4>
-      <span class="cnt" id="epCnt">—</span>
-      <span style="font-size:14px;color:var(--acc);cursor:pointer" id="epGoAll">سریال‌های من ←</span>
-    </div>
-    <div id="epList"></div>
-    <div class="epdone" id="epDone">✓ همه رو دیدی — دنبال سریال بعدی برو 🍿</div>
-</div>
 <div class="mcard">
     <div class="mhead"><h4>📊 بودجه ماه</h4></div>
     <div class="budwrap">
@@ -1227,7 +1236,6 @@ body.nav-open .nav-backdrop{display:block}
         <div class="budcats" id="budCats"></div>
         <div class="txspec" style="border-top:1px dashed var(--border);padding-top:8px;margin-top:12px">🔌 از <b>/api/finance?month=</b> و <b>/api/budgets</b> · ماکان گزارش ماه در صفحه‌ی مالی</div>
       </div>
-</div>
 </div>
 
 <!-- فاز ۱ — ردیف ۵: عادت‌های امروز + خلاصهٔ امروز/فردا -->
@@ -1856,6 +1864,14 @@ function j2d(jy,jm,jd){var r=jalCal(jy);return g2d(r.gy,3,r.march)+(jm-1)*31-jdi
 function d2j(jdn){var gy=d2g(jdn).gy,jy=gy-621,r=jalCal(jy),jdn1f=g2d(gy,3,r.march),k;if(jdn-jdn1f>=0){k=jdn-jdn1f;if(k<=185)return{jy:jy,jm:1+jdiv(k,31),jd:jmod(k,31)+1};k-=186}else{jy-=1;k+=179;if(r.leap===1)k+=1}return{jy:jy,jm:7+jdiv(k,30),jd:jmod(k,30)+1}}
 function jToday(){var n=new Date();return d2j(g2d(n.getFullYear(),n.getMonth()+1,n.getDate()))}
 var CALMON=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+function isoToJalaliLabel(iso){
+  try{
+    var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||''));
+    if(!m)return iso;
+    var j=d2j(g2d(+m[1],+m[2],+m[3]));
+    return fa(j.jd)+' '+CALMON[j.jm-1]+' '+fa(j.jy);
+  }catch(e){return iso}
+}
 var HOL={"14030101": "جشن نوروز/جشن سال نو", "14030102": "عیدنوروز", "14030103": "عیدنوروز", "14030104": "عیدنوروز", "14030112": "روز جمهوری اسلامی", "14030113": "شهادت حضرت علی (ع)", "14030122": "عید سعید فطر", "14030123": "تعطیل به مناسبت عید سعید فطر", "14030215": "شهادت امام جعفر صادق (ع)", "14030314": "رحلت حضرت امام خمینی", "14030315": "قیام 15 خرداد", "14030328": "عید سعید قربان", "14030405": "عید سعید غدیر خم", "14030425": "تاسوعای حسینی", "14030426": "عاشورای حسینی", "14030604": "اربعین حسینی", "14030612": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14030614": "شهادت امام رضا (ع)", "14030622": "شهادت امام حسن عسکری (ع)", "14030631": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14030915": "شهادت حضرت فاطمه زهرا (س)", "14031025": "ولادت امام علی (ع) و روز پدر", "14031109": "مبعث رسول اکرم (ص)", "14031122": "پیروزی انقلاب اسلامی", "14031126": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14031229": "روز ملی شدن صنعت نفت ایران", "14031230": "آخرین روز سال", "14040101": "جشن نوروز/جشن سال نو", "14040102": "شهادت حضرت علی (ع)", "14040103": "عیدنوروز", "14040104": "عیدنوروز", "14040111": "عید سعید فطر", "14040112": "تعطیل به مناسبت عید سعید فطر", "14040113": "جشن سیزده به در", "14040204": "شهادت امام جعفر صادق (ع)", "14040314": "رحلت حضرت امام خمینی", "14040315": "قیام 15 خرداد", "14040316": "عید سعید قربان", "14040324": "عید سعید غدیر خم", "14040414": "تاسوعای حسینی", "14040415": "عاشورای حسینی", "14040523": "اربعین حسینی", "14040531": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14040602": "شهادت امام رضا (ع)", "14040610": "شهادت امام حسن عسکری (ع)", "14040619": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14040903": "شهادت حضرت فاطمه زهرا (س)", "14041013": "ولادت امام علی (ع) و روز پدر", "14041027": "مبعث رسول اکرم (ص)", "14041115": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14041122": "پیروزی انقلاب اسلامی", "14041220": "شهادت حضرت علی (ع)", "14041229": "روز ملی شدن صنعت نفت ایران", "14050101": "عید سعید فطر", "14050102": "تعطیل به مناسبت عید سعید فطر", "14050103": "عیدنوروز", "14050104": "عیدنوروز", "14050112": "روز جمهوری اسلامی", "14050113": "جشن سیزده به در", "14050125": "شهادت امام جعفر صادق (ع)", "14050306": "عید سعید قربان", "14050314": "عید سعید غدیر خم", "14050315": "قیام 15 خرداد", "14050403": "تاسوعای حسینی", "14050404": "عاشورای حسینی", "14050513": "اربعین حسینی", "14050521": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14050522": "شهادت امام رضا (ع)", "14050530": "شهادت امام حسن عسکری (ع)", "14050608": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14050822": "شهادت حضرت فاطمه زهرا (س)", "14051002": "ولادت امام علی (ع) و روز پدر", "14051016": "مبعث رسول اکرم (ص)", "14051104": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14051122": "پیروزی انقلاب اسلامی", "14051209": "شهادت حضرت علی (ع)", "14051219": "عید سعید فطر", "14051220": "تعطیل به مناسبت عید سعید فطر", "14051229": "روز ملی شدن صنعت نفت ایران", "14060101": "جشن نوروز/جشن سال نو", "14060102": "عیدنوروز", "14060103": "عیدنوروز", "14060104": "عیدنوروز", "14060112": "روز جمهوری اسلامی", "14060113": "جشن سیزده به در", "14060114": "شهادت امام جعفر صادق (ع)", "14060227": "عید سعید قربان", "14060304": "عید سعید غدیر خم", "14060314": "رحلت حضرت امام خمینی", "14060315": "قیام 15 خرداد", "14060325": "تاسوعای حسینی", "14060326": "عاشورای حسینی", "14060503": "اربعین حسینی", "14060511": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14060512": "شهادت امام رضا (ع)", "14060520": "شهادت امام حسن عسکری (ع)", "14060529": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14060812": "شهادت حضرت فاطمه زهرا (س)", "14060921": "ولادت امام علی (ع) و روز پدر", "14061005": "مبعث رسول اکرم (ص)", "14061023": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14061122": "پیروزی انقلاب اسلامی", "14061129": "شهادت حضرت علی (ع)", "14061208": "عید سعید فطر", "14061209": "تعطیل به مناسبت عید سعید فطر", "14061229": "روز ملی شدن صنعت نفت ایران", "14070101": "جشن نوروز/جشن سال نو", "14070102": "عیدنوروز", "14070103": "شهادت امام جعفر صادق (ع)", "14070104": "عیدنوروز", "14070112": "روز جمهوری اسلامی", "14070113": "جشن سیزده به در", "14070217": "عید سعید قربان", "14070225": "عید سعید غدیر خم", "14070314": "تاسوعای حسینی", "14070315": "عاشورای حسینی", "14070424": "اربعین حسینی", "14070501": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14070502": "شهادت امام رضا (ع)", "14070510": "شهادت امام حسن عسکری (ع)", "14070519": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14070801": "شهادت حضرت فاطمه زهرا (س)", "14070911": "ولادت امام علی (ع) و روز پدر", "14070925": "مبعث رسول اکرم (ص)", "14071012": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14071118": "شهادت حضرت علی (ع)", "14071122": "پیروزی انقلاب اسلامی", "14071127": "عید سعید فطر", "14071128": "تعطیل به مناسبت عید سعید فطر", "14071221": "شهادت امام جعفر صادق (ع)", "14071229": "روز ملی شدن صنعت نفت ایران", "14080101": "جشن نوروز/جشن سال نو", "14080102": "عیدنوروز", "14080103": "عیدنوروز", "14080104": "عیدنوروز", "14080112": "روز جمهوری اسلامی", "14080113": "جشن سیزده به در", "14080206": "عید سعید قربان", "14080214": "عید سعید غدیر خم", "14080303": "تاسوعای حسینی", "14080304": "عاشورای حسینی", "14080314": "رحلت حضرت امام خمینی", "14080315": "قیام 15 خرداد", "14080413": "اربعین حسینی", "14080421": "رحلت رسول اکرم؛شهادت امام حسن مجتبی (ع)", "14080423": "شهادت امام رضا (ع)", "14080431": "شهادت امام حسن عسکری (ع)", "14080509": "میلاد رسول اکرم و امام جعفر صادق (ع)", "14080721": "شهادت حضرت فاطمه زهرا (س)", "14080830": "ولادت امام علی (ع) و روز پدر", "14080914": "مبعث رسول اکرم (ص)", "14081002": "ولادت حضرت قائم عجل الله تعالی فرجه و…", "14081107": "شهادت حضرت علی (ع)", "14081117": "عید سعید فطر", "14081118": "تعطیل به مناسبت عید سعید فطر", "14081122": "پیروزی انقلاب اسلامی", "14081211": "شهادت امام جعفر صادق (ع)", "14081229": "روز ملی شدن صنعت نفت ایران", "14081230": "آخرین روز سال"};
 function closeCal(){var p=document.getElementById('calpop');if(p)p.remove()}
 function openCal(anchor,onPick){
@@ -2378,7 +2394,9 @@ function loadHomeFromApi(){
     if(res[2].ok && res[2].d && res[2].d.items){
       REMS=res[2].d.items.map(function(r){
         var off=daysBetweenIso(todayIso, r.date||todayIso);
-        return {id:r.id,t:r.title,when:r.whenLabel||r.date||'',color:off<=0?'acc':(off<=1?'warn':'faint'),done:!!r.done,off:off,at:r.createdAt||Date.now(),date:r.date};
+        var whenRaw=r.whenLabel||r.date||'';
+        var when=/^\d{4}-\d{2}-\d{2}$/.test(whenRaw)?isoToJalaliLabel(whenRaw):whenRaw;
+        return {id:r.id,t:r.title,when:when,color:off<=0?'acc':(off<=1?'warn':'faint'),done:!!r.done,off:off,at:r.createdAt||Date.now(),date:r.date};
       });
       saveRems();
       if(typeof renderRems==='function') renderRems();
