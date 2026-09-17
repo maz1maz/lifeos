@@ -440,7 +440,7 @@ body.zoom1{zoom:1.1111}
 
 /* ================= WEATHER CARD ================= */
 .wcard{background:var(--panel);border:1.5px solid var(--border2);border-radius:20px;padding:18px 20px;box-shadow:var(--shadow-card)}
-.wcard-wide{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:12px 26px}
+.wcard-wide{display:grid;grid-template-columns:auto 1fr;align-items:center;align-content:space-between;gap:12px 26px}
 .wcard-wide .wnow{grid-column:1;margin:0}
 .wcard-wide .wstats{grid-column:2;grid-template-columns:repeat(6,1fr);margin-top:0}
 .wcard-wide .aqibar,.wcard-wide .thunder,.wcard-wide .wdays,.wcard-wide .wfoot{grid-column:1/-1}
@@ -770,12 +770,13 @@ body.nav-open .nav-backdrop{display:block}
 }
 .home-row.r2r3 > .datecard{grid-column:1;grid-row:1}
 .home-row.r2r3 > .minical{grid-column:2;grid-row:1}
+.home-row.r2r3 > .wcard{grid-column:3 / span 2;grid-row:1;height:100%;box-sizing:border-box;overflow:hidden}
 .home-row.r2r3 > .tr-combo{grid-column:2;grid-row:2}
 .home-row.r2r3 > #mkSum{grid-column:1;grid-row:2}
 .home-row.r2r3 > #gamesCard{grid-column:2;grid-row:3}
 .home-row.r2r3 > .hc-tx-wide{
   grid-column:3 / span 2;
-  grid-row:1 / span 3;
+  grid-row:2 / span 2;
   display:flex;
   flex-direction:column;
   gap:14px;
@@ -784,7 +785,6 @@ body.nav-open .nav-backdrop{display:block}
 }
 /* وقتی هم‌ردیف با کارت دیگه هم‌ارتفاع می‌شه، خودش و پنل داخلی‌ش باید کل اون ارتفاع رو پر کنن؛
    لیست داخلی در فضای باقی‌مونده اسکرول می‌خوره — نه کل کارت */
-.home-row.r2r3 > .wcard,
 .home-row.r2r3 > #mkSum,
 .home-row.r2r3 > #gamesCard{
   height:100%;
@@ -807,7 +807,8 @@ body.nav-open .nav-backdrop{display:block}
 /* موبایل/تبلت: هر کارت دوباره ارتفاع طبیعی خودش رو می‌گیره و به ترتیب اصلی ستون‌ها زیر هم می‌شینه */
 @media(max-width:1279px) and (min-width:901px){
   .home-row.r2r3{grid-template-columns:repeat(2, minmax(0,1fr)) !important}
-  .home-row.r2r3 > .hc-tx-wide{grid-column:1 / -1 !important;grid-row:4 !important}
+  .home-row.r2r3 > .wcard{grid-column:1 / -1 !important;grid-row:4 !important;height:auto !important}
+  .home-row.r2r3 > .hc-tx-wide{grid-column:1 / -1 !important;grid-row:5 !important}
 }
 @media(max-width:900px){
   .home-row.r2r3{grid-template-columns:1fr !important}
@@ -1111,8 +1112,7 @@ body.nav-open .nav-backdrop{display:block}
     <div class="gwrap" id="gamesList">در حال دریافت…</div>
     <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
   </div>
-<div class="home-col hc-tx-wide reveal" style="grid-column:span 2;transition-delay:80ms">
-    <div class="wcard glow-teal wcard-wide">
+<div class="wcard glow-teal wcard-wide reveal" style="transition-delay:80ms">
       <div class="wnow">
         <div class="wic" id="wIcon">—</div>
         <div class="wt"><span id="wTemp">—</span><small>°C</small></div>
@@ -1142,6 +1142,7 @@ body.nav-open .nav-backdrop{display:block}
       <div class="wdays" id="wdays"></div>
       <div class="wfoot"><span>پیش‌بینی ۵ روز · Open-Meteo</span><span id="wUpd">—</span></div>
     </div>
+<div class="home-col hc-tx-wide reveal" style="grid-column:span 2;transition-delay:80ms">
     <div class="mcard" style="margin-top:0">
   <div class="mhead"><h4>🤖 دستیار هوشمند</h4></div>
   <div id="aiChatLog" style="max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
@@ -2287,6 +2288,12 @@ function renderTx(){
  document.getElementById('txSum').textContent=fmtFull(s)+' تومان';
  BUDGET.spent=s; /* فقط جمع خرج‌های امروز در لیست */
  renderBud();
+ updateRecapExpense();
+}
+function updateRecapExpense(){
+ var el=document.getElementById('recapExpVal'); if(!el)return;
+ var s=(typeof TODAYTX!=='undefined'?TODAYTX:[]).filter(function(x){return x.k==='expense'}).reduce(function(n,x){return n+x.a},0);
+ el.textContent=(typeof fmtFull==='function'?fmtFull(s):s);
 }
 function renderBud(){
  var pct=BUDGET.total>0?Math.min(100,Math.round(BUDGET.spent/BUDGET.total*100)):0;
@@ -2986,7 +2993,9 @@ document.addEventListener('click',function(e){
         +pend.slice(0,6).map(function(h){return '<div class="rcitem">'+esc(h.icon||'✓')+' '+esc(h.name)+'</div>'}).join('')
         +'</div></div>';
       if(!html)html='<span class="habempty">هیچ چیز عقب‌افتاده یا منتظر فردا نیست ✓</span>';
+      html='<div class="rcsec" id="recapExpSec"><b>💸 خرج امروز</b><div class="rclist"><div class="rcitem">جمع: <span id="recapExpVal">—</span> تومان</div></div></div>'+html;
       recapBody.innerHTML=html;
+      updateRecapExpense();
       /* روایت AI فقط اگر کلید روی سرور باشد؛ وگرنه یک یادداشت شفاف */
       J('/api/ai/report?period=daily').then(function(y){
         if(y.ok&&y.d&&y.d.report)recapBody.insertAdjacentHTML('beforeend','<div class="rcai">🤖 '+esc(y.d.report)+'</div>');
