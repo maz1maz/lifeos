@@ -3024,7 +3024,7 @@ document.addEventListener('click',function(e){
 
   var TAB='expense';
   try{if(localStorage.getItem('qa-tab'))TAB=localStorage.getItem('qa-tab')}catch(e){}
-  var QA={dayOff:0,cat:'auto',time:'',remOff:0,repeat:'',dayLabel:null,remLabel:null};
+  var QA={dayOff:0,cat:'auto',time:'',remOff:0,repeat:'',dayLabel:null,remLabel:null,tags:'',acc:null};
   var PH={expense:'شرح — مثلاً: ناهار',income:'شرح — مثلاً: حقوق',task:'عنوان کار…',
     reminder:'عنوان یادآوری…',note:'یادداشت سریع…'};
 
@@ -3038,12 +3038,29 @@ document.addEventListener('click',function(e){
     var a=(typeof TXACC!=='undefined'&&TXACC)?String(TXACC):'بدون حساب';
     return a.replace(/^\S+\s/,'')||a;
   }
+  function accOptions(){
+    var list=(typeof ACCS!=='undefined'&&ACCS.length)?ACCS:['بدون حساب'];
+    return list.map(function(a){return '<option value="'+esc(a)+'">'+esc(a)+'</option>'}).join('');
+  }
+  function defaultAcc(){
+    var list=(typeof ACCS!=='undefined'&&ACCS.length)?ACCS:['بدون حساب'];
+    var blue=list.filter(function(a){return String(a).indexOf('بلو')>-1})[0];
+    return blue||(typeof TXACC!=='undefined'&&TXACC)||list[0];
+  }
   function renderOpts(){
     if(TAB==='expense'||TAB==='income'){
+      if(!QA.acc)QA.acc=defaultAcc();
       optsEl.innerHTML='<select id="qaCat">'+catOptions()+'</select>'
-        +'<span class="qaacc">از حساب: '+esc(accName())+'</span>';
+        +'<input type="text" id="qaTags" placeholder="تگ (اختیاری)" value="'+esc(QA.tags||'')+'" style="min-width:100px;flex:0 1 130px">'
+        +'<span class="qahint">'+(TAB==='income'?'به حساب:':'از حساب:')+'</span>'
+        +'<select id="qaAcc">'+accOptions()+'</select>';
       var sel=document.getElementById('qaCat');
       sel.value=QA.cat;
+      var tagsIn=document.getElementById('qaTags');
+      tagsIn.addEventListener('change',function(){QA.tags=tagsIn.value});
+      var accSel=document.getElementById('qaAcc');
+      accSel.value=QA.acc;
+      accSel.addEventListener('change',function(){QA.acc=accSel.value});
       sel.addEventListener('change',function(){QA.cat=sel.value});
     }else if(TAB==='task'){
       var qdLabel=QA.dayOff>1?('📅 '+(QA.dayLabel||'روز دیگر')):'📅 روز دیگر';
@@ -3112,23 +3129,25 @@ document.addEventListener('click',function(e){
       if(!a){say('مبلغ باید بیشتر از صفر باشد');amtEl.focus();return}
       if(!t){say('شرح تراکنش را بنویس');titleEl.focus();return}
       var c=(QA.cat&&QA.cat!=='auto')?QA.cat:((typeof suggestCat==='function'&&suggestCat(t))||(TAB==='income'?'درآمد':'متفرقه'));
-      var acc=accName(),kind=TAB;
+      var acc=QA.acc||defaultAcc(),kind=TAB;
+      var tagList=String(QA.tags||'').split(/[،,]+/).map(function(x){return x.trim()}).filter(Boolean);
       goEl.disabled=true;
       J('/api/transactions',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({title:t,amount:a,category:c,kind:kind,account:acc,date:isoToday()})})
+        body:JSON.stringify({title:t,amount:a,category:c,kind:kind,account:acc,tags:tagList,date:isoToday()})})
         .then(function(x){
           goEl.disabled=false;
           if(x.st===401){location.href='/design/login-page.html';return}
           if(!x.ok){say((x.d&&x.d.error)||'ذخیره نشد');return}
           try{
-            if(typeof TODAYTX!=='undefined')TODAYTX.push({id:x.d.id,t:t,a:a,c:c,k:kind,tags:[]});
+            if(typeof TODAYTX!=='undefined')TODAYTX.push({id:x.d.id,t:t,a:a,c:c,k:kind,tags:tagList});
             if(typeof renderTx==='function')renderTx();
           }catch(e){}
           var cm=(typeof catMeta==='function')?catMeta(c):[c,''];
           chip(esc(cm[1]||'')+' '+esc(t)+' · '+(typeof fmtFull==='function'?fmtFull(a):a)+' تومان');
           say('ذخیره شد ✓');
-          amtEl.value='';titleEl.value='';QA.cat='auto';
+          amtEl.value='';titleEl.value='';QA.cat='auto';QA.tags='';
           var sel=document.getElementById('qaCat');if(sel)sel.value='auto';
+          var tg=document.getElementById('qaTags');if(tg)tg.value='';
           amtEl.focus();
         })
         .catch(function(){goEl.disabled=false;say('خطای شبکه — ثبت نشد')});
