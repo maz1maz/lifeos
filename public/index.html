@@ -1001,12 +1001,6 @@ body.nav-open .nav-backdrop{display:block}
 
 <div class="home">
 
-  <!-- ادغام ثبت سریع + ثبت هوشمند زیر یه تاگل، به‌جای دو کادر همیشه‌بازِ جدا -->
-  <div class="addtoggle" id="addToggle">
-    <button type="button" class="on" data-am="quick">⚡ ثبت سریع</button>
-    <button type="button" data-am="smart">✨ ثبت هوشمند</button>
-  </div>
-
   <!-- ثبت سریع: یک کادر فشرده برای رایج‌ترین ثبت‌ها (هزینه/دریافت/کار/یادآوری/یادداشت) -->
   <div class="qadd" id="qAdd">
     <div class="qatabs" id="qaTabs">
@@ -1024,29 +1018,6 @@ body.nav-open .nav-backdrop{display:block}
     <div class="qaopts" id="qaOpts"></div>
     <div class="qadone" id="qaDone"></div>
   </div>
-
-  <!-- فاز ۱ — ثبت هوشمند: متن آزاد → رکورد ساخت‌یافته -->
-  <div class="smartbar" id="smartBar">
-    <input type="text" id="sbIn" placeholder="ثبت هوشمند: مثلاً «۱۲۰ هزار تومان اسنپ» یا «حال ۸» یا «یادآوری فردا ساعت ۱۰ بانک» — فقط بنویس" autocomplete="off">
-    <button type="button" id="sbGo">ثبت</button>
-    <span class="sbhint">متن آزاد → تراکنش / کار / مود / خواب / یادآوری / سریال</span>
-  </div>
-  <div class="sbdone" id="sbDone"></div>
-  <script>(function(){
-    var toggle=document.getElementById('addToggle'),qAdd=document.getElementById('qAdd'),
-      smartBar=document.getElementById('smartBar'),sbDone=document.getElementById('sbDone');
-    if(!toggle)return;
-    function setMode(m,persist){
-      toggle.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.am===m)});
-      qAdd.style.display=m==='quick'?'':'none';
-      smartBar.style.display=m==='smart'?'':'none';
-      sbDone.style.display=m==='smart'?'':'none';
-      if(persist)try{localStorage.setItem('lifeos-addmode',m)}catch(e){}
-    }
-    var saved=null;try{saved=localStorage.getItem('lifeos-addmode')}catch(e){}
-    setMode(saved==='smart'?'smart':'quick',false);
-    toggle.addEventListener('click',function(e){var b=e.target.closest('button[data-am]');if(b)setMode(b.dataset.am,true)});
-  })();</script>
 
   <!-- ردیف ۱ — یک‌ستونه: تاریخ -->
   <!-- ردیف یکپارچه: ستون۱=تاریخ/هوا/بازارها · ستون۲=تقویم/کارها/بازی‌ها · ستون۳+۴=افزودن سریع/دستیار/تراکنش‌ها/ثبت‌روزانه -->
@@ -1143,41 +1114,6 @@ body.nav-open .nav-backdrop{display:block}
       <div class="wfoot"><span>پیش‌بینی ۵ روز · Open-Meteo</span><span id="wUpd">—</span></div>
     </div>
 <div class="home-col hc-tx-wide reveal" style="grid-column:span 2;transition-delay:80ms">
-    <div class="mcard" style="margin-top:0">
-  <div class="mhead"><h4>🤖 دستیار هوشمند</h4></div>
-  <div id="aiChatLog" style="max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
-  <div style="display:flex;gap:8px">
-    <input id="aiChatInput" placeholder="مثلاً: این ماه چرا بیشتر از ماه قبل خرج کردم؟" style="flex:1;background:var(--panel2);border:1.5px solid var(--border);border-radius:11px;color:var(--text);padding:9px 12px;font:inherit;outline:none">
-    <button class="txgo" id="aiChatSend" type="button">ارسال</button>
-  </div>
-  <div id="aiChatNotice" style="color:var(--faint);font-size:12px;margin-top:6px"></div>
-</div>
-<div class="mcard glow-cyan" id="txCard">
-    <div class="mhead"><h4 id="txH">💸 تراکنش‌های امروز</h4><span id="txCount" style="color:var(--faint);font-size:13.5px"></span></div>
-    <div class="txform">
-        <div class="txrow">
-          <div class="kindseg">
-          <button type="button" class="on" data-kind="expense">خرج</button>
-          <button type="button" data-kind="income">دریافت</button>
-          </div>
-          <input class="txamount" id="txAmt" type="text" inputmode="numeric" placeholder="مبلغ تومان">
-          <input class="txtitle" id="txTitle" type="text" placeholder="شرح — مثلاً: اسنپ به محل کار">
-          <input class="txtagsin" id="txTags" type="text" placeholder="تگ (اختیاری) — سفر، کار، …" style="min-width:120px">
-          <button class="txgo" id="txGo" type="button">ثبت</button>
-        </div>
-        <div class="txrow2col">
-        <div class="chiprow"><span class="chiplab">از حساب:</span><span id="accChips" class="chipset">
-          <button type="button" class="txchip on" data-acc="💳 کارت اصلی">💳 کارت اصلی</button>
-          <button type="button" class="txchip" data-acc="💵 نقدی">💵 نقدی</button>
-          <button type="button" class="txchip" data-acc="🏦 پس‌انداز">🏦 پس‌انداز</button>
-        </span></div>
-        <div class="chiprow catrow"><span class="chiplab">سرفصل:</span><span id="catChips" class="chipset"><button type="button" class="txchip" data-cat="خوراک">🍞 خوراک</button><button type="button" class="txchip" data-cat="حمل‌ونقل">🚕 حمل‌ونقل</button><button type="button" class="txchip" data-cat="قبض">🧾 قبض</button><button type="button" class="txchip" data-cat="سلامت">💊 سلامت</button><button type="button" class="txchip" data-cat="تفریح">🎬 تفریح</button><button type="button" class="txchip" data-cat="پوشاک">👕 پوشاک</button><button type="button" class="txchip" data-cat="آموزش">📚 آموزش</button><button type="button" class="txchip" data-cat="مسکن">🏠 مسکن</button><button type="button" class="txchip" data-cat="متفرقه">🔖 متفرقه</button><button type="button" class="txchip" data-cat="__custom">✏️ سرفصل خودم</button></span></div>
-        </div>
-        <div class="smarthint" id="smartHint"></div>
-        </div>
-    <div class="txlist" id="txList"></div>
-    <div class="txsum"><span>جمع خرج امروز</span><b id="txSum">—</b></div>
-              </div>
 <div class="c3wrap">
 <div class="demo-bar">
     <button class="demo-btn" id="demoWeight">🗓 تست: ماه جدید شد (سوال وزن)</button>
@@ -1701,34 +1637,6 @@ function openMarketChartFor(title,unit,type,srcId){
   });
 })();
 
-/* ================= دستیار هوشمند ================= */
-(function(){
-  var logEl=document.getElementById('aiChatLog'), inp=document.getElementById('aiChatInput'), sendBtn=document.getElementById('aiChatSend'), notice=document.getElementById('aiChatNotice');
-  if(!logEl||!inp||!sendBtn)return;
-  var history=[];
-  function bubble(role,text){
-    var el=document.createElement('div');
-    el.style.cssText=role==='user'
-      ?'align-self:flex-start;background:var(--acc);color:#062028;padding:8px 12px;border-radius:12px;max-width:80%;font-size:13.5px;white-space:pre-wrap'
-      :'align-self:flex-end;background:var(--panel2);color:var(--text);padding:8px 12px;border-radius:12px;max-width:80%;font-size:13.5px;white-space:pre-wrap';
-    el.textContent=text;
-    logEl.appendChild(el); logEl.scrollTop=logEl.scrollHeight;
-  }
-  function send(){
-    var msg=inp.value.trim(); if(!msg)return;
-    inp.value=''; notice.textContent=''; bubble('user',msg);
-    fetch('/api/ai/chat',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,history:history})})
-      .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})})
-      .then(function(x){
-        if(!x.ok){ notice.textContent=(x.d&&x.d.error)||'خطا در دریافت پاسخ'; return; }
-        history.push({role:'user',content:msg},{role:'assistant',content:x.d.reply});
-        bubble('assistant',x.d.reply);
-      }).catch(function(){ notice.textContent='خطای شبکه'; });
-  }
-  sendBtn.addEventListener('click', send);
-  inp.addEventListener('keydown', function(e){ if(e.key==='Enter') send(); });
-})();
-
 (function(){
   var cached=null;
   try{cached=JSON.parse(localStorage.getItem('market-cache-v3')||'null')}catch(e){}
@@ -1853,7 +1761,22 @@ function renderWeather(d){
   }
   document.getElementById('wdays').innerHTML=html;
   document.getElementById('wUpd').textContent=d.live?('به‌روز · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})):'آفلاین · اسنپ‌شات امروز';
+  capWeatherHeight();
 }
+/* ارتفاع کارت هواشناسی = ارتفاع ردیف تقویم+تاریخ امروز (دسکتاپ) — با مخفی‌کردن موقت کارت هوا
+   ارتفاع «طبیعی» ردیف را از تاریخ/تقویم می‌خوانیم تا کارت هوا خودش باعث بلندتر شدن ردیف نشود */
+function capWeatherHeight(){
+  var w=document.querySelector('.wcard-wide'), d=document.querySelector('.datecard'), m=document.querySelector('.minical');
+  if(!w||!d||!m)return;
+  if(window.innerWidth<1280){w.style.height='';w.style.overflowY='';return}
+  var prevDisplay=w.style.display;
+  w.style.display='none';
+  var h=Math.max(d.offsetHeight, m.offsetHeight);
+  w.style.display=prevDisplay;
+  if(h>0){w.style.height=h+'px';w.style.overflowY='auto'}
+}
+capWeatherHeight();
+window.addEventListener('resize',capWeatherHeight);
 /* ===== فاز ۲ — هوا با شهر انتخابی: window.__city روی سرور ذخیره می‌شود (/api/me → user.weather) ===== */
 window.__city=window.__city||{name:"تهران",lat:35.69,lon:51.39};
 function applyCityLabels(){
@@ -2242,42 +2165,11 @@ function catMeta(c){for(var i=0;i<CATS.length;i++)if(CATS[i][0]===c)return CATS[
 function fmtT(n){return fmtFull(n)}
 function fmtFull(n){return fa(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,','))}
 function suggestCat(t){t=String(t||'');for(var i=0;i<CATS.length;i++){var kws=CATS[i][3];for(var j=0;j<kws.length;j++)if(t.indexOf(kws[j])>-1)return CATS[i][0]}return null}
-function renderAccChips(){
- var box=document.getElementById('accChips');if(!box)return;
- box.innerHTML=ACCS.map(function(a){
-  return '<button type="button" class="txchip'+(a===TXACC?' on':'')+'" data-acc="'+a+'">'+a+'</button>'}).join('');
-}
-function renderCatChips(){
- var box=document.getElementById('catChips');
- if(!box){return}
- var titleEl=document.getElementById('txTitle');
- var suggested=TXCATMANUAL?null:suggestCat(titleEl?titleEl.value:'');
- var active=TXCAT||(TXCATMANUAL?null:suggested);
- if(TXCATEDIT){
-  box.innerHTML='<input id="catCustomIn" placeholder="نام سرفصل + اینتر" style="background:var(--panel);border:1.5px solid var(--acc);border-radius:10px;color:var(--text);padding:6px 10px;font-family:inherit;font-size:13.5px;min-width:160px;flex:1">';
-  var ip=document.getElementById('catCustomIn');
-  if(ip){setTimeout(function(){try{ip.focus()}catch(e){}},0);
-   ip.addEventListener('keydown',function(ev){if(ev.key==='Enter'){var v=ip.value.trim();if(v){TXCAT=v;TXCATMANUAL=true;TXCATEDIT=false;renderCatChips()}}});
-   ip.addEventListener('blur',function(){if(TXCATEDIT){TXCATEDIT=false;renderCatChips()}});}
- }else{
-  var custom=TXCATMANUAL&&TXCAT&&!CATS.some(function(c){return c[0]===TXCAT});
-  var html=CATS.map(function(c){
-   var on=active===c[0];
-   return '<button type="button" class="txchip'+(on?' on':'')+(suggested===c[0]&&!TXCATMANUAL?' smart':'')+'" data-cat="'+c[0]+'">'+c[1]+' '+c[0]+'</button>';
-  }).join('');
-  html+='<button type="button" class="txchip'+(custom?' on':'')+'" data-cat="__custom">✏️ '+(custom?TXCAT:'سرفصل خودم')+'</button>';
-  box.innerHTML=html;
- }
- var sh=document.getElementById('smartHint');
- if(sh){
-  if(suggested&&!TXCATMANUAL){var cm=catMeta(suggested);sh.innerHTML='✨ از روی شرح: <b>'+cm[1]+' '+suggested+'</b> — اگر اشتباه است، سرفصل دیگری را بزن'}
-  else sh.innerHTML=TXCATMANUAL&&TXCAT?'سرفصل دستی: '+TXCAT:'';
- }
-}
 function renderTx(){
  var exp=TODAYTX.filter(function(x){return x.k==='expense'});
- document.getElementById('txCount').textContent=TODAYTX.length?'('+fa(TODAYTX.length)+' تراکنش)':'';
- document.getElementById('txList').innerHTML=TODAYTX.length?TODAYTX.map(function(x,i){
+ var cnt=document.getElementById('txCount'); if(cnt) cnt.textContent=TODAYTX.length?'('+fa(TODAYTX.length)+' تراکنش)':'';
+ var list=document.getElementById('txList');
+ if(list) list.innerHTML=TODAYTX.length?TODAYTX.map(function(x,i){
   var cm=catMeta(x.c);
   return '<div class="txi"><span class="catdot" style="background:'+cm[2]+'"></span>'
    +'<span class="t">'+x.t+' <small>'+cm[1]+' '+x.c+'</small>'+(x.tags&&x.tags.length?(' '+x.tags.map(function(t){return '<span style="color:var(--acc)">#'+String(t).replace(/[<>&]/g,'')+'</span>'}).join(' ')):'' )+'</span>'
@@ -2285,7 +2177,7 @@ function renderTx(){
    +'<button class="del" data-deltx="'+i+'">✕</button></div>'}).join('')
   :'<div style="color:var(--faint);font-size:14px;text-align:center;padding:10px">هنوز چیزی ثبت نشده — اولین خرج امروز را بالا بنویس</div>';
  var s=exp.reduce(function(n,x){return n+x.a},0);
- document.getElementById('txSum').textContent=fmtFull(s)+' تومان';
+ var sum=document.getElementById('txSum'); if(sum) sum.textContent=fmtFull(s)+' تومان';
  BUDGET.spent=s; /* فقط جمع خرج‌های امروز در لیست */
  renderBud();
  updateRecapExpense();
@@ -2309,64 +2201,13 @@ function renderBud(){
   return '<div class="bc"><span class="n">'+cm[1]+' '+c[0]+'</span><span class="v">'+fmtT(c[1])+'</span></div>';
  }).join(''):'<div style="color:var(--faint);font-size:13.5px;padding:6px 0">سقف ماه را از <a href="/design/finance-page.html" style="color:var(--acc)">صفحه مالی</a> تنظیم کن</div>';
 }
-function txSubmit(){
- var amtEl=document.getElementById('txAmt'), titleEl=document.getElementById('txTitle');
- var a=parseInt(amtEl.dataset.raw||'',10)||0;
- var t=titleEl.value.trim();
- amtEl.classList.remove('txerr'); titleEl.classList.remove('txerr');
- if(!a&&!t){toastB('مبلغ و شرح را بنویس');amtEl.classList.add('txerr');titleEl.classList.add('txerr');amtEl.focus();return}
- if(!a){toastB('مبلغ باید بیشتر از صفر باشد');amtEl.classList.add('txerr');amtEl.focus();return}
- if(!t){toastB('شرح تراکنش را بنویس');titleEl.classList.add('txerr');titleEl.focus();return}
- var c=TXCAT||suggestCat(t)||'متفرقه';
- var tagsEl=document.getElementById('txTags'); var tags=(function(s){s=String(s||'').trim();if(!s)return[];if(/[،,|/]/.test(s))return s.split(/[،,|/]+/).map(function(x){return x.trim()}).filter(Boolean).slice(0,12);return s.split(/\s+/).map(function(x){return x.trim()}).filter(Boolean).slice(0,12)})(tagsEl&&tagsEl.value); var account=String(TXACC||'بدون حساب').replace(/^\S+\s/,'') || String(TXACC||'بدون حساب');
- var btn=document.getElementById('txGo'); if(btn) btn.disabled=true;
- fetch('/api/transactions',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({title:t,amount:a,category:c,kind:TXKIND||'expense',account:account,tags:tags,date:(typeof homeIsoFromOff==='function'?homeIsoFromOff(0):new Date().toISOString().slice(0,10))})
- }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
- .then(function(x){
-   if(btn) btn.disabled=false;
-   if(x.status===401){location.href='/design/login-page.html';return}
-   if(!x.ok){toastB((x.d&&x.d.error)||'ذخیره نشد');return}
-   TODAYTX.push({id:x.d.id,t:t,a:a,c:c,k:TXKIND,tags:tags});
-   renderTx();
-   toastB('ذخیره شد ✓ — '+fmtFull(a)+' تومان · '+catMeta(c)[1]+' '+c+' · '+account);
-   document.getElementById('txAmt').value='';document.getElementById('txTitle').value='';var _tg=document.getElementById('txTags');if(_tg)_tg.value='';
-   TXCAT=null;TXCATMANUAL=false;renderCatChips();document.getElementById('txTitle').focus();
- }).catch(function(){if(btn)btn.disabled=false;toastB('خطای شبکه')});
-}
 function toastB(m){var t=document.getElementById('toast2');if(!t){t=document.createElement('div');t.id='toast2';
   t.style.cssText='position:fixed;bottom:22px;right:50%;transform:translateX(50%);background:var(--acc);color:#062028;font-family:var(--fh);font-weight:700;font-size:15px;border-radius:13px;padding:10px 22px;opacity:0;pointer-events:none;transition:.25s;z-index:99';
   document.body.appendChild(t)}
  t.textContent=m;t.style.opacity=1;clearTimeout(t._h);t._h=setTimeout(function(){t.style.opacity=0},2000)}
-document.getElementById('txGo').addEventListener('click',txSubmit);
-document.getElementById('txTitle').addEventListener('keydown',function(e){if(e.key==='Enter')txSubmit()});
-document.getElementById('txAmt').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('txTitle').focus()});
-document.getElementById('txAmt').addEventListener('input',function(){
- var v=String(this.value).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)}).replace(/[^0-9]/g,'');
- this.value=v?fa(String(+v).replace(/\B(?=(\d{3})+(?!\d))/g,',')):'';
- this.dataset.raw=v;
- if(+v>0)this.classList.remove('txerr');
-});
-document.getElementById('txTitle').addEventListener('input',function(){if(!TXCATMANUAL)renderCatChips();if(this.value.trim())this.classList.remove('txerr')});
-document.addEventListener('click',function(e){
- var b;
- if(b=e.target.closest('[data-acc]')){TXACC=b.dataset.acc;renderAccChips();return}
- if(b=e.target.closest('[data-cat]')){if(b.dataset.cat==='__custom'){TXCATEDIT=true;renderCatChips();return}TXCAT=b.dataset.cat;TXCATMANUAL=true;renderCatChips();return}
- if(b=e.target.closest('.kindseg button')){
-  document.querySelectorAll('.kindseg button').forEach(function(x){x.classList.remove('on')});
-  b.classList.add('on');TXKIND=b.dataset.kind;b.classList.toggle('inc',TXKIND==='income');return}
- if(b=e.target.closest('[data-deltx]')){
-  var i=parseInt(b.dataset.deltx,10);TODAYTX.splice(i,1);renderTx();return}
-});
 (function initTxUI(){
   function run(){
-    try{renderAccChips()}catch(e){console.error('acc',e)}
-    try{renderCatChips()}catch(e){console.error('cat',e)}
     try{renderTx()}catch(e){console.error('tx',e)}
-    var c=document.getElementById('catChips');
-    if(c&&!c.querySelector('[data-cat]')){
-      try{renderCatChips()}catch(e){console.error('cat2',e)}
-    }
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);
   else run();
@@ -2921,29 +2762,7 @@ document.addEventListener('click',function(e){
   var faD='۰۱۲۳۴۵۶۷۸۹';
   function fa(n){return String(n).replace(/\d/g,function(d){return faD[d]})}
   function J(url,opt){return fetch(url,Object.assign({credentials:'include'},opt)).then(function(r){return r.json().then(function(d){return{ok:r.ok,st:r.status,d:d}})})}
-  function hide401(){['smartBar','habCard','recapCard'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none'});var d=document.getElementById('sbDone');if(d)d.style.display='none'}
-
-  /* ---------- ثبت هوشمند ---------- */
-  var sbIn=document.getElementById('sbIn'),sbGo=document.getElementById('sbGo'),sbDone=document.getElementById('sbDone');
-  function sbSubmit(){
-    var text=(sbIn.value||'').trim(); if(!text)return;
-    sbGo.disabled=true; sbGo.textContent='…';
-    J('/api/ai/process',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text})})
-      .then(function(x){
-        sbGo.disabled=false; sbGo.textContent='ثبت';
-        if(x.st===401){location.href='/design/login-page.html';return}
-        if(!x.ok){toast((x.d&&x.d.error)||'ثبت هوشمند انجام نشد');return}
-        var done=x.d.done||[];
-        if(!done.length){toast('چیز قابل‌تشخیصی در متن پیدا نشد — ساده‌تر و صریح‌تر بنویس');return}
-        sbDone.innerHTML=done.map(function(s){return '<span>✓ '+esc(s)+'</span>'}).join('');
-        sbIn.value='';
-        toast(fa(done.length)+' مورد ثبت شد ✓');
-        setTimeout(function(){location.reload()},1100);
-      })
-      .catch(function(){sbGo.disabled=false;sbGo.textContent='ثبت';toast('خطای شبکه — ثبت نشد')});
-  }
-  sbGo.addEventListener('click',sbSubmit);
-  sbIn.addEventListener('keydown',function(e){if(e.key==='Enter')sbSubmit()});
+  function hide401(){['habCard','recapCard'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none'})}
 
   /* ---------- چیپ‌های عادت امروز ---------- */
   var habChips=document.getElementById('habChips'),habCnt=document.getElementById('habCnt');
