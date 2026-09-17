@@ -1134,43 +1134,7 @@ body.nav-open .nav-backdrop{display:block}
     <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
   </div>
 <div class="home-col hc-tx-wide reveal" style="grid-column:span 2;transition-delay:80ms">
-    <div class="r1-quick" id="r1Quick">
-      <div class="qblock" id="qTasks">
-        <div class="qhead"><span id="qTaskH">✅ افزودن کارهای آینده</span><span class="qsub" id="qTaskSub"></span></div>
-        <div class="taskadd">
-          <input type="text" id="taskIn" placeholder="کار جدید... بنویس و Enter بزن" autocomplete="off">
-          <button type="button" id="taskAdd">افزودن</button>
-        </div>
-        <div class="daychips" id="dayChips">
-          <span style="font-size:14px;color:var(--faint)">برای:</span>
-          <span class="dchip on" data-d="0">امروز</span>
-          <span class="dchip" data-d="1">فردا</span>
-          <span class="dchip" id="dMore">📅 روز دیگر</span>
-        </div>
-        <div class="futureline" id="futureLine"></div>
-      </div>
-      <div class="qblock" id="qRems">
-        <div class="qhead"><span>🔔 یادآوری‌ها</span><span class="qsub" id="qRemSub"></span></div>
-        <div class="taskadd remadd">
-          <input type="text" id="remIn" placeholder="یادآوری جدید... بنویس و Enter بزن" autocomplete="off">
-          <input type="time" id="remTime" title="ساعت یادآوری (اختیاری)" style="flex:none;width:110px">
-          <select id="remRepeat" title="تکرار" style="flex:none;background:var(--panel2);border:1px solid var(--border);border-radius:9px;color:var(--text);font:inherit;font-size:13px;padding:6px 8px">
-            <option value="">بدون تکرار</option>
-            <option value="daily">هر روز</option>
-            <option value="weekly">هر هفته</option>
-            <option value="monthly">هر ماه</option>
-          </select>
-          <button type="button" id="remAdd">افزودن</button>
-        </div>
-        <div class="daychips" id="remChips">
-          <span style="font-size:14px;color:var(--faint)">برای:</span>
-          <span class="dchip on" data-r="0">امروز</span>
-          <span class="dchip" data-r="1">فردا</span>
-          <span class="dchip" id="remMore">📅 روز دیگر</span>
-        </div>
-      </div>
-    </div>
-<div class="mcard" style="margin-top:0">
+    <div class="mcard" style="margin-top:0">
   <div class="mhead"><h4>🤖 دستیار هوشمند</h4></div>
   <div id="aiChatLog" style="max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
   <div style="display:flex;gap:8px">
@@ -2080,27 +2044,6 @@ document.getElementById('taskList').addEventListener('click',function(e){
   }
 });
 var FUTURES=[]; /* {t, off} — off: days from today */
-var selDay=0;
-document.querySelectorAll('#dayChips .dchip[data-d]').forEach(function(c){
-  c.addEventListener('click',function(){
-    document.querySelectorAll('#dayChips .dchip').forEach(function(x){x.classList.remove('on')});
-    c.classList.add('on'); selDay=+c.dataset.d;
-    if(window._resetDMore)_resetDMore(); c.classList.add('on');
-  });
-});
-(function(){
-    var dM=document.getElementById('dMore');
-  window._resetDMore=function(){dM.classList.remove('on');dM.textContent='📅 روز دیگر'};
-  dM.addEventListener('click',function(){
-    openCal(dM,function(p){
-      var t=jToday(),off=j2d(p.jy,p.jm,p.jd)-j2d(t.jy,t.jm,t.jd);
-      if(off<0){toast('تاریخ گذشته است — یکی از آینده انتخاب کن');return}
-      document.querySelectorAll('#dayChips .dchip,.extradays .dchip').forEach(function(x){x.classList.remove('on')});
-      dM.classList.add('on');selDay=off;
-      dM.textContent='📅 '+(off===0?'امروز':off===1?'فردا':fa(p.jd)+' '+CALMON[p.jm-1]+' '+fa(p.jy));
-    });
-  });
-})();
 function dayName(off){
   if(off===0)return'امروز'; if(off===1)return'فردا';
   return new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long',year:'numeric'}).format(new Date(Date.now()+off*864e5));
@@ -2109,6 +2052,7 @@ function toast(m){var t=document.getElementById('toast');t.textContent=m;t.class
   setTimeout(function(){t.classList.remove('show')},1800)}
 function renderFutures(){
   var el=document.getElementById('futureLine');
+  if(!el)return;
   if(!FUTURES.length){el.classList.remove('show');return}
   var items=FUTURES.slice().sort(function(a,b){return a.off-b.off}).slice(0,10);
   el.innerHTML='📌 '+items.map(function(f){return '«'+f.t+'» — '+dayName(f.off)}).join('<br>');
@@ -2128,37 +2072,6 @@ function homeIsoFromOff(off){
   d.setDate(d.getDate()+(+off||0));
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 }
-function addTask(){
-  var inp=document.getElementById('taskIn'),v=inp.value.trim(); if(!v)return;
-  var off=selDay||0;
-  var date=homeIsoFromOff(off);
-  var btn=document.getElementById('taskAdd');
-  if(btn) btn.disabled=true;
-  fetch('/api/tasks',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({title:v,date:date,deadline:date,priority:'medium'})
-  }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
-  .then(function(x){
-    if(btn) btn.disabled=false;
-    if(x.status===401){location.href='/design/login-page.html';return}
-    if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
-    var meta = off===0 ? 'امروز' : (typeof dayName==='function'?dayName(off):(fa(off)+' روز دیگر'));
-    TASKS.push({id:x.d.id,t:v,p:0,meta:meta,done:false,date:date,off:off});
-    renderTasks();
-    if(off>0){
-      FUTURES.push({id:x.d.id,t:v,off:off,date:date});
-      renderFutures();
-      toast('«'+v+'» برای '+meta+' ذخیره شد ✓');
-      selDay=0;
-      document.querySelectorAll('#dayChips .dchip').forEach(function(ch){ch.classList.toggle('on',ch.dataset.d==='0')});
-      if(window._resetDMore)_resetDMore();
-    } else {
-      toast('کار ذخیره شد ✓');
-    }
-    inp.value='';
-  }).catch(function(){if(btn)btn.disabled=false;toast('خطای شبکه')});
-}
-document.getElementById('taskAdd').addEventListener('click',addTask);
-document.getElementById('taskIn').addEventListener('keydown',function(e){if(e.key==='Enter')addTask()});
 renderTasks();
 
 /* ===== یادآوری‌ها (قابل افزودن، localStorage) ===== */
@@ -2173,7 +2086,6 @@ function loadRems(){
 }
 function saveRems(){ try{localStorage.setItem(REM_KEY, JSON.stringify(REMS))}catch(e){} }
 var REMS=loadRems();
-var remSelOff=0;
 function remColor(c){
   if(c==='bad')return'var(--bad)';
   if(c==='warn')return'var(--warn)';
@@ -2244,32 +2156,6 @@ function renderRems(){
   if(cnt)cnt.textContent=fa(left)+' باز'+(REMS.length?(' · '+fa(REMS.length)):'');
   try{if(window.syncGamesHeight)syncGamesHeight()}catch(e){}
 }
-function addRem(){
-  var inp=document.getElementById('remIn'); if(!inp)return;
-  var v=inp.value.trim(); if(!v)return;
-  var timeInp=document.getElementById('remTime'),time=timeInp&&timeInp.value?timeInp.value:null;
-  var repeatInp=document.getElementById('remRepeat'),recurrence=repeatInp&&repeatInp.value?repeatInp.value:null;
-  var when=remWhenLabel(remSelOff,time);
-  var color=remSelOff===0?'acc':(remSelOff<=1?'warn':(remSelOff<=3?'warn':'faint'));
-  var off=remSelOff;
-  var date=(typeof homeIsoFromOff==='function')?homeIsoFromOff(off):(new Date(Date.now()+off*864e5).toISOString().slice(0,10));
-  fetch('/api/reminders',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({title:v,date:date,time:time,whenLabel:when,recurrence:recurrence})
-  }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
-  .then(function(x){
-    if(x.status===401){location.href='/design/login-page.html';return}
-    if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
-    REMS.unshift({id:x.d.id,t:v, when:when, color:color, done:false, off:off, at:Date.now(), date:date, time:time, recurrence:recurrence});
-    saveRems(); inp.value=''; remSelOff=0; if(timeInp)timeInp.value=''; if(repeatInp)repeatInp.value='';
-    document.querySelectorAll('#remChips .dchip').forEach(function(ch){
-      ch.classList.toggle('on', ch.dataset.r==='0');
-    });
-    var rm=document.getElementById('remMore');
-    if(rm){rm.classList.remove('on');rm.textContent='📅 روز دیگر'}
-    renderRems();
-    if(typeof toast==='function')toast('یادآوری ذخیره شد ✓');
-  }).catch(function(){toast('خطای شبکه')});
-}
 (function initRems(){
   var list=document.getElementById('remList');
   if(!list)return;
@@ -2313,30 +2199,6 @@ function addRem(){
       }).then(function(r){if(r.status===401)location.href='/design/login-page.html'; if(!r.ok){o.done=!o.done;saveRems();renderRems();toast('ذخیره نشد')}})
        .catch(function(){o.done=!o.done;saveRems();renderRems();toast('خطای شبکه')});
     }
-  });
-  var addBtn=document.getElementById('remAdd'), inp=document.getElementById('remIn');
-  if(addBtn)addBtn.addEventListener('click',addRem);
-  if(inp)inp.addEventListener('keydown',function(e){if(e.key==='Enter')addRem()});
-  var timeInp0=document.getElementById('remTime');
-  if(timeInp0)timeInp0.addEventListener('keydown',function(e){if(e.key==='Enter')addRem()});
-  document.querySelectorAll('#remChips .dchip[data-r]').forEach(function(c){
-    c.addEventListener('click',function(){
-      document.querySelectorAll('#remChips .dchip').forEach(function(x){x.classList.remove('on')});
-      c.classList.add('on'); remSelOff=+c.dataset.r;
-      var rm=document.getElementById('remMore');
-      if(rm){rm.classList.remove('on');rm.textContent='📅 روز دیگر'}
-    });
-  });
-  var rM=document.getElementById('remMore');
-  if(rM)rM.addEventListener('click',function(){
-    if(typeof openCal!=='function'){remSelOff=7;rM.classList.add('on');return}
-    openCal(rM,function(p){
-      var t=jToday(),off=j2d(p.jy,p.jm,p.jd)-j2d(t.jy,t.jm,t.jd);
-      if(off<0){if(typeof toast==='function')toast('تاریخ گذشته است');return}
-      document.querySelectorAll('#remChips .dchip').forEach(function(x){x.classList.remove('on')});
-      rM.classList.add('on'); remSelOff=off;
-      rM.textContent='📅 '+(off===0?'امروز':off===1?'فردا':fa(p.jd)+' '+CALMON[p.jm-1]);
-    });
   });
   renderRems();
 })();
@@ -3154,7 +3016,7 @@ document.addEventListener('click',function(e){
 
   var TAB='expense';
   try{if(localStorage.getItem('qa-tab'))TAB=localStorage.getItem('qa-tab')}catch(e){}
-  var QA={dayOff:0,cat:'auto',time:''};
+  var QA={dayOff:0,cat:'auto',time:'',remOff:0,repeat:'',dayLabel:null,remLabel:null};
   var PH={expense:'شرح — مثلاً: ناهار',income:'شرح — مثلاً: حقوق',task:'عنوان کار…',
     reminder:'عنوان یادآوری…',note:'یادداشت سریع…'};
 
@@ -3176,16 +3038,46 @@ document.addEventListener('click',function(e){
       sel.value=QA.cat;
       sel.addEventListener('change',function(){QA.cat=sel.value});
     }else if(TAB==='task'){
+      var qdLabel=QA.dayOff>1?('📅 '+(QA.dayLabel||'روز دیگر')):'📅 روز دیگر';
       optsEl.innerHTML='<span class="qahint">برای:</span>'
         +'<span class="dchip'+(QA.dayOff===0?' on':'')+'" data-qd="0">امروز</span>'
-        +'<span class="dchip'+(QA.dayOff===1?' on':'')+'" data-qd="1">فردا</span>';
+        +'<span class="dchip'+(QA.dayOff===1?' on':'')+'" data-qd="1">فردا</span>'
+        +'<span class="dchip'+(QA.dayOff>1?' on':'')+'" id="qaDateMore">'+esc(qdLabel)+'</span>';
       optsEl.querySelectorAll('[data-qd]').forEach(function(c){
-        c.addEventListener('click',function(){QA.dayOff=+c.getAttribute('data-qd');renderOpts()});
+        c.addEventListener('click',function(){QA.dayOff=+c.getAttribute('data-qd');QA.dayLabel=null;renderOpts()});
+      });
+      var qdm=document.getElementById('qaDateMore');
+      if(qdm&&typeof openCal==='function')qdm.addEventListener('click',function(){
+        openCal(qdm,function(p){
+          var t=jToday(),off=j2d(p.jy,p.jm,p.jd)-j2d(t.jy,t.jm,t.jd);
+          if(off<0){say('تاریخ گذشته است — یکی از آینده انتخاب کن');return}
+          QA.dayOff=off;QA.dayLabel=(off===0?'امروز':off===1?'فردا':fa(p.jd)+' '+CALMON[p.jm-1]+' '+fa(p.jy));
+          renderOpts();
+        });
       });
     }else if(TAB==='reminder'){
-      optsEl.innerHTML='<input type="time" id="qaTime" value="'+esc(QA.time)+'">'
-        +'<span class="qahint">ساعت (اختیاری) — در سرور ذخیره می‌شود و در گزارش صبح تلگرام می‌آید</span>';
+      var qrLabel=QA.remOff>1?('📅 '+(QA.remLabel||'روز دیگر')):'📅 روز دیگر';
+      optsEl.innerHTML='<span class="qahint">برای:</span>'
+        +'<span class="dchip'+(QA.remOff===0?' on':'')+'" data-qr="0">امروز</span>'
+        +'<span class="dchip'+(QA.remOff===1?' on':'')+'" data-qr="1">فردا</span>'
+        +'<span class="dchip'+(QA.remOff>1?' on':'')+'" id="qaRemDateMore">'+esc(qrLabel)+'</span>'
+        +'<input type="time" id="qaTime" value="'+esc(QA.time)+'" title="ساعت (اختیاری)">'
+        +'<select id="qaRepeat" title="تکرار"><option value="">بدون تکرار</option><option value="daily">هر روز</option><option value="weekly">هر هفته</option><option value="monthly">هر ماه</option></select>';
       document.getElementById('qaTime').addEventListener('change',function(e){QA.time=e.target.value||''});
+      var qrSel=document.getElementById('qaRepeat');qrSel.value=QA.repeat;
+      qrSel.addEventListener('change',function(){QA.repeat=qrSel.value});
+      optsEl.querySelectorAll('[data-qr]').forEach(function(c){
+        c.addEventListener('click',function(){QA.remOff=+c.getAttribute('data-qr');QA.remLabel=null;renderOpts()});
+      });
+      var qrm=document.getElementById('qaRemDateMore');
+      if(qrm&&typeof openCal==='function')qrm.addEventListener('click',function(){
+        openCal(qrm,function(p){
+          var t=jToday(),off=j2d(p.jy,p.jm,p.jd)-j2d(t.jy,t.jm,t.jd);
+          if(off<0){say('تاریخ گذشته است — یکی از آینده انتخاب کن');return}
+          QA.remOff=off;QA.remLabel=(off===0?'امروز':off===1?'فردا':fa(p.jd)+' '+CALMON[p.jm-1]+' '+fa(p.jy));
+          renderOpts();
+        });
+      });
     }else{
       optsEl.innerHTML='<span class="qahint">به اینباکس می‌رود؛ بعداً می‌توانی به کار یا یادداشت روزانه تبدیلش کنی</span>';
     }
@@ -3251,21 +3143,29 @@ document.addEventListener('click',function(e){
           }catch(e){}
           chip('✅ '+esc(t)+(off===1?' · فردا':''));
           say(off>0?'برای فردا ذخیره شد ✓':'کار ذخیره شد ✓');
-          titleEl.value='';QA.dayOff=0;renderOpts();titleEl.focus();
+          titleEl.value='';QA.dayOff=0;QA.dayLabel=null;renderOpts();titleEl.focus();
         })
         .catch(function(){goEl.disabled=false;say('خطای شبکه — ثبت نشد')});
     }else if(TAB==='reminder'){
       if(!t){say('عنوان یادآوری را بنویس');titleEl.focus();return}
+      var roff=QA.remOff||0;
+      var rdate=(typeof homeIsoFromOff==='function')?homeIsoFromOff(roff):isoToday();
+      var rwhen=roff===0?'امروز':(roff===1?'فردا':(QA.remLabel||rdate));
       goEl.disabled=true;
       J('/api/reminders',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({title:t,date:isoToday(),time:QA.time||null})})
+        body:JSON.stringify({title:t,date:rdate,time:QA.time||null,whenLabel:rwhen,recurrence:QA.repeat||null})})
         .then(function(x){
           goEl.disabled=false;
           if(x.st===401){location.href='/design/login-page.html';return}
           if(!x.ok){say((x.d&&x.d.error)||'ذخیره نشد');return}
-          chip('🔔 '+esc(t)+(QA.time?' · '+esc(QA.time):''));
+          try{
+            if(typeof REMS!=='undefined')REMS.unshift({id:x.d.id,t:t,when:rwhen,color:roff===0?'acc':'warn',done:false,off:roff,at:Date.now(),date:rdate,time:QA.time||null,recurrence:QA.repeat||null});
+            if(typeof saveRems==='function')saveRems();
+            if(typeof renderRems==='function')renderRems();
+          }catch(e){}
+          chip('🔔 '+esc(t)+(QA.time?' · '+esc(QA.time):'')+(QA.repeat?' · 🔁':''));
           say('یادآوری ذخیره شد ✓');
-          titleEl.value='';titleEl.focus();
+          titleEl.value='';QA.remOff=0;QA.remLabel=null;QA.repeat='';renderOpts();titleEl.focus();
         })
         .catch(function(){goEl.disabled=false;say('خطای شبکه — ثبت نشد')});
     }else{
