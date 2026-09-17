@@ -440,14 +440,30 @@ body.zoom1{zoom:1.1111}
 
 /* ================= WEATHER CARD ================= */
 .wcard{background:var(--panel);border:1.5px solid var(--border2);border-radius:20px;padding:18px 20px;box-shadow:var(--shadow-card)}
-.wcard-wide{display:grid;grid-template-columns:auto 1fr;align-items:center;align-content:space-between;gap:12px 26px}
+.wcard-wide{display:grid;grid-template-columns:auto 1fr;align-items:center;align-content:space-between;gap:8px 22px;padding:14px 18px}
 .wcard-wide .wnow{grid-column:1;margin:0}
-.wcard-wide .wstats{grid-column:2;grid-template-columns:repeat(6,1fr);margin-top:0}
-.wcard-wide .aqibar,.wcard-wide .thunder,.wcard-wide .wdays,.wcard-wide .wfoot{grid-column:1/-1}
+.wcard-wide .wstats{grid-column:2;grid-template-columns:repeat(7,1fr);margin-top:0;gap:6px}
+.wcard-wide .thunder,.wcard-wide .wdays,.wcard-wide .wfoot{grid-column:1/-1}
+.wcard-wide .wstat{padding:6px 6px}
+.wcard-wide .wstat .wi{width:23px;height:23px;font-size:13px;margin-bottom:2px}
+.wcard-wide .wstat .wv{font-size:14px}
+.wcard-wide .wstat .wl{font-size:11.5px}
+.wcard-wide .wdays{margin-top:8px;gap:6px}
+.wcard-wide .wday{padding:5px 2px}
+.wcard-wide .wday .di{font-size:19px;margin:1px 0}
+.wcard-wide .wfoot{margin-top:6px}
 @media(max-width:900px){
   .wcard-wide{grid-template-columns:1fr}
   .wcard-wide .wnow,.wcard-wide .wstats{grid-column:1}
   .wcard-wide .wstats{grid-template-columns:repeat(3,1fr)}
+  .wcard-wide .wstat{padding:8px 10px}
+  .wcard-wide .wstat .wi{width:27px;height:27px;font-size:15px;margin-bottom:3px}
+  .wcard-wide .wstat .wv{font-size:15.5px}
+  .wcard-wide .wstat .wl{font-size:13.5px}
+  .wcard-wide .wdays{margin-top:14px;gap:8px}
+  .wcard-wide .wday{padding:8px 2px}
+  .wcard-wide .wday .di{font-size:24px;margin:2px 0}
+  .wcard-wide .wfoot{margin-top:10px}
 }
 .wnow{display:flex;align-items:center;gap:16px}
 .wnow .wic{font-size:52px;line-height:1}
@@ -476,11 +492,6 @@ body.zoom1{zoom:1.1111}
 .wstat:nth-child(6) .wi{background:color-mix(in srgb,#fcd34d 20%,transparent)}
 .wstat .wv{font-family:var(--fh);font-size:15.5px;font-weight:700;display:block}
 .wstat .wl{font-size:13.5px;color:var(--faint)}
-.aqibar{display:flex;align-items:center;gap:10px;margin-top:10px;border:1px solid var(--border);
-  border-radius:14px;padding:9px 14px;background:var(--panel2)}
-.aqibar .ad{width:12px;height:12px;border-radius:99px;flex:none}
-.aqibar b{font-family:var(--fh);font-size:15.5px}
-.aqibar small{color:var(--muted);font-size:14px}
 .thunder{display:none;margin-top:10px;border:1px solid color-mix(in srgb,var(--warn) 50%,transparent);
   background:color-mix(in srgb,var(--warn) 10%,transparent);color:var(--warn);
   border-radius:14px;padding:8px 14px;font-size:15px;font-weight:700}
@@ -1095,19 +1106,15 @@ body.nav-open .nav-backdrop{display:block}
       </div>
 
       <div class="wstats">
-        <div class="wstat"><span class="wi">💨</span><div class="wv" id="stWind">—</div><div class="wl">باد (km/h)</div></div>
+        <div class="wstat"><span class="wi">💨</span><div class="wv" id="stWind">—</div><div class="wl">باد</div></div>
         <div class="wstat"><span class="wi">💧</span><div class="wv" id="wHum">—</div><div class="wl">رطوبت</div></div>
-        <div class="wstat"><span class="wi">🌡</span><div class="wv" id="wFeel">—</div><div class="wl">دمای احساسی</div></div>
-        <div class="wstat"><span class="wi">☀️</span><div class="wv" id="wUv">—</div><div class="wl">شاخص UV امروز</div></div>
-        <div class="wstat"><span class="wi">☔</span><div class="wv" id="wPop">—</div><div class="wl">احتمال بارش</div></div>
-        <div class="wstat"><span class="wi">🌅</span><div class="wv" id="wSun">—</div><div class="wl">طلوع · غروب</div></div>
+        <div class="wstat"><span class="wi">🌡</span><div class="wv" id="wFeel">—</div><div class="wl">احساسی</div></div>
+        <div class="wstat"><span class="wi">☀️</span><div class="wv" id="wUv">—</div><div class="wl">UV</div></div>
+        <div class="wstat"><span class="wi">☔</span><div class="wv" id="wPop">—</div><div class="wl">بارش</div></div>
+        <div class="wstat"><span class="wi">🌅</span><div class="wv" id="wSun">—</div><div class="wl">طلوع</div></div>
+        <div class="wstat"><span class="wi" id="aqiDot">🍃</span><div class="wv" id="aqiVal">—</div><div class="wl">هوا</div></div>
       </div>
 
-      <div class="aqibar">
-        <span class="ad" id="aqiDot"></span>
-        <b>کیفیت هوا: <span id="aqiVal">—</span></b>
-        <small id="aqiSub">—</small>
-      </div>
       <div class="thunder" id="thunder">⚡</div>
 
       <div class="wdays" id="wdays"></div>
@@ -1744,10 +1751,12 @@ function renderWeather(d){
   document.getElementById('wSun').innerHTML='<small style="font-size:14px">'+fa(sr)+' · '+fa(ss)+'</small>';
   if(d.aqi){
     var ai=aqiInfo(d.aqi.eaqi);
-    document.getElementById('aqiDot').style.background=ai[1];
-    document.getElementById('aqiVal').textContent=fa(Math.round(d.aqi.eaqi))+' ('+ai[0]+')';
-    document.getElementById('aqiVal').style.color=ai[1];
-    document.getElementById('aqiSub').textContent='ذرات معلق ۲.۵: '+fa(Math.round(d.aqi.pm25))+' µg/m³';
+    var aqiDotEl=document.getElementById('aqiDot');
+    aqiDotEl.style.background='color-mix(in srgb,'+ai[1]+' 20%,transparent)';
+    var aqiValEl=document.getElementById('aqiVal');
+    aqiValEl.textContent=fa(Math.round(d.aqi.eaqi));
+    aqiValEl.style.color=ai[1];
+    aqiValEl.title='ذرات معلق ۲.۵: '+fa(Math.round(d.aqi.pm25))+' µg/m³ · '+ai[0];
   }
   var th=document.getElementById('thunder'),codes=d.daily.weather_code,thDays=[];
   for(var i=0;i<Math.min(6,codes.length);i++){ if(codes[i]>=95) thDays.push(i===0?'امروز':(i===1?'فردا':'روز '+fa(i))) }
