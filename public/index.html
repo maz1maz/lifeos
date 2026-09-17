@@ -440,6 +440,15 @@ body.zoom1{zoom:1.1111}
 
 /* ================= WEATHER CARD ================= */
 .wcard{background:var(--panel);border:1.5px solid var(--border2);border-radius:20px;padding:18px 20px;box-shadow:var(--shadow-card)}
+.wcard-wide{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:12px 26px}
+.wcard-wide .wnow{grid-column:1;margin:0}
+.wcard-wide .wstats{grid-column:2;grid-template-columns:repeat(6,1fr);margin-top:0}
+.wcard-wide .aqibar,.wcard-wide .thunder,.wcard-wide .wdays,.wcard-wide .wfoot{grid-column:1/-1}
+@media(max-width:900px){
+  .wcard-wide{grid-template-columns:1fr}
+  .wcard-wide .wnow,.wcard-wide .wstats{grid-column:1}
+  .wcard-wide .wstats{grid-template-columns:repeat(3,1fr)}
+}
 .wnow{display:flex;align-items:center;gap:16px}
 .wnow .wic{font-size:52px;line-height:1}
 .wnow .wt{font-family:var(--fh);font-size:44px;font-weight:800}
@@ -761,9 +770,8 @@ body.nav-open .nav-backdrop{display:block}
 }
 .home-row.r2r3 > .datecard{grid-column:1;grid-row:1}
 .home-row.r2r3 > .minical{grid-column:2;grid-row:1}
-.home-row.r2r3 > .wcard{grid-column:1;grid-row:2}
 .home-row.r2r3 > .tr-combo{grid-column:2;grid-row:2}
-.home-row.r2r3 > #mkSum{grid-column:1;grid-row:3}
+.home-row.r2r3 > #mkSum{grid-column:1;grid-row:2}
 .home-row.r2r3 > #gamesCard{grid-column:2;grid-row:3}
 .home-row.r2r3 > .hc-tx-wide{
   grid-column:3 / span 2;
@@ -1055,36 +1063,6 @@ body.nav-open .nav-backdrop{display:block}
       </div>
       <div class="occrow"><div class="daynav"><button type="button" class="dnbtn" id="dPrev" title="روز قبل">‹</button><button type="button" class="dntoday" id="dTodayBtn">امروز</button><button type="button" class="dnbtn" id="dNext" title="روز بعد">›</button></div><div class="occs" id="occs"></div></div>
     </div>
-<div class="wcard glow-teal">
-      <div class="wnow">
-        <div class="wic" id="wIcon">—</div>
-        <div class="wt"><span id="wTemp">—</span><small>°C</small></div>
-        <div class="wd">
-          <b id="wDesc">—</b>
-          <small id="wCity">تهران · الان</small>
-          <button type="button" class="wcitybtn" id="wCityBtn" title="تغییر شهر آب‌وهوا">📍</button>
-        </div>
-      </div>
-
-      <div class="wstats">
-        <div class="wstat"><span class="wi">💨</span><div class="wv" id="stWind">—</div><div class="wl">باد (km/h)</div></div>
-        <div class="wstat"><span class="wi">💧</span><div class="wv" id="wHum">—</div><div class="wl">رطوبت</div></div>
-        <div class="wstat"><span class="wi">🌡</span><div class="wv" id="wFeel">—</div><div class="wl">دمای احساسی</div></div>
-        <div class="wstat"><span class="wi">☀️</span><div class="wv" id="wUv">—</div><div class="wl">شاخص UV امروز</div></div>
-        <div class="wstat"><span class="wi">☔</span><div class="wv" id="wPop">—</div><div class="wl">احتمال بارش</div></div>
-        <div class="wstat"><span class="wi">🌅</span><div class="wv" id="wSun">—</div><div class="wl">طلوع · غروب</div></div>
-      </div>
-
-      <div class="aqibar">
-        <span class="ad" id="aqiDot"></span>
-        <b>کیفیت هوا: <span id="aqiVal">—</span></b>
-        <small id="aqiSub">—</small>
-      </div>
-      <div class="thunder" id="thunder">⚡</div>
-
-      <div class="wdays" id="wdays"></div>
-      <div class="wfoot"><span>پیش‌بینی ۵ روز · Open-Meteo</span><span id="wUpd">—</span></div>
-    </div>
 <div class="mcard navcard" id="mkSum">
     <div class="mhead"><h4>📈 بازارها</h4><span style="font-size:13px;color:var(--acc)">کامل ←</span></div>
     <div id="sumRows"><div class="mrow"><div class="nm"><b>…</b><small>در حال دریافت</small></div><div class="chg na">—</div><div class="pr">—</div></div></div>
@@ -1134,6 +1112,36 @@ body.nav-open .nav-backdrop{display:block}
     <div class="mfoot"><span id="gamesFoot">—</span><span class="src">ESPN · TheSportsDB</span></div>
   </div>
 <div class="home-col hc-tx-wide reveal" style="grid-column:span 2;transition-delay:80ms">
+    <div class="wcard glow-teal wcard-wide">
+      <div class="wnow">
+        <div class="wic" id="wIcon">—</div>
+        <div class="wt"><span id="wTemp">—</span><small>°C</small></div>
+        <div class="wd">
+          <b id="wDesc">—</b>
+          <small id="wCity">تهران · الان</small>
+          <button type="button" class="wcitybtn" id="wCityBtn" title="تغییر شهر آب‌وهوا">📍</button>
+        </div>
+      </div>
+
+      <div class="wstats">
+        <div class="wstat"><span class="wi">💨</span><div class="wv" id="stWind">—</div><div class="wl">باد (km/h)</div></div>
+        <div class="wstat"><span class="wi">💧</span><div class="wv" id="wHum">—</div><div class="wl">رطوبت</div></div>
+        <div class="wstat"><span class="wi">🌡</span><div class="wv" id="wFeel">—</div><div class="wl">دمای احساسی</div></div>
+        <div class="wstat"><span class="wi">☀️</span><div class="wv" id="wUv">—</div><div class="wl">شاخص UV امروز</div></div>
+        <div class="wstat"><span class="wi">☔</span><div class="wv" id="wPop">—</div><div class="wl">احتمال بارش</div></div>
+        <div class="wstat"><span class="wi">🌅</span><div class="wv" id="wSun">—</div><div class="wl">طلوع · غروب</div></div>
+      </div>
+
+      <div class="aqibar">
+        <span class="ad" id="aqiDot"></span>
+        <b>کیفیت هوا: <span id="aqiVal">—</span></b>
+        <small id="aqiSub">—</small>
+      </div>
+      <div class="thunder" id="thunder">⚡</div>
+
+      <div class="wdays" id="wdays"></div>
+      <div class="wfoot"><span>پیش‌بینی ۵ روز · Open-Meteo</span><span id="wUpd">—</span></div>
+    </div>
     <div class="mcard" style="margin-top:0">
   <div class="mhead"><h4>🤖 دستیار هوشمند</h4></div>
   <div id="aiChatLog" style="max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
