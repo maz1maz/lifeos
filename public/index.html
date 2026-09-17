@@ -1154,6 +1154,12 @@ body.nav-open .nav-backdrop{display:block}
         <div class="taskadd remadd">
           <input type="text" id="remIn" placeholder="یادآوری جدید... بنویس و Enter بزن" autocomplete="off">
           <input type="time" id="remTime" title="ساعت یادآوری (اختیاری)" style="flex:none;width:110px">
+          <select id="remRepeat" title="تکرار" style="flex:none;background:var(--panel2);border:1px solid var(--border);border-radius:9px;color:var(--text);font:inherit;font-size:13px;padding:6px 8px">
+            <option value="">بدون تکرار</option>
+            <option value="daily">هر روز</option>
+            <option value="weekly">هر هفته</option>
+            <option value="monthly">هر ماه</option>
+          </select>
           <button type="button" id="remAdd">افزودن</button>
         </div>
         <div class="daychips" id="remChips">
@@ -2226,7 +2232,7 @@ function renderRems(){
     var x=item.x, i=item.i;
     html+='<div class="rem'+(x.done?' done':'')+'" data-i="'+i+'">'
       +'<span class="rd" style="background:'+remColor(x.color||'acc')+'"></span>'
-      +'<span class="rt"><b>'+String(x.t||'').replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</b></span>'
+      +'<span class="rt"><b>'+String(x.t||'').replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</b>'+(x.recurrence?' <small title="تکرار می‌شود" style="color:var(--acc)">🔁</small>':'')+'</span>'
       +'<span class="rv">'+String(x.when||'').replace(/[<>&]/g,function(ch){return ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])})+'</span>'
       +'<button type="button" class="redit" data-ei="'+i+'" title="ویرایش">✎</button>'
       +'<button type="button" class="rdel" data-di="'+i+'" title="حذف">✕</button>'
@@ -2242,18 +2248,19 @@ function addRem(){
   var inp=document.getElementById('remIn'); if(!inp)return;
   var v=inp.value.trim(); if(!v)return;
   var timeInp=document.getElementById('remTime'),time=timeInp&&timeInp.value?timeInp.value:null;
+  var repeatInp=document.getElementById('remRepeat'),recurrence=repeatInp&&repeatInp.value?repeatInp.value:null;
   var when=remWhenLabel(remSelOff,time);
   var color=remSelOff===0?'acc':(remSelOff<=1?'warn':(remSelOff<=3?'warn':'faint'));
   var off=remSelOff;
   var date=(typeof homeIsoFromOff==='function')?homeIsoFromOff(off):(new Date(Date.now()+off*864e5).toISOString().slice(0,10));
   fetch('/api/reminders',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({title:v,date:date,time:time,whenLabel:when})
+    body:JSON.stringify({title:v,date:date,time:time,whenLabel:when,recurrence:recurrence})
   }).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
   .then(function(x){
     if(x.status===401){location.href='/design/login-page.html';return}
     if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
-    REMS.unshift({id:x.d.id,t:v, when:when, color:color, done:false, off:off, at:Date.now(), date:date, time:time});
-    saveRems(); inp.value=''; remSelOff=0; if(timeInp)timeInp.value='';
+    REMS.unshift({id:x.d.id,t:v, when:when, color:color, done:false, off:off, at:Date.now(), date:date, time:time, recurrence:recurrence});
+    saveRems(); inp.value=''; remSelOff=0; if(timeInp)timeInp.value=''; if(repeatInp)repeatInp.value='';
     document.querySelectorAll('#remChips .dchip').forEach(function(ch){
       ch.classList.toggle('on', ch.dataset.r==='0');
     });
