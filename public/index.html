@@ -958,21 +958,6 @@ body.nav-open .nav-backdrop{display:block}
 .qadone span{background:color-mix(in srgb,var(--good) 12%,transparent);color:var(--good);
   border:1px solid color-mix(in srgb,var(--good) 35%,transparent);border-radius:999px;
   font-size:12.5px;padding:3px 11px;font-family:var(--fh)}
-/* ===== ردیف KPI: خلاصهٔ یک‌نگاهی بالای صفحهٔ امروز ===== */
-.kpirow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:0 0 14px}
-.kpi{background:var(--panel);border:1.5px solid var(--border2);border-radius:20px;padding:18px 20px;
-  display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-card);min-width:0;
-  transition:transform .35s cubic-bezier(.22,.61,.36,1),border-color .35s ease,box-shadow .35s ease}
-.kpi:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--acc) 40%,var(--border2));box-shadow:var(--shadow-card-hover)}
-.kpi-ic{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px}
-.kpi:nth-child(1) .kpi-ic{background:color-mix(in srgb,#7dd3fc 18%,transparent)}
-.kpi:nth-child(2) .kpi-ic{background:color-mix(in srgb,#4cc594 18%,transparent)}
-.kpi:nth-child(3) .kpi-ic{background:color-mix(in srgb,#f2b95d 18%,transparent)}
-.kpi:nth-child(4) .kpi-ic{background:color-mix(in srgb,#c4b5fd 18%,transparent)}
-.kpi-v{font-family:var(--fh);font-size:26px;font-weight:800;color:var(--text);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kpi-l{font-size:13px;color:var(--faint)}
-@media(max-width:900px){.kpirow{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:480px){.kpi-v{font-size:21px}}
 /* ===== اینباکس یادداشت‌های سریع ===== */
 .inbox-card{margin:0 0 14px;padding:13px 14px;background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card)}
 .inbox-card .mhead{margin:0}
@@ -1065,30 +1050,6 @@ body.nav-open .nav-backdrop{display:block}
     </div>
     <div class="qaopts" id="qaOpts"></div>
     <div class="qadone" id="qaDone"></div>
-  </div>
-
-  <!-- ردیف KPI: خلاصهٔ یک‌نگاهی -->
-  <div class="kpirow" id="kpiRow">
-    <div class="kpi">
-      <div class="kpi-ic">📝</div>
-      <div class="kpi-v" id="kpiNotes">—</div>
-      <div class="kpi-l">یادداشت‌های اینباکس</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-ic">💰</div>
-      <div class="kpi-v" id="kpiFinance">—</div>
-      <div class="kpi-l">ماندهٔ این ماه</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-ic">🔔</div>
-      <div class="kpi-v" id="kpiRems">—</div>
-      <div class="kpi-l">یادآوری فعال</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-ic">✅</div>
-      <div class="kpi-v" id="kpiTasks">—</div>
-      <div class="kpi-l">کار امروز و عقب‌افتاده</div>
-    </div>
   </div>
 
   <!-- ردیف ۱ — یک‌ستونه: تاریخ -->
@@ -1997,7 +1958,6 @@ function renderTasks(){
   var pct=TASKS.length?Math.round(d/TASKS.length*100):0;
   var pf=document.getElementById('taskProgFill'); if(pf) pf.style.width=pct+'%';
   var pl=document.getElementById('taskProgLabel'); if(pl) pl.textContent=TASKS.length?(fa(pct)+'٪ انجام‌شده'):'—';
-  try{updateKpis()}catch(e){}
   try{if(window.syncGamesHeight)syncGamesHeight()}catch(e){}
 }
 function startInlineEdit(row, tt, currentVal, onSave){
@@ -2168,7 +2128,6 @@ function renderRems(){
   var left=REMS.filter(function(x){return !x.done}).length;
   var cnt=document.getElementById('remCnt');
   if(cnt)cnt.textContent=fa(left)+' باز'+(REMS.length?(' · '+fa(REMS.length)):'');
-  try{updateKpis()}catch(e){}
   try{if(window.syncGamesHeight)syncGamesHeight()}catch(e){}
 }
 (function initRems(){
@@ -2270,22 +2229,6 @@ function updateRecapExpense(){
  var s=(typeof TODAYTX!=='undefined'?TODAYTX:[]).filter(function(x){return x.k==='expense'}).reduce(function(n,x){return n+x.a},0);
  el.textContent=(typeof fmtFull==='function'?fmtFull(s):s);
 }
-var KPI_BAL=null;
-function updateKpis(){
- var kn=document.getElementById('kpiNotes'); if(kn) kn.textContent=(typeof INBOX!=='undefined')?fa(INBOX.length):'—';
- var kr=document.getElementById('kpiRems'); if(kr) kr.textContent=(typeof REMS!=='undefined')?fa(REMS.filter(function(x){return !x.done}).length):'—';
- var kt=document.getElementById('kpiTasks'); if(kt) kt.textContent=(typeof TASKS!=='undefined')?fa(TASKS.filter(function(x){return !x.done&&(typeof x.off!=='number'||x.off<=0)}).length):'—';
- var kf=document.getElementById('kpiFinance');
- if(kf){
-  if(KPI_BAL==null)kf.textContent='—';
-  else{kf.textContent=(KPI_BAL<0?'−':'')+fmtFull(Math.abs(KPI_BAL));kf.style.color=KPI_BAL<0?'var(--bad)':'var(--text)'}
- }
-}
-function loadKpiFinance(){
- fetch('/api/finance',{credentials:'include'}).then(function(r){return r.ok?r.json():null}).then(function(d){
-  if(d&&typeof d.balance==='number'){KPI_BAL=d.balance;updateKpis()}
- }).catch(function(){});
-}
 function renderBud(){
  var pct=BUDGET.total>0?Math.min(100,Math.round(BUDGET.spent/BUDGET.total*100)):0;
  var f=document.getElementById('budFill'); if(f){ f.style.width=pct+'%';
@@ -2351,7 +2294,6 @@ function renderInbox(){
   var list=document.getElementById('inboxList'),count=document.getElementById('inboxCount');
   if(!list)return;
   if(count)count.textContent=INBOX.length?fa(INBOX.length)+' یادداشت':'خالی';
-  try{updateKpis()}catch(e){}
   if(!INBOX.length){
     list.innerHTML='<div class="inbox-empty">اینباکس خالی است — هر یادداشت سریع تازه همین‌جا ظاهر می‌شود.</div>';
     return;
@@ -2485,7 +2427,6 @@ function loadHomeFromApi(){
       BUDGET.daysLeft = Math.max(0, dim - t.getDate());
       if(typeof renderBud==='function') renderBud();
     }
-    if(typeof loadKpiFinance==='function') loadKpiFinance();
     // series watching on home
     if(dash && Array.isArray(dash.watchingSeries)){
       try{
