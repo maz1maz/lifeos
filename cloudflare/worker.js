@@ -848,14 +848,14 @@ function parseGambleText(t,base){let kind=gambleKind(t);if(!kind)return null;let
       let eveningH=user.tgEveningHour!=null?Number(user.tgEveningHour):23;
       if(user.tgReports===false)continue;
       if(hh===morningH&&user.tgMorningOn!==false&&user.tgLastMorning!==d){
-        user.tgLastMorning=d; changed=true;
         let text=await buildMorningBrief(db,user,d,await fetchTehranWeatherBrief(user.weather));
-        await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
+        let r=await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
+        if(r&&r.ok){user.tgLastMorning=d; changed=true}
       }
       if(hh===eveningH&&user.tgEveningOn!==false&&user.tgLastEvening!==d){
-        user.tgLastEvening=d; changed=true;
         let text=await buildEveningReport(db,user,d);
-        await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
+        let r=await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
+        if(r&&r.ok){user.tgLastEvening=d; changed=true}
       }
     }
     return changed;
