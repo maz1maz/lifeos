@@ -22,17 +22,24 @@ html body .nav .brand{
   text-decoration:none!important;border:0!important;border-radius:0!important;
 }
 html body .nav .navlinks{
-  position:static!important;display:flex!important;flex:1 1 auto!important;flex-direction:row!important;
-  flex-wrap:wrap!important;align-items:center!important;gap:4px!important;width:auto!important;
-  max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;
-  overflow:visible!important;opacity:1!important;pointer-events:auto!important;background:none!important;
-  border:0!important;box-shadow:none!important;transform:none!important;
+  position:fixed!important;top:60px!important;right:0!important;left:0!important;bottom:auto!important;
+  z-index:58!important;width:100%!important;display:flex!important;flex-direction:column!important;
+  flex-wrap:nowrap!important;align-items:stretch!important;gap:3px!important;margin:0!important;
+  max-width:none!important;max-height:0!important;padding:0 12px!important;overflow:hidden!important;opacity:0!important;
+  pointer-events:none!important;background:color-mix(in srgb,var(--bg) 96%,transparent)!important;
+  border:0!important;border-bottom:1px solid transparent!important;box-shadow:0 18px 34px -24px rgba(0,0,0,.8)!important;
+  -webkit-backdrop-filter:blur(18px)!important;backdrop-filter:blur(18px)!important;transform:none!important;
+  transition:max-height .2s ease,opacity .15s ease,padding .2s ease!important;
+}
+html body.nav-open .nav .navlinks{
+  max-height:calc(100vh - 70px)!important;padding:10px 12px 14px!important;overflow:auto!important;
+  opacity:1!important;pointer-events:auto!important;border-bottom-color:var(--border)!important;
 }
 html body .nav .navlinks a{
   display:inline-flex!important;align-items:center!important;flex:none!important;white-space:nowrap!important;
-  margin:0!important;padding:6px 13px!important;border:0!important;border-radius:11px!important;
+  width:100%!important;margin:0!important;padding:12px 14px!important;border:0!important;border-radius:12px!important;
   color:var(--muted)!important;background:transparent!important;text-decoration:none!important;
-  font-family:var(--fh)!important;font-size:14.5px!important;font-weight:400!important;line-height:1.6!important;
+  font-family:var(--fh)!important;font-size:15px!important;font-weight:400!important;line-height:1.6!important;
 }
 html body .nav .navlinks a:hover{
   color:var(--text)!important;background:var(--panel2)!important;
@@ -64,35 +71,21 @@ html body .nav .navout{background:var(--panel2)!important;border:1px solid var(-
 html body .nav .navout:hover{color:var(--bad)!important;border-color:var(--bad)!important}
 html body .nav .navin{background:var(--acc)!important;border:0!important;color:#062028!important;border-radius:11px!important;padding:6px 16px!important;font-size:13.5px!important;font-weight:800!important;text-decoration:none!important}
 html body .nav .nav-toggle{
-  display:none!important;width:40px!important;height:40px!important;padding:0!important;align-items:center!important;
+  display:inline-flex!important;width:40px!important;height:40px!important;padding:0!important;align-items:center!important;
   justify-content:center!important;flex:none!important;border:1px solid var(--border)!important;border-radius:11px!important;
-  background:var(--panel2)!important;color:var(--text)!important;font-size:18px!important;cursor:pointer!important;
+  background:var(--panel2)!important;color:var(--text)!important;font-size:18px!important;cursor:pointer!important;order:0!important;
 }
 html body .nav-backdrop{display:none;position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+html body.nav-open .nav-backdrop{display:block!important}
 
 @media(max-width:900px){
   html body .nav{
     min-height:56px!important;padding:8px 12px!important;gap:8px!important;flex-wrap:nowrap!important;
   }
-  html body .nav .nav-toggle{display:inline-flex!important;order:0!important}
   html body .nav .brand{order:-1!important}
   html body .nav .navtools{order:2!important;margin-right:auto!important;gap:6px!important}
-  html body .nav .navlinks{
-    position:fixed!important;top:56px!important;right:0!important;left:0!important;bottom:auto!important;
-    z-index:58!important;width:100%!important;display:flex!important;flex-direction:column!important;
-    flex-wrap:nowrap!important;align-items:stretch!important;gap:3px!important;margin:0!important;
-    max-height:0!important;padding:0 12px!important;overflow:hidden!important;opacity:0!important;
-    pointer-events:none!important;background:color-mix(in srgb,var(--bg) 96%,transparent)!important;
-    border-bottom:1px solid transparent!important;box-shadow:0 18px 34px -24px rgba(0,0,0,.8)!important;
-    -webkit-backdrop-filter:blur(18px)!important;backdrop-filter:blur(18px)!important;
-    transition:max-height .2s ease,opacity .15s ease,padding .2s ease!important;
-  }
-  html body.nav-open .nav .navlinks{
-    max-height:min(78vh,620px)!important;padding:10px 12px 14px!important;overflow:auto!important;
-    opacity:1!important;pointer-events:auto!important;border-bottom-color:var(--border)!important;
-  }
-  html body .nav .navlinks a{width:100%!important;padding:11px 14px!important;font-size:15px!important;border-radius:12px!important}
-  html body.nav-open .nav-backdrop{display:block!important}
+  html body .nav .navlinks{top:56px!important}
+  html body.nav-open .nav .navlinks{max-height:calc(100vh - 66px)!important}
   html body .navtools .navuser{display:none!important}
 }
 
