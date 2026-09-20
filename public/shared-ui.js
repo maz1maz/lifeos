@@ -120,7 +120,28 @@
     });
   }
 
+  /* بعضی صفحه‌های قدیمی نوار منوی خودشان را نگه داشته‌اند. این دو مسیر
+     جدید را یک‌بار در همهٔ آن‌ها ثبت می‌کنیم تا منو در جابه‌جایی گم نشود. */
+  function syncNavigationLinks() {
+    var links = document.querySelector('.nav .navlinks');
+    if (!links) return;
+    [
+      { href: '/design/planner-page.html', label: '✅ برنامه‌ریز' },
+      { href: '/design/notes-page.html', label: '📝 یادداشت‌ها' }
+    ].forEach(function (entry) {
+      var link = links.querySelector('a[href="' + entry.href + '"]');
+      if (!link) {
+        link = document.createElement('a');
+        link.href = entry.href;
+        link.textContent = entry.label;
+        links.appendChild(link);
+      }
+      if (location.pathname === entry.href) link.classList.add('on');
+    });
+  }
+
   function boot() {
+    syncNavigationLinks();
     initThemeButton();
     initMobileNav();
   }
