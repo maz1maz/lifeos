@@ -22,18 +22,19 @@ html body .nav .brand{
   text-decoration:none!important;border:0!important;border-radius:0!important;
 }
 html body .nav .navlinks{
-  position:fixed!important;top:60px!important;right:0!important;left:0!important;bottom:auto!important;
-  z-index:58!important;width:100%!important;display:flex!important;flex-direction:column!important;
+  position:fixed!important;top:60px!important;right:0!important;left:auto!important;bottom:auto!important;
+  z-index:58!important;width:min(300px,92vw)!important;display:flex!important;flex-direction:column!important;
   flex-wrap:nowrap!important;align-items:stretch!important;gap:3px!important;margin:0!important;
-  max-width:none!important;max-height:0!important;padding:0 12px!important;overflow:hidden!important;opacity:0!important;
+  max-width:min(300px,92vw)!important;max-height:0!important;padding:0 12px!important;overflow:hidden!important;opacity:0!important;
   pointer-events:none!important;background:color-mix(in srgb,var(--bg) 96%,transparent)!important;
-  border:0!important;border-bottom:1px solid transparent!important;box-shadow:0 18px 34px -24px rgba(0,0,0,.8)!important;
+  border:0!important;border-bottom:1px solid transparent!important;border-left:1px solid transparent!important;
+  border-bottom-left-radius:14px!important;box-shadow:0 18px 34px -24px rgba(0,0,0,.8)!important;
   -webkit-backdrop-filter:blur(18px)!important;backdrop-filter:blur(18px)!important;transform:none!important;
   transition:max-height .2s ease,opacity .15s ease,padding .2s ease!important;
 }
 html body.nav-open .nav .navlinks{
   max-height:calc(100vh - 70px)!important;padding:10px 12px 14px!important;overflow:auto!important;
-  opacity:1!important;pointer-events:auto!important;border-bottom-color:var(--border)!important;
+  opacity:1!important;pointer-events:auto!important;border-bottom-color:var(--border)!important;border-left-color:var(--border)!important;
 }
 html body .nav .navlinks a{
   display:inline-flex!important;align-items:center!important;flex:none!important;white-space:nowrap!important;
@@ -84,7 +85,7 @@ html body.nav-open .nav-backdrop{display:block!important}
   }
   html body .nav .brand{order:-1!important}
   html body .nav .navtools{order:2!important;margin-right:auto!important;gap:6px!important}
-  html body .nav .navlinks{top:56px!important}
+  html body .nav .navlinks{top:56px!important;width:100%!important;max-width:none!important}
   html body.nav-open .nav .navlinks{max-height:calc(100vh - 66px)!important}
   html body .navtools .navuser{display:none!important}
 }

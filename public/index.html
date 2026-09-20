@@ -105,7 +105,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .minical{
   /* هم‌اندازهٔ تقویم انتخاب روز کارها (calpop = 250px) */
   width:100%;max-width:260px;box-sizing:border-box;
-  background:var(--bg);border:1px solid var(--border2);border-radius:15px;
+  background:var(--panel);border:1.5px solid var(--border2);border-radius:20px;
   padding:12px 14px;display:flex;flex-direction:column;min-width:0;height:100%;
   cursor:pointer;position:relative;overflow:hidden;justify-content:space-between;
   box-shadow:0 18px 44px -12px rgba(0,0,0,.65);
@@ -667,6 +667,7 @@ body.nav-open .nav-backdrop{display:block}
   min-height:0 !important;
   overflow:hidden !important;
 }
+#gamesCard #gamesTitle{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 #gamesCard > .mhead,
 #gamesCard > .mfoot{flex:0 0 auto !important}
 #gamesCard .gwrap,
@@ -726,7 +727,8 @@ body.nav-open .nav-backdrop{display:block}
   width:100%;
 }
 .tr-combo #taskList,
-.tr-combo #remList{flex:0 0 auto;overflow-x:hidden}
+.tr-combo #remList,
+.tr-combo #overList{flex:0 0 auto;overflow-x:hidden}
 .taskprog{display:flex;align-items:center;gap:8px;margin:0 0 9px;font-size:12px;color:var(--faint);flex:0 0 auto}
 .taskprog-bar{flex:1;height:6px;background:var(--panel2);border-radius:99px;overflow:hidden}
 .taskprog-bar i{display:block;height:100%;border-radius:99px;background:var(--good);transition:width .4s ease}
@@ -772,7 +774,8 @@ body.nav-open .nav-backdrop{display:block}
   }
   .grow .gline{width:100%}
   .tr-combo #taskList,
-  .tr-combo #remList{max-height:220px !important}
+  .tr-combo #remList,
+  .tr-combo #overList{max-height:220px !important}
 }
 
 
@@ -812,6 +815,7 @@ body.nav-open .nav-backdrop{display:block}
   flex-direction:column;
   overflow:hidden;
 }
+/* بازی‌های زیاد نباید کل ردیف رو کش بدن — ارتفاع کارت با JS (capGamesHeight) به‌اندازهٔ هم‌ردیفی‌هاش سقف می‌گیره، لیست داخلش اسکرول می‌خوره */
 .home-row.r2r3 > #mkSum > .mhead,
 .home-row.r2r3 > #gamesCard > .mhead,
 .home-row.r2r3 > .epcard > .mhead,
@@ -824,7 +828,8 @@ body.nav-open .nav-backdrop{display:block}
 .home-row.r2r3 > .tr-combo .tr-panel{flex:1 1 auto;min-height:0;height:100%;overflow:hidden}
 .home-row.r2r3 > .tr-combo .tr-sec{flex:1 1 0;min-height:0;overflow:hidden}
 .home-row.r2r3 > .tr-combo #taskList,
-.home-row.r2r3 > .tr-combo #remList{flex:1 1 auto;min-height:0;overflow-y:auto}
+.home-row.r2r3 > .tr-combo #remList,
+.home-row.r2r3 > .tr-combo #overList{flex:1 1 auto;min-height:0;overflow-y:auto}
 /* موبایل/تبلت: هر کارت دوباره ارتفاع طبیعی خودش رو می‌گیره و به ترتیب اصلی ستون‌ها زیر هم می‌شینه */
 @media(max-width:1279px) and (min-width:901px){
   .home-row.r2r3{grid-template-columns:repeat(2, minmax(0,1fr)) !important}
@@ -863,7 +868,8 @@ body.nav-open .nav-backdrop{display:block}
   .home-row.r2r3 > .tr-combo .tr-panel,
   .home-row.r2r3 > .tr-combo .tr-sec,
   .home-row.r2r3 > .tr-combo #taskList,
-  .home-row.r2r3 > .tr-combo #remList{
+  .home-row.r2r3 > .tr-combo #remList,
+  .home-row.r2r3 > .tr-combo #overList{
     flex:0 0 auto !important;
     height:auto !important;
     overflow:visible !important;
@@ -1109,6 +1115,13 @@ body.nav-open .nav-backdrop{display:block}
         </div>
         <div id="remList"></div>
         <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
+      </div>
+      <div class="tr-sec" id="overSec" style="display:none">
+        <div class="mhead compact">
+          <h4>⛔ عقب‌افتاده‌ها</h4>
+          <span class="cnt" id="overCnt">—</span>
+        </div>
+        <div class="rclist" id="overList"></div>
       </div>
     </div>
   </div>
@@ -1808,6 +1821,22 @@ function capWeatherHeight(){
 }
 capWeatherHeight();
 window.addEventListener('resize',capWeatherHeight);
+/* ارتفاع کارت بازی‌های امروز = ارتفاع طبیعی هم‌ردیفی‌هاش (سریال‌ها/کارها/بازارها) —
+   وگرنه در روزهای پرمسابقه لیست بلند بازی‌ها کل ردیف رو می‌کشه بالا و باقی کارت‌ها
+   رو هم بلند می‌کنه؛ با مخفی‌کردن موقت خودش، ارتفاع «طبیعی» ردیف رو از بقیه می‌خونیم */
+function capGamesHeight(){
+  var g=document.getElementById('gamesCard'), mk=document.getElementById('mkSum'), tc=document.querySelector('.tr-combo'), ep=document.querySelector('.epcard');
+  if(!g||!mk||!tc||!ep)return;
+  if(window.innerWidth<1280){g.style.maxHeight='';return}
+  var prevDisplay=g.style.display;
+  g.style.display='none';
+  var h=Math.max(mk.offsetHeight, tc.offsetHeight, ep.offsetHeight);
+  g.style.display=prevDisplay;
+  if(h>0)g.style.maxHeight=h+'px';
+}
+capGamesHeight();
+window.addEventListener('resize',capGamesHeight);
+window.syncGamesHeight=capGamesHeight;
 /* ===== فاز ۲ — هوا با شهر انتخابی: window.__city روی سرور ذخیره می‌شود (/api/me → user.weather) ===== */
 window.__city=window.__city||{name:"تهران",lat:35.69,lon:51.39};
 function applyCityLabels(){
@@ -2871,6 +2900,18 @@ document.addEventListener('click',function(e){
       if(due.length)parts.push(fa(due.length)+' برای فردا');
       if(pend.length)parts.push(fa(pend.length)+' عادت مانده');
       recapCnt.textContent=parts.join(' · ');
+      var overSec=document.getElementById('overSec'),overList=document.getElementById('overList'),overCnt=document.getElementById('overCnt');
+      if(overSec&&overList){
+        if(over.length){
+          overSec.style.display='';
+          overCnt.textContent=fa(over.length);
+          overList.innerHTML=over.map(function(t){
+            var when=/^\d{4}-\d{2}-\d{2}/.test(String(t.deadline||''))?isoToJalaliLabel(t.deadline):(t.deadline||'');
+            return '<div class="rcitem over">'+esc(t.title)+'<span class="dt">'+esc(when)+'</span></div>';
+          }).join('');
+        } else { overSec.style.display='none'; overList.innerHTML=''; }
+        try{if(window.syncGamesHeight)syncGamesHeight()}catch(e){}
+      }
       if(over.length)html+='<div class="rcsec"><b>⛔ عقب‌افتاده‌ها</b><div class="rclist">'
         +over.slice(0,5).map(function(t){return '<div class="rcitem over">'+esc(t.title)+'<span class="dt">'+esc(t.deadline||'')+'</span></div>'}).join('')
         +'</div></div>';
