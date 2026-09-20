@@ -1029,6 +1029,71 @@ body.nav-open .nav-backdrop{display:block}
 .citycur button{background:none;border:1px solid var(--border);border-radius:9px;color:var(--faint);
   font:inherit;font-size:12px;padding:3px 10px;cursor:pointer}
 .citycur button:hover{color:var(--bad);border-color:var(--bad)}
+
+/* ===== 2026 visual pass: فقط ظاهر صفحهٔ امروز، بدون تغییر نسبت ستون‌ها ===== */
+body{
+  background:
+    radial-gradient(900px 500px at 82% -12%,color-mix(in srgb,var(--acc) 10%,transparent),transparent 66%),
+    radial-gradient(700px 440px at 9% 28%,rgba(124,58,237,.09),transparent 70%),var(--bg);
+}
+.home{gap:16px}
+.qadd{
+  position:relative;overflow:hidden;padding:12px 14px;border-radius:18px;
+  border-color:color-mix(in srgb,var(--acc) 28%,var(--border));
+  box-shadow:0 18px 42px -28px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.035);
+  background:linear-gradient(105deg,color-mix(in srgb,var(--panel) 94%,#0b2036),var(--panel));
+}
+.qadd::before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,transparent 0%,color-mix(in srgb,var(--acc) 8%,transparent) 52%,transparent 100%);opacity:.75}
+.qadd>*{position:relative}
+.qatab{border-color:color-mix(in srgb,var(--border) 78%,transparent);transition:.2s ease}
+.qatab:hover{color:var(--text);border-color:color-mix(in srgb,var(--acc) 45%,var(--border));transform:translateY(-1px)}
+.qatab.on{box-shadow:0 0 0 1px color-mix(in srgb,var(--acc) 22%,transparent),0 7px 16px -13px var(--acc)}
+#qaGo{box-shadow:0 8px 20px -11px var(--acc);transition:transform .18s ease,filter .18s ease}
+#qaGo:hover{transform:translateY(-1px);filter:brightness(1.07)}
+
+.home-row.r2r3{gap:16px!important}
+.home .datecard,.home .wcard,.home .mcard,.home .epcard,.home .tr-combo .tr-panel,.minical{
+  border-color:color-mix(in srgb,var(--border2) 78%,rgba(69,190,255,.28));
+  box-shadow:0 20px 42px -30px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.035);
+}
+.datecard{position:relative;overflow:hidden;background:linear-gradient(145deg,#122a4a 0%,#111c34 48%,#181842 100%)!important}
+.datecard::before{content:'';position:absolute;width:270px;height:270px;left:-95px;bottom:-160px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--acc) 31%,transparent),transparent 67%);filter:blur(5px);pointer-events:none}
+.datecard::after{content:'';position:absolute;width:220px;height:110px;right:10%;bottom:0;opacity:.23;pointer-events:none;background:linear-gradient(145deg,transparent 48%,#8b5cf6 49%,transparent 51%) 0 58px/100px 70px,linear-gradient(35deg,transparent 48%,#22d3ee 49%,transparent 51%) 35px 48px/110px 80px}
+.datecard>*{position:relative;z-index:1}
+.datecard .dgreet{display:inline-flex;width:max-content;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;background:rgba(4,14,31,.25);border:1px solid rgba(148,201,255,.16);font-size:12px}
+.datecard .dnum{font-size:84px;text-shadow:0 0 26px color-mix(in srgb,var(--acc) 36%,transparent)}
+.datecard .dwk{letter-spacing:-.03em}.datecard .occrow{border-top-color:rgba(150,205,255,.16)}
+.datecard .dntoday{background:color-mix(in srgb,var(--acc) 13%,transparent);border-style:solid;border-color:color-mix(in srgb,var(--acc) 55%,transparent)}
+
+.minical{background:linear-gradient(160deg,#121f38,#11192b 72%)!important}
+.minical .mchead{padding-bottom:7px;border-bottom:1px solid color-mix(in srgb,var(--border) 85%,transparent)}
+.minical .mc.sel{box-shadow:0 5px 14px -6px #a78bfa}
+.minical .mc.today{box-shadow:0 0 0 1px rgba(244,114,182,.35),0 0 14px -7px #f472b6}
+
+.wcard{position:relative;overflow:hidden;background:linear-gradient(125deg,#0b2943 0%,#10213a 45%,#21184b 100%)!important}
+.wcard::before{content:'';position:absolute;inset:-35% -18% auto auto;width:78%;height:170%;background:radial-gradient(ellipse at center,color-mix(in srgb,#36e6d2 22%,transparent),transparent 58%);filter:blur(12px);pointer-events:none}
+.wcard::after{content:'';position:absolute;inset:auto 0 0;height:42%;pointer-events:none;background:linear-gradient(160deg,transparent 45%,rgba(14,41,70,.45) 46%,transparent 48%) 0 55%/170px 110px,linear-gradient(30deg,transparent 46%,rgba(91,80,183,.33) 47%,transparent 49%) 70px 68%/220px 120px;opacity:.5}
+.wcard>*{position:relative;z-index:1}.wcard .wnow .wt{font-size:50px;text-shadow:0 0 24px rgba(255,255,255,.16)}
+.wcard .wstat{background:rgba(3,13,31,.2);border:1px solid rgba(162,218,255,.09);border-radius:12px;transition:background .2s ease,transform .2s ease}
+.wcard .wstat:hover{background:rgba(22,95,129,.23);transform:translateY(-2px)}
+.wcard .wday{background:rgba(5,15,34,.19);border:1px solid rgba(162,218,255,.08);border-radius:12px}
+
+.mcard,.epcard,.tr-combo .tr-panel{background:linear-gradient(155deg,color-mix(in srgb,var(--panel) 95%,#132441),var(--panel))!important}
+.mhead{padding-bottom:9px;margin-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--border) 82%,transparent)}
+.mhead h4{font-size:18px}.mhead h4::first-letter{filter:drop-shadow(0 0 5px color-mix(in srgb,var(--acc) 45%,transparent))}
+#mkSum .mrow,.epcard .eprow,.tr-combo .tr-sec{transition:background .18s ease}
+#mkSum .mrow:hover,.epcard .eprow:hover{background:color-mix(in srgb,var(--acc) 6%,transparent);border-radius:10px}
+#mkSum .mrow{position:relative;padding-inline:6px}
+#mkSum .mrow::after{content:'';width:34px;height:14px;margin-inline-start:4px;opacity:.72;background:linear-gradient(135deg,transparent 0 35%,var(--good) 36% 42%,transparent 43% 55%,var(--good) 56% 61%,transparent 62%);border-bottom:1px solid color-mix(in srgb,var(--good) 45%,transparent)}
+.tr-combo .tr-panel{border-radius:20px!important}.tr-combo .tr-sec + .tr-sec{border-top-color:color-mix(in srgb,var(--border) 84%,transparent)}
+.taskprog-bar{box-shadow:0 0 14px -5px var(--good)}
+.epcard .epic{background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 16%,var(--panel2)),var(--panel2));border-color:color-mix(in srgb,var(--acc) 23%,var(--border))}
+.gwrap .grow{border-bottom-color:color-mix(in srgb,var(--border) 74%,transparent)}
+.gwrap .grow:hover{background:color-mix(in srgb,var(--acc) 5%,transparent);border-radius:10px}
+#recapCard{background:linear-gradient(110deg,color-mix(in srgb,var(--panel) 94%,#172646),var(--panel))!important}
+@media(max-width:900px){
+  .home{gap:12px}.qadd{border-radius:15px}.datecard .dnum{font-size:64px}.wcard .wnow .wt{font-size:42px}
+}
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 <link rel="stylesheet" href="/shared-shell.css">
