@@ -663,6 +663,15 @@ body.nav-open .nav-backdrop{display:block}
     <label style="font-size:12.5px;color:var(--muted)">حساب مقصد</label>
     <input id="bankAccount" value="کارت اصلی" placeholder="نام حساب" style="width:100%;margin-top:4px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;color:var(--text);padding:8px 12px;font:inherit;box-sizing:border-box">
   </div>
+  <div class="field" style="margin:10px 0 0">
+    <label style="font-size:12.5px;color:var(--muted)">واحد مبالغ فایل</label>
+    <select id="bankAmountUnit" style="width:100%;margin-top:4px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;color:var(--text);padding:8px 12px;font:inherit;box-sizing:border-box">
+      <option value="auto" selected>تشخیص خودکار (پیش‌فرض: ریال)</option>
+      <option value="IRR">ریال — همان عدد فایل</option>
+      <option value="IRT">تومان — تبدیل خودکار ×۱۰ به ریال</option>
+    </select>
+    <div class="ed-tags-hint">پیش‌نمایش قبل از ثبت واحدِ اعمال‌شده را نشان می‌دهد؛ اگر عددها ده‌برابر کم/زیادند، این گزینه را عوض کن.</div>
+  </div>
   <div class="prevrows" id="prevRows"></div>
   <div class="psum" id="pSum">
     <div><b id="psTx">—</b>تراکنش جدید</div>
@@ -1728,6 +1737,17 @@ document.getElementById('bankFile').addEventListener('change',function(){
   document.getElementById('ipBar').classList.remove('show');
 });
 
+document.getElementById('bankAmountUnit').addEventListener('change',function(){
+  if(!bankFileObj||!prevShown) return;
+  prevShown=false;
+  bankPreviewItems=[];
+  bankLoaded=false;
+  document.getElementById('prevRows').classList.remove('show');
+  document.getElementById('pSum').classList.remove('show');
+  document.getElementById('doImport').textContent='پیش‌نمایش با واحد جدید';
+  toast('واحد تغییر کرد؛ پیش‌نمایش تازه بگیر.');
+});
+
 document.getElementById('doImport').addEventListener('click',function(){
   var btn=this;
   if(!bankFileObj){ toast('اول فایل را انتخاب کن 📎'); return; }
@@ -1739,7 +1759,7 @@ document.getElementById('doImport').addEventListener('click',function(){
       return fetch('/api/transactions/import-bank/preview',{
         method:'POST', credentials:'include',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({fileBase64:b64, fileType:bankFileType(bankFileObj.name)})
+        body:JSON.stringify({fileBase64:b64, fileType:bankFileType(bankFileObj.name),amountUnit:(document.getElementById('bankAmountUnit')||{}).value||'auto'})
       });
     }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
     .then(function(x){
@@ -1753,6 +1773,8 @@ document.getElementById('doImport').addEventListener('click',function(){
       document.getElementById('psTx').textContent=fa(fresh.length);
       document.getElementById('psIn').textContent=fmtC(x.d.totalIncome||0);
       document.getElementById('psOut').textContent=fmtC(x.d.totalExpense||0);
+      var unitLabel=x.d.amountUnit==='IRT'?'تومان ×۱۰ → ریال':'ریال';
+      toast('واحد اعمال‌شده: '+unitLabel);
       prevShown=true;
       var dup=x.d.duplicateCount||0;
       btn.textContent='⬆️ ثبت '+fa(fresh.length)+' تراکنش جدید'+(dup?(' + بررسی '+fa(dup)+' تکراری برای اصلاح نام') : '');
