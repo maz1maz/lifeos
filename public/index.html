@@ -2330,7 +2330,7 @@ function renderInbox(){
   var preview=INBOX.slice(0,4);
   list.innerHTML=preview.map(function(item){
     return '<article class="inbox-item" data-inbox-id="'+inboxEsc(item.id)+'">'
-      +'<div class="inbox-text">'+inboxEsc(item.text)+'<time>'+inboxEsc(inboxDate(item.createdAt))+'</time></div>'
+      +'<div class="inbox-text">'+inboxEsc(item.title||item.text)+(item.text&&item.title?'<div style="color:var(--muted);font-size:12px">'+inboxEsc(item.text.slice(0,110))+'</div>':'')+'<time>'+inboxEsc(inboxDate(item.noteDate||item.createdAt))+'</time></div>'
       +'<div class="inbox-actions">'
       +'<button type="button" data-inbox-to="task" title="تبدیل به کار امروز">✅ کار</button>'
       +'<button type="button" data-inbox-to="note" title="افزودن به روزنگار امروز">📝 روزنگار</button>'

@@ -21,6 +21,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .page-sub{color:var(--muted);font-size:14px;margin:0;max-width:660px;position:relative;z-index:1}
 .note-stats{display:flex;gap:9px;position:relative;z-index:1}.stat{min-width:82px;padding:9px 12px;border:1px solid var(--border);border-radius:14px;background:color-mix(in srgb,var(--panel) 83%,transparent);text-align:center}.stat b{display:block;font-family:var(--fh);font-size:20px;color:var(--acc);line-height:1.1}.stat span{font-size:11px;color:var(--muted)}
 .addbox{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.composer-title{display:flex;align-items:center;justify-content:space-between;gap:10px}.composer-title b{font-family:var(--fh);font-size:16px}.composer-title small{color:var(--faint);font-size:12px}
+.addbox input,.addbox textarea,.addbox select{width:100%;background:var(--panel2);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font:inherit;font-family:var(--fb);padding:10px 12px;outline:none;transition:border-color .2s}
+.addbox input:focus,.addbox textarea:focus,.addbox select:focus{border-color:var(--acc)}.addbox input[type="datetime-local"]{color-scheme:dark}.note-fields{display:grid;grid-template-columns:1fr 180px 130px;gap:9px}.color-field{display:flex;align-items:center;gap:7px}.color-field label{font-size:12px;color:var(--muted);white-space:nowrap}.pin-field{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer}.pin-field input{width:auto;margin:0}
 .addbox textarea{width:100%;min-height:64px;resize:vertical;background:var(--panel2);border:1.5px solid var(--border);border-radius:14px;color:var(--text);font:inherit;font-family:var(--fb);padding:12px 14px;outline:none;transition:border-color .2s}
 .addbox textarea:focus{border-color:var(--acc)}
 .addrow{display:flex;justify-content:space-between;align-items:center}
@@ -36,6 +39,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .note-card:before{content:'';position:absolute;right:0;top:0;width:70px;height:5px;border-radius:0 0 0 8px;background:var(--tone)}.tone-0{--tone:#22d3ee}.tone-1{--tone:#a78bfa}.tone-2{--tone:#fb7185}.tone-3{--tone:#fbbf24}.tone-4{--tone:#34d399}
 .note-card:hover{transform:translateY(-3px);border-color:var(--tone);box-shadow:var(--shadow-card-hover)}
 .note-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:2px}.note-kind{font-size:12px;color:var(--tone);font-weight:700}.note-time{color:var(--faint);font-size:12px;position:relative;z-index:1}
+.note-title{font-family:var(--fh);font-size:17px;font-weight:800;line-height:1.5;position:relative;z-index:1}.note-date{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px}.pin{color:#fbbf24;font-size:14px}
 .note-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.9;flex:1;position:relative;z-index:1;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}.note-card.expanded .note-text{display:block;overflow:visible}
 .note-text[contenteditable="true"]{outline:none;border:1px dashed var(--acc);border-radius:8px;padding:4px 6px}
 .note-tags{display:flex;gap:5px;flex-wrap:wrap;min-height:20px}.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--tone) 13%,var(--panel2));color:var(--tone);border:1px solid color-mix(in srgb,var(--tone) 30%,transparent)}
@@ -47,7 +51,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .empty{grid-column:1/-1;color:var(--faint);font-size:14px;padding:30px 10px;text-align:center;border:1px dashed var(--border);border-radius:16px}
 #toast{position:fixed;bottom:22px;right:50%;transform:translateX(50%);background:var(--acc);color:#062028;font-family:var(--fh);font-weight:700;font-size:15px;border-radius:13px;padding:10px 22px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
 #toast.show{opacity:1}
-@media(max-width:620px){.wrap{padding:14px 14px 80px}.hero{grid-template-columns:1fr;padding:18px}.note-stats{justify-content:flex-start}.notes-grid{grid-template-columns:1fr}.note-toolbar{align-items:stretch}.searchrow{min-width:100%}}
+@media(max-width:620px){.wrap{padding:14px 14px 80px}.hero{grid-template-columns:1fr;padding:18px}.note-stats{justify-content:flex-start}.notes-grid{grid-template-columns:1fr}.note-toolbar{align-items:stretch}.searchrow{min-width:100%}.note-fields{grid-template-columns:1fr}.color-field{justify-content:space-between}.addrow{flex-wrap:wrap;gap:10px}}
 </style>
 </head>
 <body>
@@ -59,18 +63,25 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
     <div class="note-stats"><div class="stat"><b id="notesCount">۰</b><span>همهٔ یادداشت‌ها</span></div><div class="stat"><b id="todayCount">۰</b><span>ثبت امروز</span></div></div>
   </section>
 
-  <div class="card addbox">
-    <textarea id="noteIn" placeholder="یادداشت جدید..."></textarea>
-    <div class="addrow"><small>Ctrl+Enter برای ثبت سریع</small><button type="button" id="noteAdd">➕ ثبت یادداشت</button></div>
+  <div class="card addbox" id="composer">
+    <div class="composer-title"><b id="composerLabel">یادداشت تازه</b><small>فیلدهای ستاره‌دار لازم‌اند</small></div>
+    <input id="noteTitle" maxlength="120" placeholder="عنوان یادداشت * — مثلاً: ایده برای پروژه">
+    <textarea id="noteIn" maxlength="5000" placeholder="متن یادداشت و جزئیات... (اختیاری)"></textarea>
+    <div class="note-fields">
+      <input id="noteTags" maxlength="180" placeholder="تگ‌ها: کار، ایده، شخصی">
+      <input id="noteDate" type="datetime-local" aria-label="تاریخ و زمان">
+      <div class="color-field"><label for="noteColor">رنگ کارت</label><select id="noteColor"><option value="cyan">فیروزه‌ای</option><option value="violet">بنفش</option><option value="rose">صورتی</option><option value="amber">طلایی</option><option value="green">سبز</option></select></div>
+    </div>
+    <div class="addrow"><label class="pin-field"><input id="notePinned" type="checkbox"> 📌 سنجاق به بالا</label><span><small>Ctrl+Enter برای ثبت سریع</small> <button type="button" id="noteAdd">➕ ذخیرهٔ یادداشت</button></span></div>
   </div>
 
-  <div class="note-toolbar"><div class="filters"><button class="filter on" data-filter="all">همه</button><button class="filter" data-filter="today">امروز</button><button class="filter" data-filter="links">لینک‌ها</button><button class="filter" data-filter="tagged">تگ‌دار</button></div><div class="searchrow"><input type="text" id="noteSearch" placeholder="جستجو در یادداشت‌ها..."></div></div>
+  <div class="note-toolbar"><div class="filters"><button class="filter on" data-filter="all">همه</button><button class="filter" data-filter="pinned">سنجاق‌شده</button><button class="filter" data-filter="today">امروز</button><button class="filter" data-filter="links">لینک‌ها</button><button class="filter" data-filter="tagged">تگ‌دار</button></div><div class="searchrow"><input type="text" id="noteSearch" placeholder="جست‌وجو در عنوان، متن و تگ‌ها..."></div></div>
 
   <div class="notes-grid" id="notesGrid"><div class="empty">در حال دریافت...</div></div>
 </div>
 <div id="toast"></div>
 <script>
-var NOTES=[],ACTIVE_FILTER='all';
+var NOTES=[],ACTIVE_FILTER='all',EDIT_ID=null;
 function fa(n){var d='۰۱۲۳۴۵۶۷۸۹';return String(n).replace(/\d/g,function(c){return d[c]})}
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000)}
 function esc(s){return String(s||'').replace(/[<>&]/g,function(c){return({'<':'&lt;','>':'&gt;','&':'&amp;'})[c]})}
@@ -86,24 +97,32 @@ function relTime(ts){
   return new Date(Number(ts)).toLocaleDateString('fa-IR');
 }
 function isToday(ts){var d=new Date(Number(ts||0)),n=new Date();return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate()}
-function tagsOf(text){return (String(text||'').match(/(^|\s)#([^\s#]+)/g)||[]).map(function(x){return x.trim().slice(1)}).slice(0,5)}
-function updateStats(){document.getElementById('notesCount').textContent=fa(NOTES.length);document.getElementById('todayCount').textContent=fa(NOTES.filter(function(n){return isToday(n.createdAt)}).length)}
+function tagsOf(note){var stored=Array.isArray(note&&note.tags)?note.tags:[],text=typeof note==='string'?note:(note&&note.text)||'';var inline=(String(text).match(/(^|\s)#([^\s#]+)/g)||[]).map(function(x){return x.trim().slice(1)});return stored.concat(inline).filter(function(t,i,a){return t&&a.indexOf(t)===i}).slice(0,8)}
+function noteDate(note){return note.noteDate||note.createdAt}
+function formatDate(ts){if(!ts)return '';var d=new Date(ts);if(isNaN(d))return '';return d.toLocaleString('fa-IR',{dateStyle:'medium',timeStyle:'short'})}
+function colorTone(color){return {cyan:0,violet:1,rose:2,amber:3,green:4}[color]??0}
+function normalizeTags(value){return String(value||'').split(/[,،\n#]+/).map(function(x){return x.trim().replace(/\s+/g,'-')}).filter(Boolean).filter(function(x,i,a){return a.indexOf(x)===i}).slice(0,8)}
+function updateStats(){document.getElementById('notesCount').textContent=fa(NOTES.length);document.getElementById('todayCount').textContent=fa(NOTES.filter(function(n){return isToday(noteDate(n))}).length)}
 function renderNotes(filter){
   var grid=document.getElementById('notesGrid');
   var list=NOTES;
-  if(filter)list=list.filter(function(n){return n.text.indexOf(filter)>-1});
-  if(ACTIVE_FILTER==='today')list=list.filter(function(n){return isToday(n.createdAt)});
+  if(filter){var q=filter.toLowerCase();list=list.filter(function(n){return [n.title,n.text].concat(tagsOf(n)).join(' ').toLowerCase().indexOf(q)>-1})}
+  if(ACTIVE_FILTER==='pinned')list=list.filter(function(n){return n.pinned});
+  if(ACTIVE_FILTER==='today')list=list.filter(function(n){return isToday(noteDate(n))});
   if(ACTIVE_FILTER==='links')list=list.filter(function(n){return /https?:\/\//i.test(n.text)});
-  if(ACTIVE_FILTER==='tagged')list=list.filter(function(n){return tagsOf(n.text).length});
+  if(ACTIVE_FILTER==='tagged')list=list.filter(function(n){return tagsOf(n).length});
   updateStats();
   if(!list.length){grid.innerHTML='<div class="empty">'+(filter?'چیزی پیدا نشد':'هنوز یادداشتی نیست — بالا یکی بنویس')+'</div>';return}
+  list.sort(function(a,b){return Number(b.pinned)-Number(a.pinned)||Number(b.createdAt||0)-Number(a.createdAt||0)});
   grid.innerHTML=list.map(function(n,i){
-    var tags=tagsOf(n.text),tone=Math.abs(String(n.id||i).split('').reduce(function(s,c){return s+c.charCodeAt(0)},0))%5;
+    var tags=tagsOf(n),tone=colorTone(n.color),title=n.title||String(n.text||'').split('\n')[0].slice(0,80)||'یادداشت بدون عنوان';
     return '<article class="note-card tone-'+tone+'">'
-      +'<div class="note-head"><span class="note-kind">✦ یادداشت</span><span class="note-time">'+relTime(n.createdAt)+'</span></div>'
+      +'<div class="note-head"><span class="note-kind">✦ یادداشت</span><span class="note-time">'+(n.pinned?'<span class="pin" title="سنجاق‌شده">📌</span> ':'')+relTime(n.createdAt)+'</span></div>'
+      +'<div class="note-title">'+esc(title)+'</div>'
       +'<div class="note-text" data-id="'+n.id+'">'+esc(n.text)+'</div>'
       +(String(n.text||'').length>220?'<button type="button" class="expand" data-expand="'+n.id+'">نمایش کامل</button>':'')
       +'<div class="note-tags">'+tags.map(function(t){return '<span class="tag">#'+esc(t)+'</span>'}).join('')+'</div>'
+      +'<div class="note-date">🗓 '+formatDate(noteDate(n))+'</div>'
       +'<div class="note-actions">'
       +'<button type="button" data-edit="'+n.id+'">✎ ویرایش</button>'
       +'<button type="button" data-conv="task" data-id="'+n.id+'">✅ کار</button>'
@@ -123,15 +142,17 @@ function loadNotes(){
   }).catch(function(){document.getElementById('notesGrid').innerHTML='<div class="empty">خطای شبکه — دوباره امتحان کن</div>'});
 }
 function addNote(){
-  var inp=document.getElementById('noteIn'),v=inp.value.trim(); if(!v)return;
+  var inp=document.getElementById('noteIn'),title=document.getElementById('noteTitle'),v=inp.value.trim(),t=title.value.trim(); if(!t){title.focus();toast('عنوان یادداشت را وارد کن');return}
+  var payload={title:t,text:v,tags:normalizeTags(document.getElementById('noteTags').value),noteDate:document.getElementById('noteDate').value?new Date(document.getElementById('noteDate').value).toISOString():new Date().toISOString(),color:document.getElementById('noteColor').value,pinned:document.getElementById('notePinned').checked};
   var btn=document.getElementById('noteAdd'); btn.disabled=true;
-  fetch('/api/inbox',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:v})})
+  fetch(EDIT_ID?'/api/inbox/'+encodeURIComponent(EDIT_ID):'/api/inbox',{method:EDIT_ID?'PATCH':'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,d:d}})})
     .then(function(x){
       btn.disabled=false;
       if(x.status===401){location.href='/design/login-page.html';return}
       if(!x.ok){toast((x.d&&x.d.error)||'ثبت نشد');return}
-      NOTES.unshift(x.d); inp.value=''; renderNotes(''); toast('ثبت شد ✓');
+      if(EDIT_ID){NOTES=NOTES.map(function(n){return n.id===EDIT_ID?x.d:n});toast('تغییرات ذخیره شد ✓')}else{NOTES.unshift(x.d);toast('یادداشت ذخیره شد ✓')}
+      EDIT_ID=null;title.value='';inp.value='';document.getElementById('noteTags').value='';document.getElementById('noteDate').value='';document.getElementById('noteColor').value='cyan';document.getElementById('notePinned').checked=false;document.getElementById('composerLabel').textContent='یادداشت تازه';btn.textContent='➕ ذخیرهٔ یادداشت';renderNotes(document.getElementById('noteSearch').value.trim());
     }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
 }
 document.getElementById('noteAdd').addEventListener('click',addNote);
@@ -164,20 +185,8 @@ document.getElementById('notesGrid').addEventListener('click',function(e){
     return;
   }
   if(b.dataset.edit){
-    var id3=b.dataset.edit;
-    var el=document.querySelector('.note-text[data-id="'+id3+'"]');
-    if(!el)return;
-    if(el.getAttribute('contenteditable')==='true'){
-      var text=el.textContent.trim(); if(!text)return;
-      el.setAttribute('contenteditable','false');
-      b.textContent='✎ ویرایش';
-      fetch('/api/inbox/'+encodeURIComponent(id3),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text})})
-        .then(function(r){if(r.status===401){location.href='/design/login-page.html';return null}return r.json()})
-        .then(function(d){if(d==null)return;var n=NOTES.find(function(x){return x.id===id3});if(n)n.text=d.text||text;toast('ذخیره شد ✓')});
-    }else{
-      el.setAttribute('contenteditable','true'); el.focus();
-      b.textContent='✔ ذخیره';
-    }
+    var id3=b.dataset.edit,note=NOTES.find(function(x){return x.id===id3});if(!note)return;
+    EDIT_ID=id3;document.getElementById('noteTitle').value=note.title||String(note.text||'').split('\n')[0];document.getElementById('noteIn').value=note.text||'';document.getElementById('noteTags').value=tagsOf(note).join('، ');document.getElementById('noteDate').value=note.noteDate?new Date(note.noteDate).toISOString().slice(0,16):'';document.getElementById('noteColor').value=note.color||'cyan';document.getElementById('notePinned').checked=!!note.pinned;document.getElementById('composerLabel').textContent='ویرایش یادداشت';document.getElementById('noteAdd').textContent='✔ ذخیرهٔ تغییرات';document.getElementById('composer').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('noteTitle').focus();
     return;
   }
 });
