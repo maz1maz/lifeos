@@ -680,6 +680,8 @@ body.nav-open .nav-backdrop{display:block}
   </div>
   <button class="btn" id="doImport" style="width:100%">پیش‌نمایش</button>
   <div class="ipbar" id="ipBar"><i></i></div>
+  <button id="resetBankImports" style="width:100%;margin-top:14px;background:none;border:1px solid color-mix(in srgb,var(--bad) 55%,transparent);color:var(--bad);border-radius:12px;padding:9px;font-family:var(--fh);font-size:13px;cursor:pointer">🗑 پاک‌سازی تاریخچهٔ واردشده از بانک</button>
+  <div class="ed-tags-hint" style="text-align:center">فقط تراکنش‌های واردشده از فایل بانک حذف می‌شوند؛ ثبت‌های دستی باقی می‌مانند.</div>
   <div style="margin-top:14px;text-align:center"><button class="addh" style="display:inline-flex;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:11px;padding:7px 16px;font-family:var(--fh);font-size:14px;cursor:pointer" id="closeImp">بستن</button></div>
 </div>
 
@@ -1746,6 +1748,16 @@ document.getElementById('bankAmountUnit').addEventListener('change',function(){
   document.getElementById('pSum').classList.remove('show');
   document.getElementById('doImport').textContent='پیش‌نمایش با واحد جدید';
   toast('واحد تغییر کرد؛ پیش‌نمایش تازه بگیر.');
+});
+
+document.getElementById('resetBankImports').addEventListener('click',function(){
+  if(!confirm('همهٔ تراکنش‌هایی که قبلاً از فایل بانک وارد شده‌اند حذف شوند؟ ثبت‌های دستی حذف نمی‌شوند.')) return;
+  if(!confirm('این حذف قابل بازگردانی نیست. مطمئنی؟')) return;
+  var btn=this; btn.disabled=true; btn.textContent='در حال پاک‌سازی…';
+  fetch('/api/transactions/import-bank/reset',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:true})})
+  .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+  .then(function(x){btn.disabled=false;btn.textContent='🗑 پاک‌سازی تاریخچهٔ واردشده از بانک';if(!x.ok){toast((x.d&&x.d.error)||'پاک‌سازی ناموفق بود');return}bankPreviewItems=[];prevShown=false;bankLoaded=false;document.getElementById('prevRows').classList.remove('show');document.getElementById('pSum').classList.remove('show');document.getElementById('doImport').textContent='پیش‌نمایش از سرور';toast(fa(x.d.deleted||0)+' تراکنش بانکی پاک شد');if(typeof loadFinanceFromApi==='function')loadFinanceFromApi()})
+  .catch(function(){btn.disabled=false;btn.textContent='🗑 پاک‌سازی تاریخچهٔ واردشده از بانک';toast('خطای شبکه')});
 });
 
 document.getElementById('doImport').addEventListener('click',function(){
