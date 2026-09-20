@@ -140,10 +140,75 @@
     });
   }
 
+  /* داده‌ها در API با ISO نگه‌داری می‌شوند، اما هیچ‌کدام از فرم‌های سایت نباید
+     تقویم میلادیِ مرورگر را به کاربر نشان دهند. این لایه inputهای تاریخ را به
+     ورودی شمسی تبدیل می‌کند و مقدار پنهانِ ISO را برای کدهای فعلی حفظ می‌کند. */
+  function initJalaliDateInputs() {
+    var faDigits = '۰۱۲۳۴۵۶۷۸۹';
+    function fa(value) { return String(value).replace(/\d/g, function (d) { return faDigits[d]; }); }
+    function en(value) { return String(value).replace(/[۰-۹]/g, function (d) { return String(faDigits.indexOf(d)); }); }
+    function jalaliToGregorianIso(jy, jm, jd) {
+      var gy;
+      if (jy > 979) { gy = 1600; jy -= 979; } else { gy = 621; }
+      var days = (365 * jy) + (Math.floor(jy / 33) * 8) + Math.floor(((jy % 33) + 3) / 4) + 78 + jd + (jm < 7 ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
+      gy += 400 * Math.floor(days / 146097); days %= 146097;
+      if (days > 36524) { gy += 100 * Math.floor(--days / 36524); days %= 36524; if (days >= 365) days++; }
+      gy += 4 * Math.floor(days / 1461); days %= 1461;
+      if (days > 365) { gy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+      var gd = days + 1, leap = (gy % 4 === 0 && gy % 100 !== 0) || gy % 400 === 0;
+      var months = [0,31,leap ? 29 : 28,31,30,31,30,31,31,30,31,30,31], gm;
+      for (gm = 1; gm <= 12; gm++) { if (gd <= months[gm]) break; gd -= months[gm]; }
+      return gy + '-' + String(gm).padStart(2, '0') + '-' + String(gd).padStart(2, '0');
+    }
+    function formatIso(iso, withTime) {
+      if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return '';
+      try {
+        var output = new Intl.DateTimeFormat('fa-IR-u-ca-persian-nu-latn', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso.slice(0, 10) + 'T12:00:00Z'));
+        return fa(output.replace(/-/g, '/')) + (withTime && /^\d{2}:\d{2}/.test(iso.slice(11)) ? ' · ' + fa(iso.slice(11, 16)) : '');
+      } catch (e) { return iso; }
+    }
+    function parseJalali(value, withTime) {
+      var match = en(value).trim().match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})(?:\s*(?:·|،)?\s*(\d{1,2}):(\d{2}))?$/);
+      if (!match) return null;
+      var jy = Number(match[1]), jm = Number(match[2]), jd = Number(match[3]), hh = match[4] == null ? '00' : String(Number(match[4])).padStart(2, '0'), mm = match[5] == null ? '00' : match[5];
+      if (jy < 1200 || jy > 1600 || jm < 1 || jm > 12 || jd < 1 || jd > 31 || Number(hh) > 23 || Number(mm) > 59) return null;
+      var iso = jalaliToGregorianIso(jy, jm, jd);
+      return withTime ? iso + 'T' + hh + ':' + mm : iso;
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('input[type="date"],input[type="datetime-local"]'), function (hidden) {
+      if (hidden.dataset.jalaliReady === '1') return;
+      var withTime = hidden.type === 'datetime-local', originalId = hidden.id;
+      if (!originalId) return;
+      hidden.dataset.jalaliReady = '1';
+      hidden.type = 'hidden';
+      var visible = document.createElement('input');
+      visible.type = 'text'; visible.id = originalId + '-jalali'; visible.className = 'lifeos-jdate';
+      visible.autocomplete = 'off'; visible.inputMode = 'numeric';
+      visible.placeholder = withTime ? '۱۴۰۵/۰۶/۲۹ · ۱۴:۳۰' : '۱۴۰۵/۰۶/۲۹';
+      visible.setAttribute('aria-label', (hidden.getAttribute('aria-label') || 'تاریخ شمسی'));
+      hidden.insertAdjacentElement('afterend', visible);
+      var label = document.querySelector('label[for="' + originalId + '"]');
+      if (label) label.htmlFor = visible.id;
+      function sync() { visible.value = formatIso(hidden.value, withTime); }
+      var descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+      if (descriptor) Object.defineProperty(hidden, 'value', { configurable: true, get: function () { return descriptor.get.call(hidden); }, set: function (value) { descriptor.set.call(hidden, value); sync(); } });
+      visible.addEventListener('change', function () {
+        var iso = parseJalali(visible.value, withTime);
+        if (!iso) { visible.setCustomValidity('تاریخ را به شکل ۱۴۰۵/۰۶/۲۹ وارد کن.'); visible.reportValidity(); return; }
+        visible.setCustomValidity(''); hidden.value = iso;
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      visible.addEventListener('blur', function () { if (hidden.value) sync(); });
+      sync();
+    });
+  }
+
   function boot() {
     syncNavigationLinks();
     initThemeButton();
     initMobileNav();
+    initJalaliDateInputs();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
