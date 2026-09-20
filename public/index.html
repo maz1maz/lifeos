@@ -1094,6 +1094,19 @@ body{
 @media(max-width:900px){
   .home{gap:12px}.qadd{border-radius:15px}.datecard .dnum{font-size:64px}.wcard .wnow .wt{font-size:42px}
 }
+
+/* دو اقدام مستقل برای کار و یادآوری؛ همان جایگاه قبلی ستون حفظ شده است. */
+.tr-combo{display:grid!important;grid-template-rows:minmax(0,1.12fr) minmax(0,.88fr);gap:16px}
+.home-row.r2r3 > .tr-combo .tr-panel{height:auto!important;min-height:0;padding:14px 15px!important;overflow:hidden}
+.home-row.r2r3 > .tr-combo .tr-task-panel{background:linear-gradient(145deg,#10283d,var(--panel))!important}
+.home-row.r2r3 > .tr-combo .tr-rem-panel{background:linear-gradient(145deg,color-mix(in srgb,#5b37a6 16%,var(--panel)),var(--panel))!important}
+.home-row.r2r3 > .tr-combo .tr-sec{min-height:0;overflow:hidden}
+.home-row.r2r3 > .tr-combo .tr-task-panel #taskList,.home-row.r2r3 > .tr-combo .tr-rem-panel #remList,.home-row.r2r3 > .tr-combo .tr-rem-panel #overList{overflow-y:auto}
+.today-add{margin-inline-start:auto;flex:none;border:1px solid color-mix(in srgb,var(--acc) 55%,transparent);background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--acc);border-radius:9px;padding:4px 9px;font-family:var(--fh);font-weight:800;font-size:12px;cursor:pointer;transition:transform .16s ease,background .16s ease}
+.today-add:hover{transform:translateY(-1px);background:color-mix(in srgb,var(--acc) 22%,transparent)}
+.today-add.violet{color:#d8b4fe;border-color:rgba(192,132,252,.5);background:rgba(139,92,246,.13)}
+.today-add.violet:hover{background:rgba(139,92,246,.24)}
+@media(max-width:900px){.tr-combo{grid-template-rows:auto auto!important}.home-row.r2r3 > .tr-combo .tr-panel{min-height:220px}}
 </style>
 <script>try{var _a=localStorage.getItem('accent');if(_a)document.documentElement.style.setProperty('--acc',_a)}catch(e){}</script>
 <link rel="stylesheet" href="/shared-shell.css">
@@ -1164,19 +1177,23 @@ body{
       </div>
     </div>
 <div class="tr-combo" id="trCombo">
-    <div class="tr-panel">
+    <div class="tr-panel tr-task-panel">
       <div class="tr-sec" id="taskSec">
         <div class="mhead compact">
           <h4 id="taskH">✅ کارهای آینده</h4>
           <span class="cnt" id="taskCnt">—</span>
+          <button class="today-add" type="button" data-quick="task">＋ کار</button>
         </div>
         <div class="taskprog" id="taskProg"><div class="taskprog-bar"><i id="taskProgFill" style="width:0%"></i></div><span id="taskProgLabel">—</span></div>
         <div id="taskList"></div>
       </div>
+    </div>
+    <div class="tr-panel tr-rem-panel">
       <div class="tr-sec" id="remSec">
         <div class="mhead compact">
           <h4>🔔 یادآوری‌ها</h4>
           <span class="cnt" id="remCnt">—</span>
+          <button class="today-add violet" type="button" data-quick="reminder">＋ یادآوری</button>
         </div>
         <div id="remList"></div>
         <div class="remfoot">ذخیره روی همین دستگاه · کلیک = انجام شد</div>
@@ -3253,6 +3270,18 @@ document.addEventListener('click',function(e){
       }).catch(function(){toast('خطای شبکه')});
   }
 })();
+</script>
+<script>
+/* دکمه‌های خودِ کارت‌ها، همان ثبت سریع موجود را با حالت درست باز می‌کنند. */
+document.querySelectorAll('.today-add[data-quick]').forEach(function(button){
+  button.addEventListener('click',function(){
+    var tab=document.querySelector('.qatab[data-qa="'+button.getAttribute('data-quick')+'"]');
+    if(tab)tab.click();
+    var box=document.getElementById('qAdd');
+    if(box)box.scrollIntoView({behavior:'smooth',block:'center'});
+    setTimeout(function(){var input=document.getElementById('qaTitle');if(input)input.focus()},350);
+  });
+});
 </script>
 </body>
 </html>
