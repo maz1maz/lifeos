@@ -1050,7 +1050,7 @@ body.nav-open .nav-backdrop{display:block}
       <button type="button" class="qatab" data-qa="note">📝 یادداشت</button>
     </div>
     <div class="qarow">
-      <input type="text" id="qaAmt" inputmode="numeric" placeholder="مبلغ (تومان)" autocomplete="off">
+      <input type="text" id="qaAmt" inputmode="numeric" placeholder="مبلغ (ریال)" autocomplete="off">
       <input type="text" id="qaTitle" placeholder="شرح — مثلاً: ناهار" autocomplete="off">
       <button type="button" id="qaGo">ثبت</button>
     </div>
@@ -1597,9 +1597,9 @@ function renderMarket(){
        +row('🥈','نقره','اونس جهانی',prUSD(sv.p),'$',sv.c,{type:'cg',id:'kinesis-silver',unit:'$'})
        +row('₿','بیت‌کوین','BTC',prUSD(b.p),'$',b.c,{type:'cg',id:'bitcoin',unit:'$'})
        +row('Ξ','اتریوم','ETH',prUSD(e.p),'$',e.c,{type:'cg',id:'ethereum',unit:'$'})
-       +row('💵','دلار آزاد','تهران',faNum(Math.round((tm('price_dollar_rl')||{p:0}).p/1000))+' هزار','تومان',pc(tm('price_dollar_rl')),{type:'tgju',id:'price_dollar_rl',unit:'تومان'})
-              +row('🟡','گرم ۱۸','طلا داخلی',faNum(Math.round((tm('geram18')||{p:0}).p/1e6))+' م','تومان',pc(tm('geram18')),{type:'tgju',id:'geram18',unit:'تومان'})
-       +row('🪙','سکه امامی','طرح جدید',faNum(Math.round((tm('sekee')||{p:0}).p/1e6))+' م','تومان',pc(tm('sekee')),{type:'tgju',id:'sekee',unit:'تومان'});
+       +row('💵','دلار آزاد','تهران',faNum(Math.round((tm('price_dollar_rl')||{p:0}).p/1000))+' هزار','ریال',pc(tm('price_dollar_rl')),{type:'tgju',id:'price_dollar_rl',unit:'ریال'})
+              +row('🟡','گرم ۱۸','طلا داخلی',faNum(Math.round((tm('geram18')||{p:0}).p/1e6))+' م','ریال',pc(tm('geram18')),{type:'tgju',id:'geram18',unit:'ریال'})
+       +row('🪙','سکه امامی','طرح جدید',faNum(Math.round((tm('sekee')||{p:0}).p/1e6))+' م','ریال',pc(tm('sekee')),{type:'tgju',id:'sekee',unit:'ریال'});
   var el=document.getElementById('sumRows');if(el)el.innerHTML=h;
   var st=document.getElementById('sumTime');if(st)st.textContent=d.live?'زنده ✓':('آفلاین · '+d.t);
 }
@@ -1716,7 +1716,7 @@ function renderToman(){
       chgHtml='<div class="chg '+(up?'up':'dn')+'">'+(up?'▲':'▼')+' '+faNum(Math.abs(c[0]))+'<br><small>('+fa(c[1].toFixed(2).replace(/\.?0+$/,''))+'٪)</small></div>';
     } else chgHtml='<div class="chg na">—</div>';
     var pr = x.p>=1e6 ? faNum((x.p/1e6).toFixed(2))+' <small>م</small>' : faNum(Math.round(x.p));
-    html+='<div class="mrow"><div class="nm"><b>'+x.t+'</b><small>تومان</small></div>'+chgHtml+'<div class="pr">'+pr+'</div></div>';
+    html+='<div class="mrow"><div class="nm"><b>'+x.t+'</b><small>ریال</small></div>'+chgHtml+'<div class="pr">'+pr+'</div></div>';
   });
   (document.getElementById('trows')||{}).innerHTML=html;
 }
@@ -1728,8 +1728,8 @@ renderToman();
     function num(x){return parseFloat(String(x).replace(/,/g,''))||0}
     TORDER.forEach(function(k){
       var v=cur[k]; if(!v)return; hit=true;
-      TOMAN[k].p=num(v.p)/10;
-      var dd=num(v.d)/10, dp=num(v.dp);
+      TOMAN[k].p=num(v.p);
+      var dd=num(v.d), dp=num(v.dp);
       if(dd||dp) TOMAN[k].chg=[dd,dp];
     });
     if(hit){renderToman();if(MK.data)renderMarket();(document.getElementById('tTime')||{}).textContent='زنده · '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})}
@@ -2248,7 +2248,7 @@ function renderTx(){
    +'<button class="del" data-deltx="'+i+'">✕</button></div>'}).join('')
   :'<div style="color:var(--faint);font-size:14px;text-align:center;padding:10px">هنوز چیزی ثبت نشده — اولین خرج امروز را بالا بنویس</div>';
  var s=exp.reduce(function(n,x){return n+x.a},0);
- var sum=document.getElementById('txSum'); if(sum) sum.textContent=fmtFull(s)+' تومان';
+ var sum=document.getElementById('txSum'); if(sum) sum.textContent=fmtFull(s)+' ریال';
  BUDGET.spent=s; /* فقط جمع خرج‌های امروز در لیست */
  renderBud();
  updateRecapExpense();
@@ -2263,7 +2263,7 @@ function renderBud(){
  var f=document.getElementById('budFill'); if(f){ f.style.width=pct+'%';
   f.style.background=pct>=100?'var(--bad)':pct>=75?'var(--warn)':'var(--good)'; }
  var bs=document.getElementById('budSpent'); if(bs) bs.textContent=BUDGET.spent?fmtT(BUDGET.spent):'—';
- var bt=document.getElementById('budTotal'); if(bt) bt.textContent=BUDGET.total?fmtT(BUDGET.total)+' تومان':'—';
+ var bt=document.getElementById('budTotal'); if(bt) bt.textContent=BUDGET.total?fmtT(BUDGET.total)+' ریال':'—';
  var bp=document.getElementById('budPct'); if(bp) bp.textContent=BUDGET.total?fa(pct)+'٪':'—';
  var bd=document.getElementById('budDays'); if(bd) bd.innerHTML=BUDGET.daysLeft?fa(BUDGET.daysLeft)+' روز مانده':'<a href="/design/finance-page.html" style="color:var(--acc)">تنظیم بودجه در مالی</a>';
  var bc=document.getElementById('budCats');
@@ -2922,7 +2922,7 @@ document.addEventListener('click',function(e){
         +pend.slice(0,6).map(function(h){return '<div class="rcitem">'+esc(h.icon||'✓')+' '+esc(h.name)+'</div>'}).join('')
         +'</div></div>';
       if(!html)html='<span class="habempty">هیچ چیز عقب‌افتاده یا منتظر فردا نیست ✓</span>';
-      html='<div class="rcsec" id="recapExpSec"><b>💸 خرج امروز</b><div class="rclist"><div class="rcitem">جمع: <span id="recapExpVal">—</span> تومان</div></div></div>'+html;
+      html='<div class="rcsec" id="recapExpSec"><b>💸 خرج امروز</b><div class="rclist"><div class="rcitem">جمع: <span id="recapExpVal">—</span> ریال</div></div></div>'+html;
       recapBody.innerHTML=html;
       updateRecapExpense();
       /* روایت AI فقط اگر کلید روی سرور باشد؛ وگرنه یک یادداشت شفاف */
@@ -3082,7 +3082,7 @@ document.addEventListener('click',function(e){
             if(typeof renderTx==='function')renderTx();
           }catch(e){}
           var cm=(typeof catMeta==='function')?catMeta(c):[c,''];
-          chip(esc(cm[1]||'')+' '+esc(t)+' · '+(typeof fmtFull==='function'?fmtFull(a):a)+' تومان');
+          chip(esc(cm[1]||'')+' '+esc(t)+' · '+(typeof fmtFull==='function'?fmtFull(a):a)+' ریال');
           say('ذخیره شد ✓');
           amtEl.value='';titleEl.value='';QA.cat='auto';QA.tags='';
           var sel=document.getElementById('qaCat');if(sel)sel.value='auto';

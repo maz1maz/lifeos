@@ -235,7 +235,7 @@ function renderYday(d){
   if(!tasks.length&&!spent&&mood==null){el.textContent='دیروز چیزی ثبت نشده.';return}
   var parts=[];
   if(tasks.length)parts.push('کارها <b>'+fa(done)+' از '+fa(tasks.length)+'</b>');
-  if(spent)parts.push('خرج <b>'+fmt(spent)+'</b> تومان');
+  if(spent)parts.push('خرج <b>'+fmt(spent)+'</b> ریال');
   if(mood!=null)parts.push('حال <b>'+fa(mood)+'</b>');
   el.innerHTML=parts.join(' · ');
 }

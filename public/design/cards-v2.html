@@ -718,7 +718,7 @@ body.nav-open .nav-backdrop{display:block}
       <div class="mfoot"><span>CoinGecko</span><span class="src">تغییر ۲۴ ساعته ▲▼</span></div>
     </div>
     <div class="mcard">
-      <div class="mhead"><h4>🇮🇷 بازار تومان</h4><span style="font-size:12.5px;color:var(--faint)">تومان</span></div>
+      <div class="mhead"><h4>🇮🇷 بازار ریال</h4><span style="font-size:12.5px;color:var(--faint)">ریال</span></div>
       <div id="trows"></div>
       <div class="mfoot"><span id="tTime">۲۱:۰۳ · امروز</span><span class="src" id="tSrc">TGJU · نواسان</span></div>
     </div>
@@ -929,7 +929,7 @@ function renderToman(){
       chgHtml='<div class="chg '+(up?'up':'dn')+'">'+(up?'▲':'▼')+' '+faNum(Math.abs(c[0]))+'<br><small>('+fa(c[1].toFixed(2).replace(/\.?0+$/,''))+'٪)</small></div>';
     } else chgHtml='<div class="chg na">—</div>';
     var pr = x.p>=1e6 ? faNum((x.p/1e6).toFixed(2))+' <small>م</small>' : faNum(Math.round(x.p));
-    html+='<div class="mrow"><div class="nm"><b>'+x.t+'</b><small>تومان</small></div>'+chgHtml+'<div class="pr">'+pr+'</div></div>';
+    html+='<div class="mrow"><div class="nm"><b>'+x.t+'</b><small>ریال</small></div>'+chgHtml+'<div class="pr">'+pr+'</div></div>';
   });
   document.getElementById('trows').innerHTML=html;
 }
@@ -1246,7 +1246,7 @@ function renderBud(){
  var f=document.getElementById('budFill');f.style.width=pct+'%';
  f.style.background=pct>=100?'var(--bad)':pct>=75?'var(--warn)':'var(--good)';
  document.getElementById('budSpent').textContent=fmtT(BUDGET.spent);
- document.getElementById('budTotal').textContent=fmtT(BUDGET.total)+' تومان';
+ document.getElementById('budTotal').textContent=fmtT(BUDGET.total)+' ریال';
  document.getElementById('budPct').textContent=fa(pct)+'٪';
  document.getElementById('budDays').textContent=fa(BUDGET.daysLeft)+' روز تا پایان ماه';
  var mx=Math.max.apply(null,BUDGET.cats.map(function(c){return c[1]}));
@@ -1263,7 +1263,7 @@ function txSubmit(){
  var c=TXCAT||suggestCat(t)||'متفرقه';
  TODAYTX.push({t:t,a:a,c:c,k:TXKIND});
  renderTx();
- toastB('ثبت شد ✓ — '+fmtFull(a)+' تومان · '+catMeta(c)[1]+' '+c+' · '+TXACC.replace(/^\S+\s/,''));
+ toastB('ثبت شد ✓ — '+fmtFull(a)+' ریال · '+catMeta(c)[1]+' '+c+' · '+TXACC.replace(/^\S+\s/,''));
  document.getElementById('txAmt').value='';document.getElementById('txTitle').value='';
  TXCAT=null;TXCATMANUAL=false;renderCatChips();document.getElementById('txTitle').focus();
 }

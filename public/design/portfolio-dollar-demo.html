@@ -64,24 +64,24 @@ var HOLD=[
  {dollar:true,sym:'💵',type:'دلار',qty:750,price:1,cur:'$',chg:0},
  {sym:'BTC',type:'کریپتو',qty:0.12,price:61200,cur:'$',chg:1.2},
  {sym:'AAPL',type:'سهام',qty:5,price:228,cur:'$',chg:-0.4},
- {sym:'طلا ۱۸',type:'طلا',qty:3,price:6800000,cur:'تومان',chg:0.6}
+ {sym:'طلا ۱۸',type:'طلا',qty:3,price:6800000,cur:'ریال',chg:0.6}
 ];
 function renderPort(){
   var tot=HOLD.reduce((s,h)=>s+h.qty*h.price*(h.cur==='$'?USDT:1),0);
   var chg=HOLD.reduce((s,h)=>s+h.qty*h.price*(h.cur==='$'?USDT:1)*h.chg/100,0);
-  document.getElementById('pTotal').textContent=fmtC(tot)+' تومان';
+  document.getElementById('pTotal').textContent=fmtC(tot)+' ریال';
   document.getElementById('pChg').innerHTML='<span style="color:'+(chg>=0?'var(--good)':'var(--bad)')+'">'+(chg>=0?'▲ +':'▼ ')+fmtC(Math.abs(chg))+' امروز</span> <span style="color:var(--faint);font-size:13px">(دلار '+fa(USDT/1000)+' هزار)</span>';
   var byType={};HOLD.forEach(h=>{var v=h.qty*h.price*(h.cur==='$'?USDT:1);byType[h.type]=(byType[h.type]||0)+v});
   document.getElementById('alloc').innerHTML=Object.keys(byType).map(t=>'<i style="width:'+(byType[t]/tot*100)+'%;background:'+ACOLOR[t]+'"></i>').join('');
   document.getElementById('allocLg').innerHTML=Object.keys(byType).map(t=>'<span>'+t+' <i style="background:'+ACOLOR[t]+'"></i> '+fa(Math.round(byType[t]/tot*100))+'٪</span>').join(' · ');
   var dm=HOLD.filter(h=>h.dollar),dq=dm.reduce((s,h)=>s+h.qty,0);
   var dEl=document.getElementById('pDollar');
-  if(dq>0){dEl.style.display='';dEl.innerHTML='💵 <b>'+fa(dq)+' دلار</b> = '+fmtC(dq*USDT)+' تومان <span style="color:var(--faint)">(نرخ '+fa(USDT)+')</span>'}
+  if(dq>0){dEl.style.display='';dEl.innerHTML='💵 <b>'+fa(dq)+' دلار</b> = '+fmtC(dq*USDT)+' ریال <span style="color:var(--faint)">(نرخ '+fa(USDT)+')</span>'}
   else dEl.style.display='none';
   document.getElementById('holdings').innerHTML=HOLD.map(h=>{
     var v=h.qty*h.price*(h.cur==='$'?USDT:1);
     return '<div class="hrow"><span class="sym">'+h.sym+'<small>'+h.type+'</small></span>'
-     +'<span class="qty">'+(h.dollar?fa(h.qty)+' دلار':fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):fmt(h.price)+' تومان'))+'</span>'
+     +'<span class="qty">'+(h.dollar?fa(h.qty)+' دلار':fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):fmt(h.price)+' ریال'))+'</span>'
      +(h.dollar?'<span class="chg"></span>':'<span class="chg '+(h.chg>=0?'up':'dn')+'">'+(h.chg>=0?'▲ +':'▼ ')+fa(h.chg)+'٪</span>')
      +'<span class="val">'+fmtC(v)+'</span><button class="rowedit">✎</button></div>';
   }).join('');

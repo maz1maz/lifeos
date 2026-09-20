@@ -549,7 +549,7 @@ body.nav-open .nav-backdrop{display:block}
 <script>(function(){var n=document.querySelector('.nav');if(!n)return;var s=document.createElement('div');s.style.height=n.offsetHeight+'px';n.parentNode.insertBefore(s,n.nextSibling);window.addEventListener('resize',function(){s.style.height=n.offsetHeight+'px'})})();</script>
 <div class="wrap" style="max-width:1600px">
 
-  <div class="lead">بازارهای جهانی و تومانی — فلزات و کالا، کریپتو، ارز و سکه و سهام آمریکا · به‌روزرسانی خودکار با کش محلی</div>
+  <div class="lead">بازارهای جهانی و ریالی — فلزات و کالا، کریپتو، ارز و سکه و سهام آمریکا · به‌روزرسانی خودکار با کش محلی</div>
 
 <!-- ============ MARKET (چهارستونه) ============ -->
   <div class="trio">
@@ -564,7 +564,7 @@ body.nav-open .nav-backdrop{display:block}
       <div class="mfoot"><span>CoinGecko</span><span class="src">تغییر ۲۴ ساعته ▲▼</span></div>
     </div>
     <div class="mcard">
-      <div class="mhead"><h4>🇮🇷 بازار تومان</h4><span class="xadd" data-add="tm">➕</span><span style="font-size:12.5px;color:var(--faint)">تومان</span></div>
+      <div class="mhead"><h4>🇮🇷 بازار ریال</h4><span class="xadd" data-add="tm">➕</span><span style="font-size:12.5px;color:var(--faint)">ریال</span></div>
       <div id="trows"></div>
       <div class="mfoot"><span id="tTime">۲۱:۰۳ · امروز</span><span class="src" id="tSrc">TGJU · نواسان</span></div>
     </div>
@@ -692,7 +692,7 @@ function renderStocks(items){
 })();
 
 
-/* ===== بازار تومان ===== */
+/* ===== بازار ریال ===== */
 /* ================= TOMAN (Tehran market) ================= */
 var TOMAN={"price_dollar_rl": {"t": "دلار آزاد", "p": 227205.0, "d": 0.0, "dp": 0.0, "ts": "2026-09-05 00:00:00", "chg": [4900, 2.22]}, "price_eur": {"t": "یورو", "p": 264690.0, "d": 0.0, "dp": 0.0, "ts": "2026-09-05 00:00:00", "chg": [5660, 2.2]}, "price_gbp": {"t": "پوند", "p": 306420.0, "d": 0.0, "dp": 0.0, "ts": "2026-09-05 00:00:00", "chg": [8220, 2.75]}, "price_aed": {"t": "درهم", "p": 62060.0, "d": 0.0, "dp": 0.0, "ts": "2026-09-05 00:00:00", "chg": [1350, 2.22]}, "price_try": {"t": "لیر", "p": 4800.0, "d": 0.0, "dp": 0.0, "ts": "2026-09-05 00:00:00", "chg": [105, 2.3]}, "geram18": {"t": "گرم ۱۸ عیار", "p": 23674400.0, "d": 0.0, "dp": 0.0, "ts": "2026-09-05 00:00:00", "chg": null}, "sekee": {"t": "سکه امامی", "p": 237495000.0, "d": 0.0, "dp": 0.0, "ts": "2026-09-05 00:00:00", "chg": null}, "mesghal": {"t": "مثقال", "p": 102553000.0, "d": 0.0, "dp": 0.0, "ts": "2026-09-05 00:00:00", "chg": null}};
 var TORDER=['price_dollar_rl','price_eur','price_gbp','price_aed','price_try','geram18','sekee','mesghal'];
@@ -706,7 +706,7 @@ function renderToman(){
       chgHtml='<div class="chg '+(up?'up':'dn')+'">'+(up?'▲':'▼')+' '+faNum(Math.abs(c[0]))+'<br><small>('+fa(c[1].toFixed(2).replace(/\.?0+$/,''))+'٪)</small></div>';
     } else chgHtml='<div class="chg na">—</div>';
     var pr = x.p>=1e6 ? faNum((x.p/1e6).toFixed(2))+' <small>م</small>' : faNum(Math.round(x.p));
-    html+='<div class="mrow mrow-ck" data-chart-type="tgju" data-chart-id="'+k+'" data-chart-title="'+x.t+'" data-chart-unit="تومان"><div class="nm"><b>'+x.t+'</b><small>تومان</small></div>'+chgHtml+'<div class="pr">'+pr+'</div></div>';
+    html+='<div class="mrow mrow-ck" data-chart-type="tgju" data-chart-id="'+k+'" data-chart-title="'+x.t+'" data-chart-unit="ریال"><div class="nm"><b>'+x.t+'</b><small>ریال</small></div>'+chgHtml+'<div class="pr">'+pr+'</div></div>';
   });
   document.getElementById('trows').innerHTML=html;
 }
@@ -860,7 +860,7 @@ document.addEventListener('click',function(e){
 /* ➕ نمادهای دلخواه بازار */
 (function(){
  var XTRA=[
-  /* تومان */
+  /* ریال */
   ['rob','🪙','ربع سکه','tm'],['nim','🥈','نیم سکه','tm'],['sekeb','🌻','سکه بهار آزادی','tm'],['geram24','✨','گرم ۲۴','tm'],
   ['price_gbp','💷','پوند','tm'],['price_try','🇹🇷','لیر','tm'],['price_aed','🇦🇪','درهم','tm'],
   /* فلزات/کالا (TGJU keys if available) */
@@ -900,18 +900,18 @@ document.addEventListener('click',function(e){
    }
    row.setAttribute('data-chart-type','tgju');
    row.setAttribute('data-chart-id',k);
-   row.setAttribute('data-chart-unit',m[3]==='tm'?'تومان':'$');
+   row.setAttribute('data-chart-unit',m[3]==='tm'?'ریال':'$');
    var v=TG&&TG.items&&TG.items[k];
    var val,chg;
    if(v){
-    val=m[3]==='tm'?fmtTm(v.p)+' <small>تومان</small>':faNum(Math.round(Number(v.p)||0))+' <small>$</small>';
+    val=m[3]==='tm'?fmtTm(v.p)+' <small>ریال</small>':faNum(Math.round(Number(v.p)||0))+' <small>$</small>';
     chg=v.d?'<div class="chg '+(Number(v.d)>0?'up':'dn')+'">'+(Number(v.d)>0?'▲':'▼')+'</div>':'<div class="chg na">—</div>';
    } else {
     /* قیمت هنوز نیامده — ردیف را نگه دار تا بعد از /api/tgju پر شود */
     val='—';
     chg='<div class="chg na">—</div>';
    }
-   row.innerHTML='<div class="ic">'+m[1]+'</div><div class="nm"><b>'+m[2]+'</b><small>'+(m[3]==='tm'?'تومان':'جهانی · دلار')+'</small></div>'+chg+'<div class="pr">'+val+'</div><span class="xdel" data-xdel="'+k+'">✕</span>';
+   row.innerHTML='<div class="ic">'+m[1]+'</div><div class="nm"><b>'+m[2]+'</b><small>'+(m[3]==='tm'?'ریال':'جهانی · دلار')+'</small></div>'+chg+'<div class="pr">'+val+'</div><span class="xdel" data-xdel="'+k+'">✕</span>';
    h.appendChild(row);
   });
  }

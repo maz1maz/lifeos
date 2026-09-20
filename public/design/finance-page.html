@@ -501,7 +501,7 @@ body.nav-open .nav-backdrop{display:block}
     </p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end">
       <div class="field">
-        <label>سقف کل ماه (تومان)</label>
+        <label>سقف کل ماه (ریال)</label>
         <input id="budTotalInput" type="text" inputmode="numeric" placeholder="مثلاً ۵۰٬۰۰۰٬۰۰۰" dir="ltr" style="text-align:left">
       </div>
       <div class="btn-row" style="margin:0">
@@ -514,7 +514,7 @@ body.nav-open .nav-backdrop{display:block}
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
         <div class="field" style="flex:1;min-width:120px"><label>دسته</label>
           <input id="budCatName" placeholder="خوراک، حمل‌ونقل…"></div>
-        <div class="field" style="flex:1;min-width:120px"><label>سقف (تومان)</label>
+        <div class="field" style="flex:1;min-width:120px"><label>سقف (ریال)</label>
           <input id="budCatLimit" type="text" inputmode="numeric" dir="ltr" style="text-align:left"></div>
         <button type="button" class="btn ghost" id="budCatSave">＋ دسته</button>
       </div>
@@ -535,7 +535,7 @@ body.nav-open .nav-backdrop{display:block}
         <div class="dbsum" id="debtSumPay"></div>
         <div class="addh">
           <input id="dbNPay" placeholder="نام — مثلاً وام مسکن" style="flex:1;min-width:120px">
-          <div class="dbcur" id="dbCurPay" data-cur="IRT"><button type="button" data-c="IRT">تومان</button><button type="button" data-c="USD">$</button></div><input id="dbTotPay" placeholder="کل مبلغ" style="width:100px;direction:ltr" inputmode="decimal">
+          <div class="dbcur" id="dbCurPay" data-cur="IRR"><button type="button" data-c="IRR">ریال</button><button type="button" data-c="USD">$</button></div><input id="dbTotPay" placeholder="کل مبلغ" style="width:100px;direction:ltr" inputmode="decimal">
           <input id="dbPaidPay" placeholder="پرداخت‌شده" style="width:100px;direction:ltr" inputmode="decimal">
           <input id="dbNotePay" class="dbdesc" placeholder="توضیح بدهی — مثلاً بابت وام، قسط بانک، خرید…" style="flex:1 1 100%;min-width:140px">
           <button id="dbAddPay">➕ بدهی</button>
@@ -547,7 +547,7 @@ body.nav-open .nav-backdrop{display:block}
         <div class="dbsum" id="debtSumRec"></div>
         <div class="addh">
           <input id="dbNRec" placeholder="نام — مثلاً علی" style="flex:1;min-width:120px">
-          <div class="dbcur" id="dbCurRec" data-cur="IRT"><button type="button" data-c="IRT">تومان</button><button type="button" data-c="USD">$</button></div><input id="dbTotRec" placeholder="کل مبلغ" style="width:100px;direction:ltr" inputmode="decimal">
+          <div class="dbcur" id="dbCurRec" data-cur="IRR"><button type="button" data-c="IRR">ریال</button><button type="button" data-c="USD">$</button></div><input id="dbTotRec" placeholder="کل مبلغ" style="width:100px;direction:ltr" inputmode="decimal">
           <input id="dbPaidRec" placeholder="دریافت‌شده" style="width:100px;direction:ltr" inputmode="decimal">
           <input id="dbNoteRec" class="dbdesc" placeholder="توضیح طلب — مثلاً بابت قرض به علی، پروژه…" style="flex:1 1 100%;min-width:140px">
           <button id="dbAddRec">➕ طلب</button>
@@ -697,7 +697,7 @@ body.nav-open .nav-backdrop{display:block}
       <option value="all">همهٔ تراکنش‌ها</option>
     </select>
   </div>
-  <div class="frow"><label>حداقل مبلغ (تومان — اختیاری)</label><input id="rcMin" placeholder="مثلاً ۱۰۰۰۰۰" style="direction:ltr" inputmode="numeric"></div>
+  <div class="frow"><label>حداقل مبلغ (ریال — اختیاری)</label><input id="rcMin" placeholder="مثلاً ۱۰۰۰۰۰" style="direction:ltr" inputmode="numeric"></div>
   <div class="frow"><label>کلیدواژه‌های دلخواه (اختیاری) — هر خط: <span style="direction:ltr;display:inline-block">کلمه = دسته</span></label>
     <textarea id="rcRules" rows="3" placeholder="برادران نوری = خوراک
 کلینیک مهر = سلامت" style="width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:12px;color:var(--text);padding:8px 12px;font:inherit;box-sizing:border-box;resize:vertical"></textarea>
@@ -722,7 +722,7 @@ body.nav-open .nav-backdrop{display:block}
   <div class="frow"><label>نام</label><input id="aName" placeholder="مثلاً: کارت بانک صادرات"></div>
   <div class="frow"><label>نوع</label><select id="aType"><option value="card">💳 کارت بانکی</option><option value="acc">🏦 حساب</option><option value="cash">💵 نقدی</option><option value="wallet">👛 کیف پول (کریپتو/دلار)</option></select></div>
   <div class="frow"><label>۴ رقم آخر کارت (اختیاری)</label><input id="aNum" placeholder="4521" style="direction:ltr"></div>
-  <div class="frow"><label>مانده‌ی اولیه (تومان)</label><input id="aBal" placeholder="0" style="direction:ltr" inputmode="numeric"></div>
+  <div class="frow"><label>مانده‌ی اولیه (ریال)</label><input id="aBal" placeholder="0" style="direction:ltr" inputmode="numeric"></div>
   <button class="btn" id="aSave" style="width:100%">ثبت حساب</button>
 </div>
 
@@ -788,7 +788,7 @@ ACCS.forEach(function(a){a._u=UID++});
 var DEBTS=[]; /* خالی */
 DEBTS.forEach(function(d){d._u=UID++});
 
-function debtCur(d){return (d&&(d.currency==='USD'||d.cur==='USD'||d.cur==='$'))?'USD':'IRT'}
+function debtCur(d){return (d&&(d.currency==='USD'||d.cur==='USD'||d.cur==='$'))?'USD':'IRR'}
 function debtToToman(d){
   var rm=debtRemain(d);
   return debtCur(d)==='USD' ? Math.round(rm * (typeof USDT==='number'?USDT:1)) : rm;
@@ -819,7 +819,7 @@ function renderHero(){
   var cash=ACCS.reduce(function(s,a){return s+a.b},0);
   var port=HOLD.reduce(function(s,h){return s+h.qty*h.price*curRate(h.cur)},0);
   var net=cash+port-DEBT()+CREDIT();
-  function v(n){return HIDDEN?'••••':fmtC(n)+' <small class="u">تومان</small>'}
+  function v(n){return HIDDEN?'••••':fmtC(n)+' <small class="u">ریال</small>'}
   document.getElementById('hero').innerHTML=
    '<div class="hstat"><small>موجودی حساب‌ها 👁<span>'+fa(ACCS.length)+' حساب</span></small><b>'+v(cash)+'</b></div>'
   +'<div class="hstat"><small>ارزش پورتفو<span>'+fa(HOLD.length)+' دارایی</span></small><b>'+v(port)+'</b></div>'
@@ -835,7 +835,7 @@ function renderAccs(){
     var ic=a.type==='card'?'💳':a.type==='acc'?'🏦':a.type==='cash'?'💵':'👛';
     return '<div class="acc '+cls+'"><div class="an">'+ic+' '+a.n+'</div>'
       +(a.num?'<div class="anum">'+a.num+'</div>':'')
-      +'<div class="ab">'+(HIDDEN?'••••':fmt(a.b))+' <small>تومان</small></div><div class="editabs"><button class="rowedit" data-ed="acc" data-u="'+a._u+'">✎ ویرایش</button></div></div>';
+      +'<div class="ab">'+(HIDDEN?'••••':fmt(a.b))+' <small>ریال</small></div><div class="editabs"><button class="rowedit" data-ed="acc" data-u="'+a._u+'">✎ ویرایش</button></div></div>';
   }).join('');
   document.getElementById('accGrid').innerHTML=html
    +'<div class="accadd" id="accAdd">＋ افزودن حساب / کارت</div>';
@@ -964,8 +964,8 @@ function renderNetTrend(cumNet){
   var up=last>=prevQ, col=last>=0?'var(--good)':'var(--bad)';
   var delta=last-prevQ;
   var pctReliable=Math.abs(prevQ)>range*0.05;
-  var deltaLabel=pctReliable?(fa(Math.abs(Math.round(delta/Math.abs(prevQ)*100)))+'٪'):(fmtC(Math.abs(delta))+' تومان');
-  document.getElementById('ntrendVal').innerHTML=fmtC(last)+' <small style="font-size:15px;color:var(--muted)">تومان</small>';
+  var deltaLabel=pctReliable?(fa(Math.abs(Math.round(delta/Math.abs(prevQ)*100)))+'٪'):(fmtC(Math.abs(delta))+' ریال');
+  document.getElementById('ntrendVal').innerHTML=fmtC(last)+' <small style="font-size:15px;color:var(--muted)">ریال</small>';
   document.getElementById('ntrendSub').innerHTML=(up?'▲':'▼')+' نسبت به ۳ ماه قبل <b style="color:'+(up?'var(--good)':'var(--bad)')+'">'+deltaLabel+'</b> '+(up?'رشد':'کاهش');
   document.getElementById('ntrendFrom').textContent=monthLabel(0);
   document.getElementById('ntrendTo').textContent=monthLabel(23);
@@ -996,28 +996,28 @@ function renderCatsIns(){
   var yInc=0;DATA.forEach(function(x){if(MONTHS[x.mi].y===1405&&x.k==='income'&&!x.ni)yInc+=x.a});
   document.getElementById('insights').innerHTML=
    '<div class="insrow"><span class="ic">📌</span><span>هزینه ماه جاری <b>'+(dif>=0?'<span class="dn">▲ '+fa(dif)+'٪</span> بیشتر':'<span class="up">▼ '+fa(-dif)+'٪</span> کمتر')+'</b> از میانگین ۳ ماه قبل</span></div>'
-  +'<div class="insrow"><span class="ic">🔥</span><span>بزرگ‌ترین هزینه ماه: <b>'+bigT+'</b> — '+fmtC(bigA)+' تومان</span></div>'
+  +'<div class="insrow"><span class="ic">🔥</span><span>بزرگ‌ترین هزینه ماه: <b>'+bigT+'</b> — '+fmtC(bigA)+' ریال</span></div>'
   +'<div class="insrow"><span class="ic">🔁</span><span>پرتکرارترین سرفصل: <b>'+(CATI[top]||'🔖')+' '+top+'</b> ('+fa(cnt[top]||0)+' بار)</span></div>'
-  +'<div class="insrow"><span class="ic">📅</span><span>میانگین هزینه روزانه: <b>'+fmtC(Math.round(monthExp(curMi)/30))+'</b> تومان</span></div>'
-  +'<div class="insrow"><span class="ic">🎉</span><span>دریافتی سال ۱۴۰۵ تا الان: <b>'+fmtC(yInc)+'</b> تومان</span></div>';
+  +'<div class="insrow"><span class="ic">📅</span><span>میانگین هزینه روزانه: <b>'+fmtC(Math.round(monthExp(curMi)/30))+'</b> ریال</span></div>'
+  +'<div class="insrow"><span class="ic">🎉</span><span>دریافتی سال ۱۴۰۵ تا الان: <b>'+fmtC(yInc)+'</b> ریال</span></div>';
 }
 
 /* ============ پورتفو ============ */
 function renderPort(){
   var tot=HOLD.reduce(function(s,h){return s+h.qty*h.price*curRate(h.cur)},0);
   var chg=HOLD.reduce(function(s,h){return s+h.qty*h.price*curRate(h.cur)*h.chg/100},0);
-  document.getElementById('pTotal').textContent=fmtC(tot)+' تومان';
+  document.getElementById('pTotal').textContent=fmtC(tot)+' ریال';
   document.getElementById('pChg').innerHTML='<span class="'+(chg>=0?'up':'dn')+'">'+(chg>=0?'▲ +':'▼ ')+fmtC(Math.abs(chg))+' امروز</span> <span style="color:var(--faint);font-size:13px">(دلار '+fa(USDT/1000)+' هزار)</span>';
   var byType={};HOLD.forEach(function(h){var v=h.qty*h.price*curRate(h.cur);byType[h.type]=(byType[h.type]||0)+v});
   var dm=HOLD.filter(function(h){return h.dollar});
   var dq=dm.reduce(function(s2,h){return s2+h.qty},0);
   var dEl=document.getElementById('pDollar');
-  if(dq>0){dEl.style.display='';dEl.innerHTML='💵 <b>'+fa(dq)+' دلار</b> = '+fmtC(dq*USDT)+' تومان <span style="color:var(--faint)">(نرخ '+fa(USDT)+')</span>'}
+  if(dq>0){dEl.style.display='';dEl.innerHTML='💵 <b>'+fa(dq)+' دلار</b> = '+fmtC(dq*USDT)+' ریال <span style="color:var(--faint)">(نرخ '+fa(USDT)+')</span>'}
   else dEl.style.display='none';
   var em=HOLD.filter(function(h){return h.euro});
   var eq=em.reduce(function(s2,h){return s2+h.qty},0);
   var eEl=document.getElementById('pEuro');
-  if(eq>0){eEl.style.display='';eEl.innerHTML='💶 <b>'+fa(eq)+' یورو</b> = '+fmtC(eq*EURT)+' تومان <span style="color:var(--faint)">(نرخ '+fa(EURT)+')</span>'}
+  if(eq>0){eEl.style.display='';eEl.innerHTML='💶 <b>'+fa(eq)+' یورو</b> = '+fmtC(eq*EURT)+' ریال <span style="color:var(--faint)">(نرخ '+fa(EURT)+')</span>'}
   else eEl.style.display='none';
   document.getElementById('alloc').innerHTML=Object.keys(byType).map(function(t){
     return '<i style="width:'+(byType[t]/tot*100)+'%;background:'+ACOLOR[t]+'"></i>'}).join('');
@@ -1028,7 +1028,7 @@ function renderPort(){
     var isFace=h.dollar||h.euro;
     var faceLabel=h.dollar?'دلار':'یورو';
     return '<div class="hrow"><span class="sym">'+h.sym+'<small>'+h.type+'</small></span>'
-     +'<span class="qty">'+(isFace?fa(h.qty)+' '+faceLabel:fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):h.cur==='€'?'€'+fmt(h.price):fmt(h.price)+' تومان'))+'</span>'
+     +'<span class="qty">'+(isFace?fa(h.qty)+' '+faceLabel:fa(h.qty)+' × '+(h.cur==='$'?'$'+fmt(h.price):h.cur==='€'?'€'+fmt(h.price):fmt(h.price)+' ریال'))+'</span>'
      +(isFace?'<span class="chg"></span>':'<span class="chg '+(h.chg>=0?'up':'dn')+'">'+(h.chg>=0?'▲ +':'▼ ')+fa(h.chg)+'٪</span>')
      +'<span class="val">'+fmtC(v)+'</span><button class="rowedit" data-ed="hold" data-u="'+h._u+'">✎</button></div>';
   }).join('');
@@ -1149,7 +1149,7 @@ function addDebtRow(kind){
   var nEl=document.getElementById('dbN'+suf);
   var n=(nEl&&nEl.value||'').trim();
   var curBtn=document.querySelector('#dbCur'+suf+' button.on');
-  var currency=(curBtn&&curBtn.getAttribute('data-c')==='USD')?'USD':'IRT';
+  var currency=(curBtn&&curBtn.getAttribute('data-c')==='USD')?'USD':'IRR';
   function parseAmt(raw){
     var s=faToEn(String(raw||'')).replace(/[^0-9.]/g,'');
     if(currency==='USD') return parseFloat(s)||0;
@@ -1196,7 +1196,7 @@ function bindDebtCurrency(){
       e.preventDefault(); e.stopPropagation();
       box.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});
       b.classList.add('on');
-      var cur=b.getAttribute('data-c')||'IRT';
+      var cur=b.getAttribute('data-c')||'IRR';
       box.setAttribute('data-cur', cur);
       var tot=document.getElementById('dbTot'+suf);
       var paid=document.getElementById('dbPaid'+suf);
@@ -1276,7 +1276,7 @@ document.getElementById('pkAdd').addEventListener('click',function(){
     PK.push({_u:UID++, id:x.d.id, mi:PKDATE.mi, d:PKDATE.d, bi:bi, co:co, loc:loc});
     renderPoker();
     var pr=co-bi;
-    toast((pr>=0?'برد! 🎉 +':'باخت −')+fmt(Math.abs(pr))+' تومان — ذخیره شد');
+    toast((pr>=0?'برد! 🎉 +':'باخت −')+fmt(Math.abs(pr))+' ریال — ذخیره شد');
     document.getElementById('pkBuy').value='';document.getElementById('pkOut').value='';
   }).catch(function(){btn.disabled=false;toast('خطای شبکه')});
 });
@@ -1432,7 +1432,7 @@ function openEdit(type,obj){
   function setsel(label,opts,val){selw.style.display='flex';document.getElementById('ef4l').textContent=label;
     sel.innerHTML=opts.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===val?' selected':'')+'>'+o[1]+'</option>'}).join('')}
   if(type==='tx'){document.getElementById('edTitle').textContent='ویرایش تراکنش';
-    setf('ef1','شرح',obj.t,true);setf('ef2','مبلغ (تومان)',obj.a,true);setf('ef3','',0,false);
+    setf('ef1','شرح',obj.t,true);setf('ef2','مبلغ (ریال)',obj.a,true);setf('ef3','',0,false);
     setsel('نوع',[['expense','هزینه'],['income','دریافت'],['transfer','↔️ انتقال بین حساب‌ها']],obj.kRaw||obj.k);
     if(obj.k==='income'){icw.style.display='flex';if(icb)icb.checked=!!obj.ni}
     var sel4=document.getElementById('ef4');
@@ -1443,7 +1443,7 @@ function openEdit(type,obj){
     var ti=document.getElementById('efTags'); if(ti) ti.value=(obj.tags&&obj.tags.length)?obj.tags.join('، '):'';
   }
   if(type==='acc'){document.getElementById('edTitle').textContent='ویرایش حساب';
-    setf('ef1','نام',obj.n,true);setf('ef2','مانده (تومان)',obj.b,true);setf('ef3','',0,false);
+    setf('ef1','نام',obj.n,true);setf('ef2','مانده (ریال)',obj.b,true);setf('ef3','',0,false);
     setsel('نوع',[['card','💳 کارت بانکی'],['acc','🏦 حساب'],['cash','💵 نقدی'],['wallet','👛 کیف پول']],obj.type)}
   if(type==='pk'){document.getElementById('edTitle').textContent='ویرایش سشن پوکر';
     setf('ef1','تاریخ','',true);
@@ -1453,17 +1453,17 @@ function openEdit(type,obj){
       openCal(self,function(p){var mi=(p.jy*12+p.jm-1)-(1403*12+6);
         if(mi<0||mi>23){toast('خارج از بازه‌ی نمونه');return}
         ED.pkDate={mi:mi,d:p.jd};self.value=fa(p.jd)+' '+MON[p.jm-1]})};
-    setf('ef2','خرید Buy-in (تومان)',obj.bi,true);setf('ef3','خروجی Cash-out (تومان)',obj.co,true);
+    setf('ef2','خرید Buy-in (ریال)',obj.bi,true);setf('ef3','خروجی Cash-out (ریال)',obj.co,true);
     setsel('محل',[['خانه دوستان','خانه دوستان'],['آنلاین','آنلاین']],obj.loc)}
-  if(type==='debt'){document.getElementById('edTitle').textContent=(debtKind(obj)==='receivable'?'ویرایش طلب':'ویرایش بدهی')+(debtCur(obj)==='USD'?' ($':' (تومان')+')';
-    setf('ef1','نام',obj.n,true);var _cu=debtCur(obj)==='USD'?'$':'تومان'; setf('ef2','کل مبلغ ('+_cu+')',obj.total,true);setf('ef3',(debtKind(obj)==='receivable'?'دریافت‌شده':'پرداخت‌شده')+' ('+_cu+')',obj.paid,true);
+  if(type==='debt'){document.getElementById('edTitle').textContent=(debtKind(obj)==='receivable'?'ویرایش طلب':'ویرایش بدهی')+(debtCur(obj)==='USD'?' ($':' (ریال')+')';
+    setf('ef1','نام',obj.n,true);var _cu=debtCur(obj)==='USD'?'$':'ریال'; setf('ef2','کل مبلغ ('+_cu+')',obj.total,true);setf('ef3',(debtKind(obj)==='receivable'?'دریافت‌شده':'پرداخت‌شده')+' ('+_cu+')',obj.paid,true);
     selw.style.display='none';
     var nw=document.getElementById('efNoteW'); if(nw) nw.style.display='block';
     var nl=document.getElementById('efNoteL'); if(nl) nl.textContent='توضیح';
     var ni=document.getElementById('efNote'); if(ni) ni.value=obj.note||'';
   }
   if(type==='hold'){document.getElementById('edTitle').textContent='ویرایش دارایی';
-    var _hcur=obj.cur==='$'?'دلار':obj.cur==='€'?'یورو':'تومان — نه ریال';
+    var _hcur=obj.cur==='$'?'دلار':obj.cur==='€'?'یورو':'ریال — نه ریال';
     setf('ef1','نماد',obj.sym,true);setf('ef2','تعداد',obj.qty,true);setf('ef3','قیمت هر واحد ('+_hcur+')',obj.price,true);
     selw.style.display='none'}
   edD.classList.add('open');ovl.classList.add('open');
@@ -1653,7 +1653,7 @@ ovl.addEventListener('click',function(){
 
   function render(res){
     var sum=res.summary||{}, keys=Object.keys(sum).sort(function(a,b){return sum[b].sum-sum[a].sum});
-    var head='<div class="rctot">'+fa(String(res.matched||0))+' تراکنش با جمع <b>'+fmt(res.sumAmount||0)+'</b> تومان دسته می‌گیرد'
+    var head='<div class="rctot">'+fa(String(res.matched||0))+' تراکنش با جمع <b>'+fmt(res.sumAmount||0)+'</b> ریال دسته می‌گیرد'
       +'<br><span style="color:var(--faint)">'+fa(String(res.scanned||0))+' تراکنش بررسی شد · '+fa(String(res.noMatch||0))+' مورد هیچ کلیدواژه‌ای نداشت و «متفرقه» می‌ماند'
       +((res.applied?'':' — این فقط پیش‌نمایش است، چیزی تغییر نکرد')+'')+'</span></div>';
     if(keys.length) head+='<div class="rcchips">'+keys.map(function(k){
@@ -1905,7 +1905,7 @@ document.getElementById('aSave').addEventListener('click',function(){
     symEl.disabled=isD;prEl.disabled=isD;
     symEl.style.opacity=isD?'.45':'';prEl.style.opacity=isD?'.45':'';
     symEl.placeholder=isD?'نماد لازم نیست':'نماد — BTC';
-    prEl.placeholder=isD?'قیمت لازم نیست':(isUsd?'قیمت هر واحد (دلار)':'قیمت هر واحد (تومان — نه ریال)');
+    prEl.placeholder=isD?'قیمت لازم نیست':(isUsd?'قیمت هر واحد (دلار)':'قیمت هر واحد (ریال — نه ریال)');
   }
   sel.addEventListener('change',sync);sync();
 })();
@@ -1930,7 +1930,7 @@ document.getElementById('hAdd').addEventListener('click',function(){
     btn.disabled=false;
     if(x.status===401){location.href='/design/login-page.html';return}
     if(!x.ok){toast((x.d&&x.d.error)||'ذخیره نشد');return}
-    HOLD.push({_u:UID++, id:x.d.id, dollar:tval==='dollar', euro:tval==='euro', sym:tval==='dollar'?'💵':tval==='euro'?'💶':sym, symbol:sym, assetType:tval, type:tname, qty:qty, price:price, cur:tval==='dollar'||tval==='crypto'||tval==='stock'?'$':tval==='euro'?'€':'تومان', chg:0});
+    HOLD.push({_u:UID++, id:x.d.id, dollar:tval==='dollar', euro:tval==='euro', sym:tval==='dollar'?'💵':tval==='euro'?'💶':sym, symbol:sym, assetType:tval, type:tname, qty:qty, price:price, cur:tval==='dollar'||tval==='crypto'||tval==='stock'?'$':tval==='euro'?'€':'ریال', chg:0});
     renderPort();renderHero();
     document.getElementById('hSym').value='';document.getElementById('hQty').value='';document.getElementById('hPrice').value='';
     toast(isD?(fa(qty)+' '+(tval==='dollar'?'دلار':'یورو')+' ذخیره شد ✓'):(sym+' ذخیره شد ✓'));
@@ -2028,7 +2028,7 @@ function loadFinanceFromApi(){
           .replace(/(?:پرداخت|دریافت)-شده\s*[0-9۰-۹.,]+/g,'')
           .replace(/ارز\s*USD/gi,'')
           .replace(/\s*·\s*/g,' · ').replace(/^\s*·\s*|\s*·\s*$/g,'').trim();
-        var cur=(d.currency==='USD'||/ارز\s*USD/i.test(note))?'USD':'IRT';
+        var cur=(d.currency==='USD'||/ارز\s*USD/i.test(note))?'USD':'IRR';
         DEBTS.push({
           _u:UID++, id:d.id, n:d.person||d.title||'—',
           total:total, paid:paid, inst:0, due:0,
@@ -2043,7 +2043,7 @@ function loadFinanceFromApi(){
       HOLD.length=0;
       res[3].d.items.forEach(function(h){
         var tmap={crypto:'کریپتو',stock:'سهام',gold:'طلا',dollar:'دلار',euro:'یورو',other:'سایر'};
-        var hcur=h.currency==='EUR'?'€':(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'تومان';
+        var hcur=h.currency==='EUR'?'€':(h.currency==='USD'||h.assetType==='crypto'||h.assetType==='stock')?'$':'ریال';
         HOLD.push({_u:UID++, dollar:h.assetType==='dollar', euro:h.assetType==='euro', sym:h.assetType==='dollar'?'💵':h.assetType==='euro'?'💶':h.symbol, symbol:h.symbol, assetType:h.assetType, type:tmap[h.assetType]||h.assetType||'کریپتو', qty:h.quantity||h.qty||0, price:h.currentPrice!=null?h.currentPrice:(h.price||h.avgCost||0), cur:hcur, chg:h.chg||0});
       });
     }
@@ -2109,7 +2109,7 @@ loadFinanceFromApi();
           if(!tot) st.innerHTML='هنوز سقف ماه تنظیم نشده.';
           else {
             var pct=Math.min(100, Math.round(spent/tot*100));
-            st.innerHTML='خرج‌شده: <b style="color:var(--acc)">'+fmtToman(spent)+'</b> از <b>'+fmtToman(tot)+'</b> تومان · <b>'+pct+'٪</b>';
+            st.innerHTML='خرج‌شده: <b style="color:var(--acc)">'+fmtToman(spent)+'</b> از <b>'+fmtToman(tot)+'</b> ریال · <b>'+pct+'٪</b>';
           }
         }
         var box=document.getElementById('budCatList');
