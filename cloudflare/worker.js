@@ -172,8 +172,15 @@ function betRollup(all,month){let items=[],prev=null,st={month:month||null,days:
     if(mSms||mSms2){amount=Number(String((mSms||mSms2)[1]).replace(/[،,٬\s]/g,""))} // خط خودِ بانک («… ریال از حساب شما پرید») بر سرصفحهٔ «مبلغ: … ریال» مقدم است
     else if(mAmt){amount=Number(String(mAmt[1]).replace(/[،,٬\s]/g,"").replace(/٫/g,"."));if(/تومان|تومن/.test(mAmt[2]))amount=Math.round(amount*10)}
     if(amount==null||!isFinite(amount)||amount<=0)return null;
-    if(/واریز|افزوده|اضافه|افزایش|دریافت|حقوق|سود|به حساب.*نشست/.test(t))kind="income";
+    // «واریز به: شماره‌حساب مقصد» در رسید انتقال، پولِ خروجی است؛ فقط وقتی صراحتاً
+    // به حساب خود کاربر نشسته باشد آن را درآمد می‌دانیم.
+    const outgoingTransfer=/(?:انتقال\s+از\s+(?:بانک|حساب)|واریز\s+به\s*[:：]?\s*(?:IR[-\s]?\d|شماره|حساب|کارت)|از\s+حساب\s+شما\s*(?:پرید|کسر|برداشت|خارج|کم))/i.test(t);
+    const incomingDeposit=/(?:به\s+حساب\s+شما\s*(?:واریز\s*شد|نشست|افزوده\s*شد|اضافه\s*شد|افزایش\s*یافت)|(?:دریافت|حقوق|سود|بستانکار|افزایش\s+موجودی))/i.test(t);
+    if(!outgoingTransfer&&incomingDeposit)kind="income";
+    const mRecipient=t.match(/(?:به\s*نام|نام\s*(?:صاحب\s*)?(?:حساب|کارت)|ذی[\s‌-]?نفع)\s*[:：]?\s*([^\n]+)/i);
+    const recipient=mRecipient?cleanTitle(mRecipient[1]):'';
     let title=mFor?cleanTitle(mFor[1]):null;
+    if(outgoingTransfer&&recipient&&recipient.length>=2)title='انتقال به '+recipient;
     if(!title||title.length<2){const mTr=t.match(/(?:انتقال پول|خرید|پرداخت|برداشت|واریز)[^\n]*/);title=mTr?cleanTitle(mTr[0].replace(/\d[\d.,،٬]*\s*(?:ریال|تومان|تومن)?/g,' ')):null}
     if(!title||title.length<2)title=kind==="income"?"واریز بانکی":"تراکنش بانکی";
     let date=base;
