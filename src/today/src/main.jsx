@@ -46,6 +46,19 @@ const nextDays = (date, count) => [...Array(count)].map((_, i) => new Date(date.
 
 function Card({ title, icon: Icon, action, className = '', children }) { return <section className={`card ${className}`}><header>{Icon && <span className="card-icon"><Icon size={16} strokeWidth={2.2} /></span>}<h2>{title}</h2>{action}</header>{children}</section>; }
 function TeamBadge({ logo, name }) { return logo ? <img className="team-logo" src={logo} alt="" loading="lazy" onError={e => { e.target.style.display = 'none'; }} /> : <span className="team-logo team-logo-fallback">{(name || '?').trim().charAt(0)}</span>; }
+function Sparkline({ data, up, width = 72, height = 28, uid = 'sp' }) {
+  if (!data || data.length < 2) return <svg width={width} height={height} />;
+  const max = Math.max(...data), min = Math.min(...data), span = max - min || 1;
+  const coords = data.map((v, i) => [(i / (data.length - 1)) * width, height - ((v - min) / span) * (height - 4) - 2]);
+  const line = coords.map(([x, y]) => `${x},${y}`).join(' ');
+  const area = `0,${height} ${line} ${width},${height}`;
+  const color = up ? '#34d399' : '#fb7185', gid = `fill-${uid}-${up ? 'u' : 'd'}`;
+  return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={up ? 'spark-up' : 'spark-down'} preserveAspectRatio="none">
+    <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.35" /><stop offset="100%" stopColor={color} stopOpacity="0" /></linearGradient></defs>
+    <polygon points={area} fill={`url(#${gid})`} />
+    <polyline points={line} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+  </svg>;
+}
 
 const NAV_PAGES = [
   ['', 'امروز', House], ['calendar', 'تقویم', CalendarDays], ['planner', 'برنامه‌ریز', ListChecks], ['finance', 'مالی', Wallet],
@@ -111,9 +124,9 @@ function App() {
       <form className="quick" onSubmit={submitQuick}><button type="submit" className="save">＋ ثبت</button><input value={quick.title} onChange={e => setQuick({ ...quick, title: e.target.value })} placeholder="برایت چه ثبت کنم؟" />{quick.type === 'transaction' && <input className="amount" value={quick.amount} onChange={e => setQuick({ ...quick, amount: e.target.value })} inputMode="numeric" placeholder="مبلغ ریال" />}<div className="quick-tabs">{[['task','کار',CheckSquare2],['reminder','یادآوری',Bell],['transaction','هزینه',Wallet]].map(([type, label, Icon]) => <button type="button" className={quick.type === type ? 'selected' : ''} onClick={() => setQuick({ ...quick, type })} key={type}><Icon size={14} />{label}</button>)}</div></form>
       {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
       <div className="grid top-grid">
-        <Card className="weather" icon={MapPin} title="تهران" action={<small>اکنون</small>}>{weather ? <><div className="weather-now"><span className="weather-icon-badge">{weatherIcon(weather.current.weather_code)}</span><strong>{fa(Math.round(weather.current.temperature_2m))}<em>°C</em></strong><b>هوای امروز</b></div><div className="weather-stats"><span>باد {fa(weather.current.wind_speed_10m)} km/h</span><span>پیش‌بینی Open-Meteo</span></div><div className="forecast">{weather.daily.time.slice(0, 5).map((day, index) => <div key={day}><small>{index === 0 ? 'اکنون' : new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(new Date(`${day}T12:00`))}</small><b className="weather-icon-badge small">{weatherIcon(weather.daily.weather_code[index])}</b><strong>{fa(Math.round(weather.daily.temperature_2m_max[index]))}°</strong></div>)}</div></> : <p>در حال دریافت وضعیت هوا…</p>}</Card>
+        <Card className="weather" icon={MapPin} title="تهران" action={<small>اکنون</small>}><img className="hero-bg-img" src="/assets/img/weather-aurora.jpg" alt="" /><div className="hero-bg-fade" /><div className="stars" />{weather ? <><div className="weather-now"><span className="weather-icon-badge">{weatherIcon(weather.current.weather_code)}</span><strong>{fa(Math.round(weather.current.temperature_2m))}<em>°C</em></strong><b>هوای امروز</b></div><div className="weather-stats"><span>باد {fa(weather.current.wind_speed_10m)} km/h</span><span>پیش‌بینی Open-Meteo</span></div><div className="forecast">{weather.daily.time.slice(0, 5).map((day, index) => <div key={day}><small>{index === 0 ? 'اکنون' : new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(new Date(`${day}T12:00`))}</small><b className="weather-icon-badge small">{weatherIcon(weather.daily.weather_code[index])}</b><strong>{fa(Math.round(weather.daily.temperature_2m_max[index]))}°</strong></div>)}</div></> : <p>در حال دریافت وضعیت هوا…</p>}</Card>
         <Calendar />
-        <Card className="day-card" title={new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(new Date())}><div className="date-number">{new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(new Date())}</div><h3>{jalali(new Date())}</h3><small>{new Intl.DateTimeFormat('en-GB', { dateStyle: 'long' }).format(new Date())}</small><div className="occasion">▣ رویدادی برای امروز ثبت نشده</div></Card>
+        <Card className="day-card" title={new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(new Date())}><img className="hero-bg-img" src="/assets/img/mountains-dusk.jpg" alt="" /><div className="hero-bg-fade" /><div className="date-number">{new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(new Date())}</div><h3>{jalali(new Date())}</h3><small>{new Intl.DateTimeFormat('en-GB', { dateStyle: 'long' }).format(new Date())}</small><div className="occasion">▣ رویدادی برای امروز ثبت نشده</div></Card>
       </div>
       <div className="grid content-grid">
         <Card className="tasks" icon={CheckSquare2} title="کارهای امروز" action={<span className="muted">{fa(done)} از {fa(tasks.length)} انجام شده</span>}><div className="progress"><i style={{ width: `${tasks.length ? done / tasks.length * 100 : 0}%` }} /></div><button className="outline" onClick={() => setQuick({ ...quick, type: 'task' })}>＋ افزودن کار</button><div className="list">{tasks.slice(0, 6).map(task => <button className={`line ${task.done ? 'done' : ''}`} key={task.id} onClick={() => toggleTask(task)}><i>{task.done ? '✓' : ''}</i><span>{task.title}</span><small>{task.startTime || task.date === today ? 'امروز' : task.date}</small></button>)}{!tasks.length && <p className="empty">کارت را با نخستین کار امروزت شروع کن.</p>}</div></Card>
@@ -121,7 +134,7 @@ function App() {
         <Football />
         <Card title="یادآوری‌ها" icon={Bell} className="reminders"><div className="list">{data.reminders.slice(0, 5).map(item => <button className={`line ${item.done ? 'done' : ''}`} key={item.id} onClick={() => toggleReminder(item)}><i>{item.done ? '✓' : '•'}</i><span>{item.title}</span><small>{item.time || 'امروز'}</small></button>)}{!data.reminders.length && <p className="empty">یادآوری‌ای برای امروز نداری.</p>}</div></Card>
         <Card title="ثبت روزانه" icon={StickyNote} className="daily"><form onSubmit={saveDaily}><label>امروزت چطور بود؟ <input name="mood" type="range" min="1" max="10" defaultValue={data.daily?.mood || 7} /></label><div className="form-row"><input name="sleep" defaultValue={data.daily?.sleep || ''} placeholder="خواب (ساعت)" /><input name="note" defaultValue={data.daily?.note || ''} placeholder="یک جمله از امروز" /></div><button className="save">ذخیرهٔ روز</button></form></Card>
-        <Card title="سریال‌های من" icon={Clapperboard} className="series" action={<a href="/?page=series">ادامه تماشا ←</a>}>{data.watchingSeries?.length ? <div className="series-list">{data.watchingSeries.slice(0, 6).map(item => <div className="series-item" key={item.id}>{item.posterUrl ? <img src={item.posterUrl} alt={item.title} loading="lazy" /> : <span className="series-fallback">🎬</span>}<b>{item.title}</b><small>{item.currentSeason ? `فصل ${fa(item.currentSeason)} · ` : ''}قسمت {fa(item.currentEpisode || 0)}</small></div>)}</div> : <p className="empty">سریالی در حال تماشا نیست.</p>}</Card>
+        <Card title="سریال‌های من" icon={Clapperboard} className="series" action={<a href="/?page=series">ادامه تماشا ←</a>}>{data.watchingSeries?.length ? <div className="series-list">{data.watchingSeries.slice(0, 6).map(item => { const denom = item.airedInSeason || item.totalEpisodes || 0, progress = denom ? Math.min(100, Math.round((item.currentEpisode || 0) / denom * 100)) : 0; return <div className="series-item" key={item.id}><div className="series-poster">{item.posterUrl ? <img src={item.posterUrl} alt={item.title} loading="lazy" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'grid'; }} /> : null}<span className="series-fallback" style={{ display: item.posterUrl ? 'none' : 'grid' }}>🎬</span>{progress > 0 && <div className="series-progress"><i style={{ width: `${progress}%` }} /></div>}</div><b>{item.title}</b><small>{item.currentSeason ? `فصل ${fa(item.currentSeason)} · ` : ''}قسمت {fa(item.currentEpisode || 0)}</small></div>; })}</div> : <p className="empty">سریالی در حال تماشا نیست.</p>}</Card>
       </div>
     </div>
   </main>;
@@ -288,9 +301,16 @@ function SettingsReact() {
 }
 
 function Market() {
-  const [rows, setRows] = useState([]), [notice, setNotice] = useState('');
-  useEffect(() => { api('/api/tgju').then(data => setRows(tgjuRows(data).slice(0, 5))).catch(error => setNotice(error.message)); }, []);
-  return <Card className="market" icon={LineChart} title="بازارها" action={<a href="/?page=market">همه بازارها ←</a>}>{rows.length ? rows.map(item => <div className="market-row" key={item.key}><span className="market-icon">{marketIcon(item.key)}</span><span>{item.name}</span><b>{fa(item.p)}</b><small className={item.change.includes('▼') ? 'negative' : ''}>{item.change || '—'}</small></div>) : <p className="empty">{notice || 'در حال دریافت بازار…'}</p>}</Card>;
+  const [rows, setRows] = useState([]), [hist, setHist] = useState({}), [notice, setNotice] = useState('');
+  useEffect(() => {
+    api('/api/tgju').then(data => {
+      const top = tgjuRows(data).slice(0, 5);
+      setRows(top);
+      Promise.all(top.map(item => api(`/api/tgju/history?key=${encodeURIComponent(item.key)}&days=30`).then(d => [item.key, (d.items || []).map(x => x.price)]).catch(() => [item.key, null])))
+        .then(pairs => setHist(Object.fromEntries(pairs)));
+    }).catch(error => setNotice(error.message));
+  }, []);
+  return <Card className="market" icon={LineChart} title="بازارها" action={<a href="/?page=market">همه بازارها ←</a>}>{rows.length ? rows.map(item => { const up = !item.change.includes('▼'); return <div className="market-row" key={item.key}><span className="market-icon">{marketIcon(item.key)}</span><span>{item.name}</span>{hist[item.key]?.length > 1 && <Sparkline data={hist[item.key]} up={up} uid={item.key} />}<b>{fa(item.p)}</b><small className={item.change.includes('▼') ? 'negative' : ''}>{item.change || '—'}</small></div>; }) : <p className="empty">{notice || 'در حال دریافت بازار…'}</p>}</Card>;
 }
 function Football() {
   const [matches, setMatches] = useState([]), [notice, setNotice] = useState('');
