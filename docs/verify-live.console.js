@@ -25,10 +25,18 @@
  *
  * چه چیزی را عوض می‌کند؟ چک ۲ سرفصل یک تراکنش را لحظه‌ای عوض و **فوراً برمی‌گرداند**
  * (اگر برگشت شکست بخورد، id و سرفصل اصلی چاپ می‌شود تا دستی برگردانی). چک‌های
- * ۳ و ۴ هیچ تغییری روی داده نمی‌دهند (پیش‌نمایش، بدون apply). چک ۵ فقط یک فایل
- * استاتیک می‌خواند و هیچ درخواست تغییری نمی‌زند.
+ * ۳ و ۴ هیچ تغییری روی داده نمی‌دهند (پیش‌نمایش، بدون apply). چک ۵ فقط دو فایل
+ * استاتیک می‌خواند (شِل index.html و باندل React که به آن اشاره می‌کند) و هیچ
+ * درخواست تغییری نمی‌زند.
  *
  * انتظار: پنج خط ✅ (و طبیعتاً اگر ورکر نسخهٔ قدیمی باشد، ❌ روی چک ۳ و ۴).
+ * نکتهٔ تازه (۲۴ شهریور): کلادفلر assetهای استاتیک را «آدرس تمیز» می‌دهد —
+ *   `/x.html` با ۳۰۷ به `/x` ریدایرکت می‌شود. چک ۱ به همین دلیل دیگر
+ *   «redirected بودن» را خطا نمی‌شمارد و پاسخ **نهایی** را با نشانه‌های خودِ صفحه
+ *   (`id="qIn"` و «ثبت سریع») می‌سنجد؛ قرمز شدنش همچنان یعنی یا دروازهٔ لاگین
+ *   وسط است (سشن نیست) یا asset روی دیپلوی نیست. قبل از این اصلاح، همین چک روی
+ *   دیپلویِ سالم قرمز می‌شد.
+ *
  * ==========================================================================*/
 (async () => {
   'use strict';
@@ -81,17 +89,28 @@
   }
 
   // ۱) صفحهٔ New Tab واقعاً روی دیپلوی است (و از دروازهٔ لاگین رد نمی‌شود)
+  //    توجه: assetهای استاتیک کلادفلر «آدرس تمیز» دارند — درخواست `/newtab.html`
+  //    با ۳۰۷ به `/newtab` ریدایرکت می‌شود (html_handling پیش‌فرض). پس
+  //    «ریدایرکت‌شده بودن» به خودش خطا نیست؛ معیار، فایلی است که **در انتها** سرو
+  //    شده. دروازهٔ لاگین (ورکر بدون سشن → ۳۰۲ به /design/login-page.html) همچنان
+  //    قرمز می‌شود، چون آن صفحه نشانه‌های `qIn`/«ثبت سریع» را ندارد.
   const nt = await req('/newtab.html');
-  const isNewtab = nt.st === 200 && !nt.redirected && /id="qIn"/.test(nt.raw) && /ثبت سریع/.test(nt.raw);
-  const hitGate = nt.redirected || /login-page\.html/.test(nt.url || '');
+  const ntPath = (() => { try { return new URL(nt.url, B).pathname; } catch (e) { return String(nt.url || ''); } })();
+  // دروازهٔ لاگین یعنی «آدرس نهایی، فایلِ صفحهٔ ورود است». دقت کن که خودِ
+  // newtab.html هم یک لینک به /design/login-page.html دارد («ورود به هِسته»)،
+  // پس نشانهٔ صفحهٔ ورود آدرسِ نهایی یا `id="fEmail"` است — نه هر ارجاعی به
+  // login-page داخل متن صفحه.
+  const atLoginGate = /login-page/.test(ntPath) || /id="fEmail"/.test(nt.raw || '');
+  const isNewtab = nt.st === 200 && !atLoginGate && /id="qIn"/.test(nt.raw) && /ثبت سریع/.test(nt.raw);
+  const assetRewrite = nt.redirected && (ntPath === '/newtab' || ntPath === '');
   out(
     isNewtab,
     'چک ۱ — باز شدن /newtab.html',
     isNewtab
-      ? 'نسخهٔ New Tab روی دیپلوی است (' + kb(nt.raw) + ')'
-      : hitGate
-        ? 'به صفحهٔ ورود ریدایرکت شد — یا سشن در این تب نیست، یا این asset آپلود نشده'
-        : code(nt) + (nt.st === 404 ? ' — asset روی دیپلوی نیست' : '')
+      ? 'نسخهٔ New Tab روی دیپلوی است (' + kb(nt.raw) + (assetRewrite ? ' · ریدایرکت خودکار asset: /newtab.html → /newtab' : '') + ')'
+      : atLoginGate
+        ? 'به صفحهٔ ورود ریدایرکت شد — یا سشن در این تب نیست، یا دروازهٔ لاگین فعال است'
+        : code(nt) + (nt.st === 404 ? ' — asset روی دیپلوی نیست' : '') + (nt.st === 200 ? ' — پاسخ ۲۰۰ است ولی نشانه‌های خودِ صفحهٔ New Tab در آن نیست' : '')
   );
 
   // یک تراکنش برای چک‌های ۲ و ۳ (لیست پیش‌فرض فقط ماه جاری است؛ بازهٔ باز می‌پرسیم)
@@ -151,16 +170,28 @@
       : code(rc) + (is500(rc) ? hint500 : (rc.d && rc.d.error ? ' · ' + rc.d.error : ''))
   );
 
-  // ۵) asset رابط کاربری: سوییچ «این دریافت درآمد نیست» واقعاً روی دیپلوی هست؟
-  //    (اگر این تازه اضافه شده و هنوز دیپلوی نشده، فقط همین چک قرمز می‌شود — نه بقیه)
-  const fp = await req('/design/finance-page.html');
-  const hasSwitch = fp.st === 200 && /id="efIncOff"/.test(fp.raw) && /notIncome:ni/.test(fp.raw);
+  // ۵) اپ React روی دیپلوی: از مهاجرت React به بعد، صفحهٔ مالی (و بقیهٔ صفحه‌ها) داخل
+  //    باندل Vite هستند و /design/finance-page.html فقط یک ریدایرکت به /?page=finance است.
+  //    خرابی کلاسیک دیپلوی این‌جاست: index.html تازه آپلود شده ولی باندل هش‌داری که به آن
+  //    اشاره می‌کند روی دیپلوی نیست (صفحهٔ سفید). پس: شِل را می‌خوانیم، آدرس باندل را از
+  //    خودش درمی‌آوریم، همان باندل را می‌گیریم و نشانهٔ صفحهٔ مالی React را در آن می‌سنجیم.
+  const shell = await req('/');
+  const bundleM = (shell.raw || '').match(/<script[^>]+type="module"[^>]+src="(\/assets\/index-[^"]+\.js)"/);
+  const bundlePath = bundleM ? bundleM[1] : null;
+  const bundle = bundlePath ? await req(bundlePath) : { st: 0, raw: '', err: 'index.html به هیچ باندل /assets/index-*.js اشاره نمی‌کند' };
+  const hasFinanceReact = shell.st === 200 && !!bundlePath && bundle.st === 200 && /finance-react/.test(bundle.raw || '');
   out(
-    hasSwitch,
-    'چک ۵ — رابط «این دریافت درآمد نیست» روی دیپلوی',
-    hasSwitch
-      ? 'صفحهٔ مالی نسخهٔ جدید را دارد (سوییچ در فرم ویرایش تراکنش)'
-      : code(fp) + ' — این asset با قابلیت تازه روی دیپلوی نیست؛ بعد از `wrangler deploy` دوباره بزن'
+    hasFinanceReact,
+    'چک ۵ — اپ React (باندل index.html) روی دیپلوی',
+    hasFinanceReact
+      ? 'شِل و باندل با هم می‌خوانند: ' + bundlePath + ' (' + kb(bundle.raw) + ') · صفحهٔ مالی React داخلش هست'
+      : shell.st !== 200
+        ? 'index.html: ' + code(shell)
+        : !bundlePath
+          ? 'index.html ۲۰۰ است ولی تگ <script type="module" src="/assets/index-*.js"> ندارد — شِل قدیمی روی دیپلوی است'
+          : bundle.st !== 200
+            ? 'باندل ' + bundlePath + ': ' + code(bundle) + ' — index.html به باندلی اشاره می‌کند که روی دیپلوی نیست (صفحهٔ سفید)؛ `public/assets` را با همان بیلد دیپلوی کن'
+            : 'باندل ' + bundlePath + ' ۲۰۰ است ولی نشانهٔ صفحهٔ مالی React (finance-react) در آن نیست — بیلد قدیمی است'
   );
 
   const failed = rows.filter((r) => r.startsWith('❌')).length;

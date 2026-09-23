@@ -1225,6 +1225,25 @@ async function main() {
       const dep = await txt({ text: 'بت ۵۰ دلار واریز کردم' });
       const rows3 = ((await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth5 }).then(r => r.json())).items) || [];
       check('a deposit phrase stays an Inbox note (no bet day, no transaction)', !(dep.actions || []).some(x => x.type === 'betDay') && rows3.length === 0, JSON.stringify(dep.actions));
+
+      // دو ردیف با یک تاریخ (مثلاً بعد از ویرایش تاریخ یک روز، یا دادهٔ ایمپورت‌شده): ترتیب زنجیرهٔ
+      // «مبلغی که داشتم» باید قطعی باشد — با createdAt، نه با ترتیب تصادفی ذخیره‌شدن در آرایه.
+      // این‌جا عمداً ردیف جدیدتر را جلوتر در آرایه می‌نویسیم تا فقط createdAt بتواند ترتیب درست را بدهد.
+      {
+        const dbTie = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+        const betUser = dbTie.users.find(x => x.email === email5);
+        dbTie.betDays.push(
+          { id: 'bet-tie-newer', userId: betUser.id, date: '2026-09-20', deposit: 0, withdraw: 0, balance: 250, note: '', createdAt: 2000 },
+          { id: 'bet-tie-older', userId: betUser.id, date: '2026-09-20', deposit: 0, withdraw: 0, balance: 200, note: '', createdAt: 1000 },
+        );
+        fs.writeFileSync(DB_PATH, JSON.stringify(dbTie, null, 2));
+        const tied = ((await betOf()).items || []).filter(x => x.date === '2026-09-20');
+        check('two rows on the same date are chained by createdAt (older first), not by storage order',
+          tied.length === 2 && tied[0].id === 'bet-tie-older' && tied[1].id === 'bet-tie-newer'
+            && tied[0].start === 160 && tied[0].result === 40 && tied[1].start === 200 && tied[1].result === 50,
+          JSON.stringify(tied));
+        for (const tid of ['bet-tie-newer', 'bet-tie-older']) await fetch(`${BASE}/api/bet/${tid}`, { method: 'DELETE', headers: auth5 });
+      }
     }
 
     /* [48] پورتفو: «دلار» بدون نماد و بدون قیمت — فقط مقدار.
@@ -1358,6 +1377,23 @@ async function main() {
       check('disconnect keeps the Google calendar/events but stops remote reads', googleFixture.state.events.size === beforeDisconnect49 && feedDisconnected49.connected === false && feedDisconnected49.items.every(x => x.source === 'lifeos'), JSON.stringify({ remote: googleFixture.state.events.size, feed: feedDisconnected49.items }));
     }
 
+    console.log('\n[52] the live-verify script survives Cloudflare\'s extensionless asset URLs');
+    {
+      const vf = fs.readFileSync(path.join(ROOT, 'docs/verify-live.console.js'), 'utf8');
+      const va = vf.indexOf("const nt = await req('/newtab.html');");
+      const vb = vf.indexOf("const list = await req('/api/transactions");
+      if (va < 0 || vb < 0 || vb <= va) throw new Error('check 1 block not found in docs/verify-live.console.js');
+      const c1 = vf.slice(va, vb);
+      check('check 1 does not treat a followed redirect as a failure (CF answers /x.html with a 307 to /x)',
+        !/!nt\.redirected/.test(c1) && /nt\.st === 200/.test(c1), 'verify-live.console.js');
+      check('check 1 judges the FINAL url, so an asset rewrite and a login bounce stay distinguishable',
+        /new URL\(nt\.url/.test(c1) && /ntPath/.test(c1), 'verify-live.console.js');
+      check('the login gate is recognised by the login page itself, not by any mention of it in the body',
+        /id="fEmail"/.test(c1) && /atLoginGate/.test(c1), 'verify-live.console.js');
+      const hs = fs.readFileSync(path.join(ROOT, 'test/verify-script-smoke.js'), 'utf8');
+      check('the tolerance is exercised, not just asserted: the harness serves a 307 rewrite and a no-asset deploy',
+        /makeEnv\('cf'\)/.test(hs) && /makeEnv\('none'\)/.test(hs) && /status: 307/.test(hs), 'verify-script-smoke.js');
+    }
   } finally {
     child.kill();
     googleFixture.server.close();

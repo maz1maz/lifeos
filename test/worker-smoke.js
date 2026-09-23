@@ -253,7 +253,7 @@ async function main() {
   // [W9] ریال/تومان روی خودِ آرتیفکت دیپلوی‌شده. stripBalanceNotes/stripRefNumbers تازه‌اند:
   // اگر از فهرست exportها جا بیفتند، مسیر پیامک بانکی روی Cloudflare می‌شکند در حالی که
   // `node server.js` سالم است — همان کلاس باگی که این فایل برایش نوشته شده.
-  console.log('\n[W9] rial/toman + balance guard on the deployed artifact');
+  console.log('\n[W9] rial-native amounts (تومان ×10, ریال as typed) + balance guard on the deployed artifact');
   const w9ids = async () => new Set((((await call(`/api/transactions?from=${today()}&to=${today()}`, { cookie })).d.items) || []).map(x => x.id));
   const w9parse = async (text) => {
     const before = await w9ids();
@@ -262,18 +262,18 @@ async function main() {
     return { status: res.status, actions: (res.d && res.d.actions) || [], created: items.filter(x => !before.has(x.id)) };
   };
   const w9sms = await w9parse('۲۴بلو انتقال پل حمیدرضا عزیز 15,000,000 ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23');
-  check('worker: reported SMS parses to 1,500,000 تومان', w9sms.status === 200 && w9sms.actions.length === 1 && w9sms.actions[0].amount === 1_500_000, JSON.stringify(w9sms.actions));
-  check('worker: stored row has the converted amount, never the balance', w9sms.created.length === 1 && w9sms.created[0].amount === 1_500_000);
+  check('worker: reported SMS keeps 15,000,000 ریال as 15,000,000 rial (no divide)', w9sms.status === 200 && w9sms.actions.length === 1 && w9sms.actions[0].amount === 15_000_000, JSON.stringify(w9sms.actions));
+  check('worker: stored row carries the rial amount, never the balance', w9sms.created.length === 1 && w9sms.created[0].amount === 15_000_000);
   const w9bal = await w9parse('موجودی: 3,879,270,699 ریال');
   check('worker: balance-only text creates nothing (stripBalanceNotes must be exported)', w9bal.status === 200 && w9bal.actions.length === 0 && w9bal.created.length === 0);
   const w9ref = await w9parse('شناسه پرداخت ۱۲۳۴۵۶۷۸۹۰');
   check('worker: reference-number-only text creates nothing (stripRefNumbers must be exported)', w9ref.status === 200 && w9ref.actions.length === 0 && w9ref.created.length === 0);
   const w9composite = await w9parse('مبلغ: ۱۵٬۰۰۰٬۰۰۰ تومان\nبابت: نظافت منزل\nتاریخ: Sep 14, 2026 at 23:29\n\nبلو\nانتقال پل\nحمیدرضا عزیز، 15,000,000 ریال از حساب شما پرید.\nموجودی: 3,879,270,699 ریال');
-  check('worker: user\'s real combined message -> 1,500,000 تومان, title=نظافت منزل', w9composite.actions.length === 1 && w9composite.actions[0].amount === 1_500_000 && w9composite.actions[0].title === 'نظافت منزل', JSON.stringify(w9composite.actions));
+  check('worker: user\'s real combined message -> 15,000,000 rial (the bank line wins), title=نظافت منزل', w9composite.actions.length === 1 && w9composite.actions[0].amount === 15_000_000 && w9composite.actions[0].title === 'نظافت منزل', JSON.stringify(w9composite.actions));
   const w9before = await w9parse('ریال ۱۵,۰۰۰,۰۰۰ انتقال به حمیدرضا');
-  check('worker: «ریال» written before the number also divides by 10', w9before.actions.length === 1 && w9before.actions[0].amount === 1_500_000);
+  check('worker: «ریال» written before the number is also kept as rial', w9before.actions.length === 1 && w9before.actions[0].amount === 15_000_000);
   const w9toman = await w9parse('خرید ۱۵,۰۰۰,۰۰۰ تومان');
-  check('worker: تومان amounts are unchanged (no divide by 10)', w9toman.actions.length === 1 && w9toman.actions[0].amount === 15_000_000);
+  check('worker: تومان amounts are converted to rial (×10)', w9toman.actions.length === 1 && w9toman.actions[0].amount === 150_000_000);
 
   // [W10] یادآوری سرِ ماه + مطابقت صورتحساب روی خودِ آرتیفکت دیپلوی‌شده.
   // matchBankStatementItems / ensureStatementReminder / jalaliMonthLabel توابع تازه‌اند:
@@ -299,11 +299,11 @@ async function main() {
     const w10mid = await w10check('2026-09-10');
     check('worker: mid-month check does nothing', w10mid.created === 0 && w10mid.checked === false, JSON.stringify(w10mid));
 
-    const w10manual = (await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'نظافت منزل', amount: 150_000, kind: 'expense', account: 'بدون حساب', date: '2026-09-14' } })).d;
-    check('worker: manual row recorded for the reconciliation test', !!w10manual && w10manual.amount === 150_000);
+    const w10manual = (await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'نظافت منزل', amount: 1_500_000, kind: 'expense', account: 'بدون حساب', date: '2026-09-14' } })).d;
+    check('worker: manual row recorded for the reconciliation test (rial, same scale as the file)', !!w10manual && w10manual.amount === 1_500_000);
     const w10p1 = await w10preview(w10csv);
     check('worker: preview skips the already-entered row (1 already / 2 new)', w10p1.newCount === 2 && w10p1.alreadyCount === 1, JSON.stringify({ n: w10p1.newCount, a: w10p1.alreadyCount, d: w10p1.duplicateCount }));
-    check('worker: فایل ریالی درست تقسیم بر ۱۰ می‌شود (1,500,000 ریال = 150,000 تومان)', (w10p1.items || [])[0]?.amount === 150_000, JSON.stringify((w10p1.items || []).map(x => [x.title, x.amount])));
+    check('worker: فایل ریالی بدون تبدیل می‌ماند (1,500,000 ریال = 1,500,000 rial)', (w10p1.items || [])[0]?.amount === 1_500_000, JSON.stringify((w10p1.items || []).map(x => [x.title, x.amount])));
     const w10c1 = (await call('/api/transactions/import-bank/commit', { method: 'POST', cookie: c10, body: { items: w10p1.items, account: 'بدون حساب' } })).d;
     check('worker: commit imports only the missing rows', w10c1.imported === 2 && w10c1.skippedExisting === 1, JSON.stringify(w10c1));
     const w10rows = ((await call(`/api/transactions?from=2026-01-01&to=2026-12-31`, { cookie: c10 })).d.items || []);
@@ -311,7 +311,7 @@ async function main() {
     const w10p2 = await w10preview(w10csv);
     const w10c2 = (await call('/api/transactions/import-bank/commit', { method: 'POST', cookie: c10, body: { items: w10p2.items, account: 'بدون حساب' } })).d;
     check('worker: re-uploading the same statement adds nothing', w10p2.newCount === 0 && w10c2.imported === 0 && w10c2.skippedExisting === 3, JSON.stringify({ p: w10p2.newCount, c: w10c2 }));
-    await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'تاکسی', amount: 70_000, kind: 'expense', account: 'بدون حساب', date: '2026-09-13' } });
+    await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'تاکسی', amount: 700_000, kind: 'expense', account: 'بدون حساب', date: '2026-09-13' } });
     const w10near = await w10preview('تاریخ,شرح,واریز,برداشت,شماره سند\n1405/06/21,تاکسی,0,"700,000",7777');
     check('worker: a row one day off an existing row is flagged near-duplicate, not dropped', w10near.nearDuplicateCount === 1 && (w10near.items || [])[0]?.nearDuplicate === true && w10near.newCount === 1, JSON.stringify(w10near));
   }
@@ -421,6 +421,83 @@ async function main() {
     check('worker: manual sync requires a connected account', wy.status === 400 && /وصل/.test(wy.d.error || ''), JSON.stringify(wy.d));
   }
 
+  console.log('\n[W16] the login gate vs Cloudflare\'s extensionless asset URLs');
+  {
+    // Cloudflare serves static assets with "clean" URLs: `/x.html` answers 307 →
+    // `/x` and `/x` is what actually gets served. That means one page view reaches
+    // the Worker gate TWICE, and the second time the path has no extension — so the
+    // gate must treat both forms of the login page as public, or an anonymous
+    // visitor spins in a redirect loop (and the console script's check 1 used to
+    // call the healthy rewrite a failure, which is what this section pins).
+    const fileFor = (q) => path.join(ROOT, 'public', q === '/' ? 'index.html' : q.replace(/^\//, ''));
+    const readIfFile = (f) => (fs.existsSync(f) && fs.statSync(f).isFile() ? fs.readFileSync(f) : null);
+    const htmlRes = (buf) => new Response(buf, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+    const cfAssets = {
+      fetch: async (req) => {
+        const p = new URL(req.url).pathname;
+        if (p.endsWith('.html')) {
+          const clean = p === '/index.html' ? '/' : p.slice(0, -'.html'.length);
+          const target = clean === '/' ? fileFor('/') : fileFor(clean) + '.html';
+          if (readIfFile(target) !== null) return new Response(null, { status: 307, headers: { location: clean } });
+        }
+        const own = readIfFile(fileFor(p));
+        if (own !== null) return htmlRes(own);
+        const viaClean = path.extname(p) ? null : readIfFile(fileFor(p) + '.html');
+        return viaClean === null ? new Response('not found', { status: 404 }) : htmlRes(viaClean);
+      },
+    };
+    const w16env = Object.assign({}, env, { ASSETS: cfAssets });
+    async function w16hop(w, p, cookie) {
+      const headers = {};
+      if (cookie) headers.cookie = cookie;
+      let url = 'https://worker-smoke.local' + p;
+      let res = await w.fetch(new Request(url, { headers }), w16env, {});
+      const chain = [p];
+      for (let i = 0; i < 6 && res.status >= 300 && res.status < 400; i++) {
+        const loc = res.headers.get('location');
+        if (!loc) break;
+        url = new URL(loc, url).toString();
+        chain.push(new URL(url).pathname);
+        res = await w.fetch(new Request(url, { headers }), w16env, {});
+      }
+      const text = await res.text();
+      return { status: res.status, chain, text, looping: res.status >= 300 && res.status < 400 };
+    }
+    const w16anon = await w16hop(worker, '/newtab.html', null);
+    check('worker: an anonymous /newtab.html lands on the login page through the rewrite (no loop)',
+      !w16anon.looping && w16anon.status === 200 && /id="fEmail"/.test(w16anon.text)
+        && w16anon.chain.join(' ') === '/newtab.html /design/login-page.html /design/login-page',
+      JSON.stringify({ chain: w16anon.chain, status: w16anon.status }));
+    const w16login = await w16hop(worker, '/design/login-page', null);
+    check('worker: the extensionless login URL is public too, so the rewrite has nowhere to loop',
+      !w16login.looping && w16login.status === 200 && /id="fEmail"/.test(w16login.text),
+      JSON.stringify({ chain: w16login.chain, status: w16login.status }));
+    const w16email = `wsmoke_gate_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W16', email: w16email, password: 'secret123' } });
+    const w16lg = await call('/api/auth/login', { method: 'POST', body: { email: w16email, password: 'secret123' } });
+    const c16 = String((typeof w16lg.headers.getSetCookie === 'function' ? w16lg.headers.getSetCookie()[0] : w16lg.headers.get('set-cookie')) || '').split(';')[0];
+    const w16auth = await w16hop(worker, '/newtab.html', c16);
+    check('worker: with a session the rewrite is harmless and the real newtab is served',
+      !w16auth.looping && w16auth.status === 200 && /id="qIn"/.test(w16auth.text)
+        && w16auth.chain.join(' ') === '/newtab.html /newtab',
+      JSON.stringify({ chain: w16auth.chain, status: w16auth.status }));
+    const w16gateLine = "const isPublic = /^\\/design\\/login-page(\\.html)?$/.test(url.pathname)";
+    if (!workerSrc.includes(w16gateLine)) throw new Error('the isPublic line changed shape — update this guard');
+    const w16brokenSrc = workerSrc
+      .replace(XLSX_IMPORT, 'const XLSX = null; // harness stub (see the loader above)')
+      .replace(w16gateLine, "const isPublic = /^\\/design\\/login-page\\.html$/.test(url.pathname)");
+    const w16tmp = path.join(__dirname, '.tmp-w16-worker.mjs');
+    fs.writeFileSync(w16tmp, w16brokenSrc);
+    let w16broken;
+    try {
+      w16broken = (await import(pathToFileURL(w16tmp).href + '?v=' + Math.random())).default;
+    } finally {
+      fs.rmSync(w16tmp, { force: true });
+    }
+    const w16loop = await w16hop(w16broken, '/newtab.html', null);
+    check('[W16] teeth: a gate that only knows /design/login-page.html loops every anonymous visitor',
+      w16loop.looping, JSON.stringify(w16loop.chain));
+  }
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

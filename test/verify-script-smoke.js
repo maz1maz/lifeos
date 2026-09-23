@@ -5,7 +5,7 @@
 //
 // This suite therefore runs the REAL browser script (unmodified source, with a
 // browser-like fetch shim + a real session cookie) against the REAL worker.js,
-// in-process, twice:
+// in-process, four times:
 //   1. against the current (fixed) worker      -> expects all four checks green;
 //   2. against the same worker with the two helper names removed from BOTH export
 //      lists (i.e. the exact pre-fix production state: `categorizeTransaction` and
@@ -30,7 +30,8 @@ function check(name, cond, extra) {
 
 // Fake for the only D1 surface the worker touches (same shape as worker-smoke.js):
 //   SELECT value FROM kv WHERE key='db' / INSERT INTO kv ... ON CONFLICT DO UPDATE
-function makeEnv() {
+function makeEnv(assetMode) {
+  const mode = assetMode || 'plain';
   const store = { value: null };
   return {
     DB: {
@@ -42,14 +43,35 @@ function makeEnv() {
       },
     },
     // Serve real files from public/, like the production ASSETS binding does.
+    //   mode 'plain' — exact paths only (a server with no html_handling at all)
+    //   mode 'cf'    — Cloudflare's default asset behaviour on top of that:
+    //                  `/x.html` answers 307 → `/x`, and `/x` serves `x.html`
+    //   mode 'none'  — nothing deployed: every asset request 404s
+    //   mode 'stale-bundle' — the classic broken deploy: the fresh index.html is up,
+    //                  but the hashed /assets/index-*.js it points to was not uploaded
+    //                  (white page for the user) — only the bundle 404s
     ASSETS: {
       fetch: async (req) => {
-        const p = new URL(req.url).pathname;
-        const file = path.join(ROOT, 'public', p.replace(/^\//, ''));
-        if (!p.includes('..') && fs.existsSync(file) && fs.statSync(file).isFile()) {
-          return new Response(fs.readFileSync(file), { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+        const notFound = new Response('not found', { status: 404 });
+        if (mode === 'none') return notFound;
+        const pth = new URL(req.url).pathname;
+        if (pth.includes('..')) return notFound;
+        if (mode === 'stale-bundle' && /^\/assets\/index-[^/]+\.js$/.test(pth)) return notFound;
+        const fileFor = (q) => path.join(ROOT, 'public', q === '/' ? 'index.html' : q.replace(/^\//, ''));
+        const readIfFile = (f) => (fs.existsSync(f) && fs.statSync(f).isFile() ? fs.readFileSync(f) : null);
+        const ok = (buf) => new Response(buf, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+        if (mode === 'cf' && pth.endsWith('.html')) {
+          const clean = pth === '/index.html' ? '/' : pth.slice(0, -'.html'.length);
+          const cleanFile = clean === '/' ? fileFor('/') : fileFor(clean) + '.html';
+          if (readIfFile(cleanFile) !== null) return new Response(null, { status: 307, headers: { location: clean } });
         }
-        return new Response('not found', { status: 404 });
+        const own = readIfFile(fileFor(pth));
+        if (own !== null) return ok(own);
+        if (mode === 'cf' && !path.extname(pth)) {
+          const viaClean = readIfFile(fileFor(pth + '.html'));
+          if (viaClean !== null) return ok(viaClean);
+        }
+        return notFound;
       },
     },
   };
@@ -73,16 +95,19 @@ async function runVerifyScript(worker, env) {
   const script = fs.readFileSync(path.join(ROOT, 'docs', 'verify-live.console.js'), 'utf8');
   let cookie = '';
   const rawFetch = async (input, init) => {
-    const url = String(input);
     const headers = Object.assign({}, (init && init.headers) || {});
     if (cookie) headers.cookie = cookie;
-    const opts = { method: (init && init.method) || 'GET', headers, body: init && init.body };
-    let res = await worker.fetch(new Request(url, opts), env, {});
+    let url = String(input);
+    let res = await worker.fetch(new Request(url, { method: (init && init.method) || 'GET', headers, body: init && init.body }), env, {});
     let redirected = false;
-    const loc = res.headers.get('location');
-    if (res.status >= 300 && res.status < 400 && loc) {
+    // up to 5 hops: gate-302 followed by asset-307 is a legit chain, an endless
+    // loop is not — the cap keeps a looping worker from hanging the suite.
+    for (let hop = 0; hop < 5 && res.status >= 300 && res.status < 400; hop++) {
+      const loc = res.headers.get('location');
+      if (!loc) break;
       redirected = true;
-      res = await worker.fetch(new Request(new URL(loc, url).toString(), { method: 'GET', headers }), env, {});
+      url = new URL(loc, url).toString();
+      res = await worker.fetch(new Request(url, { method: 'GET', headers }), env, {});
     }
     const text = await res.text();
     const out = new Response(text, { status: res.status });
@@ -147,7 +172,28 @@ async function main() {
   check('check 2 (title PATCH) green', allGreen(fixedLines, 2));
   check('check 3 (category PATCH) green — the route that 500’d', allGreen(fixedLines, 3));
   check('check 4 (recategorize preview) green — the button that 500’d', allGreen(fixedLines, 4));
-  check('check 5 (finance-page asset with the notIncome switch) green', allGreen(fixedLines, 5));
+  check('check 5 (React shell + the bundle it points to) green', allGreen(fixedLines, 5));
+
+  console.log('\n[V1b] the SAME script against Cloudflare-style asset URLs (/x.html -> 307 -> /x)');
+  const cfLines = await runVerifyScript(await loadWorker(fixedSrc), makeEnv('cf'));
+  check('nothing goes red through the .html -> extensionless rewrite', cfLines.every((l) => !l.startsWith('❌')), cfLines.filter((l) => l.startsWith('❌')).join(' | '));
+  check('check 1 stays green when /newtab.html redirects to /newtab', allGreen(cfLines, 1));
+  check('check 1 names the rewrite instead of blaming the login gate', checks(cfLines, 1).some((l) => /\/newtab\.html \u2192 \/newtab\)/.test(l)));
+  check('check 5 (React shell + bundle) survives the rewrite too', allGreen(cfLines, 5));
+
+  console.log('\n[V1c] and with nothing deployed (the asset binding 404s everything)');
+  const noLines = await runVerifyScript(await loadWorker(fixedSrc), makeEnv('none'));
+  const no1 = checks(noLines, 1);
+  check('check 1 goes red with HTTP 404 when the asset is missing', no1.length >= 1 && no1.every((l) => l.startsWith('❌') && /HTTP 404/.test(l)), no1.join(' | '));
+  check('check 5 goes red when the shell/bundle assets are missing', checks(noLines, 5).every((l) => l.startsWith('❌')));
+  check('the API checks stay green — only the assets are missing', allGreen(noLines, 2) && allGreen(noLines, 3) && allGreen(noLines, 4));
+
+  console.log('\n[V1d] the classic broken deploy: new index.html, but its hashed bundle was not uploaded');
+  const staleLines = await runVerifyScript(await loadWorker(fixedSrc), makeEnv('stale-bundle'));
+  const stale5 = checks(staleLines, 5);
+  check('check 5 goes red when index.html points to a bundle that is not on the deploy', stale5.length >= 1 && stale5.every((l) => l.startsWith('❌')), stale5.join(' | '));
+  check('…and names the missing bundle + the white-page symptom, so the fix is obvious', stale5.some((l) => /\/assets\/index-[^ ]+\.js: HTTP 404/.test(l) && /صفحهٔ سفید/.test(l)), stale5.join(' | '));
+  check('the other checks stay green — only the bundle is missing', allGreen(staleLines, 1) && allGreen(staleLines, 2) && allGreen(staleLines, 3) && allGreen(staleLines, 4));
 
   console.log('\n[V2] the SAME script on the pre-fix worker (helpers not exported)');
   const brokenLines = await runVerifyScript(await loadWorker(brokenSrc), makeEnv());

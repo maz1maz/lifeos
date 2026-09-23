@@ -143,5 +143,22 @@ for (const file of ['public/design/calendar-page.html','public/design/settings-p
   check(`${path.basename(file)} inline scripts parse`, syntaxOk, detail);
 }
 
+// باندل‌های Vite: بیلد مستقیم توی public/ می‌ریزه (emptyOutDir:false)، پس هر بیلد
+// یک index-<hash> تازه می‌سازه و قبلی‌ها می‌مونن، commit می‌شن و با هر deploy آپلود
+// می‌شن بی‌آنکه کسی لودشون کنه. scripts/prune-stale-bundles.js بعد از بیلد پاکشون
+// می‌کنه؛ این‌جا مطمئن می‌شیم شِل به باندلی اشاره می‌کنه که واقعاً هست و باندل مرده‌ای
+// در درخت نمونده.
+{
+  const { referencedBundles, staleBundles } = require('../scripts/prune-stale-bundles.js');
+  const live = [...referencedBundles()];
+  check('index.html points at exactly one JS bundle and one CSS bundle',
+    live.filter((f) => f.endsWith('.js')).length === 1 && live.filter((f) => f.endsWith('.css')).length === 1, live.join(', '));
+  check('every bundle index.html references actually exists in public/assets',
+    live.every((f) => fs.existsSync(path.join(ROOT, 'public', 'assets', f))), live.join(', '));
+  const stale = staleBundles();
+  check('no stale (unreferenced) index-*.js|css bundles are left in public/assets — run: node scripts/prune-stale-bundles.js',
+    stale.length === 0, stale.length + ' stale: ' + stale.slice(0, 5).join(', ') + (stale.length > 5 ? ', …' : ''));
+}
+
 console.log(`\nUI smoke: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
