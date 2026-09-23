@@ -6,3 +6,9 @@ public/uploads/
 cloudflare/.wrangler/
 
 data/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
