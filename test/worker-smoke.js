@@ -253,7 +253,7 @@ async function main() {
   // [W9] ریال/تومان روی خودِ آرتیفکت دیپلوی‌شده. stripBalanceNotes/stripRefNumbers تازه‌اند:
   // اگر از فهرست exportها جا بیفتند، مسیر پیامک بانکی روی Cloudflare می‌شکند در حالی که
   // `node server.js` سالم است — همان کلاس باگی که این فایل برایش نوشته شده.
-  console.log('\n[W9] rial/toman + balance guard on the deployed artifact');
+  console.log('\n[W9] rial-native amounts (تومان ×10, ریال as typed) + balance guard on the deployed artifact');
   const w9ids = async () => new Set((((await call(`/api/transactions?from=${today()}&to=${today()}`, { cookie })).d.items) || []).map(x => x.id));
   const w9parse = async (text) => {
     const before = await w9ids();
@@ -262,18 +262,18 @@ async function main() {
     return { status: res.status, actions: (res.d && res.d.actions) || [], created: items.filter(x => !before.has(x.id)) };
   };
   const w9sms = await w9parse('۲۴بلو انتقال پل حمیدرضا عزیز 15,000,000 ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23');
-  check('worker: reported SMS parses to 1,500,000 تومان', w9sms.status === 200 && w9sms.actions.length === 1 && w9sms.actions[0].amount === 1_500_000, JSON.stringify(w9sms.actions));
-  check('worker: stored row has the converted amount, never the balance', w9sms.created.length === 1 && w9sms.created[0].amount === 1_500_000);
+  check('worker: reported SMS keeps 15,000,000 ریال as 15,000,000 rial (no divide)', w9sms.status === 200 && w9sms.actions.length === 1 && w9sms.actions[0].amount === 15_000_000, JSON.stringify(w9sms.actions));
+  check('worker: stored row carries the rial amount, never the balance', w9sms.created.length === 1 && w9sms.created[0].amount === 15_000_000);
   const w9bal = await w9parse('موجودی: 3,879,270,699 ریال');
   check('worker: balance-only text creates nothing (stripBalanceNotes must be exported)', w9bal.status === 200 && w9bal.actions.length === 0 && w9bal.created.length === 0);
   const w9ref = await w9parse('شناسه پرداخت ۱۲۳۴۵۶۷۸۹۰');
   check('worker: reference-number-only text creates nothing (stripRefNumbers must be exported)', w9ref.status === 200 && w9ref.actions.length === 0 && w9ref.created.length === 0);
   const w9composite = await w9parse('مبلغ: ۱۵٬۰۰۰٬۰۰۰ تومان\nبابت: نظافت منزل\nتاریخ: Sep 14, 2026 at 23:29\n\nبلو\nانتقال پل\nحمیدرضا عزیز، 15,000,000 ریال از حساب شما پرید.\nموجودی: 3,879,270,699 ریال');
-  check('worker: user\'s real combined message -> 1,500,000 تومان, title=نظافت منزل', w9composite.actions.length === 1 && w9composite.actions[0].amount === 1_500_000 && w9composite.actions[0].title === 'نظافت منزل', JSON.stringify(w9composite.actions));
+  check('worker: user\'s real combined message -> 15,000,000 rial (the bank line wins), title=نظافت منزل', w9composite.actions.length === 1 && w9composite.actions[0].amount === 15_000_000 && w9composite.actions[0].title === 'نظافت منزل', JSON.stringify(w9composite.actions));
   const w9before = await w9parse('ریال ۱۵,۰۰۰,۰۰۰ انتقال به حمیدرضا');
-  check('worker: «ریال» written before the number also divides by 10', w9before.actions.length === 1 && w9before.actions[0].amount === 1_500_000);
+  check('worker: «ریال» written before the number is also kept as rial', w9before.actions.length === 1 && w9before.actions[0].amount === 15_000_000);
   const w9toman = await w9parse('خرید ۱۵,۰۰۰,۰۰۰ تومان');
-  check('worker: تومان amounts are unchanged (no divide by 10)', w9toman.actions.length === 1 && w9toman.actions[0].amount === 15_000_000);
+  check('worker: تومان amounts are converted to rial (×10)', w9toman.actions.length === 1 && w9toman.actions[0].amount === 150_000_000);
 
   // [W10] یادآوری سرِ ماه + مطابقت صورتحساب روی خودِ آرتیفکت دیپلوی‌شده.
   // matchBankStatementItems / ensureStatementReminder / jalaliMonthLabel توابع تازه‌اند:
@@ -299,11 +299,11 @@ async function main() {
     const w10mid = await w10check('2026-09-10');
     check('worker: mid-month check does nothing', w10mid.created === 0 && w10mid.checked === false, JSON.stringify(w10mid));
 
-    const w10manual = (await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'نظافت منزل', amount: 150_000, kind: 'expense', account: 'بدون حساب', date: '2026-09-14' } })).d;
-    check('worker: manual row recorded for the reconciliation test', !!w10manual && w10manual.amount === 150_000);
+    const w10manual = (await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'نظافت منزل', amount: 1_500_000, kind: 'expense', account: 'بدون حساب', date: '2026-09-14' } })).d;
+    check('worker: manual row recorded for the reconciliation test (rial, same scale as the file)', !!w10manual && w10manual.amount === 1_500_000);
     const w10p1 = await w10preview(w10csv);
     check('worker: preview skips the already-entered row (1 already / 2 new)', w10p1.newCount === 2 && w10p1.alreadyCount === 1, JSON.stringify({ n: w10p1.newCount, a: w10p1.alreadyCount, d: w10p1.duplicateCount }));
-    check('worker: فایل ریالی درست تقسیم بر ۱۰ می‌شود (1,500,000 ریال = 150,000 تومان)', (w10p1.items || [])[0]?.amount === 150_000, JSON.stringify((w10p1.items || []).map(x => [x.title, x.amount])));
+    check('worker: فایل ریالی بدون تبدیل می‌ماند (1,500,000 ریال = 1,500,000 rial)', (w10p1.items || [])[0]?.amount === 1_500_000, JSON.stringify((w10p1.items || []).map(x => [x.title, x.amount])));
     const w10c1 = (await call('/api/transactions/import-bank/commit', { method: 'POST', cookie: c10, body: { items: w10p1.items, account: 'بدون حساب' } })).d;
     check('worker: commit imports only the missing rows', w10c1.imported === 2 && w10c1.skippedExisting === 1, JSON.stringify(w10c1));
     const w10rows = ((await call(`/api/transactions?from=2026-01-01&to=2026-12-31`, { cookie: c10 })).d.items || []);
@@ -311,7 +311,7 @@ async function main() {
     const w10p2 = await w10preview(w10csv);
     const w10c2 = (await call('/api/transactions/import-bank/commit', { method: 'POST', cookie: c10, body: { items: w10p2.items, account: 'بدون حساب' } })).d;
     check('worker: re-uploading the same statement adds nothing', w10p2.newCount === 0 && w10c2.imported === 0 && w10c2.skippedExisting === 3, JSON.stringify({ p: w10p2.newCount, c: w10c2 }));
-    await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'تاکسی', amount: 70_000, kind: 'expense', account: 'بدون حساب', date: '2026-09-13' } });
+    await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'تاکسی', amount: 700_000, kind: 'expense', account: 'بدون حساب', date: '2026-09-13' } });
     const w10near = await w10preview('تاریخ,شرح,واریز,برداشت,شماره سند\n1405/06/21,تاکسی,0,"700,000",7777');
     check('worker: a row one day off an existing row is flagged near-duplicate, not dropped', w10near.nearDuplicateCount === 1 && (w10near.items || [])[0]?.nearDuplicate === true && w10near.newCount === 1, JSON.stringify(w10near));
   }
