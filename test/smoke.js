@@ -1222,6 +1222,25 @@ async function main() {
       const dep = await txt({ text: 'بت ۵۰ دلار واریز کردم' });
       const rows3 = ((await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth5 }).then(r => r.json())).items) || [];
       check('a deposit phrase stays an Inbox note (no bet day, no transaction)', !(dep.actions || []).some(x => x.type === 'betDay') && rows3.length === 0, JSON.stringify(dep.actions));
+
+      // دو ردیف با یک تاریخ (مثلاً بعد از ویرایش تاریخ یک روز، یا دادهٔ ایمپورت‌شده): ترتیب زنجیرهٔ
+      // «مبلغی که داشتم» باید قطعی باشد — با createdAt، نه با ترتیب تصادفی ذخیره‌شدن در آرایه.
+      // این‌جا عمداً ردیف جدیدتر را جلوتر در آرایه می‌نویسیم تا فقط createdAt بتواند ترتیب درست را بدهد.
+      {
+        const dbTie = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+        const betUser = dbTie.users.find(x => x.email === email5);
+        dbTie.betDays.push(
+          { id: 'bet-tie-newer', userId: betUser.id, date: '2026-09-20', deposit: 0, withdraw: 0, balance: 250, note: '', createdAt: 2000 },
+          { id: 'bet-tie-older', userId: betUser.id, date: '2026-09-20', deposit: 0, withdraw: 0, balance: 200, note: '', createdAt: 1000 },
+        );
+        fs.writeFileSync(DB_PATH, JSON.stringify(dbTie, null, 2));
+        const tied = ((await betOf()).items || []).filter(x => x.date === '2026-09-20');
+        check('two rows on the same date are chained by createdAt (older first), not by storage order',
+          tied.length === 2 && tied[0].id === 'bet-tie-older' && tied[1].id === 'bet-tie-newer'
+            && tied[0].start === 160 && tied[0].result === 40 && tied[1].start === 200 && tied[1].result === 50,
+          JSON.stringify(tied));
+        for (const tid of ['bet-tie-newer', 'bet-tie-older']) await fetch(`${BASE}/api/bet/${tid}`, { method: 'DELETE', headers: auth5 });
+      }
     }
 
     /* [48] پورتفو: «دلار» بدون نماد و بدون قیمت — فقط مقدار.
