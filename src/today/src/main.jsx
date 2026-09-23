@@ -6,7 +6,9 @@ import './planner.css';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
-  Music, SquarePlay, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles
+  Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
+  Search, Star, X, Check, ChevronDown, Trash2, Plus,
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot
 } from 'lucide-react';
 
 const api = async (url, options) => {
@@ -17,6 +19,7 @@ const api = async (url, options) => {
 };
 const isoToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const fa = value => Number(value || 0).toLocaleString('fa-IR');
+const faDigits = value => String(value ?? '').replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const jalali = date => new Intl.DateTimeFormat('fa-IR', { dateStyle: 'full', timeZone: 'Asia/Tehran' }).format(date);
 const TGJU_LABELS = {
   price_dollar_rl: 'دلار آزاد', price_eur: 'یورو', price_gbp: 'پوند', price_aed: 'درهم', price_try: 'لیر',
@@ -63,7 +66,7 @@ function Sparkline({ data, up, width = 72, height = 28, uid = 'sp' }) {
 const NAV_PAGES = [
   ['', 'امروز', House], ['calendar', 'تقویم', CalendarDays], ['planner', 'برنامه‌ریز', ListChecks], ['finance', 'مالی', Wallet],
   ['market', 'بازار', LineChart], ['football', 'فوتبال', Trophy], ['series', 'سریال‌ها', Clapperboard], ['movies', 'فیلم‌ها', Film],
-  ['music', 'موسیقی', Music], ['youtube', 'یوتیوب', SquarePlay], ['notes', 'یادداشت‌ها', StickyNote], ['documents', 'مدارک', FolderOpen],
+  ['media', 'رسانه', Music], ['notes', 'یادداشت‌ها', StickyNote], ['documents', 'مدارک', FolderOpen],
   ['contacts', 'مخاطبین', Users], ['settings', 'تنظیمات', Settings]
 ];
 function TopNav({ active, right }) {
@@ -110,10 +113,9 @@ function App() {
   if (page === 'finance') return <FinanceReact />;
   if (page === 'market') return <MarketNextReact />;
   if (page === 'football') return <FootballReact />;
-  if (page === 'movies') return <MediaNextReact type="movie" />;
-  if (page === 'series') return <MediaNextReact type="series" />;
-  if (page === 'music') return <MusicNextReact />;
-  if (page === 'youtube') return <YouTubeReact />;
+  if (page === 'movies') return <MoviesReact />;
+  if (page === 'series') return <SeriesReact />;
+  if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact initialTab={page === 'youtube' ? 'youtube' : 'spotify'} />;
   if (page === 'notes') return <RecordsReact kind="notes" />;
   if (page === 'documents') return <RecordsReact kind="documents" />;
   if (page === 'contacts') return <RecordsReact kind="contacts" />;
@@ -192,15 +194,239 @@ function CalendarReact() {
   const goToday = () => { setCursor({ jy: todayJalali.jy, jm: todayJalali.jm, gy: today.getFullYear(), gm: today.getMonth() + 1 }); setSelected(today); };
   const saveNote = async event => { event.preventDefault(); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: iso(selected), note }) }); setDaily(current => ({ ...(current || {}), date: iso(selected), note })); setStatus('یادداشت روز ذخیره شد.'); } catch (error) { setStatus(error.message); } };
   return <main className="calendar-react" dir="rtl"><TopNav active="calendar" /><div className="calendar-react-page"><div className="calendar-toolbar"><div><p>تقویم شمسی و میلادی با داده‌های واقعی</p><h1>{title}</h1><small>{alternateTitle}</small></div><div className="calendar-actions"><button onClick={() => moveMonth(-1)} aria-label="ماه قبل">ماه قبل</button><button onClick={goToday}>امروز</button><button onClick={() => moveMonth(1)} aria-label="ماه بعد">ماه بعد</button><button className="mode" onClick={switchMode}>{mode === 'jalali' ? 'نمایش میلادی' : 'نمایش شمسی'}</button></div></div><div className="calendar-sync-status">{loading ? 'در حال دریافت رویدادها…' : feed.connected ? `Google Calendar متصل است · ${fa(feed.googleCalendars || 0)} تقویم` : 'کارها و یادآوری‌های LifeOS'}{feed.partial ? ' · بخشی از رویدادهای Google نمایش داده شده‌اند' : ''}{feed.googleError ? ` · ${feed.googleError}` : ''}</div>{status && <div className="notice">{status}<button onClick={() => setStatus('')}>×</button></div>}<div className="calendar-react-layout"><section className="calendar-board"><div className="calendar-week">{WEEKDAYS.map(day => <b key={day}>{day}</b>)}</div><div className="calendar-grid">{days.map(({ date, inMonth }) => { const events = feed.items?.filter(event => eventOnDate(event, date)) || []; const jalaliDate = toJalali(date); return <button type="button" className={`calendar-day ${inMonth ? '' : 'other-month'} ${sameDate(date, today) ? 'today' : ''} ${sameDate(date, selected) ? 'selected' : ''}`} key={iso(date)} onClick={() => setSelected(date)}><span className="calendar-day-number">{mode === 'jalali' ? fa(jalaliDate.jd) : fa(date.getDate())}</span><span className="calendar-day-alt">{mode === 'jalali' ? `${date.getMonth() + 1}/${date.getDate()}` : `${fa(jalaliDate.jm)}/${fa(jalaliDate.jd)}`}</span><span className="calendar-event-list">{events.slice(0, 3).map(event => <small className={`event ${event.kind || 'google'} ${event.done ? 'done' : ''}`} key={event.id}>{eventLabel(event)}</small>)}{events.length > 3 && <small className="more-events">+{fa(events.length - 3)} رویداد</small>}</span></button>; })}</div><div className="calendar-legend"><span><i className="task" />کار</span><span><i className="reminder" />یادآوری</span><span><i className="google" />Google</span><span><i className="today-dot" />امروز</span></div></section><aside className="calendar-detail"><h2>{new Intl.DateTimeFormat('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(selected)}</h2><p className="detail-gregorian">{new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(selected)}</p><div className="selected-events">{selectedEvents.length ? selectedEvents.map(event => <div className={`selected-event ${event.kind || 'google'} ${event.done ? 'done' : ''}`} key={event.id}><b>{event.title}</b><small>{event.kind === 'task' ? 'کار' : event.kind === 'reminder' ? 'یادآوری' : event.calendarName || 'Google Calendar'}{event.time ? ` · ${event.time}` : ' · تمام‌روز'}</small>{event.url && <a href={event.url} target="_blank" rel="noreferrer">بازکردن در Google</a>}</div>) : <p className="empty">رویدادی برای این روز ثبت نشده است.</p>}</div><form className="day-note" onSubmit={saveNote}><label htmlFor="calendar-note">یادداشت این روز</label><textarea id="calendar-note" value={note} onChange={event => setNote(event.target.value)} placeholder="قرار، حس‌وحال یا نکته‌ای از این روز…" /><small>{daily?.updatedAt ? 'یادداشت ذخیره‌شده' : 'با حساب LifeOS ذخیره می‌شود'}</small><button className="save">ذخیرهٔ یادداشت</button></form></aside></div></div></main>; }
+const PRIORITY_LABELS = { high: 'زیاد', medium: 'متوسط', low: 'کم' };
+const PRIORITY_TONE = { high: 'rose', medium: 'amber', low: 'sky' };
+const REPEAT_LABELS = { daily: 'روزانه', weekly: 'هفتگی', monthly: 'ماهانه' };
+const PLANNER_FILTERS = [['open', 'باز'], ['today', 'امروز'], ['upcoming', 'پیشِ رو'], ['reminders', 'یادآوری‌ها'], ['done', 'انجام‌شده'], ['all', 'همه']];
+function dueLabel(dateStr) {
+  if (!dateStr) return '';
+  const t = isoToday(), tmr = iso(addDays(new Date(t + 'T12:00:00'), 1));
+  if (dateStr === t) return 'امروز';
+  if (dateStr === tmr) return 'فردا';
+  const { jm, jd } = toJalali(new Date(dateStr + 'T12:00:00'));
+  const p = n => faDigits(String(n).padStart(2, '0'));
+  return `${p(jd)}/${p(jm)}`;
+}
+function Chip({ tone = 'neutral', icon: Icon, children }) {
+  return <span className={`plnr-chip plnr-chip-${tone}`}>{Icon && <Icon size={13} strokeWidth={1.8} />}{children}</span>;
+}
+
+function TaskCard({ task, index, reminder, onToggle, onEdit, onDelete }) {
+  const t = isoToday(), overdue = !task.done && task.date && task.date < t, todayish = !task.done && task.date === t;
+  const tags = task.tags || [];
+  return <li className="plnr-card" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
+    <button type="button" role="checkbox" aria-checked={task.done} className={`plnr-check ${task.done ? 'on' : ''}`} onClick={() => onToggle(task)} aria-label={task.done ? 'بازگرداندن کار به حالت باز' : 'انجام شد'}>
+      {task.done && <Check size={14} strokeWidth={3} />}
+    </button>
+    <div className="plnr-card-body">
+      <div className="plnr-card-head">
+        <b className={task.done ? 'done' : ''}>{task.title}</b>
+        <div className="plnr-card-actions">
+          <button type="button" onClick={() => onEdit(task)} aria-label="ویرایش کار"><Pencil size={15} /></button>
+          <button type="button" onClick={() => onDelete(task)} aria-label="حذف کار"><Trash2 size={15} /></button>
+        </div>
+      </div>
+      {task.notes && <p className={task.done ? 'done' : ''}>{task.notes}</p>}
+      <div className="plnr-chips">
+        {task.date && <Chip tone={overdue ? 'rose' : todayish ? 'teal' : 'neutral'} icon={overdue ? CircleAlert : CalendarDays}>{overdue ? `عقب‌افتاده · ${dueLabel(task.date)}` : dueLabel(task.date)}</Chip>}
+        {task.startTime && <Chip icon={Clock}>{faDigits(task.startTime)}</Chip>}
+        <Chip tone={PRIORITY_TONE[task.priority] || 'neutral'}><span className="plnr-chip-dot" />اولویت {PRIORITY_LABELS[task.priority] || task.priority}</Chip>
+        {task.recurrence && <Chip tone="sky" icon={Repeat}>{REPEAT_LABELS[task.recurrence] || task.recurrence}</Chip>}
+        {reminder && <Chip tone="amber" icon={Bell}>یادآوری {reminder.time ? faDigits(reminder.time) : dueLabel(reminder.date)}</Chip>}
+        {tags.map(tag => <Chip key={tag} icon={Hash}>{tag}</Chip>)}
+      </div>
+    </div>
+  </li>;
+}
+
+function TaskDrawer({ open, initial, onClose, onSubmit }) {
+  const today = isoToday();
+  const empty = { title: '', notes: '', date: today, startTime: '', priority: 'medium', recurrence: '', tags: '', reminderOn: false, reminderDate: today, reminderTime: '' };
+  const [form, setForm] = useState(empty);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    if (!open) return;
+    if (initial) {
+      setForm({ title: initial.task.title, notes: initial.task.notes || '', date: initial.task.date || today, startTime: initial.task.startTime || '', priority: initial.task.priority || 'medium', recurrence: initial.task.recurrence || '', tags: (initial.task.tags || []).join('، '), reminderOn: !!initial.reminder, reminderDate: initial.reminder?.date || initial.task.date || today, reminderTime: initial.reminder?.time || '' });
+    } else setForm(empty);
+    setErr('');
+  }, [open, initial]);
+  useEffect(() => { if (!open) return; const onKey = e => { if (e.key === 'Escape' && !busy) onClose(); }; document.addEventListener('keydown', onKey); document.body.style.overflow = 'hidden'; return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; }; }, [open, busy]);
+  if (!open) return null;
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const submit = async e => {
+    e.preventDefault();
+    if (!form.title.trim()) { setErr('عنوان کار را بنویس.'); return; }
+    setBusy(true);
+    try {
+      await onSubmit({ title: form.title.trim(), notes: form.notes, date: form.date, startTime: form.startTime || null, priority: form.priority, recurrence: form.recurrence || null, tags: form.tags, reminderOn: form.reminderOn, reminderDate: form.reminderDate, reminderTime: form.reminderTime });
+    } finally { setBusy(false); }
+  };
+  return <div className="plnr-drawer-backdrop" onClick={() => !busy && onClose()}>
+    <form className="plnr-drawer" onClick={e => e.stopPropagation()} onSubmit={submit}>
+      <header><div><h2>{initial ? 'ویرایش کار' : 'کار تازه'}</h2><p>{initial ? 'تغییرها را ذخیره کن' : 'جزئیات کار و یادآوری را وارد کن'}</p></div><button type="button" onClick={() => !busy && onClose()} aria-label="بستن"><X size={18} /></button></header>
+      <div className="plnr-drawer-body">
+        <div><label>عنوان کار <span className="req">*</span></label><input value={form.title} onChange={e => set('title', e.target.value)} placeholder="مثلاً ارسال گزارش هفتگی" autoFocus />{err && <small className="plnr-err">{err}</small>}</div>
+        <div><label>توضیحات</label><textarea rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="جزئیات بیشتر (اختیاری)" /></div>
+        <div className="plnr-2col"><div><label>سررسید</label><input type="date" value={form.date} onChange={e => set('date', e.target.value)} /></div><div><label>ساعت</label><input type="time" value={form.startTime} onChange={e => set('startTime', e.target.value)} /></div></div>
+        <div className="plnr-2col">
+          <div><label>اولویت</label><div className="plnr-select-wrap"><select value={form.priority} onChange={e => set('priority', e.target.value)}>{Object.keys(PRIORITY_LABELS).map(k => <option key={k} value={k}>{PRIORITY_LABELS[k]}</option>)}</select><ChevronDown size={15} /></div></div>
+          <div><label>تکرار</label><div className="plnr-select-wrap"><select value={form.recurrence} onChange={e => set('recurrence', e.target.value)}><option value="">بدون تکرار</option>{Object.keys(REPEAT_LABELS).map(k => <option key={k} value={k}>{REPEAT_LABELS[k]}</option>)}</select><ChevronDown size={15} /></div></div>
+        </div>
+        <div><label>برچسب‌ها <span>(با ویرگول جدا کن)</span></label><input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="گزارش، فوری" /></div>
+        <div className="plnr-reminder-box">
+          <div className="plnr-reminder-head"><div><b>یادآوری</b><small>یک یادآوری جدا برای این کار می‌سازد</small></div><button type="button" className={`plnr-switch ${form.reminderOn ? 'on' : ''}`} onClick={() => set('reminderOn', !form.reminderOn)} role="switch" aria-checked={form.reminderOn}><i /></button></div>
+          {form.reminderOn && <div className="plnr-2col"><div><label>تاریخ یادآوری</label><input type="date" value={form.reminderDate} onChange={e => set('reminderDate', e.target.value)} /></div><div><label>ساعت</label><input type="time" value={form.reminderTime} onChange={e => set('reminderTime', e.target.value)} /></div></div>}
+        </div>
+      </div>
+      <footer><button type="submit" className="plnr-submit" disabled={busy}>{busy && <span className="plnr-spinner" />}{initial ? 'ثبت تغییرات' : 'ذخیرهٔ کار'}</button><button type="button" className="cancel" onClick={() => !busy && onClose()} disabled={busy}>انصراف</button></footer>
+    </form>
+  </div>;
+}
+
 function PlannerReact() {
-  const today = useMemo(isoToday, []), [tasks, setTasks] = useState([]), [reminders, setReminders] = useState([]), [filter, setFilter] = useState('open'), [notice, setNotice] = useState('');
-  const load = async () => { try { const [taskData, reminderData] = await Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')]); setTasks(taskData.items || []); setReminders(reminderData.items || []); } catch (error) { setNotice(error.message); } };
+  const [tasks, setTasks] = useState([]);
+  const [reminders, setReminders] = useState([]);
+  const [filter, setFilter] = useState('open');
+  const [sort, setSort] = useState('due');
+  const [query, setQuery] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [notice, setNotice] = useState('');
+  const [toast, setToast] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2400); };
+  const load = () => Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')]).then(([taskData, reminderData]) => { setTasks(taskData.items || []); setReminders(reminderData.items || []); }).catch(error => setNotice(error.message)).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
-  const submit = async event => { event.preventDefault(); const form = new FormData(event.currentTarget), title = String(form.get('title') || '').trim(); if (!title) return; const task = { title, notes: String(form.get('notes') || ''), date: form.get('date') || today, startTime: form.get('time') || null, priority: form.get('priority'), recurrence: form.get('recurrence') || null, tags: String(form.get('tags') || '').split(/[،,#]/).map(x => x.trim()).filter(Boolean) }; try { const saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(task) }); if (form.get('reminder') === 'on') await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: saved.title, date: form.get('reminderDate') || task.date, time: form.get('reminderTime') || null, whenLabel: form.get('reminderDate') || task.date, recurrence: task.recurrence, taskId: saved.id }) }); event.currentTarget.reset(); setNotice('کار ثبت شد.'); load(); } catch (error) { setNotice(error.message); } };
-  const toggle = async task => { try { await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }); await Promise.all(reminders.filter(x => x.taskId === task.id).map(x => api(`/api/reminders/${x.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }))); load(); } catch (error) { setNotice(error.message); } };
-  const remove = async task => { if (!window.confirm(`کار «${task.title}» حذف شود؟`)) return; try { await api(`/api/tasks/${task.id}`, { method: 'DELETE' }); setNotice('کار حذف شد.'); load(); } catch (error) { setNotice(error.message); } };
-  const shown = tasks.filter(task => filter === 'all' || filter === 'today' && task.date === today || filter === 'done' && task.done || filter === 'open' && !task.done).sort((a, b) => Number(a.done) - Number(b.done) || String(a.date).localeCompare(String(b.date)) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
-  return <main className="planner-react" dir="rtl"><TopNav active="planner" /><div className="planner-page"><header><div><p>برنامه‌ریز با داده‌های واقعی</p><h1>کارها و یادآوری‌ها</h1></div><div className="planner-stats"><b>{fa(tasks.filter(x => !x.done).length)} باز</b><b>{fa(tasks.filter(x => x.date === today && !x.done).length)} امروز</b><b>{fa(reminders.filter(x => !x.done).length)} یادآوری</b></div></header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<div className="planner-layout"><form className="planner-form" onSubmit={submit}><h2>کار تازه</h2><input name="title" required maxLength="120" placeholder="عنوان کار *" /><textarea name="notes" maxLength="2000" placeholder="توضیحات" /><div><input name="date" type="date" defaultValue={today} /><input name="time" type="time" /></div><div><select name="priority" defaultValue="medium"><option value="high">اولویت بالا</option><option value="medium">اولویت متوسط</option><option value="low">اولویت پایین</option></select><select name="recurrence"><option value="">بدون تکرار</option><option value="daily">روزانه</option><option value="weekly">هفتگی</option><option value="monthly">ماهانه</option></select></div><input name="tags" placeholder="تگ‌ها" /><label><input name="reminder" type="checkbox" /> یادآوری متصل بساز</label><div><input name="reminderDate" type="date" defaultValue={today} /><input name="reminderTime" type="time" /></div><button className="save">ذخیرهٔ کار</button></form><section className="planner-list"><div className="planner-filters">{[['open','باز'],['today','امروز'],['all','همه'],['done','انجام‌شده']].map(([key, label]) => <button className={filter === key ? 'active' : ''} onClick={() => setFilter(key)} key={key}>{label}</button>)}</div>{shown.length ? shown.map(task => <article key={task.id} className={task.done ? 'done' : ''}><button className="check" onClick={() => toggle(task)}>{task.done ? '✓' : ''}</button><div><b>{task.title}</b><small>{task.date}{task.startTime ? ` · ${task.startTime}` : ''}{task.recurrence ? ` · ${task.recurrence}` : ''}</small>{task.notes && <p>{task.notes}</p>}{task.tags?.length ? <small>{task.tags.map(tag => `#${tag}`).join(' ')}</small> : null}</div><button className="planner-delete" onClick={() => remove(task)} aria-label={`حذف ${task.title}`}>×</button></article>) : <p className="empty">چیزی در این نما نیست.</p>}</section></div></div></main>; }
+
+  const reminderByTask = useMemo(() => Object.fromEntries(reminders.filter(r => r.taskId).map(r => [r.taskId, r])), [reminders]);
+  const today = isoToday(), weekAhead = iso(addDays(new Date(today + 'T12:00:00'), 7));
+
+  const counts = useMemo(() => ({
+    open: tasks.filter(x => !x.done).length,
+    today: tasks.filter(x => !x.done && x.date === today).length,
+    upcoming: tasks.filter(x => !x.done && x.date > today && x.date <= weekAhead).length,
+    reminders: tasks.filter(x => !x.done && reminderByTask[x.id]).length,
+    done: tasks.filter(x => x.done).length,
+    all: tasks.length,
+  }), [tasks, reminderByTask]);
+
+  const visible = useMemo(() => {
+    let list = tasks;
+    if (filter === 'open') list = list.filter(x => !x.done);
+    else if (filter === 'today') list = list.filter(x => !x.done && x.date === today);
+    else if (filter === 'upcoming') list = list.filter(x => !x.done && x.date > today && x.date <= weekAhead);
+    else if (filter === 'reminders') list = list.filter(x => !x.done && reminderByTask[x.id]);
+    else if (filter === 'done') list = list.filter(x => x.done);
+    const q = query.trim();
+    if (q) list = list.filter(x => x.title.includes(q) || (x.notes || '').includes(q) || (x.tags || []).some(tag => tag.includes(q)));
+    const priorityRank = { high: 0, medium: 1, low: 2 };
+    const dueVal = x => x.date ? new Date(`${x.date}T${x.startTime || '23:59'}`).getTime() : Infinity;
+    const sorted = [...list];
+    if (sort === 'created') sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    else if (sort === 'priority') sorted.sort((a, b) => (priorityRank[a.priority] - priorityRank[b.priority]) || (dueVal(a) - dueVal(b)));
+    else sorted.sort((a, b) => (Number(a.done) - Number(b.done)) || (dueVal(a) - dueVal(b)));
+    return sorted;
+  }, [tasks, filter, sort, query, reminderByTask]);
+
+  const submit = async body => {
+    try {
+      let saved;
+      if (editing) saved = await api(`/api/tasks/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+      else saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(body) });
+      const existingReminder = editing?.reminder;
+      if (body.reminderOn && body.reminderDate) {
+        const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id };
+        if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'PATCH', body: JSON.stringify(rBody) });
+        else await api('/api/reminders', { method: 'POST', body: JSON.stringify(rBody) });
+      } else if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'DELETE' });
+      setDrawerOpen(false); setEditing(null); flash(editing ? 'تغییرات ذخیره شد ✓' : 'کار تازه ثبت شد ✓'); load();
+    } catch (error) { flash(error.message); }
+  };
+
+  const toggle = async task => {
+    try {
+      await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
+      const r = reminderByTask[task.id]; if (r) await api(`/api/reminders/${r.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
+      flash(!task.done && task.recurrence ? 'کار انجام شد؛ نمونهٔ بعدی ساخته شد ✓' : !task.done ? 'کار انجام شد ✓' : 'کار دوباره باز شد');
+      load();
+    } catch (error) { flash(error.message); }
+  };
+
+  const remove = async task => {
+    if (!window.confirm(`«${task.title}» حذف شود؟`)) return;
+    try {
+      await api(`/api/tasks/${task.id}`, { method: 'DELETE' });
+      const r = reminderByTask[task.id]; if (r) await api(`/api/reminders/${r.id}`, { method: 'DELETE' });
+      flash('کار حذف شد.'); load();
+    } catch (error) { flash(error.message); }
+  };
+
+  const openCreate = () => { setEditing(null); setDrawerOpen(true); };
+  const openEdit = task => { setEditing({ task, reminder: reminderByTask[task.id] || null }); setDrawerOpen(true); };
+
+  const emptyMessage = query.trim() ? `چیزی برای «${query.trim()}» پیدا نشد.`
+    : filter === 'done' ? 'هنوز کاری را تمام نکرده‌ای.'
+    : filter === 'today' ? 'برای امروز کاری ثبت نشده — روزِ سبکی است.'
+    : filter === 'upcoming' ? 'پیشِ رو چیزی نیست؛ تا یک هفتهٔ آینده خالی است.'
+    : filter === 'reminders' ? 'یادآوری فعالی نیست.'
+    : 'دفتر خالی است — اولین کار را بساز.';
+
+  return <main className="plnr" dir="rtl">
+    <TopNav active="planner" />
+    <div className="plnr-page">
+      <header className="plnr-hero">
+        <div className="plnr-hero-title">
+          <ShamsehMark size={48} />
+          <div>
+            <p className="kicker">دفترِ برنامهٔ روزانه</p>
+            <h1>کارها و یادآوری‌ها</h1>
+            <p className="plnr-nastaliq">برنامه‌ریزی با دقت و حواسِّ دقیق</p>
+          </div>
+        </div>
+        <dl className="plnr-hero-stats">
+          <div><dt>باز</dt><dd>{fa(counts.open)}</dd></div>
+          <div><dt>امروز</dt><dd>{fa(counts.today)}</dd></div>
+          <div><dt>یادآوری</dt><dd>{fa(counts.reminders)}</dd></div>
+          <div><dt>انجام‌شده</dt><dd>{fa(counts.done)}</dd></div>
+        </dl>
+      </header>
+
+      <div className="plnr-toolbar">
+        <div className="plnr-search"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجو در عنوان، توضیحات یا برچسب‌ها…" /></div>
+        <select className="plnr-sort" value={sort} onChange={e => setSort(e.target.value)}>
+          <option value="due">مرتب‌سازی: سررسید</option>
+          <option value="priority">مرتب‌سازی: اولویت</option>
+          <option value="created">مرتب‌سازی: تازه‌ترین</option>
+        </select>
+        <button className="plnr-add-btn" onClick={openCreate}><Plus size={16} /> کار تازه</button>
+      </div>
+
+      {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
+
+      <div className="plnr-tabs">
+        {PLANNER_FILTERS.map(([key, label]) => <button key={key} className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>{label} ({fa(counts[key])})</button>)}
+      </div>
+
+      <div className="plnr-section-head">
+        <h2><BookOpenCheck size={19} strokeWidth={1.6} /> دفترِ کارها</h2>
+        <span>{PLANNER_FILTERS.find(f => f[0] === filter)?.[1]} · {fa(visible.length)} سطر</span>
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="plnr-empty"><ShamsehMark size={40} className="dim" /><p>{emptyMessage}</p>{filter === 'open' && !query.trim() && <button className="plnr-add-btn" onClick={openCreate}><Plus size={15} /> افزودن کار تازه</button>}</div>
+      ) : (
+        <ul className="plnr-list">
+          {visible.map(task => <TaskCard key={task.id} task={task} reminder={reminderByTask[task.id]} onToggle={toggle} onEdit={openEdit} onDelete={remove} />)}
+        </ul>
+      )}
+    </div>
+    <TaskDrawer open={drawerOpen} initial={editing} onClose={() => { setDrawerOpen(false); setEditing(null); }} onSubmit={submit} />
+    {toast && <div className="plnr-toast">{toast}</div>}
+  </main>;
+}
 function FinanceReact() {
   const [month, setMonth] = useState(() => isoToday().slice(0, 7));
   const [holdAssetType, setHoldAssetType] = useState('crypto');
@@ -251,28 +477,694 @@ function MarketNextReact() {
   return <main className="planner-react" dir="rtl"><TopNav active="market" /><div className="planner-page"><header><div><p>قیمت‌های واقعی سرویس‌های فعلی</p><h1>بازار</h1></div></header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<div className="finance-grid"><section className="planner-list"><h2>بازار تهران</h2>{items.length ? <Table><TableHeader><TableRow><TableHead>دارایی</TableHead><TableHead>قیمت</TableHead><TableHead>تغییر</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.key}><TableCell><button className="market-select" onClick={() => setSelected(item.key)}>{item.name}</button></TableCell><TableCell numeric>{fa(item.p)}</TableCell><TableCell numeric className={item.change.includes('▼') ? 'negative' : ''}>{item.change || '—'}</TableCell></TableRow>)}</TableBody></Table> : <p className="empty">داده‌ای دریافت نشد.</p>}</section><section className="planner-list"><h2>سهام آمریکا</h2>{stocks.length ? <Table><TableHeader><TableRow><TableHead>نماد</TableHead><TableHead>قیمت</TableHead><TableHead>تغییر</TableHead></TableRow></TableHeader><TableBody>{stocks.map(item => <TableRow key={item.symbol}><TableCell>{item.symbol}</TableCell><TableCell numeric>{fa(item.price)} دلار</TableCell><TableCell numeric>{item.changePercent ?? '—'}</TableCell></TableRow>)}</TableBody></Table> : <p className="empty">برای نمایش سهام، کلید سرویس باید فعال باشد.</p>}</section></div>{selected && <section className="planner-list"><h2>تاریخچهٔ {selected}</h2>{history.length ? <div className="history-strip">{history.slice(-30).map((point, index) => <span key={point.date || index} title={`${point.date || ''}: ${point.p || point.price || point.value || ''}`} style={{ height: `${Math.max(8, Math.min(100, Number(point.p || point.price || point.value || 0) / Math.max(...history.map(x => Number(x.p || x.price || x.value || 0)), 1) * 100))}%` }} />)}</div> : <p className="empty">تاریخچه‌ای برای این دارایی دریافت نشد.</p>}</section>}</div></main>;
 }
 
-function MediaNextReact({ type }) {
-  const title = type === 'movie' ? 'فیلم‌ها' : 'سریال‌ها'; const [items, setItems] = useState([]), [status, setStatus] = useState('all'), [stats, setStats] = useState({}), [editing, setEditing] = useState(null), [notice, setNotice] = useState('');
-  const load = () => Promise.all([api('/api/movies'), api('/api/movies/stats').catch(() => ({}))]).then(([data, summary]) => { setItems((data.items || []).filter(item => item.type === type)); setStats(summary); }).catch(error => setNotice(error.message));
-  useEffect(() => { load(); }, [type]);
-  const save = async event => { event.preventDefault(); const f = new FormData(event.currentTarget); const body = { title: f.get('title'), type, status: f.get('status'), rating: f.get('rating') || null, date: f.get('date') || isoToday(), note: f.get('note'), tags: f.get('tags'), platform: f.get('platform'), genre: f.get('genre'), currentSeason: f.get('currentSeason') || null, currentEpisode: f.get('currentEpisode') || null }; try { await api(editing ? `/api/movies/${editing.id}` : '/api/movies', { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(body) }); setEditing(null); event.currentTarget.reset(); setNotice('ذخیره شد.'); load(); } catch (error) { setNotice(error.message); } };
-  const remove = async item => { if (!window.confirm(`«${item.title}» حذف شود؟`)) return; try { await api(`/api/movies/${item.id}`, { method: 'DELETE' }); load(); } catch (error) { setNotice(error.message); } };
-  const shown = items.filter(item => status === 'all' || item.status === status);
-  return <main className="planner-react" dir="rtl"><TopNav active={type === 'movie' ? 'movies' : 'series'} /><div className="planner-page"><header><div><p>کتابخانهٔ شخصی با داده‌های واقعی</p><h1>{title}</h1></div><div className="planner-stats"><b>{fa(stats.completedCount || 0)} تمام‌شده</b><b>{stats.avgRating ? `${fa(stats.avgRating)} / ۱۰` : 'بدون امتیاز'}</b><b>{stats.topGenre || '—'}</b></div></header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<div className="planner-layout"><form className="planner-form" onSubmit={save}><h2>{editing ? 'ویرایش' : `${type === 'movie' ? 'فیلم' : 'سریال'} تازه`}</h2><input name="title" required placeholder="عنوان" defaultValue={editing?.title || ''} key={`title-${editing?.id || 'new'}`} /><select name="status" defaultValue={editing?.status || 'watchlist'}><option value="watchlist">فهرست تماشا</option><option value="watching">در حال تماشا</option><option value="completed">تمام‌شده</option></select><div><input name="rating" type="number" min="1" max="10" placeholder="امتیاز" defaultValue={editing?.rating || ''} /><input name="date" type="date" defaultValue={editing?.date || isoToday()} /></div><div><input name="genre" placeholder="ژانر" defaultValue={editing?.genre || ''} /><input name="platform" placeholder="پلتفرم" defaultValue={editing?.platform || ''} /></div>{type === 'series' && <div><input name="currentSeason" type="number" min="1" placeholder="فصل" defaultValue={editing?.currentSeason || ''} /><input name="currentEpisode" type="number" min="1" placeholder="قسمت" defaultValue={editing?.currentEpisode || ''} /></div>}<input name="tags" placeholder="تگ‌ها" defaultValue={editing?.tags || ''} /><textarea name="note" placeholder="یادداشت" defaultValue={editing?.note || ''} key={`note-${editing?.id || 'new'}`} /><button className="save">ذخیره</button>{editing && <button type="button" className="finance-action" onClick={() => setEditing(null)}>انصراف</button>}</form><section className="planner-list"><div className="planner-filters">{[['all','همه'],['watchlist','بعداً'],['watching','در حال تماشا'],['completed','تمام‌شده']].map(([key, label]) => <button className={status === key ? 'active' : ''} onClick={() => setStatus(key)} key={key}>{label}</button>)}</div>{shown.length ? shown.map(item => <article key={item.id}><div><b>{item.title}</b><small>{[item.status, item.platform, item.genre, item.rating && `${fa(item.rating)}/۱۰`, type === 'series' && item.currentEpisode && `قسمت ${fa(item.currentEpisode)}`].filter(Boolean).join(' · ')}</small>{item.note && <p>{item.note}</p>}</div><div className="record-actions"><button className="finance-action" onClick={() => setEditing(item)}>ویرایش</button><button className="planner-delete" onClick={() => remove(item)}>×</button></div></article>) : <p className="empty">موردی در این نما نیست.</p>}</section></div></div></main>;
+function seasonAiredCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.aired) || 0 : 0; }
+function seasonTotalCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.total) || 0 : 0; }
+function seriesHasFresh(item) {
+  const cur = Number(item.currentSeason) || 1;
+  if (seasonAiredCount(item, cur) > (Number(item.currentEpisode) || 0)) return true;
+  const by = item.seasonEpisodes || {};
+  return Object.keys(by).some(s => Number(s) > cur && (Number(by[s].aired) || 0) > 0);
+}
+function episodesWatchedCount(item) {
+  const by = item.seasonEpisodes || {}, cur = Number(item.currentSeason) || 1;
+  let n = 0;
+  Object.keys(by).forEach(s => { if (Number(s) < cur) n += Number(by[s].total) || 0; });
+  return n + (Number(item.currentEpisode) || 0);
+}
+function seriesAiredTotal(item) {
+  const by = item.seasonEpisodes || {};
+  return Object.values(by).reduce((n, s) => n + (Number(s.aired) || 0), 0);
+}
+const SERIES_TABS = [['all', 'همه'], ['watching', 'در حال تماشا'], ['watchlist', 'بعداً'], ['completed', 'تمام‌شده'], ['dropped', 'رها‌شده']];
+const SERIES_STATUS_OPTIONS = [['watchlist', 'بعداً'], ['watching', 'در حال تماشا'], ['completed', 'تمام‌شده'], ['dropped', 'رها‌شده']];
+
+function SeriesReact() {
+  const [items, setItems] = useState([]);
+  const [tab, setTab] = useState('all');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const [notice, setNotice] = useState('');
+  const [toast, setToast] = useState('');
+
+  const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2400); };
+  const load = () => api('/api/movies').then(data => setItems((data.items || []).filter(x => x.type === 'series'))).catch(e => setNotice(e.message));
+  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setResults([]); setSearching(false); return; }
+    setSearching(true);
+    const t = setTimeout(() => {
+      api(`/api/movies/tvmaze/search?q=${encodeURIComponent(q)}`).then(d => setResults(d.items || [])).catch(() => setResults([])).finally(() => setSearching(false));
+    }, 380);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const addedIds = new Set(items.map(x => String(x.tvmazeId)));
+
+  const addShow = async show => {
+    try {
+      await api('/api/movies/from-tvmaze', { method: 'POST', body: JSON.stringify({ tvmazeId: show.tvmazeId, status: 'watchlist' }) });
+      setQuery(''); setResults([]); flash(`«${show.name}» اضافه شد ✓`); load();
+    } catch (e) { flash(e.message); }
+  };
+
+  const quickWatch = async item => {
+    setBusyId(item.id);
+    const nextEp = (Number(item.currentEpisode) || 0) + 1;
+    try {
+      await api(`/api/movies/${item.id}`, { method: 'PATCH', body: JSON.stringify({ currentEpisode: nextEp, currentSeason: item.currentSeason || 1, status: item.status === 'watchlist' ? 'watching' : item.status }) });
+      flash(`«${item.title}» → قسمت ${fa(nextEp)} دیده شد ✓`);
+      load();
+    } catch (e) { flash(e.message); }
+    setBusyId(null);
+  };
+
+  const stats = useMemo(() => {
+    const eps = items.reduce((n, x) => n + episodesWatchedCount(x), 0);
+    const mins = items.reduce((n, x) => n + episodesWatchedCount(x) * (x.durationMinutes || 45), 0);
+    return { count: items.length, eps, hours: Math.round(mins / 60), completed: items.filter(x => x.status === 'completed').length };
+  }, [items]);
+
+  const upNext = useMemo(() => items.filter(x => x.status === 'watching' && seriesHasFresh(x)).slice(0, 6), [items]);
+  const shown = tab === 'all' ? items : items.filter(x => x.status === tab);
+
+  return (
+    <main className="strk" dir="rtl">
+      <TopNav active="series" />
+      <div className="strk-page">
+        <header className="strk-hero">
+          <div><p>ردیاب سریال‌ها</p><h1>سریال‌های من</h1></div>
+          <div className="strk-stats">
+            <div><b>{fa(stats.count)}</b><small>سریال</small></div>
+            <div><b>{fa(stats.eps)}</b><small>قسمت دیده‌شده</small></div>
+            <div><b>{fa(stats.hours)}</b><small>ساعت تماشا</small></div>
+            <div><b>{fa(stats.completed)}</b><small>تمام‌شده</small></div>
+          </div>
+        </header>
+
+        <div className="strk-search">
+          <Search size={16} className="strk-search-ic" />
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجوی سریال برای افزودن… (انگلیسی)" />
+          {searching && <span className="strk-spinner" />}
+          {results.length > 0 && (
+            <div className="strk-results">
+              {results.map(show => (
+                <div className="strk-result-row" key={show.tvmazeId}>
+                  {show.posterUrl ? <img src={show.posterUrl} alt="" /> : <span className="strk-result-fallback">🎬</span>}
+                  <div className="strk-result-info"><b>{show.name}</b><small>{show.year}{show.genres?.length ? ' · ' + show.genres.join('، ') : ''}</small></div>
+                  {addedIds.has(String(show.tvmazeId)) ? <span className="strk-added">اضافه شده</span> : <button className="strk-add-btn" onClick={() => addShow(show)}>+ افزودن</button>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
+
+        {upNext.length > 0 && (
+          <section className="strk-upnext">
+            <div className="strk-upnext-head"><h2>قسمت‌های بعدی</h2><span>{fa(upNext.length)} سریال</span></div>
+            <div className="strk-upnext-list">
+              {upNext.map(item => {
+                const cur = Number(item.currentSeason) || 1, ep = (Number(item.currentEpisode) || 0) + 1;
+                return (
+                  <div className="strk-upnext-row" key={item.id}>
+                    {item.posterUrl ? <img src={item.posterUrl} alt="" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} /> : null}
+                    <span className="strk-upnext-fallback" style={{ display: item.posterUrl ? 'none' : 'flex' }}>🎬</span>
+                    <div className="strk-upnext-info"><b>{item.title}</b><small>فصل {fa(cur)} · قسمت {fa(ep)}</small></div>
+                    <button disabled={busyId === item.id} className="strk-watch-btn" onClick={() => quickWatch(item)}>{busyId === item.id ? '...' : 'دیدمش ✓'}</button>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        <div className="strk-tabs">
+          {SERIES_TABS.map(([key, label]) => (
+            <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
+              {label} ({fa(key === 'all' ? items.length : items.filter(x => x.status === key).length)})
+            </button>
+          ))}
+        </div>
+
+        {shown.length === 0 && <p className="empty">چیزی اینجا نیست — از جستجوی بالا سریال اضافه کن.</p>}
+
+        <div className="strk-grid">
+          {shown.map(item => {
+            const cur = Number(item.currentSeason) || 1, ep = Number(item.currentEpisode) || 0;
+            const airedTotal = seriesAiredTotal(item), watched = episodesWatchedCount(item);
+            const pct = airedTotal ? Math.min(100, Math.round((watched / airedTotal) * 100)) : 0;
+            const fresh = item.status === 'watching' && seriesHasFresh(item);
+            const seasonsCount = Object.keys(item.seasonEpisodes || {}).length;
+            return (
+              <div className="strk-card" key={item.id}>
+                <div className="strk-poster" onClick={() => setOpen(item)}>
+                  {fresh && <span className="strk-fresh">قسمت جدید!</span>}
+                  {item.posterUrl ? <img src={item.posterUrl} alt={item.title} loading="lazy" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} /> : null}
+                  <span className="strk-poster-fallback" style={{ display: item.posterUrl ? 'none' : 'flex' }}>🎬</span>
+                  {item.tmdbRating != null && <span className="strk-rating">★ {fa(Math.round(item.tmdbRating * 10) / 10)}</span>}
+                  {!!seasonsCount && <span className="strk-seasons">{fa(seasonsCount)} فصل</span>}
+                  {pct >= 100 && airedTotal > 0 && <span className="strk-done">✓ تمام</span>}
+                </div>
+                <div className="strk-body">
+                  <b className="strk-title">{item.title}</b>
+                  {airedTotal > 0 && (
+                    <div className="strk-progress-row">
+                      <span>{fa(watched)} از {fa(airedTotal)} قسمت</span><span>{fa(pct)}٪</span>
+                    </div>
+                  )}
+                  {airedTotal > 0 && <div className="strk-progress"><i style={{ width: `${pct}%`, background: pct >= 100 ? '#34d399' : undefined }} /></div>}
+                  {item.status === 'watching' ? (
+                    fresh ? (
+                      <button disabled={busyId === item.id} className="strk-watch-btn strk-watch-btn-full" onClick={() => quickWatch(item)}>
+                        {busyId === item.id ? '...' : `✓ دیدم فصل ${fa(cur)} قسمت ${fa(ep + 1)}`}
+                      </button>
+                    ) : <div className="strk-uptodate">همه‌ی قسمت‌های پخش‌شده رو دیدی ✓</div>
+                  ) : null}
+                  <button className="strk-more-btn" onClick={() => setOpen(item)}>📋 همه فصل‌ها و قسمت‌ها</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {open && <SeriesDetail item={open} onClose={() => { setOpen(null); load(); }} flash={flash} />}
+      {toast && <div className="strk-toast">{toast}</div>}
+    </main>
+  );
 }
 
-function MediaIntegrationReact({ service, title }) {
-  const [data, setData] = useState({}), [query, setQuery] = useState(''), [results, setResults] = useState([]), [notice, setNotice] = useState('');
-  const load = () => api(service === 'youtube' ? '/api/integrations/youtube/history' : '/api/integrations/spotify/recent').then(setData).catch(error => setNotice(error.message));
-  useEffect(() => { load(); }, [service]);
-  const search = async event => { event.preventDefault(); if (!query.trim()) return; try { const data = await api(`/api/integrations/${service}/search?q=${encodeURIComponent(query)}`); setResults(data.items || []); } catch (error) { setNotice(error.message); } };
-  const disconnect = async () => { try { await api(`/api/integrations/${service}/disconnect`, { method: 'POST', body: JSON.stringify({}) }); setNotice('اتصال قطع شد.'); setData({}); } catch (error) { setNotice(error.message); } };
-  const log = async item => { try { await api('/api/media-log', { method: 'POST', body: JSON.stringify({ source: service, title: item.track || item.name || item.title, meta: JSON.stringify({ url: item.url || item.externalUrl || '', artist: item.artist || item.channelTitle || '' }) }) }); setNotice('در تاریخچهٔ LifeOS ثبت شد.'); } catch (error) { setNotice(error.message); } };
-  const items = data.items || [];
-  return <main className="planner-react" dir="rtl"><TopNav active={service === 'spotify' ? 'music' : 'youtube'} /><div className="planner-page"><header><div><p>اتصال و داده‌های واقعی حساب</p><h1>{title}</h1></div><div>{data.connected === false || notice ? <a className="save" href={`/api/integrations/${service}/connect`}>اتصال {title}</a> : <button className="finance-action" onClick={disconnect}>قطع اتصال</button>}</div></header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<form className="planner-form media-search" onSubmit={search}><input value={query} onChange={event => setQuery(event.target.value)} placeholder={`جستجو در ${title}`} /><button className="save">جستجو</button></form><div className="finance-grid"><section className="planner-list"><h2>اخیراً پخش/دیده‌شده</h2>{items.length ? items.map((item, index) => <article key={item.id || `${item.name}-${index}`}><div><b>{item.track || item.name || item.title}</b><small>{[item.artist, item.album, item.playedAt].filter(Boolean).join(' · ')}</small></div><button className="finance-action" onClick={() => log(item)}>ثبت در LifeOS</button></article>) : <p className="empty">برای شروع، اتصال را برقرار کنید.</p>}</section><section className="planner-list"><h2>نتیجهٔ جستجو</h2>{results.length ? results.map((item, index) => <article key={item.id || index}><div><b>{item.track || item.name || item.title}</b><small>{[item.artist, item.album, item.channelTitle].filter(Boolean).join(' · ')}</small></div><button className="finance-action" onClick={() => log(item)}>ثبت</button></article>) : <p className="empty">جستجو کنید تا نتایج نمایش داده شوند.</p>}</section></div></div></main>;
+function SeriesDetail({ item, onClose, flash }) {
+  const [row, setRow] = useState(item);
+  const [episodes, setEpisodes] = useState(null);
+  const [openSeason, setOpenSeason] = useState(Number(item.currentSeason) || 1);
+  const [pendingKey, setPendingKey] = useState('');
+
+  useEffect(() => {
+    if (!item.tvmazeId) { setEpisodes([]); return; }
+    api(`/api/movies/tvmaze/episodes?tvmazeId=${encodeURIComponent(item.tvmazeId)}`).then(d => setEpisodes(d.items || [])).catch(() => setEpisodes([]));
+  }, [item.tvmazeId]);
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  const patch = async body => {
+    try {
+      const updated = await api(`/api/movies/${row.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+      setRow(updated);
+      return updated;
+    } catch (e) { flash(e.message); return null; }
+  };
+
+  const seasons = episodes && episodes.length
+    ? [...new Set(episodes.map(e => e.season))].sort((a, b) => a - b)
+    : Object.keys(row.seasonEpisodes || {}).map(Number).sort((a, b) => a - b);
+
+  const isWatched = (season, number) => {
+    const cur = Number(row.currentSeason) || 1;
+    if (season < cur) return true;
+    if (season > cur) return false;
+    return number <= (Number(row.currentEpisode) || 0);
+  };
+
+  const toggleEpisode = async ep => {
+    if (!ep.aired) return;
+    const key = `${ep.season}-${ep.number}`;
+    setPendingKey(key);
+    if (isWatched(ep.season, ep.number)) await patch({ currentSeason: ep.season, currentEpisode: Math.max(0, ep.number - 1) });
+    else await patch({ currentSeason: ep.season, currentEpisode: ep.number });
+    setPendingKey('');
+  };
+
+  const markSeason = async season => {
+    const aired = (episodes || []).filter(e => e.season === season && e.aired);
+    const maxNum = aired.length ? Math.max(...aired.map(e => e.number)) : seasonAiredCount(row, season);
+    await patch({ currentSeason: season, currentEpisode: maxNum });
+    flash(`فصل ${fa(season)} دیده شد ✓`);
+  };
+  const clearSeason = async season => {
+    await patch({ currentSeason: season, currentEpisode: 0 });
+    flash(`فصل ${fa(season)} پاک شد`);
+  };
+
+  const del = async () => {
+    if (!window.confirm(`«${row.title}» حذف شود؟`)) return;
+    try { await api(`/api/movies/${row.id}`, { method: 'DELETE' }); onClose(); } catch (e) { flash(e.message); }
+  };
+
+  const totalEps = episodes ? episodes.filter(e => e.aired).length : seriesAiredTotal(row);
+  const watchedEps = episodesWatchedCount(row);
+  const pct = totalEps ? Math.min(100, Math.round((watchedEps / totalEps) * 100)) : 0;
+
+  return (
+    <div className="strk-modal-backdrop" onClick={onClose}>
+      <div className="strk-modal" onClick={e => e.stopPropagation()}>
+        <button className="strk-modal-close" onClick={onClose}><X size={18} /></button>
+        <div className="strk-modal-head">
+          {row.posterUrl ? <img src={row.posterUrl} alt="" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} /> : null}
+          <span className="strk-modal-poster-fallback" style={{ display: row.posterUrl ? 'none' : 'flex' }}>🎬</span>
+          <div className="strk-modal-info">
+            <h2>{row.title}</h2>
+            <p className="strk-modal-meta">{[row.genre, row.network, row.year].filter(Boolean).join(' · ')}</p>
+            {totalEps > 0 && (
+              <>
+                <div className="strk-progress-row"><span>{fa(watchedEps)} از {fa(totalEps)} قسمت دیده شده</span><span>{fa(pct)}٪</span></div>
+                <div className="strk-progress"><i style={{ width: `${pct}%` }} /></div>
+              </>
+            )}
+            <div className="strk-modal-controls">
+              <select value={row.status} onChange={e => patch({ status: e.target.value })}>
+                {SERIES_STATUS_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+              <div className="strk-stars" dir="ltr">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
+                  <button key={n} onClick={() => patch({ rating: n })} className={row.rating && n <= row.rating ? 'on' : ''}><Star size={14} fill={row.rating && n <= row.rating ? 'currentColor' : 'none'} /></button>
+                ))}
+              </div>
+              <button className="strk-del-btn" onClick={del}><Trash2 size={14} /> حذف</button>
+            </div>
+          </div>
+        </div>
+
+        {row.note && <p className="strk-modal-note">{row.note}</p>}
+
+        <div className="strk-seasons-body">
+          {episodes === null ? (
+            <p className="empty">در حال دریافت قسمت‌ها…</p>
+          ) : !seasons.length ? (
+            <p className="empty">قسمتی یافت نشد.</p>
+          ) : seasons.map(season => {
+            const seasonEps = (episodes || []).filter(e => e.season === season);
+            const aired = seasonEps.filter(e => e.aired);
+            const watchedInSeason = aired.filter(e => isWatched(e.season, e.number)).length;
+            const isOpen = openSeason === season;
+            return (
+              <div className="strk-season" key={season}>
+                <button className="strk-season-head" onClick={() => setOpenSeason(isOpen ? null : season)}>
+                  <ChevronDown size={16} className={isOpen ? 'open' : ''} />
+                  <span className="strk-season-count">{fa(watchedInSeason)}/{fa(aired.length || seasonTotalCount(row, season))}</span>
+                  <b>فصل {fa(season)}</b>
+                  {watchedInSeason < aired.length && <span className="strk-new-badge">{fa(aired.length - watchedInSeason)} جدید</span>}
+                </button>
+                {isOpen && (
+                  <div className="strk-season-body">
+                    {seasonEps.length > 0 && (
+                      <div className="strk-season-actions">
+                        <button onClick={() => markSeason(season)}>همه‌ی قسمت‌های پخش‌شده رو دیدم ✓</button>
+                        <button onClick={() => clearSeason(season)}>↺ پاک‌کردن فصل</button>
+                      </div>
+                    )}
+                    <ul className="strk-ep-list">
+                      {seasonEps.map(ep => {
+                        const watched = isWatched(ep.season, ep.number), key = `${ep.season}-${ep.number}`;
+                        return (
+                          <li key={ep.id} className={!ep.aired ? 'strk-ep-unaired' : ''} onClick={() => toggleEpisode(ep)}>
+                            <span className={`strk-ep-check ${watched ? 'on' : ''}`}>{pendingKey === key ? '…' : watched ? <Check size={12} /> : ''}</span>
+                            <span className="strk-ep-info">
+                              <b>{ep.name || `قسمت ${fa(ep.number)}`}</b>
+                              <small>{ep.airdate || 'به‌زودی'}</small>
+                            </span>
+                            <span className="strk-ep-num">E{fa(ep.number)}</span>
+                          </li>
+                        );
+                      })}
+                      {!seasonEps.length && <li className="strk-ep-unaired"><span className="strk-ep-info"><small>داده‌ی قسمت‌به‌قسمت این فصل موجود نیست.</small></span></li>}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
-function MusicNextReact() { return <MediaIntegrationReact service="spotify" title="Spotify" />; }
-function YouTubeReact() { return <MediaIntegrationReact service="youtube" title="YouTube" />; }
+
+const MOVIE_TABS = [['all', 'همه'], ['watchlist', 'فهرست تماشا'], ['completed', 'دیده‌شده']];
+const MOVIE_STATUS_OPTIONS = [['watchlist', 'فهرست تماشا'], ['completed', 'دیده‌شده']];
+
+function MoviesReact() {
+  const [items, setItems] = useState([]);
+  const [tab, setTab] = useState('all');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const [notice, setNotice] = useState('');
+  const [toast, setToast] = useState('');
+
+  const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2400); };
+  const load = () => api('/api/movies').then(data => setItems((data.items || []).filter(x => x.type === 'movie'))).catch(e => setNotice(e.message));
+  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setResults([]); setSearching(false); return; }
+    setSearching(true);
+    const t = setTimeout(() => {
+      api(`/api/movies/tmdb/search?q=${encodeURIComponent(q)}`).then(d => setResults((d.items || []).filter(x => x.mediaType === 'movie'))).catch(e => { setResults([]); flash(e.message); }).finally(() => setSearching(false));
+    }, 380);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const addedIds = new Set(items.map(x => String(x.tmdbId)));
+
+  const addMovie = async show => {
+    try {
+      await api('/api/movies/from-tmdb', { method: 'POST', body: JSON.stringify({ tmdbId: show.tmdbId, mediaType: 'movie', status: 'watchlist' }) });
+      setQuery(''); setResults([]); flash(`«${show.title}» اضافه شد ✓`); load();
+    } catch (e) { flash(e.message); }
+  };
+
+  const markWatched = async item => {
+    setBusyId(item.id);
+    try {
+      await api(`/api/movies/${item.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed', date: isoToday() }) });
+      flash(`«${item.title}» → دیده‌شده ✓`); load();
+    } catch (e) { flash(e.message); }
+    setBusyId(null);
+  };
+
+  const stats = useMemo(() => {
+    const done = items.filter(x => x.status === 'completed');
+    const mins = done.reduce((n, x) => n + (Number(x.durationMinutes) || 0), 0);
+    const rated = done.filter(x => x.rating).map(x => Number(x.rating));
+    return { count: items.length, done: done.length, hours: Math.round(mins / 60), avg: rated.length ? rated.reduce((a, b) => a + b, 0) / rated.length : null };
+  }, [items]);
+
+  const shown = tab === 'all' ? items : items.filter(x => x.status === tab);
+
+  return (
+    <main className="strk" dir="rtl">
+      <TopNav active="movies" />
+      <div className="strk-page">
+        <header className="strk-hero">
+          <div><p>ردیاب فیلم‌ها</p><h1>فیلم‌های من</h1></div>
+          <div className="strk-stats">
+            <div><b>{fa(stats.count)}</b><small>فیلم</small></div>
+            <div><b>{fa(stats.done)}</b><small>دیده‌شده</small></div>
+            <div><b>{fa(stats.hours)}</b><small>ساعت تماشا</small></div>
+            <div><b>{stats.avg ? fa(Math.round(stats.avg * 10) / 10) : '—'}</b><small>میانگین امتیاز</small></div>
+          </div>
+        </header>
+
+        <div className="strk-search">
+          <Search size={16} className="strk-search-ic" />
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجوی فیلم برای افزودن…" />
+          {searching && <span className="strk-spinner" />}
+          {results.length > 0 && (
+            <div className="strk-results">
+              {results.map(show => (
+                <div className="strk-result-row" key={show.tmdbId}>
+                  {show.posterUrl ? <img src={show.posterUrl} alt="" /> : <span className="strk-result-fallback">🎬</span>}
+                  <div className="strk-result-info"><b>{show.title}</b><small>{(show.date || '').slice(0, 4)}</small></div>
+                  {addedIds.has(String(show.tmdbId)) ? <span className="strk-added">اضافه شده</span> : <button className="strk-add-btn" onClick={() => addMovie(show)}>+ افزودن</button>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
+
+        <div className="strk-tabs">
+          {MOVIE_TABS.map(([key, label]) => (
+            <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
+              {label} ({fa(key === 'all' ? items.length : items.filter(x => x.status === key).length)})
+            </button>
+          ))}
+        </div>
+
+        {shown.length === 0 && <p className="empty">چیزی اینجا نیست — از جستجوی بالا فیلم اضافه کن.</p>}
+
+        <div className="strk-grid">
+          {shown.map(item => (
+            <div className="strk-card" key={item.id}>
+              <div className="strk-poster" onClick={() => setOpen(item)}>
+                {item.posterUrl ? <img src={item.posterUrl} alt={item.title} loading="lazy" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} /> : null}
+                <span className="strk-poster-fallback" style={{ display: item.posterUrl ? 'none' : 'flex' }}>🎬</span>
+                {item.tmdbRating != null && <span className="strk-rating">★ {fa(Math.round(item.tmdbRating * 10) / 10)}</span>}
+                {item.durationMinutes ? <span className="strk-seasons">{fa(item.durationMinutes)} د</span> : null}
+                {item.status === 'completed' && <span className="strk-done">✓ دیده‌شده</span>}
+              </div>
+              <div className="strk-body">
+                <b className="strk-title">{item.title}</b>
+                {item.status !== 'completed' ? (
+                  <button disabled={busyId === item.id} className="strk-watch-btn-full" onClick={() => markWatched(item)}>{busyId === item.id ? '...' : '✓ دیدمش'}</button>
+                ) : item.rating ? (
+                  <div className="strk-progress-row"><span>امتیاز تو</span><span>★ {fa(item.rating)}/۱۰</span></div>
+                ) : null}
+                <button className="strk-more-btn" onClick={() => setOpen(item)}>جزئیات</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {open && <MovieDetail item={open} onClose={() => { setOpen(null); load(); }} flash={flash} />}
+      {toast && <div className="strk-toast">{toast}</div>}
+    </main>
+  );
+}
+
+function MovieDetail({ item, onClose, flash }) {
+  const [row, setRow] = useState(item);
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  const patch = async body => {
+    try {
+      const updated = await api(`/api/movies/${row.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+      setRow(updated);
+      return updated;
+    } catch (e) { flash(e.message); return null; }
+  };
+
+  const del = async () => {
+    if (!window.confirm(`«${row.title}» حذف شود؟`)) return;
+    try { await api(`/api/movies/${row.id}`, { method: 'DELETE' }); onClose(); } catch (e) { flash(e.message); }
+  };
+
+  return (
+    <div className="strk-modal-backdrop" onClick={onClose}>
+      <div className="strk-modal" onClick={e => e.stopPropagation()}>
+        <button className="strk-modal-close" onClick={onClose}><X size={18} /></button>
+        <div className="strk-modal-head">
+          {row.posterUrl ? <img src={row.posterUrl} alt="" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} /> : null}
+          <span className="strk-modal-poster-fallback" style={{ display: row.posterUrl ? 'none' : 'flex' }}>🎬</span>
+          <div className="strk-modal-info">
+            <h2>{row.title}</h2>
+            <p className="strk-modal-meta">{[row.genre, row.director, row.durationMinutes && `${fa(row.durationMinutes)} دقیقه`].filter(Boolean).join(' · ')}</p>
+            <div className="strk-modal-controls">
+              <select value={row.status} onChange={e => patch({ status: e.target.value })}>
+                {MOVIE_STATUS_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+              <div className="strk-stars" dir="ltr">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
+                  <button key={n} onClick={() => patch({ rating: n })} className={row.rating && n <= row.rating ? 'on' : ''}><Star size={14} fill={row.rating && n <= row.rating ? 'currentColor' : 'none'} /></button>
+                ))}
+              </div>
+              <button className="strk-del-btn" onClick={del}><Trash2 size={14} /> حذف</button>
+            </div>
+          </div>
+        </div>
+        {row.note && <p className="strk-modal-note">{row.note}</p>}
+      </div>
+    </div>
+  );
+}
+
+const MEDIA_KIND_LABELS = { track: 'آهنگ', video: 'ویدیو', playlist: 'پلی‌لیست', album: 'آلبوم' };
+const MEDIA_ACCENT = { spotify: '#1DB954', youtube: '#FF0000' };
+function msToClock(ms) { const s = Math.floor((ms || 0) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+function normMediaItem(provider, kind, raw) {
+  if (provider === 'spotify') {
+    if (kind === 'playlist') return { id: raw.url || raw.name, title: raw.name, subtitle: [raw.owner, raw.tracks != null ? `${fa(raw.tracks)} قطعه` : ''].filter(Boolean).join(' · '), thumb: raw.cover, url: raw.url, kind };
+    if (kind === 'artist') return { id: raw.url || raw.name, title: raw.name, subtitle: (raw.genres || []).join('، '), thumb: raw.cover, url: raw.url, kind };
+    return { id: raw.id || raw.url || raw.name, title: raw.name, subtitle: [raw.artist, raw.album].filter(Boolean).join(' · '), thumb: raw.cover, url: raw.url, kind, artist: raw.artist };
+  }
+  if (kind === 'playlist') return { id: raw.id || raw.url, title: raw.title || raw.name, subtitle: [raw.channelTitle, raw.count != null ? `${fa(raw.count)} ویدیو` : ''].filter(Boolean).join(' · '), thumb: raw.cover || raw.thumb, url: raw.url, kind };
+  return { id: raw.videoId || raw.id || raw.url, title: raw.title, subtitle: raw.channel || raw.channelTitle, thumb: raw.cover || raw.thumb, url: raw.url, kind };
+}
+
+function MediaCard({ item, accent, onLog, logState }) {
+  return <div className="media-card">
+    <div className="media-card-thumb" style={{ background: `${accent}22` }}>
+      {item.thumb ? <img src={item.thumb} alt="" loading="lazy" /> : <span style={{ color: accent }}>{item.kind === 'playlist' ? '≡' : '♪'}</span>}
+    </div>
+    <div className="media-card-body">
+      <div className="media-card-title-row"><span className="media-kind-badge" style={{ background: `${accent}22`, color: accent }}>{MEDIA_KIND_LABELS[item.kind] || item.kind}</span><b>{item.title}</b></div>
+      {item.subtitle && <small>{item.subtitle}</small>}
+    </div>
+    <div className="media-card-actions">
+      {item.url && <a href={item.url} target="_blank" rel="noreferrer">پخش ▶</a>}
+      {onLog && <button onClick={() => onLog(item)} disabled={logState && logState !== 'idle'} style={{ background: logState === 'done' ? '#16a34a' : accent }}>{logState === 'saving' ? '...' : logState === 'done' ? 'ثبت شد ✓' : 'ثبت در LifeOS'}</button>}
+    </div>
+  </div>;
+}
+
+function NowPlayingStrip({ track }) {
+  if (!track) return null;
+  const pct = track.durationMs ? Math.min(100, Math.round((track.progressMs / track.durationMs) * 100)) : 0;
+  return <div className="media-nowplaying">
+    <div className="media-nowplaying-cover" style={{ backgroundImage: track.cover ? `url(${track.cover})` : undefined }} />
+    <div className="media-nowplaying-info">
+      <small>{track.isPlaying ? <><span className="media-live-dot" /> در حال پخش</> : 'آخرین پخش'}</small>
+      <b>{track.name}</b><span>{track.artist}</span>
+      {track.durationMs > 0 && <><div className="media-nowplaying-bar"><i style={{ width: `${pct}%` }} /></div><small>{msToClock(track.progressMs)} / {msToClock(track.durationMs)}</small></>}
+    </div>
+  </div>;
+}
+
+function ArtistRow({ artists }) {
+  if (!artists?.length) return null;
+  return <div className="media-artist-row">
+    {artists.slice(0, 10).map(a => <a key={a.url || a.name} href={a.url} target="_blank" rel="noreferrer" className="media-artist">
+      <div className="media-artist-avatar" style={{ backgroundImage: a.cover ? `url(${a.cover})` : undefined }} />
+      <small>{a.name}</small>
+    </a>)}
+  </div>;
+}
+
+function ProviderPanel({ provider, onSaved }) {
+  const isSpotify = provider === 'spotify';
+  const accent = MEDIA_ACCENT[provider];
+  const label = isSpotify ? 'Spotify' : 'YouTube';
+  const [state, setState] = useState({ recent: [], playlists: [], artists: [], nowPlaying: null, connected: true, message: '' });
+  const [query, setQuery] = useState(''), [results, setResults] = useState(null), [loading, setLoading] = useState(true), [searching, setSearching] = useState(false);
+  const [logStates, setLogStates] = useState({});
+
+  const loadFeed = async () => {
+    setLoading(true);
+    try {
+      if (isSpotify) {
+        const data = await api('/api/integrations/spotify/recent');
+        setState({ recent: (data.items || []).map(x => normMediaItem('spotify', 'track', x)), playlists: (data.playlists || []).map(x => normMediaItem('spotify', 'playlist', x)), artists: data.artists || [], nowPlaying: data.nowPlaying, connected: true, message: '' });
+      } else {
+        const [hist, pls] = await Promise.all([api('/api/integrations/youtube/history'), api('/api/integrations/youtube/playlists').catch(() => ({ items: [] }))]);
+        setState({ recent: (hist.items || []).map(x => normMediaItem('youtube', 'video', x)), playlists: (pls.items || []).map(x => normMediaItem('youtube', 'playlist', x)), artists: [], nowPlaying: null, connected: true, message: '' });
+      }
+    } catch (error) { setState(s => ({ ...s, connected: false, message: error.message })); }
+    setLoading(false);
+  };
+  useEffect(() => { loadFeed(); }, [provider]);
+
+  const search = async event => {
+    event.preventDefault();
+    if (!query.trim()) { setResults(null); return; }
+    setSearching(true);
+    try { const data = await api(`/api/integrations/${provider}/search?q=${encodeURIComponent(query)}`); setResults((data.items || []).map(x => normMediaItem(provider, isSpotify ? 'track' : 'video', x))); }
+    catch (error) { setState(s => ({ ...s, message: error.message })); }
+    setSearching(false);
+  };
+  const disconnect = async () => { try { await api(`/api/integrations/${provider}/disconnect`, { method: 'POST', body: JSON.stringify({}) }); loadFeed(); } catch (error) { setState(s => ({ ...s, message: error.message })); } };
+  const log = async item => {
+    setLogStates(s => ({ ...s, [item.id]: 'saving' }));
+    try {
+      await api('/api/media-log', { method: 'POST', body: JSON.stringify({ source: provider, title: item.title, meta: JSON.stringify({ url: item.url || '', artist: item.artist || item.subtitle || '' }) }) });
+      setLogStates(s => ({ ...s, [item.id]: 'done' })); onSaved?.();
+      setTimeout(() => setLogStates(s => ({ ...s, [item.id]: 'idle' })), 2000);
+    } catch { setLogStates(s => ({ ...s, [item.id]: 'idle' })); }
+  };
+
+  return <div className="media-panel-wrap">
+    <div className="media-provider-head" style={{ background: `linear-gradient(135deg, ${accent}22, transparent)` }}>
+      <div><p style={{ color: accent }}>اتصال و داده‌های واقعی حساب</p><h2>{label}</h2></div>
+      {state.connected ? <button className="media-disconnect" style={{ borderColor: `${accent}55`, color: accent }} onClick={disconnect}>قطع اتصال</button>
+        : <a className="media-connect" style={{ background: accent }} href={`/api/integrations/${provider}/connect`}>اتصال {label}</a>}
+    </div>
+    {!state.connected && state.message && <p className="notice">{state.message}</p>}
+
+    {isSpotify && state.nowPlaying && <NowPlayingStrip track={state.nowPlaying} />}
+    {isSpotify && <ArtistRow artists={state.artists} />}
+
+    <form className="media-search" onSubmit={search}>
+      <input value={query} onChange={e => setQuery(e.target.value)} placeholder={`جستجو در ${label}…`} />
+      <button disabled={searching} style={{ background: accent }}>{searching ? '...' : 'جستجو'}</button>
+    </form>
+
+    {results !== null && (
+      <section className="media-section">
+        <div className="media-section-head"><h3>نتیجهٔ جستجو</h3><button onClick={() => { setResults(null); setQuery(''); }}>بستن ✕</button></div>
+        {results.length === 0 ? <p className="empty">نتیجه‌ای یافت نشد.</p> : results.map(item => <MediaCard key={item.id} item={item} accent={accent} onLog={log} logState={logStates[item.id]} />)}
+      </section>
+    )}
+
+    <div className="media-cols">
+      <section className="media-section"><h3>{isSpotify ? 'اخیراً پخش‌شده' : 'پرطرفدار / اخیر'}</h3>
+        {loading ? <p className="empty">در حال بارگذاری…</p> : state.recent.length ? state.recent.map(item => <MediaCard key={item.id} item={item} accent={accent} onLog={log} logState={logStates[item.id]} />) : <p className="empty">چیزی برای نمایش نیست.</p>}
+      </section>
+      <section className="media-section"><h3>پلی‌لیست‌ها</h3>
+        {loading ? <p className="empty">در حال بارگذاری…</p> : state.playlists.length ? state.playlists.map(item => <MediaCard key={item.id} item={item} accent={accent} />) : <p className="empty">پلی‌لیستی یافت نشد.</p>}
+      </section>
+    </div>
+  </div>;
+}
+
+function LifeLogPanel({ refreshKey }) {
+  const [items, setItems] = useState([]), [filter, setFilter] = useState('all'), [loading, setLoading] = useState(true);
+  const load = () => { setLoading(true); api(`/api/media-log${filter === 'all' ? '' : `?source=${filter}`}`).then(d => setItems(d.items || [])).finally(() => setLoading(false)); };
+  useEffect(() => { load(); }, [filter, refreshKey]);
+  const remove = async itemId => { await api(`/api/media-log/${itemId}`, { method: 'DELETE' }); setItems(prev => prev.filter(x => x.id !== itemId)); };
+  const spotifyCount = items.filter(x => x.source === 'spotify').length, youtubeCount = items.filter(x => x.source === 'youtube').length;
+  return <div className="media-panel-wrap">
+    <div className="media-life-stats">
+      <div style={{ background: 'linear-gradient(135deg,#38bdf822,transparent)' }}><b style={{ color: '#38bdf8' }}>{fa(items.length)}</b><small>کل ثبت‌ها</small></div>
+      <div style={{ background: 'linear-gradient(135deg,#1DB95422,transparent)' }}><b style={{ color: '#1DB954' }}>{fa(spotifyCount)}</b><small>Spotify</small></div>
+      <div style={{ background: 'linear-gradient(135deg,#FF000022,transparent)' }}><b style={{ color: '#FF0000' }}>{fa(youtubeCount)}</b><small>YouTube</small></div>
+    </div>
+    <div className="strk-tabs">{[['all', 'همه'], ['spotify', 'Spotify'], ['youtube', 'YouTube']].map(([k, l]) => <button key={k} className={filter === k ? 'active' : ''} onClick={() => setFilter(k)}>{l}</button>)}</div>
+    <section className="media-section">
+      <h3>تاریخچهٔ شخصی من (LifeOS)</h3>
+      {loading ? <p className="empty">در حال بارگذاری…</p> : items.length === 0 ? <p className="empty">هنوز چیزی ثبت نشده — از تب Spotify یا YouTube روی «ثبت در LifeOS» بزن.</p> : items.map(item => {
+        let meta = {}; try { meta = JSON.parse(item.meta || '{}'); } catch { }
+        const accent = MEDIA_ACCENT[item.source] || '#8aa0b8';
+        return <div className="media-card" key={item.id}>
+          <div className="media-card-thumb" style={{ background: `${accent}22` }}><span style={{ color: accent }}>♪</span></div>
+          <div className="media-card-body"><b>{item.title}</b><small>{[meta.artist, new Date(item.createdAt).toLocaleString('fa-IR')].filter(Boolean).join(' · ')}</small></div>
+          <div className="media-card-actions">
+            {meta.url && <a href={meta.url} target="_blank" rel="noreferrer">باز کردن</a>}
+            <button className="media-remove" onClick={() => remove(item.id)}>حذف</button>
+          </div>
+        </div>;
+      })}
+    </section>
+  </div>;
+}
+
+function MediaReact({ initialTab = 'spotify' }) {
+  const [tab, setTab] = useState(initialTab === 'youtube' ? 'youtube' : 'spotify');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const tabs = [['spotify', '🎵 Spotify', '#1DB954'], ['youtube', '▶ YouTube', '#FF0000'], ['life', '🗂️ تاریخچهٔ من', '#38bdf8']];
+  return <main className="strk" dir="rtl">
+    <TopNav active="media" />
+    <div className="strk-page">
+      <header className="media-hero">
+        <h1>مرکز رسانهٔ شخصی</h1>
+        <p>جستجو، پخش، دیده‌شده، پلی‌لیست و ثبت در تاریخچهٔ شخصی — همه‌چیز یکجا.</p>
+      </header>
+      <div className="strk-tabs media-tabs">
+        {tabs.map(([key, label, color]) => <button key={key} className={tab === key ? 'active' : ''} style={tab === key ? { background: color, borderColor: color, color: '#04101a' } : {}} onClick={() => setTab(key)}>{label}</button>)}
+      </div>
+      {tab === 'spotify' && <ProviderPanel provider="spotify" onSaved={() => setRefreshKey(k => k + 1)} />}
+      {tab === 'youtube' && <ProviderPanel provider="youtube" onSaved={() => setRefreshKey(k => k + 1)} />}
+      {tab === 'life' && <LifeLogPanel refreshKey={refreshKey} />}
+    </div>
+  </main>;
+}
 
 function RecordsReact({ kind }) {
   const config = {
