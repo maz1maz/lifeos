@@ -803,20 +803,20 @@ async function main() {
     console.log('\n[40] bank message parsing: copy app, rial SMS, deposit, old simple text');
     const bankAppMsg = 'مبلغ: ۱۵,۰۰۰,۰۰۰ تومان\nبابت: نظافت منزل\n۱۴۰۵.۰۶.۲۳\nموجودی: ۵۰,۰۰۰,۰۰۰ تومان';
     const bankAppRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: bankAppMsg }) }).then(r => r.json());
-    check('bank copy app: amount, kind, and title parsed', bankAppRes.actions.length === 1 && bankAppRes.actions[0].amount === 15000000 && bankAppRes.actions[0].title === 'نظافت منزل' && bankAppRes.actions[0].kind === 'expense');
+    check('bank copy app: amount, kind, and title parsed', bankAppRes.actions.length === 1 && bankAppRes.actions[0].amount === 150000000 && bankAppRes.actions[0].title === 'نظافت منزل' && bankAppRes.actions[0].kind === 'expense');
     check('bank copy app: jalali date converts to Gregorian ISO', bankAppRes.actions.length === 1 && bankAppRes.actions[0].date === '2026-09-14');
 
     const bankSmsExpense = '۵۰۰,۰۰۰ ریال از حساب شما کسر شد.\nخرید فروشگاهی\nموجودی: ۲,۰۰۰,۰۰۰ ریال';
     const bankSmsExpRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: bankSmsExpense }) }).then(r => r.json());
-    check('bank SMS expense: rial divided by 10 to toman', bankSmsExpRes.actions.length === 1 && bankSmsExpRes.actions[0].amount === 50000 && bankSmsExpRes.actions[0].kind === 'expense');
+    check('bank SMS expense: rial amount stored as-is (rial-native)', bankSmsExpRes.actions.length === 1 && bankSmsExpRes.actions[0].amount === 500000 && bankSmsExpRes.actions[0].kind === 'expense');
 
     const bankSmsDeposit = '۱,۲۰۰,۰۰۰ ریال به حساب شما واریز شد.\nواریز حقوق';
     const bankSmsDepRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: bankSmsDeposit }) }).then(r => r.json());
-    check('bank SMS deposit: detects income kind and converts amount', bankSmsDepRes.actions.length === 1 && bankSmsDepRes.actions[0].amount === 120000 && bankSmsDepRes.actions[0].kind === 'income');
+    check('bank SMS deposit: detects income kind and keeps the rial amount', bankSmsDepRes.actions.length === 1 && bankSmsDepRes.actions[0].amount === 1200000 && bankSmsDepRes.actions[0].kind === 'income');
 
     const bankEngDate = 'مبلغ: ۲۵۰,۰۰۰ تومان\nبابت: کتاب\nSep 14, 2026';
     const bankEngRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: bankEngDate }) }).then(r => r.json());
-    check('bank message with English date parsed correctly', bankEngRes.actions.length === 1 && bankEngRes.actions[0].amount === 250000 && bankEngRes.actions[0].date === '2026-09-14');
+    check('bank message with English date parsed correctly', bankEngRes.actions.length === 1 && bankEngRes.actions[0].amount === 2500000 && bankEngRes.actions[0].date === '2026-09-14');
 
     const simpleOldText = '۵۰ هزار ناهار';
     const simpleRes = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: simpleOldText }) }).then(r => r.json());
@@ -990,8 +990,11 @@ async function main() {
     /* [44] ریال/تومان — باگ واقعی گزارش‌شده: پیامک بانکی «۱۵,۰۰۰,۰۰۰ ریال» به‌صورت
        ۱۵,۰۰۰,۰۰۰ تومان ثبت شده بود، و پیامکی که فقط «موجودی:» داشت مبلغش از
        روی موجودی (۳.۸ میلیارد) ساخته شده بود. قانون کاربر: «هر چی می‌زنم تومانه،
-       مگر کنارش نوشته باشم ریال». */
-    console.log('\n[44] rial/toman: «ریال» is divided by 10, «موجودی» is never the amount');
+       مگر کنارش نوشته باشم ریال».
+       ذخیره‌سازی داخلی از تومان به ریال مهاجرت کرد (commit 810b825): برچسب «تومان»
+       الان ×۱۰ می‌شود تا به ریال تبدیل شود؛ برچسب «ریال» همون‌طور که تایپ شده
+       (بدون تقسیم بر ۱۰) ذخیره می‌شود، چون خودش از قبل ریاله. */
+    console.log('\n[44] rial/toman: amounts are stored in rial — a «تومان» label is ×10, a «ریال» label is kept as typed');
     // پنجرهٔ پهن (کل سال): بعضی متن‌ها تاریخ خودشان را دارند (مثل ۱۴۰۵.۰۶.۲۳) نه تاریخ امروز
     const WINDOW = 'from=2026-01-01&to=2026-12-31';
     const txIdsNow = async () => new Set((((await fetch(`${BASE}/api/transactions?${WINDOW}`, { headers: authHeaders }).then(r => r.json())).items) || []).map(x => x.id));
@@ -1010,44 +1013,44 @@ async function main() {
     // ۲) همان پیامک با مبلغ در متن → ۱۵,۰۰۰,۰۰۰ ریال = ۱,۵۰۰,۰۰۰ تومان (باگ اصلی کاربر)
     const smsWithAmount = '۲۴بلو انتقال پل حمیدرضا عزیز 15,000,000 ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23';
     const rSms = await parseText(smsWithAmount);
-    check('reported SMS: 15,000,000 ریال -> 1,500,000 تومان (was 15,000,000)', rSms.actions.length === 1 && rSms.actions[0].amount === 1_500_000, JSON.stringify(rSms.actions));
-    check('reported SMS: the stored transaction carries the converted amount', rSms.created.length === 1 && rSms.created[0].amount === 1_500_000);
+    check('reported SMS: 15,000,000 ریال stored as 15,000,000 rial (no divide)', rSms.actions.length === 1 && rSms.actions[0].amount === 15_000_000, JSON.stringify(rSms.actions));
+    check('reported SMS: the stored transaction carries the rial amount', rSms.created.length === 1 && rSms.created[0].amount === 15_000_000);
     check('reported SMS: the balance never leaks into the stored amount', rSms.created.length === 1 && rSms.created[0].amount !== 3_879_270_699);
 
     // ۳) مبلغِ برچسب‌خوردهٔ «ریال» در حالت‌های دیگرِ ورودی
     const rRialWord = await parseText('۱۵,۰۰۰,۰۰۰ ریال انتقال به حمیدرضا');
-    check('«۱۵,۰۰۰,۰۰۰ ریال …» -> 1,500,000 تومان', rRialWord.actions.length === 1 && rRialWord.actions[0].amount === 1_500_000);
+    check('«۱۵,۰۰۰,۰۰۰ ریال …» -> 15,000,000 rial', rRialWord.actions.length === 1 && rRialWord.actions[0].amount === 15_000_000);
     const rRialNoSep = await parseText('خرید ۱۵۰۰۰۰۰۰ ریال');
-    check('bare ۱۵۰۰۰۰۰۰ ریال -> 1,500,000 تومان', rRialNoSep.actions.length === 1 && rRialNoSep.actions[0].amount === 1_500_000);
+    check('bare ۱۵۰۰۰۰۰۰ ریال -> 15,000,000 rial', rRialNoSep.actions.length === 1 && rRialNoSep.actions[0].amount === 15_000_000);
     const rMillionRial = await parseText('۱۵ میلیون ریال انتقال');
-    check('«۱۵ میلیون ریال» -> 1,500,000 تومان', rMillionRial.actions.length === 1 && rMillionRial.actions[0].amount === 1_500_000);
+    check('«۱۵ میلیون ریال» -> 15,000,000 rial', rMillionRial.actions.length === 1 && rMillionRial.actions[0].amount === 15_000_000);
 
     // ۳b) «ریال» می‌تواند قبل از عدد هم بیاید، و جداکنندهٔ هزارگان عربی (٬) هم رایج است
     const rRialBefore = await parseText('ریال ۱۵,۰۰۰,۰۰۰ انتقال به حمیدرضا');
-    check('unit before the number («ریال ۱۵,۰۰۰,۰۰۰») -> 1,500,000 تومان', rRialBefore.actions.length === 1 && rRialBefore.actions[0].amount === 1_500_000);
+    check('unit before the number («ریال ۱۵,۰۰۰,۰۰۰») -> 15,000,000 rial', rRialBefore.actions.length === 1 && rRialBefore.actions[0].amount === 15_000_000);
     const rArabicSep = await parseText('انتقال ۱۵٬۰۰۰٬۰۰۰ ریال از حساب شما پرید');
-    check('Arabic thousands separator (٬) also divides by 10', rArabicSep.actions.length === 1 && rArabicSep.actions[0].amount === 1_500_000);
+    check('Arabic thousands separator (٬) parses correctly and is kept as rial', rArabicSep.actions.length === 1 && rArabicSep.actions[0].amount === 15_000_000);
     const rRialWordNotUnit = await parseText('انتقال ریال به تومان ۲۰۰,۰۰۰');
     check('a stray «ریال» word does not divide an unlabelled ۲۰۰,۰۰۰', rRialWordNotUnit.actions.length === 1 && rRialWordNotUnit.actions[0].amount === 200_000);
     const rTwoAmounts = await parseText('خرید ۲۰۰,۰۰۰ تومان و کارمزد ۵,۰۰۰ ریال');
-    check('toman amount stays whole even when a rial figure shares the text', rTwoAmounts.actions.length === 1 && rTwoAmounts.actions[0].amount === 200_000);
+    check('toman amount is converted to rial (×10) even when a rial figure shares the text', rTwoAmounts.actions.length === 1 && rTwoAmounts.actions[0].amount === 2_000_000);
 
     // ۳c) پیام واقعیِ کاربر: سرصفحهٔ «مبلغ/بابت/تاریخ» که خودش می‌زند + پیامک بانک که پیست می‌کند
     const compositeMsg = 'مبلغ: ۱۵٬۰۰۰٬۰۰۰ تومان\nبابت: نظافت منزل\nتاریخ: Sep 14, 2026 at 23:29\n\nبلو\nانتقال پل\nحمیدرضا عزیز، 15,000,000 ریال از حساب شما پرید.\nموجودی: 3,879,270,699 ریال\n۱۵:۴۰\n۱۴۰۵.۰۶.۲۳';
     const rComposite = await parseText(compositeMsg);
-    check('the real combined message -> 1,500,000 تومان with the بابت as title', rComposite.actions.length === 1 && rComposite.actions[0].amount === 1_500_000 && rComposite.actions[0].title === 'نظافت منزل', JSON.stringify(rComposite.actions));
+    check('the real combined message -> 15,000,000 rial with the بابت as title', rComposite.actions.length === 1 && rComposite.actions[0].amount === 15_000_000 && rComposite.actions[0].title === 'نظافت منزل', JSON.stringify(rComposite.actions));
     check('…and the Telegram date (Sep 14, 2026) becomes the transaction date', rComposite.actions[0].date === '2026-09-14');
-    check('…and the balance never leaks in', rComposite.created.length === 1 && rComposite.created[0].amount === 1_500_000);
+    check('…and the balance never leaks in', rComposite.created.length === 1 && rComposite.created[0].amount === 15_000_000);
     const compositeAscii = 'مبلغ: 15,000,000 تومان\nبابت: نظافت منزل\nSep 14, 2026 at 23:29\n\nحمیدرضا عزیز، 15,000,000 ریال از حساب شما پرید.\nموجودی: 3,879,270,699 ریال';
     const rCompositeAscii = await parseText(compositeAscii);
-    check('the bank\'s own «… ریال …» line wins over the typed «مبلغ: … تومان» header', rCompositeAscii.actions.length === 1 && rCompositeAscii.actions[0].amount === 1_500_000);
+    check('the bank\'s own «… ریال …» line wins over the typed «مبلغ: … تومان» header', rCompositeAscii.actions.length === 1 && rCompositeAscii.actions[0].amount === 15_000_000);
     const typedOnly = 'مبلغ: ۱۵٬۰۰۰٬۰۰۰ تومان\nبابت: بنزین\n۱۴۰۵.۰۶.۲۲';
     const rTypedOnly = await parseText(typedOnly);
-    check('typed header alone (٬ separator) -> 15,000,000 تومان, clean title + jalali date', rTypedOnly.actions.length === 1 && rTypedOnly.actions[0].amount === 15_000_000 && rTypedOnly.actions[0].title === 'بنزین' && rTypedOnly.actions[0].date === '2026-09-13');
+    check('typed header alone (٬ separator) -> 150,000,000 rial (×10 from toman), clean title + jalali date', rTypedOnly.actions.length === 1 && rTypedOnly.actions[0].amount === 150_000_000 && rTypedOnly.actions[0].title === 'بنزین' && rTypedOnly.actions[0].date === '2026-09-13');
 
-    // ۴) تومان (پیش‌فرض کاربر و متن‌های بدون واحد) دست‌نخورده می‌ماند
+    // ۴) تومان به ریال تبدیل می‌شود (×۱۰)؛ متن‌های بدون واحد دست‌نخورده می‌مانند
     const rToman = await parseText('خرید ۱۵,۰۰۰,۰۰۰ تومان');
-    check('«۱۵,۰۰۰,۰۰۰ تومان» stays 15,000,000 (no divide)', rToman.actions.length === 1 && rToman.actions[0].amount === 15_000_000);
+    check('«۱۵,۰۰۰,۰۰۰ تومان» becomes 150,000,000 rial (×10)', rToman.actions.length === 1 && rToman.actions[0].amount === 150_000_000);
     const rDefault = await parseText('حقوق ۲۵ میلیون');
     check('unlabelled amount keeps toman default (۲۵ میلیون -> 25,000,000)', rDefault.actions.length === 1 && rDefault.actions[0].amount === 25_000_000);
     const rNoUnit = await parseText('خرید لپ تاپ 45000000');
@@ -1055,7 +1058,7 @@ async function main() {
 
     // ۵) وقتی هم مبلغ هست هم موجودی، برنده مبلغ است نه عددِ بزرگ‌ترِ موجودی
     const rMixed = await parseText('خرید ۲۵۰,۰۰۰ تومان موجودی: ۳,۸۷۹,۲۷۰,۶۹۹ ریال');
-    check('amount wins over a bigger «موجودی» figure', rMixed.actions.length === 1 && rMixed.actions[0].amount === 250_000 && rMixed.created[0].amount === 250_000);
+    check('amount wins over a bigger «موجودی» figure', rMixed.actions.length === 1 && rMixed.actions[0].amount === 2_500_000 && rMixed.created[0].amount === 2_500_000);
 
     // ۶) متن‌های بانکی بدون مبلغ (فقط مانده / فقط شناسه) چیزی نمی‌سازند
     const rBal = await parseText('موجودی: ۳,۸۷۹,۲۷۰,۶۹۹ ریال');
@@ -1065,15 +1068,16 @@ async function main() {
 
     // ۷) مسیر پیامکِ واریز/برداشتِ تومانی هنوز مثل قبل کار می‌کند
     const rSmsToman = await parseText('خرید ۱۵۰,۰۰۰ تومان از حساب شما کسر شد موجودی: ۳,۸۷۹,۲۷۰,۶۹۹ ریال');
-    check('toman SMS unchanged: ۱۵۰,۰۰۰ تومان -> 150,000', rSmsToman.actions.length === 1 && rSmsToman.actions[0].amount === 150_000);
+    check('toman SMS converted to rial: ۱۵۰,۰۰۰ تومان -> 1,500,000', rSmsToman.actions.length === 1 && rSmsToman.actions[0].amount === 1_500_000);
     const rDeposit = await parseText('به حساب شما ۲۵,۰۰۰,۰۰۰ ریال واریز شد. موجودی: ۹۰,۰۰۰,۰۰۰ ریال');
-    check('rial deposit: 2,500,000 تومان and kind=income', rDeposit.actions.length === 1 && rDeposit.actions[0].amount === 2_500_000 && rDeposit.actions[0].kind === 'income');
+    check('rial deposit: 25,000,000 rial and kind=income', rDeposit.actions.length === 1 && rDeposit.actions[0].amount === 25_000_000 && rDeposit.actions[0].kind === 'income');
 
     /* [45] یادآوری سرِ ماه + مطابقت صورتحساب بانکی: «سر هر ماه یادآوری کن فایل اکسل
        بانکی ماه قبل رو وارد کنم، اونوقت مطابقت بده» — یعنی بعد از آپلود، ردیف‌هایی که
        قبلاً دستی/خودکار ثبت شده‌اند شناسایی شوند و فقط ردیف‌های جامانده اضافه شوند.
-       نکته: فایل صورتحساب بانک‌های ایران ریالی است، پس مبالغ فایل ÷۱۰ می‌شوند تا با
-       تراکنش‌های تومانی اپ قابل مقایسه باشند. */
+       نکته: ذخیره‌سازی داخلی ریالیه (commit 810b825)، و فایل صورتحساب بانک‌های ایران
+       هم ریالیه، پس مبالغ فایل بدون تبدیل (بدون ÷۱۰) مستقیم با تراکنش‌های ریالی اپ
+       مقایسه می‌شوند. */
     console.log('\n[45] monthly bank-statement reminder + reconciliation against already-entered rows');
     {
       // کاربر تازه: هیچ ردیف بانکی در پنجرهٔ ماه قبل ندارد تا یادآوری واقعاً ساخته شود
@@ -1096,24 +1100,23 @@ async function main() {
       const midMonth = await check3('2026-09-10');
       check('mid-month the check stays silent (checked:false, no reminder)', midMonth.created === 0 && midMonth.checked === false, JSON.stringify(midMonth));
 
-      // ردیفی که کاربر قبلاً دستی ثبت کرده و عیناً در فایل بانکی هم هست:
-      // ۱,۵۰۰,۰۰۰ ریال فایل = ۱۵۰,۰۰۰ تومان
-      const manual = await addTx({ title: 'نظافت منزل', amount: 150_000, kind: 'expense', date: '2026-09-14' });
-      check('a manual row is recorded (this is the one that must NOT be duplicated)', !!manual.id && manual.amount === 150_000);
+      // ردیفی که کاربر قبلاً دستی ثبت کرده و عیناً در فایل بانکی هم هست (هر دو ریالی):
+      const manual = await addTx({ title: 'نظافت منزل', amount: 1_500_000, kind: 'expense', date: '2026-09-14' });
+      check('a manual row is recorded (this is the one that must NOT be duplicated)', !!manual.id && manual.amount === 1_500_000);
       const csv = ['تاریخ,شرح,واریز,برداشت,شماره سند',
         '1405/06/23,نظافت منزل,0,"1,500,000",9001',             // همان ردیف دستی → تکراری
         '1405/06/21,خرید نان,0,"500,000",9002',                  // جامانده → اضافه شود
         '1405/06/25,واریز حقوق,"12,000,000",0,9003'].join('\n'); // جامانده → اضافه شود
       const preview = await importCsv(csv);
       check('preview flags the already-entered row instead of offering it again', preview.newCount === 2 && preview.alreadyCount === 1, JSON.stringify({ new: preview.newCount, already: preview.alreadyCount, near: preview.nearDuplicateCount }));
-      check('preview keeps the bank rial->toman conversion straight (1,500,000 ریال = 150,000 تومان)', (preview.items || [])[0]?.amount === 150_000, JSON.stringify((preview.items || []).map(x => [x.date, x.title, x.amount])));
+      check('preview keeps the bank rial amount as-is (1,500,000 ریال = 1,500,000 rial)', (preview.items || [])[0]?.amount === 1_500_000, JSON.stringify((preview.items || []).map(x => [x.date, x.title, x.amount])));
       check('the already-entered row is marked duplicate, the others are not', (preview.items || [])[0]?.duplicate === true && (preview.items || [])[0]?.dupReason === 'same-date' && (preview.items || [])[1]?.duplicate === false, JSON.stringify((preview.items || []).map(x => [x.title, x.duplicate, x.dupReason])));
       const commit = await commitItems(preview.items);
       check('commit imports only the missing rows and reports the skipped one', commit.imported === 2 && commit.skippedExisting === 1, JSON.stringify(commit));
       const after = await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth3 }).then(r => r.json());
       const mine = (after.items || []).filter(x => ['نظافت منزل', 'برداشت بانکی', 'واریز بانکی'].includes(x.title));
       check('the manual row survives exactly once (no duplicate of the already-entered row)', mine.filter(x => x.title === 'نظافت منزل').length === 1, JSON.stringify(mine.map(x => [x.title, x.amount])));
-      check('the two missing rows are added alongside the manual one', mine.length === 3 && mine.find(x => x.title === 'واریز بانکی')?.amount === 1_200_000, JSON.stringify(mine.map(x => [x.title, x.amount])));
+      check('the two missing rows are added alongside the manual one', mine.length === 3 && mine.find(x => x.title === 'واریز بانکی')?.amount === 12_000_000, JSON.stringify(mine.map(x => [x.title, x.amount])));
 
       // کاربر همان فایل را ماه بعد هم آپلود می‌کند → این بار هیچ‌چیز نباید اضافه شود
       const second = await importCsv(csv);
@@ -1123,7 +1126,7 @@ async function main() {
       check('…and the transaction list is unchanged by the second upload', (after2.items || []).length === (after.items || []).length, JSON.stringify([(after2.items || []).length, (after.items || []).length]));
 
       // ردیف یک روز جابه‌جا (احتمالاً همان تراکنش با تاریخ متفاوت) → هشدار، نه حذف بی‌صدا
-      await addTx({ title: 'تاکسی', amount: 70_000, kind: 'expense', date: '2026-09-13' });
+      await addTx({ title: 'تاکسی', amount: 700_000, kind: 'expense', date: '2026-09-13' });
       const near = await importCsv('تاریخ,شرح,واریز,برداشت,شماره سند\n1405/06/21,تاکسی,0,"700,000",7777');
       check('a row one day off an existing row is flagged as a near-duplicate for the user to decide', near.nearDuplicateCount === 1 && (near.items || [])[0]?.nearDuplicate === true && (near.items || [])[0]?.dupReason === 'near-date', JSON.stringify({ near: near.nearDuplicateCount, items: near.items }));
       check('…and the near-duplicate is still offered for import (user unchecks it, the app does not decide silently)', near.newCount === 1 && (near.items || [])[0]?.duplicate !== true, JSON.stringify(near.items));
@@ -1282,11 +1285,11 @@ async function main() {
       const cryptoPrice = await buyDollar({ assetType: 'crypto', symbol: 'ETH', quantity: 1 });
       check('crypto still requires both symbol and price (the dollar shortcut did not loosen it)', cryptoSym.status === 400 && cryptoPrice.status === 400, JSON.stringify([cryptoSym.status, cryptoPrice.status]));
 
-      // UI: صفحهٔ مالی باید گزینهٔ دلار داشته باشد و نماد/قیمت را برایش غیرفعال کند
-      const page = fs.readFileSync(path.join(ROOT, 'public/design/finance-page.html'), 'utf8');
-      check('the finance page offers 💵 دلار and disables symbol/price for it',
-        page.includes('<option value="dollar">💵 دلار</option>') && page.includes("symEl.disabled=isD") && page.includes("assetType:tval, type:'buy', quantity:qty"),
-        'finance-page.html');
+      // UI: صفحهٔ مالی (حالا React) باید گزینهٔ دلار داشته باشد و نماد/قیمت را برایش غیرفعال کند
+      const page = fs.readFileSync(path.join(ROOT, 'src/today/src/main.jsx'), 'utf8');
+      check('the React finance page offers 💵 دلار and disables symbol/price for it',
+        page.includes('<option value="dollar">💵 دلار</option>') && page.includes('disabled={isFaceAsset}') && page.includes("if (!isFaceAsset) { body.symbol"),
+        'main.jsx');
 
       // یورو باید همان میان‌بر دلار را داشته باشد: فقط مقدار، بدون نماد/قیمت
       const buyEuro = (body) => fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify(body) });
@@ -1300,7 +1303,7 @@ async function main() {
       const noEuroQtyBody = await noEuroQty.json();
       check('an empty euro amount is rejected with a euro-specific message', noEuroQty.status === 400 && /یورو/.test(noEuroQtyBody.error || ''), JSON.stringify(noEuroQtyBody));
 
-      check('the finance page offers 💶 یورو too', page.includes('<option value="euro">💶 یورو</option>'), 'finance-page.html');
+      check('the React finance page offers 💶 یورو too', page.includes('<option value="euro">💶 یورو</option>'), 'main.jsx');
     }
 
     /* [49] Google Calendar: OAuth, dedicated LifeOS calendar, two-way managed
