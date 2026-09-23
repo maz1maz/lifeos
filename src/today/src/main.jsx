@@ -5,6 +5,7 @@ import './calendar.css';
 import './planner.css';
 import { NotesReact } from './notes';
 import { ContactsReact } from './contacts';
+import { DocumentsReact } from './documents';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
@@ -119,7 +120,7 @@ function App() {
   if (page === 'series') return <SeriesReact />;
   if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact initialTab={page === 'youtube' ? 'youtube' : 'spotify'} />;
   if (page === 'notes') return <NotesReact Nav={TopNav} />;
-  if (page === 'documents') return <RecordsReact kind="documents" />;
+  if (page === 'documents') return <DocumentsReact Nav={TopNav} />;
   if (page === 'contacts') return <ContactsReact Nav={TopNav} />;
   if (page === 'settings') return <SettingsReact />;
   return <main>
