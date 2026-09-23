@@ -1374,6 +1374,23 @@ async function main() {
       check('disconnect keeps the Google calendar/events but stops remote reads', googleFixture.state.events.size === beforeDisconnect49 && feedDisconnected49.connected === false && feedDisconnected49.items.every(x => x.source === 'lifeos'), JSON.stringify({ remote: googleFixture.state.events.size, feed: feedDisconnected49.items }));
     }
 
+    console.log('\n[52] the live-verify script survives Cloudflare\'s extensionless asset URLs');
+    {
+      const vf = fs.readFileSync(path.join(ROOT, 'docs/verify-live.console.js'), 'utf8');
+      const va = vf.indexOf("const nt = await req('/newtab.html');");
+      const vb = vf.indexOf("const list = await req('/api/transactions");
+      if (va < 0 || vb < 0 || vb <= va) throw new Error('check 1 block not found in docs/verify-live.console.js');
+      const c1 = vf.slice(va, vb);
+      check('check 1 does not treat a followed redirect as a failure (CF answers /x.html with a 307 to /x)',
+        !/!nt\.redirected/.test(c1) && /nt\.st === 200/.test(c1), 'verify-live.console.js');
+      check('check 1 judges the FINAL url, so an asset rewrite and a login bounce stay distinguishable',
+        /new URL\(nt\.url/.test(c1) && /ntPath/.test(c1), 'verify-live.console.js');
+      check('the login gate is recognised by the login page itself, not by any mention of it in the body',
+        /id="fEmail"/.test(c1) && /atLoginGate/.test(c1), 'verify-live.console.js');
+      const hs = fs.readFileSync(path.join(ROOT, 'test/verify-script-smoke.js'), 'utf8');
+      check('the tolerance is exercised, not just asserted: the harness serves a 307 rewrite and a no-asset deploy',
+        /makeEnv\('cf'\)/.test(hs) && /makeEnv\('none'\)/.test(hs) && /status: 307/.test(hs), 'verify-script-smoke.js');
+    }
   } finally {
     child.kill();
     googleFixture.server.close();

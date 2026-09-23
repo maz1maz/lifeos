@@ -421,6 +421,83 @@ async function main() {
     check('worker: manual sync requires a connected account', wy.status === 400 && /وصل/.test(wy.d.error || ''), JSON.stringify(wy.d));
   }
 
+  console.log('\n[W16] the login gate vs Cloudflare\'s extensionless asset URLs');
+  {
+    // Cloudflare serves static assets with "clean" URLs: `/x.html` answers 307 →
+    // `/x` and `/x` is what actually gets served. That means one page view reaches
+    // the Worker gate TWICE, and the second time the path has no extension — so the
+    // gate must treat both forms of the login page as public, or an anonymous
+    // visitor spins in a redirect loop (and the console script's check 1 used to
+    // call the healthy rewrite a failure, which is what this section pins).
+    const fileFor = (q) => path.join(ROOT, 'public', q === '/' ? 'index.html' : q.replace(/^\//, ''));
+    const readIfFile = (f) => (fs.existsSync(f) && fs.statSync(f).isFile() ? fs.readFileSync(f) : null);
+    const htmlRes = (buf) => new Response(buf, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+    const cfAssets = {
+      fetch: async (req) => {
+        const p = new URL(req.url).pathname;
+        if (p.endsWith('.html')) {
+          const clean = p === '/index.html' ? '/' : p.slice(0, -'.html'.length);
+          const target = clean === '/' ? fileFor('/') : fileFor(clean) + '.html';
+          if (readIfFile(target) !== null) return new Response(null, { status: 307, headers: { location: clean } });
+        }
+        const own = readIfFile(fileFor(p));
+        if (own !== null) return htmlRes(own);
+        const viaClean = path.extname(p) ? null : readIfFile(fileFor(p) + '.html');
+        return viaClean === null ? new Response('not found', { status: 404 }) : htmlRes(viaClean);
+      },
+    };
+    const w16env = Object.assign({}, env, { ASSETS: cfAssets });
+    async function w16hop(w, p, cookie) {
+      const headers = {};
+      if (cookie) headers.cookie = cookie;
+      let url = 'https://worker-smoke.local' + p;
+      let res = await w.fetch(new Request(url, { headers }), w16env, {});
+      const chain = [p];
+      for (let i = 0; i < 6 && res.status >= 300 && res.status < 400; i++) {
+        const loc = res.headers.get('location');
+        if (!loc) break;
+        url = new URL(loc, url).toString();
+        chain.push(new URL(url).pathname);
+        res = await w.fetch(new Request(url, { headers }), w16env, {});
+      }
+      const text = await res.text();
+      return { status: res.status, chain, text, looping: res.status >= 300 && res.status < 400 };
+    }
+    const w16anon = await w16hop(worker, '/newtab.html', null);
+    check('worker: an anonymous /newtab.html lands on the login page through the rewrite (no loop)',
+      !w16anon.looping && w16anon.status === 200 && /id="fEmail"/.test(w16anon.text)
+        && w16anon.chain.join(' ') === '/newtab.html /design/login-page.html /design/login-page',
+      JSON.stringify({ chain: w16anon.chain, status: w16anon.status }));
+    const w16login = await w16hop(worker, '/design/login-page', null);
+    check('worker: the extensionless login URL is public too, so the rewrite has nowhere to loop',
+      !w16login.looping && w16login.status === 200 && /id="fEmail"/.test(w16login.text),
+      JSON.stringify({ chain: w16login.chain, status: w16login.status }));
+    const w16email = `wsmoke_gate_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'W16', email: w16email, password: 'secret123' } });
+    const w16lg = await call('/api/auth/login', { method: 'POST', body: { email: w16email, password: 'secret123' } });
+    const c16 = String((typeof w16lg.headers.getSetCookie === 'function' ? w16lg.headers.getSetCookie()[0] : w16lg.headers.get('set-cookie')) || '').split(';')[0];
+    const w16auth = await w16hop(worker, '/newtab.html', c16);
+    check('worker: with a session the rewrite is harmless and the real newtab is served',
+      !w16auth.looping && w16auth.status === 200 && /id="qIn"/.test(w16auth.text)
+        && w16auth.chain.join(' ') === '/newtab.html /newtab',
+      JSON.stringify({ chain: w16auth.chain, status: w16auth.status }));
+    const w16gateLine = "const isPublic = /^\\/design\\/login-page(\\.html)?$/.test(url.pathname)";
+    if (!workerSrc.includes(w16gateLine)) throw new Error('the isPublic line changed shape — update this guard');
+    const w16brokenSrc = workerSrc
+      .replace(XLSX_IMPORT, 'const XLSX = null; // harness stub (see the loader above)')
+      .replace(w16gateLine, "const isPublic = /^\\/design\\/login-page\\.html$/.test(url.pathname)");
+    const w16tmp = path.join(__dirname, '.tmp-w16-worker.mjs');
+    fs.writeFileSync(w16tmp, w16brokenSrc);
+    let w16broken;
+    try {
+      w16broken = (await import(pathToFileURL(w16tmp).href + '?v=' + Math.random())).default;
+    } finally {
+      fs.rmSync(w16tmp, { force: true });
+    }
+    const w16loop = await w16hop(w16broken, '/newtab.html', null);
+    check('[W16] teeth: a gate that only knows /design/login-page.html loops every anonymous visitor',
+      w16loop.looping, JSON.stringify(w16loop.chain));
+  }
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }
