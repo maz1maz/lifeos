@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import './today.css';
 import './calendar.css';
 import './planner.css';
+import { NotesReact } from './notes';
+import { ContactsReact } from './contacts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
@@ -116,9 +118,9 @@ function App() {
   if (page === 'movies') return <MoviesReact />;
   if (page === 'series') return <SeriesReact />;
   if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact initialTab={page === 'youtube' ? 'youtube' : 'spotify'} />;
-  if (page === 'notes') return <RecordsReact kind="notes" />;
+  if (page === 'notes') return <NotesReact Nav={TopNav} />;
   if (page === 'documents') return <RecordsReact kind="documents" />;
-  if (page === 'contacts') return <RecordsReact kind="contacts" />;
+  if (page === 'contacts') return <ContactsReact Nav={TopNav} />;
   if (page === 'settings') return <SettingsReact />;
   return <main>
     <TopNav active="" right={<div className="profile"><button onClick={() => { const next = document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.mode = next; localStorage.setItem('lifeos-mode', next); }}>◐</button><b>{data.user?.name || 'سلام'}</b></div>} />
