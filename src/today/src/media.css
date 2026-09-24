@@ -209,5 +209,9 @@
 }
 @media (max-width: 720px) {
   .md-reels, .md-yt, .md-spembed, .md-vu { display: none; }
-  .md { padding-bottom: 160px; }
+  .md { padding-bottom: 180px; }
+  .md-page { padding: 0 10px 24px; }
+  .md-tinner { padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); gap: 10px; }
+  .md-tmeta { min-width: 0; width: 100%; }
+  .md-play { width: 48px; height: 48px; }
 }

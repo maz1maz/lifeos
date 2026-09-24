@@ -160,3 +160,19 @@
   .cal-rail { position: static; }
   .cal-day { min-height: 76px; }
 }
+@media (max-width: 720px) {
+  .cal { padding-bottom: 24px; }
+  .cal-wrap { padding: 0 10px 20px; }
+  .cal-hero { padding: 14px 0 10px; }
+  .cal-hero h1 { font-size: 28px; }
+  .cal-bar { gap: 6px; }
+  .cal-bar button, .cal-bar select { min-height: 40px; font-size: 12px; }
+  .cal-search { min-width: 100%; }
+  .cal-day { min-height: 64px; padding: 4px; }
+  .cal-day .n em { display: none; }
+  .cal-chip { font-size: 9px; }
+  .cal-agenda-day { grid-template-columns: 1fr; }
+  .cal-time-head, .cal-time-row { min-width: 520px; }
+  .cal-modal { align-items: end; padding: 0; }
+  .cal-modal-box { width: 100%; max-height: 92vh; overflow: auto; border-radius: 16px 16px 0 0; }
+}

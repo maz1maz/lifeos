@@ -130,7 +130,16 @@
   border-radius: 12px; padding: 10px 14px; font-size: 13px; max-width: 22rem;
 }
 @media (max-width: 720px) {
+  .mk-page { padding: 10px; }
+  .mk-hero { padding: 14px; }
   .mk-row { grid-template-columns: 1fr auto; }
   .mk-spark { display: none; }
   .mk-row-ops { grid-column: 1 / -1; justify-content: flex-start; }
+  .mk-search { min-width: 100%; }
+  .mk-btn { min-height: 40px; }
+  .mk-modal { align-items: end; padding: 0; }
+  .mk-modal-box { width: 100%; border-radius: 16px 16px 0 0; }
+}
+@media (max-width: 480px) {
+  .mk-summaries { grid-template-columns: 1fr; }
 }

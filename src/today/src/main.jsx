@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
-  Search, Star, X, Check, ChevronDown, Trash2, Plus,
+  Search, Star, X, Check, ChevronDown, Trash2, Plus, Menu,
   Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot
 } from 'lucide-react';
 
@@ -77,7 +77,30 @@ const NAV_PAGES = [
   ['contacts', 'مخاطبین', Users], ['settings', 'تنظیمات', Settings]
 ];
 function TopNav({ active, right }) {
-  return <nav className="topbar"><a className="brand" href="/"><Sparkles size={20} /><span>LifeOS</span></a><div className="links">{NAV_PAGES.map(([page, label, Icon]) => <a className={page === active ? 'active' : ''} href={page ? `/?page=${page}` : '/'} key={page || 'home'}><Icon size={16} strokeWidth={2.2} /><span>{label}</span></a>)}</div>{right}</nav>;
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    document.body.classList.toggle('nav-lock', open);
+    return () => document.body.classList.remove('nav-lock');
+  }, [open]);
+  const current = NAV_PAGES.find(([page]) => page === (active || '')) || NAV_PAGES[0];
+  return (
+    <nav className={`topbar${open ? ' menu-open' : ''}`}>
+      <a className="brand" href="/"><Sparkles size={20} /><span>LifeOS</span></a>
+      <span className="nav-current">{current[1]}</span>
+      {right}
+      <button type="button" className="nav-toggle" aria-label={open ? 'بستن منو' : 'بازکردن منو'} aria-expanded={open} onClick={() => setOpen(v => !v)}>
+        {open ? <X size={20} /> : <Menu size={20} />}
+      </button>
+      {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
+      <div className={`links${open ? ' open' : ''}`}>
+        {NAV_PAGES.map(([page, label, Icon]) => (
+          <a className={page === active ? 'active' : ''} href={page ? `/?page=${page}` : '/'} key={page || 'home'} onClick={() => setOpen(false)}>
+            <Icon size={16} strokeWidth={2.2} /><span>{label}</span>
+          </a>
+        ))}
+      </div>
+    </nav>
+  );
 }
 
 function App() {
