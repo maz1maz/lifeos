@@ -232,7 +232,7 @@
   width: 100%;
   border-collapse: collapse;
   border-right: 2px solid #8980a7;
-  table-layout: auto;
+  table-layout: fixed;
   text-align: center;
 }
 
@@ -248,6 +248,18 @@
   font-weight: 500;
   white-space: nowrap;
 }
+
+/* Only the team column flexes; every stat column keeps a fixed width so
+   the numeric side of the table stays aligned regardless of team-name
+   length or which league is loaded. */
+.standings-table thead th:nth-child(1) { width: 34px; }
+.standings-table thead th:nth-child(3) { width: 52px; }
+.standings-table thead th:nth-child(4) { width: 52px; }
+.standings-table thead th:nth-child(5) { width: 60px; }
+.standings-table thead th:nth-child(6) { width: 52px; }
+.standings-table thead th:nth-child(7) { width: 68px; }
+.standings-table thead th:nth-child(8) { width: 58px; }
+.standings-table thead th:nth-child(9) { width: 62px; }
 
 .standings-table thead .team-heading {
   padding-right: 18px;
