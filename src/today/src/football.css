@@ -232,7 +232,7 @@
   width: 100%;
   border-collapse: collapse;
   border-right: 2px solid #8980a7;
-  table-layout: fixed;
+  table-layout: auto;
   text-align: center;
 }
 
