@@ -114,36 +114,6 @@
   transform: rotate(180deg);
 }
 
-.follow-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-width: 138px;
-  height: 49px;
-  padding: 0 15px;
-  border: 1px solid #52616b;
-  border-radius: 5px;
-  background: transparent;
-  color: #fff;
-  font-size: 17px;
-  font-weight: 650;
-  line-height: 1;
-  white-space: nowrap;
-  transition: border-color 220ms ease, background-color 220ms ease, transform 220ms ease;
-}
-
-.follow-button:hover {
-  transform: translateY(-2px);
-  border-color: #18a5b7;
-  background: rgba(10, 151, 170, 0.12);
-}
-
-.follow-button.is-following {
-  border-color: #0f9caf;
-  background: rgba(0, 147, 167, 0.16);
-  color: #d6fcff;
-}
 
 .league-menu {
   position: absolute;
@@ -1077,58 +1047,6 @@
   text-align: center;
 }
 
-.secondary-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 392px;
-  align-items: start;
-  gap: 20px;
-  min-height: 580px;
-}
-
-.leaderboard h3 {
-  margin: 9px 0 22px;
-  font-size: 22px;
-  font-weight: 800;
-}
-
-.leaderboard ol {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.leaderboard li {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-height: 74px;
-  padding: 0 14px;
-  border-bottom: 1px solid #343838;
-  font-size: 18px;
-}
-
-.leader-position {
-  width: 25px;
-  color: #89aabb;
-}
-
-.leader-name {
-  flex: 1;
-  font-weight: 700;
-}
-
-.leader-name small {
-  display: block;
-  margin-top: 1px;
-  color: #89a8ba;
-  font-size: 13px;
-  font-weight: 400;
-}
-
-.leaderboard li strong {
-  font-size: 18px;
-}
-
 .editorial-section,
 .history-section {
   min-height: 560px;
@@ -1420,8 +1338,7 @@
 }
 
 @media (max-width: 1400px) {
-  .standings-layout,
-  .secondary-layout {
+  .standings-layout {
     grid-template-columns: minmax(0, 1fr) 340px;
   }
 
@@ -1455,8 +1372,7 @@
 }
 
 @media (max-width: 1120px) {
-  .standings-layout,
-  .secondary-layout {
+  .standings-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -1510,13 +1426,6 @@
   .league-trigger {
     gap: 10px;
     font-size: 33px;
-  }
-
-  .follow-button {
-    min-width: unset;
-    height: 43px;
-    padding: 0 12px;
-    font-size: 14px;
   }
 
   .league-tab {
@@ -1610,18 +1519,6 @@
   .league-trigger svg {
     width: 18px;
     height: 18px;
-  }
-
-  .follow-button {
-    height: 38px;
-    gap: 5px;
-    padding: 0 8px;
-    font-size: 12px;
-  }
-
-  .follow-button svg {
-    width: 16px;
-    height: 16px;
   }
 
   .league-menu {
@@ -1908,15 +1805,6 @@
 }
 
 @media (max-width: 390px) {
-  .follow-button span {
-    display: none;
-  }
-
-  .follow-button {
-    width: 38px;
-    padding: 0;
-  }
-
   .fixture-row {
     grid-template-columns: 48px minmax(0, 1fr) 43px minmax(0, 1fr);
   }

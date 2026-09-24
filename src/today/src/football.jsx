@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, Heart, Minus, Plus, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Minus, Plus, X } from 'lucide-react'
 import './football.css'
 
 const api = async (url, options) => {
@@ -9,11 +9,9 @@ const api = async (url, options) => {
   return body
 }
 
-const FOLLOW_KEY = 'lifeos-followed-leagues'
 const TABS = [
   { id: 'table', label: 'جدول' },
   { id: 'matches', label: 'بازی‌ها' },
-  { id: 'statistics', label: 'آمار' },
   { id: 'history', label: 'بازی‌های تمام‌شده' },
 ]
 const LIVE_DAYS = [
@@ -41,9 +39,6 @@ const isoShift = (n) => {
   const d = new Date()
   d.setDate(d.getDate() + n)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-const loadFollow = () => {
-  try { return JSON.parse(localStorage.getItem(FOLLOW_KEY) || '{}') } catch { return {} }
 }
 const accentOf = (name) => {
   let h = 0
@@ -99,7 +94,6 @@ export function FootballReact({ Nav }) {
   const [loading, setLoading] = useState(false)
   const [notice, setNotice] = useState('')
   const [selected, setSelected] = useState(null)
-  const [followed, setFollowed] = useState(loadFollow)
   const [menuOpen, setMenuOpen] = useState(false)
   const selectorRef = useRef(null)
 
@@ -148,15 +142,6 @@ export function FootballReact({ Nav }) {
     return () => document.removeEventListener('pointerdown', onDown)
   }, [menuOpen])
 
-  const toggleFollow = () => {
-    setFollowed((cur) => {
-      const next = { ...cur, [league.id]: !cur[league.id] }
-      localStorage.setItem(FOLLOW_KEY, JSON.stringify(next))
-      return next
-    })
-  }
-
-  const following = Boolean(followed[league.id])
   const stats = useMemo(() => {
     const rows = standings
     const played = rows.reduce((s, r) => s + Number(r.played || 0), 0) / 2
@@ -224,10 +209,6 @@ export function FootballReact({ Nav }) {
                   </div>
                 ) : null}
               </div>
-              <button type="button" className={`follow-button${following ? ' is-following' : ''}`} aria-pressed={following} onClick={toggleFollow}>
-                <Heart size={18} fill={following ? 'currentColor' : 'none'} />
-                <span>{following ? 'دنبال می‌کنید' : 'دنبال کنید'}</span>
-              </button>
             </div>
             <nav className="league-tabs" role="tablist">
               {TABS.map((item) => (
@@ -337,39 +318,6 @@ export function FootballReact({ Nav }) {
                     </ul>
                   </div>
                 )) : <p className="live-empty">بازی‌ای برای این لیگ دریافت نشد.</p>}
-              </div>
-            </section>
-          ) : null}
-
-          {tab === 'statistics' ? (
-            <section className="secondary-section">
-              <h2 className="section-heading">آمار {league.name}</h2>
-              <div className="secondary-layout">
-                <div className="leaderboard">
-                  <h3>بالای جدول</h3>
-                  {standings.length ? (
-                    <ol>
-                      {standings.slice(0, 6).map((row, index) => {
-                        const team = asTeam(row.team || row.name, row.logo)
-                        return (
-                          <li key={team.name}>
-                            <span className="leader-position">{faNum(index + 1)}</span>
-                            <TeamBadge team={team} />
-                            <span className="leader-name">{team.name}<small>{faNum(row.played || 0)} بازی</small></span>
-                            <strong>{faNum(row.pts || row.points || 0)} امتیاز</strong>
-                          </li>
-                        )
-                      })}
-                    </ol>
-                  ) : <p className="live-empty">آمار گلزن از API نمی‌آید؛ این فهرست از جدول زنده است.</p>}
-                </div>
-                <aside className="stats-panel">
-                  <h3>خلاصه</h3>
-                  <dl className="stats-list">
-                    <div className="stat-line stat-line-shaded"><dt>گل‌ها</dt><dd>{faNum(stats.goals)}</dd></div>
-                    <div className="stat-line"><dt>متوسط گل</dt><dd>{faNum(stats.avg)}</dd></div>
-                  </dl>
-                </aside>
               </div>
             </section>
           ) : null}
