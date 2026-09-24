@@ -517,9 +517,10 @@ function parseGambleText(t,base){let kind=gambleKind(t);if(!kind)return null;let
     if(m.isLive)status='live';else if(m.goals!=null&&/نهایی|پایان/.test(m.statusTitle||''))status='finished';
     return{fixtureId:m.id,home:(m.host&&m.host.name)||'',away:(m.guest&&m.guest.name)||'',homeLogo:(m.host&&m.host.logo)||null,awayLogo:(m.guest&&m.guest.logo)||null,league:leagueName||'',date:m.startOnUtc||null,status,score:(hs??'-')+' - '+(gs??'-')};
   }
+  const NON_FOOTBALL_SPORT_RE=/هندبال|والیبال|بسکتبال|فوتسال|هاکی|کشتی|تنیس|راگبی|شنا|بدمینتون|کبدی|دو و میدانی/;
   async function fetchVarzesh3LeagueDay(v3id,wantDate){
     let html=await fetchVarzesh3Livescore(),leagues=extractVarzesh3TodayLeagues(html),league=leagues.find(l=>l.id===v3id);
-    if(!league)return[];
+    if(!league||NON_FOOTBALL_SPORT_RE.test(league.title||''))return[];
     let out=[];
     (league.dates||[]).forEach(d=>{
       let dm=(d.date||'').match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/),isoDate=dm?jalaliToGregorianIso(Number(dm[1]),Number(dm[2]),Number(dm[3])):null;
