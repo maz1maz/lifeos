@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Bell, BookOpenCheck, CalendarDays, Check, ChevronDown, CircleAlert, CircleDot,
-  Clock, Hash, ListChecks, Pencil, Plus, Repeat, Search, Sun, Trash2, X
+  Bell, CalendarDays, Check, ChevronDown, CircleAlert, CircleDot, ClipboardList,
+  Clock, Hash, Inbox, ListChecks, Pencil, Plus, Repeat, Search, Sun, Trash2, X
 } from 'lucide-react';
 import './planner.css';
 
@@ -23,21 +23,6 @@ const PRIORITY_LABELS = { urgent: 'فوری', high: 'زیاد', medium: 'متو�
 const PRIORITY_TONE = { urgent: 'rose', high: 'rose', medium: 'amber', low: 'sky' };
 const REPEAT_LABELS = { daily: 'روزانه', weekly: 'هفتگی', monthly: 'ماهانه' };
 const FILTERS = [['open', 'باز'], ['today', 'امروز'], ['upcoming', 'پیشِ رو'], ['reminders', 'یادآوری‌ها'], ['done', 'انجام‌شده'], ['all', 'همه']];
-
-function ShamsehMark({ size = 44, className = '' }) {
-  return (
-    <svg viewBox="0 0 100 100" width={size} height={size} className={className} role="img" aria-label="نشانِ شمسه">
-      <defs>
-        <radialGradient id="shamseh-gold" cx="50%" cy="42%" r="60%">
-          <stop offset="0%" stopColor="#F0DCA0" /><stop offset="55%" stopColor="#C9A24A" /><stop offset="100%" stopColor="#7A5F22" />
-        </radialGradient>
-      </defs>
-      <circle cx="50" cy="50" r="46" fill="url(#shamseh-gold)" opacity="0.9" />
-      <circle cx="50" cy="50" r="18" fill="#071722" stroke="#C9A24A" strokeWidth="1.4" />
-      <circle cx="50" cy="50" r="6" fill="#2FB8C4" />
-    </svg>
-  );
-}
 
 function dueLabel(dateStr) {
   if (!dateStr) return '';
@@ -282,10 +267,10 @@ export function PlannerReact({ Nav }) {
     : 'دفتر خالی است — اولین کار را بساز.';
 
   const stats = [
-    { t: 'کار باز', v: counts.open, Icon: CircleDot },
-    { t: 'سررسید امروز', v: counts.today, Icon: Sun },
-    { t: 'یادآوری فعال', v: counts.reminders, Icon: Bell },
-    { t: 'انجام‌شده', v: counts.done, Icon: Check }
+    { t: 'کار باز', v: counts.open, Icon: CircleDot, tone: 'teal' },
+    { t: 'سررسید امروز', v: counts.today, Icon: Sun, tone: 'amber' },
+    { t: 'یادآوری فعال', v: counts.reminders, Icon: Bell, tone: 'sky' },
+    { t: 'انجام‌شده', v: counts.done, Icon: Check, tone: 'fog' }
   ];
 
   return (
@@ -294,80 +279,96 @@ export function PlannerReact({ Nav }) {
       <div className="plnr-page">
         <header className="plnr-hero">
           <div className="plnr-hero-title">
-            <ShamsehMark size={48} />
+            <div className="plnr-mark"><ClipboardList size={24} strokeWidth={2} /></div>
             <div>
-              <p className="kicker">دفترِ برنامهٔ روزانه</p>
-              <h1>کارها و یادآوری‌ها</h1>
-              <p className="plnr-nastaliq">برنامه‌ریزی با دقت و حواسِّ دقیق</p>
+              <h1>پلنر حرفه‌ای</h1>
+              <p className="kicker">کارها و یادآوری‌ها، با ذخیره‌سازی واقعی در LifeOS</p>
             </div>
           </div>
-          <div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
             <div className="plnr-kinds">
               <button type="button" className={kind === 'task' ? 'active' : ''} onClick={() => { setKind('task'); setFilter('open'); }}><ListChecks size={14} /> کارها</button>
               <button type="button" className={kind === 'reminder' ? 'active' : ''} onClick={() => { setKind('reminder'); setFilter('open'); }}><Bell size={14} /> یادآوری‌ها</button>
             </div>
-            <div className="plnr-chip" style={{ marginBottom: 8 }}><CalendarDays size={13} /> {jalaliToday()}</div>
-            <dl className="plnr-hero-stats">
-              {[{ k: 'باز', v: counts.open }, { k: 'امروز', v: counts.today }, { k: 'انجام‌شده', v: counts.done }].map(s => (
-                <div key={s.k}><dt>{s.k}</dt><dd>{fa(s.v)}</dd></div>
-              ))}
-            </dl>
+            <div className="plnr-datechip"><CalendarDays size={16} color="#5eead4" /> {jalaliToday()}</div>
           </div>
         </header>
 
-        <div className="plnr-stats">
+        <section className="plnr-stats" aria-label="آمار">
           {stats.map(s => (
-            <div className="plnr-stat" key={s.t}>
-              <i><s.Icon size={18} /></i>
+            <div className={`plnr-stat ${s.tone}`} key={s.t}>
+              <i><s.Icon size={20} /></i>
               <div><b>{fa(s.v)}</b><small>{s.t}</small></div>
             </div>
           ))}
-        </div>
+        </section>
 
-        <div className="plnr-toolbar">
-          <div className="plnr-search"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجو در عنوان، توضیحات یا برچسب‌ها…" /></div>
-          <select className="plnr-sort" value={sort} onChange={e => setSort(e.target.value)}>
-            <option value="due">مرتب‌سازی: سررسید</option>
-            <option value="priority">مرتب‌سازی: اولویت</option>
-            <option value="created">مرتب‌سازی: تازه‌ترین</option>
-          </select>
-          <button className="plnr-add-btn" onClick={openCreate}><Plus size={16} /> {kind === 'reminder' ? 'یادآوری تازه' : 'کار تازه'}</button>
-        </div>
+        <section className="plnr-toolbar">
+          <div className="plnr-search"><Search size={16} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجو در عنوان، توضیحات یا برچسب‌ها…" aria-label="جستجو" /></div>
+          <div className="plnr-sort-wrap">
+            <select className="plnr-sort" value={sort} onChange={e => setSort(e.target.value)} aria-label="مرتب‌سازی">
+              <option value="due">مرتب‌سازی: سررسید</option>
+              <option value="priority">مرتب‌سازی: اولویت</option>
+              <option value="created">مرتب‌سازی: تازه‌ترین</option>
+            </select>
+            <ChevronDown size={16} />
+          </div>
+          <button type="button" className="plnr-add-btn" onClick={openCreate}><Plus size={16} strokeWidth={2.4} /> {kind === 'reminder' ? 'یادآوری تازه' : 'کار تازه'}</button>
+        </section>
 
-        {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
+        {notice && (
+          <div className="notice">
+            <div className="plnr-confirm-ico"><CircleAlert size={22} /></div>
+            <div><h3 style={{ margin: 0 }}>دریافت داده‌ها ناموفق بود</h3><p>{notice}</p></div>
+            <button type="button" onClick={() => { setNotice(''); load(); }}>تلاش دوباره</button>
+          </div>
+        )}
 
-        <div className="plnr-tabs">
-          {FILTERS.map(([key, label]) => <button key={key} className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>{label} ({fa(counts[key])})</button>)}
-        </div>
+        <nav className="plnr-tabs" aria-label="فیلترها">
+          {FILTERS.map(([key, label]) => (
+            <button key={key} type="button" className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>
+              {label}
+              <span>{fa(counts[key])}</span>
+            </button>
+          ))}
+        </nav>
 
-        <div className="plnr-section-head">
-          <h2><BookOpenCheck size={19} strokeWidth={1.6} /> {kind === 'reminder' ? 'فهرستِ یادآوری‌ها' : 'دفترِ کارها'}</h2>
-          <span>{FILTERS.find(f => f[0] === filter)?.[1]} · {fa(visible.length)} سطر</span>
-        </div>
-
-        {loading && tasks.length === 0 ? (
-          <div>{[0, 1, 2].map(i => <div key={i} className="plnr-skel" />)}</div>
+        {loading && source.length === 0 ? (
+          <div aria-label="در حال بارگذاری">{[0, 1, 2].map(i => <div key={i} className="plnr-skel" />)}</div>
         ) : visible.length === 0 ? (
           <div className="plnr-empty">
-            <ShamsehMark size={40} className="dim" />
-            <h3>{emptyMessage}</h3>
-            {(filter === 'open' || filter === 'all') && !query.trim() && <button className="plnr-add-btn" onClick={openCreate}><Plus size={15} /> افزودن</button>}
+            <div className="icon"><Inbox size={28} /></div>
+            <div>
+              <h3>{emptyMessage}</h3>
+              <p>{query.trim() ? 'عبارت دیگری امتحان کنید.' : 'نخستین مورد را بسازید تا برنامه‌ریزی آغاز شود.'}</p>
+            </div>
+            {(filter === 'open' || filter === 'all') && !query.trim() && <button type="button" className="plnr-add-btn" onClick={openCreate}><Plus size={15} strokeWidth={2.4} /> افزودن کار تازه</button>}
           </div>
         ) : (
-          <ul className="plnr-list">
-            {visible.map((task, i) => <TaskCard key={task.id} task={task} index={i} reminder={reminderByTask[task.id]} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} />)}
-          </ul>
+          <>
+            <p className="plnr-count">{fa(visible.length)} کار نمایش داده می‌شود</p>
+            <ul className="plnr-list">
+              {visible.map((task, i) => <TaskCard key={task.id} task={task} index={i} reminder={reminderByTask[task.id]} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} />)}
+            </ul>
+          </>
         )}
+
+        <footer className="plnr-foot">داده‌ها به‌صورت ماندگار در LifeOS ذخیره می‌شوند · تاریخ‌ها به تقویم شمسی</footer>
       </div>
       <TaskDrawer open={drawerOpen} initial={editing} kind={kind} onClose={() => { setDrawerOpen(false); setEditing(null); }} onSubmit={submit} />
       {deleting && (
         <div className="plnr-confirm" onClick={() => setDeleting(null)}>
-          <div className="plnr-confirm-box" onClick={e => e.stopPropagation()}>
-            <h3>حذف کار</h3>
-            <p>«{deleting.title}» برای همیشه حذف می‌شود. ادامه می‌دهی؟</p>
+          <div className="plnr-confirm-box" onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true">
+            <div className="plnr-confirm-head">
+              <div className="plnr-confirm-ico"><CircleAlert size={20} /></div>
+              <div>
+                <h3>حذف کار</h3>
+                <p>«{deleting.title}» برای همیشه حذف می‌شود. ادامه می‌دهید؟</p>
+              </div>
+            </div>
             <div className="plnr-confirm-actions">
-              <button className="plnr-del" onClick={() => remove(deleting)}>حذف کن</button>
-              <button className="cancel" onClick={() => setDeleting(null)}>انصراف</button>
+              <button type="button" className="cancel" onClick={() => setDeleting(null)}>انصراف</button>
+              <button type="button" className="plnr-del" onClick={() => remove(deleting)}>حذف کن</button>
             </div>
           </div>
         </div>
