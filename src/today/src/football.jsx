@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, Minus, Plus, X } from 'lucide-react'
+import { Check, ChevronDown, X } from 'lucide-react'
 import './football.css'
 
 const api = async (url, options) => {
@@ -9,16 +9,6 @@ const api = async (url, options) => {
   return body
 }
 
-const TABS = [
-  { id: 'table', label: 'جدول' },
-  { id: 'matches', label: 'بازی‌ها' },
-  { id: 'history', label: 'بازی‌های تمام‌شده' },
-]
-const LIVE_DAYS = [
-  { id: -1, label: 'دیروز' },
-  { id: 0, label: 'امروز' },
-  { id: 1, label: 'فردا' },
-]
 const LEAGUE_META = {
   'irn.1': { mark: 'ایران', color: '#41b7e5' },
   'eng.1': { mark: 'PL', color: '#ad6cbd' },
@@ -35,11 +25,6 @@ const LEAGUE_META = {
 }
 
 const faNum = (v) => String(v ?? '').replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d])
-const isoShift = (n) => {
-  const d = new Date()
-  d.setDate(d.getDate() + n)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 const accentOf = (name) => {
   let h = 0
   for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0
@@ -84,13 +69,8 @@ function LeagueBadge({ league, large }) {
 export function FootballReact({ Nav }) {
   const [leagues, setLeagues] = useState([])
   const [leagueId, setLeagueId] = useState('irn.1')
-  const [tab, setTab] = useState('table')
   const [standings, setStandings] = useState([])
   const [matches, setMatches] = useState([])
-  const [liveDay, setLiveDay] = useState(0)
-  const [liveLeagues, setLiveLeagues] = useState([])
-  const [liveOnly, setLiveOnly] = useState(false)
-  const [showPast, setShowPast] = useState(false)
   const [loading, setLoading] = useState(false)
   const [notice, setNotice] = useState('')
   const [selected, setSelected] = useState(null)
@@ -128,30 +108,11 @@ export function FootballReact({ Nav }) {
   }, [league.id])
 
   useEffect(() => {
-    let live = true
-    api(`/api/football/remote/free/day?date=${isoShift(liveDay)}`).then((d) => {
-      if (live) setLiveLeagues(d.leagues || [])
-    }).catch(() => live && setLiveLeagues([]))
-    return () => { live = false }
-  }, [liveDay])
-
-  useEffect(() => {
     if (!menuOpen) return
     const onDown = (e) => { if (!selectorRef.current?.contains(e.target)) setMenuOpen(false) }
     document.addEventListener('pointerdown', onDown)
     return () => document.removeEventListener('pointerdown', onDown)
   }, [menuOpen])
-
-  const stats = useMemo(() => {
-    const rows = standings
-    const played = rows.reduce((s, r) => s + Number(r.played || 0), 0) / 2
-    const goals = rows.reduce((s, r) => s + Number(r.gf || 0), 0)
-    return {
-      goals,
-      matches: Math.round(played) || rows.length,
-      avg: played ? (goals / played).toFixed(2) : '—',
-    }
-  }, [standings])
 
   const grouped = useMemo(() => {
     const map = new Map()
@@ -163,9 +124,14 @@ export function FootballReact({ Nav }) {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [matches])
 
-  const upcoming = grouped.filter(([, list]) => list.some((m) => m.status !== 'finished'))
-  const finished = grouped.filter(([, list]) => list.some((m) => m.status === 'finished'))
-  const fixtureGroups = showPast ? grouped : (upcoming.length ? upcoming : grouped)
+  const upcoming = useMemo(
+    () => grouped.map(([day, list]) => [day, list.filter((m) => m.status !== 'finished')]).filter(([, list]) => list.length),
+    [grouped]
+  )
+  const finished = useMemo(
+    () => grouped.map(([day, list]) => [day, list.filter((m) => m.status === 'finished')]).filter(([, list]) => list.length).reverse(),
+    [grouped]
+  )
 
   const openMatch = (item) => setSelected({
     home: asTeam(item.home, item.homeLogo),
@@ -210,201 +176,123 @@ export function FootballReact({ Nav }) {
                 ) : null}
               </div>
             </div>
-            <nav className="league-tabs" role="tablist">
-              {TABS.map((item) => (
-                <button key={item.id} type="button" className={`league-tab${tab === item.id ? ' is-active' : ''}`} onClick={() => setTab(item.id)}>{item.label}</button>
-              ))}
-            </nav>
           </header>
 
           {notice ? <div className="notice">{notice} <button type="button" onClick={() => setNotice('')}>×</button></div> : null}
-          {loading ? <p className="live-empty">در حال دریافت دادهٔ زنده…</p> : null}
+          {loading ? <p className="live-empty">در حال دریافت داده…</p> : null}
 
-          {tab === 'table' ? (
-            <section className="standings-section">
-              <h2 className="section-heading">جدول {league.name}</h2>
-              <div className="standings-layout">
-                <div className="standings-scroll">
-                  {standings.length ? (
-                    <table className="standings-table">
-                      <thead>
-                        <tr>
-                          <th>#</th>
-                          <th className="team-heading">تیم</th>
-                          <th>بازی</th>
-                          <th className="hide-small">برد</th>
-                          <th className="hide-small">مساوی</th>
-                          <th className="hide-small">باخت</th>
-                          <th className="hide-medium">گل +/-</th>
-                          <th>تفاضل</th>
-                          <th>امتیاز</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {standings.map((row, index) => {
-                          const team = asTeam(row.team || row.name, row.logo)
-                          const gd = row.gd != null ? row.gd : (Number(row.gf || 0) - Number(row.ga || 0))
+          <section className="league-body">
+            <div className="league-layout">
+              <aside className="matches-column">
+                <div className="matches-block">
+                  <h3>برنامهٔ بازی‌های آینده</h3>
+                  {upcoming.length ? upcoming.map(([day, list]) => (
+                    <div className="fixture-group" key={day}>
+                      <div className="fixture-date"><span>{faNum(day)}</span></div>
+                      <ul className="fixture-list">
+                        {list.map((item) => {
+                          const home = asTeam(item.home, item.homeLogo)
+                          const away = asTeam(item.away, item.awayLogo)
+                          const score = item.status === 'live' ? parseScore(item.score) : null
                           return (
-                            <tr key={row.team || row.name || index}>
-                              <td className={`rank-cell${index < 4 ? ' rank-top' : ''}${index > standings.length - 4 ? ' rank-bottom' : ''}`}>{faNum(row.rank || index + 1)}</td>
-                              <th className="team-column"><span className="table-team"><TeamBadge team={team} /><span>{team.name}</span></span></th>
-                              <td>{faNum(row.played || 0)}</td>
-                              <td className="hide-small">{faNum(row.win || row.won || 0)}</td>
-                              <td className="hide-small">{faNum(row.draw || row.drawn || 0)}</td>
-                              <td className="hide-small">{faNum(row.loss || row.lost || 0)}</td>
-                              <td className="hide-medium"><bdi dir="ltr">{faNum(`${row.gf || 0}-${row.ga || 0}`)}</bdi></td>
-                              <td><bdi dir="ltr">{faNum(gd)}</bdi></td>
-                              <td className="points-cell">{faNum(row.pts || row.points || 0)}</td>
-                            </tr>
+                            <li key={item.fixtureId || `${item.home}-${item.away}-${item.date}`}>
+                              <button type="button" className="fixture-row" onClick={() => openMatch(item)}>
+                                <span className="fixture-time">{item.status === 'live' ? 'زنده' : matchTime(item)}</span>
+                                <span className="fixture-team fixture-home">
+                                  <span className="fixture-team-name">{home.name}</span>
+                                  <TeamBadge team={home} small />
+                                </span>
+                                <span className="fixture-score" dir="ltr">{score ? `${faNum(score[0])} - ${faNum(score[1])}` : <span>-</span>}</span>
+                                <span className="fixture-team fixture-away">
+                                  <TeamBadge team={away} small />
+                                  <span className="fixture-team-name">{away.name}</span>
+                                </span>
+                              </button>
+                            </li>
                           )
                         })}
-                      </tbody>
-                    </table>
-                  ) : <p className="live-empty">جدول این لیگ از سرویس LifeOS نیامد.</p>}
-                </div>
-                <aside className="stats-panel">
-                  <h3>آمار از جدول زنده</h3>
-                  <dl className="stats-list">
-                    <div className="stat-line stat-line-shaded"><dt>گل‌های ثبت‌شده در جدول</dt><dd>{faNum(stats.goals)}</dd></div>
-                    <div className="stat-line"><dt>تیم‌ها</dt><dd>{faNum(standings.length)}</dd></div>
-                    <div className="stat-line stat-line-shaded"><dt>متوسط گل در هر بازی</dt><dd>{faNum(stats.avg)}</dd></div>
-                  </dl>
-                  <div className="stats-panel-bottom">منبع: /api/football — بدون دادهٔ نمایشی</div>
-                </aside>
-              </div>
-            </section>
-          ) : null}
-
-          {tab === 'matches' ? (
-            <section className="fixtures-section">
-              <div className="fixtures-intro">
-                <h2>بازی‌های {league.name}</h2>
-                <p>بازهٔ حدود ۱۰ روز قبل تا ۲۱ روز بعد از سرویس رایگان LifeOS.</p>
-              </div>
-              <button type="button" className="previous-toggle" onClick={() => setShowPast((v) => !v)}>
-                {showPast ? <Minus size={18} /> : <Plus size={18} />}
-                <span>{showPast ? 'پنهان کردن بازی‌های تمام‌شده در لیست' : 'نمایش همهٔ بازی‌های بازه'}</span>
-              </button>
-              <div className="fixture-groups">
-                {fixtureGroups.length ? fixtureGroups.map(([day, list]) => (
-                  <div className="fixture-group" key={day}>
-                    <div className="fixture-date"><span>{faNum(day)}</span></div>
-                    <ul className="fixture-list">
-                      {list.map((item) => {
-                        const home = asTeam(item.home, item.homeLogo)
-                        const away = asTeam(item.away, item.awayLogo)
-                        const score = parseScore(item.score)
-                        const homeLost = score && score[0] < score[1]
-                        const awayLost = score && score[1] < score[0]
-                        return (
-                          <li key={item.fixtureId || `${item.home}-${item.away}-${item.date}`}>
-                            <button type="button" className="fixture-row" onClick={() => openMatch(item)}>
-                              <span className="fixture-time">{item.status === 'live' ? 'زنده' : matchTime(item)}</span>
-                              <span className={`fixture-team fixture-home${homeLost ? ' team-muted' : ''}`}>
-                                <span className="fixture-team-name">{home.name}</span>
-                                <TeamBadge team={home} />
-                              </span>
-                              <span className="fixture-score" dir="ltr">
-                                {score ? <><span className={homeLost ? 'score-muted' : ''}>{faNum(score[0])}</span><span className="score-separator">-</span><span className={awayLost ? 'score-muted' : ''}>{faNum(score[1])}</span></> : <span>-</span>}
-                              </span>
-                              <span className={`fixture-team fixture-away${awayLost ? ' team-muted' : ''}`}>
-                                <TeamBadge team={away} />
-                                <span className="fixture-team-name">{away.name}</span>
-                              </span>
-                            </button>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-                )) : <p className="live-empty">بازی‌ای برای این لیگ دریافت نشد.</p>}
-              </div>
-            </section>
-          ) : null}
-
-          {tab === 'history' ? (
-            <section className="secondary-section history-section">
-              <h2 className="section-heading">بازی‌های تمام‌شدهٔ این بازه</h2>
-              {finished.length ? finished.map(([day, list]) => (
-                <div className="fixture-group" key={day} style={{ marginTop: 12 }}>
-                  <div className="fixture-date"><span>{faNum(day)}</span></div>
-                  <ul className="fixture-list">
-                    {list.filter((m) => m.status === 'finished').map((item) => (
-                      <li key={item.fixtureId || `${item.home}-${item.away}`}>
-                        <button type="button" className="fixture-row" onClick={() => openMatch(item)}>
-                          <span className="fixture-time">پایان</span>
-                          <span className="fixture-team fixture-home"><span className="fixture-team-name">{item.home}</span><TeamBadge team={asTeam(item.home, item.homeLogo)} /></span>
-                          <span className="fixture-score" dir="ltr">{item.score && item.score !== '- - -' ? faNum(String(item.score).replace(/\s/g, '')) : '-'}</span>
-                          <span className="fixture-team fixture-away"><TeamBadge team={asTeam(item.away, item.awayLogo)} /><span className="fixture-team-name">{item.away}</span></span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )) : <p className="live-empty">در این بازه بازی تمام‌شده‌ای نیامد.</p>}
-            </section>
-          ) : null}
-
-          <section className="live-section" id="live-results">
-            <div className="live-controls">
-              <div className="live-controls-top">
-                <h2>نتایج زنده</h2>
-                <span>همهٔ لیگ‌های رایگان LifeOS · {faNum(isoShift(liveDay))}</span>
-              </div>
-              <div className="live-controls-bottom">
-                <nav className="live-day-tabs">
-                  {LIVE_DAYS.map((d) => (
-                    <button key={d.id} type="button" className={`live-day${liveDay === d.id ? ' is-active' : ''}`} onClick={() => setLiveDay(d.id)}>{d.label}</button>
-                  ))}
-                </nav>
-                <div className="live-options">
-                  <div className="live-option">
-                    <span>فقط زنده</span>
-                    <button type="button" role="switch" aria-checked={liveOnly} className={`toggle-switch${liveOnly ? ' is-on' : ''}`} onClick={() => setLiveOnly((v) => !v)}><span /></button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="live-groups">
-              {(() => {
-                const groups = liveLeagues.map((g) => ({
-                  ...g,
-                  items: (g.items || []).filter((m) => !liveOnly || m.status === 'live'),
-                })).filter((g) => g.items.length)
-                if (!groups.length) return <div className="live-empty">{liveOnly ? 'در این روز مسابقهٔ زنده‌ای نیست.' : 'برای این روز بازی‌ای از سرویس نیامد.'}</div>
-                return groups.map((group) => (
-                  <div className="live-competition" key={group.id}>
-                    <div className="live-competition-heading">
-                      <span className="live-competition-name"><span>{group.name}</span></span>
-                      <span className="live-competition-date">{faNum(isoShift(liveDay))}</span>
+                      </ul>
                     </div>
-                    <ul className="live-match-list">
-                      {group.items.map((item, index) => {
-                        const home = asTeam(item.home, item.homeLogo)
-                        const away = asTeam(item.away, item.awayLogo)
-                        const score = parseScore(item.score)
+                  )) : <p className="live-empty">بازی آینده‌ای برای این لیگ نیامد.</p>}
+                </div>
+
+                <div className="matches-block">
+                  <h3>بازی‌های قبل</h3>
+                  {finished.length ? finished.map(([day, list]) => (
+                    <div className="fixture-group" key={day}>
+                      <div className="fixture-date"><span>{faNum(day)}</span></div>
+                      <ul className="fixture-list">
+                        {list.map((item) => {
+                          const home = asTeam(item.home, item.homeLogo)
+                          const away = asTeam(item.away, item.awayLogo)
+                          const score = parseScore(item.score)
+                          const homeLost = score && score[0] < score[1]
+                          const awayLost = score && score[1] < score[0]
+                          return (
+                            <li key={item.fixtureId || `${item.home}-${item.away}-${item.date}`}>
+                              <button type="button" className="fixture-row" onClick={() => openMatch(item)}>
+                                <span className="fixture-time">پایان</span>
+                                <span className={`fixture-team fixture-home${homeLost ? ' team-muted' : ''}`}>
+                                  <span className="fixture-team-name">{home.name}</span>
+                                  <TeamBadge team={home} small />
+                                </span>
+                                <span className="fixture-score" dir="ltr">
+                                  {score ? <><span className={homeLost ? 'score-muted' : ''}>{faNum(score[0])}</span><span className="score-separator">-</span><span className={awayLost ? 'score-muted' : ''}>{faNum(score[1])}</span></> : <span>-</span>}
+                                </span>
+                                <span className={`fixture-team fixture-away${awayLost ? ' team-muted' : ''}`}>
+                                  <TeamBadge team={away} small />
+                                  <span className="fixture-team-name">{away.name}</span>
+                                </span>
+                              </button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  )) : <p className="live-empty">بازی تمام‌شده‌ای برای این بازه نیامد.</p>}
+                </div>
+              </aside>
+
+              <div className="standings-scroll">
+                {standings.length ? (
+                  <table className="standings-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th className="team-heading">تیم</th>
+                        <th>بازی</th>
+                        <th className="hide-small">برد</th>
+                        <th className="hide-small">مساوی</th>
+                        <th className="hide-small">باخت</th>
+                        <th className="hide-medium">گل +/-</th>
+                        <th>تفاضل</th>
+                        <th>امتیاز</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {standings.map((row, index) => {
+                        const team = asTeam(row.team || row.name, row.logo)
+                        const gd = row.gd != null ? row.gd : (Number(row.gf || 0) - Number(row.ga || 0))
                         return (
-                          <li key={item.fixtureId || index}>
-                            <button type="button" className="live-match-row" onClick={() => openMatch({ ...item, league: group.name })}>
-                              <span className="live-match-time">{item.status === 'live' ? 'زنده' : matchTime(item)}</span>
-                              <span className="live-match-team live-match-home"><span>{home.name}</span><TeamBadge team={home} small /></span>
-                              <span className="live-match-score" dir="ltr">{score ? `${faNum(score[0])} - ${faNum(score[1])}` : '-'}</span>
-                              <span className="live-match-team live-match-away"><TeamBadge team={away} small /><span>{away.name}</span></span>
-                            </button>
-                          </li>
+                          <tr key={row.team || row.name || index}>
+                            <td className={`rank-cell${index < 4 ? ' rank-top' : ''}${index > standings.length - 4 ? ' rank-bottom' : ''}`}>{faNum(row.rank || index + 1)}</td>
+                            <th className="team-column"><span className="table-team"><TeamBadge team={team} /><span>{team.name}</span></span></th>
+                            <td>{faNum(row.played || 0)}</td>
+                            <td className="hide-small">{faNum(row.win || row.won || 0)}</td>
+                            <td className="hide-small">{faNum(row.draw || row.drawn || 0)}</td>
+                            <td className="hide-small">{faNum(row.loss || row.lost || 0)}</td>
+                            <td className="hide-medium"><bdi dir="ltr">{faNum(`${row.gf || 0}-${row.ga || 0}`)}</bdi></td>
+                            <td><bdi dir="ltr">{faNum(gd)}</bdi></td>
+                            <td className="points-cell">{faNum(row.pts || row.points || 0)}</td>
+                          </tr>
                         )
                       })}
-                    </ul>
-                  </div>
-                ))
-              })()}
+                    </tbody>
+                  </table>
+                ) : <p className="live-empty">جدول این لیگ از سرویس LifeOS نیامد.</p>}
+              </div>
             </div>
           </section>
-
-          <footer className="page-footer">
-            <span>{league.name}</span>
-            <a href="#top">بازگشت به بالا <ArrowLeft size={16} /></a>
-          </footer>
         </div>
 
         {selected ? (
