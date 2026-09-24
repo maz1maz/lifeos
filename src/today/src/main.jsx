@@ -225,10 +225,50 @@ function SeriesReact() {
   const [busyId, setBusyId] = useState(null);
   const [notice, setNotice] = useState('');
   const [toast, setToast] = useState('');
+  const [bingersOpen, setBingersOpen] = useState(false);
+  const [bingersLib, setBingersLib] = useState(null);
+  const [bingersWatches, setBingersWatches] = useState(null);
+  const [bingersPreview, setBingersPreview] = useState(null);
+  const [bingersSelected, setBingersSelected] = useState(new Set());
+  const [bingersBusy, setBingersBusy] = useState(false);
 
   const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2400); };
   const load = () => api('/api/movies').then(data => setItems((data.items || []).filter(x => x.type === 'series'))).catch(e => setNotice(e.message));
   useEffect(() => { load(); }, []);
+
+  const readDataUrl = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const previewBingers = async () => {
+    if (!bingersLib) return flash('فایل library.csv را انتخاب کن.');
+    setBingersBusy(true);
+    try {
+      const libraryCsvBase64 = await readDataUrl(bingersLib);
+      const watchesCsvBase64 = bingersWatches ? await readDataUrl(bingersWatches) : undefined;
+      const data = await api('/api/movies/import-bingers/preview', { method: 'POST', body: JSON.stringify({ libraryCsvBase64, watchesCsvBase64 }) });
+      setBingersPreview(data);
+      setBingersSelected(new Set((data.items || []).filter(x => !x.duplicate).map((x, i) => i)));
+    } catch (e) { flash(e.message); }
+    setBingersBusy(false);
+  };
+
+  const commitBingers = async () => {
+    if (!bingersPreview) return;
+    const items = (bingersPreview.items || []).filter((x, i) => bingersSelected.has(i));
+    if (!items.length) return flash('چیزی برای درون‌ریزی انتخاب نشده.');
+    setBingersBusy(true);
+    try {
+      const res = await api('/api/movies/import-bingers/commit', { method: 'POST', body: JSON.stringify({ items }) });
+      flash(`${fa(res.imported)} سریال اضافه شد${res.skipped ? ` · ${fa(res.skipped)} تکراری رد شد` : ''} ✓`);
+      setBingersOpen(false); setBingersPreview(null); setBingersLib(null); setBingersWatches(null); setBingersSelected(new Set());
+      load();
+    } catch (e) { flash(e.message); }
+    setBingersBusy(false);
+  };
 
   useEffect(() => {
     const q = query.trim();
@@ -299,6 +339,42 @@ function SeriesReact() {
             </div>
           )}
         </div>
+
+        <button type="button" className="strk-more-btn" style={{ marginBottom: 14 }} onClick={() => setBingersOpen(v => !v)}>📥 ایمپورت از Bingers</button>
+        {bingersOpen && (
+          <section className="strk-upnext" style={{ marginBottom: 16 }}>
+            <div className="strk-upnext-head"><h2>ایمپورت از Bingers</h2><span>library.csv الزامی · watches.csv اختیاری</span></div>
+            {!bingersPreview ? (
+              <div className="strk-upnext-list">
+                <label className="strk-result-row" style={{ cursor: 'pointer' }}>
+                  <span className="strk-result-info"><b>library.csv</b><small>{bingersLib ? bingersLib.name : 'فایلی انتخاب نشده'}</small></span>
+                  <input type="file" accept=".csv,text/csv" hidden onChange={e => setBingersLib(e.target.files?.[0] || null)} />
+                  <span className="strk-add-btn">انتخاب</span>
+                </label>
+                <label className="strk-result-row" style={{ cursor: 'pointer' }}>
+                  <span className="strk-result-info"><b>watches.csv</b><small>{bingersWatches ? bingersWatches.name : 'اختیاری — برای تشخیص قسمت جاری'}</small></span>
+                  <input type="file" accept=".csv,text/csv" hidden onChange={e => setBingersWatches(e.target.files?.[0] || null)} />
+                  <span className="strk-add-btn">انتخاب</span>
+                </label>
+                <button type="button" className="strk-watch-btn-full" disabled={bingersBusy} onClick={previewBingers}>{bingersBusy ? '...' : 'پیش‌نمایش'}</button>
+              </div>
+            ) : (
+              <div className="strk-upnext-list">
+                <div className="strk-upnext-head"><span>{fa(bingersPreview.items.length)} سریال · {fa(bingersPreview.duplicateCount)} تکراری</span></div>
+                {bingersPreview.items.map((it, i) => (
+                  <label className="strk-upnext-row" key={i} style={{ opacity: it.duplicate ? .55 : 1 }}>
+                    <input type="checkbox" checked={bingersSelected.has(i)} onChange={e => setBingersSelected(prev => { const n = new Set(prev); if (e.target.checked) n.add(i); else n.delete(i); return n; })} />
+                    <div className="strk-upnext-info"><b>{it.title}</b><small>{it.year || ''}{it.duplicate ? ' · قبلاً اضافه شده' : ''}{it.episodesWatched ? ` · ${fa(it.episodesWatched)} قسمت دیده‌شده` : ''}</small></div>
+                  </label>
+                ))}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" className="strk-watch-btn-full" disabled={bingersBusy} onClick={commitBingers}>{bingersBusy ? '...' : `درون‌ریزی ${fa(bingersSelected.size)} مورد`}</button>
+                  <button type="button" className="strk-more-btn" onClick={() => { setBingersPreview(null); setBingersSelected(new Set()); }}>بازگشت</button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
 
@@ -720,14 +796,169 @@ function RecordsReact({ kind }) {
   return <main className="planner-react records-react" dir="rtl"><TopNav active={kind} /><div className="planner-page"><header><div><p>داده‌های واقعی LifeOS</p><h1>{config.title}</h1></div>{kind === 'notes' && <button className="finance-action" onClick={() => setShowArchived(x => !x)}>{showArchived ? 'فقط فعال‌ها' : 'نمایش بایگانی'}</button>}</header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<div className="planner-layout"><form className="planner-form" onSubmit={save}><h2>{editing ? 'ویرایش' : 'افزودن'}</h2><input name="title" required placeholder={kind === 'contacts' ? 'نام مخاطب' : 'عنوان'} defaultValue={editing ? titleValue(editing) : ''} key={`title-${editing?.id || 'new'}`} />{kind === 'contacts' && <><div><select name="relationship" defaultValue={editing?.relationship || 'friend'}><option value="family">خانواده</option><option value="friend">دوست</option><option value="work">کاری</option><option value="other">سایر</option></select><input name="phone" placeholder="تلفن" defaultValue={editing?.phone || ''} /></div><input name="email" type="email" placeholder="ایمیل" defaultValue={editing?.email || ''} /><div><input name="birthday" type="date" defaultValue={editing?.birthday || ''} /><input name="followUpDate" type="date" defaultValue={editing?.followUpDate || ''} /></div></>}{kind === 'documents' && <><input name="type" placeholder="نوع سند" defaultValue={editing?.type || ''} /><input name="expiryDate" type="date" defaultValue={editing?.expiryDate || ''} /></>}{kind === 'notes' && <><input name="tags" placeholder="تگ‌ها، با ویرگول جدا" defaultValue={(editing?.tags || []).join(', ')} /><select name="color" defaultValue={editing?.color || 'cyan'}><option value="cyan">آبی</option><option value="violet">بنفش</option><option value="rose">صورتی</option><option value="amber">کهربایی</option><option value="green">سبز</option></select><label><input name="pinned" type="checkbox" defaultChecked={editing?.pinned} /> سنجاق شود</label></>}<textarea name="text" placeholder="توضیحات" defaultValue={editing?.text || editing?.notes || ''} key={`text-${editing?.id || 'new'}`} /><button className="save">{editing ? 'ذخیرهٔ تغییرات' : 'ذخیره'}</button>{editing && <button type="button" className="finance-action" onClick={() => setEditing(null)}>انصراف</button>}</form><section className="planner-list"><h2>فهرست</h2>{items.length ? items.map(item => <article key={item.id}><div><b>{titleValue(item)}</b><small>{kind === 'contacts' ? [item.relationship, item.phone, item.email, item.followUpDate && `پیگیری ${item.followUpDate}`].filter(Boolean).join(' · ') : kind === 'documents' ? [item.type, item.expiryDate && `انقضا ${item.expiryDate}`].filter(Boolean).join(' · ') : [item.noteDate?.slice(0, 10), ...(item.tags || []).map(tag => `#${tag}`)].filter(Boolean).join(' · ')}</small>{(item.text || item.notes) && <p>{item.text || item.notes}</p>}{kind === 'documents' && item.fileUrl && <a href={item.fileUrl} target="_blank" rel="noreferrer">بازکردن پیوست</a>}</div><div className="record-actions"><button className="finance-action" onClick={() => setEditing(item)}>ویرایش</button>{kind === 'notes' && <><button className="finance-action" onClick={() => convert(item, 'task')}>کار</button><button className="finance-action" onClick={() => convert(item, 'reminder')}>یادآور</button></>}<button className="planner-delete" onClick={() => remove(item)} aria-label={`حذف ${titleValue(item)}`}>×</button></div></article>) : <p className="empty">موردی برای نمایش نیست.</p>}</section></div></div></main>;
 }
 
+const DIGEST_HOURS = Array.from({ length: 24 }, (_, h) => h);
+
 function SettingsReact() {
   const [integrations, setIntegrations] = useState({}), [notice, setNotice] = useState('');
+  const [me, setMe] = useState(null);
+  const [pinNew, setPinNew] = useState(''), [pinCur, setPinCur] = useState('');
+  const [tgLink, setTgLink] = useState(null);
+  const [tgBackupBusy, setTgBackupBusy] = useState(false);
+  const [digest, setDigest] = useState({ tgMorningHour: 9, tgEveningHour: 23, tgMorningOn: true, tgEveningOn: true, tgReports: true });
+  const [chatLog, setChatLog] = useState([]), [chatInput, setChatInput] = useState(''), [chatBusy, setChatBusy] = useState(false);
+
   const load = () => api('/api/integrations').then(setIntegrations).catch(error => setNotice(error.message));
-  useEffect(() => { load(); }, []);
+  const loadMe = () => api('/api/me').then(data => {
+    setMe(data.user || null);
+    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false }));
+  }).catch(error => setNotice(error.message));
+  useEffect(() => { load(); loadMe(); }, []);
+
   const disconnect = async name => { try { await api(`/api/integrations/${name}/disconnect`, { method: 'POST', body: JSON.stringify({}) }); setNotice('اتصال قطع شد.'); load(); } catch (error) { setNotice(error.message); } };
   const syncCalendar = async () => { try { await api('/api/integrations/google-calendar/sync', { method: 'POST', body: JSON.stringify({}) }); setNotice('همگام‌سازی شد.'); load(); } catch (error) { setNotice(error.message); } };
   const cards = [['spotify','Spotify','music'], ['youtube','YouTube','youtube'], ['google-calendar','Google Calendar','calendar']];
-  return <main className="planner-react" dir="rtl"><TopNav active="settings" /><div className="planner-page"><header><div><p>اتصال‌های حساب</p><h1>تنظیمات</h1></div></header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<section className="planner-list integration-list" id="googleCalendarCard"><h2>اتصال‌ها</h2>{cards.map(([id, title, page]) => { const state = integrations[id] || integrations[id.replace('-', '')] || {}; const connected = Boolean(state.connected); return <article key={id}><div><b>{title}</b><small>{connected ? 'متصل است' : 'متصل نیست'}</small>{id === 'google-calendar' && <p>تقویم اختصاصی LifeOS داخل حساب گوگلت ساخته می‌شود؛ حذف آن در گوگل دادهٔ هسته را پاک نمی‌کند.</p>}</div>{connected ? <><button className="finance-action" onClick={() => disconnect(id)}>قطع اتصال</button>{id === 'google-calendar' && <button className="finance-action" onClick={syncCalendar}>همگام‌سازی</button>}</> : <a className="save" href={`/api/integrations/${id}/connect`}>اتصال</a>}<a className="finance-action" href={`/?page=${page}`}>بازکردن</a></article>; })}</section></div></main>;
+
+  const savePin = async event => {
+    event.preventDefault();
+    const pin = pinNew.replace(/\D/g, '');
+    if (pin.length < 4 || pin.length > 8) { setNotice('PIN باید ۴ تا ۸ رقم باشد.'); return; }
+    try {
+      await api('/api/security/pin', { method: 'PUT', body: JSON.stringify({ pin, currentPin: pinCur.replace(/\D/g, '') || undefined }) });
+      setNotice('PIN ذخیره شد.'); setPinNew(''); setPinCur(''); loadMe();
+    } catch (error) { setNotice(error.message); }
+  };
+  const clearPin = async () => {
+    const cur = pinCur.replace(/\D/g, '');
+    if (!cur) { setNotice('برای خاموش‌کردن قفل، PIN فعلی را در فیلد «PIN فعلی» بنویس.'); return; }
+    try {
+      await api('/api/security/pin', { method: 'DELETE', body: JSON.stringify({ pin: cur }) });
+      setNotice('قفل PIN خاموش شد.'); setPinCur(''); loadMe();
+    } catch (error) { setNotice(error.message); }
+  };
+
+  const tgLinkCode = async () => { try { setTgLink(await api('/api/telegram/link-code', { method: 'POST', body: JSON.stringify({}) })); } catch (error) { setNotice(error.message); } };
+  const tgUnlink = async () => { try { await api('/api/telegram/unlink', { method: 'POST', body: JSON.stringify({}) }); setNotice('اتصال تلگرام قطع شد.'); setTgLink(null); load(); } catch (error) { setNotice(error.message); } };
+  const tgBackupNow = async () => {
+    setTgBackupBusy(true);
+    try { await api('/api/backup/telegram', { method: 'POST', body: JSON.stringify({}) }); setNotice('بکاپ در تلگرامت ارسال شد.'); }
+    catch (error) { setNotice(error.message); }
+    finally { setTgBackupBusy(false); }
+  };
+
+  const saveDigest = async patch => {
+    setDigest(prev => ({ ...prev, ...patch }));
+    try { await api('/api/me', { method: 'PATCH', body: JSON.stringify(patch) }); } catch (error) { setNotice(error.message); }
+  };
+
+  const sendChat = async () => {
+    const msg = chatInput.trim();
+    if (!msg || chatBusy) return;
+    const history = chatLog.map(m => ({ role: m.role, content: m.content }));
+    setChatLog(log => [...log, { role: 'user', content: msg }]);
+    setChatInput(''); setChatBusy(true);
+    try {
+      const data = await api('/api/ai/chat', { method: 'POST', body: JSON.stringify({ message: msg, history }) });
+      setChatLog(log => [...log, { role: 'assistant', content: data.reply }]);
+    } catch (error) {
+      setChatLog(log => [...log, { role: 'assistant', content: 'خطا: ' + error.message }]);
+    } finally { setChatBusy(false); }
+  };
+
+  return (
+    <main className="planner-react" dir="rtl">
+      <TopNav active="settings" />
+      <div className="planner-page">
+        <header><div><p>اتصال‌های حساب</p><h1>تنظیمات</h1></div></header>
+        {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
+
+        <section className="planner-list integration-list" id="googleCalendarCard">
+          <h2>اتصال‌ها</h2>
+          {cards.map(([id, title, page]) => {
+            const state = integrations[id] || integrations[id.replace('-', '')] || {};
+            const connected = Boolean(state.connected);
+            return (
+              <article key={id}>
+                <div>
+                  <b>{title}</b>
+                  <small>{connected ? 'متصل است' : 'متصل نیست'}</small>
+                  {id === 'google-calendar' && <p>تقویم اختصاصی LifeOS داخل حساب گوگلت ساخته می‌شود؛ حذف آن در گوگل دادهٔ هسته را پاک نمی‌کند.</p>}
+                </div>
+                {connected ? <>
+                  <button className="finance-action" onClick={() => disconnect(id)}>قطع اتصال</button>
+                  {id === 'google-calendar' && <button className="finance-action" onClick={syncCalendar}>همگام‌سازی</button>}
+                </> : <a className="save" href={`/api/integrations/${id}/connect`}>اتصال</a>}
+                <a className="finance-action" href={`/?page=${page}`}>بازکردن</a>
+              </article>
+            );
+          })}
+        </section>
+
+        <section className="planner-list" id="telegramCard">
+          <h2>اتصال تلگرام</h2>
+          <article>
+            <div>
+              <b>بات شخصی تلگرام</b>
+              <small>{integrations.telegram?.connected ? 'متصل است' : 'متصل نیست'}</small>
+              <p>با یک کد یک‌بارمصرف (۱۵ دقیقه اعتبار) وصل شو؛ گزارش صبح/شب، ثبت سریع تراکنش و کارها و بکاپ روزانهٔ اطلاعات از همین بات فعال می‌شود.</p>
+              {tgLink && <p>کد: <b dir="ltr">{tgLink.code}</b> — در بات بفرست: <code dir="ltr">/start {tgLink.code}</code></p>}
+            </div>
+            {integrations.telegram?.connected ? <>
+              <button type="button" className="finance-action" onClick={tgUnlink}>قطع اتصال</button>
+              <button type="button" className="finance-action" onClick={tgBackupNow} disabled={tgBackupBusy}>{tgBackupBusy ? 'در حال ارسال…' : '🗄 دریافت بکاپ الان'}</button>
+            </> : <button type="button" className="save" onClick={tgLinkCode}>ساخت کد اتصال</button>}
+          </article>
+        </section>
+
+        <form className="planner-form" id="pinCard" onSubmit={savePin}>
+          <h2>PIN امنیتی</h2>
+          <p>بعد از ورود، برای دیدن داشبورد PIN می‌خواهد — مناسب موبایل مشترک. برای خاموش‌کردن، فیلد PIN جدید را خالی بگذار و روی «خاموش‌کردن قفل» بزن.</p>
+          <div>
+            <div><label>PIN جدید (۴ تا ۸ رقم)</label><input type="password" inputMode="numeric" maxLength={8} value={pinNew} onChange={e => setPinNew(e.target.value)} placeholder="••••" /></div>
+            <div><label>PIN فعلی (اگر داری)</label><input type="password" inputMode="numeric" maxLength={8} value={pinCur} onChange={e => setPinCur(e.target.value)} placeholder="اختیاری" /></div>
+          </div>
+          <div>
+            <button type="submit" className="save">ذخیرهٔ PIN</button>
+            <button type="button" className="finance-action" onClick={clearPin}>خاموش‌کردن قفل</button>
+          </div>
+          <small>وضعیت فعلی: {me?.pinEnabled ? 'فعال ✓' : 'خاموش'}</small>
+        </form>
+
+        <section className="planner-list" id="digestCard">
+          <h2>دایجست صبح/عصر</h2>
+          <article>
+            <div><b>🌅 گزارش صبح</b><small>سررسید اشتراک‌ها و بدهی‌ها + بازی‌های امروز + برنامهٔ امروز</small></div>
+            <div className="digest-controls">
+              <select value={digest.tgMorningHour} onChange={e => saveDigest({ tgMorningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
+              <button type="button" className={`plnr-switch ${digest.tgMorningOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgMorningOn} onClick={() => saveDigest({ tgMorningOn: !digest.tgMorningOn })}><i /></button>
+            </div>
+          </article>
+          <article>
+            <div><b>🌙 گزارش عصر</b><small>جمع کارهای امروز + هزینهٔ روز + حال و خواب + یادآوری ثبت روزنگار</small></div>
+            <div className="digest-controls">
+              <select value={digest.tgEveningHour} onChange={e => saveDigest({ tgEveningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
+              <button type="button" className={`plnr-switch ${digest.tgEveningOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgEveningOn} onClick={() => saveDigest({ tgEveningOn: !digest.tgEveningOn })}><i /></button>
+            </div>
+          </article>
+          <article>
+            <div><b>ارسال گزارش‌ها در تلگرام</b><small>خاموش‌کردن یعنی هیچ دایجستی فرستاده نشود</small></div>
+            <button type="button" className={`plnr-switch ${digest.tgReports ? 'on' : ''}`} role="switch" aria-checked={digest.tgReports} onClick={() => saveDigest({ tgReports: !digest.tgReports })}><i /></button>
+          </article>
+        </section>
+
+        <section className="planner-list ai-chat-card" id="aiChatCard">
+          <h2>چت با دستیار هوش مصنوعی</h2>
+          <div className="ai-chat-log">
+            {chatLog.length ? chatLog.map((m, index) => <p key={index} className={`ai-chat-msg ${m.role}`}><b>{m.role === 'user' ? 'تو' : 'دستیار'}:</b> {m.content}</p>)
+              : <p className="empty">بر اساس دادهٔ واقعیِ این ماهت (مالی، خواب/مود ۷ روز اخیر، کارهای پیش‌رو، عادت‌ها) جواب می‌دهد؛ مثلاً بپرس «این ماه چرا بیشتر خرج کردم؟»</p>}
+          </div>
+          <div className="ai-chat-row">
+            <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') sendChat(); }} placeholder="سوالت را بنویس…" disabled={chatBusy} />
+            <button type="button" className="save" onClick={sendChat} disabled={chatBusy}>{chatBusy ? '…' : 'ارسال'}</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }
 
 function Market() {

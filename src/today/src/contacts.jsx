@@ -61,12 +61,20 @@ const LOG_TYPES = [
   { key: 'message', label: 'پیام' },
   { key: 'other', label: 'سایر' }
 ];
+// Contacts may store several numbers in one string, separated by one of ·|,;/ —
+// matches the backend dedupe split in server.js (`(c.phone||'').split(/[·|,;/]/)[0]`).
+// New entries are joined with ' · ', the house-style bullet separator used across LifeOS.
+const PHONE_SPLIT_RE = /[·|,;/]/;
+const splitPhones = phone => String(phone || '').split(PHONE_SPLIT_RE).map(x => x.trim()).filter(Boolean);
+const joinPhones = list => (list || []).map(x => String(x || '').trim()).filter(Boolean).join(' · ');
 const telHref = phone => {
-  const d = String(phone || '').replace(/[^\d+]/g, '');
+  const first = splitPhones(phone)[0] || '';
+  const d = first.replace(/[^\d+]/g, '');
   return d ? `tel:${d}` : null;
 };
 const smsHref = phone => {
-  const d = String(phone || '').replace(/[^\d+]/g, '');
+  const first = splitPhones(phone)[0] || '';
+  const d = first.replace(/[^\d+]/g, '');
   return d ? `sms:${d}` : null;
 };
 const daysUntil = iso => {
@@ -99,7 +107,7 @@ function fromApi(c) {
 }
 
 function Composer({ editing, onCloseEdit, onSaved }) {
-  const empty = { name: '', relationship: 'friend', phone: '', email: '', birthday: '', followUpDate: '', notes: '', company: '', jobTitle: '', favorite: false, tags: [] };
+  const empty = { name: '', relationship: 'friend', phones: [''], email: '', birthday: '', followUpDate: '', notes: '', company: '', jobTitle: '', favorite: false, tags: [] };
   const [form, setForm] = useState(empty);
   const [tagDraft, setTagDraft] = useState('');
   const [error, setError] = useState('');
@@ -107,10 +115,18 @@ function Composer({ editing, onCloseEdit, onSaved }) {
   const nameRef = useRef(null);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const setPhoneAt = (i, v) => setForm(f => { const phones = [...f.phones]; phones[i] = v; return { ...f, phones }; });
+  const addPhoneRow = () => setForm(f => (f.phones.length >= 5 ? f : { ...f, phones: [...f.phones, ''] }));
+  const removePhoneRow = i => setForm(f => {
+    if (f.phones.length <= 1) return { ...f, phones: [''] };
+    return { ...f, phones: f.phones.filter((_, idx) => idx !== i) };
+  });
+
   useEffect(() => {
     if (!editing) { setForm(empty); setTagDraft(''); setError(''); return; }
+    const phones = splitPhones(editing.phone);
     setForm({
-      name: editing.name, relationship: editing.relationship, phone: editing.phone, email: editing.email,
+      name: editing.name, relationship: editing.relationship, phones: phones.length ? phones : [''], email: editing.email,
       birthday: editing.birthday || '', followUpDate: editing.followUpDate || '', notes: editing.notes,
       company: editing.company, jobTitle: editing.jobTitle, favorite: editing.favorite, tags: editing.tags
     });
@@ -130,7 +146,7 @@ function Composer({ editing, onCloseEdit, onSaved }) {
     setBusy(true); setError('');
     try {
       const payload = {
-        name: form.name.trim(), relationship: form.relationship, phone: form.phone.trim(), email: form.email.trim(),
+        name: form.name.trim(), relationship: form.relationship, phone: joinPhones(form.phones), email: form.email.trim(),
         birthday: form.birthday || null, followUpDate: form.followUpDate || null, notes: form.notes,
         company: form.company.trim().slice(0, 80), jobTitle: form.jobTitle.trim().slice(0, 80),
         favorite: !!form.favorite, tags: form.tags
@@ -165,10 +181,18 @@ function Composer({ editing, onCloseEdit, onSaved }) {
             return <button key={k} type="button" className={form.relationship === k ? 'on' : ''} onClick={() => set('relationship', k)} style={form.relationship === k ? { borderColor: r.hex, color: r.hex } : undefined}>{r.label}</button>;
           })}
         </div>
-        <div className="pb-2col">
-          <div><label className="pb-mono pb-mute">PHONE / تلفن</label><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="۰۹۱۲…" dir="ltr" /></div>
-          <div><label className="pb-mono pb-mute">EMAIL / ایمیل</label><input value={form.email} onChange={e => set('email', e.target.value)} placeholder="name@mail.com" dir="ltr" /></div>
+        <label className="pb-mono pb-mute">PHONE / تلفن</label>
+        <div className="pb-phone-rows">
+          {form.phones.map((p, i) => (
+            <div className="pb-phone-row" key={i}>
+              <input value={p} onChange={e => setPhoneAt(i, e.target.value)} placeholder="۰۹۱۲…" dir="ltr" />
+              <button type="button" className="pb-phone-del" onClick={() => removePhoneRow(i)} aria-label="حذف این شماره">×</button>
+            </div>
+          ))}
         </div>
+        {form.phones.length < 5 && <button type="button" className="pb-ghost pb-phone-add" onClick={addPhoneRow}>+ شماره جدید</button>}
+        <label className="pb-mono pb-mute">EMAIL / ایمیل</label>
+        <input value={form.email} onChange={e => set('email', e.target.value)} placeholder="name@mail.com" dir="ltr" />
         <div className="pb-2col">
           <div><label className="pb-mono pb-mute">COMPANY / شرکت</label><input value={form.company} onChange={e => set('company', e.target.value)} placeholder="سازمان" /></div>
           <div><label className="pb-mono pb-mute">TITLE / سمت</label><input value={form.jobTitle} onChange={e => set('jobTitle', e.target.value)} placeholder="عنوان شغلی" /></div>
@@ -248,7 +272,17 @@ function Inspector({ contact, all, query, logs, onClose, onEdit, onFav, onDelete
         </div>
       </div>
       <div className="pb-insp-body">
-        {contact.phone && <p className="pb-field" dir="ltr"><Phone size={13} /> {contact.phone}</p>}
+        {contact.phone && (
+          <p className="pb-field" dir="ltr">
+            <Phone size={13} />
+            {splitPhones(contact.phone).map((p, i, arr) => (
+              <React.Fragment key={i}>
+                <a className="pb-phone-link" href={telHref(p)}>{p}</a>
+                {i < arr.length - 1 && <span className="pb-mute"> · </span>}
+              </React.Fragment>
+            ))}
+          </p>
+        )}
         {contact.email && <p className="pb-field" dir="ltr"><Mail size={13} /> {contact.email}</p>}
         {contact.birthday && <p className="pb-field"><Cake size={13} /> تولد {contact.birthday}{bday != null ? (bday === 0 ? ' · امروز!' : ` · ${faNum(bday)} روز دیگر`) : ''}</p>}
         {contact.followUpDate && <p className={`pb-field ${followDue ? 'due' : ''}`}><CalendarClock size={13} /> پیگیری {contact.followUpDate}{followDue ? ' · سررسید گذشته' : ''}</p>}

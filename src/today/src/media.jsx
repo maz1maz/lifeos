@@ -44,6 +44,16 @@ function spotifyTrackId(item) {
   return ''
 }
 
+function spotifyPlaylistId(pl) {
+  if (!pl) return ''
+  const u = String(pl.url || pl.uri || '')
+  const id = String(pl.id || '')
+  const m = u.match(/playlist[/:]([A-Za-z0-9]{22})/)
+  if (m) return m[1]
+  if (/^[A-Za-z0-9]{22}$/.test(id)) return id
+  return ''
+}
+
 function normMediaItem(raw, source) {
   if (!raw || typeof raw !== 'object') return null
   const title = raw.title || raw.name || raw.track || ''
@@ -362,7 +372,8 @@ export function MediaReact({ Nav, initialTab }) {
   const [notice, setNotice] = useState('')
   const [integ, setInteg] = useState(null)
   const [spotify, setSpotify] = useState({ nowPlaying: null, items: [], artists: [], playlists: [] })
-  const [youtube, setYoutube] = useState({ items: [], playlists: [] })
+  const [youtube, setYoutube] = useState({ items: [], playlists: [], subscriptions: [] })
+  const [plView, setPlView] = useState(null)
   const [hits, setHits] = useState([])
   const [life, setLife] = useState([])
   const [lifeKind, setLifeKind] = useState('all')
@@ -406,6 +417,7 @@ export function MediaReact({ Nav, initialTab }) {
       setYoutube({
         items: (hj.items || hj.videos || []).map((x) => normMediaItem(x, 'youtube')).filter(Boolean),
         playlists: pj.items || pj.playlists || [],
+        subscriptions: pj.subscriptions || [],
       })
     } catch { /* keep */ }
   }, [])
@@ -487,6 +499,37 @@ export function MediaReact({ Nav, initialTab }) {
   }
 
   const cueItem = (item) => { setCue(item); setPlaying(true); setPosition(0) }
+
+  const openPlaylist = useCallback(async (pl, source) => {
+    setPlView({ pl, source, items: [], loading: source === 'youtube', error: '' })
+    if (source !== 'youtube') return
+    try {
+      const r = await fetch(`/api/integrations/youtube/playlist-items?playlistId=${encodeURIComponent(pl.id)}`, { credentials: 'include' })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        setPlView((v) => (v && v.pl === pl ? { ...v, loading: false, error: j.error || 'دریافت ویدیوها ناموفق بود' } : v))
+        return
+      }
+      const items = (j.items || []).map((x) => normMediaItem(x, 'youtube')).filter(Boolean)
+      setPlView((v) => (v && v.pl === pl ? { ...v, loading: false, items } : v))
+    } catch {
+      setPlView((v) => (v && v.pl === pl ? { ...v, loading: false, error: 'دریافت ویدیوها ناموفق بود' } : v))
+    }
+  }, [])
+
+  const closePlaylist = useCallback(() => setPlView(null), [])
+
+  const playWholePlaylist = useCallback((pl, source) => {
+    const item = normMediaItem({ ...pl, title: pl.title || pl.name }, source)
+    if (item) cueItem(item)
+  }, [])
+
+  useEffect(() => {
+    if (!plView) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') closePlaylist() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [plView, closePlaylist])
 
   const stats = useMemo(() => {
     const now = Date.now()
@@ -689,10 +732,7 @@ export function MediaReact({ Nav, initialTab }) {
                 ) : (
                   <div className="md-pls">
                     {playlists.map((pl) => (
-                      <button key={pl.id || pl.title || pl.name} type="button" className="md-pl" onClick={() => {
-                        const item = normMediaItem({ ...pl, title: pl.title || pl.name }, unit === 'youtube' ? 'youtube' : 'spotify')
-                        if (item) cueItem(item)
-                      }}>
+                      <button key={pl.id || pl.title || pl.name} type="button" className="md-pl" onClick={() => openPlaylist(pl, unit === 'youtube' ? 'youtube' : 'spotify')}>
                         <div className="md-label">{pl.owner || pl.channel || 'PLAYLIST'}</div>
                         <b>{pl.title || pl.name}</b>
                         <small>{pl.count || pl.tracks || pl.itemCount ? `${fa(pl.count || pl.tracks || pl.itemCount)} مورد` : ''}</small>
@@ -701,6 +741,26 @@ export function MediaReact({ Nav, initialTab }) {
                   </div>
                 )}
               </Panel>
+
+              {unit === 'youtube' ? (
+                <Panel code="UNIT 05 / SUBSCRIPTIONS" title="اشتراک‌ها" hint={fa(youtube.subscriptions.length)}>
+                  {!youtube.subscriptions.length ? (
+                    <div className="md-empty"><b>قفسه خالی است</b>اشتراکی از حساب متصل نیامد.</div>
+                  ) : (
+                    <div className="md-pls">
+                      {youtube.subscriptions.map((s) => (
+                        <a key={s.id || s.title || s.name} className="md-pl md-sub" href={s.url || undefined} target={s.url ? '_blank' : undefined} rel="noreferrer">
+                          {s.cover || s.thumb ? <img className="md-subimg" src={s.cover || s.thumb} alt="" /> : <div className="md-subimg">▶</div>}
+                          <div>
+                            <b>{s.title || s.name}</b>
+                            {s.description ? <small>{s.description}</small> : null}
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </Panel>
+              ) : null}
             </div>
           </div>
         )}
@@ -756,6 +816,55 @@ export function MediaReact({ Nav, initialTab }) {
       </div>
 
       <TransportBar item={cue} playing={playing} setPlaying={setPlaying} position={position} setPosition={setPosition} onSave={saveItem} saving={saving} />
+
+      {plView ? (
+        <div className="md-modal-backdrop" onClick={closePlaylist}>
+          <div className="md-modal" onClick={(e) => e.stopPropagation()}>
+            <span className="md-screw l" aria-hidden="true" />
+            <span className="md-screw r" aria-hidden="true" />
+            <header className="md-modal-head">
+              <div>
+                <div className="md-label">UNIT 06 / PLAYLIST · {plView.source === 'youtube' ? 'یوتیوب' : 'اسپاتیفای'}</div>
+                <h2>{plView.pl.title || plView.pl.name}</h2>
+                <p className="md-modal-sub">
+                  {[
+                    plView.pl.owner || plView.pl.channel || plView.pl.channelTitle,
+                    (plView.pl.count || plView.pl.tracks || plView.pl.itemCount) ? `${fa(plView.pl.count || plView.pl.tracks || plView.pl.itemCount)} مورد` : '',
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+              <button type="button" className="md-btn" onClick={closePlaylist}>بستن ×</button>
+            </header>
+            <div className="md-modal-ops">
+              <button type="button" className="md-btn md-signal" onClick={() => playWholePlaylist(plView.pl, plView.source)}>پخش کل پلی‌لیست</button>
+              {plView.pl.url ? <a className="md-link" href={plView.pl.url} target="_blank" rel="noreferrer">باز کردن در {plView.source === 'youtube' ? 'یوتیوب' : 'اسپاتیفای'}</a> : null}
+            </div>
+            <div className="md-modal-body">
+              {plView.source === 'spotify' ? (
+                spotifyPlaylistId(plView.pl) ? (
+                  <iframe
+                    title="Spotify playlist"
+                    className="md-spplembed"
+                    src={`https://open.spotify.com/embed/playlist/${spotifyPlaylistId(plView.pl)}?utm_source=generator&theme=0`}
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="md-empty"><b>مشاهدهٔ محتوا ممکن نیست</b>شناسهٔ این پلی‌لیست از اسپاتیفای دریافت نشد.</div>
+                )
+              ) : plView.loading ? (
+                <div className="md-empty"><b>در حال دریافت…</b>ویدیوهای این پلی‌لیست در حال بارگذاری است.</div>
+              ) : plView.error ? (
+                <div className="md-empty"><b>ناموفق</b>{plView.error}</div>
+              ) : !plView.items.length ? (
+                <div className="md-empty"><b>خالی است</b>ویدیویی در این پلی‌لیست نیست.</div>
+              ) : plView.items.map((it) => (
+                <MediaCard key={it.id + it.title} item={it} onCue={cueItem} onSave={saveItem} saving={saving} active={cue?.id === it.id} />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

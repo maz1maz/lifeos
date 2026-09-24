@@ -204,6 +204,38 @@
 .md-tops { display: flex; align-items: center; gap: 12px; }
 .md-tops-ops { display: flex; flex-direction: column; gap: 6px; }
 
+.md-sub { display: flex; align-items: center; gap: 10px; }
+.md-sub .md-subimg {
+  width: 44px; height: 44px; border-radius: 99px; object-fit: cover; flex: none;
+  background: #0a1822; display: grid; place-items: center; color: var(--signal);
+}
+.md-sub b { display: block; margin-top: 0; font-size: 13px; }
+.md-sub small { display: block; color: var(--mute); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.md-modal-backdrop {
+  position: fixed; inset: 0; z-index: 60; background: rgba(5, 9, 14, 0.78);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.md-modal {
+  position: relative; width: 100%; max-width: 640px; max-height: 82vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--etch); border-radius: 4px;
+  background: linear-gradient(180deg, rgba(22, 48, 63, 0.97), rgba(10, 26, 37, 0.98));
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.9);
+}
+.md-modal-head {
+  display: flex; justify-content: space-between; gap: 12px; align-items: flex-start;
+  padding: 14px 18px; border-bottom: 1px solid rgba(36, 72, 92, 0.7);
+}
+.md-modal-head h2 { margin: 4px 0 0; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.md-modal-sub { margin: 4px 0 0; color: var(--mute); font-size: 11px; font-family: ui-monospace, monospace; }
+.md-modal-ops {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  padding: 12px 18px; border-bottom: 1px solid rgba(36, 72, 92, 0.5);
+}
+.md-modal-body { overflow-y: auto; padding: 4px 0 8px; }
+.md-spplembed { display: block; width: 100%; height: 380px; border: 0; }
+
 @media (prefers-reduced-motion: reduce) {
   .md-reel.spin, .md-reel.spin-rev { animation: none; }
 }
@@ -214,4 +246,6 @@
   .md-tinner { padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); gap: 10px; }
   .md-tmeta { min-width: 0; width: 100%; }
   .md-play { width: 48px; height: 48px; }
+  .md-modal { max-height: 88vh; }
+  .md-spplembed { height: 300px; }
 }

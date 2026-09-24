@@ -28,6 +28,9 @@ const shiftMonth = (key, d) => {
 const CATS = ['خوراک', 'حمل‌ونقل', 'قبض', 'مسکن', 'سلامت', 'تفریح', 'آموزش', 'پوشاک', 'حقوق', 'سرمایه‌گذاری', 'هدیه', 'سفر', 'متفرقه']
 const ICONS = { 'خوراک': '🍔', 'حمل‌ونقل': '🚕', 'قبض': '🧾', 'مسکن': '🏠', 'سلامت': '💊', 'تفریح': '🎮', 'آموزش': '📚', 'پوشاک': '👕', 'حقوق': '💼', 'سرمایه‌گذاری': '📈', 'هدیه': '🎁', 'سفر': '✈️', 'متفرقه': '📦', 'انتقال': '🔄' }
 const COLORS = ['#22d3ee', '#a78bfa', '#fbbf24', '#34d399', '#f472b6', '#60a5fa', '#fb7185', '#4ade80', '#f97316']
+const usd = (n) => `$${fa(Math.round((Math.abs(Number(n) || 0)) * 100) / 100)}`
+const signedUsd = (n) => `${Number(n) >= 0 ? '+' : '−'}${usd(n)}`
+const ALERT_COND = { price_above: 'قیمت بالاتر از', price_below: 'قیمت پایین‌تر از', pnl_pct_above: 'سود٪ بالاتر از', pnl_pct_below: 'زیان٪ پایین‌تر از' }
 const TABS = [
   { id: 'dash', label: 'داشبورد' },
   { id: 'ledger', label: 'تراکنش‌ها' },
@@ -38,24 +41,30 @@ const FILTERS = [['all', 'همه'], ['expense', 'هزینه'], ['income', 'در�
 
 function AreaChart({ series }) {
   const w = 640, h = 220, pad = 28
-  const vals = series.flatMap((s) => [s.income, s.expense])
+  const withNet = series.map((s) => ({ ...s, net: (s.income || 0) - (s.expense || 0) }))
+  const vals = withNet.flatMap((s) => [s.income, s.expense, s.net])
   const max = Math.max(...vals, 1)
-  const x = (i) => pad + (i / Math.max(1, series.length - 1)) * (w - pad * 2)
-  const y = (v) => h - pad - (v / max) * (h - pad * 2)
-  const path = (key) => series.map((s, i) => `${i ? 'L' : 'M'} ${x(i)} ${y(s[key])}`).join(' ')
-  const area = (key) => `${path(key)} L ${x(series.length - 1)} ${h - pad} L ${x(0)} ${h - pad} Z`
+  const min = Math.min(0, ...vals)
+  const span = Math.max(1, max - min)
+  const x = (i) => pad + (i / Math.max(1, withNet.length - 1)) * (w - pad * 2)
+  const y = (v) => h - pad - ((v - min) / span) * (h - pad * 2)
+  const zeroY = y(0)
+  const path = (key) => withNet.map((s, i) => `${i ? 'L' : 'M'} ${x(i)} ${y(s[key])}`).join(' ')
+  const area = (key) => `${path(key)} L ${x(withNet.length - 1)} ${zeroY} L ${x(0)} ${zeroY} Z`
   if (!series.length) return <p className="fn-empty">برای نمودار به چند ماه تراکنش نیاز است.</p>
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="fn-svg" role="img" aria-label="روند درآمد و هزینه">
+    <svg viewBox={`0 0 ${w} ${h}`} className="fn-svg" role="img" aria-label="روند درآمد، هزینه و خالص">
       <defs>
         <linearGradient id="fnInc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#34d399" stopOpacity="0.4" /><stop offset="100%" stopColor="#34d399" stopOpacity="0" /></linearGradient>
         <linearGradient id="fnExp" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#fb7185" stopOpacity="0.4" /><stop offset="100%" stopColor="#fb7185" stopOpacity="0" /></linearGradient>
       </defs>
+      {min < 0 ? <line x1={pad} x2={w - pad} y1={zeroY} y2={zeroY} stroke="#334155" strokeWidth="1" strokeDasharray="3 3" /> : null}
       <path d={area('income')} fill="url(#fnInc)" />
       <path d={area('expense')} fill="url(#fnExp)" />
       <path d={path('income')} fill="none" stroke="#34d399" strokeWidth="2.4" />
       <path d={path('expense')} fill="none" stroke="#fb7185" strokeWidth="2.4" />
-      {series.map((s, i) => <text key={s.month} x={x(i)} y={h - 8} textAnchor="middle" fill="#8aa0b8" fontSize="11">{s.month.slice(5)}</text>)}
+      <path d={path('net')} fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="5 3" />
+      {withNet.map((s, i) => <text key={s.month} x={x(i)} y={h - 8} textAnchor="middle" fill="#8aa0b8" fontSize="11">{s.month.slice(5)}</text>)}
     </svg>
   )
 }
@@ -99,17 +108,27 @@ export function FinanceReact({ Nav }) {
   const [editing, setEditing] = useState(null)
   const [holdAssetType, setHoldAssetType] = useState('crypto')
   const [importPreview, setImportPreview] = useState(null)
+  const [poker, setPoker] = useState([])
+  const [pokerSummary, setPokerSummary] = useState({ sessions: 0, profit: 0, wins: 0, losses: 0, pushes: 0, totalBuyIn: 0, totalCashOut: 0 })
+  const [bet, setBet] = useState({ items: [], stats: {}, suggestedStart: 0, suggestedStartDate: null })
+  const [alerts, setAlerts] = useState([])
+  const [recatPreview, setRecatPreview] = useState(null)
+  const [recatBusy, setRecatBusy] = useState(false)
 
   const load = useCallback(async () => {
     try {
       const months = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5))
-      const [sum, list, acc, bud, debt, pf, ...hist] = await Promise.all([
+      const [sum, list, acc, bud, debt, pf, pk, pkSum, bt, al, ...hist] = await Promise.all([
         api(`/api/finance?month=${month}`),
         api(`/api/transactions?from=${month}-01&to=${month}-31`),
         api('/api/accounts'),
         api(`/api/budgets?month=${month}`),
         api('/api/debts'),
         api('/api/portfolio'),
+        api(`/api/poker?month=${month}`).catch(() => ({ items: [] })),
+        api(`/api/poker/summary?month=${month}`).catch(() => ({})),
+        api(`/api/bet?month=${month}`).catch(() => ({ items: [], stats: {} })),
+        api('/api/investments/alerts').catch(() => ({ items: [] })),
         ...months.map((m) => api(`/api/finance?month=${m}`).catch(() => ({ month: m, income: 0, expense: 0 }))),
       ])
       setSummary(sum)
@@ -118,6 +137,10 @@ export function FinanceReact({ Nav }) {
       setBudgets(bud || { budgets: [] })
       setDebts(debt.items || [])
       setPortfolio(pf || { items: [], totals: {} })
+      setPoker(pk.items || [])
+      setPokerSummary(pkSum || {})
+      setBet(bt || { items: [], stats: {} })
+      setAlerts(al.items || [])
       setTrend(hist.map((h, i) => ({ month: months[i], income: h.income || 0, expense: h.expense || 0 })))
     } catch (e) { setNotice(e.message) }
   }, [month])
@@ -139,6 +162,8 @@ export function FinanceReact({ Nav }) {
   const payable = debts.filter((d) => d.type === 'payable').reduce((s, d) => s + d.amount, 0)
   const shown = txs.filter((t) => (filter === 'all' || t.kind === filter) && (!q.trim() || `${t.title} ${t.category} ${t.account || ''}`.includes(q.trim())))
   const face = holdAssetType === 'dollar' || holdAssetType === 'euro'
+  const betMonthItems = (bet.items || []).filter((d) => d.date.startsWith(month))
+  const betMax = Math.max(1, ...betMonthItems.map((d) => Math.abs(d.result || 0)))
 
   const submitTx = (e) => {
     e.preventDefault()
@@ -162,6 +187,37 @@ export function FinanceReact({ Nav }) {
     } catch (err) { setNotice(err.message) }
     e.target.value = ''
   }
+
+  const submitPoker = (e) => {
+    e.preventDefault()
+    const f = new FormData(e.currentTarget)
+    send('/api/poker', { date: f.get('date'), buyIn: Number(f.get('buyIn')), cashOut: Number(f.get('cashOut')), location: f.get('location'), note: f.get('note') }, 'جلسهٔ پوکر ثبت شد.')
+    e.currentTarget.reset()
+  }
+
+  const submitBet = (e) => {
+    e.preventDefault()
+    const f = new FormData(e.currentTarget)
+    const body = { date: f.get('date'), deposit: Number(f.get('deposit') || 0), withdraw: Number(f.get('withdraw') || 0), balance: Number(f.get('balance')), note: f.get('note') }
+    const start = f.get('start')
+    if (start !== '') body.start = Number(start)
+    send('/api/bet', body, 'روز بت ثبت شد.')
+    e.currentTarget.reset()
+  }
+
+  const recategorize = async (payload, doneMessage) => {
+    setRecatBusy(true)
+    try {
+      const r = await api('/api/transactions/recategorize', { method: 'POST', body: JSON.stringify(payload) })
+      setRecatPreview(payload.revert ? null : r)
+      setNotice(doneMessage ? doneMessage(r) : '')
+      if (payload.apply || payload.revert) await load()
+    } catch (e) { setNotice(e.message) }
+    setRecatBusy(false)
+  }
+  const previewRecat = () => recategorize({}, () => '')
+  const applyRecat = () => recategorize({ apply: true }, (r) => `دستهٔ ${fa(r.matched)} تراکنش به‌روزرسانی شد.`)
+  const revertRecat = () => recategorize({ revert: true }, (r) => r.message || 'بازگردانی شد.')
 
   return (
     <div className="fn finance-react" dir="rtl">
@@ -253,6 +309,24 @@ export function FinanceReact({ Nav }) {
             </form>
             <section className="fn-glass fn-list">
               <h2>دفتر {monthFa(month)}</h2>
+              <div className="fn-recat">
+                <button type="button" className="fn-action" onClick={previewRecat} disabled={recatBusy}>🧹 دسته‌بندی متفرقه‌ها</button>
+                <button type="button" className="fn-action" onClick={revertRecat} disabled={recatBusy}>↩ بازگردانی آخرین اعمال</button>
+              </div>
+              {recatPreview ? (
+                <div className="fn-soft fn-recat-box">
+                  <p className="sub">بررسی‌شده {fa(recatPreview.scanned)} · تطبیق‌یافته {fa(recatPreview.matched)} · بدون تغییر {fa(recatPreview.untouched)}{recatPreview.applied ? ' · اعمال شد' : ' · فقط پیش‌نمایش'}</p>
+                  {recatPreview.summary && Object.keys(recatPreview.summary).length ? (
+                    <ul>
+                      {Object.entries(recatPreview.summary).map(([cat, s]) => <li key={cat}>{cat} · {fa(s.count)} مورد · {faMoney(s.sum)}</li>)}
+                    </ul>
+                  ) : null}
+                  <div className="fn-recat-actions">
+                    {!recatPreview.applied && recatPreview.matched ? <button type="button" className="fn-save" onClick={applyRecat} disabled={recatBusy}>اعمال تغییرات</button> : null}
+                    <button type="button" onClick={() => setRecatPreview(null)}>بستن</button>
+                  </div>
+                </div>
+              ) : null}
               <div className="fn-filters">
                 {FILTERS.map(([k, l]) => <button key={k} type="button" className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{l}</button>)}
               </div>
@@ -346,6 +420,7 @@ export function FinanceReact({ Nav }) {
         ) : null}
 
         {tab === 'wealth' ? (
+          <>
           <div className="fn-2" id="debts">
             <section className="fn-glass fn-list">
               <h2>بدهی و طلب</h2>
@@ -404,8 +479,115 @@ export function FinanceReact({ Nav }) {
                 <input name="note" placeholder="یادداشت" />
                 <button className="fn-save">ثبت سرمایه‌گذاری</button>
               </form>
+              <div className="fn-alerts">
+                <h2>هشدار قیمت</h2>
+                {alerts.length ? alerts.map((a) => (
+                  <article key={a.id} className="fn-row">
+                    <div><b>{a.symbol}</b><small>{ALERT_COND[a.condition] || a.condition} {fa(a.value)}{a.condition?.startsWith('pnl') ? '٪' : ''}{a.active === false ? ' · غیرفعال' : ''}</small></div>
+                    <button type="button" className="del" onClick={() => { if (window.confirm(`هشدار ${a.symbol} حذف شود؟`)) send(`/api/investments/alerts/${a.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
+                  </article>
+                )) : <p className="fn-empty">هشداری ثبت نشده.</p>}
+                <form className="fn-form" style={{ marginTop: 10, padding: 0 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/investments/alerts', { symbol: f.get('symbol'), condition: f.get('condition'), value: Number(f.get('value')) }, 'هشدار ثبت شد.'); e.currentTarget.reset() }}>
+                  <div>
+                    <input name="symbol" required placeholder="نماد" />
+                    <input name="value" required inputMode="decimal" placeholder="مقدار" />
+                  </div>
+                  <select name="condition">
+                    <option value="price_above">قیمت بالاتر از</option>
+                    <option value="price_below">قیمت پایین‌تر از</option>
+                    <option value="pnl_pct_above">سود٪ بالاتر از</option>
+                    <option value="pnl_pct_below">زیان٪ پایین‌تر از</option>
+                  </select>
+                  <button className="fn-save">افزودن هشدار</button>
+                </form>
+              </div>
             </section>
           </div>
+
+          <div className="fn-2">
+            <section className="fn-glass fn-list">
+              <h2>پوکر</h2>
+              <div className="fn-cats fn-poker-stats">
+                <div className="fn-soft fn-cat"><b>سود/زیان ماه</b><small>{fa(pokerSummary.profit || 0)} ریال</small></div>
+                <div className="fn-soft fn-cat"><b>جلسات</b><small>{fa(pokerSummary.sessions || 0)} ({fa(pokerSummary.wins || 0)} برد · {fa(pokerSummary.losses || 0)} باخت)</small></div>
+                <div className="fn-soft fn-cat"><b>مجموع ورودی</b><small>{fa(pokerSummary.totalBuyIn || 0)}</small></div>
+                <div className="fn-soft fn-cat"><b>مجموع خروجی</b><small>{fa(pokerSummary.totalCashOut || 0)}</small></div>
+              </div>
+              {poker.length ? poker.map((item) => {
+                const pnl = item.cashOut - item.buyIn
+                return (
+                  <article key={item.id} className="fn-row">
+                    <div>
+                      <b>{item.location || 'جلسهٔ پوکر'}</b>
+                      <small>{item.date} · ورود {fa(item.buyIn)} · خروج {fa(item.cashOut)}{item.note ? ` · ${item.note}` : ''}</small>
+                    </div>
+                    <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : '−'}{fa(Math.abs(pnl))}</span>
+                    <div className="fn-ops">
+                      <button type="button" onClick={() => setEditing({ type: 'poker', item })}>ویرایش</button>
+                      <button type="button" className="del" onClick={() => { if (window.confirm('این جلسه حذف شود؟')) send(`/api/poker/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
+                    </div>
+                  </article>
+                )
+              }) : <p className="fn-empty">جلسه‌ای در این ماه نیست.</p>}
+              <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={submitPoker}>
+                <input name="date" type="date" defaultValue={isoToday()} />
+                <div>
+                  <input name="buyIn" required inputMode="numeric" placeholder="ورودی (ریال)" />
+                  <input name="cashOut" required inputMode="numeric" placeholder="خروجی (ریال)" />
+                </div>
+                <input name="location" placeholder="مکان (اختیاری)" />
+                <input name="note" placeholder="یادداشت" />
+                <button className="fn-save">ثبت جلسه</button>
+              </form>
+            </section>
+            <section className="fn-glass fn-list">
+              <h2>بت (دلاری)</h2>
+              <p className="sub">هیچ تراکنشی نمی‌سازد و در آمار درآمد/هزینه نمی‌آید.</p>
+              <div className="fn-cats fn-poker-stats">
+                <div className="fn-soft fn-cat"><b>سود/زیان ماه</b><small>{signedUsd(bet.stats?.profit || 0)}</small></div>
+                <div className="fn-soft fn-cat"><b>روزها</b><small>{fa(bet.stats?.days || 0)} ({fa(bet.stats?.wins || 0)} برد · {fa(bet.stats?.losses || 0)} باخت)</small></div>
+                <div className="fn-soft fn-cat"><b>وین‌ریت</b><small>{fa(bet.stats?.winRate || 0)}٪</small></div>
+                <div className="fn-soft fn-cat"><b>بهترین/بدترین روز</b><small>{bet.stats?.best ? signedUsd(bet.stats.best.result) : '—'} · {bet.stats?.worst ? signedUsd(bet.stats.worst.result) : '—'}</small></div>
+              </div>
+              {betMonthItems.length ? (
+                <div className="fn-bet-mini">
+                  {betMonthItems.map((d) => (
+                    <div key={d.id} className="fn-bet-bar" title={`${d.date} · ${signedUsd(d.result)}`}>
+                      <i className={d.result >= 0 ? 'pos' : 'neg'} style={{ height: `${Math.max(6, Math.round((Math.abs(d.result) / betMax) * 44))}px` }} />
+                      <span>{d.date.slice(8)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {betMonthItems.length ? betMonthItems.slice().reverse().map((item) => (
+                <article key={item.id} className="fn-row">
+                  <div>
+                    <b>{item.date}</b>
+                    <small>داشتم {usd(item.start)} · واریز {usd(item.deposit)} · برداشت {usd(item.withdraw)} · موجودی {usd(item.balance)}{item.note ? ` · ${item.note}` : ''}</small>
+                  </div>
+                  <span className={`amt ${item.result >= 0 ? 'pos' : 'neg'}`}>{signedUsd(item.result)}</span>
+                  <div className="fn-ops">
+                    <button type="button" onClick={() => setEditing({ type: 'bet', item })}>ویرایش</button>
+                    <button type="button" className="del" onClick={() => { if (window.confirm('این روز حذف شود؟')) send(`/api/bet/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
+                  </div>
+                </article>
+              )) : <p className="fn-empty">روزی برای این ماه ثبت نشده.</p>}
+              <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={submitBet} key={bet.suggestedStartDate || 'bet-form'}>
+                <input name="date" type="date" defaultValue={isoToday()} />
+                <div>
+                  <input name="start" inputMode="decimal" defaultValue={bet.suggestedStart || 0} placeholder="مبلغی که داشتم ($)" />
+                  <input name="balance" required inputMode="decimal" placeholder="موجودی پایان روز ($)" />
+                </div>
+                <div>
+                  <input name="deposit" inputMode="decimal" placeholder="واریز ($)" />
+                  <input name="withdraw" inputMode="decimal" placeholder="برداشت ($)" />
+                </div>
+                <input name="note" placeholder="یادداشت" />
+                <button className="fn-save">ثبت روز</button>
+              </form>
+            </section>
+          </div>
+          </>
         ) : null}
       </div>
 
@@ -416,11 +598,16 @@ export function FinanceReact({ Nav }) {
             const f = new FormData(e.currentTarget)
             const body = editing.type === 'account'
               ? { name: f.get('name'), type: f.get('type'), balance: Number(f.get('amount')), archived: f.get('archived') === 'on' }
+              : editing.type === 'poker'
+              ? { date: f.get('date'), buyIn: Number(f.get('buyIn')), cashOut: Number(f.get('cashOut')), location: f.get('location'), note: f.get('note') }
+              : editing.type === 'bet'
+              ? { date: f.get('date'), start: Number(f.get('start') || 0), deposit: Number(f.get('deposit') || 0), withdraw: Number(f.get('withdraw') || 0), balance: Number(f.get('balance')), note: f.get('note') }
               : { title: f.get('title'), amount: Number(f.get('amount')), category: f.get('category'), kind: f.get('kind'), account: f.get('account'), date: f.get('date'), tags: f.get('tags') }
-            send(`/api/${editing.type === 'account' ? 'accounts' : 'transactions'}/${editing.item.id}`, body, 'ذخیره شد.', 'PATCH')
+            const path = editing.type === 'account' ? 'accounts' : editing.type === 'poker' ? 'poker' : editing.type === 'bet' ? 'bet' : 'transactions'
+            send(`/api/${path}/${editing.item.id}`, body, 'ذخیره شد.', 'PATCH')
             setEditing(null)
           }}>
-            <h2>ویرایش {editing.type === 'account' ? 'حساب' : 'تراکنش'}</h2>
+            <h2>ویرایش {editing.type === 'account' ? 'حساب' : editing.type === 'poker' ? 'جلسهٔ پوکر' : editing.type === 'bet' ? 'روز بت' : 'تراکنش'}</h2>
             {editing.type === 'account' ? (
               <>
                 <input name="name" required defaultValue={editing.item.name} />
@@ -429,6 +616,29 @@ export function FinanceReact({ Nav }) {
                   <input name="amount" inputMode="numeric" defaultValue={editing.item.balance ?? editing.item.openingBalance ?? 0} />
                 </div>
                 <label><input name="archived" type="checkbox" defaultChecked={editing.item.archived} /> بایگانی</label>
+              </>
+            ) : editing.type === 'poker' ? (
+              <>
+                <input name="date" type="date" required defaultValue={editing.item.date} />
+                <div>
+                  <input name="buyIn" required inputMode="numeric" defaultValue={editing.item.buyIn} placeholder="ورودی" />
+                  <input name="cashOut" required inputMode="numeric" defaultValue={editing.item.cashOut} placeholder="خروجی" />
+                </div>
+                <input name="location" defaultValue={editing.item.location} placeholder="مکان" />
+                <input name="note" defaultValue={editing.item.note} placeholder="یادداشت" />
+              </>
+            ) : editing.type === 'bet' ? (
+              <>
+                <input name="date" type="date" required defaultValue={editing.item.date} />
+                <div>
+                  <input name="start" inputMode="decimal" defaultValue={editing.item.start} placeholder="مبلغی که داشتم" />
+                  <input name="balance" required inputMode="decimal" defaultValue={editing.item.balance} placeholder="موجودی" />
+                </div>
+                <div>
+                  <input name="deposit" inputMode="decimal" defaultValue={editing.item.deposit} placeholder="واریز" />
+                  <input name="withdraw" inputMode="decimal" defaultValue={editing.item.withdraw} placeholder="برداشت" />
+                </div>
+                <input name="note" defaultValue={editing.item.note} placeholder="یادداشت" />
               </>
             ) : (
               <>

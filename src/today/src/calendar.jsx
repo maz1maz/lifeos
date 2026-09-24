@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Bell, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, LayoutGrid, List, Plus, Search, Trash2
+  Bell, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Grid3x3, LayoutGrid, List, Plus, Search, Trash2
 } from 'lucide-react'
 import './calendar.css'
 
@@ -183,8 +183,21 @@ export function CalendarReact({ Nav }) {
     return { events, tasks, holidays }
   }, [items, jcur.jy, jcur.jm])
 
+  const yearMonths = useMemo(() => Array.from({ length: 12 }, (_, i) => {
+    const jm = i + 1
+    const len = monthLen(jcur.jy, jm)
+    let holidays = 0
+    for (let d = 1; d <= len; d += 1) {
+      if (occasionsFor(jm, d).some((o) => o.holiday)) holidays += 1
+    }
+    return { jm, len, holidays }
+  }), [jcur.jy])
+
   function shift(step) {
-    if (view === 'month') {
+    if (view === 'year') {
+      const jy = jcur.jy + step
+      setCursor(jalaliToIso(jy, jcur.jm, Math.min(jcur.jd, monthLen(jy, jcur.jm))))
+    } else if (view === 'month') {
       if (mode === 'gregorian') {
         const d = fromIso(cursor)
         setCursor(iso(new Date(d.getFullYear(), d.getMonth() + step, 1)))
@@ -291,11 +304,18 @@ export function CalendarReact({ Nav }) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const titleLine = view === 'agenda' ? 'برنامهٔ پیش رو'
+  const titleLine = view === 'year' ? `سال ${faNum(jcur.jy)}`
+    : view === 'agenda' ? 'برنامهٔ پیش رو'
     : view === 'month' && mode === 'jalali' ? `${J_MONTHS[jcur.jm - 1]} ${faNum(jcur.jy)}`
     : view === 'month' ? fromIso(cursor).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
     : jalaliLine(cursor)
-  const subLine = view === 'month' && mode === 'jalali'
+  const subLine = view === 'year'
+    ? (() => {
+        const gStart = fromIso(jalaliToIso(jcur.jy, 1, 1)).getFullYear()
+        const gEnd = fromIso(jalaliToIso(jcur.jy, 12, monthLen(jcur.jy, 12))).getFullYear()
+        return gStart === gEnd ? `برابر با ${gStart} میلادی` : `برابر با ${gStart}–${gEnd} میلادی`
+      })()
+    : view === 'month' && mode === 'jalali'
     ? `${G_MONTHS[fromIso(jalaliToIso(jcur.jy, jcur.jm, 15)).getMonth()]} ${fromIso(jalaliToIso(jcur.jy, jcur.jm, 15)).getFullYear()}`
     : view === 'agenda' ? `${faNum(45)} روز آینده · کارها، یادآوری‌ها و Google`
     : gregLine(cursor)
@@ -333,7 +353,7 @@ export function CalendarReact({ Nav }) {
             {Array.from({ length: 16 }, (_, i) => 1395 + i).map((y) => <option key={y} value={y}>{faNum(y)}</option>)}
           </select>
           <div className="views">
-            {[['month', 'ماه', LayoutGrid], ['week', 'هفته', CalendarDays], ['day', 'روز', Clock], ['agenda', 'برنامه', List]].map(([id, label, Icon]) => (
+            {[['month', 'ماه', LayoutGrid], ['week', 'هفته', CalendarDays], ['day', 'روز', Clock], ['agenda', 'برنامه', List], ['year', 'سال', Grid3x3]].map(([id, label, Icon]) => (
               <button key={id} type="button" className={view === id ? 'on' : ''} onClick={() => setView(id)}><Icon size={14} /> {label}</button>
             ))}
           </div>
@@ -425,6 +445,28 @@ export function CalendarReact({ Nav }) {
                         {filters.occasion && occ[0] ? <span className="cal-chip occasion">{occ[0].title}</span> : null}
                         {evs.slice(0, 3).map((ev) => <span key={`${ev.kind}-${ev.id}`} className={`cal-chip ${ev.kind || 'google'}`}>{ev.time ? `${ev.time} ` : ''}{ev.title}</span>)}
                         {evs.length > 3 ? <span className="cal-chip">+{faNum(evs.length - 3)}</span> : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {view === 'year' ? (
+              <div className="cal-board cal-year">
+                <div className="cal-year-grid">
+                  {yearMonths.map(({ jm, len, holidays }) => {
+                    const isCurrent = jm === todayJ.jm && jcur.jy === todayJ.jy
+                    const isCursor = jm === jcur.jm
+                    return (
+                      <button
+                        type="button"
+                        key={jm}
+                        className={`cal-year-card${isCurrent ? ' today' : ''}${isCursor ? ' sel' : ''}`}
+                        onClick={() => { setCursor(jalaliToIso(jcur.jy, jm, 1)); setView('month') }}
+                      >
+                        <b>{J_MONTHS[jm - 1]}</b>
+                        <span className="cal-year-meta">{faNum(len)} روز{holidays ? ` · ${faNum(holidays)} تعطیل` : ''}</span>
                       </button>
                     )
                   })}
