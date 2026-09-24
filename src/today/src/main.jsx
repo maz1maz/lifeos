@@ -8,6 +8,7 @@ import { ContactsReact } from './contacts';
 import { DocumentsReact } from './documents';
 import { PlannerReact } from './planner';
 import { MediaReact } from './media';
+import { MarketReact } from './market';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
@@ -116,7 +117,7 @@ function App() {
   if (page === 'calendar') return <CalendarReact />;
   if (page === 'planner') return <PlannerReact Nav={TopNav} />;
   if (page === 'finance') return <FinanceReact />;
-  if (page === 'market') return <MarketNextReact />;
+  if (page === 'market') return <MarketReact Nav={TopNav} />;
   if (page === 'football') return <FootballReact />;
   if (page === 'movies') return <MoviesReact />;
   if (page === 'series') return <SeriesReact />;
@@ -242,13 +243,6 @@ function FinanceReact() {
   </main>;
 }
 function FootballReact() { const [league, setLeague] = useState('eng.1'), [matches, setMatches] = useState([]), [standing, setStanding] = useState([]), [notice, setNotice] = useState(''); useEffect(() => { Promise.all([api(`/api/football/remote/free/matches?league=${league}`), api(`/api/football/remote/free/standings?league=${league}`)]).then(([m, s]) => { setMatches(m.items || []); setStanding(s.items || []); }).catch(error => setNotice(error.message)); }, [league]); return <main className="planner-react" dir="rtl"><TopNav active="football" /><div className="planner-page"><header><div><p>دادهٔ زندهٔ سرویس فوتبال فعلی</p><h1>فوتبال</h1></div><select value={league} onChange={e => setLeague(e.target.value)}><option value="eng.1">لیگ برتر انگلیس</option><option value="esp.1">لالیگا</option><option value="ita.1">سری آ</option><option value="ger.1">بوندس‌لیگا</option></select></header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<div className="planner-layout"><section className="planner-list"><h2>مسابقات</h2>{matches.length ? matches.map((m,i) => <article key={m.id || i}><div><b>{m.home} — {m.away}</b><small>{m.date} · {m.time || '—'} · {m.status || ''}</small></div><b>{m.score || '—'}</b></article>) : <p className="empty">مسابقه‌ای دریافت نشد.</p>}</section><section className="planner-list"><h2>جدول</h2>{standing.length ? <Table><TableHeader><TableRow><TableHead>#</TableHead><TableHead>تیم</TableHead><TableHead>بازی</TableHead><TableHead>امتیاز</TableHead></TableRow></TableHeader><TableBody>{standing.map((r,i) => <TableRow key={r.name || i}><TableCell>{fa(r.rank || i + 1)}</TableCell><TableCell>{r.name}</TableCell><TableCell numeric>{fa(r.played || 0)}</TableCell><TableCell numeric>{fa(r.points || 0)}</TableCell></TableRow>)}</TableBody></Table> : <p className="empty">جدول دریافت نشد.</p>}</section></div></div></main>; }
-function MarketNextReact() {
-  const [items, setItems] = useState([]), [stocks, setStocks] = useState([]), [selected, setSelected] = useState(''), [history, setHistory] = useState([]), [notice, setNotice] = useState('');
-  useEffect(() => { Promise.all([api('/api/tgju'), api('/api/market/stocks').catch(error => ({ items: [], error: error.message }))]).then(([local, us]) => { setItems(tgjuRows(local)); setStocks(us.items || []); if (us.error) setNotice(us.error); }).catch(error => setNotice(error.message)); }, []);
-  useEffect(() => { if (!selected) return; api(`/api/tgju/history?key=${encodeURIComponent(selected)}`).then(data => setHistory(data.items || data.data || [])).catch(error => setNotice(error.message)); }, [selected]);
-  return <main className="planner-react" dir="rtl"><TopNav active="market" /><div className="planner-page"><header><div><p>قیمت‌های واقعی سرویس‌های فعلی</p><h1>بازار</h1></div></header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<div className="finance-grid"><section className="planner-list"><h2>بازار تهران</h2>{items.length ? <Table><TableHeader><TableRow><TableHead>دارایی</TableHead><TableHead>قیمت</TableHead><TableHead>تغییر</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.key}><TableCell><button className="market-select" onClick={() => setSelected(item.key)}>{item.name}</button></TableCell><TableCell numeric>{fa(item.p)}</TableCell><TableCell numeric className={item.change.includes('▼') ? 'negative' : ''}>{item.change || '—'}</TableCell></TableRow>)}</TableBody></Table> : <p className="empty">داده‌ای دریافت نشد.</p>}</section><section className="planner-list"><h2>سهام آمریکا</h2>{stocks.length ? <Table><TableHeader><TableRow><TableHead>نماد</TableHead><TableHead>قیمت</TableHead><TableHead>تغییر</TableHead></TableRow></TableHeader><TableBody>{stocks.map(item => <TableRow key={item.symbol}><TableCell>{item.symbol}</TableCell><TableCell numeric>{fa(item.price)} دلار</TableCell><TableCell numeric>{item.changePercent ?? '—'}</TableCell></TableRow>)}</TableBody></Table> : <p className="empty">برای نمایش سهام، کلید سرویس باید فعال باشد.</p>}</section></div>{selected && <section className="planner-list"><h2>تاریخچهٔ {selected}</h2>{history.length ? <div className="history-strip">{history.slice(-30).map((point, index) => <span key={point.date || index} title={`${point.date || ''}: ${point.p || point.price || point.value || ''}`} style={{ height: `${Math.max(8, Math.min(100, Number(point.p || point.price || point.value || 0) / Math.max(...history.map(x => Number(x.p || x.price || x.value || 0)), 1) * 100))}%` }} />)}</div> : <p className="empty">تاریخچه‌ای برای این دارایی دریافت نشد.</p>}</section>}</div></main>;
-}
-
 function seasonAiredCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.aired) || 0 : 0; }
 function seasonTotalCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.total) || 0 : 0; }
 function seriesHasFresh(item) {
