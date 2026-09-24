@@ -192,7 +192,7 @@
 
 .league-layout {
   display: grid;
-  grid-template-columns: 400px minmax(0, min(880px, 1fr));
+  grid-template-columns: 400px minmax(0, 880px);
   align-items: start;
   gap: 20px;
 }
@@ -574,7 +574,7 @@
 
 @media (max-width: 1400px) {
   .league-layout {
-    grid-template-columns: 340px minmax(0, min(700px, 1fr));
+    grid-template-columns: 340px minmax(0, 700px);
   }
 
   .standings-table tbody td,
