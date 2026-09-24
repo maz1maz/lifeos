@@ -10,6 +10,7 @@ import { PlannerReact } from './planner';
 import { MediaReact } from './media';
 import { MarketReact } from './market';
 import { CalendarReact } from './calendar';
+import { FootballReact } from './football';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
@@ -142,7 +143,7 @@ function App() {
   if (page === 'planner') return <PlannerReact Nav={TopNav} />;
   if (page === 'finance') return <FinanceReact />;
   if (page === 'market') return <MarketReact Nav={TopNav} />;
-  if (page === 'football') return <FootballReact />;
+  if (page === 'football') return <FootballReact Nav={TopNav} />;
   if (page === 'movies') return <MoviesReact />;
   if (page === 'series') return <SeriesReact />;
   if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;
@@ -234,7 +235,6 @@ function FinanceReact() {
     {editing && <div className="finance-modal" role="dialog" aria-modal="true"><form className="planner-form" onSubmit={saveEdit}><div className="finance-section-heading"><h2>ویرایش {editing.type === 'account' ? 'حساب' : 'تراکنش'}</h2><button type="button" className="finance-action" onClick={() => setEditing(null)}>بستن</button></div><input name={editing.type === 'account' ? 'name' : 'title'} required defaultValue={editing.type === 'account' ? editing.item.name : editing.item.title} />{editing.type === 'account' ? <><div><select name="type" defaultValue={editing.item.type}><option value="bank">بانک</option><option value="card">کارت</option><option value="cash">نقدی</option></select><input name="amount" inputMode="numeric" defaultValue={editing.item.balance ?? editing.item.openingBalance ?? 0} /></div><label><input name="archived" type="checkbox" defaultChecked={editing.item.archived} /> بایگانی شود</label></> : <><input name="amount" required inputMode="numeric" defaultValue={editing.item.amount} /><div><select name="kind" defaultValue={editing.item.kind}><option value="expense">هزینه</option><option value="income">درآمد</option><option value="transfer">انتقال</option></select><input name="category" defaultValue={editing.item.category} /></div><select name="account" defaultValue={editing.item.account}>{accounts.map(account => <option key={account.id} value={account.name}>{account.name}</option>)}</select><input name="date" type="date" defaultValue={editing.item.date} /><input name="tags" defaultValue={(editing.item.tags || []).join(', ')} /></>}<button className="save">ذخیره</button></form></div>}
   </main>;
 }
-function FootballReact() { const [league, setLeague] = useState('eng.1'), [matches, setMatches] = useState([]), [standing, setStanding] = useState([]), [notice, setNotice] = useState(''); useEffect(() => { Promise.all([api(`/api/football/remote/free/matches?league=${league}`), api(`/api/football/remote/free/standings?league=${league}`)]).then(([m, s]) => { setMatches(m.items || []); setStanding(s.items || []); }).catch(error => setNotice(error.message)); }, [league]); return <main className="planner-react" dir="rtl"><TopNav active="football" /><div className="planner-page"><header><div><p>دادهٔ زندهٔ سرویس فوتبال فعلی</p><h1>فوتبال</h1></div><select value={league} onChange={e => setLeague(e.target.value)}><option value="eng.1">لیگ برتر انگلیس</option><option value="esp.1">لالیگا</option><option value="ita.1">سری آ</option><option value="ger.1">بوندس‌لیگا</option></select></header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<div className="planner-layout"><section className="planner-list"><h2>مسابقات</h2>{matches.length ? matches.map((m,i) => <article key={m.id || i}><div><b>{m.home} — {m.away}</b><small>{m.date} · {m.time || '—'} · {m.status || ''}</small></div><b>{m.score || '—'}</b></article>) : <p className="empty">مسابقه‌ای دریافت نشد.</p>}</section><section className="planner-list"><h2>جدول</h2>{standing.length ? <Table><TableHeader><TableRow><TableHead>#</TableHead><TableHead>تیم</TableHead><TableHead>بازی</TableHead><TableHead>امتیاز</TableHead></TableRow></TableHeader><TableBody>{standing.map((r,i) => <TableRow key={r.name || i}><TableCell>{fa(r.rank || i + 1)}</TableCell><TableCell>{r.name}</TableCell><TableCell numeric>{fa(r.played || 0)}</TableCell><TableCell numeric>{fa(r.points || 0)}</TableCell></TableRow>)}</TableBody></Table> : <p className="empty">جدول دریافت نشد.</p>}</section></div></div></main>; }
 function seasonAiredCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.aired) || 0 : 0; }
 function seasonTotalCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.total) || 0 : 0; }
 function seriesHasFresh(item) {
