@@ -3,11 +3,20 @@ import { createRoot } from 'react-dom/client';
 import './today.css';
 import './calendar.css';
 import './planner.css';
+import { NotesReact } from './notes';
+import { ContactsReact } from './contacts';
+import { DocumentsReact } from './documents';
+import { PlannerReact } from './planner';
+import { MediaReact } from './media';
+import { MarketReact } from './market';
+import { CalendarReact } from './calendar';
+import { FootballReact } from './football';
+import { FinanceReact } from './finance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
-  Search, Star, X, Check, ChevronDown, Trash2, Plus,
+  Search, Star, X, Check, ChevronDown, Trash2, Plus, Menu,
   Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot
 } from 'lucide-react';
 
@@ -70,7 +79,30 @@ const NAV_PAGES = [
   ['contacts', 'مخاطبین', Users], ['settings', 'تنظیمات', Settings]
 ];
 function TopNav({ active, right }) {
-  return <nav className="topbar"><a className="brand" href="/"><Sparkles size={20} /><span>LifeOS</span></a><div className="links">{NAV_PAGES.map(([page, label, Icon]) => <a className={page === active ? 'active' : ''} href={page ? `/?page=${page}` : '/'} key={page || 'home'}><Icon size={16} strokeWidth={2.2} /><span>{label}</span></a>)}</div>{right}</nav>;
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    document.body.classList.toggle('nav-lock', open);
+    return () => document.body.classList.remove('nav-lock');
+  }, [open]);
+  const current = NAV_PAGES.find(([page]) => page === (active || '')) || NAV_PAGES[0];
+  return (
+    <nav className={`topbar${open ? ' menu-open' : ''}`}>
+      <a className="brand" href="/"><Sparkles size={20} /><span>LifeOS</span></a>
+      <span className="nav-current">{current[1]}</span>
+      {right}
+      <button type="button" className="nav-toggle" aria-label={open ? 'بستن منو' : 'بازکردن منو'} aria-expanded={open} onClick={() => setOpen(v => !v)}>
+        {open ? <X size={20} /> : <Menu size={20} />}
+      </button>
+      {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
+      <div className={`links${open ? ' open' : ''}`}>
+        {NAV_PAGES.map(([page, label, Icon]) => (
+          <a className={page === active ? 'active' : ''} href={page ? `/?page=${page}` : '/'} key={page || 'home'} onClick={() => setOpen(false)}>
+            <Icon size={16} strokeWidth={2.2} /><span>{label}</span>
+          </a>
+        ))}
+      </div>
+    </nav>
+  );
 }
 
 function App() {
@@ -108,17 +140,17 @@ function App() {
   const done = tasks.filter(t => t.done).length;
   const weatherIcon = code => code === 0 ? '☀️' : code < 4 ? '⛅' : code < 70 ? '☁️' : '🌧️';
   const page = new URLSearchParams(location.search).get('page');
-  if (page === 'calendar') return <CalendarReact />;
-  if (page === 'planner') return <PlannerReact />;
-  if (page === 'finance') return <FinanceReact />;
-  if (page === 'market') return <MarketNextReact />;
-  if (page === 'football') return <FootballReact />;
+  if (page === 'calendar') return <CalendarReact Nav={TopNav} />;
+  if (page === 'planner') return <PlannerReact Nav={TopNav} />;
+  if (page === 'finance') return <FinanceReact Nav={TopNav} />;
+  if (page === 'market') return <MarketReact Nav={TopNav} />;
+  if (page === 'football') return <FootballReact Nav={TopNav} />;
   if (page === 'movies') return <MoviesReact />;
   if (page === 'series') return <SeriesReact />;
-  if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact initialTab={page === 'youtube' ? 'youtube' : 'spotify'} />;
-  if (page === 'notes') return <RecordsReact kind="notes" />;
-  if (page === 'documents') return <RecordsReact kind="documents" />;
-  if (page === 'contacts') return <RecordsReact kind="contacts" />;
+  if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;
+  if (page === 'notes') return <NotesReact Nav={TopNav} />;
+  if (page === 'documents') return <DocumentsReact Nav={TopNav} />;
+  if (page === 'contacts') return <ContactsReact Nav={TopNav} />;
   if (page === 'settings') return <SettingsReact />;
   return <main>
     <TopNav active="" right={<div className="profile"><button onClick={() => { const next = document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.mode = next; localStorage.setItem('lifeos-mode', next); }}>◐</button><b>{data.user?.name || 'سلام'}</b></div>} />
@@ -161,321 +193,6 @@ const sameDate = (a, b) => iso(a) === iso(b);
 const weekdayIndex = date => (date.getDay() + 1) % 7;
 const eventOnDate = (event, day) => { const dayIso = iso(day), start = String(event.startDate || event.date || '').slice(0, 10), end = String(event.endDate || start).slice(0, 10); if (!start) return false; if (event.allDay) return dayIso >= start && dayIso < end; return dayIso === start || (end > start && dayIso <= end); };
 const eventLabel = event => `${event.time ? `${event.time} · ` : ''}${event.title || 'رویداد'}`;
-
-function CalendarReact() {
-  const today = useMemo(() => fromIso(isoToday()), []);
-  const todayJalali = useMemo(() => toJalali(today), [today]);
-  const [mode, setMode] = useState('jalali');
-  const [cursor, setCursor] = useState({ jy: todayJalali.jy, jm: todayJalali.jm, gy: today.getFullYear(), gm: today.getMonth() + 1 });
-  const [selected, setSelected] = useState(today);
-  const [feed, setFeed] = useState({ items: [], connected: false });
-  const [daily, setDaily] = useState(null);
-  const [note, setNote] = useState('');
-  const [status, setStatus] = useState('');
-  const [loading, setLoading] = useState(false);
-  const range = useMemo(() => {
-    if (mode === 'gregorian') { const first = new Date(cursor.gy, cursor.gm - 1, 1); return { from: iso(first), to: iso(new Date(cursor.gy, cursor.gm, 0)) }; }
-    return { from: iso(toGregorian(cursor.jy, cursor.jm, 1)), to: iso(toGregorian(cursor.jy, cursor.jm, jalaliMonthLength(cursor.jy, cursor.jm))) };
-  }, [mode, cursor]);
-  useEffect(() => { let live = true; setLoading(true); api(`/api/calendar/feed?from=${range.from}&to=${range.to}`).then(data => { if (live) setFeed(data); }).catch(error => { if (live) setStatus(error.message); }).finally(() => { if (live) setLoading(false); }); return () => { live = false; }; }, [range.from, range.to]);
-  useEffect(() => { let live = true; const date = iso(selected); api(`/api/daily?date=${date}`).then(data => { if (!live) return; const item = data.item || null; setDaily(item); setNote(item?.note || ''); }).catch(error => live && setStatus(error.message)); return () => { live = false; }; }, [selected]);
-  const days = useMemo(() => {
-    let first, length;
-    if (mode === 'gregorian') { first = new Date(cursor.gy, cursor.gm - 1, 1); length = new Date(cursor.gy, cursor.gm, 0).getDate(); }
-    else { first = toGregorian(cursor.jy, cursor.jm, 1); length = jalaliMonthLength(cursor.jy, cursor.jm); }
-    const start = addDays(first, -weekdayIndex(first));
-    return Array.from({ length: 42 }, (_, index) => ({ date: addDays(start, index), inMonth: index >= weekdayIndex(first) && index < weekdayIndex(first) + length }));
-  }, [mode, cursor]);
-  const title = mode === 'jalali' ? `${JALALI_MONTHS[cursor.jm - 1]} ${fa(cursor.jy)}` : new Intl.DateTimeFormat('fa-IR', { calendar: 'gregory', month: 'long', year: 'numeric' }).format(new Date(cursor.gy, cursor.gm - 1, 1));
-  const alternateTitle = mode === 'jalali' ? new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(toGregorian(cursor.jy, cursor.jm, 1)) : (() => { const start = toJalali(new Date(cursor.gy, cursor.gm - 1, 1)); const end = toJalali(new Date(cursor.gy, cursor.gm, 0)); return start.jm === end.jm && start.jy === end.jy ? `${JALALI_MONTHS[start.jm - 1]} ${fa(start.jy)}` : `${JALALI_MONTHS[start.jm - 1]} تا ${JALALI_MONTHS[end.jm - 1]} ${fa(end.jy)}`; })();
-  const selectedEvents = feed.items?.filter(event => eventOnDate(event, selected)) || [];
-  const moveMonth = direction => setCursor(current => mode === 'jalali' ? (() => { let jm = current.jm + direction, jy = current.jy; if (jm < 1) { jm = 12; jy -= 1; } if (jm > 12) { jm = 1; jy += 1; } return { ...current, jy, jm }; })() : (() => { const next = new Date(current.gy, current.gm - 1 + direction, 1); return { ...current, gy: next.getFullYear(), gm: next.getMonth() + 1 }; })());
-  const switchMode = () => { setCursor(current => { if (mode === 'jalali') { const date = toGregorian(current.jy, current.jm, 1); return { ...current, gy: date.getFullYear(), gm: date.getMonth() + 1 }; } const date = toJalali(new Date(current.gy, current.gm - 1, 1)); return { ...current, jy: date.jy, jm: date.jm }; }); setMode(current => current === 'jalali' ? 'gregorian' : 'jalali'); };
-  const goToday = () => { setCursor({ jy: todayJalali.jy, jm: todayJalali.jm, gy: today.getFullYear(), gm: today.getMonth() + 1 }); setSelected(today); };
-  const saveNote = async event => { event.preventDefault(); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: iso(selected), note }) }); setDaily(current => ({ ...(current || {}), date: iso(selected), note })); setStatus('یادداشت روز ذخیره شد.'); } catch (error) { setStatus(error.message); } };
-  return <main className="calendar-react" dir="rtl"><TopNav active="calendar" /><div className="calendar-react-page"><div className="calendar-toolbar"><div><p>تقویم شمسی و میلادی با داده‌های واقعی</p><h1>{title}</h1><small>{alternateTitle}</small></div><div className="calendar-actions"><button onClick={() => moveMonth(-1)} aria-label="ماه قبل">ماه قبل</button><button onClick={goToday}>امروز</button><button onClick={() => moveMonth(1)} aria-label="ماه بعد">ماه بعد</button><button className="mode" onClick={switchMode}>{mode === 'jalali' ? 'نمایش میلادی' : 'نمایش شمسی'}</button></div></div><div className="calendar-sync-status">{loading ? 'در حال دریافت رویدادها…' : feed.connected ? `Google Calendar متصل است · ${fa(feed.googleCalendars || 0)} تقویم` : 'کارها و یادآوری‌های LifeOS'}{feed.partial ? ' · بخشی از رویدادهای Google نمایش داده شده‌اند' : ''}{feed.googleError ? ` · ${feed.googleError}` : ''}</div>{status && <div className="notice">{status}<button onClick={() => setStatus('')}>×</button></div>}<div className="calendar-react-layout"><section className="calendar-board"><div className="calendar-week">{WEEKDAYS.map(day => <b key={day}>{day}</b>)}</div><div className="calendar-grid">{days.map(({ date, inMonth }) => { const events = feed.items?.filter(event => eventOnDate(event, date)) || []; const jalaliDate = toJalali(date); return <button type="button" className={`calendar-day ${inMonth ? '' : 'other-month'} ${sameDate(date, today) ? 'today' : ''} ${sameDate(date, selected) ? 'selected' : ''}`} key={iso(date)} onClick={() => setSelected(date)}><span className="calendar-day-number">{mode === 'jalali' ? fa(jalaliDate.jd) : fa(date.getDate())}</span><span className="calendar-day-alt">{mode === 'jalali' ? `${date.getMonth() + 1}/${date.getDate()}` : `${fa(jalaliDate.jm)}/${fa(jalaliDate.jd)}`}</span><span className="calendar-event-list">{events.slice(0, 3).map(event => <small className={`event ${event.kind || 'google'} ${event.done ? 'done' : ''}`} key={event.id}>{eventLabel(event)}</small>)}{events.length > 3 && <small className="more-events">+{fa(events.length - 3)} رویداد</small>}</span></button>; })}</div><div className="calendar-legend"><span><i className="task" />کار</span><span><i className="reminder" />یادآوری</span><span><i className="google" />Google</span><span><i className="today-dot" />امروز</span></div></section><aside className="calendar-detail"><h2>{new Intl.DateTimeFormat('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(selected)}</h2><p className="detail-gregorian">{new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(selected)}</p><div className="selected-events">{selectedEvents.length ? selectedEvents.map(event => <div className={`selected-event ${event.kind || 'google'} ${event.done ? 'done' : ''}`} key={event.id}><b>{event.title}</b><small>{event.kind === 'task' ? 'کار' : event.kind === 'reminder' ? 'یادآوری' : event.calendarName || 'Google Calendar'}{event.time ? ` · ${event.time}` : ' · تمام‌روز'}</small>{event.url && <a href={event.url} target="_blank" rel="noreferrer">بازکردن در Google</a>}</div>) : <p className="empty">رویدادی برای این روز ثبت نشده است.</p>}</div><form className="day-note" onSubmit={saveNote}><label htmlFor="calendar-note">یادداشت این روز</label><textarea id="calendar-note" value={note} onChange={event => setNote(event.target.value)} placeholder="قرار، حس‌وحال یا نکته‌ای از این روز…" /><small>{daily?.updatedAt ? 'یادداشت ذخیره‌شده' : 'با حساب LifeOS ذخیره می‌شود'}</small><button className="save">ذخیرهٔ یادداشت</button></form></aside></div></div></main>; }
-const PRIORITY_LABELS = { high: 'زیاد', medium: 'متوسط', low: 'کم' };
-const PRIORITY_TONE = { high: 'rose', medium: 'amber', low: 'sky' };
-const REPEAT_LABELS = { daily: 'روزانه', weekly: 'هفتگی', monthly: 'ماهانه' };
-const PLANNER_FILTERS = [['open', 'باز'], ['today', 'امروز'], ['upcoming', 'پیشِ رو'], ['reminders', 'یادآوری‌ها'], ['done', 'انجام‌شده'], ['all', 'همه']];
-function dueLabel(dateStr) {
-  if (!dateStr) return '';
-  const t = isoToday(), tmr = iso(addDays(new Date(t + 'T12:00:00'), 1));
-  if (dateStr === t) return 'امروز';
-  if (dateStr === tmr) return 'فردا';
-  const { jm, jd } = toJalali(new Date(dateStr + 'T12:00:00'));
-  const p = n => faDigits(String(n).padStart(2, '0'));
-  return `${p(jd)}/${p(jm)}`;
-}
-function Chip({ tone = 'neutral', icon: Icon, children }) {
-  return <span className={`plnr-chip plnr-chip-${tone}`}>{Icon && <Icon size={13} strokeWidth={1.8} />}{children}</span>;
-}
-
-function TaskCard({ task, index, reminder, onToggle, onEdit, onDelete }) {
-  const t = isoToday(), overdue = !task.done && task.date && task.date < t, todayish = !task.done && task.date === t;
-  const tags = task.tags || [];
-  return <li className="plnr-card" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
-    <button type="button" role="checkbox" aria-checked={task.done} className={`plnr-check ${task.done ? 'on' : ''}`} onClick={() => onToggle(task)} aria-label={task.done ? 'بازگرداندن کار به حالت باز' : 'انجام شد'}>
-      {task.done && <Check size={14} strokeWidth={3} />}
-    </button>
-    <div className="plnr-card-body">
-      <div className="plnr-card-head">
-        <b className={task.done ? 'done' : ''}>{task.title}</b>
-        <div className="plnr-card-actions">
-          <button type="button" onClick={() => onEdit(task)} aria-label="ویرایش کار"><Pencil size={15} /></button>
-          <button type="button" onClick={() => onDelete(task)} aria-label="حذف کار"><Trash2 size={15} /></button>
-        </div>
-      </div>
-      {task.notes && <p className={task.done ? 'done' : ''}>{task.notes}</p>}
-      <div className="plnr-chips">
-        {task.date && <Chip tone={overdue ? 'rose' : todayish ? 'teal' : 'neutral'} icon={overdue ? CircleAlert : CalendarDays}>{overdue ? `عقب‌افتاده · ${dueLabel(task.date)}` : dueLabel(task.date)}</Chip>}
-        {task.startTime && <Chip icon={Clock}>{faDigits(task.startTime)}</Chip>}
-        <Chip tone={PRIORITY_TONE[task.priority] || 'neutral'}><span className="plnr-chip-dot" />اولویت {PRIORITY_LABELS[task.priority] || task.priority}</Chip>
-        {task.recurrence && <Chip tone="sky" icon={Repeat}>{REPEAT_LABELS[task.recurrence] || task.recurrence}</Chip>}
-        {reminder && <Chip tone="amber" icon={Bell}>یادآوری {reminder.time ? faDigits(reminder.time) : dueLabel(reminder.date)}</Chip>}
-        {tags.map(tag => <Chip key={tag} icon={Hash}>{tag}</Chip>)}
-      </div>
-    </div>
-  </li>;
-}
-
-function TaskDrawer({ open, initial, onClose, onSubmit }) {
-  const today = isoToday();
-  const empty = { title: '', notes: '', date: today, startTime: '', priority: 'medium', recurrence: '', tags: '', reminderOn: false, reminderDate: today, reminderTime: '' };
-  const [form, setForm] = useState(empty);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  useEffect(() => {
-    if (!open) return;
-    if (initial) {
-      setForm({ title: initial.task.title, notes: initial.task.notes || '', date: initial.task.date || today, startTime: initial.task.startTime || '', priority: initial.task.priority || 'medium', recurrence: initial.task.recurrence || '', tags: (initial.task.tags || []).join('، '), reminderOn: !!initial.reminder, reminderDate: initial.reminder?.date || initial.task.date || today, reminderTime: initial.reminder?.time || '' });
-    } else setForm(empty);
-    setErr('');
-  }, [open, initial]);
-  useEffect(() => { if (!open) return; const onKey = e => { if (e.key === 'Escape' && !busy) onClose(); }; document.addEventListener('keydown', onKey); document.body.style.overflow = 'hidden'; return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; }; }, [open, busy]);
-  if (!open) return null;
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const submit = async e => {
-    e.preventDefault();
-    if (!form.title.trim()) { setErr('عنوان کار را بنویس.'); return; }
-    setBusy(true);
-    try {
-      await onSubmit({ title: form.title.trim(), notes: form.notes, date: form.date, startTime: form.startTime || null, priority: form.priority, recurrence: form.recurrence || null, tags: form.tags, reminderOn: form.reminderOn, reminderDate: form.reminderDate, reminderTime: form.reminderTime });
-    } finally { setBusy(false); }
-  };
-  return <div className="plnr-drawer-backdrop" onClick={() => !busy && onClose()}>
-    <form className="plnr-drawer" onClick={e => e.stopPropagation()} onSubmit={submit}>
-      <header><div><h2>{initial ? 'ویرایش کار' : 'کار تازه'}</h2><p>{initial ? 'تغییرها را ذخیره کن' : 'جزئیات کار و یادآوری را وارد کن'}</p></div><button type="button" onClick={() => !busy && onClose()} aria-label="بستن"><X size={18} /></button></header>
-      <div className="plnr-drawer-body">
-        <div><label>عنوان کار <span className="req">*</span></label><input value={form.title} onChange={e => set('title', e.target.value)} placeholder="مثلاً ارسال گزارش هفتگی" autoFocus />{err && <small className="plnr-err">{err}</small>}</div>
-        <div><label>توضیحات</label><textarea rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="جزئیات بیشتر (اختیاری)" /></div>
-        <div className="plnr-2col"><div><label>سررسید</label><input type="date" value={form.date} onChange={e => set('date', e.target.value)} /></div><div><label>ساعت</label><input type="time" value={form.startTime} onChange={e => set('startTime', e.target.value)} /></div></div>
-        <div className="plnr-2col">
-          <div><label>اولویت</label><div className="plnr-select-wrap"><select value={form.priority} onChange={e => set('priority', e.target.value)}>{Object.keys(PRIORITY_LABELS).map(k => <option key={k} value={k}>{PRIORITY_LABELS[k]}</option>)}</select><ChevronDown size={15} /></div></div>
-          <div><label>تکرار</label><div className="plnr-select-wrap"><select value={form.recurrence} onChange={e => set('recurrence', e.target.value)}><option value="">بدون تکرار</option>{Object.keys(REPEAT_LABELS).map(k => <option key={k} value={k}>{REPEAT_LABELS[k]}</option>)}</select><ChevronDown size={15} /></div></div>
-        </div>
-        <div><label>برچسب‌ها <span>(با ویرگول جدا کن)</span></label><input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="گزارش، فوری" /></div>
-        <div className="plnr-reminder-box">
-          <div className="plnr-reminder-head"><div><b>یادآوری</b><small>یک یادآوری جدا برای این کار می‌سازد</small></div><button type="button" className={`plnr-switch ${form.reminderOn ? 'on' : ''}`} onClick={() => set('reminderOn', !form.reminderOn)} role="switch" aria-checked={form.reminderOn}><i /></button></div>
-          {form.reminderOn && <div className="plnr-2col"><div><label>تاریخ یادآوری</label><input type="date" value={form.reminderDate} onChange={e => set('reminderDate', e.target.value)} /></div><div><label>ساعت</label><input type="time" value={form.reminderTime} onChange={e => set('reminderTime', e.target.value)} /></div></div>}
-        </div>
-      </div>
-      <footer><button type="submit" className="plnr-submit" disabled={busy}>{busy && <span className="plnr-spinner" />}{initial ? 'ثبت تغییرات' : 'ذخیرهٔ کار'}</button><button type="button" className="cancel" onClick={() => !busy && onClose()} disabled={busy}>انصراف</button></footer>
-    </form>
-  </div>;
-}
-
-function PlannerReact() {
-  const [tasks, setTasks] = useState([]);
-  const [reminders, setReminders] = useState([]);
-  const [filter, setFilter] = useState('open');
-  const [sort, setSort] = useState('due');
-  const [query, setQuery] = useState('');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [notice, setNotice] = useState('');
-  const [toast, setToast] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2400); };
-  const load = () => Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')]).then(([taskData, reminderData]) => { setTasks(taskData.items || []); setReminders(reminderData.items || []); }).catch(error => setNotice(error.message)).finally(() => setLoading(false));
-  useEffect(() => { load(); }, []);
-
-  const reminderByTask = useMemo(() => Object.fromEntries(reminders.filter(r => r.taskId).map(r => [r.taskId, r])), [reminders]);
-  const today = isoToday(), weekAhead = iso(addDays(new Date(today + 'T12:00:00'), 7));
-
-  const counts = useMemo(() => ({
-    open: tasks.filter(x => !x.done).length,
-    today: tasks.filter(x => !x.done && x.date === today).length,
-    upcoming: tasks.filter(x => !x.done && x.date > today && x.date <= weekAhead).length,
-    reminders: tasks.filter(x => !x.done && reminderByTask[x.id]).length,
-    done: tasks.filter(x => x.done).length,
-    all: tasks.length,
-  }), [tasks, reminderByTask]);
-
-  const visible = useMemo(() => {
-    let list = tasks;
-    if (filter === 'open') list = list.filter(x => !x.done);
-    else if (filter === 'today') list = list.filter(x => !x.done && x.date === today);
-    else if (filter === 'upcoming') list = list.filter(x => !x.done && x.date > today && x.date <= weekAhead);
-    else if (filter === 'reminders') list = list.filter(x => !x.done && reminderByTask[x.id]);
-    else if (filter === 'done') list = list.filter(x => x.done);
-    const q = query.trim();
-    if (q) list = list.filter(x => x.title.includes(q) || (x.notes || '').includes(q) || (x.tags || []).some(tag => tag.includes(q)));
-    const priorityRank = { high: 0, medium: 1, low: 2 };
-    const dueVal = x => x.date ? new Date(`${x.date}T${x.startTime || '23:59'}`).getTime() : Infinity;
-    const sorted = [...list];
-    if (sort === 'created') sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    else if (sort === 'priority') sorted.sort((a, b) => (priorityRank[a.priority] - priorityRank[b.priority]) || (dueVal(a) - dueVal(b)));
-    else sorted.sort((a, b) => (Number(a.done) - Number(b.done)) || (dueVal(a) - dueVal(b)));
-    return sorted;
-  }, [tasks, filter, sort, query, reminderByTask]);
-
-  const submit = async body => {
-    try {
-      let saved;
-      if (editing) saved = await api(`/api/tasks/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify(body) });
-      else saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(body) });
-      const existingReminder = editing?.reminder;
-      if (body.reminderOn && body.reminderDate) {
-        const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id };
-        if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'PATCH', body: JSON.stringify(rBody) });
-        else await api('/api/reminders', { method: 'POST', body: JSON.stringify(rBody) });
-      } else if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'DELETE' });
-      setDrawerOpen(false); setEditing(null); flash(editing ? 'تغییرات ذخیره شد ✓' : 'کار تازه ثبت شد ✓'); load();
-    } catch (error) { flash(error.message); }
-  };
-
-  const toggle = async task => {
-    try {
-      await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
-      const r = reminderByTask[task.id]; if (r) await api(`/api/reminders/${r.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
-      flash(!task.done && task.recurrence ? 'کار انجام شد؛ نمونهٔ بعدی ساخته شد ✓' : !task.done ? 'کار انجام شد ✓' : 'کار دوباره باز شد');
-      load();
-    } catch (error) { flash(error.message); }
-  };
-
-  const remove = async task => {
-    if (!window.confirm(`«${task.title}» حذف شود؟`)) return;
-    try {
-      await api(`/api/tasks/${task.id}`, { method: 'DELETE' });
-      const r = reminderByTask[task.id]; if (r) await api(`/api/reminders/${r.id}`, { method: 'DELETE' });
-      flash('کار حذف شد.'); load();
-    } catch (error) { flash(error.message); }
-  };
-
-  const openCreate = () => { setEditing(null); setDrawerOpen(true); };
-  const openEdit = task => { setEditing({ task, reminder: reminderByTask[task.id] || null }); setDrawerOpen(true); };
-
-  const emptyMessage = query.trim() ? `چیزی برای «${query.trim()}» پیدا نشد.`
-    : filter === 'done' ? 'هنوز کاری را تمام نکرده‌ای.'
-    : filter === 'today' ? 'برای امروز کاری ثبت نشده — روزِ سبکی است.'
-    : filter === 'upcoming' ? 'پیشِ رو چیزی نیست؛ تا یک هفتهٔ آینده خالی است.'
-    : filter === 'reminders' ? 'یادآوری فعالی نیست.'
-    : 'دفتر خالی است — اولین کار را بساز.';
-
-  return <main className="plnr" dir="rtl">
-    <TopNav active="planner" />
-    <div className="plnr-page">
-      <header className="plnr-hero">
-        <div className="plnr-hero-title">
-          <ShamsehMark size={48} />
-          <div>
-            <p className="kicker">دفترِ برنامهٔ روزانه</p>
-            <h1>کارها و یادآوری‌ها</h1>
-            <p className="plnr-nastaliq">برنامه‌ریزی با دقت و حواسِّ دقیق</p>
-          </div>
-        </div>
-        <dl className="plnr-hero-stats">
-          <div><dt>باز</dt><dd>{fa(counts.open)}</dd></div>
-          <div><dt>امروز</dt><dd>{fa(counts.today)}</dd></div>
-          <div><dt>یادآوری</dt><dd>{fa(counts.reminders)}</dd></div>
-          <div><dt>انجام‌شده</dt><dd>{fa(counts.done)}</dd></div>
-        </dl>
-      </header>
-
-      <div className="plnr-toolbar">
-        <div className="plnr-search"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجو در عنوان، توضیحات یا برچسب‌ها…" /></div>
-        <select className="plnr-sort" value={sort} onChange={e => setSort(e.target.value)}>
-          <option value="due">مرتب‌سازی: سررسید</option>
-          <option value="priority">مرتب‌سازی: اولویت</option>
-          <option value="created">مرتب‌سازی: تازه‌ترین</option>
-        </select>
-        <button className="plnr-add-btn" onClick={openCreate}><Plus size={16} /> کار تازه</button>
-      </div>
-
-      {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
-
-      <div className="plnr-tabs">
-        {PLANNER_FILTERS.map(([key, label]) => <button key={key} className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>{label} ({fa(counts[key])})</button>)}
-      </div>
-
-      <div className="plnr-section-head">
-        <h2><BookOpenCheck size={19} strokeWidth={1.6} /> دفترِ کارها</h2>
-        <span>{PLANNER_FILTERS.find(f => f[0] === filter)?.[1]} · {fa(visible.length)} سطر</span>
-      </div>
-
-      {visible.length === 0 ? (
-        <div className="plnr-empty"><ShamsehMark size={40} className="dim" /><p>{emptyMessage}</p>{filter === 'open' && !query.trim() && <button className="plnr-add-btn" onClick={openCreate}><Plus size={15} /> افزودن کار تازه</button>}</div>
-      ) : (
-        <ul className="plnr-list">
-          {visible.map(task => <TaskCard key={task.id} task={task} reminder={reminderByTask[task.id]} onToggle={toggle} onEdit={openEdit} onDelete={remove} />)}
-        </ul>
-      )}
-    </div>
-    <TaskDrawer open={drawerOpen} initial={editing} onClose={() => { setDrawerOpen(false); setEditing(null); }} onSubmit={submit} />
-    {toast && <div className="plnr-toast">{toast}</div>}
-  </main>;
-}
-function FinanceReact() {
-  const [month, setMonth] = useState(() => isoToday().slice(0, 7));
-  const [holdAssetType, setHoldAssetType] = useState('crypto');
-  const [data, setData] = useState({ income: 0, expense: 0, balance: 0, categories: {} });
-  const [transactions, setTransactions] = useState([]), [accounts, setAccounts] = useState([]), [budgets, setBudgets] = useState({ budgets: [] });
-  const [debts, setDebts] = useState([]), [portfolio, setPortfolio] = useState({ items: [], totals: {} }), [notice, setNotice] = useState('');
-  const [kindFilter, setKindFilter] = useState('all'), [editing, setEditing] = useState(null), [importPreview, setImportPreview] = useState(null);
-  const load = async () => {
-    try {
-      const [summary, list, accountData, budgetData, debtData, portfolioData] = await Promise.all([
-        api(`/api/finance?month=${month}`), api(`/api/transactions?from=${month}-01&to=${month}-31`), api('/api/accounts'),
-        api(`/api/budgets?month=${month}`), api('/api/debts'), api('/api/portfolio')
-      ]);
-      setData(summary); setTransactions(list.items || []); setAccounts(accountData.accounts || []); setBudgets(budgetData || { budgets: [] }); setDebts(debtData.items || []); setPortfolio(portfolioData || { items: [], totals: {} });
-    } catch (error) { setNotice(error.message); }
-  };
-  useEffect(() => { load(); }, [month]);
-  const send = async (path, body, message, method = 'POST') => { try { await api(path, { method, body: JSON.stringify(body) }); setNotice(message); await load(); } catch (error) { setNotice(error.message); } };
-  const submitTransaction = async event => { event.preventDefault(); const f = new FormData(event.currentTarget); await send('/api/transactions', { title: f.get('title'), amount: Number(f.get('amount')), kind: f.get('kind'), category: f.get('category') || 'متفرقه', account: f.get('account') || 'بدون حساب', date: f.get('date') || `${month}-01`, tags: f.get('tags') }, 'تراکنش ثبت شد.'); event.currentTarget.reset(); };
-  const saveEdit = async event => { event.preventDefault(); const f = new FormData(event.currentTarget); const body = editing.type === 'account' ? { name: f.get('name'), type: f.get('type'), balance: Number(f.get('amount')), archived: f.get('archived') === 'on' } : { title: f.get('title'), amount: Number(f.get('amount')), category: f.get('category'), kind: f.get('kind'), account: f.get('account'), date: f.get('date'), tags: f.get('tags') }; await send(`/api/${editing.type === 'account' ? 'accounts' : 'transactions'}/${editing.item.id}`, body, 'تغییرات ذخیره شد.', 'PATCH'); setEditing(null); };
-  const remove = async item => { if (!window.confirm(`تراکنش «${item.title}» حذف شود؟`)) return; await send(`/api/transactions/${item.id}`, {}, 'تراکنش حذف شد.', 'DELETE'); };
-  const previewImport = async event => { const file = event.target.files?.[0]; if (!file) return; try { const base64 = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file); }); const preview = await api('/api/transactions/import-bank/preview', { method: 'POST', body: JSON.stringify({ fileBase64: base64, filename: file.name, fileType: file.name.toLowerCase().endsWith('.csv') ? 'csv' : 'xlsx', amountUnit: 'IRR' }) }); setImportPreview(preview); } catch (error) { setNotice(error.message); } event.target.value = ''; };
-  const commitImport = async event => { event.preventDefault(); const f = new FormData(event.currentTarget); const items = (importPreview?.items || []).filter(item => !item.duplicate); await send('/api/transactions/import-bank/commit', { items, account: f.get('account') }, `${fa(items.length)} تراکنش برای ورود ارسال شد.`); setImportPreview(null); };
-  const visibleTransactions = transactions.filter(item => kindFilter === 'all' || item.kind === kindFilter);
-  const isFaceAsset = holdAssetType === 'dollar' || holdAssetType === 'euro';
-  const portfolioTotals = Object.entries(portfolio.totals || {});
-  return <main className="planner-react finance-react" dir="rtl">
-    <TopNav active="finance" />
-    <div className="planner-page"><header><div><p>نمای ماهانه با دادهٔ واقعی</p><h1>مالی</h1></div><div className="finance-month"><button onClick={() => setMonth(value => { const date = new Date(`${value}-01T00:00:00`); date.setMonth(date.getMonth() - 1); return iso(date).slice(0, 7); })}>ماه قبل</button><input aria-label="ماه" type="month" value={month} onChange={event => setMonth(event.target.value)} /><button onClick={() => setMonth(value => { const date = new Date(`${value}-01T00:00:00`); date.setMonth(date.getMonth() + 1); return iso(date).slice(0, 7); })}>ماه بعد</button></div><div className="planner-stats"><b>درآمد {fa(data.income)}</b><b>هزینه {fa(data.expense)}</b><b>مانده {fa(data.balance)}</b></div></header>
-      {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
-      <div className="finance-summary">{Object.entries(data.categories || {}).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([category, amount]) => <span key={category}><b>{category}</b><small>{fa(amount)} ریال</small></span>)}</div>
-      <div className="planner-layout"><form className="planner-form" onSubmit={submitTransaction}><h2>تراکنش تازه</h2><input name="title" required placeholder="شرح" /><input name="amount" required inputMode="numeric" placeholder="مبلغ (ریال)" /><div><select name="kind"><option value="expense">هزینه</option><option value="income">درآمد</option></select><input name="category" placeholder="دسته" /></div><select name="account"><option value="بدون حساب">بدون حساب</option>{accounts.filter(account => !account.archived).map(account => <option key={account.id} value={account.name}>{account.name}</option>)}</select><input name="tags" placeholder="تگ‌ها، با ویرگول جدا" /><input name="date" type="date" defaultValue={isoToday()} /><button className="save">ثبت تراکنش</button></form>
-        <section className="planner-list"><div className="finance-section-heading"><h2>تراکنش‌های ماه</h2><div className="planner-filters">{[['all','همه'],['expense','هزینه'],['income','درآمد'],['transfer','انتقال']].map(([key, label]) => <button type="button" className={kindFilter === key ? 'active' : ''} onClick={() => setKindFilter(key)} key={key}>{label}</button>)}</div></div>{visibleTransactions.length ? <Table><TableHeader><TableRow><TableHead>شرح</TableHead><TableHead>دسته</TableHead><TableHead>حساب</TableHead><TableHead>مبلغ</TableHead><TableHead>عملیات</TableHead></TableRow></TableHeader><TableBody>{visibleTransactions.map(item => <TableRow key={item.id}><TableCell><b>{item.title}</b><small>{item.date}{item.tags?.length ? ` · ${item.tags.map(tag => `#${tag}`).join(' ')}` : ''}</small></TableCell><TableCell>{item.category}</TableCell><TableCell>{item.account}{item.toAccount ? ` ← ${item.toAccount}` : ''}</TableCell><TableCell numeric className={item.kind === 'income' ? '' : 'negative'}>{item.kind === 'income' ? '+' : item.kind === 'transfer' ? '↔' : '−'}{fa(item.amount)} ریال</TableCell><TableCell><button className="finance-action" onClick={() => setEditing({ type: 'transaction', item })}>ویرایش</button><button className="planner-delete" onClick={() => remove(item)} aria-label={`حذف ${item.title}`}>×</button></TableCell></TableRow>)}</TableBody></Table> : <p className="empty">تراکنشی در این ماه نیست.</p>}</section></div>
-      <div className="finance-grid"><section className="planner-list"><h2>حساب‌ها</h2><div className="finance-account-grid">{accounts.map(account => <div key={account.id} className={account.archived ? 'archived' : ''}><b>{account.name}</b><small>{account.type} · {fa(account.balance ?? account.openingBalance ?? 0)} ریال</small><button className="finance-action" onClick={() => setEditing({ type: 'account', item: account })}>ویرایش</button></div>)}</div><form className="planner-form compact" onSubmit={event => { event.preventDefault(); const f = new FormData(event.currentTarget); send('/api/accounts', { name: f.get('name'), type: f.get('type'), openingBalance: Number(f.get('openingBalance') || 0) }, 'حساب ثبت شد.'); event.currentTarget.reset(); }}><input name="name" required placeholder="نام حساب" /><div><select name="type"><option value="bank">بانک</option><option value="card">کارت</option><option value="cash">نقدی</option></select><input name="openingBalance" inputMode="numeric" placeholder="ماندهٔ اولیه" /></div><button className="save">افزودن حساب</button></form><form className="planner-form compact" onSubmit={event => { event.preventDefault(); const f = new FormData(event.currentTarget); send('/api/transfers', { fromAccount: f.get('fromAccount'), toAccount: f.get('toAccount'), amount: Number(f.get('amount')), date: f.get('date'), title: f.get('title') }, 'انتقال ثبت شد.'); event.currentTarget.reset(); }}><h3>انتقال بین حساب‌ها</h3><input name="title" placeholder="شرح انتقال" /><div><select name="fromAccount" required><option value="">از حساب</option>{accounts.map(account => <option key={account.id} value={account.name}>{account.name}</option>)}</select><select name="toAccount" required><option value="">به حساب</option>{accounts.map(account => <option key={account.id} value={account.name}>{account.name}</option>)}</select></div><div><input name="amount" required inputMode="numeric" placeholder="مبلغ" /><input name="date" type="date" defaultValue={isoToday()} /></div><button className="save">ثبت انتقال</button></form></section>
-        <section className="planner-list"><h2>بودجهٔ {month}</h2><div className="budget-total"><b>{budgets.totalBudget ? `${fa(budgets.totalSpent || 0)} از ${fa(budgets.totalBudget)} ریال` : `هزینهٔ ماه: ${fa(budgets.totalSpent || 0)} ریال`}</b></div>{(budgets.budgets || []).map(item => <div className="budget-row" key={item.id}><div><b>{item.category}</b><small>{fa(item.spent)} از {fa(item.limit)} ریال</small></div><progress value={Math.min(item.spent, item.limit)} max={item.limit} /></div>)}<form className="planner-form compact" onSubmit={event => { event.preventDefault(); const f = new FormData(event.currentTarget); send('/api/budgets', { month, category: f.get('category'), limit: Number(f.get('limit')) }, 'بودجه ذخیره شد.'); event.currentTarget.reset(); }}><input name="category" required placeholder="دسته (یا __total__ برای کل)" /><input name="limit" required inputMode="numeric" placeholder="سقف بودجه، ریال" /><button className="save">ذخیرهٔ بودجه</button></form></section></div>
-      <div className="finance-grid"><section className="planner-list"><h2>بدهی و طلب</h2>{debts.length ? debts.map(item => <article key={item.id}><div><b>{item.type === 'payable' ? 'بدهی به ' : 'طلب از '}{item.person}</b><small>{fa(item.amount)} {item.currency === 'USD' ? 'دلار' : 'ریال'}{item.dueDate ? ` · سررسید ${item.dueDate}` : ''}{item.note ? ` · ${item.note}` : ''}</small></div><button className="finance-action" onClick={() => send(`/api/debts/${item.id}/settle`, { account: item.currency === 'IRR' ? accounts.find(account => !account.archived)?.name || '' : '' }, 'تسویه ثبت شد.')}>تسویه</button></article>) : <p className="empty">بدهی یا طلب بازی نیست.</p>}<form className="planner-form compact" onSubmit={event => { event.preventDefault(); const f = new FormData(event.currentTarget); send('/api/debts', { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), dueDate: f.get('dueDate') || null, note: f.get('note') }, 'ثبت شد.'); event.currentTarget.reset(); }}><input name="person" required placeholder="نام شخص" /><div><select name="type"><option value="payable">بدهی من</option><option value="receivable">طلب من</option></select><select name="currency"><option value="IRR">ریال</option><option value="USD">دلار</option></select></div><input name="amount" required inputMode="numeric" placeholder="مبلغ" /><input name="dueDate" type="date" /><input name="note" placeholder="یادداشت" /><button className="save">افزودن</button></form></section>
-        <section className="planner-list"><h2>سبد سرمایه</h2><p className="portfolio-total">ارزش گزارش‌شده: {portfolioTotals.length ? portfolioTotals.map(([currency, total]) => <b key={currency}>{fa(total?.value || 0)} {currency} </b>) : '—'}</p>{portfolio.items?.length ? <Table><TableHeader><TableRow><TableHead>دارایی</TableHead><TableHead>تعداد</TableHead><TableHead>ارزش</TableHead></TableRow></TableHeader><TableBody>{portfolio.items.map(item => <TableRow key={`${item.assetType}-${item.symbol}`}><TableCell>{item.symbol}<small>{item.assetType}</small></TableCell><TableCell numeric>{fa(item.quantity)}</TableCell><TableCell numeric>{fa(item.value || 0)} {item.currency || ''}</TableCell></TableRow>)}</TableBody></Table> : <p className="empty">دارایی ثبت نشده است.</p>}<form className="planner-form compact" onSubmit={event => { event.preventDefault(); const f = new FormData(event.currentTarget); const body = { assetType: holdAssetType, type: f.get('type'), quantity: Number(f.get('quantity')), fee: Number(f.get('fee') || 0), date: f.get('date'), note: f.get('note') }; if (!isFaceAsset) { body.symbol = f.get('symbol'); body.price = Number(f.get('price')); } send('/api/investments/tx', body, 'تراکنش سرمایه‌گذاری ثبت شد.'); event.currentTarget.reset(); setHoldAssetType('crypto'); }}><div><select name="assetType" value={holdAssetType} onChange={e => setHoldAssetType(e.target.value)}><option value="crypto">رمزارز</option><option value="stock">سهام</option><option value="gold">طلا</option><option value="dollar">💵 دلار</option><option value="euro">💶 یورو</option><option value="other">سایر</option></select><select name="type"><option value="buy">خرید</option><option value="sell">فروش</option></select></div><input name="symbol" required={!isFaceAsset} disabled={isFaceAsset} placeholder={isFaceAsset ? 'نماد لازم نیست' : 'نماد / نام دارایی'} /><div><input name="quantity" required inputMode="decimal" placeholder="تعداد" /><input name="price" required={!isFaceAsset} disabled={isFaceAsset} placeholder={isFaceAsset ? 'قیمت لازم نیست' : 'قیمت واحد'} /></div><input name="fee" inputMode="decimal" placeholder="کارمزد" /><input name="date" type="date" defaultValue={isoToday()} /><input name="note" placeholder="یادداشت" /><button className="save">ثبت سرمایه‌گذاری</button></form></section></div>
-      <section className="planner-list finance-import"><h2>درون‌ریزی صورت‌حساب بانک</h2><p>فایل CSV، XLS یا XLSX را انتخاب کنید؛ ابتدا فقط پیش‌نمایش تراکنش‌های تازه دریافت می‌شود.</p><input type="file" accept=".csv,.xls,.xlsx" onChange={previewImport} />{importPreview && <form className="planner-form compact" onSubmit={commitImport}><p>{fa(importPreview.newCount || 0)} مورد تازه و {fa(importPreview.duplicateCount || 0)} مورد تکراری پیدا شد.</p><select name="account"><option value="بدون حساب">بدون حساب</option>{accounts.map(account => <option key={account.id} value={account.name}>{account.name}</option>)}</select><button className="save">ورود {fa((importPreview.items || []).filter(item => !item.duplicate).length)} تراکنش تازه</button><button type="button" className="finance-action" onClick={() => setImportPreview(null)}>لغو</button></form>}</section>
-    </div>
-    {editing && <div className="finance-modal" role="dialog" aria-modal="true"><form className="planner-form" onSubmit={saveEdit}><div className="finance-section-heading"><h2>ویرایش {editing.type === 'account' ? 'حساب' : 'تراکنش'}</h2><button type="button" className="finance-action" onClick={() => setEditing(null)}>بستن</button></div><input name={editing.type === 'account' ? 'name' : 'title'} required defaultValue={editing.type === 'account' ? editing.item.name : editing.item.title} />{editing.type === 'account' ? <><div><select name="type" defaultValue={editing.item.type}><option value="bank">بانک</option><option value="card">کارت</option><option value="cash">نقدی</option></select><input name="amount" inputMode="numeric" defaultValue={editing.item.balance ?? editing.item.openingBalance ?? 0} /></div><label><input name="archived" type="checkbox" defaultChecked={editing.item.archived} /> بایگانی شود</label></> : <><input name="amount" required inputMode="numeric" defaultValue={editing.item.amount} /><div><select name="kind" defaultValue={editing.item.kind}><option value="expense">هزینه</option><option value="income">درآمد</option><option value="transfer">انتقال</option></select><input name="category" defaultValue={editing.item.category} /></div><select name="account" defaultValue={editing.item.account}>{accounts.map(account => <option key={account.id} value={account.name}>{account.name}</option>)}</select><input name="date" type="date" defaultValue={editing.item.date} /><input name="tags" defaultValue={(editing.item.tags || []).join(', ')} /></>}<button className="save">ذخیره</button></form></div>}
-  </main>;
-}
-function FootballReact() { const [league, setLeague] = useState('eng.1'), [matches, setMatches] = useState([]), [standing, setStanding] = useState([]), [notice, setNotice] = useState(''); useEffect(() => { Promise.all([api(`/api/football/remote/free/matches?league=${league}`), api(`/api/football/remote/free/standings?league=${league}`)]).then(([m, s]) => { setMatches(m.items || []); setStanding(s.items || []); }).catch(error => setNotice(error.message)); }, [league]); return <main className="planner-react" dir="rtl"><TopNav active="football" /><div className="planner-page"><header><div><p>دادهٔ زندهٔ سرویس فوتبال فعلی</p><h1>فوتبال</h1></div><select value={league} onChange={e => setLeague(e.target.value)}><option value="eng.1">لیگ برتر انگلیس</option><option value="esp.1">لالیگا</option><option value="ita.1">سری آ</option><option value="ger.1">بوندس‌لیگا</option></select></header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<div className="planner-layout"><section className="planner-list"><h2>مسابقات</h2>{matches.length ? matches.map((m,i) => <article key={m.id || i}><div><b>{m.home} — {m.away}</b><small>{m.date} · {m.time || '—'} · {m.status || ''}</small></div><b>{m.score || '—'}</b></article>) : <p className="empty">مسابقه‌ای دریافت نشد.</p>}</section><section className="planner-list"><h2>جدول</h2>{standing.length ? <Table><TableHeader><TableRow><TableHead>#</TableHead><TableHead>تیم</TableHead><TableHead>بازی</TableHead><TableHead>امتیاز</TableHead></TableRow></TableHeader><TableBody>{standing.map((r,i) => <TableRow key={r.name || i}><TableCell>{fa(r.rank || i + 1)}</TableCell><TableCell>{r.name}</TableCell><TableCell numeric>{fa(r.played || 0)}</TableCell><TableCell numeric>{fa(r.points || 0)}</TableCell></TableRow>)}</TableBody></Table> : <p className="empty">جدول دریافت نشد.</p>}</section></div></div></main>; }
-function MarketNextReact() {
-  const [items, setItems] = useState([]), [stocks, setStocks] = useState([]), [selected, setSelected] = useState(''), [history, setHistory] = useState([]), [notice, setNotice] = useState('');
-  useEffect(() => { Promise.all([api('/api/tgju'), api('/api/market/stocks').catch(error => ({ items: [], error: error.message }))]).then(([local, us]) => { setItems(tgjuRows(local)); setStocks(us.items || []); if (us.error) setNotice(us.error); }).catch(error => setNotice(error.message)); }, []);
-  useEffect(() => { if (!selected) return; api(`/api/tgju/history?key=${encodeURIComponent(selected)}`).then(data => setHistory(data.items || data.data || [])).catch(error => setNotice(error.message)); }, [selected]);
-  return <main className="planner-react" dir="rtl"><TopNav active="market" /><div className="planner-page"><header><div><p>قیمت‌های واقعی سرویس‌های فعلی</p><h1>بازار</h1></div></header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<div className="finance-grid"><section className="planner-list"><h2>بازار تهران</h2>{items.length ? <Table><TableHeader><TableRow><TableHead>دارایی</TableHead><TableHead>قیمت</TableHead><TableHead>تغییر</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.key}><TableCell><button className="market-select" onClick={() => setSelected(item.key)}>{item.name}</button></TableCell><TableCell numeric>{fa(item.p)}</TableCell><TableCell numeric className={item.change.includes('▼') ? 'negative' : ''}>{item.change || '—'}</TableCell></TableRow>)}</TableBody></Table> : <p className="empty">داده‌ای دریافت نشد.</p>}</section><section className="planner-list"><h2>سهام آمریکا</h2>{stocks.length ? <Table><TableHeader><TableRow><TableHead>نماد</TableHead><TableHead>قیمت</TableHead><TableHead>تغییر</TableHead></TableRow></TableHeader><TableBody>{stocks.map(item => <TableRow key={item.symbol}><TableCell>{item.symbol}</TableCell><TableCell numeric>{fa(item.price)} دلار</TableCell><TableCell numeric>{item.changePercent ?? '—'}</TableCell></TableRow>)}</TableBody></Table> : <p className="empty">برای نمایش سهام، کلید سرویس باید فعال باشد.</p>}</section></div>{selected && <section className="planner-list"><h2>تاریخچهٔ {selected}</h2>{history.length ? <div className="history-strip">{history.slice(-30).map((point, index) => <span key={point.date || index} title={`${point.date || ''}: ${point.p || point.price || point.value || ''}`} style={{ height: `${Math.max(8, Math.min(100, Number(point.p || point.price || point.value || 0) / Math.max(...history.map(x => Number(x.p || x.price || x.value || 0)), 1) * 100))}%` }} />)}</div> : <p className="empty">تاریخچه‌ای برای این دارایی دریافت نشد.</p>}</section>}</div></main>;
-}
 
 function seasonAiredCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.aired) || 0 : 0; }
 function seasonTotalCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.total) || 0 : 0; }
@@ -985,185 +702,6 @@ function MovieDetail({ item, onClose, flash }) {
       </div>
     </div>
   );
-}
-
-const MEDIA_KIND_LABELS = { track: 'آهنگ', video: 'ویدیو', playlist: 'پلی‌لیست', album: 'آلبوم' };
-const MEDIA_ACCENT = { spotify: '#1DB954', youtube: '#FF0000' };
-function msToClock(ms) { const s = Math.floor((ms || 0) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
-function normMediaItem(provider, kind, raw) {
-  if (provider === 'spotify') {
-    if (kind === 'playlist') return { id: raw.url || raw.name, title: raw.name, subtitle: [raw.owner, raw.tracks != null ? `${fa(raw.tracks)} قطعه` : ''].filter(Boolean).join(' · '), thumb: raw.cover, url: raw.url, kind };
-    if (kind === 'artist') return { id: raw.url || raw.name, title: raw.name, subtitle: (raw.genres || []).join('، '), thumb: raw.cover, url: raw.url, kind };
-    return { id: raw.id || raw.url || raw.name, title: raw.name, subtitle: [raw.artist, raw.album].filter(Boolean).join(' · '), thumb: raw.cover, url: raw.url, kind, artist: raw.artist };
-  }
-  if (kind === 'playlist') return { id: raw.id || raw.url, title: raw.title || raw.name, subtitle: [raw.channelTitle, raw.count != null ? `${fa(raw.count)} ویدیو` : ''].filter(Boolean).join(' · '), thumb: raw.cover || raw.thumb, url: raw.url, kind };
-  return { id: raw.videoId || raw.id || raw.url, title: raw.title, subtitle: raw.channel || raw.channelTitle, thumb: raw.cover || raw.thumb, url: raw.url, kind };
-}
-
-function MediaCard({ item, accent, onLog, logState }) {
-  return <div className="media-card">
-    <div className="media-card-thumb" style={{ background: `${accent}22` }}>
-      {item.thumb ? <img src={item.thumb} alt="" loading="lazy" /> : <span style={{ color: accent }}>{item.kind === 'playlist' ? '≡' : '♪'}</span>}
-    </div>
-    <div className="media-card-body">
-      <div className="media-card-title-row"><span className="media-kind-badge" style={{ background: `${accent}22`, color: accent }}>{MEDIA_KIND_LABELS[item.kind] || item.kind}</span><b>{item.title}</b></div>
-      {item.subtitle && <small>{item.subtitle}</small>}
-    </div>
-    <div className="media-card-actions">
-      {item.url && <a href={item.url} target="_blank" rel="noreferrer">پخش ▶</a>}
-      {onLog && <button onClick={() => onLog(item)} disabled={logState && logState !== 'idle'} style={{ background: logState === 'done' ? '#16a34a' : accent }}>{logState === 'saving' ? '...' : logState === 'done' ? 'ثبت شد ✓' : 'ثبت در LifeOS'}</button>}
-    </div>
-  </div>;
-}
-
-function NowPlayingStrip({ track }) {
-  if (!track) return null;
-  const pct = track.durationMs ? Math.min(100, Math.round((track.progressMs / track.durationMs) * 100)) : 0;
-  return <div className="media-nowplaying">
-    <div className="media-nowplaying-cover" style={{ backgroundImage: track.cover ? `url(${track.cover})` : undefined }} />
-    <div className="media-nowplaying-info">
-      <small>{track.isPlaying ? <><span className="media-live-dot" /> در حال پخش</> : 'آخرین پخش'}</small>
-      <b>{track.name}</b><span>{track.artist}</span>
-      {track.durationMs > 0 && <><div className="media-nowplaying-bar"><i style={{ width: `${pct}%` }} /></div><small>{msToClock(track.progressMs)} / {msToClock(track.durationMs)}</small></>}
-    </div>
-  </div>;
-}
-
-function ArtistRow({ artists }) {
-  if (!artists?.length) return null;
-  return <div className="media-artist-row">
-    {artists.slice(0, 10).map(a => <a key={a.url || a.name} href={a.url} target="_blank" rel="noreferrer" className="media-artist">
-      <div className="media-artist-avatar" style={{ backgroundImage: a.cover ? `url(${a.cover})` : undefined }} />
-      <small>{a.name}</small>
-    </a>)}
-  </div>;
-}
-
-function ProviderPanel({ provider, onSaved }) {
-  const isSpotify = provider === 'spotify';
-  const accent = MEDIA_ACCENT[provider];
-  const label = isSpotify ? 'Spotify' : 'YouTube';
-  const [state, setState] = useState({ recent: [], playlists: [], artists: [], nowPlaying: null, connected: true, message: '' });
-  const [query, setQuery] = useState(''), [results, setResults] = useState(null), [loading, setLoading] = useState(true), [searching, setSearching] = useState(false);
-  const [logStates, setLogStates] = useState({});
-
-  const loadFeed = async () => {
-    setLoading(true);
-    try {
-      if (isSpotify) {
-        const data = await api('/api/integrations/spotify/recent');
-        setState({ recent: (data.items || []).map(x => normMediaItem('spotify', 'track', x)), playlists: (data.playlists || []).map(x => normMediaItem('spotify', 'playlist', x)), artists: data.artists || [], nowPlaying: data.nowPlaying, connected: true, message: '' });
-      } else {
-        const [hist, pls] = await Promise.all([api('/api/integrations/youtube/history'), api('/api/integrations/youtube/playlists').catch(() => ({ items: [] }))]);
-        setState({ recent: (hist.items || []).map(x => normMediaItem('youtube', 'video', x)), playlists: (pls.items || []).map(x => normMediaItem('youtube', 'playlist', x)), artists: [], nowPlaying: null, connected: true, message: '' });
-      }
-    } catch (error) { setState(s => ({ ...s, connected: false, message: error.message })); }
-    setLoading(false);
-  };
-  useEffect(() => { loadFeed(); }, [provider]);
-
-  const search = async event => {
-    event.preventDefault();
-    if (!query.trim()) { setResults(null); return; }
-    setSearching(true);
-    try { const data = await api(`/api/integrations/${provider}/search?q=${encodeURIComponent(query)}`); setResults((data.items || []).map(x => normMediaItem(provider, isSpotify ? 'track' : 'video', x))); }
-    catch (error) { setState(s => ({ ...s, message: error.message })); }
-    setSearching(false);
-  };
-  const disconnect = async () => { try { await api(`/api/integrations/${provider}/disconnect`, { method: 'POST', body: JSON.stringify({}) }); loadFeed(); } catch (error) { setState(s => ({ ...s, message: error.message })); } };
-  const log = async item => {
-    setLogStates(s => ({ ...s, [item.id]: 'saving' }));
-    try {
-      await api('/api/media-log', { method: 'POST', body: JSON.stringify({ source: provider, title: item.title, meta: JSON.stringify({ url: item.url || '', artist: item.artist || item.subtitle || '' }) }) });
-      setLogStates(s => ({ ...s, [item.id]: 'done' })); onSaved?.();
-      setTimeout(() => setLogStates(s => ({ ...s, [item.id]: 'idle' })), 2000);
-    } catch { setLogStates(s => ({ ...s, [item.id]: 'idle' })); }
-  };
-
-  return <div className="media-panel-wrap">
-    <div className="media-provider-head" style={{ background: `linear-gradient(135deg, ${accent}22, transparent)` }}>
-      <div><p style={{ color: accent }}>اتصال و داده‌های واقعی حساب</p><h2>{label}</h2></div>
-      {state.connected ? <button className="media-disconnect" style={{ borderColor: `${accent}55`, color: accent }} onClick={disconnect}>قطع اتصال</button>
-        : <a className="media-connect" style={{ background: accent }} href={`/api/integrations/${provider}/connect`}>اتصال {label}</a>}
-    </div>
-    {!state.connected && state.message && <p className="notice">{state.message}</p>}
-
-    {isSpotify && state.nowPlaying && <NowPlayingStrip track={state.nowPlaying} />}
-    {isSpotify && <ArtistRow artists={state.artists} />}
-
-    <form className="media-search" onSubmit={search}>
-      <input value={query} onChange={e => setQuery(e.target.value)} placeholder={`جستجو در ${label}…`} />
-      <button disabled={searching} style={{ background: accent }}>{searching ? '...' : 'جستجو'}</button>
-    </form>
-
-    {results !== null && (
-      <section className="media-section">
-        <div className="media-section-head"><h3>نتیجهٔ جستجو</h3><button onClick={() => { setResults(null); setQuery(''); }}>بستن ✕</button></div>
-        {results.length === 0 ? <p className="empty">نتیجه‌ای یافت نشد.</p> : results.map(item => <MediaCard key={item.id} item={item} accent={accent} onLog={log} logState={logStates[item.id]} />)}
-      </section>
-    )}
-
-    <div className="media-cols">
-      <section className="media-section"><h3>{isSpotify ? 'اخیراً پخش‌شده' : 'پرطرفدار / اخیر'}</h3>
-        {loading ? <p className="empty">در حال بارگذاری…</p> : state.recent.length ? state.recent.map(item => <MediaCard key={item.id} item={item} accent={accent} onLog={log} logState={logStates[item.id]} />) : <p className="empty">چیزی برای نمایش نیست.</p>}
-      </section>
-      <section className="media-section"><h3>پلی‌لیست‌ها</h3>
-        {loading ? <p className="empty">در حال بارگذاری…</p> : state.playlists.length ? state.playlists.map(item => <MediaCard key={item.id} item={item} accent={accent} />) : <p className="empty">پلی‌لیستی یافت نشد.</p>}
-      </section>
-    </div>
-  </div>;
-}
-
-function LifeLogPanel({ refreshKey }) {
-  const [items, setItems] = useState([]), [filter, setFilter] = useState('all'), [loading, setLoading] = useState(true);
-  const load = () => { setLoading(true); api(`/api/media-log${filter === 'all' ? '' : `?source=${filter}`}`).then(d => setItems(d.items || [])).finally(() => setLoading(false)); };
-  useEffect(() => { load(); }, [filter, refreshKey]);
-  const remove = async itemId => { await api(`/api/media-log/${itemId}`, { method: 'DELETE' }); setItems(prev => prev.filter(x => x.id !== itemId)); };
-  const spotifyCount = items.filter(x => x.source === 'spotify').length, youtubeCount = items.filter(x => x.source === 'youtube').length;
-  return <div className="media-panel-wrap">
-    <div className="media-life-stats">
-      <div style={{ background: 'linear-gradient(135deg,#38bdf822,transparent)' }}><b style={{ color: '#38bdf8' }}>{fa(items.length)}</b><small>کل ثبت‌ها</small></div>
-      <div style={{ background: 'linear-gradient(135deg,#1DB95422,transparent)' }}><b style={{ color: '#1DB954' }}>{fa(spotifyCount)}</b><small>Spotify</small></div>
-      <div style={{ background: 'linear-gradient(135deg,#FF000022,transparent)' }}><b style={{ color: '#FF0000' }}>{fa(youtubeCount)}</b><small>YouTube</small></div>
-    </div>
-    <div className="strk-tabs">{[['all', 'همه'], ['spotify', 'Spotify'], ['youtube', 'YouTube']].map(([k, l]) => <button key={k} className={filter === k ? 'active' : ''} onClick={() => setFilter(k)}>{l}</button>)}</div>
-    <section className="media-section">
-      <h3>تاریخچهٔ شخصی من (LifeOS)</h3>
-      {loading ? <p className="empty">در حال بارگذاری…</p> : items.length === 0 ? <p className="empty">هنوز چیزی ثبت نشده — از تب Spotify یا YouTube روی «ثبت در LifeOS» بزن.</p> : items.map(item => {
-        let meta = {}; try { meta = JSON.parse(item.meta || '{}'); } catch { }
-        const accent = MEDIA_ACCENT[item.source] || '#8aa0b8';
-        return <div className="media-card" key={item.id}>
-          <div className="media-card-thumb" style={{ background: `${accent}22` }}><span style={{ color: accent }}>♪</span></div>
-          <div className="media-card-body"><b>{item.title}</b><small>{[meta.artist, new Date(item.createdAt).toLocaleString('fa-IR')].filter(Boolean).join(' · ')}</small></div>
-          <div className="media-card-actions">
-            {meta.url && <a href={meta.url} target="_blank" rel="noreferrer">باز کردن</a>}
-            <button className="media-remove" onClick={() => remove(item.id)}>حذف</button>
-          </div>
-        </div>;
-      })}
-    </section>
-  </div>;
-}
-
-function MediaReact({ initialTab = 'spotify' }) {
-  const [tab, setTab] = useState(initialTab === 'youtube' ? 'youtube' : 'spotify');
-  const [refreshKey, setRefreshKey] = useState(0);
-  const tabs = [['spotify', '🎵 Spotify', '#1DB954'], ['youtube', '▶ YouTube', '#FF0000'], ['life', '🗂️ تاریخچهٔ من', '#38bdf8']];
-  return <main className="strk" dir="rtl">
-    <TopNav active="media" />
-    <div className="strk-page">
-      <header className="media-hero">
-        <h1>مرکز رسانهٔ شخصی</h1>
-        <p>جستجو، پخش، دیده‌شده، پلی‌لیست و ثبت در تاریخچهٔ شخصی — همه‌چیز یکجا.</p>
-      </header>
-      <div className="strk-tabs media-tabs">
-        {tabs.map(([key, label, color]) => <button key={key} className={tab === key ? 'active' : ''} style={tab === key ? { background: color, borderColor: color, color: '#04101a' } : {}} onClick={() => setTab(key)}>{label}</button>)}
-      </div>
-      {tab === 'spotify' && <ProviderPanel provider="spotify" onSaved={() => setRefreshKey(k => k + 1)} />}
-      {tab === 'youtube' && <ProviderPanel provider="youtube" onSaved={() => setRefreshKey(k => k + 1)} />}
-      {tab === 'life' && <LifeLogPanel refreshKey={refreshKey} />}
-    </div>
-  </main>;
 }
 
 function RecordsReact({ kind }) {

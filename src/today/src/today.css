@@ -1,7 +1,8 @@
 *{box-sizing:border-box}
 html,body,#root{min-height:100%}
-html{color-scheme:dark}
-body{margin:0;font-family:Vazirmatn,ui-sans-serif,system-ui,sans-serif;background:#050910;color:#e8f1ff;overflow-x:hidden}
+html{color-scheme:dark;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;font-family:Vazirmatn,ui-sans-serif,system-ui,sans-serif;background:#050910;color:#e8f1ff;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom,0px)}
+body.nav-lock{overflow:hidden}
 button,input,textarea,select{font:inherit}
 input:focus,textarea:focus{outline:none}
 *{scrollbar-width:thin;scrollbar-color:rgba(34,211,238,.25) transparent}
@@ -159,8 +160,35 @@ body:before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;back
 .reminders{order:5}
 .daily{order:6;grid-column:span 3}
 
-@media(max-width:1000px){.top-grid,.content-grid{grid-template-columns:1fr 1fr}.tasks,.daily{grid-column:auto}.links a span{display:none}.links a.active span{display:inline}}
-@media(max-width:650px){.page{padding:10px}.topbar{padding:0 14px}.quick{flex-wrap:wrap}.quick-tabs{width:100%}.quick input{min-height:42px}.top-grid,.content-grid{grid-template-columns:1fr}.weather{order:2}.calendar{order:1}.day-card{order:0}.tasks,.daily{grid-column:auto}}
+@media(max-width:1100px){
+  .nav-toggle{display:grid;place-items:center;width:44px;height:44px;margin-inline-start:auto;flex:none;border:1px solid rgba(125,211,252,.18);background:rgba(255,255,255,.04);color:#e8f1ff;border-radius:12px;cursor:pointer;z-index:52}
+  .nav-current{display:inline;color:#9fb4cc;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42vw}
+  .nav-scrim{display:block;position:fixed;inset:0;z-index:48;border:0;background:rgba(3,8,16,.62);backdrop-filter:blur(2px)}
+  .links{display:none;position:fixed;top:0;right:0;bottom:0;width:min(320px,88vw);z-index:51;flex-direction:column;align-items:stretch;gap:4px;overflow-y:auto;padding:calc(72px + env(safe-area-inset-top,0px)) 14px 24px;background:rgba(8,20,38,.97);border-inline-start:1px solid rgba(125,211,252,.16);box-shadow:-18px 0 50px rgba(0,0,0,.45)}
+  .links.open{display:flex}
+  .links a{width:100%;padding:12px 14px;min-height:44px;border-radius:12px}
+  .links a span{display:inline !important}
+}
+@media(max-width:1000px){.top-grid,.content-grid{grid-template-columns:1fr 1fr}.tasks,.daily{grid-column:auto}}
+@media(max-width:650px){
+  .page{padding:10px}
+  .topbar{padding:6px 12px;padding-top:max(6px,env(safe-area-inset-top,0px));gap:8px}
+  .brand span{font-size:16px}
+  .quick{flex-wrap:wrap}
+  .quick-tabs{width:100%}
+  .quick-tabs button{flex:1;justify-content:center;min-height:42px}
+  .quick input,.quick .amount{min-height:44px;max-width:none;width:100%}
+  .quick .save{width:100%}
+  .top-grid,.content-grid{grid-template-columns:1fr}
+  .weather{order:2}
+  .calendar{order:1}
+  .day-card{order:0}
+  .tasks,.daily{grid-column:auto}
+  .date-number{font-size:48px}
+  .weather-now strong{font-size:32px}
+  .score-row{grid-template-columns:36px 1fr 40px 1fr;font-size:10px}
+  input,select,textarea{font-size:16px}
+}
 
 /* ===== سریال‌ها — ردیاب ===== */
 .strk-page{max-width:1480px;margin:auto;padding:14px 24px 40px;position:relative;z-index:1}
@@ -272,7 +300,7 @@ body:before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;back
 .strk-ep-info small{color:#7590b0;font-size:11px}
 .strk-ep-num{flex:none;color:#7590b0;font-size:11px;font-weight:700}
 
-@media(max-width:650px){.strk-page{padding:10px}.strk-hero{padding:16px}.strk-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}.strk-modal-head{flex-wrap:wrap}.strk-modal-head img,.strk-modal-poster-fallback{width:96px;height:138px}}
+@media(max-width:650px){.strk-page{padding:10px}.strk-hero{padding:16px}.strk-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}.strk-modal-head{flex-wrap:wrap}.strk-modal-head img,.strk-modal-poster-fallback{width:96px;height:138px}.strk-upnext-row{flex-wrap:wrap}.strk-watch-btn{width:100%}.strk-search{padding:10px 12px}.strk-modal-backdrop{padding:12px 8px;align-items:stretch}.strk-modal{max-width:100%}}
 
 /* ===== برنامه‌ریز — دفترِ کارها (سبکِ نسخه‌خطی: طلایی/فیروزه‌ای) ===== */
 .plnr{--ink-deep:#04101a;--ink:#071722;--panel:#0d2634;--raised:#123243;--rule:#c9a24a;--firoozeh:#2fb8c4;--firoozeh-light:#7fe3e8;--firoozeh-deep:#12707c;--muted:#93afbc;--paper:#e8f2f4;--haematite:#d9634a}
@@ -442,3 +470,9 @@ body:before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;back
 
 @media(max-width:800px){.media-cols{grid-template-columns:1fr}}
 @media(max-width:650px){.media-provider-head{flex-direction:column;align-items:flex-start}.media-life-stats{grid-template-columns:1fr}}
+
+.nd-fab,.pb-fab,.dm-fab,.plnr-fab{bottom:max(18px,calc(12px + env(safe-area-inset-bottom,0px)));left:max(18px,env(safe-area-inset-left,0px))}
+@media(max-width:650px){
+  .nd-drawer,.pb-drawer,.dm-drawer,.plnr-drawer-backdrop{padding:0;align-items:end}
+  .nd-drawer>div,.pb-drawer>div{max-width:100%;max-height:92vh;border-radius:16px 16px 0 0}
+}
