@@ -13,6 +13,7 @@ import { CalendarReact } from './calendar';
 import { FootballReact } from './football';
 import { FinanceReact } from './finance';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
+import { jalaliShort } from './jalali';
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
@@ -178,13 +179,13 @@ function App() {
         <Card className="day-card" title={new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(new Date())}><img className="hero-bg-img" src="/assets/img/mountains-dusk.jpg" alt="" /><div className="hero-bg-fade" /><div className="date-number">{new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(new Date())}</div><h3>{jalali(new Date())}</h3><small>{new Intl.DateTimeFormat('en-GB', { dateStyle: 'long' }).format(new Date())}</small><div className="occasion">▣ رویدادی برای امروز ثبت نشده</div></Card>
       </div>
       <div className="grid content-grid">
-        <Card className="tasks" icon={CheckSquare2} title="کارهای امروز" action={<span className="muted">{fa(done)} از {fa(tasks.length)} انجام شده</span>}><div className="progress"><i style={{ width: `${tasks.length ? done / tasks.length * 100 : 0}%` }} /></div><button className="outline" onClick={() => setQuick({ ...quick, type: 'task' })}>＋ افزودن کار</button><div className="list">{tasks.slice(0, 6).map(task => { const overdue = !task.done && task.deadline && task.deadline < today; return <button className={`line ${task.done ? 'done' : ''} ${overdue ? 'overdue' : ''}`} key={task.id} onClick={() => toggleTask(task)}><i>{task.done ? '✓' : ''}</i><span>{task.title}</span><small>{overdue ? '⛔ عقب‌افتاده' : task.startTime || task.date === today ? 'امروز' : task.date}</small></button>; })}{!tasks.length && <p className="empty">کارت را با نخستین کار امروزت شروع کن.</p>}</div></Card>
+        <Card className="tasks" icon={CheckSquare2} title="کارهای امروز" action={<span className="muted">{fa(done)} از {fa(tasks.length)} انجام شده</span>}><div className="progress"><i style={{ width: `${tasks.length ? done / tasks.length * 100 : 0}%` }} /></div><button className="outline" onClick={() => setQuick({ ...quick, type: 'task' })}>＋ افزودن کار</button><div className="list">{tasks.slice(0, 6).map(task => { const overdue = !task.done && task.deadline && task.deadline < today; return <button className={`line ${task.done ? 'done' : ''} ${overdue ? 'overdue' : ''}`} key={task.id} onClick={() => toggleTask(task)}><i>{task.done ? '✓' : ''}</i><span>{task.title}</span><small>{overdue ? '⛔ عقب‌افتاده' : task.startTime || task.date === today ? 'امروز' : jalaliShort(task.date)}</small></button>; })}{!tasks.length && <p className="empty">کارت را با نخستین کار امروزت شروع کن.</p>}</div></Card>
         <Market />
         <Football />
         <Card title="یادآوری‌ها" icon={Bell} className="reminders"><div className="list">{data.reminders.slice(0, 5).map(item => <button className={`line ${item.done ? 'done' : ''}`} key={item.id} onClick={() => toggleReminder(item)}><i>{item.done ? '✓' : '•'}</i><span>{item.title}</span><small>{item.time || 'امروز'}</small></button>)}{!data.reminders.length && <p className="empty">یادآوری‌ای برای امروز نداری.</p>}</div></Card>
         <Card title="خلاصهٔ امروز و فردا" icon={Compass} className="recap" action={(overdueTasks.length || dueTomorrowTasks.length) ? <span className="muted">{overdueTasks.length ? `${fa(overdueTasks.length)} عقب‌افتاده` : ''}{overdueTasks.length && dueTomorrowTasks.length ? ' · ' : ''}{dueTomorrowTasks.length ? `${fa(dueTomorrowTasks.length)} برای فردا` : ''}</span> : null}>
           <div className="recap-spend">💸 خرج امروز: <b>{fa(todaySpend)}</b> ریال</div>
-          {overdueTasks.length ? <div className="recap-sec"><b>⛔ عقب‌افتاده‌ها</b><div className="list">{overdueTasks.slice(0, 5).map(t => <div className="line" key={t.id}><span>{t.title}</span><small>{t.deadline}</small></div>)}</div></div> : null}
+          {overdueTasks.length ? <div className="recap-sec"><b>⛔ عقب‌افتاده‌ها</b><div className="list">{overdueTasks.slice(0, 5).map(t => <div className="line" key={t.id}><span>{t.title}</span><small>{jalaliShort(t.deadline)}</small></div>)}</div></div> : null}
           {dueTomorrowTasks.length ? <div className="recap-sec"><b>📌 سررسید فردا</b><div className="list">{dueTomorrowTasks.slice(0, 5).map(t => <div className="line" key={t.id}><span>{t.title}</span></div>)}</div></div> : null}
           {!overdueTasks.length && !dueTomorrowTasks.length && <p className="empty">هیچ چیز عقب‌افتاده یا منتظر فردا نیست ✓</p>}
         </Card>
@@ -604,7 +605,7 @@ function SeriesDetail({ item, onClose, flash }) {
                             <span className={`strk-ep-check ${watched ? 'on' : ''}`}>{pendingKey === key ? '…' : watched ? <Check size={12} /> : ''}</span>
                             <span className="strk-ep-info">
                               <b>{ep.name || `قسمت ${fa(ep.number)}`}</b>
-                              <small>{ep.airdate || 'به‌زودی'}</small>
+                              <small>{ep.airdate ? jalaliShort(ep.airdate) : 'به‌زودی'}</small>
                             </span>
                             <span className="strk-ep-num">E{fa(ep.number)}</span>
                           </li>

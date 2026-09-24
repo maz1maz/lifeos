@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, X } from 'lucide-react'
 import './football.css'
+import { jalaliShort } from './jalali'
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -188,7 +189,7 @@ export function FootballReact({ Nav }) {
                   <h3>برنامهٔ بازی‌های آینده</h3>
                   {upcoming.length ? upcoming.map(([day, list]) => (
                     <div className="fixture-group" key={day}>
-                      <div className="fixture-date"><span>{faNum(day)}</span></div>
+                      <div className="fixture-date"><span>{jalaliShort(day)}</span></div>
                       <ul className="fixture-list">
                         {list.map((item) => {
                           const home = asTeam(item.home, item.homeLogo)
@@ -220,7 +221,7 @@ export function FootballReact({ Nav }) {
                   <h3>بازی‌های قبل</h3>
                   {finished.length ? finished.map(([day, list]) => (
                     <div className="fixture-group" key={day}>
-                      <div className="fixture-date"><span>{faNum(day)}</span></div>
+                      <div className="fixture-date"><span>{jalaliShort(day)}</span></div>
                       <ul className="fixture-list">
                         {list.map((item) => {
                           const home = asTeam(item.home, item.homeLogo)

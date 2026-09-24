@@ -38,8 +38,8 @@ const toIso = value => {
 const shortDate = iso => {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  const p = v => String(v).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  try { return d.toLocaleDateString('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
+  catch { return '—'; }
 };
 const longDate = iso => {
   try { return new Date(iso).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' }); }
