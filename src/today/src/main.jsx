@@ -9,6 +9,7 @@ import { DocumentsReact } from './documents';
 import { PlannerReact } from './planner';
 import { MediaReact } from './media';
 import { MarketReact } from './market';
+import { CalendarReact } from './calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
@@ -114,7 +115,7 @@ function App() {
   const done = tasks.filter(t => t.done).length;
   const weatherIcon = code => code === 0 ? '☀️' : code < 4 ? '⛅' : code < 70 ? '☁️' : '🌧️';
   const page = new URLSearchParams(location.search).get('page');
-  if (page === 'calendar') return <CalendarReact />;
+  if (page === 'calendar') return <CalendarReact Nav={TopNav} />;
   if (page === 'planner') return <PlannerReact Nav={TopNav} />;
   if (page === 'finance') return <FinanceReact />;
   if (page === 'market') return <MarketReact Nav={TopNav} />;
@@ -168,38 +169,6 @@ const weekdayIndex = date => (date.getDay() + 1) % 7;
 const eventOnDate = (event, day) => { const dayIso = iso(day), start = String(event.startDate || event.date || '').slice(0, 10), end = String(event.endDate || start).slice(0, 10); if (!start) return false; if (event.allDay) return dayIso >= start && dayIso < end; return dayIso === start || (end > start && dayIso <= end); };
 const eventLabel = event => `${event.time ? `${event.time} · ` : ''}${event.title || 'رویداد'}`;
 
-function CalendarReact() {
-  const today = useMemo(() => fromIso(isoToday()), []);
-  const todayJalali = useMemo(() => toJalali(today), [today]);
-  const [mode, setMode] = useState('jalali');
-  const [cursor, setCursor] = useState({ jy: todayJalali.jy, jm: todayJalali.jm, gy: today.getFullYear(), gm: today.getMonth() + 1 });
-  const [selected, setSelected] = useState(today);
-  const [feed, setFeed] = useState({ items: [], connected: false });
-  const [daily, setDaily] = useState(null);
-  const [note, setNote] = useState('');
-  const [status, setStatus] = useState('');
-  const [loading, setLoading] = useState(false);
-  const range = useMemo(() => {
-    if (mode === 'gregorian') { const first = new Date(cursor.gy, cursor.gm - 1, 1); return { from: iso(first), to: iso(new Date(cursor.gy, cursor.gm, 0)) }; }
-    return { from: iso(toGregorian(cursor.jy, cursor.jm, 1)), to: iso(toGregorian(cursor.jy, cursor.jm, jalaliMonthLength(cursor.jy, cursor.jm))) };
-  }, [mode, cursor]);
-  useEffect(() => { let live = true; setLoading(true); api(`/api/calendar/feed?from=${range.from}&to=${range.to}`).then(data => { if (live) setFeed(data); }).catch(error => { if (live) setStatus(error.message); }).finally(() => { if (live) setLoading(false); }); return () => { live = false; }; }, [range.from, range.to]);
-  useEffect(() => { let live = true; const date = iso(selected); api(`/api/daily?date=${date}`).then(data => { if (!live) return; const item = data.item || null; setDaily(item); setNote(item?.note || ''); }).catch(error => live && setStatus(error.message)); return () => { live = false; }; }, [selected]);
-  const days = useMemo(() => {
-    let first, length;
-    if (mode === 'gregorian') { first = new Date(cursor.gy, cursor.gm - 1, 1); length = new Date(cursor.gy, cursor.gm, 0).getDate(); }
-    else { first = toGregorian(cursor.jy, cursor.jm, 1); length = jalaliMonthLength(cursor.jy, cursor.jm); }
-    const start = addDays(first, -weekdayIndex(first));
-    return Array.from({ length: 42 }, (_, index) => ({ date: addDays(start, index), inMonth: index >= weekdayIndex(first) && index < weekdayIndex(first) + length }));
-  }, [mode, cursor]);
-  const title = mode === 'jalali' ? `${JALALI_MONTHS[cursor.jm - 1]} ${fa(cursor.jy)}` : new Intl.DateTimeFormat('fa-IR', { calendar: 'gregory', month: 'long', year: 'numeric' }).format(new Date(cursor.gy, cursor.gm - 1, 1));
-  const alternateTitle = mode === 'jalali' ? new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(toGregorian(cursor.jy, cursor.jm, 1)) : (() => { const start = toJalali(new Date(cursor.gy, cursor.gm - 1, 1)); const end = toJalali(new Date(cursor.gy, cursor.gm, 0)); return start.jm === end.jm && start.jy === end.jy ? `${JALALI_MONTHS[start.jm - 1]} ${fa(start.jy)}` : `${JALALI_MONTHS[start.jm - 1]} تا ${JALALI_MONTHS[end.jm - 1]} ${fa(end.jy)}`; })();
-  const selectedEvents = feed.items?.filter(event => eventOnDate(event, selected)) || [];
-  const moveMonth = direction => setCursor(current => mode === 'jalali' ? (() => { let jm = current.jm + direction, jy = current.jy; if (jm < 1) { jm = 12; jy -= 1; } if (jm > 12) { jm = 1; jy += 1; } return { ...current, jy, jm }; })() : (() => { const next = new Date(current.gy, current.gm - 1 + direction, 1); return { ...current, gy: next.getFullYear(), gm: next.getMonth() + 1 }; })());
-  const switchMode = () => { setCursor(current => { if (mode === 'jalali') { const date = toGregorian(current.jy, current.jm, 1); return { ...current, gy: date.getFullYear(), gm: date.getMonth() + 1 }; } const date = toJalali(new Date(current.gy, current.gm - 1, 1)); return { ...current, jy: date.jy, jm: date.jm }; }); setMode(current => current === 'jalali' ? 'gregorian' : 'jalali'); };
-  const goToday = () => { setCursor({ jy: todayJalali.jy, jm: todayJalali.jm, gy: today.getFullYear(), gm: today.getMonth() + 1 }); setSelected(today); };
-  const saveNote = async event => { event.preventDefault(); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: iso(selected), note }) }); setDaily(current => ({ ...(current || {}), date: iso(selected), note })); setStatus('یادداشت روز ذخیره شد.'); } catch (error) { setStatus(error.message); } };
-  return <main className="calendar-react" dir="rtl"><TopNav active="calendar" /><div className="calendar-react-page"><div className="calendar-toolbar"><div><p>تقویم شمسی و میلادی با داده‌های واقعی</p><h1>{title}</h1><small>{alternateTitle}</small></div><div className="calendar-actions"><button onClick={() => moveMonth(-1)} aria-label="ماه قبل">ماه قبل</button><button onClick={goToday}>امروز</button><button onClick={() => moveMonth(1)} aria-label="ماه بعد">ماه بعد</button><button className="mode" onClick={switchMode}>{mode === 'jalali' ? 'نمایش میلادی' : 'نمایش شمسی'}</button></div></div><div className="calendar-sync-status">{loading ? 'در حال دریافت رویدادها…' : feed.connected ? `Google Calendar متصل است · ${fa(feed.googleCalendars || 0)} تقویم` : 'کارها و یادآوری‌های LifeOS'}{feed.partial ? ' · بخشی از رویدادهای Google نمایش داده شده‌اند' : ''}{feed.googleError ? ` · ${feed.googleError}` : ''}</div>{status && <div className="notice">{status}<button onClick={() => setStatus('')}>×</button></div>}<div className="calendar-react-layout"><section className="calendar-board"><div className="calendar-week">{WEEKDAYS.map(day => <b key={day}>{day}</b>)}</div><div className="calendar-grid">{days.map(({ date, inMonth }) => { const events = feed.items?.filter(event => eventOnDate(event, date)) || []; const jalaliDate = toJalali(date); return <button type="button" className={`calendar-day ${inMonth ? '' : 'other-month'} ${sameDate(date, today) ? 'today' : ''} ${sameDate(date, selected) ? 'selected' : ''}`} key={iso(date)} onClick={() => setSelected(date)}><span className="calendar-day-number">{mode === 'jalali' ? fa(jalaliDate.jd) : fa(date.getDate())}</span><span className="calendar-day-alt">{mode === 'jalali' ? `${date.getMonth() + 1}/${date.getDate()}` : `${fa(jalaliDate.jm)}/${fa(jalaliDate.jd)}`}</span><span className="calendar-event-list">{events.slice(0, 3).map(event => <small className={`event ${event.kind || 'google'} ${event.done ? 'done' : ''}`} key={event.id}>{eventLabel(event)}</small>)}{events.length > 3 && <small className="more-events">+{fa(events.length - 3)} رویداد</small>}</span></button>; })}</div><div className="calendar-legend"><span><i className="task" />کار</span><span><i className="reminder" />یادآوری</span><span><i className="google" />Google</span><span><i className="today-dot" />امروز</span></div></section><aside className="calendar-detail"><h2>{new Intl.DateTimeFormat('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(selected)}</h2><p className="detail-gregorian">{new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(selected)}</p><div className="selected-events">{selectedEvents.length ? selectedEvents.map(event => <div className={`selected-event ${event.kind || 'google'} ${event.done ? 'done' : ''}`} key={event.id}><b>{event.title}</b><small>{event.kind === 'task' ? 'کار' : event.kind === 'reminder' ? 'یادآوری' : event.calendarName || 'Google Calendar'}{event.time ? ` · ${event.time}` : ' · تمام‌روز'}</small>{event.url && <a href={event.url} target="_blank" rel="noreferrer">بازکردن در Google</a>}</div>) : <p className="empty">رویدادی برای این روز ثبت نشده است.</p>}</div><form className="day-note" onSubmit={saveNote}><label htmlFor="calendar-note">یادداشت این روز</label><textarea id="calendar-note" value={note} onChange={event => setNote(event.target.value)} placeholder="قرار، حس‌وحال یا نکته‌ای از این روز…" /><small>{daily?.updatedAt ? 'یادداشت ذخیره‌شده' : 'با حساب LifeOS ذخیره می‌شود'}</small><button className="save">ذخیرهٔ یادداشت</button></form></aside></div></div></main>; }
 function FinanceReact() {
   const [month, setMonth] = useState(() => isoToday().slice(0, 7));
   const [holdAssetType, setHoldAssetType] = useState('crypto');
