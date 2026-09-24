@@ -158,7 +158,15 @@ body:before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;back
 .team-logo-fallback{display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#9fb4cc;font-weight:700}
 
 .reminders{order:5}
+.recap{order:5}
 .daily{order:6;grid-column:span 3}
+
+.recap-spend{margin-bottom:10px;font-size:13px;color:#eaf3ff}
+.recap-spend b{color:#67e8f9}
+.recap-sec{margin-top:10px}
+.recap-sec b{display:block;font-size:12.5px;color:#9fb4cc;margin-bottom:4px}
+.recap .line{cursor:default}
+.line.overdue small{color:#fb7185}
 
 @media(max-width:1100px){
   .nav-toggle{display:grid;place-items:center;width:44px;height:44px;margin-inline-start:auto;flex:none;border:1px solid rgba(125,211,252,.18);background:rgba(255,255,255,.04);color:#e8f1ff;border-radius:12px;cursor:pointer;z-index:52}

@@ -17,7 +17,7 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, ChevronDown, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass
 } from 'lucide-react';
 
 const api = async (url, options) => {
@@ -111,6 +111,7 @@ function App() {
   const [weather, setWeather] = useState(null);
   const [quick, setQuick] = useState({ type: 'task', title: '', amount: '' });
   const [notice, setNotice] = useState('');
+  const [streak, setStreak] = useState(0);
 
   const load = async () => {
     try {
@@ -121,6 +122,16 @@ function App() {
     } catch (error) { setNotice(error.message); }
   };
   useEffect(() => { load(); }, []);
+  const loadStreak = () => {
+    const from = new Date(); from.setDate(from.getDate() - 60);
+    api(`/api/daily?from=${from.toISOString().slice(0, 10)}&to=${today}`).then(d => {
+      const dates = new Set((d.items || []).map(x => x.date));
+      let n = 0, cur = new Date(today + 'T12:00:00');
+      while (dates.has(cur.toISOString().slice(0, 10))) { n++; cur.setDate(cur.getDate() - 1); }
+      setStreak(n);
+    }).catch(() => {});
+  };
+  useEffect(loadStreak, [today]);
   useEffect(() => {
     fetch('https://api.open-meteo.com/v1/forecast?latitude=35.69&longitude=51.39&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FTehran')
       .then(r => r.json()).then(setWeather).catch(() => {});
@@ -135,8 +146,12 @@ function App() {
     const endpoint = quick.type === 'transaction' ? '/api/transactions' : quick.type === 'reminder' ? '/api/reminders' : '/api/tasks';
     try { await api(endpoint, { method: 'POST', body: JSON.stringify(payload) }); setQuick({ type: 'task', title: '', amount: '' }); setNotice('با موفقیت ثبت شد.'); load(); } catch (error) { setNotice(error.message); }
   };
-  const saveDaily = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: today, mood: Number(form.get('mood')), sleep: form.get('sleep'), note: form.get('note') }) }); setNotice('ثبت روزانه ذخیره شد.'); load(); } catch (error) { setNotice(error.message); } };
+  const saveDaily = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: today, mood: Number(form.get('mood')), sleep: form.get('sleep'), note: form.get('note'), bestMoment: form.get('bestMoment'), gratitude: form.get('gratitude'), tomorrowPlan: form.get('tomorrowPlan') }) }); setNotice('ثبت روزانه ذخیره شد.'); loadStreak(); load(); } catch (error) { setNotice(error.message); } };
   const tasks = data.tasks.filter(t => !t.isReminder).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const overdueTasks = tasks.filter(t => !t.done && t.deadline && t.deadline < today);
+  const tomorrowIso = useMemo(() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }, [today]);
+  const dueTomorrowTasks = tasks.filter(t => !t.done && t.deadline === tomorrowIso);
+  const todaySpend = data.transactions.filter(t => t.kind === 'expense').reduce((n, t) => n + (Number(t.amount) || 0), 0);
   const done = tasks.filter(t => t.done).length;
   const weatherIcon = code => code === 0 ? '☀️' : code < 4 ? '⛅' : code < 70 ? '☁️' : '🌧️';
   const page = new URLSearchParams(location.search).get('page');
@@ -163,11 +178,17 @@ function App() {
         <Card className="day-card" title={new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(new Date())}><img className="hero-bg-img" src="/assets/img/mountains-dusk.jpg" alt="" /><div className="hero-bg-fade" /><div className="date-number">{new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(new Date())}</div><h3>{jalali(new Date())}</h3><small>{new Intl.DateTimeFormat('en-GB', { dateStyle: 'long' }).format(new Date())}</small><div className="occasion">▣ رویدادی برای امروز ثبت نشده</div></Card>
       </div>
       <div className="grid content-grid">
-        <Card className="tasks" icon={CheckSquare2} title="کارهای امروز" action={<span className="muted">{fa(done)} از {fa(tasks.length)} انجام شده</span>}><div className="progress"><i style={{ width: `${tasks.length ? done / tasks.length * 100 : 0}%` }} /></div><button className="outline" onClick={() => setQuick({ ...quick, type: 'task' })}>＋ افزودن کار</button><div className="list">{tasks.slice(0, 6).map(task => <button className={`line ${task.done ? 'done' : ''}`} key={task.id} onClick={() => toggleTask(task)}><i>{task.done ? '✓' : ''}</i><span>{task.title}</span><small>{task.startTime || task.date === today ? 'امروز' : task.date}</small></button>)}{!tasks.length && <p className="empty">کارت را با نخستین کار امروزت شروع کن.</p>}</div></Card>
+        <Card className="tasks" icon={CheckSquare2} title="کارهای امروز" action={<span className="muted">{fa(done)} از {fa(tasks.length)} انجام شده</span>}><div className="progress"><i style={{ width: `${tasks.length ? done / tasks.length * 100 : 0}%` }} /></div><button className="outline" onClick={() => setQuick({ ...quick, type: 'task' })}>＋ افزودن کار</button><div className="list">{tasks.slice(0, 6).map(task => { const overdue = !task.done && task.deadline && task.deadline < today; return <button className={`line ${task.done ? 'done' : ''} ${overdue ? 'overdue' : ''}`} key={task.id} onClick={() => toggleTask(task)}><i>{task.done ? '✓' : ''}</i><span>{task.title}</span><small>{overdue ? '⛔ عقب‌افتاده' : task.startTime || task.date === today ? 'امروز' : task.date}</small></button>; })}{!tasks.length && <p className="empty">کارت را با نخستین کار امروزت شروع کن.</p>}</div></Card>
         <Market />
         <Football />
         <Card title="یادآوری‌ها" icon={Bell} className="reminders"><div className="list">{data.reminders.slice(0, 5).map(item => <button className={`line ${item.done ? 'done' : ''}`} key={item.id} onClick={() => toggleReminder(item)}><i>{item.done ? '✓' : '•'}</i><span>{item.title}</span><small>{item.time || 'امروز'}</small></button>)}{!data.reminders.length && <p className="empty">یادآوری‌ای برای امروز نداری.</p>}</div></Card>
-        <Card title="ثبت روزانه" icon={StickyNote} className="daily"><form onSubmit={saveDaily}><label>امروزت چطور بود؟ <input name="mood" type="range" min="1" max="10" defaultValue={data.daily?.mood || 7} /></label><div className="form-row"><input name="sleep" defaultValue={data.daily?.sleep || ''} placeholder="خواب (ساعت)" /><input name="note" defaultValue={data.daily?.note || ''} placeholder="یک جمله از امروز" /></div><button className="save">ذخیرهٔ روز</button></form></Card>
+        <Card title="خلاصهٔ امروز و فردا" icon={Compass} className="recap" action={(overdueTasks.length || dueTomorrowTasks.length) ? <span className="muted">{overdueTasks.length ? `${fa(overdueTasks.length)} عقب‌افتاده` : ''}{overdueTasks.length && dueTomorrowTasks.length ? ' · ' : ''}{dueTomorrowTasks.length ? `${fa(dueTomorrowTasks.length)} برای فردا` : ''}</span> : null}>
+          <div className="recap-spend">💸 خرج امروز: <b>{fa(todaySpend)}</b> ریال</div>
+          {overdueTasks.length ? <div className="recap-sec"><b>⛔ عقب‌افتاده‌ها</b><div className="list">{overdueTasks.slice(0, 5).map(t => <div className="line" key={t.id}><span>{t.title}</span><small>{t.deadline}</small></div>)}</div></div> : null}
+          {dueTomorrowTasks.length ? <div className="recap-sec"><b>📌 سررسید فردا</b><div className="list">{dueTomorrowTasks.slice(0, 5).map(t => <div className="line" key={t.id}><span>{t.title}</span></div>)}</div></div> : null}
+          {!overdueTasks.length && !dueTomorrowTasks.length && <p className="empty">هیچ چیز عقب‌افتاده یا منتظر فردا نیست ✓</p>}
+        </Card>
+        <Card title="ثبت روزانه" icon={StickyNote} className="daily" action={streak > 0 ? <span className="muted"><Flame size={14} style={{ verticalAlign: 'middle' }} /> {fa(streak)} روز</span> : null}><form onSubmit={saveDaily}><label>امروزت چطور بود؟ <input name="mood" type="range" min="1" max="10" defaultValue={data.daily?.mood || 7} /></label><div className="form-row"><input name="sleep" defaultValue={data.daily?.sleep || ''} placeholder="خواب (ساعت)" /><input name="note" defaultValue={data.daily?.note || ''} placeholder="یک جمله از امروز" /></div><div className="form-row"><input name="bestMoment" defaultValue={data.daily?.bestMoment || ''} placeholder="🌟 بهترین لحظهٔ امروز" /><input name="gratitude" defaultValue={data.daily?.gratitude || ''} placeholder="🙏 بابت چی شکرگزاری؟" /></div><input name="tomorrowPlan" defaultValue={data.daily?.tomorrowPlan || ''} placeholder="برنامهٔ فردا" /><button className="save">ذخیرهٔ روز</button></form></Card>
         <Card title="سریال‌های من" icon={Clapperboard} className="series" action={<a href="/?page=series">ادامه تماشا ←</a>}>{data.watchingSeries?.length ? <div className="series-list">{data.watchingSeries.slice(0, 6).map(item => { const denom = item.airedInSeason || item.totalEpisodes || 0, progress = denom ? Math.min(100, Math.round((item.currentEpisode || 0) / denom * 100)) : 0; return <div className="series-item" key={item.id}><div className="series-poster">{item.posterUrl ? <img src={item.posterUrl} alt={item.title} loading="lazy" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'grid'; }} /> : null}<span className="series-fallback" style={{ display: item.posterUrl ? 'none' : 'grid' }}>🎬</span>{progress > 0 && <div className="series-progress"><i style={{ width: `${progress}%` }} /></div>}</div><b>{item.title}</b><small>{item.currentSeason ? `فصل ${fa(item.currentSeason)} · ` : ''}قسمت {fa(item.currentEpisode || 0)}</small></div>; })}</div> : <p className="empty">سریالی در حال تماشا نیست.</p>}</Card>
       </div>
     </div>
