@@ -1286,10 +1286,10 @@ async function main() {
       check('crypto still requires both symbol and price (the dollar shortcut did not loosen it)', cryptoSym.status === 400 && cryptoPrice.status === 400, JSON.stringify([cryptoSym.status, cryptoPrice.status]));
 
       // UI: صفحهٔ مالی (حالا React) باید گزینهٔ دلار داشته باشد و نماد/قیمت را برایش غیرفعال کند
-      const page = fs.readFileSync(path.join(ROOT, 'src/today/src/main.jsx'), 'utf8');
-      check('the React finance page offers 💵 دلار and disables symbol/price for it',
-        page.includes('<option value="dollar">💵 دلار</option>') && page.includes('disabled={isFaceAsset}') && page.includes("if (!isFaceAsset) { body.symbol"),
-        'main.jsx');
+      const page = fs.readFileSync(path.join(ROOT, 'src/today/src/finance.jsx'), 'utf8');
+      check('the React finance page offers دلار and disables symbol/price for it',
+        page.includes('<option value="dollar">دلار</option>') && page.includes('disabled={face}') && page.includes("if (!face) { body.symbol"),
+        'finance.jsx');
 
       // یورو باید همان میان‌بر دلار را داشته باشد: فقط مقدار، بدون نماد/قیمت
       const buyEuro = (body) => fetch(`${BASE}/api/investments/tx`, { method: 'POST', headers: authHeaders, body: JSON.stringify(body) });
@@ -1303,7 +1303,7 @@ async function main() {
       const noEuroQtyBody = await noEuroQty.json();
       check('an empty euro amount is rejected with a euro-specific message', noEuroQty.status === 400 && /یورو/.test(noEuroQtyBody.error || ''), JSON.stringify(noEuroQtyBody));
 
-      check('the React finance page offers 💶 یورو too', page.includes('<option value="euro">💶 یورو</option>'), 'main.jsx');
+      check('the React finance page offers یورو too', page.includes('<option value="euro">یورو</option>'), 'finance.jsx');
     }
 
     /* [49] Google Calendar: OAuth, dedicated LifeOS calendar, two-way managed

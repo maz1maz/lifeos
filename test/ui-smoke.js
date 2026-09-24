@@ -78,9 +78,15 @@ check('shared shell forces one heading font for navigation',
 
 // نسخهٔ قدیمی بازار/فوتبال (چیدمان چهارستونه/دوستونه ثابت) بازنشسته شده؛
 // معادل React‌شون تو main.jsx با endpoint واقعی چک می‌شه (پایین‌تر).
+// از بازطراحی صفحه‌ها به بعد هر صفحه فایل React جدای خودش را دارد
+// (calendar.jsx, finance.jsx, market.jsx, football.jsx, …)؛ main.jsx فقط شِل/روتر است.
 
 const home = read('public/index.html');
 const todaySource = read('src/today/src/main.jsx');
+const calendarSource = read('src/today/src/calendar.jsx');
+const financeSource = read('src/today/src/finance.jsx');
+const marketSource = read('src/today/src/market.jsx');
+const footballSource = read('src/today/src/football.jsx');
 check('today page is the Vite React entry point',
   home.includes('id="root"') && /assets\/index-.*\.js/.test(home));
 check('React today screen keeps the existing Worker task/reminder APIs',
@@ -89,24 +95,23 @@ check('React today screen keeps the existing Worker task/reminder APIs',
 check('React today screen keeps dashboard and daily-log APIs',
   todaySource.includes('`/api/dashboard?date=${today}`') && todaySource.includes("'/api/daily'"));
 check('React calendar uses the real unified feed and selected-day daily endpoint',
-  todaySource.includes('`/api/calendar/feed?from=${range.from}&to=${range.to}`') &&
-  todaySource.includes('`/api/daily?date=${date}`') && todaySource.includes("method: 'PUT'"));
+  calendarSource.includes('/api/calendar/feed?from=') &&
+  calendarSource.includes('/api/daily?date=') && calendarSource.includes("method: 'PUT'"));
 check('React calendar supports Jalali/Gregorian switching and month navigation',
-  todaySource.includes('const switchMode = ()') && todaySource.includes('const moveMonth = direction') &&
-  todaySource.includes('toGregorian(cursor.jy, cursor.jm, 1)'));
+  calendarSource.includes("m === 'jalali' ? 'gregorian' : 'jalali'") && calendarSource.includes('shift('));
 check('React finance keeps the existing finance APIs for budgets, transfers, debts and investments',
-  todaySource.includes("'/api/budgets'") && todaySource.includes("'/api/transfers'") &&
-  todaySource.includes("'/api/debts'") && todaySource.includes("'/api/investments/tx'"));
+  financeSource.includes("'/api/budgets'") && financeSource.includes("'/api/transfers'") &&
+  financeSource.includes("'/api/debts'") && financeSource.includes("'/api/investments/tx'"));
 check('React finance supports transaction editing and bank-import preview before commit',
-  todaySource.includes("'/api/transactions/import-bank/preview'") &&
-  todaySource.includes("'/api/transactions/import-bank/commit'") && todaySource.includes("setEditing({ type: 'transaction', item })"));
+  financeSource.includes("'/api/transactions/import-bank/preview'") &&
+  financeSource.includes("'/api/transactions/import-bank/commit'") && financeSource.includes("setEditing({ type: 'transaction', item })"));
 check('React today route no longer embeds the legacy today iframe',
   !todaySource.includes('title="LifeOS امروز" src="/legacy-today.html"'));
 check('React market page fetches Tehran market and US stock prices',
-  todaySource.includes("'/api/tgju'") && todaySource.includes("'/api/market/stocks'"));
+  marketSource.includes("'/api/tgju'") && marketSource.includes("'/api/market/stocks'"));
 check('React football page fetches real matches for a league',
-  todaySource.includes('/api/football/remote/free/matches?league=') &&
-  todaySource.includes('/api/football/remote/free/standings?league='));
+  footballSource.includes('/api/football/remote/free/matches?league=') &&
+  footballSource.includes('/api/football/remote/free/standings?league='));
 const migratedRoutes = {
   'finance-page.html': 'finance', 'market-page.html': 'market', 'football-page.html': 'football',
   'movies-page.html': 'movies', 'series-page.html': 'series', 'spotify-page.html': 'music',

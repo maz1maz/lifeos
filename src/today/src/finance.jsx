@@ -164,7 +164,7 @@ export function FinanceReact({ Nav }) {
   }
 
   return (
-    <div className="fn" dir="rtl">
+    <div className="fn finance-react" dir="rtl">
       {Nav ? <Nav active="finance" /> : null}
       <div className="fn-page">
         <header className="fn-glass fn-top">
