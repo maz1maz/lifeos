@@ -7,6 +7,7 @@ import { NotesReact } from './notes';
 import { ContactsReact } from './contacts';
 import { DocumentsReact } from './documents';
 import { PlannerReact } from './planner';
+import { MediaReact } from './media';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
@@ -119,7 +120,7 @@ function App() {
   if (page === 'football') return <FootballReact />;
   if (page === 'movies') return <MoviesReact />;
   if (page === 'series') return <SeriesReact />;
-  if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact initialTab={page === 'youtube' ? 'youtube' : 'spotify'} />;
+  if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;
   if (page === 'notes') return <NotesReact Nav={TopNav} />;
   if (page === 'documents') return <DocumentsReact Nav={TopNav} />;
   if (page === 'contacts') return <ContactsReact Nav={TopNav} />;
@@ -756,185 +757,6 @@ function MovieDetail({ item, onClose, flash }) {
       </div>
     </div>
   );
-}
-
-const MEDIA_KIND_LABELS = { track: 'آهنگ', video: 'ویدیو', playlist: 'پلی‌لیست', album: 'آلبوم' };
-const MEDIA_ACCENT = { spotify: '#1DB954', youtube: '#FF0000' };
-function msToClock(ms) { const s = Math.floor((ms || 0) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
-function normMediaItem(provider, kind, raw) {
-  if (provider === 'spotify') {
-    if (kind === 'playlist') return { id: raw.url || raw.name, title: raw.name, subtitle: [raw.owner, raw.tracks != null ? `${fa(raw.tracks)} قطعه` : ''].filter(Boolean).join(' · '), thumb: raw.cover, url: raw.url, kind };
-    if (kind === 'artist') return { id: raw.url || raw.name, title: raw.name, subtitle: (raw.genres || []).join('، '), thumb: raw.cover, url: raw.url, kind };
-    return { id: raw.id || raw.url || raw.name, title: raw.name, subtitle: [raw.artist, raw.album].filter(Boolean).join(' · '), thumb: raw.cover, url: raw.url, kind, artist: raw.artist };
-  }
-  if (kind === 'playlist') return { id: raw.id || raw.url, title: raw.title || raw.name, subtitle: [raw.channelTitle, raw.count != null ? `${fa(raw.count)} ویدیو` : ''].filter(Boolean).join(' · '), thumb: raw.cover || raw.thumb, url: raw.url, kind };
-  return { id: raw.videoId || raw.id || raw.url, title: raw.title, subtitle: raw.channel || raw.channelTitle, thumb: raw.cover || raw.thumb, url: raw.url, kind };
-}
-
-function MediaCard({ item, accent, onLog, logState }) {
-  return <div className="media-card">
-    <div className="media-card-thumb" style={{ background: `${accent}22` }}>
-      {item.thumb ? <img src={item.thumb} alt="" loading="lazy" /> : <span style={{ color: accent }}>{item.kind === 'playlist' ? '≡' : '♪'}</span>}
-    </div>
-    <div className="media-card-body">
-      <div className="media-card-title-row"><span className="media-kind-badge" style={{ background: `${accent}22`, color: accent }}>{MEDIA_KIND_LABELS[item.kind] || item.kind}</span><b>{item.title}</b></div>
-      {item.subtitle && <small>{item.subtitle}</small>}
-    </div>
-    <div className="media-card-actions">
-      {item.url && <a href={item.url} target="_blank" rel="noreferrer">پخش ▶</a>}
-      {onLog && <button onClick={() => onLog(item)} disabled={logState && logState !== 'idle'} style={{ background: logState === 'done' ? '#16a34a' : accent }}>{logState === 'saving' ? '...' : logState === 'done' ? 'ثبت شد ✓' : 'ثبت در LifeOS'}</button>}
-    </div>
-  </div>;
-}
-
-function NowPlayingStrip({ track }) {
-  if (!track) return null;
-  const pct = track.durationMs ? Math.min(100, Math.round((track.progressMs / track.durationMs) * 100)) : 0;
-  return <div className="media-nowplaying">
-    <div className="media-nowplaying-cover" style={{ backgroundImage: track.cover ? `url(${track.cover})` : undefined }} />
-    <div className="media-nowplaying-info">
-      <small>{track.isPlaying ? <><span className="media-live-dot" /> در حال پخش</> : 'آخرین پخش'}</small>
-      <b>{track.name}</b><span>{track.artist}</span>
-      {track.durationMs > 0 && <><div className="media-nowplaying-bar"><i style={{ width: `${pct}%` }} /></div><small>{msToClock(track.progressMs)} / {msToClock(track.durationMs)}</small></>}
-    </div>
-  </div>;
-}
-
-function ArtistRow({ artists }) {
-  if (!artists?.length) return null;
-  return <div className="media-artist-row">
-    {artists.slice(0, 10).map(a => <a key={a.url || a.name} href={a.url} target="_blank" rel="noreferrer" className="media-artist">
-      <div className="media-artist-avatar" style={{ backgroundImage: a.cover ? `url(${a.cover})` : undefined }} />
-      <small>{a.name}</small>
-    </a>)}
-  </div>;
-}
-
-function ProviderPanel({ provider, onSaved }) {
-  const isSpotify = provider === 'spotify';
-  const accent = MEDIA_ACCENT[provider];
-  const label = isSpotify ? 'Spotify' : 'YouTube';
-  const [state, setState] = useState({ recent: [], playlists: [], artists: [], nowPlaying: null, connected: true, message: '' });
-  const [query, setQuery] = useState(''), [results, setResults] = useState(null), [loading, setLoading] = useState(true), [searching, setSearching] = useState(false);
-  const [logStates, setLogStates] = useState({});
-
-  const loadFeed = async () => {
-    setLoading(true);
-    try {
-      if (isSpotify) {
-        const data = await api('/api/integrations/spotify/recent');
-        setState({ recent: (data.items || []).map(x => normMediaItem('spotify', 'track', x)), playlists: (data.playlists || []).map(x => normMediaItem('spotify', 'playlist', x)), artists: data.artists || [], nowPlaying: data.nowPlaying, connected: true, message: '' });
-      } else {
-        const [hist, pls] = await Promise.all([api('/api/integrations/youtube/history'), api('/api/integrations/youtube/playlists').catch(() => ({ items: [] }))]);
-        setState({ recent: (hist.items || []).map(x => normMediaItem('youtube', 'video', x)), playlists: (pls.items || []).map(x => normMediaItem('youtube', 'playlist', x)), artists: [], nowPlaying: null, connected: true, message: '' });
-      }
-    } catch (error) { setState(s => ({ ...s, connected: false, message: error.message })); }
-    setLoading(false);
-  };
-  useEffect(() => { loadFeed(); }, [provider]);
-
-  const search = async event => {
-    event.preventDefault();
-    if (!query.trim()) { setResults(null); return; }
-    setSearching(true);
-    try { const data = await api(`/api/integrations/${provider}/search?q=${encodeURIComponent(query)}`); setResults((data.items || []).map(x => normMediaItem(provider, isSpotify ? 'track' : 'video', x))); }
-    catch (error) { setState(s => ({ ...s, message: error.message })); }
-    setSearching(false);
-  };
-  const disconnect = async () => { try { await api(`/api/integrations/${provider}/disconnect`, { method: 'POST', body: JSON.stringify({}) }); loadFeed(); } catch (error) { setState(s => ({ ...s, message: error.message })); } };
-  const log = async item => {
-    setLogStates(s => ({ ...s, [item.id]: 'saving' }));
-    try {
-      await api('/api/media-log', { method: 'POST', body: JSON.stringify({ source: provider, title: item.title, meta: JSON.stringify({ url: item.url || '', artist: item.artist || item.subtitle || '' }) }) });
-      setLogStates(s => ({ ...s, [item.id]: 'done' })); onSaved?.();
-      setTimeout(() => setLogStates(s => ({ ...s, [item.id]: 'idle' })), 2000);
-    } catch { setLogStates(s => ({ ...s, [item.id]: 'idle' })); }
-  };
-
-  return <div className="media-panel-wrap">
-    <div className="media-provider-head" style={{ background: `linear-gradient(135deg, ${accent}22, transparent)` }}>
-      <div><p style={{ color: accent }}>اتصال و داده‌های واقعی حساب</p><h2>{label}</h2></div>
-      {state.connected ? <button className="media-disconnect" style={{ borderColor: `${accent}55`, color: accent }} onClick={disconnect}>قطع اتصال</button>
-        : <a className="media-connect" style={{ background: accent }} href={`/api/integrations/${provider}/connect`}>اتصال {label}</a>}
-    </div>
-    {!state.connected && state.message && <p className="notice">{state.message}</p>}
-
-    {isSpotify && state.nowPlaying && <NowPlayingStrip track={state.nowPlaying} />}
-    {isSpotify && <ArtistRow artists={state.artists} />}
-
-    <form className="media-search" onSubmit={search}>
-      <input value={query} onChange={e => setQuery(e.target.value)} placeholder={`جستجو در ${label}…`} />
-      <button disabled={searching} style={{ background: accent }}>{searching ? '...' : 'جستجو'}</button>
-    </form>
-
-    {results !== null && (
-      <section className="media-section">
-        <div className="media-section-head"><h3>نتیجهٔ جستجو</h3><button onClick={() => { setResults(null); setQuery(''); }}>بستن ✕</button></div>
-        {results.length === 0 ? <p className="empty">نتیجه‌ای یافت نشد.</p> : results.map(item => <MediaCard key={item.id} item={item} accent={accent} onLog={log} logState={logStates[item.id]} />)}
-      </section>
-    )}
-
-    <div className="media-cols">
-      <section className="media-section"><h3>{isSpotify ? 'اخیراً پخش‌شده' : 'پرطرفدار / اخیر'}</h3>
-        {loading ? <p className="empty">در حال بارگذاری…</p> : state.recent.length ? state.recent.map(item => <MediaCard key={item.id} item={item} accent={accent} onLog={log} logState={logStates[item.id]} />) : <p className="empty">چیزی برای نمایش نیست.</p>}
-      </section>
-      <section className="media-section"><h3>پلی‌لیست‌ها</h3>
-        {loading ? <p className="empty">در حال بارگذاری…</p> : state.playlists.length ? state.playlists.map(item => <MediaCard key={item.id} item={item} accent={accent} />) : <p className="empty">پلی‌لیستی یافت نشد.</p>}
-      </section>
-    </div>
-  </div>;
-}
-
-function LifeLogPanel({ refreshKey }) {
-  const [items, setItems] = useState([]), [filter, setFilter] = useState('all'), [loading, setLoading] = useState(true);
-  const load = () => { setLoading(true); api(`/api/media-log${filter === 'all' ? '' : `?source=${filter}`}`).then(d => setItems(d.items || [])).finally(() => setLoading(false)); };
-  useEffect(() => { load(); }, [filter, refreshKey]);
-  const remove = async itemId => { await api(`/api/media-log/${itemId}`, { method: 'DELETE' }); setItems(prev => prev.filter(x => x.id !== itemId)); };
-  const spotifyCount = items.filter(x => x.source === 'spotify').length, youtubeCount = items.filter(x => x.source === 'youtube').length;
-  return <div className="media-panel-wrap">
-    <div className="media-life-stats">
-      <div style={{ background: 'linear-gradient(135deg,#38bdf822,transparent)' }}><b style={{ color: '#38bdf8' }}>{fa(items.length)}</b><small>کل ثبت‌ها</small></div>
-      <div style={{ background: 'linear-gradient(135deg,#1DB95422,transparent)' }}><b style={{ color: '#1DB954' }}>{fa(spotifyCount)}</b><small>Spotify</small></div>
-      <div style={{ background: 'linear-gradient(135deg,#FF000022,transparent)' }}><b style={{ color: '#FF0000' }}>{fa(youtubeCount)}</b><small>YouTube</small></div>
-    </div>
-    <div className="strk-tabs">{[['all', 'همه'], ['spotify', 'Spotify'], ['youtube', 'YouTube']].map(([k, l]) => <button key={k} className={filter === k ? 'active' : ''} onClick={() => setFilter(k)}>{l}</button>)}</div>
-    <section className="media-section">
-      <h3>تاریخچهٔ شخصی من (LifeOS)</h3>
-      {loading ? <p className="empty">در حال بارگذاری…</p> : items.length === 0 ? <p className="empty">هنوز چیزی ثبت نشده — از تب Spotify یا YouTube روی «ثبت در LifeOS» بزن.</p> : items.map(item => {
-        let meta = {}; try { meta = JSON.parse(item.meta || '{}'); } catch { }
-        const accent = MEDIA_ACCENT[item.source] || '#8aa0b8';
-        return <div className="media-card" key={item.id}>
-          <div className="media-card-thumb" style={{ background: `${accent}22` }}><span style={{ color: accent }}>♪</span></div>
-          <div className="media-card-body"><b>{item.title}</b><small>{[meta.artist, new Date(item.createdAt).toLocaleString('fa-IR')].filter(Boolean).join(' · ')}</small></div>
-          <div className="media-card-actions">
-            {meta.url && <a href={meta.url} target="_blank" rel="noreferrer">باز کردن</a>}
-            <button className="media-remove" onClick={() => remove(item.id)}>حذف</button>
-          </div>
-        </div>;
-      })}
-    </section>
-  </div>;
-}
-
-function MediaReact({ initialTab = 'spotify' }) {
-  const [tab, setTab] = useState(initialTab === 'youtube' ? 'youtube' : 'spotify');
-  const [refreshKey, setRefreshKey] = useState(0);
-  const tabs = [['spotify', '🎵 Spotify', '#1DB954'], ['youtube', '▶ YouTube', '#FF0000'], ['life', '🗂️ تاریخچهٔ من', '#38bdf8']];
-  return <main className="strk" dir="rtl">
-    <TopNav active="media" />
-    <div className="strk-page">
-      <header className="media-hero">
-        <h1>مرکز رسانهٔ شخصی</h1>
-        <p>جستجو، پخش، دیده‌شده، پلی‌لیست و ثبت در تاریخچهٔ شخصی — همه‌چیز یکجا.</p>
-      </header>
-      <div className="strk-tabs media-tabs">
-        {tabs.map(([key, label, color]) => <button key={key} className={tab === key ? 'active' : ''} style={tab === key ? { background: color, borderColor: color, color: '#04101a' } : {}} onClick={() => setTab(key)}>{label}</button>)}
-      </div>
-      {tab === 'spotify' && <ProviderPanel provider="spotify" onSaved={() => setRefreshKey(k => k + 1)} />}
-      {tab === 'youtube' && <ProviderPanel provider="youtube" onSaved={() => setRefreshKey(k => k + 1)} />}
-      {tab === 'life' && <LifeLogPanel refreshKey={refreshKey} />}
-    </div>
-  </main>;
 }
 
 function RecordsReact({ kind }) {
