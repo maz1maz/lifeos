@@ -556,7 +556,27 @@ function parseGambleText(t,base){let kind=gambleKind(t);if(!kind)return null;let
     let past=(pastData.results||pastData.events||[]).map(mapTheSportsDbEvent);
     return[...next,...past]
   }
-  async function fetchFreeLeagueRange(league,fromDate,toDate){let out=[];if(ESPN_LEAGUE_IDS.includes(league.id)){let q='?dates='+fromDate.replace(/-/g,'')+'-'+toDate.replace(/-/g,''),hosts=['https://site.api.espn.com','https://site.web.api.espn.com'];for(let h of hosts){try{let r=await fetch(h+'/apis/site/v2/sports/soccer/'+league.id+'/scoreboard'+q,{headers:ESPN_UA});if(r.ok){let data=await r.json();out=(data.events||[]).map(ev=>mapEspnEvent(ev,league.name));if(out.length)break}}catch(e){}}}if(!out.length){try{let data=await fetchTheSportsDb('/eventsseason.php?id='+league.tsdb+'&s='+league.season);out=(data.events||[]).filter(e=>e.dateEvent>=fromDate&&e.dateEvent<=toDate).map(mapTheSportsDbEvent)}catch(e){}}let v3id=VARZESH3_LEAGUE_IDS[league.id];if(v3id){try{let todayItems=await fetchVarzesh3LeagueDay(v3id,today());if(todayItems.length){let seen=new Set(out.map(m=>normTitle(m.home)+'|'+normTitle(m.away)));todayItems.forEach(m=>{let k=normTitle(m.home)+'|'+normTitle(m.away);if(!seen.has(k))out.push(m);else out=out.map(x=>(normTitle(x.home)+'|'+normTitle(x.away))===k?m:x)})}}catch(e){}}if(out.filter(m=>m.status!=='finished').length<2||out.filter(m=>m.status==='finished').length<2){try{let extra=await fetchTheSportsDbNextPast(league.tsdb);let seen=new Set(out.map(m=>m.fixtureId));extra.forEach(m=>{if(!seen.has(m.fixtureId)){out.push(m);seen.add(m.fixtureId)}})}catch(e){}}return out.sort((a,b)=>String(a.date).localeCompare(String(b.date)))}
+  // دامنهٔ سی‌ویک‌روزه یک‌جا برای اسکوربرد ESPN خیلی بزرگه و معمولاً خالی برمی‌گرده؛
+  // تکه‌تکه‌کردنش به بازه‌های هفتگی (همون چیزی که خودِ سایت ESPN هم نشون می‌ده) واقعاً جواب می‌ده.
+  async function fetchEspnScoreboardRange(espnCode,fromDate,toDate){
+    let chunks=[],cur=new Date(fromDate+'T00:00:00Z'),end=new Date(toDate+'T00:00:00Z');
+    while(cur<=end){
+      let chunkEnd=new Date(cur);chunkEnd.setUTCDate(chunkEnd.getUTCDate()+6);
+      if(chunkEnd>end)chunkEnd=new Date(end);
+      chunks.push([cur.toISOString().slice(0,10),chunkEnd.toISOString().slice(0,10)]);
+      cur=new Date(cur);cur.setUTCDate(cur.getUTCDate()+7);
+    }
+    let hosts=['https://site.api.espn.com','https://site.web.api.espn.com'];
+    let results=await Promise.all(chunks.map(async([a,b])=>{
+      let q='?dates='+a.replace(/-/g,'')+'-'+b.replace(/-/g,'');
+      for(let h of hosts){
+        try{let r=await fetch(h+'/apis/site/v2/sports/soccer/'+espnCode+'/scoreboard'+q,{headers:ESPN_UA});if(r.ok){let data=await r.json();if((data.events||[]).length)return data.events}}catch(e){}
+      }
+      return[]
+    }));
+    return results.flat()
+  }
+  async function fetchFreeLeagueRange(league,fromDate,toDate){let out=[];if(ESPN_LEAGUE_IDS.includes(league.id)){try{let events=await fetchEspnScoreboardRange(league.id,fromDate,toDate);out=events.map(ev=>mapEspnEvent(ev,league.name))}catch(e){}}if(!out.length){try{let data=await fetchTheSportsDb('/eventsseason.php?id='+league.tsdb+'&s='+league.season);out=(data.events||[]).filter(e=>e.dateEvent>=fromDate&&e.dateEvent<=toDate).map(mapTheSportsDbEvent)}catch(e){}}let v3id=VARZESH3_LEAGUE_IDS[league.id];if(v3id){try{let todayItems=await fetchVarzesh3LeagueDay(v3id,today());if(todayItems.length){let seen=new Set(out.map(m=>normTitle(m.home)+'|'+normTitle(m.away)));todayItems.forEach(m=>{let k=normTitle(m.home)+'|'+normTitle(m.away);if(!seen.has(k))out.push(m);else out=out.map(x=>(normTitle(x.home)+'|'+normTitle(x.away))===k?m:x)})}}catch(e){}}if(out.filter(m=>m.status!=='finished').length<2||out.filter(m=>m.status==='finished').length<2){try{let extra=await fetchTheSportsDbNextPast(league.tsdb);let seen=new Set(out.map(m=>m.fixtureId));extra.forEach(m=>{if(!seen.has(m.fixtureId)){out.push(m);seen.add(m.fixtureId)}})}catch(e){}}return out.sort((a,b)=>String(a.date).localeCompare(String(b.date)))}
   async function fetchFreeLeagueDay(league,date){let v3id=VARZESH3_LEAGUE_IDS[league.id];if(v3id){try{let items=await fetchVarzesh3LeagueDay(v3id,date);if(items.length)return items}catch(e){}}if(ESPN_LEAGUE_IDS.includes(league.id)){try{let data=await fetchEspnScoreboard(league.id,date);let items=(data.events||[]).map(ev=>mapEspnEvent(ev,league.name));if(items.length)return items}catch(e){}}let data=await fetchTheSportsDb('/eventsseason.php?id='+league.tsdb+'&s='+league.season);return(data.events||[]).filter(e=>e.dateEvent===date).map(mapTheSportsDbEvent)}
   async function fetchTheSportsDb(path){let r=await fetch('https://www.thesportsdb.com/api/v1/json/123'+path,{headers:BROWSER_UA}),data=await r.json();if(!r.ok)throw new Error('HTTP '+r.status);return data}
   function mapEspnEvent(ev,leagueName){let comp=(ev.competitions&&ev.competitions[0])||{},home=(comp.competitors||[]).find(c=>c.homeAway==='home')||{},away=(comp.competitors||[]).find(c=>c.homeAway==='away')||{},state=comp.status&&comp.status.type&&comp.status.type.state,statusMap={pre:'upcoming',in:'live',post:'finished'};return{fixtureId:ev.id,home:(home.team&&home.team.displayName)||'',away:(away.team&&away.team.displayName)||'',homeLogo:(home.team&&home.team.logo)||null,awayLogo:(away.team&&away.team.logo)||null,league:leagueName||'',date:ev.date,status:statusMap[state]||state||'upcoming',score:(home.score??'-')+' - '+(away.score??'-')}}
