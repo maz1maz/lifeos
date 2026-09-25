@@ -28,11 +28,11 @@
 .hero p{margin:0 0 16px;color:var(--g-muted);font-size:14.5px;line-height:1.9;max-width:760px}
 .hero .quick{background:rgba(0,0,0,.18)}
 
-.home-top{grid-template-columns:1.05fr 1.2fr .9fr}
+.home-top{grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}
+.home-top>.card{height:100%;min-height:420px}
 .home-grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}
 .home-grid>.card{order:initial}
-.agenda{grid-row:span 2}
-.daily{grid-column:span 2}
+.daily{grid-column:span 1}
 .series{grid-column:span 1}
 .daily .form-row{flex-wrap:wrap}
 .daily .form-row input{flex:1 1 200px;min-width:0}
@@ -43,12 +43,13 @@
 /* day card */
 .day-card{min-height:300px;display:flex;flex-direction:column}
 .day-card .hero-bg-img{animation:photoIn .8s ease}
-.day-card .hero-bg-fade{background:linear-gradient(180deg,rgba(6,10,14,.15),rgba(6,10,14,.35) 45%,rgba(6,10,14,.85))}
-.day-card header h2,.day-card>*{text-shadow:0 1px 8px rgba(0,0,0,.45)}
+.day-card .hero-bg-fade{background:linear-gradient(180deg,rgba(6,10,14,.55),rgba(6,10,14,.2) 30%,rgba(6,10,14,.35) 55%,rgba(6,10,14,.9))}
+.day-card small{color:rgba(255,255,255,.85)}
+.day-card header h2,.day-card>*{text-shadow:0 1px 3px rgba(0,0,0,.7),0 2px 14px rgba(0,0,0,.55)}
 .day-card .date-number{font-size:84px;margin-top:4px}
 .day-card .occasion{margin-top:auto;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);display:grid;gap:4px;font-size:13px}
 .day-card .occasion .is-holiday{color:#fca5a5}
-.holiday-tag{margin-inline-start:auto;font-size:11.5px;padding:3px 10px;border-radius:999px;background:rgba(248,113,113,.18);color:#fca5a5;border:1px solid rgba(248,113,113,.4)}
+.holiday-tag{margin-inline-start:auto;font-size:12px;font-weight:700;padding:4px 11px;border-radius:999px;background:#dc2626;color:#fff;text-shadow:none;box-shadow:0 2px 10px rgba(0,0,0,.35)}
 @keyframes photoIn{from{opacity:0;transform:scale(1.03)}to{opacity:1;transform:none}}
 
 /* weather */
@@ -115,9 +116,9 @@
 @media(max-width:1100px){
   .home-top{grid-template-columns:1fr 1fr}
   .home-top .calendar{grid-column:span 2}
+  .home-top>.card{min-height:0}
   .home-grid{grid-template-columns:1fr 1fr}
-  .agenda{grid-row:auto;grid-column:span 2}
-  .series,.daily{grid-column:span 2}
+  .agenda{grid-column:span 2}
 }
 @media(max-width:650px){
   .topbar .nav-current{display:none}
@@ -133,3 +134,80 @@
   .ring{margin:auto}
 }
 @media (prefers-reduced-motion:reduce){.drawer,.day-card .hero-bg-img,.nav-scrim{transition:none;animation:none}}
+
+/* ===== v3 ===== */
+.unit-note{display:block;margin:-6px 0 6px;font-size:11px;color:var(--g-faint)}
+/* name edit */
+.hero h1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.name-btn{border:1px solid transparent;background:transparent;color:var(--g-faint);border-radius:8px;width:32px;height:32px;display:grid;place-items:center;cursor:pointer;opacity:.6}
+.hero h1:hover .name-btn,.name-btn:focus-visible{opacity:1;border-color:var(--g-border-2);color:var(--g-accent-strong)}
+.name-edit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0 6px}
+.name-edit h1{margin:0}
+.name-edit input{font-size:20px;background:rgba(255,255,255,.04);border:1px solid var(--g-accent);border-radius:var(--g-radius-control);color:var(--g-text);padding:8px 12px;width:220px}
+.name-edit .save,.name-edit .outline{padding:9px 16px}
+/* quick add with date */
+.hero .quick{flex-wrap:wrap;position:relative}
+.hero .quick .quick-title{flex:1 1 260px}
+.quick-time{flex:none;width:118px;background:rgba(255,255,255,.03);border:1px solid var(--g-border);border-radius:var(--g-radius-control);color:var(--g-text);padding:10px;color-scheme:dark}
+.quick-when{display:flex;gap:4px;position:relative}
+.quick-when button{display:flex;align-items:center;gap:5px;background:var(--g-panel-2);border:1px solid var(--g-border);color:var(--g-muted);padding:8px 12px;border-radius:999px;font-size:13px;white-space:nowrap;cursor:pointer}
+.quick-when button:hover{color:var(--g-text);border-color:var(--g-border-2)}
+.quick-when .selected{background:var(--g-accent-soft);border-color:var(--g-accent);color:var(--g-accent-strong)}
+.jpicker{position:absolute;top:calc(100% + 8px);inset-inline-start:0;z-index:30;width:272px;padding:12px;border-radius:16px;background:var(--g-panel);border:1px solid var(--g-border-2);box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.jp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.jp-head button{background:transparent;border:1px solid var(--g-border);color:var(--g-text);border-radius:8px;width:30px;height:30px;display:grid;place-items:center;cursor:pointer}
+.jp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+.jp-grid small{font-size:11px;padding:4px 0}
+.jp-grid button{height:32px;border:0;border-radius:8px;background:transparent;color:var(--g-text);cursor:pointer;font-size:13px}
+.jp-grid button:hover:not(:disabled){background:var(--g-accent-soft)}
+.jp-grid button:disabled{opacity:.3;cursor:default}
+.jp-grid .is-fri{color:var(--g-bad)}
+.jp-grid .is-today{box-shadow:inset 0 0 0 1px var(--g-accent)}
+.jp-grid .is-sel{background:var(--g-accent);color:var(--g-accent-fg);font-weight:800}
+/* live calendar */
+.live-cal{display:flex;flex-direction:column}
+.lc-nav{margin-inline-start:auto;display:flex;gap:4px;align-items:center}
+.lc-nav button{height:28px;min-width:28px;display:grid;place-items:center;border:1px solid var(--g-border);background:rgba(255,255,255,.03);color:var(--g-text);border-radius:8px;cursor:pointer;font-size:12px;padding:0 8px}
+.lc-nav button:hover{border-color:var(--g-accent);color:var(--g-accent-strong)}
+.lc-nav .lc-today{color:var(--g-accent-strong)}
+.live-cal .calendar-days button{position:relative;border:0;background:transparent;color:var(--g-text);font:inherit;font-size:13px;height:34px;border-radius:10px;cursor:pointer;transition:background var(--g-motion) var(--g-motion-ease)}
+.live-cal .calendar-days button:hover{background:rgba(255,255,255,.06)}
+.live-cal .calendar-days .holiday{color:var(--g-bad)}
+
+.live-cal .calendar-days .sel{box-shadow:inset 0 0 0 1px var(--g-accent-strong)}
+.live-cal .calendar-days .today{background:var(--g-accent);color:var(--g-accent-fg);font-weight:800}
+.live-cal .dot{position:absolute;bottom:3px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--g-accent-strong)}
+.live-cal .today .dot{background:var(--g-accent-fg)}
+.lc-day{margin-top:12px;padding-top:12px;border-top:1px dashed var(--g-border);flex:1;display:flex;flex-direction:column;min-height:0}
+.lc-day-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.lc-day-head b{font-size:13.5px}
+.lc-day-head a{font-size:12px;color:var(--g-accent-strong);text-decoration:none}
+.lc-occ{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;font-size:12px;color:var(--g-muted)}
+.lc-occ .is-holiday{color:var(--g-bad)}
+.live-cal .timeline{gap:4px}
+.live-cal .tl-item{padding:7px 10px}
+.live-cal .tl-item span{font-size:13px}
+.tl-item.done span{text-decoration:line-through;color:var(--g-muted)}
+/* football v3 */
+.football .score-tabs{flex-wrap:wrap;gap:5px}
+.football .score-tabs button{cursor:pointer;font:inherit;font-size:11px;background:var(--g-panel-2);border:1px solid var(--g-border);border-radius:999px;padding:5px 10px;color:var(--g-muted)}
+.football .score-tabs .on{background:var(--g-accent);color:var(--g-accent-fg);border-color:transparent;font-weight:700}
+.football .score-tabs .fav-toggle{display:inline-flex;align-items:center;gap:4px;margin-inline-start:auto}
+.football .score-tabs .fav-toggle.on{background:var(--g-accent-soft);color:var(--g-accent-strong);border-color:var(--g-accent)}
+.score-row{grid-template-columns:62px 1fr 47px 1fr}
+.score-row .team button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:3px;text-align:inherit}
+.score-row .team button:hover{color:var(--g-accent-strong)}
+.score-row .team.fav button{color:var(--g-accent-strong);font-weight:700}
+.score-row.is-fav{background:var(--g-accent-soft)}
+.football .hint{display:block;margin-top:8px;font-size:11px;color:var(--g-faint)}
+@media(max-width:650px){
+  .hero .quick .save{order:5}
+  .quick-when{flex-wrap:wrap}
+  .quick-time{width:auto;flex:1}
+  .jpicker{inset-inline-start:auto;inset-inline-end:0}
+  .home-top>.card{min-height:0}
+}
+
+.hero .quick .quick-time{flex:0 0 124px;min-width:0}
+.live-cal .calendar-days button{width:100%;max-width:42px;justify-self:center}
+.plnr-drawer-backdrop{color:var(--g-text)}

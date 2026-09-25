@@ -117,10 +117,11 @@ function marketHours(now) {
   return { tehran, us }
 }
 
-function tomanRate(dollarPrice) {
+// TGJU free-market dollar is in rial; older feeds sent toman — normalise to rial.
+function rialRate(dollarPrice) {
   const n = Number(dollarPrice) || 0
   if (!n) return 0
-  return n > 200000 ? n / 10 : n
+  return n > 200000 ? n : n * 10
 }
 
 export function MarketReact({ Nav }) {
@@ -217,7 +218,7 @@ export function MarketReact({ Nav }) {
 
   useEffect(() => { loadTehran(); loadCrypto() }, [loadTehran, loadCrypto])
 
-  const usdToman = useMemo(() => tomanRate(tehran.find((x) => x.key === 'price_dollar_rl')?.price), [tehran])
+  const usdRial = useMemo(() => rialRate(tehran.find((x) => x.key === 'price_dollar_rl')?.price), [tehran])
   const hours = marketHours(new Date())
 
   const withSpark = (list) => list.map((x) => x.market === 'tehran' && hist[x.key]?.length ? { ...x, sparkline: hist[x.key] } : x)
@@ -268,12 +269,12 @@ export function MarketReact({ Nav }) {
   }
 
   const convOut = useMemo(() => {
-    if (!usdToman) return 0
-    if (convFrom === 'USDT') return convAmt * usdToman
+    if (!usdRial) return 0
+    if (convFrom === 'USDT') return convAmt * usdRial
     const coin = crypto.find((c) => c.symbol === convFrom)
-    if (coin?.price) return convAmt * coin.price * usdToman
+    if (coin?.price) return convAmt * coin.price * usdRial
     return 0
-  }, [convAmt, convFrom, crypto, usdToman])
+  }, [convAmt, convFrom, crypto, usdRial])
 
   const summaries = [
     tehran.find((x) => x.key === 'price_dollar_rl'),
@@ -374,7 +375,7 @@ export function MarketReact({ Nav }) {
             <div className="mk-empty">{tab === 'favorites' ? 'ستاره بزنید تا اینجا جمع شود.' : tab === 'us' ? 'سهام نیامد — کلید سرویس باید فعال باشد.' : tab === 'crypto' ? 'رمزارزی دریافت نشد.' : 'داده‌ای برای این دسته نیست.'}</div>
           ) : shown.map((item) => {
             const up = (item.change || 0) >= 0
-            const toman = item.market === 'crypto' && usdToman && item.price ? fa(Math.round(item.price * usdToman)) : ''
+            const rialEq = (item.market === 'crypto' || item.category === 'global') && usdRial && item.price ? fa(Math.round(item.price * usdRial)) : ''
             return (
               <article key={item.id} className="mk-row">
                 <div className="mk-name">
@@ -384,12 +385,12 @@ export function MarketReact({ Nav }) {
                   {item.image ? <img src={item.image} alt="" /> : <span className="mk-ico">{item.icon || '📈'}</span>}
                   <div>
                     <b>{item.name} {item.symbol ? <small>({item.symbol})</small> : null}</b>
-                    {toman ? <small>{toman} تومان</small> : null}
+                    {rialEq ? <small>≈ {rialEq} ریال</small> : null}
                   </div>
                 </div>
                 <div className="mk-price">
                   {priceLabel(item)}
-                  {item.market === 'tehran' ? <small>واحد بازار</small> : null}
+                  {item.market === 'tehran' ? <small>{item.category === 'global' ? 'دلار' : 'ریال'}</small> : null}
                 </div>
                 <Sparkline data={item.sparkline} up={up} uid={item.id} />
                 <div className="mk-row-ops">
@@ -431,8 +432,8 @@ export function MarketReact({ Nav }) {
               {crypto.filter((c) => c.symbol !== 'USDT').map((c) => <option key={c.id} value={c.symbol}>{c.name} ({c.symbol})</option>)}
             </select>
             <div className="mk-conv-out">
-              <small>معادل تومان با دلار آزاد LifeOS</small>
-              <b>{usdToman ? fa(Math.round(convOut)) : '—'} <em style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'normal' }}>تومان</em></b>
+              <small>معادل ریالی با دلار آزاد LifeOS</small>
+              <b>{usdRial ? fa(Math.round(convOut)) : '—'} <em style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'normal' }}>ریال</em></b>
             </div>
           </div>
         </div>

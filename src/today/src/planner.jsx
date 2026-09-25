@@ -68,7 +68,7 @@ function TaskCard({ task, index, reminder, onToggle, onEdit, onDelete }) {
   );
 }
 
-function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
+export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
   const today = isoToday();
   const empty = { title: '', notes: '', date: today, startTime: kind === 'reminder' ? '08:30' : '09:00', priority: 'medium', recurrence: '', tags: '', reminderOn: kind === 'reminder', reminderDate: today, reminderTime: kind === 'reminder' ? '08:30' : '', loose: false };
   const [form, setForm] = useState(empty);
@@ -152,6 +152,18 @@ function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
       </form>
     </div>
   );
+}
+
+// Create a new task or reminder from TaskDrawer's body (used by the Today page too).
+export async function createPlannerItem(kind, body) {
+  const today = isoToday();
+  if (kind === 'reminder') {
+    return api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence }) });
+  }
+  const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
+  const saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+  if (body.reminderOn && body.reminderDate) await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id }) });
+  return saved;
 }
 
 export function PlannerReact({ Nav }) {

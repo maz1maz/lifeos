@@ -36,7 +36,7 @@
 .record-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap}.records-react .planner-list article{align-items:start}.integration-list article{grid-template-columns:1fr auto auto}
 .market-select{border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:0;text-align:start}.market-select:hover{color:var(--g-accent-strong)}.history-strip{height:130px;display:flex;align-items:end;gap:3px;padding:12px;background:var(--g-panel-2);border:1px solid var(--g-border);border-radius:var(--g-radius-control)}.history-strip span{flex:1;background:var(--g-accent);border-radius:3px 3px 0 0;min-width:3px}.media-search{display:flex;gap:8px;margin:16px 0}.media-search input{flex:1}
 
-.plnr {
+.plnr, .plnr-drawer-backdrop {
   --night-950: var(--g-bg);
   --night-900: var(--g-bg);
   --night-850: var(--g-panel);
@@ -53,6 +53,8 @@
   --fog-500: var(--g-faint);
   --teal: var(--g-accent);
   --teal-d: var(--g-accent-strong);
+}
+.plnr {
   min-height: 100vh;
   color: var(--fog-100);
   background-color: var(--night-950);
