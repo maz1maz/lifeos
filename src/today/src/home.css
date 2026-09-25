@@ -211,3 +211,63 @@
 .hero .quick .quick-time{flex:0 0 124px;min-width:0}
 .live-cal .calendar-days button{width:100%;max-width:42px;justify-self:center}
 .plnr-drawer-backdrop{color:var(--g-text)}
+
+/* ===== v5: wider page, fixed first row, weather scenes ===== */
+.page.home{max-width:min(1880px,100%);padding-inline:clamp(12px,2vw,32px)}
+.home-top>.card{min-height:0;height:430px}
+.home-top .weather{overflow:hidden}
+.lc-foot{margin-top:auto;padding-top:10px;border-top:1px dashed var(--g-border);display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;color:var(--g-muted)}
+.lc-foot a{color:var(--g-accent-strong);text-decoration:none;white-space:nowrap}
+.live-cal .calendar-days{flex:1;align-content:space-evenly}
+
+.wx-scene{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;transition:background 1s}
+.wx-scene i,.wx-scene b{position:absolute;display:block}
+.wx-clear-day{background:linear-gradient(180deg,#1f6fb8 0%,#3f93d6 45%,#7cb9e6 100%)}
+.wx-partly-day{background:linear-gradient(180deg,#2a6aa3 0%,#5a95c7 55%,#94bfe0 100%)}
+.wx-cloudy{background:linear-gradient(180deg,#4b5563 0%,#6b7280 55%,#9ca3af 100%)}
+.wx-golden{background:linear-gradient(180deg,#2b2d5c 0%,#9b4d6b 45%,#f08a4b 80%,#f7c26b 100%)}
+.wx-clear-night,.wx-partly-night{background:linear-gradient(180deg,#050b1f 0%,#0d1b3d 55%,#1d2f5c 100%)}
+.wx-cloudy-night{background:linear-gradient(180deg,#0f1420 0%,#1f2633 60%,#2f3746 100%)}
+.wx-fog{background:linear-gradient(180deg,#5b6470 0%,#8a929c 60%,#b4bac1 100%)}
+.wx-rain{background:linear-gradient(180deg,#1f2a36 0%,#2f3c4b 55%,#46546a 100%)}
+.wx-storm{background:linear-gradient(180deg,#0b0f17 0%,#1a2130 60%,#2a3243 100%)}
+.wx-snow{background:linear-gradient(180deg,#6b7c93 0%,#9aa9bd 60%,#cfd8e3 100%)}
+.wx-sun{top:-60px;left:-40px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,#fff7c2 0%,#ffd76a 22%,rgba(255,200,80,.35) 45%,rgba(255,200,80,0) 70%);animation:wxPulse 6s ease-in-out infinite}
+.wx-golden .wx-sun{top:auto;bottom:-110px;left:30%;background:radial-gradient(circle,#fff0c0 0%,#ffb35c 25%,rgba(255,140,60,.35) 50%,rgba(255,140,60,0) 72%)}
+.wx-moon{top:28px;left:34px;width:54px;height:54px;border-radius:50%;background:#f4f1de;box-shadow:0 0 40px 10px rgba(244,241,222,.25),inset -12px -6px 0 0 #d9d3b8}
+.wx-stars{inset:0;background-image:radial-gradient(1.2px 1.2px at 12% 18%,#fff,transparent),radial-gradient(1px 1px at 28% 42%,#fff,transparent),radial-gradient(1.4px 1.4px at 46% 12%,#fff,transparent),radial-gradient(1px 1px at 63% 33%,#fff,transparent),radial-gradient(1.2px 1.2px at 78% 20%,#fff,transparent),radial-gradient(1px 1px at 88% 48%,#fff,transparent),radial-gradient(1px 1px at 35% 70%,#fff,transparent),radial-gradient(1.3px 1.3px at 70% 64%,#fff,transparent),radial-gradient(1px 1px at 18% 58%,#fff,transparent),radial-gradient(1px 1px at 55% 55%,#fff,transparent);opacity:.8;animation:wxTwinkle 4s ease-in-out infinite alternate}
+.wx-cloud{width:260px;height:80px;border-radius:80px;background:rgba(255,255,255,.55);filter:blur(14px)}
+.wx-cloudy .wx-cloud,.wx-rain .wx-cloud,.wx-storm .wx-cloud{background:rgba(210,215,225,.45)}
+.wx-cloudy-night .wx-cloud,.wx-partly-night .wx-cloud,.wx-storm .wx-cloud{background:rgba(120,130,150,.35)}
+.wx-cloud.c1{top:40px;left:-60px;animation:wxDrift 40s linear infinite}
+.wx-cloud.c2{top:120px;left:40%;width:320px;opacity:.8;animation:wxDrift 55s linear infinite reverse}
+.wx-cloud.c3{top:10px;left:65%;width:200px;opacity:.7;animation:wxDrift 70s linear infinite}
+.wx-partly-day .wx-cloud,.wx-partly-night .wx-cloud{opacity:.55}
+.wx-fog i.wx-fog{left:-20%;width:140%;height:90px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);filter:blur(10px)}
+.wx-fog .f1{top:35%;animation:wxDrift 25s linear infinite}
+.wx-fog .f2{top:62%;animation:wxDrift 35s linear infinite reverse}
+.wx-rain b{top:-20px;width:1.5px;height:18px;background:linear-gradient(transparent,rgba(210,225,255,.75));animation:wxFall linear infinite}
+.wx-snow b{top:-10px;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.9);animation:wxSnow linear infinite}
+.wx-snow>div,.wx-rain>div{position:absolute;inset:0}
+.wx-flash{inset:0;background:rgba(220,230,255,.9);opacity:0;animation:wxFlash 7s infinite}
+.wx-fade{inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.15) 50%,rgba(0,0,0,.55))}
+@keyframes wxPulse{50%{transform:scale(1.06)}}
+@keyframes wxTwinkle{to{opacity:.45}}
+@keyframes wxDrift{from{transform:translateX(-30px)}to{transform:translateX(30px)}}
+@keyframes wxFall{to{transform:translate(-20px,480px)}}
+@keyframes wxSnow{to{transform:translate(20px,480px)}}
+@keyframes wxFlash{0%,90%,94%,100%{opacity:0}91%,93%{opacity:.55}}
+.weather .weather-grid div,.weather .forecast,.weather .aqi{background:rgba(0,0,0,.28);backdrop-filter:blur(4px)}
+@media (prefers-reduced-motion:reduce){.wx-scene *{animation:none!important}}
+@media(max-width:1100px){.home-top>.card{height:auto;min-height:0}}
+.page.home{max-width:none}
+.home-top>.card{height:468px}
+.weather .weather-now{gap:10px}
+.weather .hourly{margin-top:8px}
+.weather .weather-grid{margin-top:8px;gap:5px}
+.weather .weather-grid div{padding:5px 9px}
+.weather .forecast{margin-top:8px;padding:7px 10px}
+.weather{text-shadow:0 1px 3px rgba(0,0,0,.45)}
+.weather small,.weather .wn-meta span{color:rgba(255,255,255,.82)}
+.wx-cloudy .wx-fade,.wx-fog .wx-fade,.wx-snow .wx-fade,.wx-partly-day .wx-fade,.wx-clear-day .wx-fade{background:linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.22) 50%,rgba(0,0,0,.55))}
+.weather .hourly-labels{color:rgba(255,255,255,.7)}

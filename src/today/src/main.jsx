@@ -1133,7 +1133,6 @@ function JalaliPicker({ value, today, onPick, onClose }) {
 function LiveCalendar({ today }) {
   const t = toJalali(fromIso(today));
   const [ym, setYm] = useState({ jy: t.jy, jm: t.jm });
-  const [selected, setSelected] = useState(today);
   const [items, setItems] = useState([]);
   const [events, setEvents] = useState({});
   const [note, setNote] = useState('');
@@ -1146,25 +1145,19 @@ function LiveCalendar({ today }) {
     return () => { live = false; };
   }, [from, to]);
   const shift = n => setYm(({ jy, jm }) => { const m = jm + n; return m < 1 ? { jy: jy - 1, jm: 12 } : m > 12 ? { jy: jy + 1, jm: 1 } : { jy, jm: m }; });
-  const goToday = () => { setYm({ jy: t.jy, jm: t.jm }); setSelected(today); };
-  const dayItems = d => items.filter(ev => eventOnDate(ev, d));
-  const sel = fromIso(selected), selJ = toJalali(sel);
-  const selEvents = [...dayItems(sel)].sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
-  const occasions = (events[jKey(selJ.jy, selJ.jm, selJ.jd)] || []);
+  const goToday = () => setYm({ jy: t.jy, jm: t.jm });
+  // Untimed tasks/reminders live in the tasks card — the calendar marks timed items and external events only.
+  const dayItems = d => items.filter(ev => (ev.source !== 'lifeos' || ev.time) && eventOnDate(ev, d));
+  const todayCount = dayItems(fromIso(today)).length;
   const nowHm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
-  const next = selected === today ? selEvents.find(ev => ev.time && ev.time >= nowHm && !ev.done) : null;
-  return <Card className="calendar live-cal" icon={CalendarDays} title={`${JALALI_MONTHS[ym.jm - 1]} ${faDigits(ym.jy)}`} action={<div className="lc-nav"><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={15} /></button>{(ym.jy !== t.jy || ym.jm !== t.jm || selected !== today) && <button type="button" className="lc-today" onClick={goToday}>امروز</button>}<button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={15} /></button></div>}>
+  return <Card className="calendar live-cal" icon={CalendarDays} title={`${JALALI_MONTHS[ym.jm - 1]} ${faDigits(ym.jy)}`} action={<div className="lc-nav"><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={15} /></button>{(ym.jy !== t.jy || ym.jm !== t.jm) && <button type="button" className="lc-today" onClick={goToday}>امروز</button>}<button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={15} /></button></div>}>
     <div className="weekdays">{WEEKDAYS.map(x => <span key={x}>{x}</span>)}</div>
     <div className="calendar-days">{[...Array(lead)].map((_, i) => <span key={`blank${i}`} />)}{days.map((day, i) => {
       const v = iso(day), evs = events[jKey(ym.jy, ym.jm, i + 1)] || [], holiday = weekdayIndex(day) === 6 || evs.some(e => e.h), n = dayItems(day).length;
-      return <button type="button" key={v} title={evs.map(e => e.t.replace(/\[.*?\]/g, '').trim()).join('\n')} className={`${v === today ? 'today' : ''} ${v === selected ? 'sel' : ''} ${holiday ? 'holiday' : ''} ${evs.length ? 'has-occ' : ''}`} onClick={() => setSelected(v)}>{faDigits(i + 1)}{n > 0 && <i className="dot" />}</button>;
+      const tip = [...evs.map(e => e.t.replace(/\[.*?\]/g, '').trim()), ...dayItems(day).map(ev => `${ev.time ? faDigits(ev.time) + ' · ' : ''}${ev.title}`)].join('\n');
+      return <button type="button" key={v} title={tip} className={`${v === today ? 'today' : ''} ${holiday ? 'holiday' : ''}`} onClick={() => { location.href = '/?page=calendar'; }}>{faDigits(i + 1)}{n > 0 && <i className="dot" />}</button>;
     })}</div>
-    <div className="lc-day">
-      <div className="lc-day-head"><b>{selected === today ? 'برنامه‌های امروز' : `${faDigits(selJ.jd)} ${JALALI_MONTHS[selJ.jm - 1]}`}</b><a href="/?page=calendar">تقویم کامل ←</a></div>
-      {occasions.length > 0 && <div className="lc-occ">{occasions.slice(0, 2).map((e, i) => <span key={i} className={e.h ? 'is-holiday' : ''}>{e.t.replace(/\[.*?\]/g, '').trim()}</span>)}</div>}
-      {selEvents.length ? <div className="timeline">{selEvents.slice(0, 5).map(ev => <div className={`tl-item ${ev === next ? 'next' : ''} ${selected === today && ev.time && ev.time < nowHm ? 'past' : ''} ${ev.done ? 'done' : ''}`} key={ev.id}><b>{ev.time ? faDigits(ev.time) : 'تمام روز'}</b><div><span>{ev.title}</span><small>{ev.source === 'lifeos' ? (ev.kind === 'reminder' ? 'یادآوری' : 'کار') : 'Google Calendar'}</small></div></div>)}{selEvents.length > 5 && <small className="muted">و {fa(selEvents.length - 5)} مورد دیگر</small>}</div>
-        : <p className="empty">{note || 'برنامه‌ای برای این روز نیست.'}</p>}
-    </div>
+    <div className="lc-foot"><span>{todayCount ? `امروز ${fa(todayCount)} برنامهٔ ساعت‌دار` : 'امروز برنامهٔ ساعت‌داری نداری'}</span><a href="/?page=calendar">تقویم کامل ←</a></div>
   </Card>;
 }
 
@@ -1190,13 +1183,40 @@ function DayCard({ today }) {
   </Card>;
 }
 
+// Picks a background scene from the current weather code, day/night and closeness to sunrise/sunset.
+function sceneOf(c, dl) {
+  const code = c.weather_code, t = String(c.time || '');
+  const near = iso => { if (!iso) return false; const d = Math.abs(Date.parse(iso) - Date.parse(t)); return d < 50 * 60000; };
+  if (code >= 95) return 'storm';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+  if (code === 45 || code === 48) return 'fog';
+  if (code === 3) return c.is_day ? 'cloudy' : 'cloudy-night';
+  if (near(dl.sunset?.[0]) || near(dl.sunrise?.[0])) return 'golden';
+  if (!c.is_day) return code === 0 ? 'clear-night' : 'partly-night';
+  return code === 0 ? 'clear-day' : 'partly-day';
+}
+function WeatherScene({ kind }) {
+  const night = /night/.test(kind), cloudy = /partly|cloudy|rain|storm|snow|fog/.test(kind);
+  const drops = kind === 'rain' || kind === 'storm' ? 70 : kind === 'snow' ? 55 : 0;
+  return <div className={`wx-scene wx-${kind}`} aria-hidden="true">
+    {(kind === 'clear-day' || kind === 'partly-day' || kind === 'golden') && <i className="wx-sun" />}
+    {night && <><i className="wx-stars" /><i className="wx-moon" /></>}
+    {cloudy && <><i className="wx-cloud c1" /><i className="wx-cloud c2" /><i className="wx-cloud c3" /></>}
+    {kind === 'fog' && <><i className="wx-fog f1" /><i className="wx-fog f2" /></>}
+    {kind === 'storm' && <i className="wx-flash" />}
+    {drops > 0 && <div className={kind === 'snow' ? 'wx-snow' : 'wx-rain'}>{[...Array(drops)].map((_, i) => <b key={i} style={{ left: `${(i * 37) % 100}%`, animationDelay: `${((i * 53) % 100) / 50}s`, animationDuration: `${kind === 'snow' ? 4 + (i % 5) : 0.6 + (i % 4) * 0.12}s` }} />)}</div>}
+    <i className="wx-fade" />
+  </div>;
+}
+
 function WeatherCard({ weather, aqi }) {
-  if (!weather) return <Card className="weather" icon={MapPin} title="تهران"><img className="hero-bg-img" src="/assets/img/weather-aurora.jpg" alt="" /><div className="hero-bg-fade" /><p className="empty weather-loading">در حال دریافت وضعیت هوا…</p></Card>;
+  if (!weather) return <Card className="weather" icon={MapPin} title="تهران"><WeatherScene kind="clear-day" /><p className="empty weather-loading">در حال دریافت وضعیت هوا…</p></Card>;
   const c = weather.current, dl = weather.daily, lvl = AQI_LEVEL(aqi?.us_aqi);
   const nowIdx = Math.max(0, (weather.hourly?.time || []).findIndex(t => t >= c.time.slice(0, 13)));
   const hours = (weather.hourly?.temperature_2m || []).slice(nowIdx, nowIdx + 24);
   return <Card className="weather" icon={MapPin} title="تهران" action={<small>{WEATHER_TEXT(c.weather_code)}</small>}>
-    <img className="hero-bg-img" src="/assets/img/weather-aurora.jpg" alt="" /><div className="hero-bg-fade" />
+    <WeatherScene kind={sceneOf(c, dl)} />
     <div className="weather-now">
       <span className="weather-icon-badge">{WEATHER_ICON(c.weather_code, c.is_day)}</span>
       <strong>{fa(Math.round(c.temperature_2m))}<em>°C</em></strong>
