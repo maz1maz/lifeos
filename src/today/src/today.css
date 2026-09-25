@@ -488,3 +488,8 @@ input:focus,textarea:focus{outline:none}
   .nd-drawer,.pb-drawer,.dm-drawer,.plnr-drawer-backdrop{padding:0;align-items:end}
   .nd-drawer>div,.pb-drawer>div{max-width:100%;max-height:92vh;border-radius:var(--g-radius-card) var(--g-radius-card) 0 0}
 }
+
+/* today fixes */
+.calendar-days .holiday{color:var(--g-bad,#e5484d)}
+.market-row small:not(.positive):not(.negative){color:var(--g-muted)}
+.score-row small{white-space:nowrap}

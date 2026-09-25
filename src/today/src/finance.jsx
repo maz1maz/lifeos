@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import './finance.css'
+import { jalaliShort, jalaliDay } from './jalali'
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -335,7 +336,7 @@ export function FinanceReact({ Nav }) {
                 <article key={item.id} className="fn-row">
                   <div>
                     <b>{item.title}</b>
-                    <small>{item.date} · {item.category} · {item.account}{item.tags?.length ? ` · ${item.tags.map((t) => `#${t}`).join(' ')}` : ''}</small>
+                    <small>{jalaliShort(item.date)} · {item.category} · {item.account}{item.tags?.length ? ` · ${item.tags.map((t) => `#${t}`).join(' ')}` : ''}</small>
                   </div>
                   <span className={`amt ${item.kind === 'income' ? 'pos' : 'neg'}`}>{item.kind === 'income' ? '+' : item.kind === 'transfer' ? '↔' : '−'}{fa(item.amount)}</span>
                   <div className="fn-ops">
@@ -428,7 +429,7 @@ export function FinanceReact({ Nav }) {
                 <article key={item.id} className="fn-row">
                   <div>
                     <b>{item.type === 'payable' ? 'بدهی به ' : 'طلب از '}{item.person}</b>
-                    <small>{fa(item.amount)} {item.currency === 'USD' ? 'دلار' : 'ریال'}{item.dueDate ? ` · ${item.dueDate}` : ''}{item.note ? ` · ${item.note}` : ''}</small>
+                    <small>{fa(item.amount)} {item.currency === 'USD' ? 'دلار' : 'ریال'}{item.dueDate ? ` · ${jalaliShort(item.dueDate)}` : ''}{item.note ? ` · ${item.note}` : ''}</small>
                   </div>
                   <button type="button" onClick={() => send(`/api/debts/${item.id}/settle`, { account: item.currency === 'IRR' ? (accounts.find((a) => !a.archived)?.name || '') : '' }, 'تسویه شد.')}>تسویه</button>
                 </article>
@@ -519,7 +520,7 @@ export function FinanceReact({ Nav }) {
                   <article key={item.id} className="fn-row">
                     <div>
                       <b>{item.location || 'جلسهٔ پوکر'}</b>
-                      <small>{item.date} · ورود {fa(item.buyIn)} · خروج {fa(item.cashOut)}{item.note ? ` · ${item.note}` : ''}</small>
+                      <small>{jalaliShort(item.date)} · ورود {fa(item.buyIn)} · خروج {fa(item.cashOut)}{item.note ? ` · ${item.note}` : ''}</small>
                     </div>
                     <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : '−'}{fa(Math.abs(pnl))}</span>
                     <div className="fn-ops">
@@ -552,9 +553,9 @@ export function FinanceReact({ Nav }) {
               {betMonthItems.length ? (
                 <div className="fn-bet-mini">
                   {betMonthItems.map((d) => (
-                    <div key={d.id} className="fn-bet-bar" title={`${d.date} · ${signedUsd(d.result)}`}>
+                    <div key={d.id} className="fn-bet-bar" title={`${jalaliShort(d.date)} · ${signedUsd(d.result)}`}>
                       <i className={d.result >= 0 ? 'pos' : 'neg'} style={{ height: `${Math.max(6, Math.round((Math.abs(d.result) / betMax) * 44))}px` }} />
-                      <span>{d.date.slice(8)}</span>
+                      <span>{jalaliDay(d.date)}</span>
                     </div>
                   ))}
                 </div>
@@ -562,7 +563,7 @@ export function FinanceReact({ Nav }) {
               {betMonthItems.length ? betMonthItems.slice().reverse().map((item) => (
                 <article key={item.id} className="fn-row">
                   <div>
-                    <b>{item.date}</b>
+                    <b>{jalaliShort(item.date)}</b>
                     <small>داشتم {usd(item.start)} · واریز {usd(item.deposit)} · برداشت {usd(item.withdraw)} · موجودی {usd(item.balance)}{item.note ? ` · ${item.note}` : ''}</small>
                   </div>
                   <span className={`amt ${item.result >= 0 ? 'pos' : 'neg'}`}>{signedUsd(item.result)}</span>

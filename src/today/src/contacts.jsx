@@ -4,6 +4,7 @@ import {
   Plus, Search, Star, Trash2, Users, X, Loader2, Upload, Filter
 } from 'lucide-react';
 import './contacts.css';
+import { jalaliShort } from './jalali';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -284,9 +285,9 @@ function Inspector({ contact, all, query, logs, onClose, onEdit, onFav, onDelete
           </p>
         )}
         {contact.email && <p className="pb-field" dir="ltr"><Mail size={13} /> {contact.email}</p>}
-        {contact.birthday && <p className="pb-field"><Cake size={13} /> تولد {contact.birthday}{bday != null ? (bday === 0 ? ' · امروز!' : ` · ${faNum(bday)} روز دیگر`) : ''}</p>}
-        {contact.followUpDate && <p className={`pb-field ${followDue ? 'due' : ''}`}><CalendarClock size={13} /> پیگیری {contact.followUpDate}{followDue ? ' · سررسید گذشته' : ''}</p>}
-        {contact.lastContactDate && <p className="pb-field"><PhoneCall size={13} /> آخرین تماس {contact.lastContactDate}</p>}
+        {contact.birthday && <p className="pb-field"><Cake size={13} /> تولد {jalaliShort(contact.birthday)}{bday != null ? (bday === 0 ? ' · امروز!' : ` · ${faNum(bday)} روز دیگر`) : ''}</p>}
+        {contact.followUpDate && <p className={`pb-field ${followDue ? 'due' : ''}`}><CalendarClock size={13} /> پیگیری {jalaliShort(contact.followUpDate)}{followDue ? ' · سررسید گذشته' : ''}</p>}
+        {contact.lastContactDate && <p className="pb-field"><PhoneCall size={13} /> آخرین تماس {jalaliShort(contact.lastContactDate)}</p>}
         {contact.tags.length > 0 && <div className="pb-tags">{contact.tags.map(t => <span key={t} style={{ color: r.hex, borderColor: `${r.hex}55`, background: r.wash }}>#{t}</span>)}</div>}
         {contact.notes && <p className="pb-notes">{contact.notes}</p>}
 
@@ -294,7 +295,7 @@ function Inspector({ contact, all, query, logs, onClose, onEdit, onFav, onDelete
         <LogForm onSubmit={body => onLog(contact, body)} />
         <ul className="pb-logs">
           {(logs || []).length === 0 && <li className="pb-mute">هنوز تعاملی ثبت نشده.</li>}
-          {(logs || []).map(l => <li key={l.id}><b>{LOG_TYPES.find(t => t.key === l.type)?.label || l.type}</b><span>{l.date}</span>{l.note && <p>{l.note}</p>}</li>)}
+          {(logs || []).map(l => <li key={l.id}><b>{LOG_TYPES.find(t => t.key === l.type)?.label || l.type}</b><span>{jalaliShort(l.date)}</span>{l.note && <p>{l.note}</p>}</li>)}
         </ul>
         <div className="pb-insp-actions">
           <button type="button" className="pb-save" onClick={() => onEdit(contact)}>ویرایش</button>

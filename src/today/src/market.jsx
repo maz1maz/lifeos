@@ -3,6 +3,7 @@ import {
   ArrowDownRight, ArrowUpRight, Bell, Calculator, Clock, RefreshCw, Search, Star, TrendingDown, TrendingUp
 } from 'lucide-react'
 import './market.css'
+import { jalaliShort } from './jalali'
 
 const FAV_KEY = 'lifeos-market-favs'
 const ALERT_KEY = 'lifeos-market-alerts'
@@ -407,7 +408,7 @@ export function MarketReact({ Nav }) {
                 {history.slice(-30).map((point, i) => {
                   const v = Number(point.p || point.price || point.value || 0)
                   const max = Math.max(...history.map((x) => Number(x.p || x.price || x.value || 0)), 1)
-                  return <span key={point.date || i} title={`${point.date || ''}: ${v}`} style={{ height: `${Math.max(8, Math.min(100, v / max * 100))}%` }} />
+                  return <span key={point.date || i} title={`${point.date ? jalaliShort(point.date) : ''}: ${v}`} style={{ height: `${Math.max(8, Math.min(100, v / max * 100))}%` }} />
                 })}
               </div>
             </div>
