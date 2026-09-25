@@ -249,6 +249,7 @@ function App() {
         <DayCard today={today} />
         <WeatherCard weather={weather} aqi={aqi} />
         <LiveCalendar today={today} />
+        <Market />
       </div>
       <div className="grid home-grid">
         <Card className="agenda" icon={CheckSquare2} title="کارها و یادآوری‌ها" action={<span className="muted">{fa(agenda.length - openCount)} از {fa(agenda.length)}</span>}>
@@ -264,11 +265,10 @@ function App() {
           {agenda.length > 12 && <a className="more" href="/?page=planner">{fa(agenda.length - 12)} مورد دیگر ←</a>}
           <div className="agenda-add"><button className="outline" onClick={() => setDrawerKind('task')}>＋ کار</button><button className="outline" onClick={() => setDrawerKind('reminder')}>＋ یادآوری</button></div>
         </Card>
-        <Market />
-        <Football />
         <FinanceMini todaySpend={todaySpend} />
-        <Card title="ثبت روزانه" icon={StickyNote} className="daily" action={streak > 0 ? <span className="muted"><Flame size={14} style={{ verticalAlign: 'middle' }} /> {fa(streak)} روز</span> : null}><form onSubmit={saveDaily} key={data.daily ? `d-${data.daily.id || data.daily.date}` : 'empty'}><label>امروزت چطور بود؟ <input name="mood" type="range" min="1" max="10" defaultValue={data.daily?.mood || 7} /></label><div className="form-row"><input name="sleep" defaultValue={data.daily?.sleep || ''} placeholder="خواب (ساعت)" /><input name="note" defaultValue={data.daily?.note || ''} placeholder="یک جمله از امروز" /></div><div className="form-row"><input name="bestMoment" defaultValue={data.daily?.bestMoment || ''} placeholder="🌟 بهترین لحظهٔ امروز" /><input name="gratitude" defaultValue={data.daily?.gratitude || ''} placeholder="🙏 بابت چی شکرگزاری؟" /></div><input name="tomorrowPlan" defaultValue={data.daily?.tomorrowPlan || ''} placeholder="برنامهٔ فردا" /><button className="save">ذخیرهٔ روز</button></form></Card>
+        <Football />
         <Card title="سریال‌های من" icon={Clapperboard} className="series" action={<a href="/?page=series">ادامه تماشا ←</a>}>{data.watchingSeries?.length ? <div className="series-list">{data.watchingSeries.slice(0, 6).map(item => { const denom = item.airedInSeason || item.totalEpisodes || 0, progress = denom ? Math.min(100, Math.round((item.currentEpisode || 0) / denom * 100)) : 0; return <div className="series-item" key={item.id}><div className="series-poster">{item.posterUrl ? <img src={item.posterUrl} alt={item.title} loading="lazy" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'grid'; }} /> : null}<span className="series-fallback" style={{ display: item.posterUrl ? 'none' : 'grid' }}>🎬</span>{progress > 0 && <div className="series-progress"><i style={{ width: `${progress}%` }} /></div>}</div><b>{item.title}</b><small>{item.currentSeason ? `فصل ${fa(item.currentSeason)} · ` : ''}قسمت {fa(item.currentEpisode || 0)}</small></div>; })}</div> : <p className="empty">سریالی در حال تماشا نیست.</p>}</Card>
+        <Card title="ثبت روزانه" icon={StickyNote} className="daily" action={streak > 0 ? <span className="muted"><Flame size={14} style={{ verticalAlign: 'middle' }} /> {fa(streak)} روز</span> : null}><form onSubmit={saveDaily} key={data.daily ? `d-${data.daily.id || data.daily.date}` : 'empty'}><label>امروزت چطور بود؟ <input name="mood" type="range" min="1" max="10" defaultValue={data.daily?.mood || 7} /></label><div className="form-row"><input name="sleep" defaultValue={data.daily?.sleep || ''} placeholder="خواب (ساعت)" /><input name="note" defaultValue={data.daily?.note || ''} placeholder="یک جمله از امروز" /></div><div className="form-row"><input name="bestMoment" defaultValue={data.daily?.bestMoment || ''} placeholder="🌟 بهترین لحظهٔ امروز" /><input name="gratitude" defaultValue={data.daily?.gratitude || ''} placeholder="🙏 بابت چی شکرگزاری؟" /></div><input name="tomorrowPlan" defaultValue={data.daily?.tomorrowPlan || ''} placeholder="برنامهٔ فردا" /><button className="save">ذخیرهٔ روز</button></form></Card>
       </div>
     </div>
     <TaskDrawer open={!!drawerKind} kind={drawerKind || 'task'} initial={null} onClose={() => setDrawerKind(null)} onSubmit={saveDrawer} />
@@ -1070,7 +1070,7 @@ function Market() {
   const [rows, setRows] = useState([]), [hist, setHist] = useState({}), [notice, setNotice] = useState('');
   useEffect(() => {
     api('/api/tgju').then(data => {
-      const all = tgjuRows(data), pick = ['price_dollar_rl', 'price_eur', 'price_aed', 'sekee', 'geram18', 'nim'];
+      const all = tgjuRows(data), pick = ['price_dollar_rl', 'price_eur', 'price_gbp', 'price_aed', 'sekee', 'nim', 'rob', 'geram18'];
       const top = pick.map(k => all.find(r => r.key === k)).filter(Boolean);
       setRows(top);
       Promise.all(top.map(item => api(`/api/tgju/history?key=${encodeURIComponent(item.key)}&days=30`).then(d => [item.key, (d.items || []).map(x => x.price)]).catch(() => [item.key, null])))

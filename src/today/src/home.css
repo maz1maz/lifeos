@@ -271,3 +271,28 @@
 .weather small,.weather .wn-meta span{color:rgba(255,255,255,.82)}
 .wx-cloudy .wx-fade,.wx-fog .wx-fade,.wx-snow .wx-fade,.wx-partly-day .wx-fade,.wx-clear-day .wx-fade{background:linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.22) 50%,rgba(0,0,0,.55))}
 .weather .hourly-labels{color:rgba(255,255,255,.7)}
+
+/* ===== v6: 4-column rows ===== */
+.home-top{grid-template-columns:repeat(4,minmax(0,1fr))}
+.home-top .market{overflow:hidden}
+.home-top .market .market-row{padding-block:7px}
+.home-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.home-grid .agenda,.home-grid .series,.home-grid .daily{grid-column:auto}
+.home-grid .daily{grid-column:1 / -1}
+.home-grid .daily form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end}
+.home-grid .daily form>label,.home-grid .daily form .form-row{margin:0}
+.home-grid .daily form .form-row{display:contents}
+.home-grid .daily form input:not([type=range]){margin-top:0}
+.home-grid .daily form .save{margin:0}
+@media(max-width:1500px){
+  .home-top,.home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .home-top .calendar{grid-column:auto}
+  .home-top>.card{height:auto;min-height:440px}
+  .home-grid .agenda{grid-column:auto}
+  .home-grid .daily form{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+  .home-top,.home-grid{grid-template-columns:1fr}
+  .home-top>.card{min-height:0}
+  .home-grid .daily form{grid-template-columns:1fr}
+}
