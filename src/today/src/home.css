@@ -371,7 +371,7 @@ html[data-mode="light"] .day-card .date-number{color:#f0c270}
 /* ===== v10: local Vazirmatn (no Google Fonts dependency) + larger, consistent type ===== */
 @font-face{font-family:'Vazirmatn';font-style:normal;font-weight:100 900;font-display:swap;src:url('/assets/fonts/vazirmatn-arabic.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
 @font-face{font-family:'Vazirmatn';font-style:normal;font-weight:100 900;font-display:swap;src:url('/assets/fonts/vazirmatn-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
-body{font-family:'Vazirmatn',Tahoma,system-ui,sans-serif;font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+body{font-family:var(--app-font,'Vazirmatn',Tahoma,system-ui,sans-serif);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased;zoom:var(--app-zoom,1)}
 button,input,select,textarea{font-family:inherit}
 .home .card{padding:20px 22px}
 .home .card h2{font-size:18px;font-weight:800}
@@ -508,3 +508,71 @@ button,input,select,textarea{font-family:inherit}
 .hs-row li span{flex:1}
 .hs-row li button{width:28px;height:28px;border:1px solid var(--g-border);border-radius:7px;background:transparent;color:var(--g-text);cursor:pointer;font-size:11px}
 .hs-row li button:disabled{opacity:.3;cursor:default}
+
+/* ===== v13 ===== */
+@font-face{font-family:'Estedad';font-weight:100 900;font-display:swap;src:url('/assets/fonts/Estedad.woff2') format('woff2')}
+@font-face{font-family:'Shabnam';font-weight:400;font-display:swap;src:url('/assets/fonts/shabnam-400.woff2') format('woff2')}
+@font-face{font-family:'Shabnam';font-weight:500 600;font-display:swap;src:url('/assets/fonts/shabnam-500.woff2') format('woff2')}
+@font-face{font-family:'Shabnam';font-weight:700 900;font-display:swap;src:url('/assets/fonts/shabnam-700.woff2') format('woff2')}
+@font-face{font-family:'Samim';font-weight:400;font-display:swap;src:url('/assets/fonts/samim-400.woff2') format('woff2')}
+@font-face{font-family:'Samim';font-weight:500 600;font-display:swap;src:url('/assets/fonts/samim-500.woff2') format('woff2')}
+@font-face{font-family:'Samim';font-weight:700 900;font-display:swap;src:url('/assets/fonts/samim-700.woff2') format('woff2')}
+button,input,select,textarea{font-family:inherit}
+
+/* settings choices */
+.hs-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:640px}
+.hs-choices button{display:grid;gap:2px;justify-items:center;min-width:92px;padding:9px 14px;border-radius:12px;border:1px solid var(--g-border-2);background:rgba(255,255,255,.03);color:var(--g-text);cursor:pointer;font-size:15px}
+.hs-choices button small{font-size:12px;color:var(--g-muted)}
+.hs-choices button.on{border-color:var(--g-accent);background:var(--g-accent-soft);color:var(--g-accent-strong);font-weight:700}
+.hs-choices.wrap button{min-width:0;padding:7px 12px;font-size:14px}
+
+/* amount */
+.amount-wrap{position:relative;display:flex;align-items:center;flex:0 0 190px}
+.hero .quick .amount-wrap .amount{width:100%;max-width:none;height:44px;box-sizing:border-box;padding:0 14px 0 52px;font-size:16px;font-weight:700;text-align:left;direction:ltr;border-radius:var(--g-radius-control);border:1px solid var(--g-accent);background:var(--g-accent-soft);color:var(--g-text)}
+.hero .quick .amount-wrap .amount::placeholder{color:var(--g-muted);font-weight:400;text-align:right;direction:rtl}
+.amount-wrap span{position:absolute;left:12px;font-size:13px;color:var(--g-accent-strong);pointer-events:none}
+
+/* world clocks */
+.clock-row{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.clock-row .dclock{flex:1}
+.wclock{display:grid;gap:1px;padding:8px 14px;border-radius:14px;border:1px solid var(--g-border);background:rgba(255,255,255,.03);min-width:120px}
+.wclock small{font-size:12.5px;color:var(--g-muted)}
+.wclock b{font-size:24px;font-weight:800;line-height:1.2;text-align:right;font-variant-numeric:tabular-nums}
+.wclock span{font-size:11.5px;color:var(--g-faint)}
+
+/* sticky compact hero (desktop) */
+@media(min-width:1101px){
+  .hero{position:sticky;top:64px;z-index:15;transition:padding .25s var(--g-motion-ease),box-shadow .25s}
+  .hero.compact{grid-template-columns:auto auto minmax(0,1fr);column-gap:22px;padding:10px 18px;box-shadow:0 12px 30px -12px rgba(0,0,0,.6);background:var(--g-panel)}
+  .hero.compact .hero-chips,.hero.compact .hero-text p,.hero.compact .glance,.hero.compact .wclock,.hero.compact .dclock span,.hero.compact .dclock small{display:none}
+  .hero.compact .hero-text{grid-column:1;grid-row:1}
+  .hero.compact .hero-text h1{margin:0;font-size:22px;white-space:nowrap}
+  .hero.compact .hero-side{grid-column:2;grid-row:1;gap:0}
+  .hero.compact .dclock{padding:0}
+  .hero.compact .dclock b{font-size:26px}.hero.compact .dclock i{font-size:22px}
+  .hero.compact .quick{grid-column:3;grid-row:1;margin:0;padding:4px;flex-wrap:nowrap}
+  .hero.compact .quick .quick-tabs button,.hero.compact .quick-when button{padding:6px 10px}
+}
+
+/* date card v2 */
+.dc2 .hero-bg-fade{background:linear-gradient(180deg,rgba(6,8,12,.45) 0%,rgba(6,8,12,.05) 28%,rgba(6,8,12,.15) 50%,rgba(6,8,12,.88) 100%)}
+.dc2 .holiday-tag{max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc-panel{position:relative;z-index:1;margin-top:auto;display:grid;gap:12px;padding:16px 16px 14px;border-radius:18px;background:rgba(10,12,16,.48);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);border:1px solid rgba(255,255,255,.12);text-shadow:none}
+.dc-main{display:flex;align-items:center;gap:14px}
+.dc-num{font-size:78px;font-weight:900;line-height:.85;background:linear-gradient(180deg,#ffe29a,#e0a43c 60%,#b87a1c);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 14px rgba(224,164,60,.35));min-width:1ch;text-align:center}
+.dc-dates{display:grid;gap:2px}
+.dc-dates b{font-size:22px;font-weight:800;color:#fff}
+.dc-dates span{font-size:13.5px;color:rgba(255,255,255,.78)}
+.dc-greg{text-align:right;font-size:13px!important;letter-spacing:.02em}
+.dc-progress{display:grid;gap:7px}
+.dc-progress>div{display:grid;gap:4px}
+.dc-progress span{font-size:12.5px;color:rgba(255,255,255,.8)}
+.dc-progress i{display:block;height:5px;border-radius:9px;background:rgba(255,255,255,.14);overflow:hidden}
+.dc-progress em{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#e0a43c,#ffe29a)}
+.dc-chips{display:flex;flex-wrap:wrap;gap:6px}
+.dc-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;font-size:12.5px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.14);text-decoration:none}
+.dc-chip.off{background:rgba(220,38,38,.85);border-color:transparent;font-weight:700}
+.dc-chip.bday{background:rgba(224,164,60,.9);color:#221904;border-color:transparent;font-weight:700}
+.dc-chip.muted{color:rgba(255,255,255,.75)}
+.dc2>.date-number,.dc2>h3,.dc2>small,.dc2>.occasion{display:none}
+@media(min-width:1101px){.hero.compact{border-top-left-radius:0;border-top-right-radius:0;border-top-color:transparent}}

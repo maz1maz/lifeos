@@ -120,6 +120,13 @@ function App() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const whenRef = React.useRef(null);
   const [, setModeTick] = useState(0);
+  const [heroCompact, setHeroCompact] = useState(false);
+  const heroRef = React.useRef(null);
+  useEffect(() => {
+    const onScroll = () => { if (!window.matchMedia('(min-width: 1101px)').matches) { setHeroCompact(false); return; } const y = window.scrollY; setHeroCompact(c => c ? y > 60 : y > 260); };
+    window.addEventListener('scroll', onScroll, { passive: true }); window.addEventListener('resize', onScroll); onScroll();
+    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); };
+  }, []);
   const [usd, setUsd] = useState(null);
   const [holidayNext, setHolidayNext] = useState(null);
   useEffect(() => {
@@ -238,7 +245,7 @@ function App() {
   return <main>
     <TopNav active="" right={<div className="profile"><button aria-label="تغییر حالت روشن و تاریک" onClick={() => { const next = document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.mode = next; try { localStorage.setItem('lifeos-mode', next); } catch {} setModeTick(t => t + 1); }}>{document.documentElement.dataset.mode === 'light' ? <Moon size={17} /> : <Sun size={17} />}</button><b>{data.user?.displayName || data.user?.name || 'سلام'}</b></div>} />
     <div className="page home">
-      <section className="hero">
+      <section className={`hero ${heroCompact ? 'compact' : ''}`} ref={heroRef}>
         <div className="hero-text">
           <div className="hero-chips">
             <span className="chip gold"><CalendarDays size={14} />{new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(fromIso(today))} {faDigits(todayJ.jd)} {JALALI_MONTHS[todayJ.jm - 1]} {faDigits(todayJ.jy)}</span>
@@ -261,7 +268,7 @@ function App() {
         <form className="quick" onSubmit={submitQuick}>
           <button type="submit" className="save">＋ ثبت</button>
           <input className="quick-title" value={quick.title} onChange={e => setQuick({ ...quick, title: e.target.value })} placeholder={quick.type === 'transaction' ? 'برای چی خرج کردی؟' : quick.type === 'reminder' ? 'چی رو یادت بندازم؟ (مثلاً: فردا تماس با علی)' : 'چه کاری باید انجام بدی؟ (مثلاً: فردا خرید نان)'} />
-          {quick.type === 'transaction' && <input className="amount" value={quick.amount} onChange={e => setQuick({ ...quick, amount: e.target.value })} inputMode="numeric" placeholder="مبلغ ریال" />}
+          {quick.type === 'transaction' && <label className="amount-wrap"><input className="amount" value={quick.amount ? Number(String(quick.amount).replace(/[^\d]/g, '') || 0).toLocaleString('fa-IR') : ''} onChange={e => setQuick({ ...quick, amount: e.target.value.replace(/[۰-۹]/g, x => '۰۱۲۳۴۵۶۷۸۹'.indexOf(x)).replace(/[^\d]/g, '') })} inputMode="numeric" placeholder="مبلغ" aria-label="مبلغ به ریال" /><span>ریال</span></label>}
           {quick.type !== 'transaction' && <TimePicker value={quick.time} onChange={t => setQuick(q => ({ ...q, time: t }))} />}
           <div className="quick-when" ref={whenRef}>
             {[['today', 'امروز'], ['tomorrow', 'فردا']].map(([w, label]) => <button type="button" key={w} className={quick.when === w ? 'selected' : ''} onClick={() => { setQuick({ ...quick, when: w }); setPickerOpen(false); }}>{label}</button>)}
@@ -934,6 +941,41 @@ function RecordsReact({ kind }) {
 
 const DIGEST_HOURS = Array.from({ length: 24 }, (_, h) => h);
 
+// ---- appearance: font family + text size (saved per browser) ----
+const APP_FONTS = [['vazirmatn', 'وزیرمتن', "'Vazirmatn'"], ['estedad', 'استعداد', "'Estedad'"], ['shabnam', 'شبنم', "'Shabnam'"], ['samim', 'صمیم', "'Samim'"]];
+const APP_SIZES = [['s', 'کوچک', 0.94], ['m', 'متوسط', 1], ['l', 'بزرگ', 1.1], ['xl', 'خیلی بزرگ', 1.2]];
+const APPEARANCE_DEFAULT = { font: 'vazirmatn', size: 'l' };
+function applyAppearance(a) {
+  const font = APP_FONTS.find(f => f[0] === a?.font) || APP_FONTS[0], size = APP_SIZES.find(x => x[0] === a?.size) || APP_SIZES[2];
+  const root = document.documentElement;
+  root.style.setProperty('--app-font', `${font[2]}, 'Vazirmatn', Tahoma, sans-serif`);
+  root.style.setProperty('--app-zoom', String(size[2]));
+  root.dataset.font = font[0];
+}
+function AppearanceSettings({ flash }) {
+  const [a, setA] = useState(() => ({ ...APPEARANCE_DEFAULT, ...readLs('lifeos-appearance', {}) }));
+  const set = patch => { const next = { ...a, ...patch }; setA(next); writeLs('lifeos-appearance', next); applyAppearance(next); flash('ظاهر ذخیره شد ✓'); };
+  return <>
+    <article>
+      <div><b>فونت</b><small>روی همهٔ صفحه‌ها اعمال می‌شه. پیش‌فرض: وزیرمتن.</small></div>
+      <div className="hs-choices">{APP_FONTS.map(([id, label, fam]) => <button type="button" key={id} className={a.font === id ? 'on' : ''} style={{ fontFamily: fam }} onClick={() => set({ font: id })}>{label}<small>۱۲۳ امروز</small></button>)}</div>
+    </article>
+    <article>
+      <div><b>اندازهٔ متن</b><small>پیش‌فرض: بزرگ.</small></div>
+      <div className="hs-choices">{APP_SIZES.map(([id, label, z]) => <button type="button" key={id} className={a.size === id ? 'on' : ''} onClick={() => set({ size: id })}><span style={{ fontSize: `${Math.round(15 * z)}px` }}>{label}</span></button>)}</div>
+    </article>
+    <article>
+      <div><b>ساعت کشورهای دیگه</b><small>حداکثر دو شهر کنار ساعت تهران.</small></div>
+      <WorldClockPicker flash={flash} />
+    </article>
+  </>;
+}
+function WorldClockPicker({ flash }) {
+  const [sel, setSel] = useState(() => readLs('lifeos-world-clocks', []));
+  const toggle = tz => { let next = sel.includes(tz) ? sel.filter(x => x !== tz) : [...sel, tz]; if (next.length > 2) next = next.slice(-2); setSel(next); writeLs('lifeos-world-clocks', next); flash(next.length ? 'ساعت‌ها ذخیره شد ✓' : 'ساعت‌های دیگه حذف شدن.'); };
+  return <div className="hs-choices wrap">{WORLD_ZONES.map(([name, tz]) => <button type="button" key={tz} className={sel.includes(tz) ? 'on' : ''} onClick={() => toggle(tz)}>{name}</button>)}</div>;
+}
+
 const LAYOUT_DEFAULTS = { top: ['day', 'weather', 'calendar', 'market'], grid: ['agenda', 'finance', 'football', 'series', 'daily'] };
 function HomeSettings({ me, onSaved, flash }) {
   const [name, setName] = useState('');
@@ -956,6 +998,7 @@ function HomeSettings({ me, onSaved, flash }) {
       <div><b>شهر هواشناسی</b><small>از روی کارت هوا هم می‌شه عوضش کرد (با جستجو).</small></div>
       <select value={IR_CITIES.some(([n]) => n === city.name) ? city.name : ''} onChange={pickCity}>{!IR_CITIES.some(([n]) => n === city.name) && <option value="">{city.name}</option>}{IR_CITIES.map(([n]) => <option key={n} value={n}>{n}</option>)}</select>
     </article>
+    <AppearanceSettings flash={flash} />
     <article className="hs-layout">
       <div><b>چیدمان کارت‌ها</b><small>ترتیب کارت‌ها در هر ردیف (از راست به چپ). روی همین مرورگر ذخیره می‌شه.</small></div>
       <div className="hs-rows">
@@ -1238,13 +1281,30 @@ function TimePopover({ h, m, set, onClose, anchor }) {
   </div>;
 }
 
+const WORLD_ZONES = [['استانبول', 'Europe/Istanbul'], ['دبی', 'Asia/Dubai'], ['استکهلم', 'Europe/Stockholm'], ['لندن', 'Europe/London'], ['پاریس', 'Europe/Paris'], ['برلین', 'Europe/Berlin'], ['مسکو', 'Europe/Moscow'], ['کابل', 'Asia/Kabul'], ['دهلی', 'Asia/Kolkata'], ['پکن', 'Asia/Shanghai'], ['توکیو', 'Asia/Tokyo'], ['سیدنی', 'Australia/Sydney'], ['نیویورک', 'America/New_York'], ['تورنتو', 'America/Toronto'], ['لس‌آنجلس', 'America/Los_Angeles']];
+const zoneParts = (d, tz) => Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(d).map(p => [p.type, p.value]));
+const zoneMinutes = (d, tz) => { const p = zoneParts(d, tz); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute) / 60000; };
 function DigitalClock() {
   const [now, setNow] = useState(() => new Date());
+  const [zones] = useState(() => readLs('lifeos-world-clocks', []).filter(tz => WORLD_ZONES.some(([, z]) => z === tz)).slice(0, 2));
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
-  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(now).map(p => [p.type, p.value]));
-  return <div className="dclock" aria-label="ساعت تهران" dir="ltr">
-    <b>{faDigits(parts.hour)}</b><i className={Number(parts.second) % 2 ? 'blink' : ''}>:</i><b>{faDigits(parts.minute)}</b><small>{faDigits(parts.second)}</small>
-    <span>به وقت تهران</span>
+  const parts = zoneParts(now, 'Asia/Tehran');
+  const tehranMin = zoneMinutes(now, 'Asia/Tehran');
+  return <div className="clock-row">
+    <div className="dclock" aria-label="ساعت تهران" dir="ltr">
+      <b>{faDigits(parts.hour)}</b><i className={Number(parts.second) % 2 ? 'blink' : ''}>:</i><b>{faDigits(parts.minute)}</b><small>{faDigits(parts.second)}</small>
+      <span>به وقت تهران</span>
+    </div>
+    {zones.map(tz => {
+      const p = zoneParts(now, tz), diff = zoneMinutes(now, tz) - tehranMin, h = +p.hour % 24, night = h < 6 || h >= 19;
+      const dh = Math.trunc(Math.abs(diff) / 60), dm = Math.abs(diff) % 60;
+      const name = WORLD_ZONES.find(([, z]) => z === tz)[0];
+      return <div className="wclock" key={tz}>
+        <small>{name} {night ? '🌙' : '☀️'}</small>
+        <b dir="ltr">{faDigits(`${p.hour}:${p.minute}`)}</b>
+        <span>{diff === 0 ? 'هم‌ساعت تهران' : `${[dh ? `${fa(dh)} ساعت` : '', dm ? `${fa(dm)} دقیقه` : ''].filter(Boolean).join(' و ')} ${diff > 0 ? 'جلوتر' : 'عقب‌تر'}`}</span>
+      </div>;
+    })}
   </div>;
 }
 
@@ -1334,39 +1394,62 @@ function Layout({ id, className, cards, editing }) {
   </div>;
 }
 
+const SEASONS = [['بهار', 1], ['تابستان', 4], ['پاییز', 7], ['زمستان', 10]];
 function DayCard({ today }) {
   const d = fromIso(today), j = toJalali(d);
   const dayIndex = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
-  const d0 = fromIso(today);
   const photo = photoOfDay(j.jm, dayIndex);
   const [src, setSrc] = useState(photo.local);
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState({});
   const [bdays, setBdays] = useState([]);
   useEffect(() => {
-    api('/api/contacts').then(d => {
-      const list = (d.items || []).map(c => {
+    api('/api/contacts').then(r => {
+      setBdays((r.items || []).map(c => {
         const m = String(c.birthday || '').match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return null;
-        let next = new Date(d0.getFullYear(), Number(m[2]) - 1, Number(m[3])); if (next < d0) next = new Date(d0.getFullYear() + 1, Number(m[2]) - 1, Number(m[3]));
-        return { name: c.name, days: Math.round((next - d0) / 86400000) };
-      }).filter(x => x && x.days <= 7).sort((a, b) => a.days - b.days);
-      setBdays(list);
+        let next = new Date(d.getFullYear(), Number(m[2]) - 1, Number(m[3])); if (next < d) next = new Date(d.getFullYear() + 1, Number(m[2]) - 1, Number(m[3]));
+        return { name: c.name, days: Math.round((next - d) / 86400000) };
+      }).filter(x => x && x.days <= 7).sort((a, b) => a.days - b.days));
     }).catch(() => {});
   }, [today]);
-  useEffect(() => {
-    const key = `${j.jy}${String(j.jm).padStart(2, '0')}${String(j.jd).padStart(2, '0')}`;
-    fetch('/data/iran-events.json').then(r => r.json()).then(all => setEvents(all[key] || [])).catch(() => {});
-  }, [today]);
-  const holiday = events.some(e => e.h) || weekdayIndex(d) === 6;
+  useEffect(() => { loadIranEvents().then(setEvents); }, []);
+  const todayEvents = (events[jKey(j.jy, j.jm, j.jd)] || []).map(e => ({ ...e, t: e.t.replace(/\[.*?\]/g, '').trim() }));
+  const isFri = weekdayIndex(d) === 6, offEvent = todayEvents.find(e => e.h);
+  const holidayReason = offEvent ? offEvent.t : isFri ? 'جمعه' : '';
+  // next official holiday (for the empty state)
+  let nextOff = null;
+  if (!todayEvents.length) for (let i = 1; i <= 200; i++) { const dt = addDays(d, i), jj = toJalali(dt), h = (events[jKey(jj.jy, jj.jm, jj.jd)] || []).find(e => e.h); if (h) { nextOff = { days: i, t: h.t.replace(/\[.*?\]/g, '').trim() }; break; } }
+  // year / season progress
+  const yearStart = toGregorian(j.jy, 1, 1), yearLen = jalaliMonthLength(j.jy, 12) === 30 ? 366 : 365;
+  const dayOfYear = Math.round((d - yearStart) / 86400000) + 1;
+  const week = Math.ceil((dayOfYear + weekdayIndex(yearStart)) / 7);
+  const sIdx = Math.floor((j.jm - 1) / 3), sStart = toGregorian(j.jy, SEASONS[sIdx][1], 1);
+  const sEnd = sIdx === 3 ? toGregorian(j.jy + 1, 1, 1) : toGregorian(j.jy, SEASONS[sIdx + 1][1], 1);
+  const sLen = Math.round((sEnd - sStart) / 86400000), sDay = Math.round((d - sStart) / 86400000) + 1;
+  let hijri = '';
+  try { hijri = new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(d).replace(/\s*(ه‍?\.?\s*ق\.?|AH)\s*$/, '') + ' ق'; } catch {}
+  const greg = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
   const onError = () => setSrc(cur => cur === photo.local ? photo.remote : '/assets/img/mountains-dusk.jpg');
-  return <Card className={`day-card season-${photo.season}`} title={new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(d)} action={holiday ? <span className="holiday-tag">تعطیل</span> : null}>
+  return <Card className={`day-card dc2 season-${photo.season}`} title={new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(d)} action={holidayReason ? <span className="holiday-tag">تعطیل · {holidayReason.length > 22 ? holidayReason.slice(0, 22) + '…' : holidayReason}</span> : null}>
     <img className="hero-bg-img" src={src} onError={onError} alt="" />
     <div className="hero-bg-fade" />
-    <div className="date-number">{faDigits(j.jd)}</div>
-    <h3>{faDigits(j.jd)} {JALALI_MONTHS[j.jm - 1]} {faDigits(j.jy)}</h3>
-    <small dir="ltr">{new Intl.DateTimeFormat('en-GB', { dateStyle: 'long' }).format(d)}</small>
-    <div className="occasion">
-      {bdays.slice(0, 2).map((b, i) => <a key={'b' + i} href="/?page=contacts" className={`bday ${b.days === 0 ? 'is-today' : ''}`}><Cake size={14} />{b.days === 0 ? `تولد ${b.name} · امروز 🎉` : b.days === 1 ? `تولد ${b.name} · فردا` : `تولد ${b.name} · ${fa(b.days)} روز دیگه`}</a>)}
-      {events.length ? events.slice(0, 2).map((e, i) => <div key={i} className={e.h ? 'is-holiday' : ''}>▣ {e.t.replace(/\[.*?\]/g, '').trim()}</div>) : !bdays.length && <div>▣ مناسبتی برای امروز ثبت نشده</div>}
+    <div className="dc-panel">
+      <div className="dc-main">
+        <div className="dc-num">{faDigits(j.jd)}</div>
+        <div className="dc-dates">
+          <b>{JALALI_MONTHS[j.jm - 1]} {faDigits(j.jy)}</b>
+          {hijri && <span>{hijri}</span>}
+          <span dir="ltr" className="dc-greg">{greg}</span>
+        </div>
+      </div>
+      <div className="dc-progress">
+        <div><span>{SEASONS[sIdx][0]} · روز {fa(sDay)} از {fa(sLen)}</span><i><em style={{ width: `${sDay / sLen * 100}%` }} /></i></div>
+        <div><span>روز {fa(dayOfYear)} سال · هفتهٔ {fa(week)}</span><i><em style={{ width: `${dayOfYear / yearLen * 100}%` }} /></i></div>
+      </div>
+      <div className="dc-chips">
+        {bdays.slice(0, 2).map((b, i) => <a key={'b' + i} href="/?page=contacts" className="dc-chip bday"><Cake size={13} />{b.days === 0 ? `تولد ${b.name} · امروز 🎉` : b.days === 1 ? `تولد ${b.name} · فردا` : `تولد ${b.name} · ${fa(b.days)} روز دیگه`}</a>)}
+        {todayEvents.slice(0, 3).map((e, i) => <span key={i} className={`dc-chip ${e.h ? 'off' : ''}`}>{e.t}</span>)}
+        {!todayEvents.length && !bdays.length && nextOff && <span className="dc-chip muted">تعطیلی بعدی: {nextOff.days === 1 ? 'فردا' : `${fa(nextOff.days)} روز دیگه`} · {nextOff.t}</span>}
+      </div>
     </div>
   </Card>;
 }
@@ -1465,4 +1548,5 @@ function FinanceMini({ todaySpend }) {
   </Card>;
 }
 
+applyAppearance(readLs('lifeos-appearance', APPEARANCE_DEFAULT));
 createRoot(document.getElementById('root')).render(<App />);
