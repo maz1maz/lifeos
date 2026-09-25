@@ -3,6 +3,7 @@ import {
   ArrowDownRight, ArrowUpRight, Bell, Calculator, Clock, RefreshCw, Search, Star, TrendingDown, TrendingUp
 } from 'lucide-react'
 import './market.css'
+import { MarketLogo } from './market-logos'
 import { jalaliShort } from './jalali'
 
 const FAV_KEY = 'lifeos-market-favs'
@@ -337,7 +338,7 @@ export function MarketReact({ Nav }) {
             return (
               <article key={item.id} className="mk-card mk-sum">
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                  <small>{item.icon || ''} {item.name}</small>
+                  <small className="mk-sum-name">{item.market === 'tehran' ? <MarketLogo k={item.key} size={20} fallback={item.icon} /> : (item.icon || '')} {item.name}</small>
                   <ChangeBadge n={item.change} />
                 </div>
                 <b>{priceLabel(item)} <em>{item.market === 'tehran' ? '' : item.market === 'us' ? 'دلار' : 'USD'}</em></b>
@@ -382,7 +383,7 @@ export function MarketReact({ Nav }) {
                   <button type="button" className={`mk-star${favs.includes(item.id) ? ' on' : ''}`} onClick={() => toggleFav(item.id)} aria-label="علاقه‌مندی">
                     <Star size={16} fill={favs.includes(item.id) ? 'currentColor' : 'none'} />
                   </button>
-                  {item.image ? <img src={item.image} alt="" /> : <span className="mk-ico">{item.icon || '📈'}</span>}
+                  {item.image ? <img src={item.image} alt="" /> : item.market === 'tehran' ? <MarketLogo k={item.key} size={34} fallback={item.icon} /> : <span className="mk-ico">{item.icon || '📈'}</span>}
                   <div>
                     <b>{item.name} {item.symbol ? <small>({item.symbol})</small> : null}</b>
                     {rialEq ? <small>≈ {rialEq} ریال</small> : null}

@@ -13,6 +13,7 @@ import { CalendarReact } from './calendar';
 import { FootballReact } from './football';
 import { FinanceReact } from './finance';
 import { photoOfDay } from './season-photos.mjs';
+import { MarketLogo } from './market-logos';
 import './home.css';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
 import {
@@ -117,6 +118,7 @@ function App() {
   const [weather, setWeather] = useState(null);
   const [quick, setQuick] = useState({ type: 'task', title: '', amount: '', when: 'today', date: '', time: '' });
   const [pickerOpen, setPickerOpen] = useState(false);
+  const whenRef = React.useRef(null);
   const [, setModeTick] = useState(0);
   const [layoutEdit, setLayoutEdit] = useState(false);
   const [drawerKind, setDrawerKind] = useState(null);
@@ -130,7 +132,7 @@ function App() {
   const load = async () => {
     try {
       const [me, dashboard, tasks, reminders] = await Promise.all([
-        api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=${addDaysIso(today, -14)}&to=${addDaysIso(today, 1)}`)
+        api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=${addDaysIso(today, -30)}&to=${addDaysIso(today, 7)}`)
       ]);
       setData({ ...dashboard, tasks: tasks.items || [], reminders: reminders.items || [], user: me.user || null });
     } catch (error) { setNotice(error.message); }
@@ -146,11 +148,17 @@ function App() {
     }).catch(() => {});
   };
   useEffect(loadStreak, [today]);
+  const [city, setCity] = useState(() => readLs('lifeos-weather-city', DEFAULT_CITY));
   useEffect(() => {
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=35.69&longitude=51.39&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day,uv_index&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,uv_index_max,precipitation_probability_max&forecast_days=6&timezone=Asia%2FTehran')
+    setWeather(null); setAqi(null);
+    const q = `latitude=${city.lat}&longitude=${city.lon}&timezone=auto`;
+    fetch(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day,uv_index&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,uv_index_max,precipitation_probability_max&forecast_days=6`)
       .then(r => r.json()).then(w => { if (w?.current) setWeather(w); }).catch(() => {});
-    fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude=35.69&longitude=51.39&current=us_aqi,pm2_5&timezone=Asia%2FTehran')
+    fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${q}&current=us_aqi,pm2_5`)
       .then(r => r.json()).then(a => { if (a?.current) setAqi(a.current); }).catch(() => {});
+  }, [city.lat, city.lon]);
+  const changeCity = c => { writeLs('lifeos-weather-city', c); setCity(c); };
+  useEffect(() => {
     api(`/api/calendar/feed?from=${today}&to=${today}`).then(d => { setFeed(d.items || []); if (d.googleError) setScheduleNote(d.googleError); }).catch(() => {});
   }, []);
   const toggleTask = async task => { await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }); load(); };
@@ -177,7 +185,7 @@ function App() {
   const saveDaily = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: today, mood: Number(form.get('mood')), sleep: form.get('sleep'), note: form.get('note'), bestMoment: form.get('bestMoment'), gratitude: form.get('gratitude'), tomorrowPlan: form.get('tomorrowPlan') }) }); setNotice('ثبت روزانه ذخیره شد.'); loadStreak(); load(); } catch (error) { setNotice(error.message); } };
   const allTasks = data.tasks.filter(t => !t.isReminder);
   const tasks = allTasks
-    .filter(t => t.date === today || (!t.done && (!t.date || (t.date < today) || (t.deadline && t.deadline <= today))))
+    .filter(t => t.date === today || !t.done)
     .sort((a, b) => (a.done - b.done) || String(a.date).localeCompare(String(b.date)) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
   const overdueTasks = allTasks.filter(t => !t.done && t.deadline && t.deadline < today);
   const tomorrowIso = useMemo(() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }, [today]);
@@ -187,9 +195,10 @@ function App() {
   const nowHm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
   const agenda = [
     ...tasks.map(t => ({ kind: 'task', id: t.id, title: t.title, done: !!t.done, time: t.startTime || '', date: (t.deadline && t.deadline < (t.date || today)) ? t.deadline : (t.date || ''), raw: t })),
-    ...data.reminders.filter(r => r.date === today || (!r.done && r.date <= addDaysIso(today, 1))).map(r => ({ kind: 'reminder', id: r.id, title: r.title, done: !!r.done, time: r.time || '', date: r.date || today, raw: r }))
+    ...data.reminders.filter(r => r.date === today || !r.done).map(r => ({ kind: 'reminder', id: r.id, title: r.title, done: !!r.done, time: r.time || '', date: r.date || today, raw: r }))
   ].map(x => ({ ...x, late: !x.done && !!x.date && x.date < today }))
-    .sort((a, b) => (a.done - b.done) || (b.late - a.late) || String(a.time || '99').localeCompare(String(b.time || '99')) || String(a.date || '9').localeCompare(String(b.date || '9')));
+    .map(x => ({ ...x, rank: x.late ? 0 : x.date === today ? 1 : x.date ? 2 : 3 }))
+    .sort((a, b) => (a.done - b.done) || (a.rank - b.rank) || String(a.date || '').localeCompare(String(b.date || '')) || String(a.time || '99').localeCompare(String(b.time || '99')));
   const agendaTasks = agenda.filter(x => x.kind === 'task'), agendaRems = agenda.filter(x => x.kind === 'reminder');
   const nextRem = agendaRems.find(x => !x.done && x.date === today && x.time && x.time >= nowHm);
   const lateLabel = date => { const days = Math.round((fromIso(today) - fromIso(date)) / 86400000); return days === 1 ? 'دیروز' : `${fa(days)} روز عقب`; };
@@ -213,10 +222,11 @@ function App() {
   const greeting = nowHour < 5 ? 'شب بخیر' : nowHour < 12 ? 'صبح بخیر' : nowHour < 16 ? 'ظهر بخیر' : nowHour < 19 ? 'عصر بخیر' : 'شب بخیر';
   const firstName = (data.user?.displayName || '').trim() || (data.user?.name || '').trim().split(/\s+/)[0];
   const todayJ = toJalali(fromIso(today));
-  const openCount = agenda.filter(x => !x.done).length;
+  const todayAgenda = agenda.filter(x => x.date === today || x.late);
+  const openCount = todayAgenda.filter(x => !x.done).length;
   const nextEvent = schedule.find(x => x.time && x.time >= nowHm);
   const summary = [
-    agenda.length ? `امروز ${fa(agenda.length)} کار و یادآوری داری و ${fa(agenda.length - openCount)} تا رو انجام دادی.` : 'برای امروز هنوز کاری ثبت نکردی.',
+    todayAgenda.length ? `امروز ${fa(todayAgenda.length)} کار و یادآوری داری و ${fa(todayAgenda.length - openCount)} تا رو انجام دادی.` : 'برای امروز هنوز کاری ثبت نکردی.',
     overdueTasks.length ? `${fa(overdueTasks.length)} کار عقب‌افتاده منتظرته.` : '',
     nextEvent ? `برنامهٔ بعدی: ${nextEvent.title}، ساعت ${faDigits(nextEvent.time)}.` : ''
   ].filter(Boolean).join(' ');
@@ -237,21 +247,24 @@ function App() {
             : <h1>{greeting}{firstName ? `، ${firstName}` : ''}<button type="button" className="name-btn" aria-label="تغییر اسم" title="تغییر اسم" onClick={() => setEditName(data.user?.displayName || '')}><Pencil size={16} /></button></h1>}
           <p>{summary}</p>
         </div>
+        <div className="hero-side">
+        <DigitalClock />
         <div className="glance">
           <div><small>کارهای باز</small><b>{fa(agendaTasks.filter(x => !x.done).length)}</b><span>{overdueTasks.length ? `${fa(overdueTasks.length)} عقب‌افتاده` : 'هیچ عقب‌افتاده‌ای نیست'}</span></div>
           <div><small>یادآوری بعدی</small><b>{nextRem ? faDigits(nextRem.time) : '—'}</b><span>{nextRem ? nextRem.title : 'امروز یادآوری دیگه‌ای نیست'}</span></div>
           <div><small>برنامهٔ بعدی</small><b>{nextEvent ? faDigits(nextEvent.time) : '—'}</b><span>{nextEvent ? nextEvent.title : 'برنامهٔ ساعت‌داری نیست'}</span></div>
           <div><small>خرج امروز</small><b>{fa(todaySpend)}</b><span>ریال</span></div>
         </div>
+        </div>
         <form className="quick" onSubmit={submitQuick}>
           <button type="submit" className="save">＋ ثبت</button>
           <input className="quick-title" value={quick.title} onChange={e => setQuick({ ...quick, title: e.target.value })} placeholder={quick.type === 'transaction' ? 'برای چی خرج کردی؟' : quick.type === 'reminder' ? 'چی رو یادت بندازم؟ (مثلاً: فردا تماس با علی)' : 'چه کاری باید انجام بدی؟ (مثلاً: فردا خرید نان)'} />
           {quick.type === 'transaction' && <input className="amount" value={quick.amount} onChange={e => setQuick({ ...quick, amount: e.target.value })} inputMode="numeric" placeholder="مبلغ ریال" />}
-          {quick.type !== 'transaction' && <input className="quick-time" type="time" value={quick.time} onChange={e => setQuick({ ...quick, time: e.target.value })} title="ساعت (اختیاری)" aria-label="ساعت" />}
-          <div className="quick-when">
+          {quick.type !== 'transaction' && <TimePicker value={quick.time} onChange={t => setQuick(q => ({ ...q, time: t }))} />}
+          <div className="quick-when" ref={whenRef}>
             {[['today', 'امروز'], ['tomorrow', 'فردا']].map(([w, label]) => <button type="button" key={w} className={quick.when === w ? 'selected' : ''} onClick={() => { setQuick({ ...quick, when: w }); setPickerOpen(false); }}>{label}</button>)}
             <button type="button" className={quick.when === 'pick' ? 'selected' : ''} onClick={() => setPickerOpen(o => !o)}><CalendarDays size={14} />{quick.when === 'pick' && quick.date ? jalaliDayLabel(quick.date) : 'تقویم'}</button>
-            {pickerOpen && <JalaliPicker value={quick.date || today} today={today} onPick={d => { setQuick({ ...quick, when: 'pick', date: d }); setPickerOpen(false); }} onClose={() => setPickerOpen(false)} />}
+            {pickerOpen && <JalaliPicker anchor={whenRef} value={quick.date || today} today={today} onPick={d => { setQuick({ ...quick, when: 'pick', date: d }); setPickerOpen(false); }} onClose={() => setPickerOpen(false)} />}
           </div>
           <div className="quick-tabs">{[['task','کار',CheckSquare2],['reminder','یادآوری',Bell],['transaction','هزینه',Wallet]].map(([type, label, Icon]) => <button type="button" className={quick.type === type ? 'selected' : ''} onClick={() => setQuick({ ...quick, type })} key={type}><Icon size={14} />{label}</button>)}</div>
         </form>
@@ -259,7 +272,7 @@ function App() {
       {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
       <Layout id="top" className="grid home-top" editing={layoutEdit} cards={{
         day: (<DayCard today={today} />),
-        weather: (<WeatherCard weather={weather} aqi={aqi} />),
+        weather: (<WeatherCard weather={weather} aqi={aqi} city={city} onCity={changeCity} />),
         calendar: (<LiveCalendar today={today} />),
         market: (<Market />)
       }} />
@@ -272,8 +285,9 @@ function App() {
               <div className="progress"><i style={{ width: `${items.length ? doneN / items.length * 100 : 0}%` }} /></div>
               <div className="list">{items.map(item => {
                 const late = !item.done && item.late;
-                const when = late ? `⛔ ${lateLabel(item.date)}` : item.date && item.date > today ? `فردا${item.time ? ' ' + faDigits(item.time) : ''}` : item.time ? faDigits(item.time) : !item.date ? 'بی‌تاریخ' : 'امروز';
-                return <button className={`line ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${item.kind}`} key={item.kind + item.id} onClick={() => item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
+                const later = item.date && item.date > today, tmr = item.date === addDaysIso(today, 1);
+                const when = late ? `⛔ ${lateLabel(item.date)}` : later ? `${tmr ? 'فردا' : jalaliDayLabel(item.date)}${item.time ? ' · ' + faDigits(item.time) : ''}` : item.time ? faDigits(item.time) : !item.date ? 'بی‌تاریخ' : 'امروز';
+                return <button className={`line ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} key={item.kind + item.id} onClick={() => item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
                   <i>{item.done ? '✓' : ''}</i><span>{item.title}</span><small>{when}</small>
                 </button>;
               })}{!items.length && <p className="empty">{kind === 'task' ? 'کاری برای امروز نداری.' : 'یادآوری‌ای برای امروز نداری.'}</p>}</div>
@@ -1092,7 +1106,7 @@ function Market() {
         .then(pairs => setHist(Object.fromEntries(pairs)));
     }).catch(error => setNotice(error.message));
   }, []);
-  return <Card className="market" icon={LineChart} title="بازارها" action={<a href="/?page=market">همه بازارها ←</a>}><small className="unit-note">قیمت‌ها به ریال</small>{rows.length ? rows.map(item => { const h = hist[item.key] || [], prev = h.length > 1 ? h[h.length - 2] : 0; let dp = item.dp; if (!dp && prev && item.p) { dp = (item.p - prev) / prev * 100; if (Math.abs(dp) > 25) dp = 0; } const change = dp ? `${dp > 0 ? '▲' : '▼'}${Math.abs(dp).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪` : (item.change || '۰٪'); const up = !change.includes('▼'); return <div className="market-row" key={item.key}><span className="market-icon">{marketIcon(item.key)}</span><span>{item.name}</span>{hist[item.key]?.length > 1 && <Sparkline data={hist[item.key]} up={up} uid={item.key} />}<b>{fa(item.p)}</b><small className={change.includes('▼') ? 'negative' : dp ? 'positive' : ''}>{change}</small></div>; }) : <p className="empty">{notice || 'در حال دریافت بازار…'}</p>}</Card>;
+  return <Card className="market" icon={LineChart} title="بازارها" action={<a href="/?page=market">همه بازارها ←</a>}><small className="unit-note">قیمت‌ها به ریال</small>{rows.length ? rows.map(item => { const h = hist[item.key] || [], prev = h.length > 1 ? h[h.length - 2] : 0; let dp = item.dp; if (!dp && prev && item.p) { dp = (item.p - prev) / prev * 100; if (Math.abs(dp) > 25) dp = 0; } const change = dp ? `${dp > 0 ? '▲' : '▼'}${Math.abs(dp).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪` : (item.change || '۰٪'); const up = !change.includes('▼'); return <div className="market-row" key={item.key}><MarketLogo k={item.key} fallback={marketIcon(item.key)} /><span>{item.name}</span>{hist[item.key]?.length > 1 && <Sparkline data={hist[item.key]} up={up} uid={item.key} />}<b>{fa(item.p)}</b><small className={change.includes('▼') ? 'negative' : dp ? 'positive' : ''}>{change}</small></div>; }) : <p className="empty">{notice || 'در حال دریافت بازار…'}</p>}</Card>;
 }
 const FOOT_LEAGUES = [['eng.1', 'لیگ برتر'], ['esp.1', 'لالیگا'], ['ita.1', 'سری آ'], ['ger.1', 'بوندس‌لیگا'], ['uefa.champions', 'لیگ قهرمانان']];
 const readLs = (k, f) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? f; } catch { return f; } };
@@ -1133,15 +1147,97 @@ function monthCells(jy, jm) {
   return { first, lead: weekdayIndex(first), days: [...Array(len)].map((_, i) => addDays(first, i)) };
 }
 
-function JalaliPicker({ value, today, onPick, onClose }) {
+// Closes a popover when the user clicks/taps outside it or presses Escape.
+function useDismiss(ref, onClose) {
+  useEffect(() => {
+    const down = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    const key = e => { if (e.key === 'Escape') onClose(); };
+    const t = setTimeout(() => { document.addEventListener('pointerdown', down); }, 0);
+    window.addEventListener('keydown', key);
+    return () => { clearTimeout(t); document.removeEventListener('pointerdown', down); window.removeEventListener('keydown', key); };
+  }, []);
+}
+
+function JalaliPicker({ value, today, onPick, onClose, anchor }) {
   const start = toJalali(fromIso(value || today));
   const [ym, setYm] = useState({ jy: start.jy, jm: start.jm });
+  const [events, setEvents] = useState({});
+  const ref = React.useRef(null);
+  useDismiss(anchor || ref, onClose);
+  useEffect(() => { loadIranEvents().then(setEvents); }, []);
   const { lead, days } = monthCells(ym.jy, ym.jm);
   const shift = n => setYm(({ jy, jm }) => { const m = jm + n; return m < 1 ? { jy: jy - 1, jm: 12 } : m > 12 ? { jy: jy + 1, jm: 1 } : { jy, jm: m }; });
-  useEffect(() => { const k = e => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, []);
-  return <div className="jpicker" role="dialog" aria-label="انتخاب تاریخ">
+  return <div className="jpicker" role="dialog" aria-label="انتخاب تاریخ" ref={ref}>
     <div className="jp-head"><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={16} /></button><b>{JALALI_MONTHS[ym.jm - 1]} {faDigits(ym.jy)}</b><button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={16} /></button></div>
-    <div className="jp-grid">{WEEKDAYS.map(w => <small key={w}>{w}</small>)}{[...Array(lead)].map((_, i) => <span key={'b' + i} />)}{days.map((d, i) => { const v = iso(d); return <button type="button" key={v} disabled={v < today} className={`${v === today ? 'is-today' : ''} ${v === value ? 'is-sel' : ''} ${weekdayIndex(d) === 6 ? 'is-fri' : ''}`} onClick={() => onPick(v)}>{faDigits(i + 1)}</button>; })}</div>
+    <div className="jp-grid">{WEEKDAYS.map((w, i) => <small key={w} className={i === 6 ? 'is-fri' : ''}>{w}</small>)}{[...Array(lead)].map((_, i) => <span key={'b' + i} />)}{days.map((d, i) => {
+      const v = iso(d), occ = events[jKey(ym.jy, ym.jm, i + 1)] || [], off = weekdayIndex(d) === 6 || occ.some(e => e.h);
+      return <button type="button" key={v} disabled={v < today} title={occ.map(e => e.t.replace(/\[.*?\]/g, '').trim()).join('\n')} className={`jp-day ${v === today ? 'is-today' : ''} ${v === value ? 'is-sel' : ''} ${off ? 'is-off' : ''}`} onClick={() => onPick(v)}>{faDigits(i + 1)}</button>;
+    })}</div>
+    <div className="jp-foot"><button type="button" onClick={() => onPick(today)}>امروز</button><button type="button" onClick={() => onPick(addDaysIso(today, 1))}>فردا</button><button type="button" onClick={() => onPick(addDaysIso(today, 7))}>هفتهٔ بعد</button></div>
+  </div>;
+}
+
+const HOURS = [...Array(24)].map((_, i) => String(i).padStart(2, '0'));
+const MINUTES = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+function TimePicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [h, m] = (value || '').split(':');
+  const wrap = React.useRef(null);
+  const set = (hh, mm) => onChange(`${hh}:${mm}`);
+  return <div className="tpick" ref={wrap}>
+    <button type="button" className={`tpick-btn ${value ? 'has' : ''}`} onClick={() => setOpen(o => !o)} aria-label="انتخاب ساعت"><Clock size={15} /><span>{value ? faDigits(value) : 'ساعت'}</span></button>
+    {value && <button type="button" className="tpick-clear" onClick={() => onChange('')} aria-label="حذف ساعت"><X size={13} /></button>}
+    {open && <TimePopover h={h} m={m} set={set} onClose={() => setOpen(false)} anchor={wrap} />}
+  </div>;
+}
+function TimePopover({ h, m, set, onClose, anchor }) {
+  useDismiss(anchor, onClose);
+  const presets = ['08:00', '09:00', '12:00', '14:00', '17:00', '20:00'];
+  return <div className="tpop" role="dialog" aria-label="انتخاب ساعت">
+    <div className="tpop-presets">{presets.map(p => <button type="button" key={p} className={`${h}:${m}` === p ? 'on' : ''} onClick={() => { set(...p.split(':')); onClose(); }}>{faDigits(p)}</button>)}</div>
+    <small>ساعت</small>
+    <div className="tpop-hours">{HOURS.map(x => <button type="button" key={x} className={x === h ? 'on' : ''} onClick={() => set(x, m || '00')}>{faDigits(x)}</button>)}</div>
+    <small>دقیقه</small>
+    <div className="tpop-mins">{MINUTES.map(x => <button type="button" key={x} className={x === m ? 'on' : ''} onClick={() => { set(h || '09', x); onClose(); }}>{faDigits(x)}</button>)}</div>
+  </div>;
+}
+
+function DigitalClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(now).map(p => [p.type, p.value]));
+  return <div className="dclock" aria-label="ساعت تهران" dir="ltr">
+    <b>{faDigits(parts.hour)}</b><i className={Number(parts.second) % 2 ? 'blink' : ''}>:</i><b>{faDigits(parts.minute)}</b><small>{faDigits(parts.second)}</small>
+    <span>به وقت تهران</span>
+  </div>;
+}
+
+const DEFAULT_CITY = { name: 'تهران', lat: 35.69, lon: 51.39 };
+const IR_CITIES = [['تهران', 35.69, 51.39], ['مشهد', 36.30, 59.61], ['اصفهان', 32.65, 51.67], ['کرج', 35.84, 50.94], ['شیراز', 29.59, 52.58], ['تبریز', 38.08, 46.29], ['قم', 34.64, 50.88], ['اهواز', 31.32, 48.67], ['کرمانشاه', 34.31, 47.07], ['رشت', 37.28, 49.58], ['یزد', 31.90, 54.37], ['کرمان', 30.28, 57.08], ['همدان', 34.80, 48.51], ['ارومیه', 37.55, 45.08], ['بندرعباس', 27.18, 56.27], ['ساری', 36.56, 53.06], ['کیش', 26.53, 53.98]];
+function CityPicker({ city, onPick }) {
+  const [open, setOpen] = useState(false);
+  const wrap = React.useRef(null);
+  return <span className="citypick" ref={wrap}>
+    <button type="button" className="city-btn" onClick={() => setOpen(o => !o)}>{city.name}<ChevronDown size={15} /></button>
+    {open && <CityPopover anchor={wrap} onClose={() => setOpen(false)} onPick={c => { onPick(c); setOpen(false); }} current={city} />}
+  </span>;
+}
+function CityPopover({ anchor, onClose, onPick, current }) {
+  useDismiss(anchor, onClose);
+  const [q, setQ] = useState(''), [found, setFound] = useState([]), [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const term = q.trim(); if (term.length < 2) { setFound([]); return; }
+    const t = setTimeout(() => { setBusy(true); fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(term)}&count=6&language=fa&format=json`).then(r => r.json()).then(d => setFound((d.results || []).map(r => ({ name: r.name, sub: [r.admin1, r.country].filter(Boolean).join('، '), lat: r.latitude, lon: r.longitude })))).catch(() => setFound([])).finally(() => setBusy(false)); }, 350);
+    return () => clearTimeout(t);
+  }, [q]);
+  const local = IR_CITIES.filter(([n]) => !q.trim() || n.includes(q.trim())).map(([name, lat, lon]) => ({ name, lat, lon }));
+  return <div className="citypop" role="dialog" aria-label="انتخاب شهر">
+    <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="جستجوی شهر (فارسی یا انگلیسی)" />
+    <div className="citylist">
+      {local.map(c => <button type="button" key={c.name} className={c.name === current.name ? 'on' : ''} onClick={() => onPick(c)}>{c.name}</button>)}
+      {found.filter(f => !local.some(l => l.name === f.name)).map((c, i) => <button type="button" key={'g' + i} className="wide" onClick={() => onPick({ name: c.name, lat: c.lat, lon: c.lon })}>{c.name}<small>{c.sub}</small></button>)}
+      {busy && <small className="muted">در حال جستجو…</small>}
+    </div>
   </div>;
 }
 
@@ -1266,12 +1362,13 @@ function WeatherScene({ kind }) {
   </div>;
 }
 
-function WeatherCard({ weather, aqi }) {
-  if (!weather) return <Card className="weather" icon={MapPin} title="تهران"><WeatherScene kind="clear-day" /><p className="empty weather-loading">در حال دریافت وضعیت هوا…</p></Card>;
+function WeatherCard({ weather, aqi, city, onCity }) {
+  const cityTitle = <CityPicker city={city} onPick={onCity} />;
+  if (!weather) return <Card className="weather" icon={MapPin} title={cityTitle}><WeatherScene kind="clear-day" /><p className="empty weather-loading">در حال دریافت وضعیت هوا…</p></Card>;
   const c = weather.current, dl = weather.daily, lvl = AQI_LEVEL(aqi?.us_aqi);
   const nowIdx = Math.max(0, (weather.hourly?.time || []).findIndex(t => t >= c.time.slice(0, 13)));
   const hours = (weather.hourly?.temperature_2m || []).slice(nowIdx, nowIdx + 24);
-  return <Card className="weather" icon={MapPin} title="تهران" action={<small>{WEATHER_TEXT(c.weather_code)}</small>}>
+  return <Card className="weather" icon={MapPin} title={cityTitle} action={<small>{WEATHER_TEXT(c.weather_code)}</small>}>
     <WeatherScene kind={sceneOf(c, dl)} />
     <div className="weather-now">
       <span className="weather-icon-badge">{WEATHER_ICON(c.weather_code, c.is_day)}</span>

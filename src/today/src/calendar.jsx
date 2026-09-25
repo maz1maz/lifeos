@@ -3,6 +3,7 @@ import {
   Bell, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Grid3x3, LayoutGrid, List, Plus, Search, Trash2
 } from 'lucide-react'
 import './calendar.css'
+import { jalaliLabel } from './jalali.js'
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -406,7 +407,7 @@ export function CalendarReact({ Nav }) {
             <div className="cal-rail-sec">
               <h3>کارهای باز</h3>
               {openTasks.length ? openTasks.map((t) => (
-                <button type="button" key={t.id} className="cal-item task" onClick={() => openEdit(t)}><b>{t.title}</b><small>{String(t.date || '').slice(0, 10)}</small></button>
+                <button type="button" key={t.id} className="cal-item task" onClick={() => openEdit(t)}><b>{t.title}</b><small>{t.date ? jalaliLabel(String(t.date).slice(0, 10)) : 'بی‌تاریخ'}</small></button>
               )) : <p className="cal-empty">کار بازی در این بازه نیست.</p>}
             </div>
             <div className="cal-rail-sec">
