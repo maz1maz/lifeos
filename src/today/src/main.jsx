@@ -120,9 +120,15 @@ function App() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const whenRef = React.useRef(null);
   const [, setModeTick] = useState(0);
-  const [layoutEdit, setLayoutEdit] = useState(false);
+  const [usd, setUsd] = useState(null);
+  const [holidayNext, setHolidayNext] = useState(null);
+  useEffect(() => {
+    api('/api/tgju').then(d => { const v = (d.items || {}).price_dollar_rl; if (v) setUsd({ p: v.p, dp: v.dp }); }).catch(() => {});
+    loadIranEvents().then(ev => {
+      for (let i = 1; i <= 200; i++) { const dt = addDays(fromIso(today), i), j = toJalali(dt), h = (ev[jKey(j.jy, j.jm, j.jd)] || []).find(e => e.h); if (h) { setHolidayNext({ days: i, title: h.t.replace(/\[.*?\]/g, '').trim(), label: `${faDigits(j.jd)} ${JALALI_MONTHS[j.jm - 1]}` }); break; } }
+    });
+  }, []);
   const [drawerKind, setDrawerKind] = useState(null);
-  const [editName, setEditName] = useState(null);
   const [notice, setNotice] = useState('');
   const [streak, setStreak] = useState(0);
   const [aqi, setAqi] = useState(null);
@@ -180,9 +186,8 @@ function App() {
       setNotice(date === today ? 'با موفقیت ثبت شد.' : `برای ${jalaliDayLabel(date)} ثبت شد.`); load();
     } catch (error) { setNotice(error.message); }
   };
-  const saveName = async e => { e.preventDefault(); const displayName = (editName || '').trim(); try { await api('/api/me', { method: 'PATCH', body: JSON.stringify({ displayName }) }); setData(d => ({ ...d, user: { ...d.user, displayName } })); setEditName(null); } catch (error) { setNotice(error.message); } };
   const saveDrawer = async body => { try { await createPlannerItem(drawerKind, body); setDrawerKind(null); setNotice('ثبت شد ✓'); load(); } catch (error) { setNotice(error.message); } };
-  const saveDaily = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: today, mood: Number(form.get('mood')), sleep: form.get('sleep'), note: form.get('note'), bestMoment: form.get('bestMoment'), gratitude: form.get('gratitude'), tomorrowPlan: form.get('tomorrowPlan') }) }); setNotice('ثبت روزانه ذخیره شد.'); loadStreak(); load(); } catch (error) { setNotice(error.message); } };
+  const saveDaily = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: today, mood: Number(form.get('mood')), sleep: form.get('sleep'), note: form.get('note'), bestMoment: form.get('bestMoment'), gratitude: form.get('gratitude'), tomorrowPlan: data.daily?.tomorrowPlan || '' }) }); setNotice('ثبت روزانه ذخیره شد.'); loadStreak(); load(); } catch (error) { setNotice(error.message); } };
   const allTasks = data.tasks.filter(t => !t.isReminder);
   const tasks = allTasks
     .filter(t => t.date === today || !t.done)
@@ -239,21 +244,18 @@ function App() {
             <span className="chip gold"><CalendarDays size={14} />{new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(fromIso(today))} {faDigits(todayJ.jd)} {JALALI_MONTHS[todayJ.jm - 1]} {faDigits(todayJ.jy)}</span>
             <span className="chip" dir="ltr">{new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long' }).format(fromIso(today))}</span>
             {streak > 0 && <span className="chip"><Flame size={14} />{fa(streak)} روز پیوسته</span>}
-            <button type="button" className={`chip layout-btn ${layoutEdit ? 'gold' : ''}`} onClick={() => setLayoutEdit(v => !v)}><LayoutGrid size={14} />{layoutEdit ? 'پایان چیدمان' : 'چیدمان'}</button>
-            {layoutEdit && <button type="button" className="chip" onClick={() => { resetLayouts(); setLayoutEdit(false); }}><RotateCcw size={14} />پیش‌فرض</button>}
           </div>
-          {editName !== null
-            ? <form className="name-edit" onSubmit={saveName}><h1>{greeting}،</h1><input autoFocus value={editName} onChange={e => setEditName(e.target.value)} placeholder="اسمت به فارسی" maxLength={40} /><button className="save">ذخیره</button><button type="button" className="outline" onClick={() => setEditName(null)}>انصراف</button></form>
-            : <h1>{greeting}{firstName ? `، ${firstName}` : ''}<button type="button" className="name-btn" aria-label="تغییر اسم" title="تغییر اسم" onClick={() => setEditName(data.user?.displayName || '')}><Pencil size={16} /></button></h1>}
+          <h1>{greeting}{firstName ? `، ${firstName}` : ''}</h1>
           <p>{summary}</p>
         </div>
         <div className="hero-side">
         <DigitalClock />
         <div className="glance">
-          <div><small>کارهای باز</small><b>{fa(agendaTasks.filter(x => !x.done).length)}</b><span>{overdueTasks.length ? `${fa(overdueTasks.length)} عقب‌افتاده` : 'هیچ عقب‌افتاده‌ای نیست'}</span></div>
-          <div><small>یادآوری بعدی</small><b>{nextRem ? faDigits(nextRem.time) : '—'}</b><span>{nextRem ? nextRem.title : 'امروز یادآوری دیگه‌ای نیست'}</span></div>
-          <div><small>برنامهٔ بعدی</small><b>{nextEvent ? faDigits(nextEvent.time) : '—'}</b><span>{nextEvent ? nextEvent.title : 'برنامهٔ ساعت‌داری نیست'}</span></div>
-          <div><small>خرج امروز</small><b>{fa(todaySpend)}</b><span>ریال</span></div>
+          <div className="gl-tasks"><small>کارهای امروز</small><b>{fa(todayAgenda.length - openCount)}<em> از {fa(todayAgenda.length)}</em></b><div className="gl-bar"><i style={{ width: `${todayAgenda.length ? (todayAgenda.length - openCount) / todayAgenda.length * 100 : 0}%` }} /></div><span className={overdueTasks.length ? 'bad' : ''}>{overdueTasks.length ? `${fa(overdueTasks.length)} کار عقب‌افتاده` : openCount ? `${fa(openCount)} کار مونده` : 'همه‌چی انجام شده ✓'}</span></div>
+          {(() => { const nx = [nextRem, nextEvent].filter(Boolean).sort((a, b) => a.time.localeCompare(b.time))[0]; const tmrN = agenda.filter(x => !x.done && x.date === addDaysIso(today, 1)).length;
+            return <div className="gl-next"><small>{nx ? (nx === nextRem ? 'یادآوری بعدی' : 'برنامهٔ بعدی') : 'بقیهٔ امروز'}</small><b>{nx ? faDigits(nx.time) : 'آزاد'}</b><span>{nx ? nx.title : tmrN ? `فردا ${fa(tmrN)} کار و یادآوری داری` : 'برای فردا هم چیزی ثبت نشده'}</span></div>; })()}
+          <div className="gl-usd"><small>دلار آزاد</small><b>{usd ? fa(usd.p) : '…'}</b><span className={usd?.dp > 0 ? 'good' : usd?.dp < 0 ? 'bad' : ''}>{usd ? (usd.dp ? `${usd.dp > 0 ? '▲' : '▼'} ${Math.abs(usd.dp).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪ امروز` : 'بدون تغییر · ریال') : 'ریال'}</span></div>
+          <div className="gl-holiday"><small>تعطیلی بعدی</small><b>{holidayNext ? (holidayNext.days === 1 ? 'فردا' : `${fa(holidayNext.days)} روز`) : '…'}</b><span>{holidayNext ? `${holidayNext.title} · ${holidayNext.label}` : ''}</span></div>
         </div>
         </div>
         <form className="quick" onSubmit={submitQuick}>
@@ -270,13 +272,13 @@ function App() {
         </form>
       </section>
       {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
-      <Layout id="top" className="grid home-top" editing={layoutEdit} cards={{
+      <Layout id="top" className="grid home-top" cards={{
         day: (<DayCard today={today} />),
         weather: (<WeatherCard weather={weather} aqi={aqi} city={city} onCity={changeCity} />),
         calendar: (<LiveCalendar today={today} />),
         market: (<Market />)
       }} />
-      <Layout id="grid" className="grid home-grid" editing={layoutEdit} cards={{
+      <Layout id="grid" className="grid home-grid" cards={{
         agenda: (<Card className="agenda" icon={CheckSquare2} title="کارها و یادآوری‌ها" action={<a href="/?page=planner">برنامه‌ریز ←</a>}>
           {[['task', 'کارها', agendaTasks, CheckSquare2], ['reminder', 'یادآوری‌ها', agendaRems, Bell]].map(([kind, label, items, Icon]) => {
             const doneN = items.filter(x => x.done).length;
@@ -297,7 +299,7 @@ function App() {
         finance: (<FinanceMini todaySpend={todaySpend} />),
         football: (<Football />),
         series: (<Card title="سریال‌های من" icon={Clapperboard} className="series" action={<a href="/?page=series">ادامه تماشا ←</a>}>{data.watchingSeries?.length ? <div className="series-list">{data.watchingSeries.slice(0, 6).map(item => { const denom = item.airedInSeason || item.totalEpisodes || 0, progress = denom ? Math.min(100, Math.round((item.currentEpisode || 0) / denom * 100)) : 0; return <div className="series-item" key={item.id}><div className="series-poster">{item.posterUrl ? <img src={item.posterUrl} alt={item.title} loading="lazy" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'grid'; }} /> : null}<span className="series-fallback" style={{ display: item.posterUrl ? 'none' : 'grid' }}>🎬</span>{progress > 0 && <div className="series-progress"><i style={{ width: `${progress}%` }} /></div>}</div><b>{item.title}</b><small>{item.currentSeason ? `فصل ${fa(item.currentSeason)} · ` : ''}قسمت {fa(item.currentEpisode || 0)}</small></div>; })}</div> : <p className="empty">سریالی در حال تماشا نیست.</p>}</Card>),
-        daily: (<Card title="ثبت روزانه" icon={StickyNote} className="daily" action={streak > 0 ? <span className="muted"><Flame size={14} style={{ verticalAlign: 'middle' }} /> {fa(streak)} روز</span> : null}><form onSubmit={saveDaily} key={data.daily ? `d-${data.daily.id || data.daily.date}` : 'empty'}><label>امروزت چطور بود؟ <input name="mood" type="range" min="1" max="10" defaultValue={data.daily?.mood || 7} /></label><div className="form-row"><input name="sleep" defaultValue={data.daily?.sleep || ''} placeholder="خواب (ساعت)" /><input name="note" defaultValue={data.daily?.note || ''} placeholder="یک جمله از امروز" /></div><div className="form-row"><input name="bestMoment" defaultValue={data.daily?.bestMoment || ''} placeholder="🌟 بهترین لحظهٔ امروز" /><input name="gratitude" defaultValue={data.daily?.gratitude || ''} placeholder="🙏 بابت چی شکرگزاری؟" /></div><input name="tomorrowPlan" defaultValue={data.daily?.tomorrowPlan || ''} placeholder="برنامهٔ فردا" /><button className="save">ذخیرهٔ روز</button></form></Card>)
+        daily: (<Card title="ثبت روزانه" icon={StickyNote} className="daily" action={streak > 0 ? <span className="muted"><Flame size={14} style={{ verticalAlign: 'middle' }} /> {fa(streak)} روز</span> : null}><form onSubmit={saveDaily} key={data.daily ? `d-${data.daily.id || data.daily.date}` : 'empty'}><label>امروزت چطور بود؟ <input name="mood" type="range" min="1" max="10" defaultValue={data.daily?.mood || 7} /></label><div className="form-row"><input name="sleep" defaultValue={data.daily?.sleep || ''} placeholder="خواب (ساعت)" /><input name="note" defaultValue={data.daily?.note || ''} placeholder="یک جمله از امروز" /></div><div className="form-row"><input name="bestMoment" defaultValue={data.daily?.bestMoment || ''} placeholder="🌟 بهترین لحظهٔ امروز" /><input name="gratitude" defaultValue={data.daily?.gratitude || ''} placeholder="🙏 بابت چی شکرگزاری؟" /></div><button className="save">ذخیرهٔ روز</button></form></Card>)
       }} />
     </div>
     <TaskDrawer open={!!drawerKind} kind={drawerKind || 'task'} initial={null} onClose={() => setDrawerKind(null)} onSubmit={saveDrawer} />
@@ -932,6 +934,38 @@ function RecordsReact({ kind }) {
 
 const DIGEST_HOURS = Array.from({ length: 24 }, (_, h) => h);
 
+const LAYOUT_DEFAULTS = { top: ['day', 'weather', 'calendar', 'market'], grid: ['agenda', 'finance', 'football', 'series', 'daily'] };
+function HomeSettings({ me, onSaved, flash }) {
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [city, setCity] = useState(() => readLs('lifeos-weather-city', DEFAULT_CITY));
+  const readOrder = id => { const saved = readLs(LAYOUT_KEY(id), []), keys = LAYOUT_DEFAULTS[id]; const valid = saved.filter(k => keys.includes(k)); return [...valid, ...keys.filter(k => !valid.includes(k))]; };
+  const [orders, setOrders] = useState(() => ({ top: readOrder('top'), grid: readOrder('grid') }));
+  useEffect(() => { setName(me?.displayName || ''); }, [me?.displayName]);
+  const saveName = async e => { e.preventDefault(); setBusy(true); try { await api('/api/me', { method: 'PATCH', body: JSON.stringify({ displayName: name.trim() }) }); flash('اسم ذخیره شد ✓'); onSaved(); } catch (error) { flash(error.message); } finally { setBusy(false); } };
+  const move = (id, i, d) => setOrders(o => { const list = [...o[id]], j = i + d; if (j < 0 || j >= list.length) return o; [list[i], list[j]] = [list[j], list[i]]; writeLs(LAYOUT_KEY(id), list); return { ...o, [id]: list }; });
+  const reset = () => { resetLayouts(); setOrders({ top: [...LAYOUT_DEFAULTS.top], grid: [...LAYOUT_DEFAULTS.grid] }); flash('چیدمان به حالت پیش‌فرض برگشت.'); };
+  const pickCity = e => { const c = IR_CITIES.find(([n]) => n === e.target.value); if (!c) return; const v = { name: c[0], lat: c[1], lon: c[2] }; writeLs('lifeos-weather-city', v); setCity(v); flash(`شهر هواشناسی: ${v.name}`); };
+  return <section className="planner-list home-settings" id="homeSettings">
+    <h2>صفحهٔ امروز</h2>
+    <article>
+      <div><b>اسم نمایشی</b><small>توی خوشامد «ظهر بخیر، …» نشون داده می‌شه.</small></div>
+      <form className="hs-name" onSubmit={saveName}><input value={name} onChange={e => setName(e.target.value)} placeholder={me?.name || 'اسمت به فارسی'} maxLength={40} /><button className="save" disabled={busy}>ذخیره</button></form>
+    </article>
+    <article>
+      <div><b>شهر هواشناسی</b><small>از روی کارت هوا هم می‌شه عوضش کرد (با جستجو).</small></div>
+      <select value={IR_CITIES.some(([n]) => n === city.name) ? city.name : ''} onChange={pickCity}>{!IR_CITIES.some(([n]) => n === city.name) && <option value="">{city.name}</option>}{IR_CITIES.map(([n]) => <option key={n} value={n}>{n}</option>)}</select>
+    </article>
+    <article className="hs-layout">
+      <div><b>چیدمان کارت‌ها</b><small>ترتیب کارت‌ها در هر ردیف (از راست به چپ). روی همین مرورگر ذخیره می‌شه.</small></div>
+      <div className="hs-rows">
+        {[['top', 'ردیف بالا'], ['grid', 'ردیف پایین']].map(([id, label]) => <div key={id} className="hs-row"><small>{label}</small><ol>{orders[id].map((k, i) => <li key={k}><span>{fa(i + 1)}. {LAYOUT_LABELS[k]}</span><button type="button" onClick={() => move(id, i, -1)} disabled={i === 0} aria-label="بالاتر">▲</button><button type="button" onClick={() => move(id, i, 1)} disabled={i === orders[id].length - 1} aria-label="پایین‌تر">▼</button></li>)}</ol></div>)}
+        <button type="button" className="outline" onClick={reset}>بازگشت به پیش‌فرض</button>
+      </div>
+    </article>
+  </section>;
+}
+
 function SettingsReact() {
   const [integrations, setIntegrations] = useState({}), [notice, setNotice] = useState('');
   const [me, setMe] = useState(null);
@@ -1004,6 +1038,8 @@ function SettingsReact() {
       <div className="planner-page">
         <header><div><p>اتصال‌های حساب</p><h1>تنظیمات</h1></div></header>
         {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
+
+        <HomeSettings me={me} onSaved={loadMe} flash={setNotice} />
 
         <section className="planner-list integration-list" id="googleCalendarCard">
           <h2>اتصال‌ها</h2>
