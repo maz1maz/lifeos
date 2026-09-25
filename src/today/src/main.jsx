@@ -120,12 +120,11 @@ function App() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const whenRef = React.useRef(null);
   const [, setModeTick] = useState(0);
-  const [heroCompact, setHeroCompact] = useState(false);
   const heroRef = React.useRef(null);
   useEffect(() => {
-    const onScroll = () => { if (!window.matchMedia('(min-width: 1101px)').matches) { setHeroCompact(false); return; } const y = window.scrollY; setHeroCompact(c => c ? y > 60 : y > 260); };
-    window.addEventListener('scroll', onScroll, { passive: true }); window.addEventListener('resize', onScroll); onScroll();
-    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); };
+    const fit = () => { const bar = document.querySelector('.topbar'), el = heroRef.current; if (!bar || !el) return; const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1; el.style.top = `${Math.round(bar.getBoundingClientRect().height / zoom)}px`; };
+    fit(); window.addEventListener('resize', fit); const t = setTimeout(fit, 300);
+    return () => { window.removeEventListener('resize', fit); clearTimeout(t); };
   }, []);
   const [usd, setUsd] = useState(null);
   const [holidayNext, setHolidayNext] = useState(null);
@@ -165,7 +164,7 @@ function App() {
   useEffect(() => {
     setWeather(null); setAqi(null);
     const q = `latitude=${city.lat}&longitude=${city.lon}&timezone=auto`;
-    fetch(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day,uv_index&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,uv_index_max,precipitation_probability_max&forecast_days=6`)
+    fetch(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day,uv_index&hourly=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,uv_index_max,precipitation_probability_max&forecast_days=6`)
       .then(r => r.json()).then(w => { if (w?.current) setWeather(w); }).catch(() => {});
     fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${q}&current=us_aqi,pm2_5`)
       .then(r => r.json()).then(a => { if (a?.current) setAqi(a.current); }).catch(() => {});
@@ -174,8 +173,10 @@ function App() {
   useEffect(() => {
     api(`/api/calendar/feed?from=${today}&to=${today}`).then(d => { setFeed(d.items || []); if (d.googleError) setScheduleNote(d.googleError); }).catch(() => {});
   }, []);
-  const toggleTask = async task => { await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }); load(); };
-  const toggleReminder = async reminder => { await api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) }); load(); };
+  const [ticked, setTicked] = useState(() => { const t = readLs('lifeos-ticked', null); return t && t.date === isoToday() ? t.ids : []; });
+  const markTicked = id => setTicked(ids => { const next = ids.includes(id) ? ids : [...ids, id]; writeLs('lifeos-ticked', { date: isoToday(), ids: next }); return next; });
+  const toggleTask = async task => { markTicked('t' + task.id); await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }); load(); };
+  const toggleReminder = async reminder => { markTicked('r' + reminder.id); await api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) }); load(); };
   const quickDate = () => quick.when === 'tomorrow' ? addDaysIso(today, 1) : quick.when === 'pick' && quick.date ? quick.date : today;
   const submitQuick = async event => {
     event.preventDefault(); if (!quick.title.trim()) return;
@@ -197,7 +198,7 @@ function App() {
   const saveDaily = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: today, mood: Number(form.get('mood')), sleep: form.get('sleep'), note: form.get('note'), bestMoment: form.get('bestMoment'), gratitude: form.get('gratitude'), tomorrowPlan: data.daily?.tomorrowPlan || '' }) }); setNotice('ثبت روزانه ذخیره شد.'); loadStreak(); load(); } catch (error) { setNotice(error.message); } };
   const allTasks = data.tasks.filter(t => !t.isReminder);
   const tasks = allTasks
-    .filter(t => t.date === today || !t.done)
+    .filter(t => t.date === today || !t.done || ticked.includes('t' + t.id))
     .sort((a, b) => (a.done - b.done) || String(a.date).localeCompare(String(b.date)) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
   const overdueTasks = allTasks.filter(t => !t.done && t.deadline && t.deadline < today);
   const tomorrowIso = useMemo(() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }, [today]);
@@ -207,7 +208,7 @@ function App() {
   const nowHm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
   const agenda = [
     ...tasks.map(t => ({ kind: 'task', id: t.id, title: t.title, done: !!t.done, time: t.startTime || '', date: (t.deadline && t.deadline < (t.date || today)) ? t.deadline : (t.date || ''), raw: t })),
-    ...data.reminders.filter(r => r.date === today || !r.done).map(r => ({ kind: 'reminder', id: r.id, title: r.title, done: !!r.done, time: r.time || '', date: r.date || today, raw: r }))
+    ...data.reminders.filter(r => r.date === today || !r.done || ticked.includes('r' + r.id)).map(r => ({ kind: 'reminder', id: r.id, title: r.title, done: !!r.done, time: r.time || '', date: r.date || today, raw: r }))
   ].map(x => ({ ...x, late: !x.done && !!x.date && x.date < today }))
     .map(x => ({ ...x, rank: x.late ? 0 : x.date === today ? 1 : x.date ? 2 : 3 }))
     .sort((a, b) => (a.done - b.done) || (a.rank - b.rank) || String(a.date || '').localeCompare(String(b.date || '')) || String(a.time || '99').localeCompare(String(b.time || '99')));
@@ -237,34 +238,17 @@ function App() {
   const todayAgenda = agenda.filter(x => x.date === today || x.late);
   const openCount = todayAgenda.filter(x => !x.done).length;
   const nextEvent = schedule.find(x => x.time && x.time >= nowHm);
+  const nextAny = [nextRem, nextEvent].filter(Boolean).sort((a, b) => a.time.localeCompare(b.time))[0];
   const summary = [
     todayAgenda.length ? `امروز ${fa(todayAgenda.length)} کار و یادآوری داری و ${fa(todayAgenda.length - openCount)} تا رو انجام دادی.` : 'برای امروز هنوز کاری ثبت نکردی.',
     overdueTasks.length ? `${fa(overdueTasks.length)} کار عقب‌افتاده منتظرته.` : '',
-    nextEvent ? `برنامهٔ بعدی: ${nextEvent.title}، ساعت ${faDigits(nextEvent.time)}.` : ''
+    nextAny ? `بعدی: ${nextAny.title}، ساعت ${faDigits(nextAny.time)}.` : ''
   ].filter(Boolean).join(' ');
   return <main>
     <TopNav active="" right={<div className="profile"><button aria-label="تغییر حالت روشن و تاریک" onClick={() => { const next = document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.mode = next; try { localStorage.setItem('lifeos-mode', next); } catch {} setModeTick(t => t + 1); }}>{document.documentElement.dataset.mode === 'light' ? <Moon size={17} /> : <Sun size={17} />}</button><b>{data.user?.displayName || data.user?.name || 'سلام'}</b></div>} />
     <div className="page home">
-      <section className={`hero ${heroCompact ? 'compact' : ''}`} ref={heroRef}>
-        <div className="hero-text">
-          <div className="hero-chips">
-            <span className="chip gold"><CalendarDays size={14} />{new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(fromIso(today))} {faDigits(todayJ.jd)} {JALALI_MONTHS[todayJ.jm - 1]} {faDigits(todayJ.jy)}</span>
-            <span className="chip" dir="ltr">{new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long' }).format(fromIso(today))}</span>
-            {streak > 0 && <span className="chip"><Flame size={14} />{fa(streak)} روز پیوسته</span>}
-          </div>
-          <h1>{greeting}{firstName ? `، ${firstName}` : ''}</h1>
-          <p>{summary}</p>
-        </div>
-        <div className="hero-side">
-        <DigitalClock />
-        <div className="glance">
-          <div className="gl-tasks"><small>کارهای امروز</small><b>{fa(todayAgenda.length - openCount)}<em> از {fa(todayAgenda.length)}</em></b><div className="gl-bar"><i style={{ width: `${todayAgenda.length ? (todayAgenda.length - openCount) / todayAgenda.length * 100 : 0}%` }} /></div><span className={overdueTasks.length ? 'bad' : ''}>{overdueTasks.length ? `${fa(overdueTasks.length)} کار عقب‌افتاده` : openCount ? `${fa(openCount)} کار مونده` : 'همه‌چی انجام شده ✓'}</span></div>
-          {(() => { const nx = [nextRem, nextEvent].filter(Boolean).sort((a, b) => a.time.localeCompare(b.time))[0]; const tmrN = agenda.filter(x => !x.done && x.date === addDaysIso(today, 1)).length;
-            return <div className="gl-next"><small>{nx ? (nx === nextRem ? 'یادآوری بعدی' : 'برنامهٔ بعدی') : 'بقیهٔ امروز'}</small><b>{nx ? faDigits(nx.time) : 'آزاد'}</b><span>{nx ? nx.title : tmrN ? `فردا ${fa(tmrN)} کار و یادآوری داری` : 'برای فردا هم چیزی ثبت نشده'}</span></div>; })()}
-          <div className="gl-usd"><small>دلار آزاد</small><b>{usd ? fa(usd.p) : '…'}</b><span className={usd?.dp > 0 ? 'good' : usd?.dp < 0 ? 'bad' : ''}>{usd ? (usd.dp ? `${usd.dp > 0 ? '▲' : '▼'} ${Math.abs(usd.dp).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪ امروز` : 'بدون تغییر · ریال') : 'ریال'}</span></div>
-          <div className="gl-holiday"><small>تعطیلی بعدی</small><b>{holidayNext ? (holidayNext.days === 1 ? 'فردا' : `${fa(holidayNext.days)} روز`) : '…'}</b><span>{holidayNext ? `${holidayNext.title} · ${holidayNext.label}` : ''}</span></div>
-        </div>
-        </div>
+      <section className="hero bar" ref={heroRef}>
+        <DigitalClock compact />
         <form className="quick" onSubmit={submitQuick}>
           <button type="submit" className="save">＋ ثبت</button>
           <input className="quick-title" value={quick.title} onChange={e => setQuick({ ...quick, title: e.target.value })} placeholder={quick.type === 'transaction' ? 'برای چی خرج کردی؟' : quick.type === 'reminder' ? 'چی رو یادت بندازم؟ (مثلاً: فردا تماس با علی)' : 'چه کاری باید انجام بدی؟ (مثلاً: فردا خرید نان)'} />
@@ -280,7 +264,7 @@ function App() {
       </section>
       {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
       <Layout id="top" className="grid home-top" cards={{
-        day: (<DayCard today={today} />),
+        day: (<DayCard today={today} greeting={`${greeting}${firstName ? `، ${firstName}` : ''}`} summary={summary} streak={streak} />),
         weather: (<WeatherCard weather={weather} aqi={aqi} city={city} onCity={changeCity} />),
         calendar: (<LiveCalendar today={today} />),
         market: (<Market />)
@@ -1187,29 +1171,46 @@ function Market() {
   }, []);
   return <Card className="market" icon={LineChart} title="بازارها" action={<a href="/?page=market">همه بازارها ←</a>}><small className="unit-note">قیمت‌ها به ریال</small>{rows.length ? rows.map(item => { const h = hist[item.key] || [], prev = h.length > 1 ? h[h.length - 2] : 0; let dp = item.dp; if (!dp && prev && item.p) { dp = (item.p - prev) / prev * 100; if (Math.abs(dp) > 25) dp = 0; } const change = dp ? `${dp > 0 ? '▲' : '▼'}${Math.abs(dp).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪` : (item.change || '۰٪'); const up = !change.includes('▼'); return <div className="market-row" key={item.key}><MarketLogo k={item.key} fallback={marketIcon(item.key)} /><span>{item.name}</span>{hist[item.key]?.length > 1 && <Sparkline data={hist[item.key]} up={up} uid={item.key} />}<b>{fa(item.p)}</b><small className={change.includes('▼') ? 'negative' : dp ? 'positive' : ''}>{change}</small></div>; }) : <p className="empty">{notice || 'در حال دریافت بازار…'}</p>}</Card>;
 }
-const FOOT_LEAGUES = [['eng.1', 'لیگ برتر'], ['esp.1', 'لالیگا'], ['ita.1', 'سری آ'], ['ger.1', 'بوندس‌لیگا'], ['uefa.champions', 'لیگ قهرمانان']];
+const FOOT_LEAGUES = [['eng.1', 'انگلیس'], ['esp.1', 'اسپانیا'], ['ita.1', 'ایتالیا'], ['ger.1', 'آلمان'], ['fra.1', 'فرانسه'], ['uefa.champions', 'لیگ قهرمانان']];
 const readLs = (k, f) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? f; } catch { return f; } };
 const writeLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 function Football() {
   const [league, setLeague] = useState(() => readLs('lifeos-home-league', 'eng.1'));
   const [favs, setFavs] = useState(() => readLs('lifeos-fav-teams', []));
   const [onlyFav, setOnlyFav] = useState(false);
-  const [matches, setMatches] = useState([]), [notice, setNotice] = useState('');
-  useEffect(() => { setMatches([]); setNotice(''); writeLs('lifeos-home-league', league); api(`/api/football/remote/free/matches?league=${league}`).then(data => { setMatches(data.items || []); if (!(data.items || []).length) setNotice('مسابقه‌ای دریافت نشد.'); }).catch(error => setNotice(error.message)); }, [league]);
+  const [tab, setTab] = useState('fixtures');
+  const [matches, setMatches] = useState([]), [notice, setNotice] = useState(''), [loading, setLoading] = useState(true);
+  const fetchMatches = () => api(`/api/football/remote/free/matches?league=${league}`).then(data => { setMatches(data.items || []); setNotice((data.items || []).length ? '' : 'مسابقه‌ای دریافت نشد.'); }).catch(error => setNotice(error.message)).finally(() => setLoading(false));
+  useEffect(() => { setMatches([]); setLoading(true); writeLs('lifeos-home-league', league); fetchMatches(); }, [league]);
+  const hasLive = matches.some(m => m.status === 'live');
+  useEffect(() => { if (!hasLive) return; const t = setInterval(fetchMatches, 60000); return () => clearInterval(t); }, [hasLive, league]);
   const toggleFav = name => setFavs(f => { const n = f.includes(name) ? f.filter(x => x !== name) : [...f, name]; writeLs('lifeos-fav-teams', n); return n; });
   const isFav = m => favs.includes(m.home) || favs.includes(m.away);
-  const rank = m => m.status === 'live' ? 0 : m.status === 'finished' ? 2 : 1;
   const ts = m => Date.parse(m.date) || 0;
-  const list = matches.filter(m => !onlyFav || isFav(m)).sort((a, b) => (isFav(b) - isFav(a)) || (rank(a) - rank(b)) || (rank(a) === 2 ? ts(b) - ts(a) : ts(a) - ts(b))).slice(0, 6);
-  const when = m => { const d = new Date(m.date); if (isNaN(d)) return ''; const tf = (o) => new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', ...o }).format(d); const sameDay = tf({ dateStyle: 'short' }) === new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'short' }).format(new Date()); return `${sameDay ? 'امروز' : tf({ weekday: 'short' })} ${tf({ hour: '2-digit', minute: '2-digit', hour12: false })}`; };
+  const weekAgo = Date.now() - 7 * 86400000;
+  const pool = matches.filter(m => !onlyFav || isFav(m));
+  const fixtures = [...pool.filter(m => m.status === 'live'), ...pool.filter(m => m.status === 'upcoming').sort((a, b) => ts(a) - ts(b))];
+  const results = pool.filter(m => m.status === 'finished' && ts(m) >= weekAgo).sort((a, b) => ts(b) - ts(a));
+  const list = tab === 'fixtures' ? fixtures : results;
+  const when = m => { const d = new Date(m.date); if (isNaN(d)) return ''; const isoT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); const t = isoToday(); const hmT = new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hour12: false }).format(d); const dayL = isoT === t ? 'امروز' : isoT === addDaysIso(t, 1) ? 'فردا' : isoT === addDaysIso(t, -1) ? 'دیروز' : `${new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(fromIso(isoT))} ${jalaliDayLabel(isoT)}`; return m.status === 'finished' ? dayL : `${dayL} · ${hmT}`; };
   const team = (name, logo, side) => <span className={`team ${favs.includes(name) ? 'fav' : ''}`}>{side === 'home' && <TeamBadge logo={logo} name={name} />}<button type="button" onClick={() => toggleFav(name)} title={favs.includes(name) ? 'حذف از تیم‌های من' : 'افزودن به تیم‌های من'}>{name}{favs.includes(name) && <Star size={11} fill="currentColor" />}</button>{side === 'away' && <TeamBadge logo={logo} name={name} />}</span>;
   return <Card className="football" icon={Trophy} title="فوتبال" action={<a href="/?page=football">همه مسابقات ←</a>}>
-    <div className="score-tabs">{FOOT_LEAGUES.map(([id, name]) => <button type="button" key={id} className={league === id ? 'on' : ''} onClick={() => setLeague(id)}>{name}</button>)}{favs.length > 0 && <button type="button" className={`fav-toggle ${onlyFav ? 'on' : ''}`} onClick={() => setOnlyFav(v => !v)}><Star size={12} fill={onlyFav ? 'currentColor' : 'none'} />تیم‌های من</button>}</div>
-    {list.length ? list.map((m, index) => <div className={`score-row ${isFav(m) ? 'is-fav' : ''}`} key={m.id || index}><small className={m.status === 'live' ? 'live' : ''}>{m.status === 'live' ? '● زنده' : m.status === 'finished' ? 'پایان' : when(m)}</small>{team(m.home, m.homeLogo, 'home')}<b>{m.status === 'upcoming' || !/\d/.test(m.score || '') ? '—' : faDigits(m.score)}</b>{team(m.away, m.awayLogo, 'away')}</div>)
-      : <p className="empty">{notice || (onlyFav ? 'تیم‌هات این هفته بازی ندارن.' : 'در حال دریافت…')}</p>}
+    <div className="fb-tabs">
+      <button type="button" className={tab === 'fixtures' ? 'on' : ''} onClick={() => setTab('fixtures')}>برنامهٔ بازی‌ها{hasLive && <i className="live-dot" title="بازی زنده" />}</button>
+      <button type="button" className={tab === 'results' ? 'on' : ''} onClick={() => setTab('results')}>نتایج هفتهٔ قبل</button>
+      {favs.length > 0 && <button type="button" className={`fav-toggle ${onlyFav ? 'on' : ''}`} onClick={() => setOnlyFav(v => !v)}><Star size={12} fill={onlyFav ? 'currentColor' : 'none'} />تیم‌های من</button>}
+    </div>
+    <div className="score-tabs">{FOOT_LEAGUES.map(([id, name]) => <button type="button" key={id} className={league === id ? 'on' : ''} onClick={() => setLeague(id)}>{name}</button>)}</div>
+    <div className="fb-list">{list.length ? list.map((m, index) => <div className={`score-row ${isFav(m) ? 'is-fav' : ''} ${m.status === 'live' ? 'is-live' : ''}`} key={m.fixtureId || m.id || index}>
+      <small className={m.status === 'live' ? 'live' : ''}>{m.status === 'live' ? '● زنده' : when(m)}</small>
+      {team(m.home, m.homeLogo, 'home')}
+      <b>{m.status === 'upcoming' || !/\d/.test(m.score || '') ? '—' : faDigits(m.score)}</b>
+      {team(m.away, m.awayLogo, 'away')}
+    </div>) : <p className="empty">{loading ? 'در حال دریافت…' : notice || (onlyFav ? (tab === 'fixtures' ? 'تیم‌هات بازی پیش رو ندارن.' : 'تیم‌هات هفتهٔ قبل بازی نداشتن.') : tab === 'fixtures' ? 'بازی پیش رویی نیست.' : 'نتیجه‌ای برای هفتهٔ قبل نیست.')}</p>}</div>
     {!favs.length && list.length > 0 && <small className="hint">روی اسم هر تیم بزن تا به «تیم‌های من» اضافه بشه.</small>}
   </Card>;
 }
+
 const WEATHER_TEXT = code => code === 0 ? 'صاف' : code <= 2 ? 'کمی ابری' : code === 3 ? 'ابری' : code <= 48 ? 'مه' : code <= 57 ? 'نم‌نم باران' : code <= 67 ? 'بارانی' : code <= 77 ? 'برفی' : code <= 82 ? 'رگبار' : code <= 86 ? 'بارش برف' : 'رعد و برق';
 const WEATHER_ICON = (code, day = 1) => code === 0 ? (day ? '☀️' : '🌙') : code <= 2 ? (day ? '🌤️' : '☁️') : code === 3 ? '☁️' : code <= 48 ? '🌫️' : code <= 67 ? '🌧️' : code <= 77 ? '❄️' : code <= 82 ? '🌦️' : code <= 86 ? '🌨️' : '⛈️';
 const AQI_LEVEL = v => v == null ? null : v <= 50 ? ['پاک', 'good'] : v <= 100 ? ['قابل قبول', 'ok'] : v <= 150 ? ['ناسالم برای حساس‌ها', 'warn'] : v <= 200 ? ['ناسالم', 'bad'] : v <= 300 ? ['بسیار ناسالم', 'bad'] : ['خطرناک', 'bad'];
@@ -1395,7 +1396,7 @@ function Layout({ id, className, cards, editing }) {
 }
 
 const SEASONS = [['بهار', 1], ['تابستان', 4], ['پاییز', 7], ['زمستان', 10]];
-function DayCard({ today }) {
+function DayCard({ today, greeting, summary, streak }) {
   const d = fromIso(today), j = toJalali(d);
   const dayIndex = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
   const photo = photoOfDay(j.jm, dayIndex);
@@ -1425,19 +1426,21 @@ function DayCard({ today }) {
   const sIdx = Math.floor((j.jm - 1) / 3), sStart = toGregorian(j.jy, SEASONS[sIdx][1], 1);
   const sEnd = sIdx === 3 ? toGregorian(j.jy + 1, 1, 1) : toGregorian(j.jy, SEASONS[sIdx + 1][1], 1);
   const sLen = Math.round((sEnd - sStart) / 86400000), sDay = Math.round((d - sStart) / 86400000) + 1;
-  let hijri = '';
-  try { hijri = new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(d).replace(/\s*(ه‍?\.?\s*ق\.?|AH)\s*$/, '') + ' ق'; } catch {}
   const greg = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
   const onError = () => setSrc(cur => cur === photo.local ? photo.remote : '/assets/img/mountains-dusk.jpg');
   return <Card className={`day-card dc2 season-${photo.season}`} title={new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(d)} action={holidayReason ? <span className="holiday-tag">تعطیل · {holidayReason.length > 22 ? holidayReason.slice(0, 22) + '…' : holidayReason}</span> : null}>
     <img className="hero-bg-img" src={src} onError={onError} alt="" />
     <div className="hero-bg-fade" />
+    <div className="dc-hello">
+      <h2>{greeting}</h2>
+      {summary && <p>{summary}</p>}
+      {streak > 0 && <span className="dc-streak"><Flame size={13} />{fa(streak)} روز پیوسته ثبت روزانه</span>}
+    </div>
     <div className="dc-panel">
       <div className="dc-main">
         <div className="dc-num">{faDigits(j.jd)}</div>
         <div className="dc-dates">
           <b>{JALALI_MONTHS[j.jm - 1]} {faDigits(j.jy)}</b>
-          {hijri && <span>{hijri}</span>}
           <span dir="ltr" className="dc-greg">{greg}</span>
         </div>
       </div>
@@ -1481,30 +1484,47 @@ function WeatherScene({ kind }) {
   </div>;
 }
 
+const UV_LEVEL = v => v < 3 ? 'کم' : v < 6 ? 'متوسط' : v < 8 ? 'زیاد' : v < 11 ? 'خیلی زیاد' : 'شدید';
 function WeatherCard({ weather, aqi, city, onCity }) {
   const cityTitle = <CityPicker city={city} onPick={onCity} />;
-  if (!weather) return <Card className="weather" icon={MapPin} title={cityTitle}><WeatherScene kind="clear-day" /><p className="empty weather-loading">در حال دریافت وضعیت هوا…</p></Card>;
-  const c = weather.current, dl = weather.daily, lvl = AQI_LEVEL(aqi?.us_aqi);
-  const nowIdx = Math.max(0, (weather.hourly?.time || []).findIndex(t => t >= c.time.slice(0, 13)));
-  const hours = (weather.hourly?.temperature_2m || []).slice(nowIdx, nowIdx + 24);
-  return <Card className="weather" icon={MapPin} title={cityTitle} action={<small>{WEATHER_TEXT(c.weather_code)}</small>}>
+  if (!weather) return <Card className="weather wx2" icon={MapPin} title={cityTitle}><WeatherScene kind="clear-day" /><p className="empty weather-loading">در حال دریافت وضعیت هوا…</p></Card>;
+  const c = weather.current, dl = weather.daily, hr = weather.hourly || {}, lvl = AQI_LEVEL(aqi?.us_aqi);
+  const nowIdx = Math.max(0, (hr.time || []).findIndex(t => t >= c.time.slice(0, 13)));
+  const hours = (hr.time || []).slice(nowIdx, nowIdx + 13).map((t, i) => ({ t, temp: hr.temperature_2m[nowIdx + i], code: hr.weather_code?.[nowIdx + i], day: hr.is_day?.[nowIdx + i] ?? 1 }));
+  const feels = Math.round(c.apparent_temperature), temp = Math.round(c.temperature_2m), fd = feels - temp;
+  const feelsNote = fd >= 2 ? 'به‌خاطر رطوبت گرم‌تر حس می‌شه' : fd <= -2 ? (c.wind_speed_10m > 15 ? 'باد باعث می‌شه خنک‌تر حس بشه' : 'خنک‌تر از دمای واقعی') : 'نزدیک به دمای واقعی';
+  const uv = Math.round(c.uv_index ?? dl.uv_index_max?.[0] ?? 0);
+  const days = dl.time.slice(0, 6).map((d, i) => ({ d, i, lo: dl.temperature_2m_min[i], hi: dl.temperature_2m_max[i], code: dl.weather_code[i] }));
+  const wLo = Math.min(...days.map(x => x.lo)), wHi = Math.max(...days.map(x => x.hi)), span = wHi - wLo || 1;
+  return <Card className="weather wx2" icon={MapPin} title={cityTitle} action={<small>{WEATHER_TEXT(c.weather_code)}</small>}>
     <WeatherScene kind={sceneOf(c, dl)} />
-    <div className="weather-now">
-      <span className="weather-icon-badge">{WEATHER_ICON(c.weather_code, c.is_day)}</span>
-      <strong>{fa(Math.round(c.temperature_2m))}<em>°C</em></strong>
-      <div className="wn-meta"><b>حس‌شده {fa(Math.round(c.apparent_temperature))}°</b><span>بیشینه {fa(Math.round(dl.temperature_2m_max[0]))}° · کمینه {fa(Math.round(dl.temperature_2m_min[0]))}°</span></div>
-      {lvl && <span className={`aqi aqi-${lvl[1]}`} title={`PM2.5: ${fa(Math.round(aqi.pm2_5 || 0))}`}><b>{fa(Math.round(aqi.us_aqi))}</b><small>AQI · {lvl[0]}</small></span>}
+    <div className="wx-body">
+      <div className="wx-hero">
+        <strong>{fa(temp)}°</strong>
+        <div className="wx-hero-meta">
+          <b>حس‌شده {fa(feels)}°</b>
+          <span>بیشینه {fa(Math.round(dl.temperature_2m_max[0]))}° · کمینه {fa(Math.round(dl.temperature_2m_min[0]))}°</span>
+        </div>
+        <span className="wx-hero-icon">{WEATHER_ICON(c.weather_code, c.is_day)}</span>
+      </div>
+      <div className="wx-panel wx-hours">{hours.map((h, i) => <div key={h.t}><small>{i === 0 ? 'اکنون' : faDigits(h.t.slice(11, 13))}</small><span>{h.code != null ? WEATHER_ICON(h.code, h.day) : ''}</span><b>{fa(Math.round(h.temp))}°</b></div>)}</div>
+      <div className="wx-tiles">
+        <div className="wx-tile"><small>🌡️ حس‌شده</small><b>{fa(feels)}°</b><span>{feelsNote}</span></div>
+        <div className="wx-tile"><small>☀️ شاخص UV</small><b>{fa(uv)} <em>{UV_LEVEL(uv)}</em></b><i className="wx-meter uv"><u style={{ insetInlineStart: `${Math.min(100, uv / 11 * 100)}%` }} /></i></div>
+        {lvl ? <div className="wx-tile"><small>😷 کیفیت هوا</small><b>{fa(Math.round(aqi.us_aqi))}</b><span>{lvl[0]}</span><i className="wx-meter aqim"><u style={{ insetInlineStart: `${Math.min(100, aqi.us_aqi / 300 * 100)}%` }} /></i></div>
+          : <div className="wx-tile"><small>💧 رطوبت</small><b>{fa(c.relative_humidity_2m)}٪</b></div>}
+        <div className="wx-tile"><small>💨 باد</small><b>{fa(Math.round(c.wind_speed_10m))} <em>km/h</em></b><span>رطوبت {fa(c.relative_humidity_2m)}٪</span></div>
+        <div className="wx-tile"><small>🌅 طلوع / غروب</small><b>{hm(dl.sunset?.[0])}</b><span>طلوع {hm(dl.sunrise?.[0])}</span></div>
+        <div className="wx-tile"><small>☔ بارش</small><b>{fa(dl.precipitation_probability_max?.[0] ?? 0)}٪</b><span>احتمال امروز</span></div>
+      </div>
+      <div className="wx-panel wx-days">{days.map(x => <div key={x.d}>
+        <span className="wd">{x.i === 0 ? 'امروز' : new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(new Date(`${x.d}T12:00`))}</span>
+        <span className="wi">{WEATHER_ICON(x.code)}</span>
+        <small>{fa(Math.round(x.lo))}°</small>
+        <i className="wx-range"><u style={{ insetInlineStart: `${(x.lo - wLo) / span * 100}%`, insetInlineEnd: `${(wHi - x.hi) / span * 100}%` }} />{x.i === 0 && <em style={{ insetInlineStart: `${Math.min(100, Math.max(0, (temp - wLo) / span * 100))}%` }} />}</i>
+        <b>{fa(Math.round(x.hi))}°</b>
+      </div>)}</div>
     </div>
-    {hours.length > 1 && <div className="hourly"><Sparkline data={hours} up width={300} height={34} uid="wx" color="#e6b563" /><div className="hourly-labels"><span>اکنون</span><span>+۶ ساعت</span><span>+۱۲</span><span>+۱۸</span><span>+۲۴</span></div></div>}
-    <div className="weather-grid">
-      <div><small>رطوبت</small><b>{fa(c.relative_humidity_2m)}٪</b></div>
-      <div><small>باد</small><b>{fa(Math.round(c.wind_speed_10m))} km/h</b></div>
-      <div><small>UV</small><b>{fa(Math.round(c.uv_index ?? dl.uv_index_max?.[0] ?? 0))}</b></div>
-      <div><small>احتمال بارش</small><b>{fa(dl.precipitation_probability_max?.[0] ?? 0)}٪</b></div>
-      <div><small>طلوع</small><b>{hm(dl.sunrise?.[0])}</b></div>
-      <div><small>غروب</small><b>{hm(dl.sunset?.[0])}</b></div>
-    </div>
-    <div className="forecast">{dl.time.slice(1, 6).map((day, index) => <div key={day}><small>{new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(new Date(`${day}T12:00`))}</small><b className="weather-icon-badge small">{WEATHER_ICON(dl.weather_code[index + 1])}</b><span>{fa(Math.round(dl.temperature_2m_max[index + 1]))}°<em>{fa(Math.round(dl.temperature_2m_min[index + 1]))}°</em></span></div>)}</div>
   </Card>;
 }
 
