@@ -77,7 +77,7 @@ function Sparkline({ data, up, width = 72, height = 28, uid = 'sp', color: force
 }
 
 const NAV_GROUPS = [
-  ['روزانه', [['', 'امروز', House], ['calendar', 'تقویم', CalendarDays], ['planner', 'برنامه‌ریز', ListChecks]]],
+  ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays]]],
   ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
   ['سرگرمی', [['football', 'فوتبال', Trophy], ['series', 'سریال‌ها', Clapperboard], ['movies', 'فیلم‌ها', Film], ['media', 'رسانه', Music]]],
   ['آرشیو', [['notes', 'یادداشت‌ها', StickyNote], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
@@ -98,13 +98,13 @@ function TopNav({ active, right }) {
       <button type="button" className="nav-toggle" aria-label={open ? 'بستن منو' : 'بازکردن منو'} aria-expanded={open} onClick={() => setOpen(v => !v)}>
         {open ? <X size={20} /> : <Menu size={20} />}
       </button>
-      <a className="brand" href="/"><Sparkles size={20} /><span>LifeOS</span></a>
+      <a className="brand" href="/" aria-label="LifeOS"><i className="brand-logo" aria-hidden="true" /><span>LifeOS</span></a>
       <span className="nav-current">{current[1]}</span>
       <span className="nav-spacer" />
       {right}
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
-        <div className="drawer-head"><Sparkles size={18} /><b>LifeOS</b></div>
+        <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
         {NAV_GROUPS.map(([title, items]) => <div className="drawer-group" key={title}><small>{title}</small>{items.map(link)}</div>)}
         <div className="drawer-foot">{link(['settings', 'تنظیمات', Settings])}</div>
       </aside>
@@ -112,7 +112,37 @@ function TopNav({ active, right }) {
   );
 }
 
+// Planner + Calendar live in one place: same data, two ways of looking at it.
+function PlanHub({ initial }) {
+  const [view, setView] = useState(initial);
+  const go = v => { setView(v); try { history.replaceState(null, '', v === 'calendar' ? '/?page=calendar' : '/?page=planner'); } catch {} window.scrollTo(0, 0); };
+  const HubNav = () => <>
+    <TopNav active="planner" />
+    <div className="hub-switch" role="tablist" aria-label="نمای برنامه‌ریز">
+      <button type="button" role="tab" aria-selected={view === 'list'} className={view === 'list' ? 'on' : ''} onClick={() => go('list')}><ListChecks size={16} />لیست کارها</button>
+      <button type="button" role="tab" aria-selected={view === 'calendar'} className={view === 'calendar' ? 'on' : ''} onClick={() => go('calendar')}><CalendarDays size={16} />تقویم</button>
+    </div>
+  </>;
+  return view === 'calendar' ? <CalendarReact Nav={HubNav} /> : <PlannerReact Nav={HubNav} />;
+}
+
+// Router first: other pages must not pay for the Today page's data fetching.
 function App() {
+  const page = new URLSearchParams(location.search).get('page');
+  if (page === 'calendar' || page === 'planner') return <PlanHub initial={page === 'calendar' ? 'calendar' : 'list'} />;
+  if (page === 'finance') return <FinanceReact Nav={TopNav} />;
+  if (page === 'market') return <MarketReact Nav={TopNav} />;
+  if (page === 'football') return <FootballReact Nav={TopNav} />;
+  if (page === 'movies') return <MoviesReact />;
+  if (page === 'series') return <SeriesReact />;
+  if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;
+  if (page === 'notes') return <NotesReact Nav={TopNav} />;
+  if (page === 'documents') return <DocumentsReact Nav={TopNav} />;
+  if (page === 'contacts') return <ContactsReact Nav={TopNav} />;
+  if (page === 'settings') return <SettingsReact />;
+  return <HomePage />;
+}
+function HomePage() {
   const today = useMemo(isoToday, []);
   const [data, setData] = useState({ tasks: [], reminders: [], transactions: [], daily: null, user: null, watchingSeries: [] });
   const [weather, setWeather] = useState(null);
@@ -218,19 +248,6 @@ function App() {
   const schedule = feed.filter(ev => eventOnDate(ev, fromIso(today)) && (ev.source !== 'lifeos' || ev.time)).sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
   void scheduleNote;
   const weatherIcon = code => code === 0 ? '☀️' : code < 4 ? '⛅' : code < 70 ? '☁️' : '🌧️';
-  const page = new URLSearchParams(location.search).get('page');
-  if (page === 'calendar') return <CalendarReact Nav={TopNav} />;
-  if (page === 'planner') return <PlannerReact Nav={TopNav} />;
-  if (page === 'finance') return <FinanceReact Nav={TopNav} />;
-  if (page === 'market') return <MarketReact Nav={TopNav} />;
-  if (page === 'football') return <FootballReact Nav={TopNav} />;
-  if (page === 'movies') return <MoviesReact />;
-  if (page === 'series') return <SeriesReact />;
-  if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;
-  if (page === 'notes') return <NotesReact Nav={TopNav} />;
-  if (page === 'documents') return <DocumentsReact Nav={TopNav} />;
-  if (page === 'contacts') return <ContactsReact Nav={TopNav} />;
-  if (page === 'settings') return <SettingsReact />;
   const nowHour = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date()));
   const greeting = nowHour < 5 ? 'شب بخیر' : nowHour < 12 ? 'صبح بخیر' : nowHour < 16 ? 'ظهر بخیر' : nowHour < 19 ? 'عصر بخیر' : 'شب بخیر';
   const firstName = (data.user?.displayName || '').trim() || (data.user?.name || '').trim().split(/\s+/)[0];
@@ -287,10 +304,8 @@ function App() {
             </div>;
           })}
         </Card>),
-        finance: (<FinanceMini todaySpend={todaySpend} />),
         football: (<Football />),
-        series: (<Card title="سریال‌های من" icon={Clapperboard} className="series" action={<a href="/?page=series">ادامه تماشا ←</a>}>{data.watchingSeries?.length ? <div className="series-list">{data.watchingSeries.slice(0, 6).map(item => { const denom = item.airedInSeason || item.totalEpisodes || 0, progress = denom ? Math.min(100, Math.round((item.currentEpisode || 0) / denom * 100)) : 0; return <div className="series-item" key={item.id}><div className="series-poster">{item.posterUrl ? <img src={item.posterUrl} alt={item.title} loading="lazy" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'grid'; }} /> : null}<span className="series-fallback" style={{ display: item.posterUrl ? 'none' : 'grid' }}>🎬</span>{progress > 0 && <div className="series-progress"><i style={{ width: `${progress}%` }} /></div>}</div><b>{item.title}</b><small>{item.currentSeason ? `فصل ${fa(item.currentSeason)} · ` : ''}قسمت {fa(item.currentEpisode || 0)}</small></div>; })}</div> : <p className="empty">سریالی در حال تماشا نیست.</p>}</Card>),
-        daily: (<Card title="ثبت روزانه" icon={StickyNote} className="daily" action={streak > 0 ? <span className="muted"><Flame size={14} style={{ verticalAlign: 'middle' }} /> {fa(streak)} روز</span> : null}><form onSubmit={saveDaily} key={data.daily ? `d-${data.daily.id || data.daily.date}` : 'empty'}><label>امروزت چطور بود؟ <input name="mood" type="range" min="1" max="10" defaultValue={data.daily?.mood || 7} /></label><div className="form-row"><input name="sleep" defaultValue={data.daily?.sleep || ''} placeholder="خواب (ساعت)" /><input name="note" defaultValue={data.daily?.note || ''} placeholder="یک جمله از امروز" /></div><div className="form-row"><input name="bestMoment" defaultValue={data.daily?.bestMoment || ''} placeholder="🌟 بهترین لحظهٔ امروز" /><input name="gratitude" defaultValue={data.daily?.gratitude || ''} placeholder="🙏 بابت چی شکرگزاری؟" /></div><button className="save">ذخیرهٔ روز</button></form></Card>)
+        series: (<SeriesCard />),
       }} />
     </div>
     <TaskDrawer open={!!drawerKind} kind={drawerKind || 'task'} initial={null} onClose={() => setDrawerKind(null)} onSubmit={saveDrawer} />
@@ -960,7 +975,7 @@ function WorldClockPicker({ flash }) {
   return <div className="hs-choices wrap">{WORLD_ZONES.map(([name, tz]) => <button type="button" key={tz} className={sel.includes(tz) ? 'on' : ''} onClick={() => toggle(tz)}>{name}</button>)}</div>;
 }
 
-const LAYOUT_DEFAULTS = { top: ['day', 'weather', 'calendar', 'market'], grid: ['agenda', 'finance', 'football', 'series', 'daily'] };
+const LAYOUT_DEFAULTS = { top: ['day', 'weather', 'calendar', 'market'], grid: ['agenda', 'football', 'series'] };
 function HomeSettings({ me, onSaved, flash }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1171,25 +1186,58 @@ function Market() {
   }, []);
   return <Card className="market" icon={LineChart} title="بازارها" action={<a href="/?page=market">همه بازارها ←</a>}><small className="unit-note">قیمت‌ها به ریال</small>{rows.length ? rows.map(item => { const h = hist[item.key] || [], prev = h.length > 1 ? h[h.length - 2] : 0; let dp = item.dp; if (!dp && prev && item.p) { dp = (item.p - prev) / prev * 100; if (Math.abs(dp) > 25) dp = 0; } const change = dp ? `${dp > 0 ? '▲' : '▼'}${Math.abs(dp).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪` : (item.change || '۰٪'); const up = !change.includes('▼'); return <div className="market-row" key={item.key}><MarketLogo k={item.key} fallback={marketIcon(item.key)} /><span>{item.name}</span>{hist[item.key]?.length > 1 && <Sparkline data={hist[item.key]} up={up} uid={item.key} />}<b>{fa(item.p)}</b><small className={change.includes('▼') ? 'negative' : dp ? 'positive' : ''}>{change}</small></div>; }) : <p className="empty">{notice || 'در حال دریافت بازار…'}</p>}</Card>;
 }
-const FOOT_LEAGUES = [['eng.1', 'انگلیس'], ['esp.1', 'اسپانیا'], ['ita.1', 'ایتالیا'], ['ger.1', 'آلمان'], ['fra.1', 'فرانسه'], ['uefa.champions', 'لیگ قهرمانان']];
+const FOOT_LEAGUES = [['eng.1', 'لیگ برتر انگلیس', 'PL', '#a855f7'], ['esp.1', 'لالیگا', 'LL', '#ef4444'], ['ita.1', 'سری آ', 'A', '#3b82f6'], ['ger.1', 'بوندس‌لیگا', 'BL', '#dc2626'], ['fra.1', 'لیگ ۱', 'L1', '#94a3b8'], ['tur.1', 'سوپر لیگ ترکیه', 'TR', '#e11d48'], ['por.1', 'پریمیرا لیگا پرتغال', 'PT', '#16a34a'], ['uefa.champions', 'لیگ قهرمانان اروپا', 'UCL', '#6366f1'], ['uefa.europa', 'لیگ اروپا', 'UEL', '#f97316'], ['uefa.nations', 'لیگ ملت‌های اروپا', 'UNL', '#0ea5e9'], ['afc.champions', 'لیگ نخبگان آسیا', 'AFC', '#8b5cf6'], ['ksa.1', 'لیگ حرفه‌ای عربستان', 'KSA', '#22c55e'], ['irn.1', 'لیگ برتر خلیج فارس', 'ایران', '#0ea5e9']];
+const LEAGUE_CACHE = {};
+const fetchLeague = id => (LEAGUE_CACHE[id] ||= api(`/api/football/remote/free/matches?league=${id}`).then(d => d.items || []).catch(e => { delete LEAGUE_CACHE[id]; throw e; }));
+// The league whose next (or live) match is soonest within the coming week.
+async function pickNearestLeague() {
+  const cached = readLs('lifeos-home-league-auto', null);
+  if (cached && Date.now() - cached.at < 3 * 3600000) return cached.league;
+  const now = Date.now(), week = now + 7 * 86400000;
+  const res = await Promise.all(FOOT_LEAGUES.map(([id]) => fetchLeague(id).then(items => {
+    if (items.some(m => m.status === 'live')) return [id, 0];
+    const next = items.filter(m => m.status === 'upcoming').map(m => Date.parse(m.date)).filter(t => t >= now - 3 * 3600000 && t <= week).sort((a, b) => a - b)[0];
+    return [id, next ?? Infinity];
+  }).catch(() => [id, Infinity])));
+  const best = res.sort((a, b) => a[1] - b[1])[0];
+  const league = best && best[1] !== Infinity ? best[0] : 'eng.1';
+  writeLs('lifeos-home-league-auto', { at: Date.now(), league });
+  return league;
+}
+function LeaguePicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const wrap = React.useRef(null);
+  const cur = FOOT_LEAGUES.find(l => l[0] === value) || FOOT_LEAGUES[0];
+  return <div className="lgpick" ref={wrap}>
+    <button type="button" className="lg-btn" onClick={() => setOpen(o => !o)}><i style={{ color: cur[3] }}>{cur[2]}</i>{cur[1]}<ChevronDown size={15} /></button>
+    {open && <LeagueMenu anchor={wrap} value={value} onClose={() => setOpen(false)} onPick={id => { onChange(id); setOpen(false); }} />}
+  </div>;
+}
+function LeagueMenu({ anchor, value, onClose, onPick }) {
+  useDismiss(anchor, onClose);
+  return <div className="lg-menu" role="listbox">{FOOT_LEAGUES.map(([id, name, code, color]) => <button type="button" key={id} className={id === value ? 'on' : ''} onClick={() => onPick(id)}><i style={{ color }}>{code}</i><span>{name}</span>{id === value && <Check size={15} />}</button>)}</div>;
+}
 const readLs = (k, f) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? f; } catch { return f; } };
 const writeLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const dayTitle = isoD => { const t = isoToday(); const rel = isoD === t ? 'امروز · ' : isoD === addDaysIso(t, 1) ? 'فردا · ' : isoD === addDaysIso(t, -1) ? 'دیروز · ' : ''; return `${rel}${new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(fromIso(isoD))} ${jalaliDayLabel(isoD)}`; };
 function Football() {
-  const [league, setLeague] = useState(() => readLs('lifeos-home-league', 'eng.1'));
+  const [league, setLeague] = useState(null);
+  useEffect(() => { pickNearestLeague().then(setLeague); }, []);
   const [favs, setFavs] = useState(() => readLs('lifeos-fav-teams', []));
   const [onlyFav, setOnlyFav] = useState(false);
   const [tab, setTab] = useState('fixtures');
   const [matches, setMatches] = useState([]), [notice, setNotice] = useState(''), [loading, setLoading] = useState(true);
-  const fetchMatches = () => api(`/api/football/remote/free/matches?league=${league}`).then(data => { setMatches(data.items || []); setNotice((data.items || []).length ? '' : 'مسابقه‌ای دریافت نشد.'); }).catch(error => setNotice(error.message)).finally(() => setLoading(false));
-  useEffect(() => { setMatches([]); setLoading(true); writeLs('lifeos-home-league', league); fetchMatches(); }, [league]);
+  const fetchMatches = (fresh = false) => { if (!league) return; if (fresh) delete LEAGUE_CACHE[league]; return fetchLeague(league).then(items => { setMatches(items); setNotice(items.length ? '' : 'مسابقه‌ای دریافت نشد.'); }).catch(error => setNotice(error.message)).finally(() => setLoading(false)); };
+  useEffect(() => { if (!league) return; setMatches([]); setLoading(true); fetchMatches(); }, [league]);
   const hasLive = matches.some(m => m.status === 'live');
-  useEffect(() => { if (!hasLive) return; const t = setInterval(fetchMatches, 60000); return () => clearInterval(t); }, [hasLive, league]);
+  useEffect(() => { if (!hasLive) return; const t = setInterval(() => fetchMatches(true), 60000); return () => clearInterval(t); }, [hasLive, league]);
   const toggleFav = name => setFavs(f => { const n = f.includes(name) ? f.filter(x => x !== name) : [...f, name]; writeLs('lifeos-fav-teams', n); return n; });
   const isFav = m => favs.includes(m.home) || favs.includes(m.away);
   const ts = m => Date.parse(m.date) || 0;
   const weekAgo = Date.now() - 7 * 86400000;
   const pool = matches.filter(m => !onlyFav || isFav(m));
-  const fixtures = [...pool.filter(m => m.status === 'live'), ...pool.filter(m => m.status === 'upcoming').sort((a, b) => ts(a) - ts(b))];
+  const weekAhead = Date.now() + 7 * 86400000;
+  const fixtures = [...pool.filter(m => m.status === 'live'), ...pool.filter(m => m.status === 'upcoming' && ts(m) <= weekAhead).sort((a, b) => ts(a) - ts(b))];
   const results = pool.filter(m => m.status === 'finished' && ts(m) >= weekAgo).sort((a, b) => ts(b) - ts(a));
   const list = tab === 'fixtures' ? fixtures : results;
   const when = m => { const d = new Date(m.date); if (isNaN(d)) return ''; const isoT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); const t = isoToday(); const hmT = new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hour12: false }).format(d); const dayL = isoT === t ? 'امروز' : isoT === addDaysIso(t, 1) ? 'فردا' : isoT === addDaysIso(t, -1) ? 'دیروز' : `${new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(fromIso(isoT))} ${jalaliDayLabel(isoT)}`; return m.status === 'finished' ? dayL : `${dayL} · ${hmT}`; };
@@ -1200,13 +1248,18 @@ function Football() {
       <button type="button" className={tab === 'results' ? 'on' : ''} onClick={() => setTab('results')}>نتایج هفتهٔ قبل</button>
       {favs.length > 0 && <button type="button" className={`fav-toggle ${onlyFav ? 'on' : ''}`} onClick={() => setOnlyFav(v => !v)}><Star size={12} fill={onlyFav ? 'currentColor' : 'none'} />تیم‌های من</button>}
     </div>
-    <div className="score-tabs">{FOOT_LEAGUES.map(([id, name]) => <button type="button" key={id} className={league === id ? 'on' : ''} onClick={() => setLeague(id)}>{name}</button>)}</div>
-    <div className="fb-list">{list.length ? list.map((m, index) => <div className={`score-row ${isFav(m) ? 'is-fav' : ''} ${m.status === 'live' ? 'is-live' : ''}`} key={m.fixtureId || m.id || index}>
-      <small className={m.status === 'live' ? 'live' : ''}>{m.status === 'live' ? '● زنده' : when(m)}</small>
-      {team(m.home, m.homeLogo, 'home')}
-      <b>{m.status === 'upcoming' || !/\d/.test(m.score || '') ? '—' : faDigits(m.score)}</b>
-      {team(m.away, m.awayLogo, 'away')}
-    </div>) : <p className="empty">{loading ? 'در حال دریافت…' : notice || (onlyFav ? (tab === 'fixtures' ? 'تیم‌هات بازی پیش رو ندارن.' : 'تیم‌هات هفتهٔ قبل بازی نداشتن.') : tab === 'fixtures' ? 'بازی پیش رویی نیست.' : 'نتیجه‌ای برای هفتهٔ قبل نیست.')}</p>}</div>
+    <LeaguePicker value={league} onChange={setLeague} />
+    <div className="fb-list">{list.length ? (() => { let lastDay = null; return list.map((m, index) => {
+      const dayKey = m.status === 'live' ? 'live' : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(m.date));
+      const head = dayKey !== lastDay ? <div className="fb-day">{dayKey === 'live' ? '● در حال بازی' : dayTitle(dayKey)}</div> : null; lastDay = dayKey;
+      const hmT = new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(m.date));
+      return <React.Fragment key={m.fixtureId || m.id || index}>{head}<div className={`score-row ${isFav(m) ? 'is-fav' : ''} ${m.status === 'live' ? 'is-live' : ''}`}>
+        <small className={m.status === 'live' ? 'live' : ''}>{m.status === 'live' ? 'زنده' : m.status === 'finished' ? 'پایان' : hmT}</small>
+        {team(m.home, m.homeLogo, 'home')}
+        <b>{m.status === 'upcoming' || !/\d/.test(m.score || '') ? '—' : faDigits(m.score)}</b>
+        {team(m.away, m.awayLogo, 'away')}
+      </div></React.Fragment>;
+    }); })() : <p className="empty">{loading ? 'در حال دریافت…' : notice || (onlyFav ? (tab === 'fixtures' ? 'تیم‌هات این هفته بازی ندارن.' : 'تیم‌هات هفتهٔ قبل بازی نداشتن.') : tab === 'fixtures' ? 'این هفته بازی‌ای نیست.' : 'نتیجه‌ای برای هفتهٔ قبل نیست.')}</p>}</div>
     {!favs.length && list.length > 0 && <small className="hint">روی اسم هر تیم بزن تا به «تیم‌های من» اضافه بشه.</small>}
   </Card>;
 }
@@ -1525,6 +1578,53 @@ function WeatherCard({ weather, aqi, city, onCity }) {
         <b>{fa(Math.round(x.hi))}°</b>
       </div>)}</div>
     </div>
+  </Card>;
+}
+
+function SeriesCard() {
+  const [all, setAll] = useState(null), [tab, setTab] = useState('watching');
+  const load = () => api('/api/movies').then(d => setAll((d.items || []).filter(x => x.type === 'series'))).catch(() => setAll([]));
+  useEffect(() => { load(); }, []);
+  const onChange = load;
+  const unseen = x => { const cur = Number(x.currentSeason) || 1, ep = Number(x.currentEpisode) || 0; return Math.max(0, (seasonAiredCount(x, cur) || Number(x.airedInSeason) || 0) - ep) + (seriesHasFresh(x) ? 1 : 0); };
+  const watching = (all || []).filter(x => x.status === 'watching').sort((a, b) => (unseen(b) > 0) - (unseen(a) > 0) || (b.lastTouchedAt || b.createdAt || 0) - (a.lastTouchedAt || a.createdAt || 0));
+  const queue = (all || []).filter(x => x.status === 'watchlist').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const items = tab === 'watching' ? watching : queue;
+  const [busy, setBusy] = useState(null), [msg, setMsg] = useState('');
+  const watchNext = async item => {
+    const cur = Number(item.currentSeason) || 1, ep = Number(item.currentEpisode) || 0;
+    const aired = seasonAiredCount(item, cur) || Number(item.airedInSeason) || 0;
+    const by = item.seasonEpisodes || {};
+    // finished the season and the next one has aired episodes → move to S+1 E1
+    const next = item.status === 'watchlist' ? { currentSeason: 1, currentEpisode: 1, status: 'watching' } : aired && ep >= aired && (Number(by[cur + 1]?.aired) || 0) > 0 ? { currentSeason: cur + 1, currentEpisode: 1 } : { currentSeason: cur, currentEpisode: ep + 1 };
+    setBusy(item.id);
+    try { await api(`/api/movies/${item.id}`, { method: 'PATCH', body: JSON.stringify(next) }); setMsg(`«${item.title}» فصل ${fa(next.currentSeason)} قسمت ${fa(next.currentEpisode)} ✓`); onChange(); }
+    catch (e) { setMsg(e.message); }
+    setBusy(null); setTimeout(() => setMsg(''), 3000);
+  };
+  return <Card title="سریال‌های من" icon={Clapperboard} className="series series2" action={<a href="/?page=series">همهٔ سریال‌ها ←</a>}>
+    <div className="fb-tabs sr-tabs">
+      <button type="button" className={tab === 'watching' ? 'on' : ''} onClick={() => setTab('watching')}>در حال تماشا <em>{fa(watching.length)}</em></button>
+      <button type="button" className={tab === 'queue' ? 'on' : ''} onClick={() => setTab('queue')}>منتظر دیدن <em>{fa(queue.length)}</em></button>
+    </div>
+    {all === null ? <p className="empty">در حال دریافت…</p> : items.length ? <div className="sr-grid">{items.map(item => {
+      const cur = Number(item.currentSeason) || 1, ep = Number(item.currentEpisode) || 0;
+      const aired = seasonAiredCount(item, cur) || Number(item.airedInSeason) || 0, total = seasonTotalCount(item, cur) || Number(item.totalEpisodes) || aired;
+      const left = Math.max(0, aired - ep), pct = aired ? Math.min(100, ep / aired * 100) : 0;
+      return <div className="sr-item" key={item.id}>
+        <a className="sr-poster" href="/?page=series">{item.posterUrl ? <img src={item.posterUrl} alt="" loading="lazy" onError={e => { e.target.remove(); }} /> : null}<span>🎬</span></a>
+        <div className="sr-info">
+          <b title={item.title}>{item.title}</b>
+          <small>فصل {fa(cur)} · قسمت {fa(ep)}{total ? ` از ${fa(total)}` : ''}</small>
+          <i className="sr-bar"><u style={{ width: `${pct}%` }} /></i>
+          <div className="sr-foot">
+            {item.status === 'watchlist' ? <span className="muted">{item.network || 'هنوز شروع نشده'}</span> : left > 0 ? <span className="sr-new">{fa(left)} قسمت ندیده</span> : seriesHasFresh(item) ? <span className="sr-new">فصل تازه</span> : <span className="muted">منتظر قسمت بعد</span>}
+            {(item.status === 'watchlist' || left > 0 || seriesHasFresh(item)) && <button type="button" disabled={busy === item.id} onClick={() => watchNext(item)}><Check size={14} />{item.status === 'watchlist' ? 'شروع کردم' : 'دیدم'}</button>}
+          </div>
+        </div>
+      </div>;
+    })}</div> : <p className="empty">{tab === 'watching' ? 'سریالی در حال تماشا نیست.' : 'لیست «منتظر دیدن» خالیه. از صفحهٔ سریال‌ها اضافه کن.'}</p>}
+    {msg && <small className="sr-msg">{msg}</small>}
   </Card>;
 }
 

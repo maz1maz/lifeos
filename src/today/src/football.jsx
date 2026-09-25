@@ -21,6 +21,7 @@ const LEAGUE_META = {
   'por.1': { mark: 'PT', color: '#3d8f4a' },
   'uefa.champions': { mark: 'UCL', color: '#4c61c7' },
   'uefa.europa': { mark: 'UEL', color: '#dc9e3d' },
+  'uefa.nations': { mark: 'UNL', color: '#2fa3d6' },
   'afc.champions': { mark: 'AFC', color: '#9f7cca' },
   'ksa.1': { mark: 'KSA', color: '#2f9e5f' },
 }
