@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
-  Search, Star, X, Check, ChevronDown, ChevronLeft, ChevronRight, Trash2, Plus, Menu,
+  Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, Trash2, Plus, Menu,
   Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass
 } from 'lucide-react';
 
@@ -117,6 +117,8 @@ function App() {
   const [weather, setWeather] = useState(null);
   const [quick, setQuick] = useState({ type: 'task', title: '', amount: '', when: 'today', date: '', time: '' });
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [, setModeTick] = useState(0);
+  const [layoutEdit, setLayoutEdit] = useState(false);
   const [drawerKind, setDrawerKind] = useState(null);
   const [editName, setEditName] = useState(null);
   const [notice, setNotice] = useState('');
@@ -128,7 +130,7 @@ function App() {
   const load = async () => {
     try {
       const [me, dashboard, tasks, reminders] = await Promise.all([
-        api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=${today}&to=${today}`)
+        api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=${addDaysIso(today, -14)}&to=${addDaysIso(today, 1)}`)
       ]);
       setData({ ...dashboard, tasks: tasks.items || [], reminders: reminders.items || [], user: me.user || null });
     } catch (error) { setNotice(error.message); }
@@ -175,7 +177,7 @@ function App() {
   const saveDaily = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: today, mood: Number(form.get('mood')), sleep: form.get('sleep'), note: form.get('note'), bestMoment: form.get('bestMoment'), gratitude: form.get('gratitude'), tomorrowPlan: form.get('tomorrowPlan') }) }); setNotice('ثبت روزانه ذخیره شد.'); loadStreak(); load(); } catch (error) { setNotice(error.message); } };
   const allTasks = data.tasks.filter(t => !t.isReminder);
   const tasks = allTasks
-    .filter(t => t.date === today || (!t.done && ((t.date && t.date < today) || (t.deadline && t.deadline <= today))))
+    .filter(t => t.date === today || (!t.done && (!t.date || (t.date < today) || (t.deadline && t.deadline <= today))))
     .sort((a, b) => (a.done - b.done) || String(a.date).localeCompare(String(b.date)) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
   const overdueTasks = allTasks.filter(t => !t.done && t.deadline && t.deadline < today);
   const tomorrowIso = useMemo(() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }, [today]);
@@ -184,10 +186,12 @@ function App() {
   const done = tasks.filter(t => t.done).length;
   const nowHm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
   const agenda = [
-    ...tasks.map(t => ({ kind: 'task', id: t.id, title: t.title, done: !!t.done, time: t.startTime || '', date: (t.deadline && t.deadline < (t.date || today)) ? t.deadline : (t.date || today), raw: t })),
-    ...data.reminders.map(r => ({ kind: 'reminder', id: r.id, title: r.title, done: !!r.done, time: r.time || '', date: r.date || today, raw: r }))
-  ].map(x => ({ ...x, late: !x.done && x.date < today }))
-    .sort((a, b) => (a.done - b.done) || (b.late - a.late) || String(a.time || '99').localeCompare(String(b.time || '99')) || String(a.date).localeCompare(String(b.date)));
+    ...tasks.map(t => ({ kind: 'task', id: t.id, title: t.title, done: !!t.done, time: t.startTime || '', date: (t.deadline && t.deadline < (t.date || today)) ? t.deadline : (t.date || ''), raw: t })),
+    ...data.reminders.filter(r => r.date === today || (!r.done && r.date <= addDaysIso(today, 1))).map(r => ({ kind: 'reminder', id: r.id, title: r.title, done: !!r.done, time: r.time || '', date: r.date || today, raw: r }))
+  ].map(x => ({ ...x, late: !x.done && !!x.date && x.date < today }))
+    .sort((a, b) => (a.done - b.done) || (b.late - a.late) || String(a.time || '99').localeCompare(String(b.time || '99')) || String(a.date || '9').localeCompare(String(b.date || '9')));
+  const agendaTasks = agenda.filter(x => x.kind === 'task'), agendaRems = agenda.filter(x => x.kind === 'reminder');
+  const nextRem = agendaRems.find(x => !x.done && x.date === today && x.time && x.time >= nowHm);
   const lateLabel = date => { const days = Math.round((fromIso(today) - fromIso(date)) / 86400000); return days === 1 ? 'دیروز' : `${fa(days)} روز عقب`; };
   const schedule = feed.filter(ev => eventOnDate(ev, fromIso(today)) && (ev.source !== 'lifeos' || ev.time)).sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
   void scheduleNote;
@@ -217,7 +221,7 @@ function App() {
     nextEvent ? `برنامهٔ بعدی: ${nextEvent.title}، ساعت ${faDigits(nextEvent.time)}.` : ''
   ].filter(Boolean).join(' ');
   return <main>
-    <TopNav active="" right={<div className="profile"><button aria-label="تغییر حالت روشن و تاریک" onClick={() => { const next = document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.mode = next; localStorage.setItem('lifeos-mode', next); }}>◐</button><b>{data.user?.displayName || data.user?.name || 'سلام'}</b></div>} />
+    <TopNav active="" right={<div className="profile"><button aria-label="تغییر حالت روشن و تاریک" onClick={() => { const next = document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.mode = next; try { localStorage.setItem('lifeos-mode', next); } catch {} setModeTick(t => t + 1); }}>{document.documentElement.dataset.mode === 'light' ? <Moon size={17} /> : <Sun size={17} />}</button><b>{data.user?.displayName || data.user?.name || 'سلام'}</b></div>} />
     <div className="page home">
       <section className="hero">
         <div className="hero-text">
@@ -225,11 +229,19 @@ function App() {
             <span className="chip gold"><CalendarDays size={14} />{new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(fromIso(today))} {faDigits(todayJ.jd)} {JALALI_MONTHS[todayJ.jm - 1]} {faDigits(todayJ.jy)}</span>
             <span className="chip" dir="ltr">{new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long' }).format(fromIso(today))}</span>
             {streak > 0 && <span className="chip"><Flame size={14} />{fa(streak)} روز پیوسته</span>}
+            <button type="button" className={`chip layout-btn ${layoutEdit ? 'gold' : ''}`} onClick={() => setLayoutEdit(v => !v)}><LayoutGrid size={14} />{layoutEdit ? 'پایان چیدمان' : 'چیدمان'}</button>
+            {layoutEdit && <button type="button" className="chip" onClick={() => { resetLayouts(); setLayoutEdit(false); }}><RotateCcw size={14} />پیش‌فرض</button>}
           </div>
           {editName !== null
             ? <form className="name-edit" onSubmit={saveName}><h1>{greeting}،</h1><input autoFocus value={editName} onChange={e => setEditName(e.target.value)} placeholder="اسمت به فارسی" maxLength={40} /><button className="save">ذخیره</button><button type="button" className="outline" onClick={() => setEditName(null)}>انصراف</button></form>
             : <h1>{greeting}{firstName ? `، ${firstName}` : ''}<button type="button" className="name-btn" aria-label="تغییر اسم" title="تغییر اسم" onClick={() => setEditName(data.user?.displayName || '')}><Pencil size={16} /></button></h1>}
           <p>{summary}</p>
+        </div>
+        <div className="glance">
+          <div><small>کارهای باز</small><b>{fa(agendaTasks.filter(x => !x.done).length)}</b><span>{overdueTasks.length ? `${fa(overdueTasks.length)} عقب‌افتاده` : 'هیچ عقب‌افتاده‌ای نیست'}</span></div>
+          <div><small>یادآوری بعدی</small><b>{nextRem ? faDigits(nextRem.time) : '—'}</b><span>{nextRem ? nextRem.title : 'امروز یادآوری دیگه‌ای نیست'}</span></div>
+          <div><small>برنامهٔ بعدی</small><b>{nextEvent ? faDigits(nextEvent.time) : '—'}</b><span>{nextEvent ? nextEvent.title : 'برنامهٔ ساعت‌داری نیست'}</span></div>
+          <div><small>خرج امروز</small><b>{fa(todaySpend)}</b><span>ریال</span></div>
         </div>
         <form className="quick" onSubmit={submitQuick}>
           <button type="submit" className="save">＋ ثبت</button>
@@ -245,31 +257,34 @@ function App() {
         </form>
       </section>
       {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
-      <div className="grid home-top">
-        <DayCard today={today} />
-        <WeatherCard weather={weather} aqi={aqi} />
-        <LiveCalendar today={today} />
-        <Market />
-      </div>
-      <div className="grid home-grid">
-        <Card className="agenda" icon={CheckSquare2} title="کارها و یادآوری‌ها" action={<span className="muted">{fa(agenda.length - openCount)} از {fa(agenda.length)}</span>}>
-          <div className="progress"><i style={{ width: `${agenda.length ? (agenda.length - openCount) / agenda.length * 100 : 0}%` }} /></div>
-          <div className="list">{agenda.slice(0, 12).map(item => {
-            const late = !item.done && item.late;
-            return <button className={`line ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${item.kind}`} key={item.kind + item.id} onClick={() => item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
-              <i>{item.done ? '✓' : ''}</i>
-              <span>{item.kind === 'reminder' && <Bell size={13} className="kind-icon" />}{item.title}</span>
-              <small>{late ? `⛔ ${lateLabel(item.date)}` : item.time ? faDigits(item.time) : 'امروز'}</small>
-            </button>;
-          })}{!agenda.length && <p className="empty">امروز خلوته. با دکمه‌های پایین یه کار یا یادآوری اضافه کن.</p>}</div>
-          {agenda.length > 12 && <a className="more" href="/?page=planner">{fa(agenda.length - 12)} مورد دیگر ←</a>}
-          <div className="agenda-add"><button className="outline" onClick={() => setDrawerKind('task')}>＋ کار</button><button className="outline" onClick={() => setDrawerKind('reminder')}>＋ یادآوری</button></div>
-        </Card>
-        <FinanceMini todaySpend={todaySpend} />
-        <Football />
-        <Card title="سریال‌های من" icon={Clapperboard} className="series" action={<a href="/?page=series">ادامه تماشا ←</a>}>{data.watchingSeries?.length ? <div className="series-list">{data.watchingSeries.slice(0, 6).map(item => { const denom = item.airedInSeason || item.totalEpisodes || 0, progress = denom ? Math.min(100, Math.round((item.currentEpisode || 0) / denom * 100)) : 0; return <div className="series-item" key={item.id}><div className="series-poster">{item.posterUrl ? <img src={item.posterUrl} alt={item.title} loading="lazy" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'grid'; }} /> : null}<span className="series-fallback" style={{ display: item.posterUrl ? 'none' : 'grid' }}>🎬</span>{progress > 0 && <div className="series-progress"><i style={{ width: `${progress}%` }} /></div>}</div><b>{item.title}</b><small>{item.currentSeason ? `فصل ${fa(item.currentSeason)} · ` : ''}قسمت {fa(item.currentEpisode || 0)}</small></div>; })}</div> : <p className="empty">سریالی در حال تماشا نیست.</p>}</Card>
-        <Card title="ثبت روزانه" icon={StickyNote} className="daily" action={streak > 0 ? <span className="muted"><Flame size={14} style={{ verticalAlign: 'middle' }} /> {fa(streak)} روز</span> : null}><form onSubmit={saveDaily} key={data.daily ? `d-${data.daily.id || data.daily.date}` : 'empty'}><label>امروزت چطور بود؟ <input name="mood" type="range" min="1" max="10" defaultValue={data.daily?.mood || 7} /></label><div className="form-row"><input name="sleep" defaultValue={data.daily?.sleep || ''} placeholder="خواب (ساعت)" /><input name="note" defaultValue={data.daily?.note || ''} placeholder="یک جمله از امروز" /></div><div className="form-row"><input name="bestMoment" defaultValue={data.daily?.bestMoment || ''} placeholder="🌟 بهترین لحظهٔ امروز" /><input name="gratitude" defaultValue={data.daily?.gratitude || ''} placeholder="🙏 بابت چی شکرگزاری؟" /></div><input name="tomorrowPlan" defaultValue={data.daily?.tomorrowPlan || ''} placeholder="برنامهٔ فردا" /><button className="save">ذخیرهٔ روز</button></form></Card>
-      </div>
+      <Layout id="top" className="grid home-top" editing={layoutEdit} cards={{
+        day: (<DayCard today={today} />),
+        weather: (<WeatherCard weather={weather} aqi={aqi} />),
+        calendar: (<LiveCalendar today={today} />),
+        market: (<Market />)
+      }} />
+      <Layout id="grid" className="grid home-grid" editing={layoutEdit} cards={{
+        agenda: (<Card className="agenda" icon={CheckSquare2} title="کارها و یادآوری‌ها" action={<a href="/?page=planner">برنامه‌ریز ←</a>}>
+          {[['task', 'کارها', agendaTasks, CheckSquare2], ['reminder', 'یادآوری‌ها', agendaRems, Bell]].map(([kind, label, items, Icon]) => {
+            const doneN = items.filter(x => x.done).length;
+            return <div className={`ag-sec ag-${kind}`} key={kind}>
+              <div className="ag-head"><Icon size={14} /><b>{label}</b><span className="muted">{fa(doneN)} از {fa(items.length)}</span><button type="button" className="ag-add" onClick={() => setDrawerKind(kind)} aria-label={`افزودن ${label}`}><Plus size={14} /></button></div>
+              <div className="progress"><i style={{ width: `${items.length ? doneN / items.length * 100 : 0}%` }} /></div>
+              <div className="list">{items.map(item => {
+                const late = !item.done && item.late;
+                const when = late ? `⛔ ${lateLabel(item.date)}` : item.date && item.date > today ? `فردا${item.time ? ' ' + faDigits(item.time) : ''}` : item.time ? faDigits(item.time) : !item.date ? 'بی‌تاریخ' : 'امروز';
+                return <button className={`line ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${item.kind}`} key={item.kind + item.id} onClick={() => item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
+                  <i>{item.done ? '✓' : ''}</i><span>{item.title}</span><small>{when}</small>
+                </button>;
+              })}{!items.length && <p className="empty">{kind === 'task' ? 'کاری برای امروز نداری.' : 'یادآوری‌ای برای امروز نداری.'}</p>}</div>
+            </div>;
+          })}
+        </Card>),
+        finance: (<FinanceMini todaySpend={todaySpend} />),
+        football: (<Football />),
+        series: (<Card title="سریال‌های من" icon={Clapperboard} className="series" action={<a href="/?page=series">ادامه تماشا ←</a>}>{data.watchingSeries?.length ? <div className="series-list">{data.watchingSeries.slice(0, 6).map(item => { const denom = item.airedInSeason || item.totalEpisodes || 0, progress = denom ? Math.min(100, Math.round((item.currentEpisode || 0) / denom * 100)) : 0; return <div className="series-item" key={item.id}><div className="series-poster">{item.posterUrl ? <img src={item.posterUrl} alt={item.title} loading="lazy" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'grid'; }} /> : null}<span className="series-fallback" style={{ display: item.posterUrl ? 'none' : 'grid' }}>🎬</span>{progress > 0 && <div className="series-progress"><i style={{ width: `${progress}%` }} /></div>}</div><b>{item.title}</b><small>{item.currentSeason ? `فصل ${fa(item.currentSeason)} · ` : ''}قسمت {fa(item.currentEpisode || 0)}</small></div>; })}</div> : <p className="empty">سریالی در حال تماشا نیست.</p>}</Card>),
+        daily: (<Card title="ثبت روزانه" icon={StickyNote} className="daily" action={streak > 0 ? <span className="muted"><Flame size={14} style={{ verticalAlign: 'middle' }} /> {fa(streak)} روز</span> : null}><form onSubmit={saveDaily} key={data.daily ? `d-${data.daily.id || data.daily.date}` : 'empty'}><label>امروزت چطور بود؟ <input name="mood" type="range" min="1" max="10" defaultValue={data.daily?.mood || 7} /></label><div className="form-row"><input name="sleep" defaultValue={data.daily?.sleep || ''} placeholder="خواب (ساعت)" /><input name="note" defaultValue={data.daily?.note || ''} placeholder="یک جمله از امروز" /></div><div className="form-row"><input name="bestMoment" defaultValue={data.daily?.bestMoment || ''} placeholder="🌟 بهترین لحظهٔ امروز" /><input name="gratitude" defaultValue={data.daily?.gratitude || ''} placeholder="🙏 بابت چی شکرگزاری؟" /></div><input name="tomorrowPlan" defaultValue={data.daily?.tomorrowPlan || ''} placeholder="برنامهٔ فردا" /><button className="save">ذخیرهٔ روز</button></form></Card>)
+      }} />
     </div>
     <TaskDrawer open={!!drawerKind} kind={drawerKind || 'task'} initial={null} onClose={() => setDrawerKind(null)} onSubmit={saveDrawer} />
   </main>;
@@ -1161,12 +1176,50 @@ function LiveCalendar({ today }) {
   </Card>;
 }
 
+// ---- draggable card layout (order saved per browser) ----
+const LAYOUT_KEY = id => `lifeos-home-layout-${id}`;
+const LAYOUT_LABELS = { day: 'تاریخ', weather: 'هوا', calendar: 'تقویم', market: 'بازارها', agenda: 'کارها و یادآوری‌ها', finance: 'مالی', football: 'فوتبال', series: 'سریال‌ها', daily: 'ثبت روزانه' };
+const resetLayouts = () => { ['top', 'grid'].forEach(id => { try { localStorage.removeItem(LAYOUT_KEY(id)); } catch {} }); window.dispatchEvent(new Event('lifeos-layout-reset')); };
+function Layout({ id, className, cards, editing }) {
+  const keys = Object.keys(cards);
+  const read = () => { const saved = readLs(LAYOUT_KEY(id), []); const valid = saved.filter(k => keys.includes(k)); return [...valid, ...keys.filter(k => !valid.includes(k))]; };
+  const [order, setOrder] = useState(read);
+  const [drag, setDrag] = useState(null), [over, setOver] = useState(null);
+  useEffect(() => { const r = () => setOrder(keys); window.addEventListener('lifeos-layout-reset', r); return () => window.removeEventListener('lifeos-layout-reset', r); }, []);
+  const save = next => { setOrder(next); writeLs(LAYOUT_KEY(id), next); };
+  const move = (from, to) => { if (from === to || to < 0 || to >= order.length) return; const next = [...order]; const [k] = next.splice(from, 1); next.splice(to, 0, k); save(next); };
+  return <div className={`${className} ${editing ? 'layout-editing' : ''}`}>
+    {order.map((k, i) => <div key={k} className={`slot slot-${k} ${drag === k ? 'dragging' : ''} ${over === k && drag && drag !== k ? 'drop-target' : ''}`}
+      draggable={editing}
+      onDragStart={e => { if (!editing) return; setDrag(k); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', k); } catch {} }}
+      onDragOver={e => { if (!editing || !drag) return; e.preventDefault(); setOver(k); }}
+      onDragLeave={() => setOver(o => o === k ? null : o)}
+      onDrop={e => { e.preventDefault(); if (drag) move(order.indexOf(drag), i); setDrag(null); setOver(null); }}
+      onDragEnd={() => { setDrag(null); setOver(null); }}>
+      {editing && <div className="slot-bar"><GripVertical size={16} /><b>{LAYOUT_LABELS[k] || k}</b><button type="button" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label="جابه‌جایی به عقب"><ChevronRight size={16} /></button><button type="button" onClick={() => move(i, i + 1)} disabled={i === order.length - 1} aria-label="جابه‌جایی به جلو"><ChevronLeft size={16} /></button></div>}
+      {cards[k]}
+    </div>)}
+  </div>;
+}
+
 function DayCard({ today }) {
   const d = fromIso(today), j = toJalali(d);
   const dayIndex = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  const d0 = fromIso(today);
   const photo = photoOfDay(j.jm, dayIndex);
   const [src, setSrc] = useState(photo.local);
   const [events, setEvents] = useState([]);
+  const [bdays, setBdays] = useState([]);
+  useEffect(() => {
+    api('/api/contacts').then(d => {
+      const list = (d.items || []).map(c => {
+        const m = String(c.birthday || '').match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return null;
+        let next = new Date(d0.getFullYear(), Number(m[2]) - 1, Number(m[3])); if (next < d0) next = new Date(d0.getFullYear() + 1, Number(m[2]) - 1, Number(m[3]));
+        return { name: c.name, days: Math.round((next - d0) / 86400000) };
+      }).filter(x => x && x.days <= 7).sort((a, b) => a.days - b.days);
+      setBdays(list);
+    }).catch(() => {});
+  }, [today]);
   useEffect(() => {
     const key = `${j.jy}${String(j.jm).padStart(2, '0')}${String(j.jd).padStart(2, '0')}`;
     fetch('/data/iran-events.json').then(r => r.json()).then(all => setEvents(all[key] || [])).catch(() => {});
@@ -1179,7 +1232,10 @@ function DayCard({ today }) {
     <div className="date-number">{faDigits(j.jd)}</div>
     <h3>{faDigits(j.jd)} {JALALI_MONTHS[j.jm - 1]} {faDigits(j.jy)}</h3>
     <small dir="ltr">{new Intl.DateTimeFormat('en-GB', { dateStyle: 'long' }).format(d)}</small>
-    <div className="occasion">{events.length ? events.slice(0, 2).map((e, i) => <div key={i} className={e.h ? 'is-holiday' : ''}>▣ {e.t.replace(/\[.*?\]/g, '').trim()}</div>) : <div>▣ مناسبتی برای امروز ثبت نشده</div>}</div>
+    <div className="occasion">
+      {bdays.slice(0, 2).map((b, i) => <a key={'b' + i} href="/?page=contacts" className={`bday ${b.days === 0 ? 'is-today' : ''}`}><Cake size={14} />{b.days === 0 ? `تولد ${b.name} · امروز 🎉` : b.days === 1 ? `تولد ${b.name} · فردا` : `تولد ${b.name} · ${fa(b.days)} روز دیگه`}</a>)}
+      {events.length ? events.slice(0, 2).map((e, i) => <div key={i} className={e.h ? 'is-holiday' : ''}>▣ {e.t.replace(/\[.*?\]/g, '').trim()}</div>) : !bdays.length && <div>▣ مناسبتی برای امروز ثبت نشده</div>}
+    </div>
   </Card>;
 }
 
@@ -1237,11 +1293,17 @@ function WeatherCard({ weather, aqi }) {
 }
 
 function FinanceMini({ todaySpend }) {
-  const [fin, setFin] = useState(null), [bud, setBud] = useState(null);
+  const [fin, setFin] = useState(null), [bud, setBud] = useState(null), [week, setWeek] = useState(null);
   useEffect(() => {
     const month = isoToday().slice(0, 7);
     api(`/api/finance?month=${month}`).then(setFin).catch(() => setFin({ income: 0, expense: 0, categories: {} }));
     api(`/api/budgets?month=${month}`).then(setBud).catch(() => {});
+    const t = isoToday(), from = addDaysIso(t, -6);
+    api(`/api/transactions?from=${from}&to=${t}`).then(d => {
+      const sums = Object.fromEntries([...Array(7)].map((_, i) => [addDaysIso(from, i), 0]));
+      (d.items || []).forEach(x => { if (x.kind === 'expense' && x.date in sums) sums[x.date] += Number(x.amount) || 0; });
+      setWeek(Object.entries(sums));
+    }).catch(() => setWeek([]));
   }, []);
   const income = fin?.income || 0, expense = fin?.expense || 0;
   const hasBudget = !!bud?.totalBudget;
@@ -1258,10 +1320,14 @@ function FinanceMini({ todaySpend }) {
         {top && <div><span>بیشترین خرج</span><b>{top[0]}</b></div>}
       </div>
       <div className={`ring ${used > 1 ? 'over' : used > .8 ? 'warn' : ''}`}>
-        <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r={R} className="ring-bg" /><circle cx="50" cy="50" r={R} className="ring-fg" strokeDasharray={C} strokeDashoffset={C * (1 - pct / 100)} /></svg>
-        <div><b>{fa(pct)}٪</b><small>{hasBudget ? 'بودجه مانده' : 'از درآمد مانده'}</small></div>
+        <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r={R} className="ring-bg" /><circle cx="50" cy="50" r={R} className="ring-fg" strokeDasharray={C} strokeDashoffset={used > 1 ? 0 : C * (1 - pct / 100)} /></svg>
+        <div>{used > 1 ? <><b>{fa(Math.round(used * 100))}٪</b><small>{hasBudget ? 'بودجه خرج شده' : 'درآمد خرج شده'}</small></> : <><b>{fa(pct)}٪</b><small>{hasBudget ? 'بودجه مانده' : 'از درآمد مانده'}</small></>}</div>
       </div>
     </div>}
+    {week?.length > 0 && (() => { const max = Math.max(1, ...week.map(([, v]) => v)), total = week.reduce((n, [, v]) => n + v, 0), today = isoToday(); return <div className="fm-week">
+      <div className="fm-week-head"><span>خرج ۷ روز اخیر</span><b>{fa(total)}</b></div>
+      <div className="fm-bars">{week.map(([d, v]) => <div key={d} className={d === today ? 'is-today' : ''} title={`${jalaliDayLabel(d)}: ${fa(v)} ریال`}><i style={{ height: `${Math.max(v ? 6 : 2, v / max * 100)}%` }} /><small>{new Intl.DateTimeFormat('fa-IR', { weekday: 'narrow' }).format(fromIso(d))}</small></div>)}</div>
+    </div>; })()}
     <small className="fm-unit">ارقام به ریال</small>
   </Card>;
 }
