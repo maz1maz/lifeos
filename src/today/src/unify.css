@@ -166,3 +166,26 @@ html[data-mode="light"] select option,html[data-mode="light"] select optgroup{ba
 .digest-card .plnr-switch.on{background:var(--g-accent);border-color:var(--g-accent)}
 .digest-card .plnr-switch.on i{transform:translateX(-19px)}
 .digest-card .finance-action{text-decoration:none}
+/* v38 — sections picker + mini cards */
+.mods-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.mods-item{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--g-border-2);border-radius:var(--g-radius-control);background:rgba(255,255,255,.02);color:var(--g-muted);font:inherit;text-align:right;cursor:pointer;transition:.15s}
+.mods-item.on{border-color:color-mix(in srgb,var(--g-accent) 55%,transparent);background:color-mix(in srgb,var(--g-accent) 8%,transparent);color:var(--g-text)}
+.mods-ic{width:38px;height:38px;flex:none;border-radius:10px;display:grid;place-items:center;font-size:19px;background:rgba(255,255,255,.05)}
+.mods-item:not(.on) .mods-ic{filter:grayscale(1);opacity:.6}
+.mods-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mods-txt b{font-size:14px}.mods-txt small{font-size:11.5px;color:var(--g-muted)}
+.mods-check{width:22px;height:22px;flex:none;border-radius:6px;border:1.5px solid var(--g-border-2);display:grid;place-items:center;font-style:normal;font-size:13px;font-weight:900}
+.mods-item.on .mods-check{background:var(--g-accent);border-color:var(--g-accent);color:var(--g-accent-fg)}
+.mods-bg{position:fixed;inset:0;z-index:180;background:rgba(3,5,10,.7);display:flex;align-items:center;justify-content:center;padding:16px}
+.mods-modal{width:min(720px,100%);max-height:92vh;overflow:auto;background:var(--g-panel-2);border:1px solid var(--g-border-2);border-radius:18px;padding:22px}
+.mods-modal h2{margin:0 0 6px;font-size:22px}.mods-modal p{margin:0 0 16px;color:var(--g-muted);font-size:13.5px;line-height:1.9}
+.mods-ops{display:flex;justify-content:flex-start;margin-top:16px}.mods-ops .save{padding:12px 28px}
+.mini-list{display:grid;gap:6px;overflow:auto;min-height:0}
+.mini-habit{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--g-border);border-radius:10px;background:transparent;color:var(--g-text);font:inherit;font-size:14px;text-align:right;cursor:pointer}
+.mini-habit i{width:26px;height:26px;border-radius:8px;border:1.5px solid var(--g-border-2);display:grid;place-items:center;font-style:normal;flex:none}
+.mini-habit.on i{background:#34d399;border-color:#34d399;color:#06281c;font-weight:900}
+.mini-habit span{flex:1}.mini-habit small{color:var(--g-muted);font-size:12px}
+.mini-note{display:flex;flex-direction:column;gap:2px;padding:9px 10px;border:1px solid var(--g-border);border-radius:10px;color:var(--g-text);text-decoration:none}
+.mini-note b{font-size:13.5px}.mini-note small{font-size:12px;color:var(--g-muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mini-goal{display:grid;gap:5px;padding:8px 2px}.mini-goal>div:first-child{display:flex;justify-content:space-between;font-size:13.5px}.mini-goal b{color:var(--g-accent-strong)}
+.mini-card .progress{margin-bottom:8px}

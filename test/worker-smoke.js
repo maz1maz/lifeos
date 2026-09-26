@@ -153,6 +153,13 @@ async function main() {
     check('weekly report text', wr.status === 200 && /مرور هفته/.test(wr.d.text));
     const scan = await call('/api/transactions/receipt-scan', { method: 'POST', cookie, body: { image: 'data:image/png;base64,AAAA' } });
     check('receipt scan without AI key -> 503 (not 500)', scan.status === 503);
+    const nd = await call('/api/tasks', { method: 'POST', cookie, body: { title: 'بدون تاریخ', date: '' } });
+    check('task without a chosen date defaults to today', nd.status === 201 && nd.d.date === today(), nd.d && nd.d.date);
+    const att = await call('/api/attachments', { method: 'POST', cookie, body: { ownerType: 'task', ownerId: nd.d.id, name: 'a.txt', dataUrl: 'data:text/plain;base64,aGk=' } });
+    check('attachment without telegram -> 503 with message (not 500)', att.status === 503);
+    const mods = await call('/api/me', { method: 'PATCH', cookie, body: { modules: { football: false, watch: false } } });
+    const me2 = await call('/api/me', { cookie });
+    check('per-user modules saved', mods.status === 200 && me2.d.user.modules && me2.d.user.modules.football === false && me2.d.user.modules.finance === true);
     const upc = await call('/api/movies/upcoming', { cookie });
     check('upcoming episodes -> 200 with lists', upc.status === 200 && Array.isArray(upc.d.upcoming) && Array.isArray(upc.d.recent));
     const recs = await call('/api/movies/recommendations?type=series', { cookie });

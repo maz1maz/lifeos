@@ -84,7 +84,7 @@ function Sparkline({ data, up, width = 72, height = 28, uid = 'sp', color: force
 }
 
 const NAV_GROUPS = [
-  ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays], ['habits', 'عادت‌ها', Flame], ['week', 'مرور هفته', ClipboardCheck]]],
+  ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays]]],
   ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
   ['سرگرمی', [['football', 'فوتبال', Trophy], ['series', 'فیلم و سریال', Clapperboard], ['media', 'رسانه', Music]]],
   ['آرشیو', [['notes', 'یادداشت‌ها', StickyNote], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
@@ -92,6 +92,8 @@ const NAV_GROUPS = [
 const NAV_PAGES = [...NAV_GROUPS.flatMap(([, items]) => items), ['settings', 'تنظیمات', Settings]];
 function TopNav({ active, right }) {
   const [open, setOpen] = useState(false);
+  const mods = useModules();
+  const groups = NAV_GROUPS.map(([t, items]) => [t, items.filter(([pg]) => pageOn(mods, pg))]).filter(([, items]) => items.length);
   useEffect(() => {
     document.body.classList.toggle('nav-lock', open);
     const onKey = e => { if (e.key === 'Escape') setOpen(false); };
@@ -110,11 +112,11 @@ function TopNav({ active, right }) {
       <span className="nav-spacer" />
       <button type="button" className="nav-search" onClick={() => window.dispatchEvent(new Event('lifeos:search'))} aria-label="جستجو (Ctrl+K)" title="جستجو — Ctrl+K"><Search size={17} /><span>جستجو</span><kbd>Ctrl K</kbd></button>
       {right}
-      <CommandPalette pages={[...NAV_PAGES, ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']]} />
+      <CommandPalette pages={[...NAV_PAGES, ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => pageOn(mods, pg))} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
-        {NAV_GROUPS.map(([title, items]) => <div className="drawer-group" key={title}><small>{title}</small>{items.map(link)}</div>)}
+        {groups.map(([title, items]) => <div className="drawer-group" key={title}><small>{title}</small>{items.map(link)}</div>)}
         <div className="drawer-foot">{link(['settings', 'تنظیمات', Settings])}</div>
       </aside>
     </nav>
@@ -169,6 +171,7 @@ function App() {
   return <HomePage />;
 }
 function HomePage() {
+  const mods = useModules();
   const today = useMemo(isoToday, []);
   const [data, setData] = useState({ tasks: [], reminders: [], transactions: [], daily: null, user: null, watchingSeries: [] });
   const [weather, setWeather] = useState(null);
@@ -313,7 +316,7 @@ function HomePage() {
         day: (<DayCard today={today} greeting={`${greeting}${firstName ? `، ${firstName}` : ''}`} summary={summary} streak={streak} />),
         weather: (<WeatherCard weather={weather} aqi={aqi} city={city} onCity={changeCity} />),
         calendar: (<LiveCalendar today={today} />),
-        market: (<Market />)
+        ...(modOn(mods, 'market') ? { market: (<Market />) } : modOn(mods, 'finance') ? { goals: (<GoalsMini />) } : { habits: (<HabitsMini />) })
       }} />
       <Layout id="grid" className="grid home-grid" cards={{
         agenda: (<Card className="agenda" icon={CheckSquare2} title="کارها و یادآوری‌ها" action={<a href="/?page=planner">برنامه‌ریز ←</a>}>
@@ -333,11 +336,12 @@ function HomePage() {
             </div>;
           })}
         </Card>),
-        football: (<Football />),
-        series: (<SeriesCard />),
+        ...(modOn(mods, 'football') ? { football: (<Football />) } : (!modOn(mods, 'market') && !modOn(mods, 'finance')) ? {} : { habits: (<HabitsMini />) }),
+        ...(modOn(mods, 'watch') ? { series: (<SeriesCard />) } : modOn(mods, 'notes') ? { notes: (<NotesMini />) } : {}),
       }} />
     </div>
     <TaskDrawer open={!!drawerKind} kind={drawerKind || 'task'} initial={null} onClose={() => setDrawerKind(null)} onSubmit={saveDrawer} />
+    <ModulesOnboarding />
   </main>;
 }
 function Calendar() {
@@ -1233,6 +1237,8 @@ function SettingsReact() {
           </article>
         </section>
 
+        <ModulesCard />
+
         <BackupInstallCard lastBackup={digest.tgLastBackup} />
 
         <section className="planner-list ai-chat-card" id="aiChatCard">
@@ -1316,6 +1322,75 @@ function LeagueMenu({ anchor, value, onClose, onPick }) {
 }
 const readLs = (k, f) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? f; } catch { return f; } };
 const writeLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+// ── per-user sections ("بخش‌های من"): hide what a user doesn't use, everywhere ──
+const MODULES = [['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
+const PAGE_MODULE = { finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
+let MODS_CACHE = readLs('lifeos-modules', null);
+const modOn = (m, k) => !m || m[k] !== false;
+const pageOn = (m, page) => !PAGE_MODULE[page] || modOn(m, PAGE_MODULE[page]);
+function setModules(m, needsOnboard = false) { MODS_CACHE = m; writeLs('lifeos-modules', m); window.__needsOnboard = needsOnboard; window.dispatchEvent(new Event('lifeos:modules')); }
+function useModules() {
+  const [m, setM] = useState(MODS_CACHE);
+  useEffect(() => {
+    const f = () => setM(MODS_CACHE);
+    window.addEventListener('lifeos:modules', f);
+    if (!window.__modsFetched) { window.__modsFetched = true; api('/api/me').then(d => { if (d.user) setModules(d.user.modules || null, !d.user.modules); }).catch(() => {}); }
+    return () => window.removeEventListener('lifeos:modules', f);
+  }, []);
+  return m;
+}
+async function saveModules(m) { setModules(m); try { await api('/api/me', { method: 'PATCH', body: JSON.stringify({ modules: m }) }); } catch {} }
+function ModulesPicker({ value, onChange }) {
+  const cur = value || Object.fromEntries(MODULES.map(([k]) => [k, true]));
+  return <div className="mods-grid">{MODULES.map(([k, label, icon, sub]) => {
+    const on = cur[k] !== false;
+    return <button type="button" key={k} className={`mods-item ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => onChange({ ...cur, [k]: !on })}>
+      <span className="mods-ic">{icon}</span><span className="mods-txt"><b>{label}</b><small>{sub}</small></span><i className="mods-check">{on ? '✓' : ''}</i>
+    </button>;
+  })}</div>;
+}
+function ModulesOnboarding() {
+  const [open, setOpen] = useState(!!window.__needsOnboard);
+  const [val, setVal] = useState(null);
+  useEffect(() => { const f = () => setOpen(!!window.__needsOnboard); window.addEventListener('lifeos:modules', f); return () => window.removeEventListener('lifeos:modules', f); }, []);
+  if (!open) return null;
+  return <div className="mods-bg"><div className="mods-modal" dir="rtl">
+    <h2>به چه چیزهایی علاقه داری؟</h2>
+    <p>بخش‌هایی که استفاده نمی‌کنی را خاموش کن تا از منو، صفحهٔ اصلی و گزارش‌ها حذف شوند. بعداً از تنظیمات عوضش کن.</p>
+    <ModulesPicker value={val} onChange={setVal} />
+    <div className="mods-ops"><button type="button" className="save" onClick={() => { saveModules(val || Object.fromEntries(MODULES.map(([k]) => [k, true]))); setOpen(false); }}>شروع کن</button></div>
+  </div></div>;
+}
+function HabitsMini() {
+  const [items, setItems] = useState(null);
+  const load = () => api(`/api/habits?date=${isoToday()}`).then(d => setItems(d.items || [])).catch(() => setItems([]));
+  useEffect(() => { load(); }, []);
+  const toggle = async h => { setItems(xs => xs.map(x => x.id === h.id ? { ...x, done: !x.done, streak: Math.max(0, (x.streak || 0) + (x.done ? -1 : 1)) } : x)); try { await api(`/api/habits/${h.id}/toggle`, { method: 'POST', body: JSON.stringify({ date: isoToday() }) }); } catch { load(); } };
+  const done = (items || []).filter(x => x.done).length;
+  return <Card className="mini-card" icon={Flame} title="عادت‌های امروز" action={<a href="/?page=habits">همه ←</a>}>
+    {items === null ? <p className="empty">در حال دریافت…</p> : !items.length ? <p className="empty">هنوز عادتی نساختی. <a href="/?page=habits">یکی بساز</a></p> : <>
+      <div className="progress"><i style={{ width: `${items.length ? done / items.length * 100 : 0}%` }} /></div>
+      <div className="mini-list">{items.map(h => <button type="button" key={h.id} className={`mini-habit ${h.done ? 'on' : ''}`} onClick={() => toggle(h)}><i>{h.done ? '✓' : h.icon || '○'}</i><span>{h.name}</span><small>🔥 {fa(h.streak || 0)}</small></button>)}</div>
+    </>}
+  </Card>;
+}
+function NotesMini() {
+  const [items, setItems] = useState(null);
+  useEffect(() => { api('/api/inbox').then(d => setItems((d.items || []).filter(x => !x.archived).sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0)).slice(0, 8))).catch(() => setItems([])); }, []);
+  return <Card className="mini-card" icon={StickyNote} title="یادداشت‌ها" action={<a href="/?page=notes">همه ←</a>}>
+    {items === null ? <p className="empty">در حال دریافت…</p> : !items.length ? <p className="empty">یادداشتی نیست.</p> :
+      <div className="mini-list">{items.map(n => <a key={n.id} className="mini-note" href="/?page=notes"><b>{n.pinned ? '📌 ' : ''}{n.title || String(n.text || '').slice(0, 40)}</b>{n.title && n.text ? <small>{String(n.text).replace(/- \[[ x]\] /g, '• ').slice(0, 90)}</small> : null}</a>)}</div>}
+  </Card>;
+}
+function GoalsMini() {
+  const [items, setItems] = useState(null);
+  useEffect(() => { api('/api/savings-goals').then(d => setItems(d.items || [])).catch(() => setItems([])); }, []);
+  return <Card className="mini-card" icon={Wallet} title="اهداف پس‌انداز" action={<a href="/?page=finance&tab=wealth">همه ←</a>}>
+    {items === null ? <p className="empty">در حال دریافت…</p> : !items.length ? <p className="empty">هدفی ثبت نشده. <a href="/?page=finance&tab=wealth">یکی بساز</a></p> :
+      <div className="mini-list">{items.slice(0, 5).map(g => { const pct = g.target ? Math.min(100, Math.round(g.saved / g.target * 100)) : 0; return <div key={g.id} className="mini-goal"><div><span>{g.icon} {g.title}</span><b>{fa(pct)}٪</b></div><div className="progress"><i style={{ width: `${pct}%` }} /></div></div>; })}</div>}
+  </Card>;
+}
 const dayTitle = isoD => { const t = isoToday(); const rel = isoD === t ? 'امروز · ' : isoD === addDaysIso(t, 1) ? 'فردا · ' : isoD === addDaysIso(t, -1) ? 'دیروز · ' : ''; return `${rel}${new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(fromIso(isoD))} ${jalaliDayLabel(isoD)}`; };
 function Football({ full = false, onLeague }) {
   const [league, setLeague] = useState(null);
@@ -1530,6 +1605,8 @@ function Layout({ id, className, cards, editing }) {
   const keys = Object.keys(cards);
   const read = () => { const saved = readLs(LAYOUT_KEY(id), []); const valid = saved.filter(k => keys.includes(k)); return [...valid, ...keys.filter(k => !valid.includes(k))]; };
   const [order, setOrder] = useState(read);
+  const keySig = keys.join('|');
+  useEffect(() => { setOrder(read()); }, [keySig]);
   const [drag, setDrag] = useState(null), [over, setOver] = useState(null);
   useEffect(() => { const r = () => setOrder(keys); window.addEventListener('lifeos-layout-reset', r); return () => window.removeEventListener('lifeos-layout-reset', r); }, []);
   const save = next => { setOrder(next); writeLs(LAYOUT_KEY(id), next); };
@@ -1848,6 +1925,15 @@ function FinanceMini({ todaySpend }) {
 }
 
 applyAppearance(readLs('lifeos-appearance', APPEARANCE_DEFAULT));
+function ModulesCard() {
+  const mods = useModules();
+  return <section className="planner-list digest-card" id="modules">
+    <h2>🧩 بخش‌های من</h2>
+    <p className="muted" style={{ margin: '0 0 10px' }}>بخش‌های خاموش از منو، صفحهٔ اصلی، جستجو و گزارش‌های تلگرام حذف می‌شوند؛ داده‌هایشان پاک نمی‌شود.</p>
+    <ModulesPicker value={mods} onChange={saveModules} />
+  </section>;
+}
+
 function BackupInstallCard({ lastBackup }) {
   const [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [last, setLast] = useState(lastBackup), [canInstall, setCanInstall] = useState(!!window.__lifeosInstall);
   useEffect(() => setLast(lastBackup), [lastBackup]);
