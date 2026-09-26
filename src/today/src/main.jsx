@@ -212,7 +212,8 @@ function HomePage() {
     });
   }, []);
   const [drawerKind, setDrawerKind] = useState(null);
-  const [editItem, setEditItem] = useState(null); // { kind, initial } for the home agenda edit drawer
+  const [editItem, setEditItem] = useState(null);
+  const [layoutEdit, setLayoutEdit] = useState(false);
   const [notice, setNotice] = useState('');
   const [streak, setStreak] = useState(0);
   const [aqi, setAqi] = useState(null);
@@ -281,10 +282,16 @@ function HomePage() {
     if (linked) { setEditItem({ kind: 'task', initial: { task: linked, reminder: r } }); return; }
     setEditItem({ kind: 'reminder', initial: { task: { id: r.id, title: r.title, notes: '', date: r.date, startTime: r.time || '', priority: 'medium', recurrence: r.recurrence || null, leadMinutes: r.leadMinutes || 0, tags: [], done: !!r.done, _reminder: true }, reminder: null } });
   };
+  const toggleMit = async task => {
+    const on = task.mit === today;
+    if (!on && mitList.length >= 3) { setNotice('فقط سه کار مهم برای هر روز — اول یکی را بردار.'); return; }
+    try { await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ mit: on ? '' : today }) }); load(); } catch (error) { setNotice(error.message); }
+  };
   const saveEdit = async body => { try { await savePlannerItem(editItem.kind, body, editItem.initial); setEditItem(null); setNotice('تغییرات ذخیره شد ✓'); load(); } catch (error) { setNotice(error.message); } };
   const saveDrawer = async body => { try { await createPlannerItem(drawerKind, body); setDrawerKind(null); setNotice('ثبت شد ✓'); load(); } catch (error) { setNotice(error.message); } };
   const saveDaily = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: today, mood: Number(form.get('mood')), sleep: form.get('sleep'), note: form.get('note'), bestMoment: form.get('bestMoment'), gratitude: form.get('gratitude'), tomorrowPlan: data.daily?.tomorrowPlan || '' }) }); setNotice('ثبت روزانه ذخیره شد.'); loadStreak(); load(); } catch (error) { setNotice(error.message); } };
   const allTasks = data.tasks.filter(t => !t.isReminder);
+  const mitList = allTasks.filter(t => t.mit === today);
   const tasks = allTasks
     .filter(t => t.date === today || !t.done || ticked.includes('t' + t.id))
     .sort((a, b) => (a.done - b.done) || String(a.date).localeCompare(String(b.date)) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
@@ -339,14 +346,18 @@ function HomePage() {
         </form>
       </section>
       {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
-      <Layout id="top" className="grid home-top" cards={{
+      <Layout id="top" className="grid home-top" editing={layoutEdit} cards={{
         day: (<DayCard today={today} greeting={`${greeting}${firstName ? `، ${firstName}` : ''}`} summary={summary} streak={streak} />),
         weather: (<WeatherCard weather={weather} aqi={aqi} city={city} onCity={changeCity} />),
         calendar: (<LiveCalendar today={today} />),
         ...(modOn(mods, 'market') ? { market: (<Market />) } : modOn(mods, 'finance') ? { goals: (<GoalsMini />) } : { habits: (<HabitsMini />) })
       }} />
-      <Layout id="grid" className="grid home-grid" cards={{
+      <Layout id="grid" className="grid home-grid" editing={layoutEdit} cards={{
         agenda: (<Card className="agenda" icon={CheckSquare2} title="کارها و یادآوری‌ها" action={<a href="/?page=planner">برنامه‌ریز ←</a>}>
+          <div className={`ag-mit ${mitList.length ? '' : 'empty'}`}>
+            <div className="ag-mit-head"><b>⭐ سه کار مهم امروز</b><span className="muted">{mitList.length ? `${fa(mitList.filter(t => t.done).length)} از ${fa(mitList.length)} انجام شد` : 'روی ☆ کنار هر کار بزن'}</span></div>
+            {mitList.length ? <div className="ag-mit-list">{mitList.map(t => <button type="button" key={t.id} className={t.done ? 'done' : ''} onClick={() => toggleTask(t)}><i>{t.done ? '✓' : ''}</i><span>{t.title}</span></button>)}</div> : null}
+          </div>
           {[['task', 'کارها', agendaTasks, CheckSquare2], ['reminder', 'یادآوری‌ها', agendaRems, Bell]].map(([kind, label, items, Icon]) => {
             const doneN = items.filter(x => x.done).length;
             return <div className={`ag-sec ag-${kind}`} key={kind}>
@@ -358,7 +369,7 @@ function HomePage() {
                 const when = late ? `⛔ ${lateLabel(item.date)}` : later ? `${tmr ? 'فردا' : jalaliDayLabel(item.date)}${item.time ? ' · ' + faDigits(item.time) : ''}` : item.time ? faDigits(item.time) : !item.date ? 'بی‌تاریخ' : 'امروز';
                 return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = '/?page=finance&tab=wealth') : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
                   <i>{item.debt ? '⏰' : item.done ? '✓' : ''}</i><span>{item.title}</span><small>{when}</small>
-                </button>{item.debt ? null : <button type="button" className="ag-edit" onClick={() => openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}</div>;
+                </button>{item.kind === 'task' && !item.debt ? <button type="button" className={`ag-star ${item.raw.mit === today ? 'on' : ''}`} onClick={() => toggleMit(item.raw)} aria-label={item.raw.mit === today ? 'حذف از سه کار مهم' : 'افزودن به سه کار مهم'} title="سه کار مهم امروز">{item.raw.mit === today ? '★' : '☆'}</button> : null}{item.debt ? null : <button type="button" className="ag-edit" onClick={() => openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}</div>;
               })}{!items.length && <p className="empty">{kind === 'task' ? 'کاری برای امروز نداری.' : 'یادآوری‌ای برای امروز نداری.'}</p>}</div>
             </div>;
           })}
@@ -368,6 +379,10 @@ function HomePage() {
         focus: (<FocusCard Card={Card} Icon={Timer} />),
         ...(modOn(mods, 'finance') ? { bills: (<BillsWeekCard Card={Card} Icon={Receipt} />) } : {}),
       }} />
+      <div className={`home-layout-bar ${layoutEdit ? 'on' : ''}`}>
+        {layoutEdit ? <><span>کارت‌ها را با موس بکش و جای دیگری رها کن (یا با فلش‌ها جابه‌جا کن) — ترتیب ذخیره می‌شود.</span><button type="button" className="outline" onClick={() => { resetLayouts(); }}>پیش‌فرض</button><button type="button" className="save" onClick={() => setLayoutEdit(false)}>تمام</button></>
+          : <button type="button" className="home-layout-btn" onClick={() => { setLayoutEdit(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>✥ چیدمان کارت‌ها</button>}
+      </div>
     </div>
     <TaskDrawer open={!!drawerKind} kind={drawerKind || 'task'} initial={null} onClose={() => setDrawerKind(null)} onSubmit={saveDrawer} />
     <TaskDrawer open={!!editItem} kind={editItem?.kind || 'task'} initial={editItem?.initial || null} onClose={() => setEditItem(null)} onSubmit={saveEdit} />
@@ -1150,7 +1165,7 @@ function SettingsReact() {
   const load = () => api('/api/integrations').then(setIntegrations).catch(error => setNotice(error.message));
   const loadMe = () => api('/api/me').then(data => {
     setMe(data.user || null);
-    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false, tgMonthlyOn: data.user.tgMonthlyOn !== false, tgWeeklyOn: data.user.tgWeeklyOn !== false, tgLastBackup: data.user.tgLastBackup || null }));
+    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false, tgMonthlyOn: data.user.tgMonthlyOn !== false, tgWeeklyOn: data.user.tgWeeklyOn !== false, tgProjectsOn: data.user.tgProjectsOn !== false, backupFreq: data.user.backupFreq || 'weekly', tgLastBackup: data.user.tgLastBackup || null }));
   }).catch(error => setNotice(error.message));
   useEffect(() => { load(); loadMe(); }, []);
 
@@ -1290,6 +1305,10 @@ function SettingsReact() {
             <button type="button" className={`plnr-switch ${digest.tgWeeklyOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgWeeklyOn} onClick={() => saveDigest({ tgWeeklyOn: !digest.tgWeeklyOn })}><i /></button>
           </article>
           <article>
+            <div><b>📁 گزارش هفتگی پروژه‌ها</b><small>جمعه‌ها ساعت گزارش عصر: پیشرفت هر پروژه، کارت‌های انجام‌شدهٔ هفته، عقب‌افتاده‌ها، مهلت‌ها و کارهای هفتهٔ بعد · <button type="button" className="linkish" onClick={async () => { try { await api('/api/projects/report', { method: 'POST' }); setNotice('گزارش پروژه‌ها به تلگرام فرستاده شد ✓'); } catch (e) { setNotice(e.message); } }}>الان بفرست</button></small></div>
+            <button type="button" className={`plnr-switch ${digest.tgProjectsOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgProjectsOn} onClick={() => saveDigest({ tgProjectsOn: !digest.tgProjectsOn })}><i /></button>
+          </article>
+          <article>
             <div><b>ارسال گزارش‌ها در تلگرام</b><small>خاموش‌کردن یعنی هیچ دایجستی فرستاده نشود</small></div>
             <button type="button" className={`plnr-switch ${digest.tgReports ? 'on' : ''}`} role="switch" aria-checked={digest.tgReports} onClick={() => saveDigest({ tgReports: !digest.tgReports })}><i /></button>
           </article>
@@ -1299,7 +1318,7 @@ function SettingsReact() {
 
         <ModulesCard />
 
-        <BackupInstallCard lastBackup={digest.tgLastBackup} />
+        <BackupInstallCard lastBackup={digest.tgLastBackup} freq={digest.backupFreq} onFreq={v => saveDigest({ backupFreq: v })} />
 
         <section className="planner-list ai-chat-card" id="aiChatCard">
           <h2>چت با دستیار هوش مصنوعی</h2>
@@ -1670,7 +1689,7 @@ function LiveCalendar({ today }) {
 
 // ---- draggable card layout (order saved per browser) ----
 const LAYOUT_KEY = id => `lifeos-home-layout-${id}`;
-const LAYOUT_LABELS = { day: 'تاریخ', weather: 'هوا', calendar: 'تقویم', market: 'بازارها', agenda: 'کارها و یادآوری‌ها', finance: 'مالی', football: 'فوتبال', series: 'سریال‌ها', daily: 'ثبت روزانه' };
+const LAYOUT_LABELS = { day: 'تاریخ', weather: 'هوا', calendar: 'تقویم', market: 'بازارها', agenda: 'کارها و یادآوری‌ها', finance: 'مالی', football: 'فوتبال', series: 'سریال‌ها', daily: 'ثبت روزانه', focus: 'تمرکز', bills: 'قبض‌ها', habits: 'عادت‌ها', notes: 'یادداشت‌ها', goals: 'اهداف' };
 const resetLayouts = () => { ['top', 'grid'].forEach(id => { try { localStorage.removeItem(LAYOUT_KEY(id)); } catch {} }); window.dispatchEvent(new Event('lifeos-layout-reset')); };
 function Layout({ id, className, cards, editing }) {
   const keys = Object.keys(cards);
@@ -2049,7 +2068,7 @@ function ModulesCard() {
   </section>;
 }
 
-function BackupInstallCard({ lastBackup }) {
+function BackupInstallCard({ lastBackup, freq = 'weekly', onFreq }) {
   const [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [last, setLast] = useState(lastBackup), [canInstall, setCanInstall] = useState(!!window.__lifeosInstall);
   useEffect(() => setLast(lastBackup), [lastBackup]);
   useEffect(() => { const f = () => setCanInstall(!!window.__lifeosInstall); window.addEventListener('lifeos:installable', f); return () => window.removeEventListener('lifeos:installable', f); }, []);
@@ -2061,8 +2080,8 @@ function BackupInstallCard({ lastBackup }) {
   return <section className="planner-list digest-card">
     <h2>📦 بکاپ و نصب اپ</h2>
     <article>
-      <div><b>🗄 بکاپ خودکار روزانه در تلگرام</b><small>هر روز یک فایل JSON از همهٔ داده‌ها به تلگرامت فرستاده می‌شود · آخرین بکاپ: {lastLabel}</small></div>
-      <div className="digest-controls"><button type="button" className="finance-action" onClick={backupNow} disabled={busy}>{busy ? '…' : 'بکاپ الان'}</button><a className="finance-action" href="/api/export" download="lifeos-export.json">دانلود فایل</a></div>
+      <div><b>🗄 بکاپ خودکار در تلگرام</b><small>{freq === 'off' ? 'بکاپ خودکار خاموش است' : `${freq === 'daily' ? 'هر روز' : 'هر هفته'} یک فایل JSON فقط از داده‌های خودت به تلگرامت فرستاده می‌شود`} · آخرین بکاپ: {lastLabel}</small></div>
+      <div className="digest-controls"><select value={freq} onChange={e => onFreq && onFreq(e.target.value)} aria-label="دورهٔ بکاپ"><option value="weekly">هفتگی</option><option value="daily">روزانه</option><option value="off">خاموش</option></select><button type="button" className="finance-action" onClick={backupNow} disabled={busy}>{busy ? '…' : 'بکاپ الان'}</button><a className="finance-action" href="/api/export" download="lifeos-export.json">دانلود فایل</a></div>
     </article>
     <article>
       <div><b>📱 نصب روی گوشی / دسکتاپ</b><small>{standalone ? 'اپ نصب شده است ✓ — بدون اینترنت هم آخرین داده‌ها قابل مشاهده‌اند.' : ios ? 'در سافاری دکمهٔ Share و بعد «Add to Home Screen» را بزن.' : canInstall ? 'مثل یک اپ جدا باز می‌شود و بدون اینترنت هم آخرین داده‌ها را نشان می‌دهد.' : 'از منوی مرورگر گزینهٔ «Install app» یا «Add to Home screen» را بزن.'}</small></div>

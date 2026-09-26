@@ -1,8 +1,8 @@
 // Poker + bet combined: all-time and month totals in rial (bet converted at today's dollar rate),
 // a cumulative P/L line chart and a 6-month net bar chart.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { isoToJ, MONTHS } from './jdate';
-import { money } from './life';
+import { money, api } from './life';
 import './fun.css';
 
 const faN = (n, d = 0) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: d });
@@ -48,6 +48,48 @@ function CumChart({ days, hasBet }) {
   </div>;
 }
 
+// Longest win / loss runs over poker sessions and bet days in date order (a push breaks both).
+function streaks(units) {
+  let bw = 0, bl = 0, cw = 0, cl = 0;
+  for (const u of units) { if (u.v > 0) { cw++; cl = 0; } else if (u.v < 0) { cl++; cw = 0; } else { cw = 0; cl = 0; } bw = Math.max(bw, cw); bl = Math.max(bl, cl); }
+  const last = units[units.length - 1], cur = !last || !last.v ? { n: 0, kind: '' } : { n: last.v > 0 ? cw : cl, kind: last.v > 0 ? 'win' : 'loss' };
+  return { bestWin: bw, worstLoss: bl, cur };
+}
+
+function LossLimit({ status, onSave }) {
+  const [edit, setEdit] = useState(false), [v, setV] = useState('');
+  const lim = status?.limit || 0, loss = Math.max(0, -(status?.net || 0)), pct = lim ? Math.min(100, (loss / lim) * 100) : 0, over = lim && loss >= lim;
+  const save = async e => { e.preventDefault(); await onSave(Number(String(v).replace(/[^\d]/g, '')) || 0); setEdit(false); };
+  return <div className={`fu-limit ${over ? 'over' : pct >= 75 ? 'near' : ''}`}>
+    <div className="fu-limit-head">
+      <b>{over ? '🚨 حد ضرر این ماه رد شد' : '🛡 حد ضرر ماهانه'}</b>
+      {edit ? <form onSubmit={save} className="fu-limit-form"><input autoFocus inputMode="numeric" value={v} onChange={e => setV(e.target.value)} placeholder="مثلاً ۵۰۰٬۰۰۰٬۰۰۰ ریال" /><button>ذخیره</button><button type="button" onClick={() => setEdit(false)}>انصراف</button></form>
+        : <button type="button" className="fu-link" onClick={() => { setV(lim ? lim.toLocaleString('en-US') : ''); setEdit(true); }}>{lim ? 'تغییر سقف' : 'تعیین سقف'}</button>}
+    </div>
+    {lim ? <>
+      <div className="fu-limit-bar"><i style={{ width: `${pct}%` }} /></div>
+      <small>{loss ? `ضرر این ماه ${money(loss)} از سقف ${money(lim)}` : `این ماه ضرری نداری · سقف ${money(lim)}`}{over ? ' — به تلگرام و اعلان هم خبر داده شد.' : pct >= 75 ? ' — نزدیک سقف هستی.' : ''}</small>
+    </> : <small>اگر ضرر ماه (پوکر + بت) از این سقف بیشتر شود، در تلگرام و اعلان گوشی خبرت می‌کنم.</small>}
+  </div>;
+}
+
+function Locations({ poker }) {
+  const rows = useMemo(() => {
+    const m = {};
+    poker.forEach(p => { const k = (p.location || '').trim() || 'بدون مکان'; const r = (m[k] ||= { name: k, n: 0, net: 0, wins: 0, buy: 0 }); const v = p.cashOut - p.buyIn; r.n++; r.net += v; r.buy += p.buyIn; if (v > 0) r.wins++; });
+    return Object.values(m).sort((a, b) => b.net - a.net);
+  }, [poker]);
+  if (!rows.length) return null;
+  const max = Math.max(1, ...rows.map(r => Math.abs(r.net)));
+  return <div className="fu-panel fu-locs"><h3>پوکر بر اساس مکان</h3>
+    {rows.map(r => <div key={r.name} className="fu-loc">
+      <span className="nm">{r.name}<em>{faN(r.n)} جلسه · وین‌ریت {faN(r.n ? (r.wins / r.n) * 100 : 0)}٪ · میانگین {signed(r.net / r.n)}</em></span>
+      <span className="bar"><i className={r.net >= 0 ? 'pos' : 'neg'} style={{ width: `${Math.max(3, (Math.abs(r.net) / max) * 100)}%` }} /></span>
+      <b className={r.net > 0 ? 'pos' : r.net < 0 ? 'neg' : ''}>{signed(r.net)}</b>
+    </div>)}
+  </div>;
+}
+
 function MonthBars({ months }) {
   const max = Math.max(1, ...months.map(m => Math.abs(m.net)));
   return <div className="fu-bars">
@@ -71,16 +113,20 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthFrom, mont
     const inMonth = d => d >= monthFrom && d <= monthTo;
     const pokerAll = poker.reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdAll = bet.reduce((s, b) => s + (Number(b.result) || 0), 0);
     const pokerM = poker.filter(p => inMonth(p.date)).reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdM = bet.filter(b => inMonth(b.date)).reduce((s, b) => s + (Number(b.result) || 0), 0);
-    const units = [...poker.map(p => p.cashOut - p.buyIn), ...bet.map(b => Number(b.result) || 0)];
+    const seq = [...poker.map(p => ({ d: p.date, c: p.createdAt || 0, v: p.cashOut - p.buyIn })), ...bet.map(b => ({ d: b.date, c: 0, v: Number(b.result) || 0 }))].sort((a, b) => a.d.localeCompare(b.d) || a.c - b.c);
+    const units = seq.map(x => x.v), st = streaks(seq);
     const wins = units.filter(v => v > 0).length, losses = units.filter(v => v < 0).length;
     // last 6 Jalali months ending at the selected month
     const endKey = jKey(monthTo), [ey, em] = endKey.split('-').map(Number), months = [];
     for (let i = 5; i >= 0; i--) { let m = em - i, yy = ey; while (m < 1) { m += 12; yy--; } months.push({ key: `${yy}-${String(m).padStart(2, '0')}`, label: MONTHS[m - 1], net: 0 }); }
     const mIx = Object.fromEntries(months.map((m, i) => [m.key, i]));
     dates.forEach(d => { const i = mIx[jKey(d)]; if (i != null) months[i].net += byDate[d].poker + (hasBet ? byDate[d].bet : 0); });
-    return { days, hasBet, rate, pokerAll, betUsdAll, pokerM, betUsdM, totalAll: pokerAll + (hasBet ? betUsdAll * rate : 0), totalM: pokerM + (hasBet ? betUsdM * rate : 0), wins, losses, months, count: units.length };
+    return { days, hasBet, rate, pokerAll, betUsdAll, pokerM, betUsdM, totalAll: pokerAll + (hasBet ? betUsdAll * rate : 0), totalM: pokerM + (hasBet ? betUsdM * rate : 0), wins, losses, months, count: units.length, st };
   }, [poker, bet, usdRate, monthFrom, monthTo]);
-  if (!data.count) return null;
+  const [status, setStatus] = useState(null);
+  useEffect(() => { api(`/api/fun/status${usdRate ? `?usdRate=${Math.round(usdRate)}` : ''}`).then(setStatus).catch(() => {}); }, [usdRate, poker.length, bet.length]);
+  const saveLimit = async v => { await api('/api/me', { method: 'PATCH', body: JSON.stringify({ funLossLimit: v }) }); setStatus(s => ({ ...(s || {}), limit: v })); };
+  if (!data.count) return <section className="fn-glass fu-card"><LossLimit status={status} onSave={saveLimit} /></section>;
   const tone = n => (n > 0 ? 'pos' : n < 0 ? 'neg' : '');
   return <section className="fn-glass fu-card">
     <div className="fu-head">
@@ -93,9 +139,46 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthFrom, mont
       <div className={`fu-kpi ${tone(data.pokerAll)}`}><small>پوکر · کل</small><b>{signed(data.pokerAll)}</b><em>{faN(poker.length)} جلسه</em></div>
       <div className={`fu-kpi ${tone(data.betUsdAll)}`}><small>بت · کل</small><b>{usdTxt(data.betUsdAll)}</b><em>{data.hasBet ? `≈ ${signed(data.betUsdAll * data.rate)}` : `${faN(bet.length)} روز`}</em></div>
     </div>
+    <LossLimit status={status} onSave={saveLimit} />
+    <div className="fu-streaks">
+      <span className={data.st.cur.kind === 'win' ? 'pos' : data.st.cur.kind === 'loss' ? 'neg' : ''}><small>روند فعلی</small><b>{data.st.cur.n ? `${faN(data.st.cur.n)} ${data.st.cur.kind === 'win' ? 'برد' : 'باخت'} پشت‌سرهم` : '—'}</b></span>
+      <span className="pos"><small>بیشترین برد پشت‌سرهم</small><b>{faN(data.st.bestWin)}</b></span>
+      <span className="neg"><small>بیشترین باخت پشت‌سرهم</small><b>{faN(data.st.worstLoss)}</b></span>
+    </div>
     <div className="fu-grid">
       <div className="fu-panel"><h3>روند تجمعی</h3><CumChart days={data.days} hasBet={data.hasBet} /></div>
       <div className="fu-panel"><h3>خالص ۶ ماه اخیر</h3><MonthBars months={data.months} /></div>
     </div>
+    <Locations poker={poker} />
   </section>;
+}
+
+// Portfolio value vs cost over time (daily snapshots taken when the wealth tab is opened).
+export function PfTrend({ snaps }) {
+  const [range, setRange] = useState('all'), [hi, setHi] = useState(null);
+  const pts = useMemo(() => { const days = { '1m': 31, '3m': 92, '6m': 183 }[range]; if (!days) return snaps; const cut = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10); return snaps.filter(x => x.date >= cut); }, [snaps, range]);
+  const head = <div className="fu-pf-head"><h3>روند سبد</h3><div className="fu-seg">{[['1m', '۱ ماه'], ['3m', '۳ ماه'], ['6m', '۶ ماه'], ['all', 'همه']].map(([k, l]) => <button type="button" key={k} className={range === k ? 'on' : ''} onClick={() => setRange(k)}>{l}</button>)}</div></div>;
+  if (pts.length < 2) return <div className="fu-panel fu-pf">{head}<p className="fu-empty">{snaps.length ? 'از امروز هر روزی که این صفحه را باز کنی ارزش سبد ثبت می‌شود؛ از فردا نمودار می‌آید.' : 'در حال آماده‌سازی…'}</p></div>;
+  const W = 720, H = 200, L = 8, R = 8, T = 14, B = 24;
+  const vals = pts.flatMap(p => [p.value, p.cost]); let min = Math.min(...vals), max = Math.max(...vals); const pad = (max - min) * 0.1 || max * 0.05 || 1; min -= pad; max += pad;
+  const x = i => L + (i / (pts.length - 1)) * (W - L - R), y = v => T + (1 - (v - min) / (max - min)) * (H - T - B);
+  const line = k => pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p[k]).toFixed(1)}`).join(' ');
+  const band = `${line('value')} ${pts.slice().reverse().map((p, j) => `L${x(pts.length - 1 - j).toFixed(1)} ${y(p.cost).toFixed(1)}`).join(' ')} Z`;
+  const last = pts[pts.length - 1], first = pts[0], pnl = last.value - last.cost, chg = last.value - first.value;
+  const h = hi != null ? pts[hi] : null;
+  const move = e => { const r = e.currentTarget.getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * W; setHi(Math.max(0, Math.min(pts.length - 1, Math.round(((px - L) / (W - L - R)) * (pts.length - 1))))); };
+  return <div className="fu-panel fu-pf">{head}
+    <div className="fu-pf-kpis"><span><small>سود/زیان فعلی</small><b className={pnl >= 0 ? 'pos' : 'neg'}>{signed(pnl)}</b></span><span><small>تغییر ارزش در این بازه</small><b className={chg >= 0 ? 'pos' : 'neg'}>{signed(chg)}</b></span><span className="fu-legend"><span><i className="total" />ارزش</span><span><i className="cost" />بهای خرید</span></span></div>
+    <div className="fu-chart">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" onMouseMove={move} onMouseLeave={() => setHi(null)} role="img" aria-label="روند ارزش سبد">
+        <path d={band} className={pnl >= 0 ? 'fu-band pos' : 'fu-band neg'} />
+        <path d={line('cost')} className="fu-l cost" />
+        <path d={line('value')} className="fu-l total" />
+        {h ? <g><line x1={x(hi)} x2={x(hi)} y1={T} y2={H - B} className="fu-cross" /><circle cx={x(hi)} cy={y(h.value)} r="4" className="fu-dot" /></g> : null}
+        <text x={L} y={H - 6} textAnchor="start" className="fu-tick">{jLbl(first.date)}</text>
+        <text x={W - R} y={H - 6} textAnchor="end" className="fu-tick">{jLbl(last.date)}</text>
+      </svg>
+      {h ? <div className="fu-tip" style={{ insetInlineStart: `${Math.min(78, Math.max(2, 100 - (x(hi) / W) * 100 - 10))}%` }}><b>{jLbl(h.date)}</b><span><i className="total" />ارزش {money(h.value)}</span><span><i className="cost" />بهای خرید {money(h.cost)}</span><span>سود/زیان {signed(h.value - h.cost)}</span></div> : null}
+    </div>
+  </div>;
 }

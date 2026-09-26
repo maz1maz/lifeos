@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import './finance.css'
 import { jalaliShort, jalaliDay } from './jalali'
 import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './jdate';
 import { BillsPanel } from './life';
-import { FunOverview } from './fun';
+import { FunOverview, PfTrend } from './fun';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -188,6 +188,8 @@ export function FinanceReact({ Nav }) {
   const [importPreview, setImportPreview] = useState(null)
   const [poker, setPoker] = useState([])
   const [pokerAll, setPokerAll] = useState([])
+  const [pfSnaps, setPfSnaps] = useState(null)
+  const snapSent = useRef(false)
   const [pokerSummary, setPokerSummary] = useState({ sessions: 0, profit: 0, wins: 0, losses: 0, pushes: 0, totalBuyIn: 0, totalCashOut: 0 })
   const [bet, setBet] = useState({ items: [], stats: {}, suggestedStart: 0, suggestedStartDate: null })
   const [alerts, setAlerts] = useState([])
@@ -297,6 +299,15 @@ export function FinanceReact({ Nav }) {
     const total = rows.reduce((a, r) => a + r.value, 0), cost = rows.reduce((a, r) => a + r.cost, 0), pnl = rows.reduce((a, r) => a + r.pnl, 0)
     return { rows, total, cost, pnl }
   })()
+  // Portfolio history: one snapshot per day (rial value + cost), taken when the wealth tab is opened with live rates.
+  useEffect(() => { if (tab === 'wealth' && pfSnaps === null) api('/api/portfolio/snapshots').then((d) => setPfSnaps(d.items || [])).catch(() => setPfSnaps([])) }, [tab])
+  useEffect(() => {
+    if (tab !== 'wealth' || snapSent.current || !pf.rows.length || !(pf.total > 0) || !Object.keys(rates).length) return
+    if (pf.rows.some((r) => r.item.assetType === 'dollar' || (r.item.currency || 'IRR') === 'USD') && !usdRate) return
+    snapSent.current = true
+    api('/api/portfolio/snapshots', { method: 'POST', body: JSON.stringify({ value: pf.total, cost: Math.max(0, pf.total - pf.pnl) }) })
+      .then((r) => { if (r && r.date) setPfSnaps((list) => [...(list || []).filter((x) => x.date !== r.date), r].sort((a, b) => String(a.date).localeCompare(String(b.date)))) }).catch(() => { snapSent.current = false })
+  }, [tab, pf.total, usdRate, rates])
 
   const bud = (() => {
     const bmap = Object.fromEntries((budgets.budgets || []).map((b) => [b.category, Number(b.limit) || 0]))
@@ -388,7 +399,7 @@ export function FinanceReact({ Nav }) {
   const submitPoker = (e) => {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
-    send('/api/poker', { date: f.get('date'), buyIn: Number(f.get('buyIn')), cashOut: Number(f.get('cashOut')), location: f.get('location'), note: f.get('note') }, 'جلسهٔ پوکر ثبت شد.')
+    send('/api/poker', { date: f.get('date'), buyIn: Number(f.get('buyIn')), cashOut: Number(f.get('cashOut')), location: f.get('location'), note: f.get('note'), usdRate: rates.price_dollar_rl || undefined }, 'جلسهٔ پوکر ثبت شد.')
     e.currentTarget.reset()
   }
 
@@ -398,6 +409,7 @@ export function FinanceReact({ Nav }) {
     const body = { date: f.get('date'), deposit: Number(f.get('deposit') || 0), withdraw: Number(f.get('withdraw') || 0), balance: Number(f.get('balance')), note: f.get('note') }
     const start = f.get('start')
     if (start !== '') body.start = Number(start)
+    if (rates.price_dollar_rl) body.usdRate = rates.price_dollar_rl
     send('/api/bet', body, 'روز بت ثبت شد.')
     e.currentTarget.reset()
   }
@@ -800,6 +812,7 @@ export function FinanceReact({ Nav }) {
                   <p className="fn-note">نرخ‌ها از بازار: {rates.price_dollar_rl ? `دلار ${short(rates.price_dollar_rl, false)}` : 'دلار —'}{rates.price_eur ? ` · یورو ${short(rates.price_eur, false)}` : ''}</p>
                 </div>
               ) : null}
+              {portfolio.items?.length ? <PfTrend snaps={pfSnaps || []} /> : null}
               {portfolio.items?.length ? pf.rows.map((row) => (
                 <article key={`${row.item.assetType}-${row.item.symbol}`} className="fn-row fn-pf-row">
                   <div>
@@ -852,7 +865,7 @@ export function FinanceReact({ Nav }) {
                   <input name="buyIn" required inputMode="numeric" placeholder="ورودی (ریال)" />
                   <input name="cashOut" required inputMode="numeric" placeholder="خروجی (ریال)" />
                 </div>
-                <input name="location" placeholder="مکان (اختیاری)" />
+                <input name="location" list="fn-poker-locs" placeholder="مکان (اختیاری)" /><datalist id="fn-poker-locs">{[...new Set(pokerAll.map((x) => (x.location || '').trim()).filter(Boolean))].map((l) => <option key={l} value={l} />)}</datalist>
                 <input name="note" placeholder="یادداشت" />
                 <button className="fn-save">ثبت جلسه</button>
               </form>
@@ -996,7 +1009,7 @@ export function FinanceReact({ Nav }) {
                   <input name="buyIn" required inputMode="numeric" defaultValue={editing.item.buyIn} placeholder="ورودی" />
                   <input name="cashOut" required inputMode="numeric" defaultValue={editing.item.cashOut} placeholder="خروجی" />
                 </div>
-                <input name="location" defaultValue={editing.item.location} placeholder="مکان" />
+                <input name="location" list="fn-poker-locs" defaultValue={editing.item.location} placeholder="مکان" />
                 <input name="note" defaultValue={editing.item.note} placeholder="یادداشت" />
               </>
             ) : editing.type === 'bet' ? (
