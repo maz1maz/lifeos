@@ -121,3 +121,22 @@
   .nd2-modal-box{border-radius:16px 16px 0 0;max-height:92vh}
 }
 .nd2-note>.nd2-ft{margin-top:auto}.nd2-note>:nth-last-child(2){margin-bottom:12px}
+
+/* v29 — status segmented control, 5 stars, dark native options */
+.strk-seg{display:inline-flex;flex-wrap:wrap;gap:3px;padding:3px;border:1px solid var(--g-border-2);border-radius:var(--g-radius-control);background:rgba(255,255,255,.03)}
+.strk-seg button{border:0;background:transparent;color:var(--g-muted);font:inherit;font-size:12.5px;font-weight:700;padding:6px 11px;border-radius:calc(var(--g-radius-control) - 3px);cursor:pointer;white-space:nowrap}
+.strk-seg button:hover{color:var(--g-text)}
+.strk-seg button.on{background:var(--g-accent);color:var(--g-accent-fg)}
+.strk-stars{gap:2px}
+.strk-stars button{padding:3px;transition:transform .12s}
+.strk-stars button:hover{transform:scale(1.15)}
+.strk-stars:hover button{color:var(--g-accent-strong)}
+.strk-stars button:hover~button{color:var(--g-faint)}
+.strk-result-row.is-click{cursor:pointer}
+.strk-result-row.is-click:hover{background:rgba(255,255,255,.04)}
+.strk-add-btn:disabled{opacity:.7;cursor:progress}
+select option,select optgroup{background:#1b1b1e;color:#ececee}
+html[data-mode="light"] select option,html[data-mode="light"] select optgroup{background:#fff;color:#1b1b1e}
+@media(max-width:700px){.strk-seg{width:100%}.strk-seg button{flex:1;padding:7px 6px}}
+.nd2-tagsel{margin-inline-start:0;max-width:210px}
+.nd2-tagsel.on{border-color:var(--g-accent);color:var(--g-accent-strong)}

@@ -348,6 +348,14 @@ export function DocumentsReact({ Nav }) {
     return { total: items.length, fav, size, expiring, expired, withFile };
   }, [items]);
 
+  const countBy = (key, cur) => {
+    const m = new Map();
+    items.forEach(d => { if (d[key]) m.set(d[key], (m.get(d[key]) || 0) + 1); });
+    if (cur !== 'همه' && !m.has(cur)) m.set(cur, 0);
+    return [['همه', items.length], ...[...m.entries()].sort((a, b) => b[1] - a[1])];
+  };
+  const usedTypes = useMemo(() => countBy('type', filterType), [items, filterType]);
+  const usedCats = useMemo(() => countBy('category', filterCat), [items, filterCat]);
   const types = useMemo(() => {
     const s = new Set(DOC_TYPES);
     items.forEach(d => { if (d.type) s.add(d.type); });
@@ -462,14 +470,11 @@ export function DocumentsReact({ Nav }) {
                 <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجو در عنوان، نوع، شماره، برچسب…  (Ctrl+K)" />
                 {query && <button type="button" onClick={() => setQuery('')} aria-label="پاک کردن"><X size={14} /></button>}
               </div>
+              <select className={filterType !== 'همه' ? 'on' : ''} value={filterType} onChange={e => setFilterType(e.target.value)} aria-label="نوع">{usedTypes.map(([t, n]) => <option key={t} value={t}>{t === 'همه' ? 'همهٔ انواع' : `${t} (${faNum(n)})`}</option>)}</select>
+              <select className={filterCat !== 'همه' ? 'on' : ''} value={filterCat} onChange={e => setFilterCat(e.target.value)} aria-label="دسته">{usedCats.map(([t, n]) => <option key={t} value={t}>{t === 'همه' ? 'همهٔ دسته‌ها' : `${t} (${faNum(n)})`}</option>)}</select>
+              {(filterType !== 'همه' || filterCat !== 'همه') && <button type="button" className="dm-fav-btn" onClick={() => { setFilterType('همه'); setFilterCat('همه'); }}><X size={14} /> حذف فیلتر</button>}
               <select value={sortBy} onChange={e => setSortBy(e.target.value)}>{SORTS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}</select>
               <button type="button" className={`dm-fav-btn ${favOnly ? 'on' : ''}`} onClick={() => setFavOnly(v => !v)}><Star size={14} /> علاقه</button>
-            </div>
-            <div className="dm-filters">
-              {types.slice(0, 16).map(t => <button key={t} type="button" className={filterType === t ? 'on' : ''} onClick={() => setFilterType(t)}>{t}</button>)}
-            </div>
-            <div className="dm-filters">
-              {['همه', ...CATEGORIES].map(t => <button key={t} type="button" className={filterCat === t ? 'on' : ''} onClick={() => setFilterCat(t)}>{t}</button>)}
             </div>
 
             {visible.length === 0 ? (

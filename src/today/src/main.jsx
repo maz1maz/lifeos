@@ -370,6 +370,14 @@ function seriesAiredTotal(item) {
   return Object.values(by).reduce((n, s) => n + (Number(s.aired) || 0), 0);
 }
 const SERIES_TABS = [['all', 'همه'], ['watching', 'در حال تماشا'], ['watchlist', 'بعداً'], ['completed', 'تمام‌شده'], ['dropped', 'رها‌شده']];
+function StatusSeg({ value, options, onChange }) {
+  return <div className="strk-seg" role="radiogroup">{options.map(([k, l]) => <button type="button" key={k} role="radio" aria-checked={value === k} className={value === k ? 'on' : ''} onClick={() => value !== k && onChange(k)}>{l}</button>)}</div>;
+}
+// rating stored 1..10 (legacy); shown as 5 stars, each star = 2 points
+function Stars5({ value, onChange }) {
+  const cur = Math.round((Number(value) || 0) / 2);
+  return <div className="strk-stars" title={cur ? `${fa(cur)} از ۵` : 'امتیاز'}>{[1, 2, 3, 4, 5].map(n => <button type="button" key={n} aria-label={`${fa(n)} ستاره`} className={n <= cur ? 'on' : ''} onClick={() => onChange(n === cur ? null : n * 2)}><Star size={18} fill={n <= cur ? 'currentColor' : 'none'} /></button>)}</div>;
+}
 const SERIES_STATUS_OPTIONS = [['watchlist', 'بعداً'], ['watching', 'در حال تماشا'], ['completed', 'تمام‌شده'], ['dropped', 'رها‌شده']];
 
 function SeriesReact({ Nav = TopNav }) {
@@ -389,7 +397,7 @@ function SeriesReact({ Nav = TopNav }) {
   const [bingersSelected, setBingersSelected] = useState(new Set());
   const [bingersBusy, setBingersBusy] = useState(false);
 
-  const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2400); };
+  const flash = (msg, ms = 2400) => { setToast(msg); setTimeout(() => setToast(''), ms); };
   const load = () => api('/api/movies').then(data => setItems((data.items || []).filter(x => x.type === 'series'))).catch(e => setNotice(e.message));
   useEffect(() => { load(); }, []);
 
@@ -439,11 +447,18 @@ function SeriesReact({ Nav = TopNav }) {
 
   const addedIds = new Set(items.map(x => String(x.tvmazeId)));
 
+  const [addingId, setAddingId] = useState(null);
   const addShow = async show => {
+    if (!show || addingId) return;
+    setAddingId(show.tvmazeId);
     try {
-      await api('/api/movies/from-tvmaze', { method: 'POST', body: JSON.stringify({ tvmazeId: show.tvmazeId, status: 'watchlist' }) });
-      setQuery(''); setResults([]); flash(`«${show.name}» اضافه شد ✓`); load();
-    } catch (e) { flash(e.message); }
+      const r = await api('/api/movies/from-tvmaze', { method: 'POST', body: JSON.stringify({ tvmazeId: show.tvmazeId, name: show.name, posterUrl: show.posterUrl, status: 'watchlist' }) });
+      setQuery(''); setResults([]);
+      if (r.already) { setTab('all'); flash(`«${show.name}» از قبل در فهرست هست`); }
+      else { setTab('all'); flash(`«${show.name}» اضافه شد ✓`); }
+      load();
+    } catch (e) { flash('افزودن نشد — ' + e.message, 5000); }
+    setAddingId(null);
   };
 
   const quickWatch = async item => {
@@ -484,15 +499,15 @@ function SeriesReact({ Nav = TopNav }) {
 
         <div className="strk-search">
           <Search size={16} className="strk-search-ic" />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجوی سریال برای افزودن… (انگلیسی)" />
+          <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const f = results.find(x => !addedIds.has(String(x.tvmazeId))); if (f) addShow(f); } if (e.key === 'Escape') { setQuery(''); setResults([]); } }} placeholder="جستجوی سریال برای افزودن… (انگلیسی)" />
           {searching && <span className="strk-spinner" />}
           {results.length > 0 && (
             <div className="strk-results">
               {results.map(show => (
-                <div className="strk-result-row" key={show.tvmazeId}>
+                <div className="strk-result-row is-click" key={show.tvmazeId} onClick={() => !addedIds.has(String(show.tvmazeId)) && addShow(show)}>
                   {show.posterUrl ? <img src={show.posterUrl} alt="" /> : <span className="strk-result-fallback">🎬</span>}
                   <div className="strk-result-info"><b>{show.name}</b><small>{show.year}{show.genres?.length ? ' · ' + show.genres.join('، ') : ''}</small></div>
-                  {addedIds.has(String(show.tvmazeId)) ? <span className="strk-added">اضافه شده</span> : <button className="strk-add-btn" onClick={() => addShow(show)}>+ افزودن</button>}
+                  {addedIds.has(String(show.tvmazeId)) ? <span className="strk-added">اضافه شده</span> : <button type="button" className="strk-add-btn" disabled={!!addingId} onClick={e => { e.stopPropagation(); addShow(show); }}>{addingId === show.tvmazeId ? 'در حال افزودن…' : '+ افزودن'}</button>}
                 </div>
               ))}
             </div>
@@ -662,14 +677,8 @@ function SeriesDetail({ item, onClose, flash }) {
               </>
             )}
             <div className="strk-modal-controls">
-              <select value={row.status} onChange={e => patch({ status: e.target.value })}>
-                {SERIES_STATUS_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-              </select>
-              <div className="strk-stars" dir="ltr">
-                {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
-                  <button key={n} onClick={() => patch({ rating: n })} className={row.rating && n <= row.rating ? 'on' : ''}><Star size={14} fill={row.rating && n <= row.rating ? 'currentColor' : 'none'} /></button>
-                ))}
-              </div>
+              <StatusSeg value={row.status} options={SERIES_STATUS_OPTIONS} onChange={v => patch({ status: v })} />
+              <Stars5 value={row.rating} onChange={v => patch({ rating: v })} />
               <button className="strk-del-btn" onClick={del}><Trash2 size={14} /> حذف</button>
             </div>
           </div>
@@ -795,13 +804,13 @@ function MoviesReact({ Nav = TopNav }) {
             <div><b>{fa(stats.count)}</b><small>فیلم</small></div>
             <div><b>{fa(stats.done)}</b><small>دیده‌شده</small></div>
             <div><b>{fa(stats.hours)}</b><small>ساعت تماشا</small></div>
-            <div><b>{stats.avg ? fa(Math.round(stats.avg * 10) / 10) : '—'}</b><small>میانگین امتیاز</small></div>
+            <div><b>{stats.avg ? fa(Math.round(stats.avg / 2 * 10) / 10) + ' ★' : '—'}</b><small>میانگین امتیاز از ۵</small></div>
           </div>
         </header>
 
         <div className="strk-search">
           <Search size={16} className="strk-search-ic" />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجوی فیلم برای افزودن…" />
+          <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const f = results.find(x => !addedIds.has(String(x.tvmazeId))); if (f) addShow(f); } if (e.key === 'Escape') { setQuery(''); setResults([]); } }} placeholder="جستجوی فیلم برای افزودن…" />
           {searching && <span className="strk-spinner" />}
           {results.length > 0 && (
             <div className="strk-results">
@@ -837,7 +846,7 @@ function MoviesReact({ Nav = TopNav }) {
                 <b title={item.title}>{item.title}</b>
                 {meta && <small>{meta}</small>}
                 {item.status === 'completed'
-                  ? <small className="mv-seen">✓ دیده‌شده{item.date ? ` · ${jalaliDayLabel(String(item.date).slice(0, 10))} ${faDigits(toJalali(fromIso(String(item.date).slice(0, 10))).jy)}` : ''}{item.rating ? ` · امتیاز تو ${fa(item.rating)}/۱۰` : ''}</small>
+                  ? <small className="mv-seen">✓ دیده‌شده{item.date ? ` · ${jalaliDayLabel(String(item.date).slice(0, 10))} ${faDigits(toJalali(fromIso(String(item.date).slice(0, 10))).jy)}` : ''}{item.rating ? ` · ${'★'.repeat(Math.round(item.rating / 2))}` : ''}</small>
                   : <small className="muted">{item.status === 'watchlist' ? 'توی فهرست تماشا' : ''}</small>}
                 <div className="sr-foot">
                   <span />
@@ -890,14 +899,8 @@ function MovieDetail({ item, onClose, flash }) {
             <h2>{row.title}</h2>
             <p className="strk-modal-meta">{[row.genre, row.director, row.durationMinutes && `${fa(row.durationMinutes)} دقیقه`].filter(Boolean).join(' · ')}</p>
             <div className="strk-modal-controls">
-              <select value={row.status} onChange={e => patch({ status: e.target.value })}>
-                {MOVIE_STATUS_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-              </select>
-              <div className="strk-stars" dir="ltr">
-                {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
-                  <button key={n} onClick={() => patch({ rating: n })} className={row.rating && n <= row.rating ? 'on' : ''}><Star size={14} fill={row.rating && n <= row.rating ? 'currentColor' : 'none'} /></button>
-                ))}
-              </div>
+              <StatusSeg value={row.status} options={MOVIE_STATUS_OPTIONS} onChange={v => patch({ status: v })} />
+              <Stars5 value={row.rating} onChange={v => patch({ rating: v })} />
               <button className="strk-del-btn" onClick={del}><Trash2 size={14} /> حذف</button>
             </div>
           </div>

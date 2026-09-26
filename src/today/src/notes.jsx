@@ -452,9 +452,8 @@ export function NotesReact({ Nav }) {
           <button type="button" className="nd2-new" onClick={() => { setEditing(null); setComposerOpen(true); }}><Plus size={16} />یادداشت تازه</button>
           <div className="nd2-filters">
             <button type="button" className={`nd2-chip ${!colorFilter && !tagFilter ? 'on' : ''}`} onClick={() => { setColorFilter(null); setTagFilter(null); }}>همه <em>{faNum(notes.length)}</em></button>
-            {COLORS.map(c => <button key={c.key} type="button" className={`nd2-chip ${colorFilter === c.key ? 'on' : ''}`} onClick={() => setColorFilter(colorFilter === c.key ? null : c.key)}><i style={{ background: c.hex }} />{c.label}</button>)}
-            {allTags.length > 0 && <span className="nd2-sep" />}
-            {allTags.slice(0, 10).map(([t]) => <button key={t} type="button" className={`nd2-chip ${tagFilter === t ? 'on' : ''}`} onClick={() => setTagFilter(tagFilter === t ? null : t)}>#{t}</button>)}
+            {COLORS.filter(c => colorFilter === c.key || notes.some(n => n.color === c.key)).map(c => <button key={c.key} type="button" className={`nd2-chip ${colorFilter === c.key ? 'on' : ''}`} onClick={() => setColorFilter(colorFilter === c.key ? null : c.key)}><i style={{ background: c.hex }} />{c.label}</button>)}
+            {allTags.length > 0 && <select className={`nd2-sort nd2-tagsel ${tagFilter ? 'on' : ''}`} value={tagFilter || ''} onChange={e => setTagFilter(e.target.value || null)} aria-label="برچسب"><option value=""># همهٔ برچسب‌ها</option>{allTags.map(([t, n]) => <option key={t} value={t}>#{t} ({faNum(n)})</option>)}</select>}
             <select className="nd2-sort" value={sort} onChange={e => setSort(e.target.value)} aria-label="مرتب‌سازی"><option value="updated">آخرین ویرایش</option><option value="created">تاریخ ایجاد</option><option value="title">عنوان</option></select>
           </div>
         </div>
