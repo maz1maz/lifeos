@@ -924,3 +924,7 @@ html[data-mode="light"] .brand-logo{background:#105040}
 .agenda .line.debt i{border-color:transparent!important;background:transparent!important;font-size:13px;display:grid;place-items:center}
 .agenda .line.debt span{color:var(--g-accent-strong)}
 @media(max-width:700px){.hub-switch{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;scrollbar-width:none;padding-inline:12px}.hub-switch::-webkit-scrollbar{display:none}.hub-switch button{white-space:nowrap;flex:none}}
+/* v37 — grouped standings (Nations League tiers/groups) */
+.st-table tr.st-group td{padding:12px 8px 6px;font-size:12.5px;font-weight:800;color:var(--g-accent-strong);text-align:right;border-bottom:1px solid var(--g-border-2);background:transparent}
+.st-table tr.st-group:first-child td{padding-top:4px}
+.fb-grp{font-size:11.5px;color:var(--g-muted);padding:6px 4px 2px;font-weight:700}

@@ -1348,11 +1348,12 @@ function Football({ full = false, onLeague }) {
       {favs.length > 0 && <button type="button" className={`fav-toggle ${onlyFav ? 'on' : ''}`} onClick={() => setOnlyFav(v => !v)}><Star size={12} fill={onlyFav ? 'currentColor' : 'none'} />تیم‌های من</button>}
     </div>
     <LeaguePicker value={league} onChange={setLeague} />
-    <div className="fb-list">{list.length ? (() => { let lastDay = null; return list.map((m, index) => {
+    <div className="fb-list">{list.length ? (() => { let lastDay = null, lastGrp = null; return list.map((m, index) => {
       const dayKey = m.status === 'live' ? 'live' : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(m.date));
-      const head = dayKey !== lastDay ? <div className="fb-day">{dayKey === 'live' ? '● در حال بازی' : dayTitle(dayKey)}</div> : null; lastDay = dayKey;
+      const newDay = dayKey !== lastDay, head = newDay ? <div className="fb-day">{dayKey === 'live' ? '● در حال بازی' : dayTitle(dayKey)}</div> : null; lastDay = dayKey;
+      const grpHead = m.group && (newDay || m.group !== lastGrp) ? <div className="fb-grp">{m.group}</div> : null; lastGrp = m.group || null;
       const hmT = new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(m.date));
-      return <React.Fragment key={m.fixtureId || m.id || index}>{head}<div className={`score-row ${isFav(m) ? 'is-fav' : ''} ${m.status === 'live' ? 'is-live' : ''}`}>
+      return <React.Fragment key={m.fixtureId || m.id || index}>{head}{grpHead}<div className={`score-row ${isFav(m) ? 'is-fav' : ''} ${m.status === 'live' ? 'is-live' : ''}`}>
         <small className={m.status === 'live' ? 'live' : ''}>{m.status === 'live' ? 'زنده' : m.status === 'finished' ? 'پایان' : hmT}</small>
         {team(m.home, m.homeLogo, 'home')}
         <b>{m.status === 'upcoming' || !/\d/.test(m.score || '') ? '—' : faDigits(m.score)}</b>
@@ -1734,12 +1735,14 @@ function Standings({ league }) {
       <div className="st-wrap"><table className="st-table">
         <thead><tr><th>#</th><th className="st-team">تیم</th><th>بازی</th><th>برد</th><th>مساوی</th><th>باخت</th><th>تفاضل</th><th>امتیاز</th><th className="st-form">فرم</th></tr></thead>
         <tbody>{rows.map((r, i) => { const name = r.team || r.name, gd = r.gd != null ? r.gd : (Number(r.gf || 0) - Number(r.ga || 0));
-          return <tr key={name || i} className={`${i < 4 ? 'top' : ''} ${i >= n - 3 ? 'bottom' : ''} ${favs.includes(name) ? 'fav' : ''}`}>
+          const grouped = rows.some(x => x.group), head = grouped && (i === 0 || rows[i - 1].group !== r.group);
+          const gRows = grouped ? rows.filter(x => x.group === r.group) : rows, gi = grouped ? gRows.indexOf(r) : i, gn = gRows.length;
+          return <React.Fragment key={(r.group || '') + (name || i)}>{head ? <tr className="st-group"><td colSpan={9}>{r.group}</td></tr> : null}<tr className={`${grouped ? (gi === 0 ? 'top' : '') : (gi < 4 ? 'top' : '')} ${!grouped && gi >= gn - 3 ? 'bottom' : ''} ${grouped && gi === gn - 1 && gn > 3 ? 'bottom' : ''} ${favs.includes(name) ? 'fav' : ''}`}>
             <td className="st-rank">{fa(r.rank || i + 1)}</td>
             <td className="st-team"><TeamBadge logo={r.logo} name={name} /><span>{name}</span>{favs.includes(name) && <Star size={11} fill="currentColor" />}</td>
             <td>{fa(r.played || 0)}</td><td>{fa(r.win ?? r.won ?? 0)}</td><td>{fa(r.draw ?? r.drawn ?? 0)}</td><td>{fa(r.loss ?? r.lost ?? 0)}</td>
             <td><bdi dir="ltr">{faDigits(gd > 0 ? "+" + gd : gd)}</bdi></td><td className="st-pts">{fa(r.pts ?? r.points ?? 0)}</td><td className="st-form"><FormDots items={formFor(r, lm, name)} /></td>
-          </tr>; })}</tbody>
+          </tr></React.Fragment>; })}</tbody>
       </table></div>}
   </Card>;
 }
