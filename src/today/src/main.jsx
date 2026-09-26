@@ -24,6 +24,7 @@ import {
   Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
+import './numgroup';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -370,6 +371,69 @@ function seriesAiredTotal(item) {
   return Object.values(by).reduce((n, s) => n + (Number(s.aired) || 0), 0);
 }
 const SERIES_TABS = [['all', 'همه'], ['watching', 'در حال تماشا'], ['watchlist', 'بعداً'], ['completed', 'تمام‌شده'], ['dropped', 'رها‌شده']];
+const SHOW_STATUS_FA = { Running: 'در حال پخش', Ended: 'پایان‌یافته', 'To Be Determined': 'نامشخص', 'In Development': 'در دست تولید' };
+function ShowPreview({ show, added, busy, onAdd, onOpen, onClose }) {
+  const [eps, setEps] = useState(null), [openS, setOpenS] = useState(null);
+  useEffect(() => {
+    let dead = false; setEps(null);
+    api(`/api/movies/tvmaze/episodes?tvmazeId=${encodeURIComponent(show.tvmazeId)}`).then(d => !dead && setEps(d.items || [])).catch(() => !dead && setEps([]));
+    const k = e => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k);
+    return () => { dead = true; window.removeEventListener('keydown', k); };
+  }, [show.tvmazeId]);
+  const seasons = useMemo(() => {
+    const m = new Map(); (eps || []).forEach(e => { const s = m.get(e.season) || { n: e.season, total: 0, aired: 0, first: e.airdate, last: e.airdate, eps: [] }; s.total++; if (e.aired) s.aired++; if (e.airdate && (!s.first || e.airdate < s.first)) s.first = e.airdate; if (e.airdate > s.last) s.last = e.airdate; s.eps.push(e); m.set(e.season, s); });
+    return [...m.values()].sort((a, b) => a.n - b.n);
+  }, [eps]);
+  const total = (eps || []).length, aired = (eps || []).filter(e => e.aired).length;
+  const rts = (eps || []).map(e => Number(e.runtime)).filter(Boolean), runtime = rts.length ? Math.round(rts.reduce((a, b) => a + b, 0) / rts.length) : null;
+  const next = (eps || []).filter(e => !e.aired && e.airdate).sort((a, b) => a.airdate.localeCompare(b.airdate))[0];
+  const jd = iso => { if (!iso) return ''; const j = toJalali(fromIso(iso)); return `${faDigits(j.jd)} ${JALALI_MONTHS[j.jm - 1]} ${faDigits(j.jy)}`; };
+  const yr = iso => iso ? faDigits(toJalali(fromIso(iso)).jy) : '';
+  return (
+    <div className="strk-modal-backdrop" onClick={onClose}>
+      <div className="strk-modal shp" onClick={e => e.stopPropagation()}>
+        <button className="strk-modal-close" onClick={onClose} aria-label="بستن"><X size={18} /></button>
+        <div className="strk-modal-head">
+          {show.posterUrl ? <img src={show.posterUrl} alt="" /> : <span className="strk-modal-poster-fallback">🎬</span>}
+          <div className="strk-modal-info">
+            <h2><bdi>{show.name}</bdi></h2>
+            <p className="strk-modal-meta">{[show.year && faDigits(show.year), show.network, (show.genres || []).join('، ')].filter(Boolean).join(' · ')}</p>
+            <div className="shp-facts">
+              {show.status && <span className={show.status === 'Running' ? 'ok' : ''}>{SHOW_STATUS_FA[show.status] || show.status}</span>}
+              {show.rating ? <span>★ {faDigits(show.rating)}</span> : null}
+              {eps === null ? <span>…</span> : <>
+                <span><b>{fa(seasons.length)}</b> فصل</span>
+                <span><b>{fa(total)}</b> قسمت{aired < total ? ` (${fa(aired)} پخش‌شده)` : ''}</span>
+                {runtime && <span>~<b>{fa(runtime)}</b> دقیقه</span>}
+                {runtime && aired ? <span>کل: <b>{fa(Math.round(runtime * aired / 60))}</b> ساعت</span> : null}
+              </>}
+            </div>
+            {next && <p className="shp-next">قسمت بعد: فصل {fa(next.season)} قسمت {fa(next.number)} · {jd(next.airdate)}</p>}
+            <div className="shp-actions">
+              {added ? <><span className="strk-added">✓ در فهرست شماست</span><button type="button" className="strk-more-btn" onClick={onOpen}>باز کردن</button></>
+                : <><button type="button" className="strk-add-btn" disabled={busy} onClick={() => onAdd('watchlist')}>{busy ? 'در حال افزودن…' : '+ افزودن به «بعداً»'}</button>
+                  <button type="button" className="strk-more-btn" disabled={busy} onClick={() => onAdd('watching')}>▶ دارم می‌بینم</button></>}
+            </div>
+          </div>
+        </div>
+        {show.summary && <p className="strk-modal-note shp-sum" dir="auto">{show.summary}</p>}
+        <div className="strk-seasons-body">
+          {eps === null ? <p className="empty">در حال دریافت فصل‌ها…</p> : !seasons.length ? <p className="empty">اطلاعات فصل‌ها در دسترس نیست.</p> : seasons.map(se => (
+            <div className="strk-season" key={se.n}>
+              <button className="strk-season-head" onClick={() => setOpenS(openS === se.n ? null : se.n)}>
+                <ChevronDown size={16} className={openS === se.n ? 'open' : ''} />
+                <span className="strk-season-count">{fa(se.total)} قسمت</span>
+                <b>فصل {fa(se.n)}</b>
+                <small className="muted shp-yr">{yr(se.first)}{se.aired < se.total ? ` · ${fa(se.aired)} پخش‌شده` : ''}</small>
+              </button>
+              {openS === se.n && <ul className="strk-ep-list">{se.eps.map(ep => <li key={ep.id} className={!ep.aired ? 'strk-ep-unaired' : ''} style={{ cursor: 'default' }}><span className="strk-ep-info"><b><bdi>{ep.name || `قسمت ${fa(ep.number)}`}</bdi></b><small>{jd(ep.airdate)}</small></span><span className="strk-ep-num">E{faDigits(ep.number)}</span></li>)}</ul>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 function StatusSeg({ value, options, onChange }) {
   return <div className="strk-seg" role="radiogroup">{options.map(([k, l]) => <button type="button" key={k} role="radio" aria-checked={value === k} className={value === k ? 'on' : ''} onClick={() => value !== k && onChange(k)}>{l}</button>)}</div>;
 }
@@ -448,12 +512,13 @@ function SeriesReact({ Nav = TopNav }) {
   const addedIds = new Set(items.map(x => String(x.tvmazeId)));
 
   const [addingId, setAddingId] = useState(null);
-  const addShow = async show => {
+  const [preview, setPreview] = useState(null);
+  const addShow = async (show, status = 'watchlist') => {
     if (!show || addingId) return;
     setAddingId(show.tvmazeId);
     try {
-      const r = await api('/api/movies/from-tvmaze', { method: 'POST', body: JSON.stringify({ tvmazeId: show.tvmazeId, name: show.name, posterUrl: show.posterUrl, status: 'watchlist' }) });
-      setQuery(''); setResults([]);
+      const r = await api('/api/movies/from-tvmaze', { method: 'POST', body: JSON.stringify({ tvmazeId: show.tvmazeId, name: show.name, posterUrl: show.posterUrl, status, ...(status === 'watching' ? { currentSeason: 1, currentEpisode: 0 } : {}) }) });
+      setQuery(''); setResults([]); setPreview(null);
       if (r.already) { setTab('all'); flash(`«${show.name}» از قبل در فهرست هست`); }
       else { setTab('all'); flash(`«${show.name}» اضافه شد ✓`); }
       load();
@@ -504,7 +569,7 @@ function SeriesReact({ Nav = TopNav }) {
           {results.length > 0 && (
             <div className="strk-results">
               {results.map(show => (
-                <div className="strk-result-row is-click" key={show.tvmazeId} onClick={() => !addedIds.has(String(show.tvmazeId)) && addShow(show)}>
+                <div className="strk-result-row is-click" key={show.tvmazeId} onClick={() => setPreview(show)} title="جزئیات سریال">
                   {show.posterUrl ? <img src={show.posterUrl} alt="" /> : <span className="strk-result-fallback">🎬</span>}
                   <div className="strk-result-info"><b>{show.name}</b><small>{show.year}{show.genres?.length ? ' · ' + show.genres.join('، ') : ''}</small></div>
                   {addedIds.has(String(show.tvmazeId)) ? <span className="strk-added">اضافه شده</span> : <button type="button" className="strk-add-btn" disabled={!!addingId} onClick={e => { e.stopPropagation(); addShow(show); }}>{addingId === show.tvmazeId ? 'در حال افزودن…' : '+ افزودن'}</button>}
@@ -589,6 +654,7 @@ function SeriesReact({ Nav = TopNav }) {
           })}
         </div>
       </div>
+      {preview && <ShowPreview show={preview} added={addedIds.has(String(preview.tvmazeId))} busy={addingId === preview.tvmazeId} onAdd={st => addShow(preview, st)} onOpen={() => { const it = items.find(x => String(x.tvmazeId) === String(preview.tvmazeId)); setPreview(null); if (it) setOpen(it); }} onClose={() => setPreview(null)} />}
       {open && <SeriesDetail item={open} onClose={() => { setOpen(null); load(); }} flash={flash} />}
       {toast && <div className="strk-toast">{toast}</div>}
     </main>
@@ -1594,9 +1660,16 @@ function WeatherCard({ weather, aqi, city, onCity }) {
 const resultFor = (m, team) => { const sc = String(m.score || '').match(/(\d+)\s*-\s*(\d+)/); if (!sc) return null; const h = +sc[1], a = +sc[2]; const mine = m.home === team ? h : a, theirs = m.home === team ? a : h; return mine > theirs ? 'W' : mine < theirs ? 'L' : 'D'; };
 const formOf = (matches, team, n = 5) => matches.filter(m => m.status === 'finished' && (m.home === team || m.away === team)).sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, n).map(m => ({ r: resultFor(m, team), m })).filter(x => x.r).reverse();
 const FORM_FA = { W: 'ب', D: 'م', L: 'ش' };
+// prefer the source's own last-5 form (standings.form) when it is at least as complete as what our match window gives
+const formFor = (row, matches, team) => {
+  const mine = formOf(matches, team);
+  const raw = String(row?.form || '').toUpperCase().replace(/[^WDL]/g, '').slice(-5).split('');
+  if (raw.length >= mine.length && raw.length) { const tips = (row.formTips || []).slice(-raw.length); return raw.map((r, i) => ({ r, tip: tips[i] || '', m: { home: '', away: '', score: '' } })); }
+  return mine;
+};
 function FormDots({ items }) {
   const slots = [...Array(Math.max(0, 5 - items.length)).fill(null), ...items.slice(-5)];
-  return <span className="form-dots">{slots.map((x, i) => x ? <i key={i} className={`f-${x.r}`} title={x.m.home ? `${x.m.home} ${faDigits(x.m.score)} ${x.m.away}` : ''}>{FORM_FA[x.r]}</i> : <i key={i} className="f-none" title="نتیجه در دسترس نیست" />)}</span>;
+  return <span className="form-dots">{slots.map((x, i) => x ? <i key={i} className={`f-${x.r}`} title={x.tip ? faDigits(x.tip) : x.m.home ? `${x.m.home} ${faDigits(x.m.score)} ${x.m.away}` : ''}>{FORM_FA[x.r]}</i> : <i key={i} className="f-none" title="نتیجه در دسترس نیست" />)}</span>;
 }
 function MyTeams({ league }) {
   const [favs, setFavs] = useState(() => readLs('lifeos-fav-teams', []));
@@ -1616,7 +1689,7 @@ function MyTeams({ league }) {
         const opp = m => m.home === t ? m.away : m.home;
         return <div className="mt-item" key={t}>
           <div className="mt-head"><TeamBadge logo={logo} name={t} /><b>{t}</b>{row && <span className="mt-rank">رتبهٔ {fa(row.rank || idx + 1)} · {fa(row.pts ?? row.points ?? 0)} امتیاز</span>}</div>
-          <div className="mt-form"><small>فرم:</small><FormDots items={formOf(matches, t)} /></div>
+          <div className="mt-form"><small>فرم:</small><FormDots items={formFor(row, matches, t)} /></div>
           <div className="mt-games">
             {last && <div><small>بازی قبل</small><span>{last.home === t ? 'مقابل' : 'در زمین'} {opp(last)} <b className={`f-${resultFor(last, t)}`}>{faDigits(last.score)}</b></span></div>}
             {next && <div><small>بازی بعد</small><span>{next.home === t ? 'مقابل' : 'در زمین'} {opp(next)} · {next.status === 'live' ? <b className="f-L">زنده</b> : dayTitle(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(next.date)))} {next.status !== 'live' && new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(next.date))}</span></div>}
@@ -1642,7 +1715,7 @@ function Standings({ league }) {
             <td className="st-rank">{fa(r.rank || i + 1)}</td>
             <td className="st-team"><TeamBadge logo={r.logo} name={name} /><span>{name}</span>{favs.includes(name) && <Star size={11} fill="currentColor" />}</td>
             <td>{fa(r.played || 0)}</td><td>{fa(r.win ?? r.won ?? 0)}</td><td>{fa(r.draw ?? r.drawn ?? 0)}</td><td>{fa(r.loss ?? r.lost ?? 0)}</td>
-            <td><bdi dir="ltr">{faDigits(gd > 0 ? "+" + gd : gd)}</bdi></td><td className="st-pts">{fa(r.pts ?? r.points ?? 0)}</td><td className="st-form">{(() => { const f = formOf(lm, name); if (f.length) return <FormDots items={f} />; const raw = String(r.form || '').toUpperCase().replace(/[^WDL]/g, '').slice(-5).split('').filter(Boolean); return <FormDots items={raw.map(x => ({ r: x, m: { home: '', away: '', score: '' } }))} />; })()}</td>
+            <td><bdi dir="ltr">{faDigits(gd > 0 ? "+" + gd : gd)}</bdi></td><td className="st-pts">{fa(r.pts ?? r.points ?? 0)}</td><td className="st-form"><FormDots items={formFor(r, lm, name)} /></td>
           </tr>; })}</tbody>
       </table></div>}
   </Card>;

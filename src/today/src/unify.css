@@ -140,3 +140,22 @@ html[data-mode="light"] select option,html[data-mode="light"] select optgroup{ba
 @media(max-width:700px){.strk-seg{width:100%}.strk-seg button{flex:1;padding:7px 6px}}
 .nd2-tagsel{margin-inline-start:0;max-width:210px}
 .nd2-tagsel.on{border-color:var(--g-accent);color:var(--g-accent-strong)}
+/* v30 — season accordions must not shrink inside the scroll box */
+.strk-seasons-body>.strk-season{flex:none}
+.strk-seasons-body{max-height:62vh;overscroll-behavior:contain}
+/* v31 — search result preview */
+.shp{max-width:720px}
+.shp-facts{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.shp-facts span{font-size:12.5px;color:var(--g-muted);border:1px solid var(--g-border-2);border-radius:8px;padding:4px 9px;background:rgba(255,255,255,.03)}
+.shp-facts span b{color:var(--g-text);font-weight:800}
+.shp-facts span.ok{color:var(--g-good);border-color:color-mix(in srgb,var(--g-good) 40%,transparent)}
+.shp-next{margin:0;font-size:12.5px;color:var(--g-accent-strong)}
+.shp-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:auto;padding-top:6px}
+.shp-actions .strk-add-btn,.shp-actions .strk-more-btn{padding:9px 16px;font-size:13px}
+.shp-sum{max-height:9em}
+.shp-yr{margin-inline-start:auto;font-size:11.5px}
+.strk-result-row.is-click .strk-result-info b{text-decoration:underline transparent;transition:text-decoration-color .15s}
+.strk-result-row.is-click:hover .strk-result-info b{text-decoration-color:currentColor}
+.shp .strk-ep-list li{padding-block:7px}
+.shp .strk-ep-info{display:flex;align-items:baseline;gap:10px}
+.shp .strk-ep-info small{margin-inline-start:auto;color:var(--g-muted)}

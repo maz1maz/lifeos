@@ -24,7 +24,7 @@ const faD = v => String(v ?? '').replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d
 const pad = n => String(n).padStart(2, '0');
 export const isoToJ = iso => { const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number); return d2j(g2d(y, m, d)); };
 export const jToIso = (jy, jm, jd) => { const g = d2g(j2d(jy, jm, jd)); return `${g.gy}-${pad(g.gm)}-${pad(g.gd)}`; };
-const monthLen = (jy, jm) => jm <= 6 ? 31 : jm < 12 ? 30 : jalCal(jy).leap === 0 ? 30 : 29;
+export const monthLen = (jy, jm) => jm <= 6 ? 31 : jm < 12 ? 30 : jalCal(jy).leap === 0 ? 30 : 29;
 const todayIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const validIso = v => /^\d{4}-\d{2}-\d{2}/.test(String(v || ''));
 export const jLabel = iso => { if (!validIso(iso)) return ''; const j = isoToJ(iso); return `${faD(j.jd)} ${MONTHS[j.jm - 1]} ${faD(j.jy)}`; };

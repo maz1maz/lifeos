@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import './finance.css'
 import { jalaliShort, jalaliDay } from './jalali'
-import { JalaliDateInput } from './jdate';
+import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './jdate';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -12,20 +12,68 @@ const api = async (url, options) => {
 
 const isoToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 const fa = (n) => Number(n || 0).toLocaleString('fa-IR')
-const faMoney = (n) => `${fa(n)} ریال`
-const compact = (n) => {
-  const x = Number(n) || 0
-  if (Math.abs(x) >= 1e9) return `${fa(x / 1e9)} میلیارد ریال`
-  if (Math.abs(x) >= 1e6) return `${fa(x / 1e6)} میلیون ریال`
-  return faMoney(x)
+const faD = (v) => String(v ?? '').replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d])
+// display unit (data is always stored in rial); set from the component on every render
+let UNIT = 'rial'
+const UNIT_FA = () => (UNIT === 'toman' ? 'تومان' : 'ریال')
+const conv = (n) => (UNIT === 'toman' ? Math.round((Number(n) || 0) / 10) : Number(n) || 0)
+const amt = (n) => fa(conv(n))
+const faMoney = (n) => `${amt(n)} ${UNIT_FA()}`
+const short = (n, withUnit = true) => {
+  const x = conv(n), a = Math.abs(x), f = (v) => v.toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : v >= 10 ? 1 : 2 })
+  const s = a >= 1e9 ? `${f(x / 1e9)} میلیارد` : a >= 1e6 ? `${f(x / 1e6)} میلیون` : a >= 1e4 ? `${f(x / 1e3)} هزار` : fa(x)
+  return withUnit ? `${s} ${UNIT_FA()}` : s
 }
-const monthFa = (key) => {
-  try { return new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'long' }).format(new Date(`${key}-01T12:00:00`)) } catch { return key }
+const compact = (n) => short(n)
+// Jalali months — key "1405-07"
+const jKeyOf = (iso) => { const j = isoToJ(iso); return `${j.jy}-${String(j.jm).padStart(2, '0')}` }
+const jParts = (k) => k.split('-').map(Number)
+const jRange = (k) => { const [y, m] = jParts(k); return { from: jToIso(y, m, 1), to: jToIso(y, m, monthLen(y, m)) } }
+const legacyKey = (k) => { const [y, m] = jParts(k); return jToIso(y, m, 15).slice(0, 7) }
+const monthFa = (k) => { const [y, m] = jParts(k); return `${JMONTHS[m - 1]} ${faD(y)}` }
+const shiftMonth = (k, d) => { let [y, m] = jParts(k); m += d; while (m > 12) { m -= 12; y++ } while (m < 1) { m += 12; y-- } return `${y}-${String(m).padStart(2, '0')}` }
+const isMisc = (t) => t.kind === 'expense' && (!t.category || String(t.category).trim() === 'متفرقه')
+
+function MonthPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [y, m] = jParts(value)
+  const [yy, setYy] = useState(y)
+  useEffect(() => { if (open) setYy(y) }, [open])
+  useEffect(() => { if (!open) return; const c = (e) => { if (!e.target.closest?.('.fn-mp')) setOpen(false) }; document.addEventListener('pointerdown', c); return () => document.removeEventListener('pointerdown', c) }, [open])
+  const cur = jKeyOf(isoToday())
+  return (
+    <div className="fn-mp">
+      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, -1))} aria-label="ماه قبل">›</button>
+      <button type="button" className="fn-mp-btn" onClick={() => setOpen((v) => !v)}>{JMONTHS[m - 1]} {faD(y)} <span>▾</span></button>
+      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, 1))} aria-label="ماه بعد">‹</button>
+      {value !== cur ? <button type="button" className="fn-mp-today" onClick={() => onChange(cur)}>این ماه</button> : null}
+      {open ? (
+        <div className="fn-mp-pop">
+          <div className="fn-mp-year"><button type="button" onClick={() => setYy(yy + 1)}>›</button><b>{faD(yy)}</b><button type="button" onClick={() => setYy(yy - 1)}>‹</button></div>
+          <div className="fn-mp-grid">{JMONTHS.map((name, i) => { const k = `${yy}-${String(i + 1).padStart(2, '0')}`; return <button type="button" key={k} className={`${k === value ? 'on' : ''} ${k === cur ? 'cur' : ''}`} onClick={() => { onChange(k); setOpen(false) }}>{name}</button> })}</div>
+        </div>
+      ) : null}
+    </div>
+  )
 }
-const shiftMonth = (key, d) => {
-  const [y, m] = key.split('-').map(Number)
-  const dt = new Date(y, m - 1 + d, 1)
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`
+
+// "+" button that opens a side drawer holding a form; closes itself after a successful submit
+function Drawer({ label, title, children }) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => { if (!open) return; const k = (e) => e.key === 'Escape' && setOpen(false); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) }, [open])
+  return (
+    <>
+      <button type="button" className="fn-add" onClick={() => setOpen(true)}>＋ {label}</button>
+      {open ? (
+        <div className="fn-drawer-bg" onClick={() => setOpen(false)}>
+          <aside className="fn-drawer" onClick={(e) => e.stopPropagation()} onSubmit={() => setTimeout(() => setOpen(false), 0)}>
+            <header><h2>{title || label}</h2><button type="button" onClick={() => setOpen(false)} aria-label="بستن">×</button></header>
+            {children}
+          </aside>
+        </div>
+      ) : null}
+    </>
+  )
 }
 const CATS = ['خوراک', 'حمل‌ونقل', 'قبض', 'مسکن', 'سلامت', 'تفریح', 'آموزش', 'پوشاک', 'حقوق', 'سرمایه‌گذاری', 'هدیه', 'سفر', 'متفرقه']
 const ICONS = { 'خوراک': '🍔', 'حمل‌ونقل': '🚕', 'قبض': '🧾', 'مسکن': '🏠', 'سلامت': '💊', 'تفریح': '🎮', 'آموزش': '📚', 'پوشاک': '👕', 'حقوق': '💼', 'سرمایه‌گذاری': '📈', 'هدیه': '🎁', 'سفر': '✈️', 'متفرقه': '📦', 'انتقال': '🔄' }
@@ -39,7 +87,7 @@ const TABS = [
   { id: 'budget', label: 'بودجه و حساب‌ها' },
   { id: 'wealth', label: 'بدهی و سرمایه' },
 ]
-const FILTERS = [['all', 'همه'], ['expense', 'هزینه'], ['income', 'درآمد'], ['transfer', 'انتقال']]
+const FILTERS = [['all', 'همه'], ['expense', 'هزینه'], ['income', 'درآمد'], ['transfer', 'انتقال'], ['misc', 'بدون دسته']]
 
 function AreaChart({ series }) {
   const w = 640, h = 220, pad = 28
@@ -66,7 +114,7 @@ function AreaChart({ series }) {
       <path d={path('income')} fill="none" stroke="#34d399" strokeWidth="2.4" />
       <path d={path('expense')} fill="none" stroke="#fb7185" strokeWidth="2.4" />
       <path d={path('net')} fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="5 3" />
-      {withNet.map((s, i) => <text key={s.month} x={x(i)} y={h - 8} textAnchor="middle" fill="#8aa0b8" fontSize="11">{s.month.slice(5)}</text>)}
+      {withNet.map((s, i) => <text key={s.month} x={x(i)} y={h - 8} textAnchor="middle" fill="#8aa0b8" fontSize="12">{s.label || s.month.slice(5)}</text>)}
     </svg>
   )
 }
@@ -88,14 +136,17 @@ function Donut({ slices }) {
         </g>
       </svg>
       <div className="fn-legend">
-        {slices.map((s, i) => <div key={s.name}><span style={{ background: COLORS[i % COLORS.length] }} />{s.name} · {faMoney(s.value)}</div>)}
+        {slices.map((s, i) => <div key={s.name} title={faMoney(s.value)}><span style={{ background: COLORS[i % COLORS.length] }} />{s.name} · {short(s.value)}</div>)}
       </div>
     </div>
   )
 }
 
 export function FinanceReact({ Nav }) {
-  const [month, setMonth] = useState(() => isoToday().slice(0, 7))
+  const [month, setMonth] = useState(() => jKeyOf(isoToday()))
+  const [unit, setUnit] = useState(() => { try { return localStorage.getItem('lifeos-fin-unit') || 'rial' } catch { return 'rial' } })
+  UNIT = unit
+  const switchUnit = (u) => { setUnit(u); try { localStorage.setItem('lifeos-fin-unit', u) } catch {} }
   const [tab, setTab] = useState('dash')
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, categories: {} })
   const [trend, setTrend] = useState([])
@@ -120,18 +171,19 @@ export function FinanceReact({ Nav }) {
   const load = useCallback(async () => {
     try {
       const months = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5))
+      const { from, to } = jRange(month), rq = `from=${from}&to=${to}`
       const [sum, list, acc, bud, debt, pf, pk, pkSum, bt, al, ...hist] = await Promise.all([
-        api(`/api/finance?month=${month}`),
-        api(`/api/transactions?from=${month}-01&to=${month}-31`),
+        api(`/api/finance?${rq}`),
+        api(`/api/transactions?${rq}`),
         api('/api/accounts'),
-        api(`/api/budgets?month=${month}`),
+        api(`/api/budgets?month=${month}&legacy=${legacyKey(month)}&${rq}`),
         api('/api/debts'),
         api('/api/portfolio'),
-        api(`/api/poker?month=${month}`).catch(() => ({ items: [] })),
-        api(`/api/poker/summary?month=${month}`).catch(() => ({})),
-        api(`/api/bet?month=${month}`).catch(() => ({ items: [], stats: {} })),
+        api(`/api/poker?${rq}`).catch(() => ({ items: [] })),
+        api(`/api/poker/summary?${rq}`).catch(() => ({})),
+        api(`/api/bet?${rq}`).catch(() => ({ items: [], stats: {} })),
         api('/api/investments/alerts').catch(() => ({ items: [] })),
-        ...months.map((m) => api(`/api/finance?month=${m}`).catch(() => ({ month: m, income: 0, expense: 0 }))),
+        ...months.map((m) => { const r = jRange(m); return api(`/api/finance?from=${r.from}&to=${r.to}`).catch(() => ({ income: 0, expense: 0 })) }),
       ])
       setSummary(sum)
       setTxs(list.items || [])
@@ -143,7 +195,7 @@ export function FinanceReact({ Nav }) {
       setPokerSummary(pkSum || {})
       setBet(bt || { items: [], stats: {} })
       setAlerts(al.items || [])
-      setTrend(hist.map((h, i) => ({ month: months[i], income: h.income || 0, expense: h.expense || 0 })))
+      setTrend(hist.map((h, i) => ({ month: months[i], label: JMONTHS[jParts(months[i])[1] - 1], income: h.income || 0, expense: h.expense || 0 })))
     } catch (e) { setNotice(e.message) }
   }, [month])
 
@@ -162,15 +214,22 @@ export function FinanceReact({ Nav }) {
   const netWorth = accounts.reduce((s, a) => s + Number(a.balance ?? a.openingBalance ?? 0), 0)
   const receivable = debts.filter((d) => d.type !== 'payable').reduce((s, d) => s + d.amount, 0)
   const payable = debts.filter((d) => d.type === 'payable').reduce((s, d) => s + d.amount, 0)
-  const shown = txs.filter((t) => (filter === 'all' || t.kind === filter) && (!q.trim() || `${t.title} ${t.category} ${t.account || ''}`.includes(q.trim())))
+  const shown = txs.filter((t) => (filter === 'all' || (filter === 'misc' ? isMisc(t) : t.kind === filter)) && (!q.trim() || `${t.title} ${t.category} ${t.account || ''}`.includes(q.trim())))
   const face = holdAssetType === 'dollar' || holdAssetType === 'euro'
-  const betMonthItems = (bet.items || []).filter((d) => d.date.startsWith(month))
+  const mRange = jRange(month)
+  const betMonthItems = (bet.items || []).filter((d) => d.date >= mRange.from && d.date <= mRange.to)
+  const miscSum = cats.filter(([n]) => n === 'متفرقه').reduce((a, [, v]) => a + v, 0)
+  const miscPct = expense ? Math.round((miscSum / expense) * 100) : 0
+  const setCat = async (item, category) => {
+    if (!category) return
+    try { const r = await api(`/api/transactions/${item.id}`, { method: 'PATCH', body: JSON.stringify({ category, learn: true }) }); setNotice(`«${item.title}» ← ${category}${r.learned ? ` · ${fa(r.learned)} تراکنش مشابه هم دسته‌بندی شد` : ''}`); await load() } catch (e) { setNotice(e.message) }
+  }
   const betMax = Math.max(1, ...betMonthItems.map((d) => Math.abs(d.result || 0)))
 
   const submitTx = (e) => {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
-    send('/api/transactions', { title: f.get('title'), amount: Number(f.get('amount')), kind: f.get('kind'), category: f.get('category') || 'متفرقه', account: f.get('account') || 'بدون حساب', date: f.get('date') || `${month}-01`, tags: f.get('tags') }, 'تراکنش ثبت شد.')
+    send('/api/transactions', { title: f.get('title'), amount: Number(f.get('amount')), kind: f.get('kind'), category: f.get('category') || '', account: f.get('account') || 'بدون حساب', date: f.get('date') || isoToday(), tags: f.get('tags') }, 'تراکنش ثبت شد.')
     e.currentTarget.reset()
   }
 
@@ -242,22 +301,19 @@ export function FinanceReact({ Nav }) {
 
         <section className="fn-glass" style={{ padding: 16 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
-            <div className="fn-month">
-              <button type="button" onClick={() => setMonth(shiftMonth(month, -1))}>ماه قبل</button>
-              <input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} aria-label="ماه" />
-              <button type="button" onClick={() => setMonth(shiftMonth(month, 1))}>ماه بعد</button>
-              <b>{monthFa(month)}</b>
-            </div>
+            <MonthPicker value={month} onChange={setMonth} />
             <div className="fn-chips">
+              <span className="fn-unit" role="radiogroup" aria-label="واحد نمایش">{[['rial', 'ریال'], ['toman', 'تومان']].map(([k, l]) => <button key={k} type="button" className={unit === k ? 'on' : ''} onClick={() => switchUnit(k)}>{l}</button>)}</span>
               <span className="fn-chip">دارایی: {compact(netWorth)}</span>
               <span className="fn-chip">طلب: {compact(receivable)}</span>
               <span className="fn-chip">بدهی: {compact(payable)}</span>
             </div>
           </div>
+          {tab === 'dash' ? <>
           <div className="fn-kpis">
-            <div className="fn-kpi green"><small>💰 درآمد ماه</small><b>{fa(income)}</b></div>
-            <div className="fn-kpi rose"><small>💸 هزینه ماه</small><b>{fa(expense)}</b></div>
-            <div className={`fn-kpi ${balance >= 0 ? 'cyan' : 'amber'}`}><small>⚖️ مانده ماه</small><b>{fa(balance)}</b></div>
+            <div className="fn-kpi green" title={faMoney(income)}><small>💰 درآمد ماه</small><b>{short(income, false)}</b><small className="fn-u">{UNIT_FA()}</small></div>
+            <div className="fn-kpi rose" title={faMoney(expense)}><small>💸 هزینه ماه</small><b>{short(expense, false)}</b><small className="fn-u">{UNIT_FA()}</small></div>
+            <div className={`fn-kpi ${balance >= 0 ? 'cyan' : 'amber'}`} title={faMoney(balance)}><small>⚖️ مانده ماه</small><b>{short(balance, false)}</b><small className="fn-u">{UNIT_FA()}</small></div>
             <div className="fn-kpi cyan">
               <small>نرخ پس‌انداز {fa(savings)}٪</small>
               <div className="fn-gauge" style={{ marginTop: 10 }}><i style={{ width: `${Math.max(0, Math.min(100, savings))}%` }} /></div>
@@ -268,12 +324,20 @@ export function FinanceReact({ Nav }) {
             {cats.slice(0, 5).map(([name, value], i) => (
               <div key={name} className="fn-soft fn-cat">
                 <b>{ICONS[name] || '•'} {name}</b>
-                <small>{faMoney(value)}</small>
+                <small title={faMoney(value)}>{short(value)} · {fa(Math.round((value / (expense || 1)) * 100))}٪</small>
                 <div className="fn-bar"><i style={{ width: `${Math.min(100, Math.round((value / (expense || 1)) * 100))}%`, background: COLORS[i % COLORS.length] }} /></div>
               </div>
             ))}
             {!cats.length ? <p className="fn-empty" style={{ gridColumn: '1/-1' }}>هنوز هزینه‌ای برای این ماه نیست.</p> : null}
           </div>
+          {summary.miscCount ? (
+            <div className="fn-banner">
+              <span>📦 <b>{fa(summary.miscCount)}</b> هزینه بدون دسته (متفرقه) — <b>{fa(miscPct)}٪</b> هزینهٔ این ماه. دسته‌بندی‌شان کن تا گزارش واقعی شود؛ هر دسته‌ای بدهی، روی تراکنش‌های هم‌نام هم اعمال و برای بعد یاد گرفته می‌شود.</span>
+              <button type="button" className="fn-save" onClick={() => { setTab('ledger'); setFilter('misc') }}>دسته‌بندی کن</button>
+            </div>
+          ) : null}
+          {summary.transferCount ? <p className="fn-note">🔄 {fa(summary.transferCount)} انتقال ({short(summary.transferOut)}) جزو هزینه حساب نشده.</p> : null}
+          </> : null}
         </section>
 
         {tab === 'dash' ? (
@@ -292,14 +356,15 @@ export function FinanceReact({ Nav }) {
         ) : null}
 
         {tab === 'ledger' ? (
-          <div className="fn-layout" id="ledger">
-            <form className="fn-glass fn-form" onSubmit={submitTx}>
-              <h2>تراکنش تازه</h2>
+          <div className="fn-ledger" id="ledger">
+            <section className="fn-glass fn-list">
+              <div className="fn-head"><h2>دفتر {monthFa(month)}</h2><Drawer label="تراکنش تازه">
+<form className="fn-form" onSubmit={submitTx}>
               <input name="title" required placeholder="شرح" />
               <input name="amount" required inputMode="numeric" placeholder="مبلغ (ریال)" />
               <div>
                 <select name="kind"><option value="expense">هزینه</option><option value="income">درآمد</option></select>
-                <select name="category">{CATS.map((c) => <option key={c}>{c}</option>)}</select>
+                <select name="category"><option value="">دسته: خودکار از روی شرح</option>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
               </div>
               <select name="account">
                 <option value="بدون حساب">بدون حساب</option>
@@ -309,8 +374,7 @@ export function FinanceReact({ Nav }) {
               <JalaliDateInput name="date" defaultValue={isoToday()} />
               <button className="fn-save">ثبت تراکنش</button>
             </form>
-            <section className="fn-glass fn-list">
-              <h2>دفتر {monthFa(month)}</h2>
+              </Drawer></div>
               <div className="fn-recat">
                 <button type="button" className="fn-action" onClick={previewRecat} disabled={recatBusy}>🧹 دسته‌بندی متفرقه‌ها</button>
                 <button type="button" className="fn-action" onClick={revertRecat} disabled={recatBusy}>↩ بازگردانی آخرین اعمال</button>
@@ -337,9 +401,9 @@ export function FinanceReact({ Nav }) {
                 <article key={item.id} className="fn-row">
                   <div>
                     <b>{item.title}</b>
-                    <small>{jalaliShort(item.date)} · {item.category} · {item.account}{item.tags?.length ? ` · ${item.tags.map((t) => `#${t}`).join(' ')}` : ''}</small>
+                    <small>{jalaliShort(item.date)} · {isMisc(item) ? <select className="fn-catpick" value="" onChange={(e) => setCat(item, e.target.value)} aria-label="انتخاب دسته"><option value="">متفرقه — دسته؟</option>{CATS.filter((c) => c !== 'متفرقه' && c !== 'حقوق').map((c) => <option key={c} value={c}>{c}</option>)}<option value="انتقال">انتقال (هزینه نیست)</option></select> : item.category} · {item.account}{item.tags?.length ? ` · ${item.tags.map((t) => `#${t}`).join(' ')}` : ''}</small>
                   </div>
-                  <span className={`amt ${item.kind === 'income' ? 'pos' : 'neg'}`}>{item.kind === 'income' ? '+' : item.kind === 'transfer' ? '↔' : '−'}{fa(item.amount)}</span>
+                  <span className={`amt ${item.kind === 'income' ? 'pos' : 'neg'}`}>{item.kind === 'income' ? '+' : item.kind === 'transfer' ? '↔' : '−'}{amt(item.amount)}</span>
                   <div className="fn-ops">
                     <button type="button" onClick={() => setEditing({ type: 'transaction', item })}>ویرایش</button>
                     <button type="button" className="del" onClick={() => { if (window.confirm(`«${item.title}» حذف شود؟`)) send(`/api/transactions/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
@@ -353,17 +417,8 @@ export function FinanceReact({ Nav }) {
         {tab === 'budget' ? (
           <div className="fn-2" id="budget">
             <section className="fn-glass fn-list">
-              <h2>حساب‌ها</h2>
-              <div className="fn-accounts">
-                {accounts.map((a) => (
-                  <div key={a.id} className="fn-soft">
-                    <b>{a.name}</b>
-                    <small>{a.type} · {faMoney(a.balance ?? a.openingBalance ?? 0)}</small>
-                    <button type="button" className="fn-ops" onClick={() => setEditing({ type: 'account', item: a })} style={{ marginTop: 8 }}>ویرایش</button>
-                  </div>
-                ))}
-              </div>
-              <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/accounts', { name: f.get('name'), type: f.get('type'), openingBalance: Number(f.get('openingBalance') || 0) }, 'حساب ثبت شد.'); e.currentTarget.reset() }}>
+              <div className="fn-head"><h2>حساب‌ها</h2><Drawer label="حساب" title="حساب تازه">
+<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/accounts', { name: f.get('name'), type: f.get('type'), openingBalance: Number(f.get('openingBalance') || 0) }, 'حساب ثبت شد.'); e.currentTarget.reset() }}>
                 <input name="name" required placeholder="نام حساب" />
                 <div>
                   <select name="type"><option value="bank">بانک</option><option value="card">کارت</option><option value="cash">نقدی</option></select>
@@ -371,8 +426,8 @@ export function FinanceReact({ Nav }) {
                 </div>
                 <button className="fn-save">افزودن حساب</button>
               </form>
-              <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/transfers', { fromAccount: f.get('fromAccount'), toAccount: f.get('toAccount'), amount: Number(f.get('amount')), date: f.get('date'), title: f.get('title') }, 'انتقال ثبت شد.'); e.currentTarget.reset() }}>
-                <h2>انتقال بین حساب‌ها</h2>
+</Drawer><Drawer label="انتقال" title="انتقال بین حساب‌ها">
+<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/transfers', { fromAccount: f.get('fromAccount'), toAccount: f.get('toAccount'), amount: Number(f.get('amount')), date: f.get('date'), title: f.get('title') }, 'انتقال ثبت شد.'); e.currentTarget.reset() }}>
                 <input name="title" placeholder="شرح انتقال" />
                 <div>
                   <select name="fromAccount" required><option value="">از حساب</option>{accounts.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}</select>
@@ -384,26 +439,37 @@ export function FinanceReact({ Nav }) {
                 </div>
                 <button className="fn-save">ثبت انتقال</button>
               </form>
+</Drawer></div>
+              <div className="fn-accounts">
+                {accounts.map((a) => (
+                  <div key={a.id} className="fn-soft">
+                    <b>{a.name}</b>
+                    <small>{a.type} · {faMoney(a.balance ?? a.openingBalance ?? 0)}</small>
+                    <button type="button" className="fn-ops" onClick={() => setEditing({ type: 'account', item: a })} style={{ marginTop: 8 }}>ویرایش</button>
+                  </div>
+                ))}
+              </div>
             </section>
             <section className="fn-glass fn-list">
-              <h2>بودجهٔ {monthFa(month)}</h2>
-              <p className="sub">{budgets.totalBudget ? `${fa(budgets.totalSpent || 0)} از ${fa(budgets.totalBudget)} ریال` : `هزینهٔ ماه: ${fa(budgets.totalSpent || 0)} ریال`}</p>
+              <div className="fn-head"><h2>بودجهٔ {monthFa(month)}</h2><Drawer label="بودجه" title="سقف بودجه">
+<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/budgets', { month, category: f.get('category'), limit: Number(f.get('limit')) }, 'بودجه ذخیره شد.'); e.currentTarget.reset() }}>
+                <select name="category"><option value="__total__">سقف کل ماه</option>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
+                <input name="limit" required inputMode="numeric" placeholder="سقف، ریال" />
+                <button className="fn-save">ذخیرهٔ بودجه</button>
+              </form>
+</Drawer></div>
+              <p className="sub">{budgets.totalBudget ? `${short(budgets.totalSpent || 0, false)} از ${short(budgets.totalBudget)}` : `هزینهٔ ماه: ${short(budgets.totalSpent || 0)}`}</p>
               <div className="fn-budget">
                 {(budgets.budgets || []).map((item) => {
                   const pct = item.limit ? Math.min(100, Math.round((item.spent / item.limit) * 100)) : 0
                   return (
                     <article key={item.id}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><b>{item.category}</b><small>{fa(item.spent)} / {fa(item.limit)}</small></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><b>{item.category}</b><small>{short(item.spent, false)} / {short(item.limit)}</small></div>
                       <div className={`fn-gauge${item.spent > item.limit ? ' over' : ''}`}><i style={{ width: `${pct}%` }} /></div>
                     </article>
                   )
                 })}
               </div>
-              <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/budgets', { month, category: f.get('category'), limit: Number(f.get('limit')) }, 'بودجه ذخیره شد.'); e.currentTarget.reset() }}>
-                <select name="category"><option value="__total__">سقف کل ماه</option>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
-                <input name="limit" required inputMode="numeric" placeholder="سقف، ریال" />
-                <button className="fn-save">ذخیرهٔ بودجه</button>
-              </form>
               <div style={{ marginTop: 18 }}>
                 <h2>درون‌ریزی صورت‌حساب</h2>
                 <p className="sub">CSV / XLS / XLSX — فقط پیش‌نمایش، بعد تأیید</p>
@@ -425,17 +491,8 @@ export function FinanceReact({ Nav }) {
           <>
           <div className="fn-2" id="debts">
             <section className="fn-glass fn-list">
-              <h2>بدهی و طلب</h2>
-              {debts.length ? debts.map((item) => (
-                <article key={item.id} className="fn-row">
-                  <div>
-                    <b>{item.type === 'payable' ? 'بدهی به ' : 'طلب از '}{item.person}</b>
-                    <small>{fa(item.amount)} {item.currency === 'USD' ? 'دلار' : 'ریال'}{item.dueDate ? ` · ${jalaliShort(item.dueDate)}` : ''}{item.note ? ` · ${item.note}` : ''}</small>
-                  </div>
-                  <button type="button" onClick={() => send(`/api/debts/${item.id}/settle`, { account: item.currency === 'IRR' ? (accounts.find((a) => !a.archived)?.name || '') : '' }, 'تسویه شد.')}>تسویه</button>
-                </article>
-              )) : <p className="fn-empty">بدهی یا طلب بازی نیست.</p>}
-              <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/debts', { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), dueDate: f.get('dueDate') || null, note: f.get('note') }, 'ثبت شد.'); e.currentTarget.reset() }}>
+              <div className="fn-head"><h2>بدهی و طلب</h2><Drawer label="بدهی / طلب">
+<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/debts', { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), dueDate: f.get('dueDate') || null, note: f.get('note') }, 'ثبت شد.'); e.currentTarget.reset() }}>
                 <input name="person" required placeholder="نام شخص" />
                 <div>
                   <select name="type"><option value="payable">بدهی من</option><option value="receivable">طلب من</option></select>
@@ -446,24 +503,20 @@ export function FinanceReact({ Nav }) {
                 <input name="note" placeholder="یادداشت" />
                 <button className="fn-save">افزودن</button>
               </form>
+</Drawer></div>
+              {debts.length ? debts.map((item) => (
+                <article key={item.id} className="fn-row">
+                  <div>
+                    <b>{item.type === 'payable' ? 'بدهی به ' : 'طلب از '}{item.person}</b>
+                    <small>{item.currency === 'USD' ? `${fa(item.amount)} دلار` : faMoney(item.amount)}{item.dueDate ? ` · ${jalaliShort(item.dueDate)}` : ''}{item.note ? ` · ${item.note}` : ''}</small>
+                  </div>
+                  <button type="button" onClick={() => send(`/api/debts/${item.id}/settle`, { account: item.currency === 'IRR' ? (accounts.find((a) => !a.archived)?.name || '') : '' }, 'تسویه شد.')}>تسویه</button>
+                </article>
+              )) : <p className="fn-empty">بدهی یا طلب بازی نیست.</p>}
             </section>
             <section className="fn-glass fn-list">
-              <h2>سبد سرمایه</h2>
-              <p className="sub">{Object.entries(portfolio.totals || {}).length ? Object.entries(portfolio.totals).map(([c, t]) => {
-                const pnl = Number(t?.unrealizedPnl || 0)
-                return `${fa(t?.value || 0)} ${c} · سود/زیان ${pnl >= 0 ? '+' : ''}${fa(pnl)}`
-              }).join(' · ') : 'ارزش گزارش‌شده: —'}</p>
-              {portfolio.items?.length ? portfolio.items.map((item) => {
-                const pnl = Number(item.unrealizedPnl || 0)
-                return (
-                  <article key={`${item.assetType}-${item.symbol}`} className="fn-row">
-                    <div><b>{item.symbol}</b><small>{item.assetType} · تعداد {fa(item.quantity)}</small></div>
-                    <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : ''}{fa(pnl)}</span>
-                    <b>{fa(item.marketValue || item.value || 0)} {item.currency || ''}</b>
-                  </article>
-                )
-              }) : <p className="fn-empty">دارایی ثبت نشده.</p>}
-              <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const body = { assetType: holdAssetType, type: f.get('type'), quantity: Number(f.get('quantity')), fee: Number(f.get('fee') || 0), date: f.get('date'), note: f.get('note') }; if (!face) { body.symbol = f.get('symbol'); body.price = Number(f.get('price')) } send('/api/investments/tx', body, 'تراکنش سرمایه‌گذاری ثبت شد.'); e.currentTarget.reset() }}>
+              <div className="fn-head"><h2>سبد سرمایه</h2><Drawer label="خرید / فروش" title="تراکنش سرمایه‌گذاری">
+<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const body = { assetType: holdAssetType, type: f.get('type'), quantity: Number(f.get('quantity')), fee: Number(f.get('fee') || 0), date: f.get('date'), note: f.get('note') }; if (!face) { body.symbol = f.get('symbol'); body.price = Number(f.get('price')) } send('/api/investments/tx', body, 'تراکنش سرمایه‌گذاری ثبت شد.'); e.currentTarget.reset() }}>
                 <div>
                   <select value={holdAssetType} onChange={(e) => setHoldAssetType(e.target.value)}>
                     <option value="crypto">رمزارز</option><option value="stock">سهام</option><option value="gold">طلا</option>
@@ -481,15 +534,24 @@ export function FinanceReact({ Nav }) {
                 <input name="note" placeholder="یادداشت" />
                 <button className="fn-save">ثبت سرمایه‌گذاری</button>
               </form>
-              <div className="fn-alerts">
-                <h2>هشدار قیمت</h2>
-                {alerts.length ? alerts.map((a) => (
-                  <article key={a.id} className="fn-row">
-                    <div><b>{a.symbol}</b><small>{ALERT_COND[a.condition] || a.condition} {fa(a.value)}{a.condition?.startsWith('pnl') ? '٪' : ''}{a.active === false ? ' · غیرفعال' : ''}</small></div>
-                    <button type="button" className="del" onClick={() => { if (window.confirm(`هشدار ${a.symbol} حذف شود؟`)) send(`/api/investments/alerts/${a.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
+</Drawer></div>
+              <p className="sub">{Object.entries(portfolio.totals || {}).length ? Object.entries(portfolio.totals).map(([c, t]) => {
+                const pnl = Number(t?.unrealizedPnl || 0)
+                return `${fa(t?.value || 0)} ${c} · سود/زیان ${pnl >= 0 ? '+' : ''}${fa(pnl)}`
+              }).join(' · ') : 'ارزش گزارش‌شده: —'}</p>
+              {portfolio.items?.length ? portfolio.items.map((item) => {
+                const pnl = Number(item.unrealizedPnl || 0)
+                return (
+                  <article key={`${item.assetType}-${item.symbol}`} className="fn-row">
+                    <div><b>{item.symbol}</b><small>{item.assetType} · تعداد {fa(item.quantity)}</small></div>
+                    <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : ''}{fa(pnl)}</span>
+                    <b>{fa(item.marketValue || item.value || 0)} {item.currency || ''}</b>
                   </article>
-                )) : <p className="fn-empty">هشداری ثبت نشده.</p>}
-                <form className="fn-form" style={{ marginTop: 10, padding: 0 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/investments/alerts', { symbol: f.get('symbol'), condition: f.get('condition'), value: Number(f.get('value')) }, 'هشدار ثبت شد.'); e.currentTarget.reset() }}>
+                )
+              }) : <p className="fn-empty">دارایی ثبت نشده.</p>}
+              <div className="fn-alerts">
+                <div className="fn-head"><h2>هشدار قیمت</h2><Drawer label="هشدار" title="هشدار قیمت">
+<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/investments/alerts', { symbol: f.get('symbol'), condition: f.get('condition'), value: Number(f.get('value')) }, 'هشدار ثبت شد.'); e.currentTarget.reset() }}>
                   <div>
                     <input name="symbol" required placeholder="نماد" />
                     <input name="value" required inputMode="decimal" placeholder="مقدار" />
@@ -502,36 +564,21 @@ export function FinanceReact({ Nav }) {
                   </select>
                   <button className="fn-save">افزودن هشدار</button>
                 </form>
+</Drawer></div>
+                {alerts.length ? alerts.map((a) => (
+                  <article key={a.id} className="fn-row">
+                    <div><b>{a.symbol}</b><small>{ALERT_COND[a.condition] || a.condition} {fa(a.value)}{a.condition?.startsWith('pnl') ? '٪' : ''}{a.active === false ? ' · غیرفعال' : ''}</small></div>
+                    <button type="button" className="del" onClick={() => { if (window.confirm(`هشدار ${a.symbol} حذف شود؟`)) send(`/api/investments/alerts/${a.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
+                  </article>
+                )) : <p className="fn-empty">هشداری ثبت نشده.</p>}
               </div>
             </section>
           </div>
 
           <div className="fn-2">
             <section className="fn-glass fn-list">
-              <h2>پوکر</h2>
-              <div className="fn-cats fn-poker-stats">
-                <div className="fn-soft fn-cat"><b>سود/زیان ماه</b><small>{fa(pokerSummary.profit || 0)} ریال</small></div>
-                <div className="fn-soft fn-cat"><b>جلسات</b><small>{fa(pokerSummary.sessions || 0)} ({fa(pokerSummary.wins || 0)} برد · {fa(pokerSummary.losses || 0)} باخت)</small></div>
-                <div className="fn-soft fn-cat"><b>مجموع ورودی</b><small>{fa(pokerSummary.totalBuyIn || 0)}</small></div>
-                <div className="fn-soft fn-cat"><b>مجموع خروجی</b><small>{fa(pokerSummary.totalCashOut || 0)}</small></div>
-              </div>
-              {poker.length ? poker.map((item) => {
-                const pnl = item.cashOut - item.buyIn
-                return (
-                  <article key={item.id} className="fn-row">
-                    <div>
-                      <b>{item.location || 'جلسهٔ پوکر'}</b>
-                      <small>{jalaliShort(item.date)} · ورود {fa(item.buyIn)} · خروج {fa(item.cashOut)}{item.note ? ` · ${item.note}` : ''}</small>
-                    </div>
-                    <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : '−'}{fa(Math.abs(pnl))}</span>
-                    <div className="fn-ops">
-                      <button type="button" onClick={() => setEditing({ type: 'poker', item })}>ویرایش</button>
-                      <button type="button" className="del" onClick={() => { if (window.confirm('این جلسه حذف شود؟')) send(`/api/poker/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
-                    </div>
-                  </article>
-                )
-              }) : <p className="fn-empty">جلسه‌ای در این ماه نیست.</p>}
-              <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={submitPoker}>
+              <div className="fn-head"><h2>پوکر</h2><Drawer label="جلسه" title="جلسهٔ پوکر">
+<form className="fn-form" onSubmit={submitPoker}>
                 <JalaliDateInput name="date" defaultValue={isoToday()} />
                 <div>
                   <input name="buyIn" required inputMode="numeric" placeholder="ورودی (ریال)" />
@@ -541,9 +588,46 @@ export function FinanceReact({ Nav }) {
                 <input name="note" placeholder="یادداشت" />
                 <button className="fn-save">ثبت جلسه</button>
               </form>
+</Drawer></div>
+              <div className="fn-cats fn-poker-stats">
+                <div className="fn-soft fn-cat"><b>سود/زیان ماه</b><small>{faMoney(pokerSummary.profit || 0)}</small></div>
+                <div className="fn-soft fn-cat"><b>جلسات</b><small>{fa(pokerSummary.sessions || 0)} ({fa(pokerSummary.wins || 0)} برد · {fa(pokerSummary.losses || 0)} باخت)</small></div>
+                <div className="fn-soft fn-cat"><b>مجموع ورودی</b><small>{short(pokerSummary.totalBuyIn || 0)}</small></div>
+                <div className="fn-soft fn-cat"><b>مجموع خروجی</b><small>{short(pokerSummary.totalCashOut || 0)}</small></div>
+              </div>
+              {poker.length ? poker.map((item) => {
+                const pnl = item.cashOut - item.buyIn
+                return (
+                  <article key={item.id} className="fn-row">
+                    <div>
+                      <b>{item.location || 'جلسهٔ پوکر'}</b>
+                      <small>{jalaliShort(item.date)} · ورود {amt(item.buyIn)} · خروج {amt(item.cashOut)}{item.note ? ` · ${item.note}` : ''}</small>
+                    </div>
+                    <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : '−'}{amt(Math.abs(pnl))}</span>
+                    <div className="fn-ops">
+                      <button type="button" onClick={() => setEditing({ type: 'poker', item })}>ویرایش</button>
+                      <button type="button" className="del" onClick={() => { if (window.confirm('این جلسه حذف شود؟')) send(`/api/poker/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
+                    </div>
+                  </article>
+                )
+              }) : <p className="fn-empty">جلسه‌ای در این ماه نیست.</p>}
             </section>
             <section className="fn-glass fn-list">
-              <h2>بت (دلاری)</h2>
+              <div className="fn-head"><h2>بت (دلاری)</h2><Drawer label="روز" title="روز بت">
+<form className="fn-form" onSubmit={submitBet} key={bet.suggestedStartDate || 'bet-form'}>
+                <JalaliDateInput name="date" defaultValue={isoToday()} />
+                <div>
+                  <input name="start" inputMode="decimal" defaultValue={bet.suggestedStart || 0} placeholder="مبلغی که داشتم ($)" />
+                  <input name="balance" required inputMode="decimal" placeholder="موجودی پایان روز ($)" />
+                </div>
+                <div>
+                  <input name="deposit" inputMode="decimal" placeholder="واریز ($)" />
+                  <input name="withdraw" inputMode="decimal" placeholder="برداشت ($)" />
+                </div>
+                <input name="note" placeholder="یادداشت" />
+                <button className="fn-save">ثبت روز</button>
+              </form>
+</Drawer></div>
               <p className="sub">هیچ تراکنشی نمی‌سازد و در آمار درآمد/هزینه نمی‌آید.</p>
               <div className="fn-cats fn-poker-stats">
                 <div className="fn-soft fn-cat"><b>سود/زیان ماه</b><small>{signedUsd(bet.stats?.profit || 0)}</small></div>
@@ -574,19 +658,6 @@ export function FinanceReact({ Nav }) {
                   </div>
                 </article>
               )) : <p className="fn-empty">روزی برای این ماه ثبت نشده.</p>}
-              <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={submitBet} key={bet.suggestedStartDate || 'bet-form'}>
-                <JalaliDateInput name="date" defaultValue={isoToday()} />
-                <div>
-                  <input name="start" inputMode="decimal" defaultValue={bet.suggestedStart || 0} placeholder="مبلغی که داشتم ($)" />
-                  <input name="balance" required inputMode="decimal" placeholder="موجودی پایان روز ($)" />
-                </div>
-                <div>
-                  <input name="deposit" inputMode="decimal" placeholder="واریز ($)" />
-                  <input name="withdraw" inputMode="decimal" placeholder="برداشت ($)" />
-                </div>
-                <input name="note" placeholder="یادداشت" />
-                <button className="fn-save">ثبت روز</button>
-              </form>
             </section>
           </div>
           </>
