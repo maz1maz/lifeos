@@ -4,6 +4,7 @@ import {
 } from 'lucide-react'
 import './market.css'
 import { MarketLogo } from './market-logos'
+import { PriceChart } from './pricechart'
 import { jalaliShort } from './jalali'
 
 const FAV_KEY = 'lifeos-market-favs'
@@ -13,7 +14,7 @@ const TGJU_LABELS = {
   price_dollar_rl: 'دلار آزاد', price_eur: 'یورو', price_gbp: 'پوند', price_aed: 'درهم', price_try: 'لیر',
   geram18: 'گرم ۱۸ عیار', geram24: 'گرم ۲۴ عیار', sekee: 'سکه امامی', sekeb: 'سکه بهار آزادی',
   rob: 'ربع سکه', nim: 'نیم سکه', mesghal: 'مثقال', oil_brent: 'نفت برنت', oil: 'نفت',
-  nickel: 'نیکل', platinum: 'پلاتین', copper: 'مس', silver: 'نقره',
+  nickel: 'نیکل', platinum: 'پلاتین', copper: 'مس', silver: 'نقره', aluminium: 'آلومینیوم', aluminum: 'آلومینیوم',
 }
 const TGJU_ICONS = {
   price_dollar_rl: '💵', price_eur: '💶', price_gbp: '💷', price_aed: '💴', price_try: '💴',
@@ -23,7 +24,7 @@ const TGJU_ICONS = {
 const CAT = {
   currency: new Set(['price_dollar_rl', 'price_eur', 'price_gbp', 'price_aed', 'price_try']),
   gold: new Set(['geram18', 'geram24', 'sekee', 'sekeb', 'rob', 'nim', 'mesghal']),
-  global: new Set(['oil_brent', 'oil', 'nickel', 'platinum', 'copper', 'silver']),
+  global: new Set(['oil_brent', 'oil', 'nickel', 'platinum', 'copper', 'silver', 'aluminium', 'aluminum']),
 }
 
 const fa = (n, d = 0) => {
@@ -249,14 +250,7 @@ export function MarketReact({ Nav }) {
 
   const toggleFav = (id) => setFavs((xs) => xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id])
 
-  const openHist = async (item) => {
-    if (item.market !== 'tehran') { setSelected(item); setHistory([]); return }
-    setSelected(item)
-    try {
-      const d = await fetch(`/api/tgju/history?key=${encodeURIComponent(item.key)}`, { credentials: 'include' }).then((r) => r.json())
-      setHistory(d.items || d.data || [])
-    } catch { setHistory([]) }
-  }
+  const openHist = (item) => { if (item.market === 'tehran') setSelected(item) }
 
   const saveAlert = () => {
     const target = Number(String(alertTarget).replace(/,/g, ''))
@@ -369,23 +363,7 @@ export function MarketReact({ Nav }) {
         ))}
         </div>
 
-        {selected && history.length ? (
-          <div className="mk-modal" onClick={() => setSelected(null)}>
-            <div className="mk-card mk-modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="mk-hist">
-              <h3>تاریخچهٔ {selected.name}</h3>
-              <div className="mk-bars">
-                {history.slice(-30).map((point, i) => {
-                  const v = Number(point.p || point.price || point.value || 0)
-                  const max = Math.max(...history.map((x) => Number(x.p || x.price || x.value || 0)), 1)
-                  return <span key={point.date || i} title={`${point.date ? jalaliShort(point.date) : ''}: ${v}`} style={{ height: `${Math.max(8, Math.min(100, v / max * 100))}%` }} />
-                })}
-              </div>
-            </div>
-              <button type="button" className="mk-btn" onClick={() => setSelected(null)}>بستن</button>
-            </div>
-          </div>
-        ) : null}
+        {selected && selected.market === 'tehran' ? <PriceChart symbol={selected.key} name={selected.name} unit={selected.category === 'global' ? 'دلار' : 'ریال'} onClose={() => setSelected(null)} /> : null}
       </div>
 
       {showConv ? (
@@ -396,7 +374,7 @@ export function MarketReact({ Nav }) {
               <button type="button" onClick={() => setShowConv(false)}>✕</button>
             </header>
             <label>مقدار</label>
-            <input type="number" value={convAmt} onChange={(e) => setConvAmt(Number(e.target.value))} />
+            <input type="number" min="0" step="any" value={convAmt} onChange={(e) => setConvAmt(Math.max(0, Number(e.target.value) || 0))} />
             <label>از</label>
             <select value={convFrom} onChange={(e) => setConvFrom(e.target.value)}>
               <option value="USDT">تتر / دلار</option>

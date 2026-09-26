@@ -73,7 +73,7 @@ function Barrel({ size }) {
 }
 
 const GOLD = ['#fbe39a', '#d99a22', '#8a5d12'];
-const METALS = { silver: ['#f3f4f6', '#9ca3af', '#4b5563'], platinum: ['#e5e7eb', '#a5b4c3', '#475569'], copper: ['#f5b58a', '#b86b3a', '#6b3517'], nickel: ['#d6d3cd', '#8e8a82', '#4a4640'] };
+const METALS = { silver: ['#f3f4f6', '#9ca3af', '#4b5563'], platinum: ['#e5e7eb', '#a5b4c3', '#475569'], copper: ['#f5b58a', '#b86b3a', '#6b3517'], nickel: ['#d6d3cd', '#8e8a82', '#4a4640'], aluminium: ['#eef2f6', '#b8c2cc', '#5b6773'], aluminum: ['#eef2f6', '#b8c2cc', '#5b6773'] };
 
 export function MarketLogo({ k, size = 30, fallback }) {
   const key = String(k || '');

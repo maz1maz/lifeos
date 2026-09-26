@@ -18,7 +18,7 @@ const fa = n => Number(n || 0).toLocaleString('fa-IR');
 const faDigits = v => String(v ?? '').replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const iso = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const addDays = (date, n) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + n);
-const jalaliToday = () => new Intl.DateTimeFormat('fa-IR', { dateStyle: 'full', timeZone: 'Asia/Tehran' }).format(new Date());
+const jalaliToday = () => { const p = Object.fromEntries(new Intl.DateTimeFormat('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Tehran' }).formatToParts(new Date()).map(x => [x.type, x.value])); return `${p.weekday} ${p.day} ${p.month} ${p.year}`; };
 
 const PRIORITY_LABELS = { urgent: 'فوری', high: 'زیاد', medium: 'متوسط', low: 'کم' };
 const PRIORITY_TONE = { urgent: 'rose', high: 'rose', medium: 'amber', low: 'sky' };

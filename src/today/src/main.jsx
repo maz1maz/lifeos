@@ -13,6 +13,7 @@ import { CalendarReact } from './calendar';
 import { FinanceReact } from './finance';
 import { photoOfDay } from './season-photos.mjs';
 import { MarketLogo } from './market-logos';
+import { PriceChart } from './pricechart';
 import './home.css';
 import './unify.css';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './vibefarsi-table';
@@ -33,12 +34,12 @@ const api = async (url, options) => {
 const isoToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const fa = value => Number(value || 0).toLocaleString('fa-IR');
 const faDigits = value => String(value ?? '').replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
-const jalali = date => new Intl.DateTimeFormat('fa-IR', { dateStyle: 'full', timeZone: 'Asia/Tehran' }).format(date);
+const jalali = date => { const p = Object.fromEntries(new Intl.DateTimeFormat('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Tehran' }).formatToParts(date).map(x => [x.type, x.value])); return `${p.weekday} ${p.day} ${p.month} ${p.year}`; };
 const TGJU_LABELS = {
   price_dollar_rl: 'دلار آزاد', price_eur: 'یورو', price_gbp: 'پوند', price_aed: 'درهم', price_try: 'لیر',
   geram18: 'گرم ۱۸ عیار', geram24: 'گرم ۲۴ عیار', sekee: 'سکه امامی', sekeb: 'سکه بهار آزادی',
   rob: 'ربع سکه', nim: 'نیم سکه', mesghal: 'مثقال', oil_brent: 'نفت برنت', oil: 'نفت',
-  nickel: 'نیکل', platinum: 'پلاتین', copper: 'مس', silver: 'نقره'
+  nickel: 'نیکل', platinum: 'پلاتین', copper: 'مس', silver: 'نقره', aluminium: 'آلومینیوم', aluminum: 'آلومینیوم'
 };
 const TGJU_ICONS = {
   price_dollar_rl: '💵', price_eur: '💶', price_gbp: '💷', price_aed: '💴', price_try: '💴',
@@ -287,7 +288,7 @@ function HomePage() {
           {quick.type !== 'transaction' && <TimePicker value={quick.time} onChange={t => setQuick(q => ({ ...q, time: t }))} />}
           <div className="quick-when" ref={whenRef}>
             {[['today', 'امروز'], ['tomorrow', 'فردا']].map(([w, label]) => <button type="button" key={w} className={quick.when === w ? 'selected' : ''} onClick={() => { setQuick({ ...quick, when: w }); setPickerOpen(false); }}>{label}</button>)}
-            <button type="button" className={quick.when === 'pick' ? 'selected' : ''} onClick={() => setPickerOpen(o => !o)}><CalendarDays size={14} />{quick.when === 'pick' && quick.date ? jalaliDayLabel(quick.date) : 'تقویم'}</button>
+            <button type="button" className={quick.when === 'pick' ? 'selected' : ''} onClick={() => setPickerOpen(o => !o)}><CalendarDays size={14} />{quick.when === 'pick' && quick.date ? jalaliDayLabel(quick.date) : 'روز دیگر'}</button>
             {pickerOpen && <JalaliPicker anchor={whenRef} value={quick.date || today} today={today} onPick={d => { setQuick({ ...quick, when: 'pick', date: d }); setPickerOpen(false); }} onClose={() => setPickerOpen(false)} />}
           </div>
           <div className="quick-tabs">{[['task','کار',CheckSquare2],['reminder','یادآوری',Bell],['transaction','هزینه',Wallet]].map(([type, label, Icon]) => <button type="button" className={quick.type === type ? 'selected' : ''} onClick={() => setQuick({ ...quick, type })} key={type}><Icon size={14} />{label}</button>)}</div>
@@ -1158,18 +1159,37 @@ function SettingsReact() {
   );
 }
 
+const HOME_MARKET_DEFAULT = ['price_dollar_rl', 'price_eur', 'price_gbp', 'price_aed', 'sekee', 'nim', 'rob', 'geram18'];
+// Items shown on Today = the ones starred (★) on the Market page; falls back to a default set.
+const homeMarketKeys = () => { const f = readLs('lifeos-market-favs', null); const keys = Array.isArray(f) ? f.filter(x => String(x).startsWith('t:')).map(x => x.slice(2)) : []; return keys.length ? keys : HOME_MARKET_DEFAULT; };
 function Market() {
-  const [rows, setRows] = useState([]), [hist, setHist] = useState({}), [notice, setNotice] = useState('');
+  const [rows, setRows] = useState([]), [hist, setHist] = useState({}), [notice, setNotice] = useState(''), [chart, setChart] = useState(null);
   useEffect(() => {
     api('/api/tgju').then(data => {
-      const all = tgjuRows(data), pick = ['price_dollar_rl', 'price_eur', 'price_gbp', 'price_aed', 'sekee', 'nim', 'rob', 'geram18'];
-      const top = pick.map(k => all.find(r => r.key === k)).filter(Boolean);
+      const all = tgjuRows(data);
+      const top = homeMarketKeys().map(k => all.find(r => r.key === k)).filter(Boolean).slice(0, 10);
       setRows(top);
       Promise.all(top.map(item => api(`/api/tgju/history?key=${encodeURIComponent(item.key)}&days=30`).then(d => [item.key, (d.items || []).map(x => x.price)]).catch(() => [item.key, null])))
         .then(pairs => setHist(Object.fromEntries(pairs)));
     }).catch(error => setNotice(error.message));
   }, []);
-  return <Card className="market" icon={LineChart} title="بازارها" action={<a href="/?page=market">همه بازارها ←</a>}><small className="unit-note">قیمت‌ها به ریال</small>{rows.length ? rows.map(item => { const h = hist[item.key] || [], prev = h.length > 1 ? h[h.length - 2] : 0; let dp = item.dp; if (!dp && prev && item.p) { dp = (item.p - prev) / prev * 100; if (Math.abs(dp) > 25) dp = 0; } const change = dp ? `${dp > 0 ? '▲' : '▼'}${Math.abs(dp).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪` : (item.change || '۰٪'); const up = !change.includes('▼'); return <div className="market-row" key={item.key}><MarketLogo k={item.key} fallback={marketIcon(item.key)} /><span>{item.name}</span>{hist[item.key]?.length > 1 && <Sparkline data={hist[item.key]} up={up} uid={item.key} />}<b>{fa(item.p)}</b><small className={change.includes('▼') ? 'negative' : dp ? 'positive' : ''}>{change}</small></div>; }) : <p className="empty">{notice || 'در حال دریافت بازار…'}</p>}</Card>;
+  const isGlobal = k => ['oil_brent', 'oil', 'nickel', 'platinum', 'copper', 'silver', 'aluminium', 'aluminum'].includes(k);
+  return <Card className="market" icon={LineChart} title="بازارها" action={<a href="/?page=market" title="با ستاره زدن در صفحهٔ بازار، اقلام این کارت رو انتخاب کن">همه بازارها ←</a>}>
+    <small className="unit-note">قیمت‌ها به ریال · روی هر ردیف بزن تا نمودارش باز بشه</small>
+    {rows.length ? <div className="mkh-list">{rows.map(item => {
+      const h = hist[item.key] || [], prev = h.length > 1 ? h[h.length - 2] : 0; let dp = item.dp;
+      if (!dp && prev && item.p) { dp = (item.p - prev) / prev * 100; if (Math.abs(dp) > 25) dp = 0; }
+      const change = dp ? `${dp > 0 ? '▲' : '▼'}${Math.abs(dp).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪` : '۰٪'; const up = !change.includes('▼');
+      return <button type="button" className="market-row mkh-row" key={item.key} onClick={() => setChart(item)}>
+        <MarketLogo k={item.key} fallback={marketIcon(item.key)} />
+        <span className="mkh-name">{item.name}</span>
+        <span className="mkh-spark">{h.length > 1 ? <Sparkline data={h} up={up} uid={item.key} width={64} height={24} /> : null}</span>
+        <b className="mkh-price">{fa(item.p)}</b>
+        <small className={`mkh-chg ${change.includes('▼') ? 'negative' : dp ? 'positive' : ''}`}>{change}</small>
+      </button>;
+    })}</div> : <p className="empty">{notice || 'در حال دریافت بازار…'}</p>}
+    {chart && <PriceChart symbol={chart.key} name={chart.name} unit={isGlobal(chart.key) ? 'دلار' : 'ریال'} onClose={() => setChart(null)} />}
+  </Card>;
 }
 const FOOT_LEAGUES = [['eng.1', 'لیگ برتر انگلیس', 'PL', '#a855f7'], ['esp.1', 'لالیگا', 'LL', '#ef4444'], ['ita.1', 'سری آ', 'A', '#3b82f6'], ['ger.1', 'بوندس‌لیگا', 'BL', '#dc2626'], ['fra.1', 'لیگ ۱', 'L1', '#94a3b8'], ['tur.1', 'سوپر لیگ ترکیه', 'TR', '#e11d48'], ['por.1', 'پریمیرا لیگا پرتغال', 'PT', '#16a34a'], ['uefa.champions', 'لیگ قهرمانان اروپا', 'UCL', '#6366f1'], ['uefa.europa', 'لیگ اروپا', 'UEL', '#f97316'], ['uefa.nations', 'لیگ ملت‌های اروپا', 'UNL', '#0ea5e9'], ['afc.champions', 'لیگ نخبگان آسیا', 'AFC', '#8b5cf6'], ['ksa.1', 'لیگ حرفه‌ای عربستان', 'KSA', '#22c55e'], ['irn.1', 'لیگ برتر خلیج فارس', 'ایران', '#0ea5e9']];
 const LEAGUE_CACHE = {};
@@ -1545,7 +1565,6 @@ function WeatherCard({ weather, aqi, city, onCity }) {
           <b>حس‌شده {fa(feels)}°</b>
           <span>بیشینه {fa(Math.round(dl.temperature_2m_max[0]))}° · کمینه {fa(Math.round(dl.temperature_2m_min[0]))}°</span>
         </div>
-        <span className="wx-hero-icon">{WEATHER_ICON(c.weather_code, c.is_day)}</span>
       </div>
       <div className="wx-panel wx-hours">{hours.map((h, i) => <div key={h.t}><small>{i === 0 ? 'اکنون' : faDigits(h.t.slice(11, 13))}</small><span>{h.code != null ? WEATHER_ICON(h.code, h.day) : ''}</span><b>{fa(Math.round(h.temp))}°</b></div>)}</div>
       <div className="wx-tiles">
@@ -1573,8 +1592,8 @@ const resultFor = (m, team) => { const sc = String(m.score || '').match(/(\d+)\s
 const formOf = (matches, team, n = 5) => matches.filter(m => m.status === 'finished' && (m.home === team || m.away === team)).sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, n).map(m => ({ r: resultFor(m, team), m })).filter(x => x.r).reverse();
 const FORM_FA = { W: 'ب', D: 'م', L: 'ش' };
 function FormDots({ items }) {
-  if (!items.length) return <span className="muted">—</span>;
-  return <span className="form-dots">{items.map((x, i) => <i key={i} className={`f-${x.r}`} title={`${x.m.home} ${faDigits(x.m.score)} ${x.m.away}`}>{FORM_FA[x.r]}</i>)}</span>;
+  const slots = [...Array(Math.max(0, 5 - items.length)).fill(null), ...items.slice(-5)];
+  return <span className="form-dots">{slots.map((x, i) => x ? <i key={i} className={`f-${x.r}`} title={x.m.home ? `${x.m.home} ${faDigits(x.m.score)} ${x.m.away}` : ''}>{FORM_FA[x.r]}</i> : <i key={i} className="f-none" title="نتیجه در دسترس نیست" />)}</span>;
 }
 function MyTeams({ league }) {
   const [favs, setFavs] = useState(() => readLs('lifeos-fav-teams', []));
@@ -1620,7 +1639,7 @@ function Standings({ league }) {
             <td className="st-rank">{fa(r.rank || i + 1)}</td>
             <td className="st-team"><TeamBadge logo={r.logo} name={name} /><span>{name}</span>{favs.includes(name) && <Star size={11} fill="currentColor" />}</td>
             <td>{fa(r.played || 0)}</td><td>{fa(r.win ?? r.won ?? 0)}</td><td>{fa(r.draw ?? r.drawn ?? 0)}</td><td>{fa(r.loss ?? r.lost ?? 0)}</td>
-            <td><bdi dir="ltr">{faDigits(gd > 0 ? "+" + gd : gd)}</bdi></td><td className="st-pts">{fa(r.pts ?? r.points ?? 0)}</td><td className="st-form">{(() => { const f = formOf(lm, name); if (f.length) return <FormDots items={f} />; const raw = String(r.form || '').toUpperCase().replace(/[^WDL]/g, '').slice(-5).split('').filter(Boolean); return raw.length ? <FormDots items={raw.map(x => ({ r: x, m: { home: '', away: '', score: '' } }))} /> : <span className="muted">—</span>; })()}</td>
+            <td><bdi dir="ltr">{faDigits(gd > 0 ? "+" + gd : gd)}</bdi></td><td className="st-pts">{fa(r.pts ?? r.points ?? 0)}</td><td className="st-form">{(() => { const f = formOf(lm, name); if (f.length) return <FormDots items={f} />; const raw = String(r.form || '').toUpperCase().replace(/[^WDL]/g, '').slice(-5).split('').filter(Boolean); return <FormDots items={raw.map(x => ({ r: x, m: { home: '', away: '', score: '' } }))} />; })()}</td>
           </tr>; })}</tbody>
       </table></div>}
   </Card>;

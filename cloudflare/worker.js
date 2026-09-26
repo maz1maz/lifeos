@@ -1094,7 +1094,7 @@ await write(db);return json(res,200,r)}
  if(p==='/api/football/remote/free/scoreboard'&&req.method==='GET'){let db=await read();auth(req,res,db);let leagueId=u.searchParams.get('league')||'eng.1',date=u.searchParams.get('date')||today(),league=FREE_LEAGUES.find(l=>l.id===leagueId);if(!league)return json(res,400,{error:'لیگ شناخته نشد.'});let items;try{items=await fetchFreeLeagueDay(league,date)}catch(e){return json(res,502,{error:'دریافت بازی‌های '+league.name+' ناموفق بود.'})}return json(res,200,{items})}
  if(p==='/api/football/remote/free/day'&&req.method==='GET'){let db=await read();auth(req,res,db);let date=u.searchParams.get('date')||today(),results=await Promise.all(FREE_LEAGUES.map(async league=>{try{let items=await fetchFreeLeagueDay(league,date);return{id:league.id,name:(items[0]&&items[0].league)||league.name,country:league.country,items}}catch(e){return{id:league.id,name:league.name,country:league.country,items:[]}}}));return json(res,200,{date,leagues:results.filter(l=>l.items.length)})}
  if(p==='/api/football/remote/free/standings'&&req.method==='GET'){let db=await read();auth(req,res,db);let leagueId=u.searchParams.get('league')||'eng.1',league=FREE_LEAGUES.find(l=>l.id===leagueId);if(!league)return json(res,400,{error:'لیگ شناخته نشد.'});let items;try{items=await fetchFreeLeagueStandings(league)}catch(e){return json(res,502,{error:'دریافت جدول '+league.name+' ناموفق بود.'})}return json(res,200,{items})}
- if(p==='/api/football/remote/free/matches'&&req.method==='GET'){let db=await read();auth(req,res,db);let leagueId=u.searchParams.get('league')||'eng.1',league=FREE_LEAGUES.find(l=>l.id===leagueId);if(!league)return json(res,400,{error:'لیگ شناخته نشد.'});let d0=new Date();d0.setDate(d0.getDate()-40);let fromDate=d0.toISOString().slice(0,10);let d1=new Date();d1.setDate(d1.getDate()+21);let toDate=d1.toISOString().slice(0,10);let items;try{items=await fetchFreeLeagueRange(league,fromDate,toDate)}catch(e){return json(res,502,{error:'دریافت بازی‌های '+league.name+' ناموفق بود.'})}return json(res,200,{items})}
+ if(p==='/api/football/remote/free/matches'&&req.method==='GET'){let db=await read();auth(req,res,db);let leagueId=u.searchParams.get('league')||'eng.1',league=FREE_LEAGUES.find(l=>l.id===leagueId);if(!league)return json(res,400,{error:'لیگ شناخته نشد.'});let d0=new Date();d0.setDate(d0.getDate()-60);let fromDate=d0.toISOString().slice(0,10);let d1=new Date();d1.setDate(d1.getDate()+21);let toDate=d1.toISOString().slice(0,10);let items;try{items=await fetchFreeLeagueRange(league,fromDate,toDate)}catch(e){return json(res,502,{error:'دریافت بازی‌های '+league.name+' ناموفق بود.'})}return json(res,200,{items})}
  if(p==='/api/football/remote/free/table'&&req.method==='GET'){let db=await read();auth(req,res,db);let leagueId=u.searchParams.get('league')||'eng.1',league=FREE_LEAGUES.find(l=>l.id===leagueId);if(!league)return json(res,400,{error:'لیگ شناخته نشد.'});let data;try{data=await fetchTheSportsDb('/lookuptable.php?l='+league.tsdb+'&s='+league.season)}catch(e){return json(res,502,{error:'دریافت جدول '+league.name+' ناموفق بود.'})}return json(res,200,{items:(data.table||[]).map(r=>({rank:Number(r.intRank),name:r.strTeam,played:Number(r.intPlayed),win:Number(r.intWin),draw:Number(r.intDraw),loss:Number(r.intLoss),goalsFor:Number(r.intGoalsFor),goalsAgainst:Number(r.intGoalsAgainst),goalDiff:Number(r.intGoalDifference),points:Number(r.intPoints),form:r.strForm||''}))})}
  if(p==='/api/football/remote/free/live'&&req.method==='GET'){let db=await read();auth(req,res,db);let data;try{data=await fetchTheSportsDb('/livescore.php?s=Soccer')}catch(e){return json(res,502,{error:'دریافت بازی‌های زنده ناموفق بود.'})}let ids=new Set(FREE_LEAGUES.map(l=>l.tsdb));return json(res,200,{items:(data.livescore||[]).filter(x=>ids.has(x.idLeague)).map(mapTheSportsDbEvent)})}
  if(p==='/api/football/remote/1xbet/sports'&&req.method==='GET'){let db=await read();auth(req,res,db);let data;try{data=await xbetGet('/sports',{})}catch(e){return json(res,502,{error:e.message})}if(!data)return json(res,503,{error:'کلید RapidAPI هنوز در تنظیمات سرور وارد نشده است.'});return json(res,200,{items:data})}
@@ -1309,7 +1309,7 @@ async function handleTgju(request, env) {
   const J = { 'Content-Type': 'application/json; charset=utf-8' };
   if (!authed) return new Response(JSON.stringify({ error: 'ابتدا وارد حساب شوید.' }), { status: 401, headers: J });
   if (TGJU_CACHE && Date.now() - TGJU_CACHE.at < 300000) return new Response(TGJU_CACHE.body, { headers: Object.assign({}, J, { 'Cache-Control': 'public,max-age=300' }) });
-  const KEYS = 'price_dollar_rl,price_eur,price_gbp,price_aed,price_try,geram18,geram24,sekee,sekeb,rob,nim,mesghal,oil_brent,oil,nickel,platinum,copper,silver';
+  const KEYS = 'price_dollar_rl,price_eur,price_gbp,price_aed,price_try,geram18,geram24,sekee,sekeb,rob,nim,mesghal,oil_brent,oil,nickel,platinum,copper,silver,aluminium,aluminum';
   let items = {};
   try {
     const r = await fetch('https://call.tgju.org/ajax.json', { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36', 'Accept': 'application/json' } });
@@ -1324,7 +1324,7 @@ async function handleTgju(request, env) {
 // یک‌سال (یا هر بازه) نمودار برای یک ردیف بازارها — TGJU جدول تاریخی کامل هر
 // نماد را در یک درخواست برمی‌گرداند (بدون صفحه‌بندی)، ستون چهارم همان قیمت
 // پایانی روز است (تأییدشده روی صفحه‌ی خودِ TGJU، فیلد last_trade.PDrCotVal).
-const TGJU_HIST_KEYS = new Set('price_dollar_rl,price_eur,price_gbp,price_aed,price_try,geram18,geram24,sekee,sekeb,rob,nim,mesghal,oil_brent,oil,nickel,platinum,copper,silver'.split(','));
+const TGJU_HIST_KEYS = new Set('price_dollar_rl,price_eur,price_gbp,price_aed,price_try,geram18,geram24,sekee,sekeb,rob,nim,mesghal,oil_brent,oil,nickel,platinum,copper,silver,aluminium,aluminum'.split(','));
 const TGJU_HIST_CACHE = new Map();
 async function handleTgjuHistory(request, env) {
   const J = { 'Content-Type': 'application/json; charset=utf-8' };
@@ -1342,13 +1342,14 @@ async function handleTgjuHistory(request, env) {
   if (!TGJU_HIST_KEYS.has(key)) return new Response(JSON.stringify({ error: 'نماد نامعتبر است.' }), { status: 400, headers: J });
   const days = Math.min(730, Math.max(30, parseInt(url.searchParams.get('days') || '365', 10) || 365));
   const cached = TGJU_HIST_CACHE.get(key);
-  if (cached && Date.now() - cached.at < 3600000) return new Response(cached.body, { headers: Object.assign({}, J, { 'Cache-Control': 'public,max-age=3600' }) });
+  const slice = body => { const o = JSON.parse(body); o.items = (o.items || []).slice(-days); return JSON.stringify(o); };
+  if (cached && Date.now() - cached.at < 3600000) return new Response(slice(cached.body), { headers: Object.assign({}, J, { 'Cache-Control': 'public,max-age=3600' }) });
   let items;
   try {
     const r = await fetch('https://api.tgju.org/v1/market/indicator/summary-table-data/' + encodeURIComponent(key), { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36', 'Accept': 'application/json' } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
-    const rows = Array.isArray(d.data) ? d.data.slice(0, days) : [];
+    const rows = Array.isArray(d.data) ? d.data.slice(0, 730) : [];
     items = rows.map(row => {
       const price = parseFloat(String(row[3]).replace(/,/g, ''));
       const g = String(row[6] || '').split('/'); // YYYY/MM/DD میلادی
@@ -1358,7 +1359,7 @@ async function handleTgjuHistory(request, env) {
   } catch (e) { return new Response(JSON.stringify({ error: 'دریافت تاریخچه از TGJU ناموفق بود.' }), { status: 502, headers: J }); }
   const body = JSON.stringify({ key, items });
   TGJU_HIST_CACHE.set(key, { at: Date.now(), body });
-  return new Response(body, { headers: Object.assign({}, J, { 'Cache-Control': 'public,max-age=3600' }) });
+  return new Response(slice(body), { headers: Object.assign({}, J, { 'Cache-Control': 'public,max-age=3600' }) });
 }
 
 export default {
