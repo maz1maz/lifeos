@@ -26,6 +26,19 @@ function Weeks({ weeks }) {
 
 export function AdminPage({ Nav }) {
   const [d, setD] = useState(null), [err, setErr] = useState(''), [q, setQ] = useState(''), [open, setOpen] = useState(null), [sort, setSort] = useState('seen');
+  const [busy, setBusy] = useState(''), [msg, setMsg] = useState('');
+  const act = async (u, kind) => {
+    const name = u.displayName || u.name || u.email;
+    const q = kind === 'logout' ? `همهٔ نشست‌های «${name}» بسته شود؟ باید دوباره وارد شود.` : u.disabled ? `حساب «${name}» دوباره فعال شود؟` : `حساب «${name}» غیرفعال شود؟\nنمی‌تواند وارد شود، تلگرام و اعلان‌هایش قطع می‌شود؛ داده‌هایش پاک نمی‌شود.`;
+    if (!window.confirm(q)) return;
+    setBusy(u.id + kind);
+    try {
+      const r = await api(`/api/admin/users/${u.id}/${kind}`, { method: 'POST', body: JSON.stringify(kind === 'disable' ? { disabled: !u.disabled } : {}) });
+      setMsg(kind === 'logout' ? `${fa(r.closed || 0)} نشست بسته شد.` : r.disabled ? `«${name}» غیرفعال شد.` : `«${name}» دوباره فعال شد.`);
+      await load();
+    } catch (e) { setMsg(e.message); }
+    setBusy('');
+  };
   const load = () => api('/api/admin/overview').then(x => { setD(x); setErr(''); }).catch(e => setErr(e.message));
   useEffect(() => { load(); }, []);
   const users = useMemo(() => {
@@ -50,14 +63,15 @@ export function AdminPage({ Nav }) {
       <section className="lf-card"><h3>بخش‌های فعال کاربرها</h3>{mods.map(([k, n]) => <div className="ad-mod" key={k}><span>{MOD_FA[k] || k}</span><i style={{ width: `${(n / modMax) * 100}%` }} /><b>{fa(n)}</b></div>)}</section>
       <section className={`lf-card ad-db ${dbPct > 80 ? 'warn' : ''}`}><h3>حجم دیتابیس</h3><b>{kb(T.dbBytes)}</b><div className="ad-dbbar"><i style={{ width: `${dbPct}%` }} /></div><small>{fa(dbPct, 1)}٪ از سقف ۲ مگابایتی یک ردیف D1. {dbPct > 80 ? 'نزدیک سقف است — وقت جدا کردن داده‌ها به چند ردیف است.' : 'جای کافی هست.'}</small></section>
     </div>
+    {msg ? <p className="lf-note ad-msg">{msg}<button className="lf-link" onClick={() => setMsg('')}>×</button></p> : null}
     <section className="lf-card ad-users">
       <div className="ad-uhead"><h3>کاربرها ({fa(users.length)})</h3><input className="lf-search" value={q} onChange={e => setQ(e.target.value)} placeholder="جستجوی نام یا ایمیل…" />
         <div className="ad-sort">{[['seen', 'آخرین بازدید'], ['joined', 'تاریخ عضویت'], ['items', 'حجم داده']].map(([k, l]) => <button key={k} className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button>)}</div></div>
       <div className="ad-table">
         <div className="ad-row ad-th"><span>کاربر</span><span>عضویت</span><span>آخرین بازدید</span><span>اتصال‌ها</span><span>داده</span></div>
-        {users.map(u => { const on = u.lastSeenAt && Date.now() - u.lastSeenAt < 864e5; return <div key={u.id} className={`ad-urow ${open === u.id ? 'open' : ''}`}>
+        {users.map(u => { const on = u.lastSeenAt && Date.now() - u.lastSeenAt < 864e5; return <div key={u.id} className={`ad-urow ${open === u.id ? 'open' : ''} ${u.disabled ? 'disabled' : ''}`}>
           <button className="ad-row" onClick={() => setOpen(open === u.id ? null : u.id)}>
-            <span className="ad-name"><i className={on ? 'on' : ''} /><b>{u.displayName || u.name || '—'}{u.admin ? <em className="ad-tag">مدیر</em> : null}</b><small dir="ltr">{u.email}</small></span>
+            <span className="ad-name"><i className={on ? 'on' : ''} /><b>{u.displayName || u.name || '—'}{u.admin ? <em className="ad-tag">مدیر</em> : null}{u.disabled ? <em className="ad-tag off">غیرفعال</em> : null}</b><small dir="ltr">{u.email}</small></span>
             <span>{u.createdAt ? jShort(isoOf(u.createdAt)) : '—'}</span>
             <span>{ago(u.lastSeenAt || u.lastLoginAt)}</span>
             <span className="ad-conn">{u.telegram ? <em title="تلگرام">✈️</em> : null}{u.push ? <em title="اعلان گوشی">🔔</em> : null}{u.google ? <em title="ورود با گوگل">G</em> : null}{u.calendar ? <em title="تقویم گوگل">📅</em> : null}{!u.telegram && !u.push && !u.google && !u.calendar ? '—' : null}</span>
@@ -65,6 +79,11 @@ export function AdminPage({ Nav }) {
           </button>
           {open === u.id ? <div className="ad-detail">
             <div className="lf-chips">{Object.entries(u.items).filter(([, n]) => n).map(([k, n]) => <span key={k} className="lf-chip">{fa(n)} {ITEM_FA[k] || k}</span>)}{!u.total ? <span className="lf-chip">هنوز داده‌ای ثبت نکرده</span> : null}</div>
+            <div className="ad-acts">
+              <button className="lf-btn ghost" disabled={!!busy || !u.sessions} onClick={() => act(u, 'logout')}>{busy === u.id + 'logout' ? '…' : u.admin ? 'خروج از دستگاه‌های دیگر' : 'خروج اجباری'}</button>
+              {u.admin ? null : <button className={`lf-btn ${u.disabled ? '' : 'danger'}`} disabled={!!busy} onClick={() => act(u, 'disable')}>{busy === u.id + 'disable' ? '…' : u.disabled ? 'فعال‌کردن دوباره' : 'غیرفعال‌کردن'}</button>}
+              {u.disabled ? <small className="ad-off">غیرفعال از {ago(u.disabledAt)}</small> : null}
+            </div>
             <small>بخش‌ها: {u.modules ? (u.modules.length ? u.modules.map(m => MOD_FA[m] || m).join('، ') : 'فقط بخش‌های پایه') : 'همه (انتخاب نکرده)'} · {fa(u.sessions)} نشست باز · آخرین ورود: {ago(u.lastLoginAt)}</small>
           </div> : null}
         </div>; })}

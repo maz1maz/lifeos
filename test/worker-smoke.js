@@ -221,6 +221,19 @@ async function main() {
     check('a later account is not admin -> 403', (await call('/api/admin/overview', { cookie: ck45 })).status === 403);
     check('me.isAdmin false for later account', (await call('/api/me', { cookie: ck45 })).d.user.isAdmin === false);
     check('anonymous admin -> 401', (await call('/api/admin/overview')).status === 401);
+    if (ad1.status === 200) {
+      const sec = (await call('/api/admin/overview', { cookie })).d.users.find(u => u.email === em45);
+      const lo = await call(`/api/admin/users/${sec.id}/logout`, { method: 'POST', cookie, body: {} });
+      check('admin force-logout closes the other user\'s sessions', lo.status === 200 && lo.d.closed >= 1 && !(await call('/api/me', { cookie: ck45 })).d.user);
+      const lg2 = await call('/api/auth/login', { method: 'POST', body: { email: em45, password: 'secret123' } });
+      const ck2 = String((typeof lg2.headers.getSetCookie === 'function' ? lg2.headers.getSetCookie()[0] : lg2.headers.get('set-cookie')) || '').split(';')[0];
+      const dis = await call(`/api/admin/users/${sec.id}/disable`, { method: 'POST', cookie, body: { disabled: true } });
+      check('disable -> session dead, login refused 403', dis.status === 200 && !(await call('/api/me', { cookie: ck2 })).d.user && (await call('/api/auth/login', { method: 'POST', body: { email: em45, password: 'secret123' } })).status === 403);
+      check('admin cannot disable self', (await call(`/api/admin/users/${ad1.d.users.find(u => u.admin).id}/disable`, { method: 'POST', cookie, body: { disabled: true } })).status === 400);
+      await call(`/api/admin/users/${sec.id}/disable`, { method: 'POST', cookie, body: { disabled: false } });
+      check('re-enabled user can log in again', (await call('/api/auth/login', { method: 'POST', body: { email: em45, password: 'secret123' } })).status === 200);
+      check('non-admin cannot use admin actions', (await call(`/api/admin/users/${sec.id}/logout`, { method: 'POST', cookie: ck2, body: {} })).status !== 200);
+    }
     const upc = await call('/api/movies/upcoming', { cookie });
     check('upcoming episodes -> 200 with lists', upc.status === 200 && Array.isArray(upc.d.upcoming) && Array.isArray(upc.d.recent));
     const recs = await call('/api/movies/recommendations?type=series', { cookie });
