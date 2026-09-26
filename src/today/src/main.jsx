@@ -21,13 +21,14 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Target, Timer, BarChart3, ShoppingCart, Receipt
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
 import { HabitsPage, WeeklyPage } from './habits';
 import { UpcomingPage, DiscoverPage } from './watchx';
 import { CommandPalette } from './palette';
+import { HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, FocusCard, ShoppingPanel, BillsWeekCard, LifeStatsPage } from './life';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -85,9 +86,10 @@ function Sparkline({ data, up, width = 72, height = 28, uid = 'sp', color: force
 
 const NAV_GROUPS = [
   ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays]]],
+  ['کار', [['projects', 'پروژه‌ها', LayoutGrid], ['crm', 'مشتری و فروش', Briefcase]]],
   ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
-  ['سرگرمی', [['football', 'فوتبال', Trophy], ['series', 'فیلم و سریال', Clapperboard], ['media', 'رسانه', Music]]],
-  ['آرشیو', [['notes', 'یادداشت‌ها', StickyNote], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
+  ['زندگی', [['health', 'سلامت', HeartPulse], ['car', 'خودرو', Car], ['travel', 'سفر', Plane], ['football', 'فوتبال', Trophy], ['series', 'فیلم و سریال', Clapperboard], ['media', 'رسانه', Music]]],
+  ['آرشیو', [['notes', 'یادداشت‌ها و خرید', StickyNote], ['journal', 'روزنگار', BookOpen], ['learning', 'یادگیری', GraduationCap], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
 ];
 const NAV_PAGES = [...NAV_GROUPS.flatMap(([, items]) => items), ['settings', 'تنظیمات', Settings]];
 function TopNav({ active, right }) {
@@ -112,7 +114,7 @@ function TopNav({ active, right }) {
       <span className="nav-spacer" />
       <button type="button" className="nav-search" onClick={() => window.dispatchEvent(new Event('lifeos:search'))} aria-label="جستجو (Ctrl+K)" title="جستجو — Ctrl+K"><Search size={17} /><span>جستجو</span><kbd>Ctrl K</kbd></button>
       {right}
-      <CommandPalette pages={[...NAV_PAGES, ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => pageOn(mods, pg))} />
+      <CommandPalette pages={[...NAV_PAGES, ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => pageOn(mods, pg))} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
@@ -121,6 +123,16 @@ function TopNav({ active, right }) {
       </aside>
     </nav>
   );
+}
+
+function NotesHub({ initial }) {
+  const [view, setView] = useState(initial);
+  const go = v => { setView(v); try { history.replaceState(null, '', `/?page=${v === 'shop' ? 'shopping' : 'notes'}`); } catch {} };
+  const HubNav = () => <>
+    <TopNav active="notes" />
+    <div className="hub-switch" role="tablist"><button type="button" className={view === 'notes' ? 'on' : ''} onClick={() => go('notes')}><StickyNote size={16} />یادداشت‌ها</button><button type="button" className={view === 'shop' ? 'on' : ''} onClick={() => go('shop')}><ShoppingCart size={16} />لیست خرید</button></div>
+  </>;
+  return view === 'shop' ? <main className="lf" dir="rtl"><HubNav /><div className="lf-page"><ShoppingPanel /></div></main> : <NotesReact Nav={HubNav} />;
 }
 
 // Planner + Calendar live in one place: same data, two ways of looking at it.
@@ -142,29 +154,35 @@ function WatchHub({ initial }) {
 
 function PlanHub({ initial }) {
   const [view, setView] = useState(initial);
-  const go = v => { setView(v); try { history.replaceState(null, '', `/?page=${{ calendar: 'calendar', habits: 'habits', week: 'week' }[v] || 'planner'}`); } catch {} window.scrollTo(0, 0); };
+  const go = v => { setView(v); try { history.replaceState(null, '', `/?page=${v === 'list' ? 'planner' : v}`); } catch {} window.scrollTo(0, 0); };
   const HubNav = () => <>
-    <TopNav active={view === "habits" ? "habits" : view === "week" ? "week" : "planner"} />
+    <TopNav active="planner" />
     <div className="hub-switch" role="tablist" aria-label="نمای برنامه‌ریز">
       <button type="button" role="tab" aria-selected={view === 'list'} className={view === 'list' ? 'on' : ''} onClick={() => go('list')}><ListChecks size={16} />لیست کارها</button>
       <button type="button" role="tab" aria-selected={view === 'calendar'} className={view === 'calendar' ? 'on' : ''} onClick={() => go('calendar')}><CalendarDays size={16} />تقویم</button>
       <button type="button" role="tab" aria-selected={view === 'habits'} className={view === 'habits' ? 'on' : ''} onClick={() => go('habits')}><Flame size={16} />عادت‌ها</button>
+      <button type="button" role="tab" aria-selected={view === 'goals'} className={view === 'goals' ? 'on' : ''} onClick={() => go('goals')}><Target size={16} />اهداف سالانه</button>
+      <button type="button" role="tab" aria-selected={view === 'focus'} className={view === 'focus' ? 'on' : ''} onClick={() => go('focus')}><Timer size={16} />تمرکز</button>
       <button type="button" role="tab" aria-selected={view === 'week'} className={view === 'week' ? 'on' : ''} onClick={() => go('week')}><ClipboardCheck size={16} />مرور هفته</button>
+      <button type="button" role="tab" aria-selected={view === 'stats'} className={view === 'stats' ? 'on' : ''} onClick={() => go('stats')}><BarChart3 size={16} />آمار زندگی</button>
     </div>
   </>;
-  return view === 'calendar' ? <CalendarReact Nav={HubNav} /> : view === 'habits' ? <HabitsPage Nav={HubNav} /> : view === 'week' ? <WeeklyPage Nav={HubNav} /> : <PlannerReact Nav={HubNav} />;
+  return view === 'calendar' ? <CalendarReact Nav={HubNav} /> : view === 'habits' ? <HabitsPage Nav={HubNav} /> : view === 'week' ? <WeeklyPage Nav={HubNav} /> : view === 'goals' ? <GoalsPage Nav={HubNav} /> : view === 'focus' ? <FocusPage Nav={HubNav} /> : view === 'stats' ? <LifeStatsPage Nav={HubNav} /> : <PlannerReact Nav={HubNav} />;
 }
 
 // Router first: other pages must not pay for the Today page's data fetching.
 function App() {
   const page = new URLSearchParams(location.search).get('page');
-  if (page === 'calendar' || page === 'planner' || page === 'habits' || page === 'week') return <PlanHub initial={page === 'planner' ? 'list' : page} />;
+  if (['calendar', 'planner', 'habits', 'week', 'goals', 'focus', 'stats'].includes(page)) return <PlanHub initial={page === 'planner' ? 'list' : page} />;
+  const LIFE = { health: HealthPage, car: CarPage, travel: TravelPage, projects: ProjectsPage, crm: CrmPage, learning: LearningPage, journal: JournalPage };
+  if (LIFE[page]) { const P = LIFE[page]; return <P Nav={() => <TopNav active={page} />} />; }
+  if (page === 'shopping') return <NotesHub initial="shop" />;
   if (page === 'finance') return <FinanceReact Nav={TopNav} />;
   if (page === 'market') return <MarketReact Nav={TopNav} />;
   if (page === 'football') return <FootballPage />;
   if (['movies', 'series', 'upcoming', 'discover'].includes(page)) return <WatchHub initial={page} />;
   if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;
-  if (page === 'notes') return <NotesReact Nav={TopNav} />;
+  if (page === 'notes') return <NotesHub initial="notes" />;
   if (page === 'documents') return <DocumentsReact Nav={TopNav} />;
   if (page === 'contacts') return <ContactsReact Nav={TopNav} />;
   if (page === 'settings') return <SettingsReact />;
@@ -338,6 +356,8 @@ function HomePage() {
         </Card>),
         ...(modOn(mods, 'football') ? { football: (<Football />) } : (!modOn(mods, 'market') && !modOn(mods, 'finance')) ? {} : { habits: (<HabitsMini />) }),
         ...(modOn(mods, 'watch') ? { series: (<SeriesCard />) } : modOn(mods, 'notes') ? { notes: (<NotesMini />) } : {}),
+        focus: (<FocusCard Card={Card} Icon={Timer} />),
+        ...(modOn(mods, 'finance') ? { bills: (<BillsWeekCard Card={Card} Icon={Receipt} />) } : {}),
       }} />
     </div>
     <TaskDrawer open={!!drawerKind} kind={drawerKind || 'task'} initial={null} onClose={() => setDrawerKind(null)} onSubmit={saveDrawer} />
@@ -1237,6 +1257,8 @@ function SettingsReact() {
           </article>
         </section>
 
+        <NotifyCard />
+
         <ModulesCard />
 
         <BackupInstallCard lastBackup={digest.tgLastBackup} />
@@ -1324,8 +1346,8 @@ const readLs = (k, f) => { try { const v = JSON.parse(localStorage.getItem(k) ||
 const writeLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
 // ── per-user sections ("بخش‌های من"): hide what a user doesn't use, everywhere ──
-const MODULES = [['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
-const PAGE_MODULE = { finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
+const MODULES = [['projects', 'پروژه‌ها', '🗂', 'تابلوی کانبان برای پروژه‌ها'], ['crm', 'مشتری و فروش', '💼', 'مشتری، پیش‌فاکتور و پیگیری'], ['health', 'سلامت', '💪', 'وزن، خواب، ورزش و آب'], ['car', 'خودرو', '🚗', 'بیمه، معاینه، سرویس و هزینه‌ها'], ['travel', 'سفر', '✈️', 'برنامه، بودجه و لیست وسایل'], ['journal', 'روزنگار', '📔', 'نوشته و عکس روزانه'], ['learning', 'یادگیری', '🎓', 'کتاب‌ها و دوره‌ها'], ['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
+const PAGE_MODULE = { projects: 'projects', crm: 'crm', health: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
 let MODS_CACHE = readLs('lifeos-modules', null);
 const modOn = (m, k) => !m || m[k] !== false;
 const pageOn = (m, page) => !PAGE_MODULE[page] || modOn(m, PAGE_MODULE[page]);
@@ -1925,6 +1947,50 @@ function FinanceMini({ todaySpend }) {
 }
 
 applyAppearance(readLs('lifeos-appearance', APPEARANCE_DEFAULT));
+function NotifyCard() {
+  const [me, setMe] = useState(null), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false);
+  const [perm, setPerm] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
+  const [subscribed, setSubscribed] = useState(false);
+  const supported = 'serviceWorker' in navigator && 'PushManager' in window && typeof Notification !== 'undefined';
+  useEffect(() => {
+    api('/api/me').then(d => setMe(d.user || {})).catch(() => setMe({}));
+    if (supported) navigator.serviceWorker.getRegistration().then(r => r && r.pushManager.getSubscription()).then(sub => setSubscribed(!!sub)).catch(() => {});
+  }, []);
+  const tgOn = me ? me.tgRemindersOn !== false : true;
+  const toggleTg = async () => { const v = !tgOn; setMe(m => ({ ...m, tgRemindersOn: v })); try { await api('/api/me', { method: 'PATCH', body: JSON.stringify({ tgRemindersOn: v }) }); } catch (e) { setMsg(e.message); } };
+  const b64ToU8 = s => { const p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+  const enable = async () => {
+    setBusy(true); setMsg('');
+    try {
+      const p = await Notification.requestPermission(); setPerm(p);
+      if (p !== 'granted') throw new Error('اجازهٔ اعلان داده نشد. از تنظیمات مرورگر اجازه بده.');
+      let reg = await navigator.serviceWorker.getRegistration(); if (!reg) reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      const { publicKey } = await api('/api/push/key');
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(publicKey) });
+      await api('/api/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
+      setSubscribed(true); setMsg('اعلان روی این دستگاه فعال شد ✓');
+    } catch (e) { setMsg(e.message || 'فعال‌سازی نشد.'); }
+    setBusy(false);
+  };
+  const disable = async () => { setBusy(true); try { const reg = await navigator.serviceWorker.getRegistration(), sub = reg && await reg.pushManager.getSubscription(); if (sub) { await api('/api/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {}); await sub.unsubscribe(); } setSubscribed(false); setMsg('اعلان این دستگاه خاموش شد.'); } catch (e) { setMsg(e.message); } setBusy(false); };
+  const test = async () => { try { await api('/api/push/test', { method: 'POST' }); setMsg('اعلان آزمایشی فرستاده شد — چند ثانیه صبر کن.'); } catch (e) { setMsg(e.message); } };
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent), standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone;
+  return <section className="planner-list digest-card" id="notify">
+    <h2>🔔 اعلان یادآوری‌ها</h2>
+    <article>
+      <div><b>تلگرام — سر ساعت هر یادآوری</b><small>با دکمه‌های «✓ انجام شد»، «⏰ ۱۵ دقیقه بعد» و «📅 فردا»؛ هشدار زودتر را در فرم هر یادآوری انتخاب کن. {me && !me.telegramUserId ? '— اول بات تلگرام را وصل کن.' : ''}</small></div>
+      <button type="button" className={`plnr-switch ${tgOn ? 'on' : ''}`} role="switch" aria-checked={tgOn} onClick={toggleTg}><i /></button>
+    </article>
+    <article>
+      <div><b>اعلان روی همین دستگاه</b><small>{!supported ? (ios && !standalone ? 'در آیفون اول سایت را «Add to Home Screen» کن و از همان آیکن باز کن.' : 'این مرورگر اعلان وب را پشتیبانی نمی‌کند.') : perm === 'denied' ? 'اجازهٔ اعلان در مرورگر بسته است؛ از تنظیمات سایت در مرورگر بازش کن.' : subscribed ? 'فعال است ✓ — یادآوری‌ها مثل پیام برنامه‌ها روی صفحه می‌آیند، حتی وقتی سایت بسته است.' : 'یادآوری‌ها مثل پیام برنامه‌ها روی گوشی یا کامپیوتر می‌آیند، حتی بدون تلگرام.'}</small></div>
+      {supported && perm !== 'denied' ? <div className="digest-controls">{subscribed ? <><button type="button" className="finance-action" onClick={test}>آزمایش</button><button type="button" className="finance-action" onClick={disable} disabled={busy}>خاموش</button></> : <button type="button" className="save" onClick={enable} disabled={busy}>{busy ? '…' : 'فعال‌سازی'}</button>}</div> : null}
+    </article>
+    {msg ? <p className="muted">{msg}</p> : null}
+  </section>;
+}
+
 function ModulesCard() {
   const mods = useModules();
   return <section className="planner-list digest-card" id="modules">

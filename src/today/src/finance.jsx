@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import './finance.css'
 import { jalaliShort, jalaliDay } from './jalali'
 import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './jdate';
+import { BillsPanel } from './life';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -106,6 +107,7 @@ const TABS = [
   { id: 'dash', label: 'داشبورد' },
   { id: 'ledger', label: 'تراکنش‌ها' },
   { id: 'budget', label: 'بودجه و حساب‌ها' },
+  { id: 'bills', label: 'قبض و اشتراک' },
   { id: 'wealth', label: 'بدهی و سرمایه' },
   { id: 'fun', label: 'سرگرمی' },
 ]
@@ -675,6 +677,8 @@ export function FinanceReact({ Nav }) {
             </section>
           </div>
         ) : null}
+
+        {tab === 'bills' ? <div style={{ marginTop: 12 }}><BillsPanel onChanged={load} /></div> : null}
 
         {tab === 'wealth' ? (
           <>

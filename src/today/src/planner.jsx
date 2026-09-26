@@ -92,7 +92,7 @@ export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
         title: initial.task.title, notes: initial.task.notes || '', date: initial.task.date || today,
         startTime: initial.task.startTime || '', priority: initial.task.priority || 'medium',
         recurrence: initial.task.recurrence || '', tags: (initial.task.tags || []).join('، '),
-        reminderOn: !!initial.reminder, reminderDate: initial.reminder?.date || initial.task.date || today,
+        reminderOn: !!initial.reminder, reminderDate: initial.reminder?.date || initial.task.date || today, leadMinutes: Number(initial.reminder?.leadMinutes ?? initial.task.leadMinutes ?? 0),
         reminderTime: initial.reminder?.time || '', loose: !initial.task.date
       });
     } else setForm(empty);
@@ -117,7 +117,7 @@ export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
         title: form.title.trim(), notes: form.notes, date: form.date || today,
         startTime: form.startTime || null, priority: form.priority,
         recurrence: form.recurrence || null, tags: form.tags, reminderOn: form.reminderOn,
-        reminderDate: form.reminderDate, reminderTime: form.reminderTime, loose: false, kind, files
+        reminderDate: form.reminderDate, reminderTime: form.reminderTime, leadMinutes: Number(form.leadMinutes) || 0, loose: false, kind, files
       });
     } finally { setBusy(false); }
   };
@@ -151,6 +151,7 @@ export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
             <div><label>تکرار</label><div className="plnr-select-wrap"><select value={form.recurrence} onChange={e => set('recurrence', e.target.value)}><option value="">بدون تکرار</option>{Object.keys(REPEAT_LABELS).map(k => <option key={k} value={k}>{REPEAT_LABELS[k]}</option>)}</select><ChevronDown size={15} /></div></div>
           </div>
           <div><label>برچسب‌ها <span>(با ویرگول جدا کن)</span></label><input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="گزارش، فوری" /></div>
+          {(kind === 'reminder' || form.reminderOn) ? <div><label>هشدار زودتر <span>(تلگرام و اعلان گوشی)</span></label><div className="plnr-select-wrap"><select value={form.leadMinutes || 0} onChange={e => set('leadMinutes', Number(e.target.value))}>{LEAD_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div></div> : null}
           <div className="plnr-reminder-box">
             <div className="plnr-reminder-head">
               <div><b>یادآوری</b><small>یک یادآوری جدا روی تقویم می‌سازد</small></div>
@@ -168,6 +169,7 @@ export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
   );
 }
 
+const LEAD_OPTS = [[0, 'فقط سر ساعت'], [10, '۱۰ دقیقه قبل'], [30, 'نیم ساعت قبل'], [60, 'یک ساعت قبل'], [180, 'سه ساعت قبل'], [1440, 'یک روز قبل']];
 const fmtSize = n => { n = Number(n) || 0; return n >= 1048576 ? `${(n / 1048576).toLocaleString('fa-IR', { maximumFractionDigits: 1 })} مگ` : `${Math.max(1, Math.round(n / 1024)).toLocaleString('fa-IR')} کیلو`; };
 const readDataUrl = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
 // Files are stored in the user's Telegram (no R2); the site serves them back via /uploads/…
@@ -181,13 +183,13 @@ export async function uploadAttachments(ownerType, ownerId, files) {
 export async function createPlannerItem(kind, body) {
   const today = isoToday();
   if (kind === 'reminder') {
-    const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence }) });
+    const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
     if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
     return r;
   }
   const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
   const saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
-  if (body.reminderOn && body.reminderDate) await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id }) });
+  if (body.reminderOn && body.reminderDate) await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 }) });
   if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
   return saved;
 }
@@ -216,7 +218,7 @@ export function PlannerReact({ Nav }) {
   const today = isoToday(), weekAhead = iso(addDays(new Date(`${today}T12:00:00`), 7));
   const standaloneReminders = useMemo(() => reminders.filter(r => !r.taskId).map(r => ({
     id: r.id, title: r.title, notes: '', date: r.date, startTime: r.time || '', priority: 'medium',
-    recurrence: r.recurrence || null, tags: [], done: !!r.done, createdAt: r.createdAt, _reminder: true
+    recurrence: r.recurrence || null, leadMinutes: r.leadMinutes || 0, tags: [], done: !!r.done, createdAt: r.createdAt, _reminder: true
   })), [reminders]);
 
   const source = kind === 'reminder' ? standaloneReminders : tasks;
@@ -251,10 +253,10 @@ export function PlannerReact({ Nav }) {
   const submit = async body => {
     try {
       if (kind === 'reminder' && !editing) {
-        const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence }) });
+        const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
         if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
       } else if (kind === 'reminder' && editing?.task?._reminder) {
-        await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence }) });
+        await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
         if (body.files?.length) await uploadAttachments('reminder', editing.task.id, body.files);
       } else {
         const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
@@ -263,7 +265,7 @@ export function PlannerReact({ Nav }) {
         else saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
         const existingReminder = editing?.reminder;
         if (body.reminderOn && body.reminderDate) {
-          const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id };
+          const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 };
           if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'PATCH', body: JSON.stringify(rBody) });
           else await api('/api/reminders', { method: 'POST', body: JSON.stringify(rBody) });
         } else if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'DELETE' });
