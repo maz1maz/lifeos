@@ -126,6 +126,18 @@ async function main() {
   await call('/api/transactions', { method: 'POST', cookie, body: { title: 'داروخانه', amount: 310000, kind: 'expense', date: today() } });
   const preview = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: {} });
   check('recategorize preview -> 200 (categorizeTransaction wired)', preview.status === 200 && preview.d && preview.d.applied === false && preview.d.matched >= 1);
+  {
+    await call('/api/debts', { method: 'POST', cookie, body: { person: 'تست', amount: 5000000, type: 'payable', dueDate: today() } });
+    const jp = Object.fromEntries(new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn', { timeZone: 'Asia/Tehran', year: 'numeric', month: 'numeric' }).formatToParts(new Date()).map((x) => [x.type, x.value]));
+    const rep = await call(`/api/finance/monthly-report?jy=${parseInt(jp.year)}&jm=${parseInt(jp.month)}`, { cookie });
+    check('monthly report -> 200 with income/expense lines', rep.status === 200 && /گزارش ماهانه/.test(rep.d?.text || '') && /هزینه/.test(rep.d.text), (rep.d?.text || rep.text).slice(0, 200));
+    check('monthly report lists the due debt', /بدهی به تست/.test(rep.d?.text || ''));
+    const bad = await call('/api/finance/monthly-report?jy=1405&jm=13', { cookie });
+    check('monthly report rejects bad month -> 400', bad.status === 400);
+    const deb = (await call('/api/debts', { cookie })).d.items.find((x) => x.person === 'تست');
+    const pay = await call(`/api/debts/${deb.id}/pay`, { method: 'POST', cookie, body: { amount: 2000000 } });
+    check('partial debt payment reduces amount', pay.status === 200 && pay.d.amount === 3000000 && pay.d.paid === 2000000);
+  }
   const applied = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: { apply: true } });
   check('recategorize apply -> 200', applied.status === 200 && applied.d && applied.d.applied === true);
   const reverted = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: { revert: true } });

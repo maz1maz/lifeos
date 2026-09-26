@@ -920,3 +920,6 @@ html[data-mode="light"] .brand-logo{background:#105040}
 @media(min-width:1101px) and (max-width:1500px){
   .home-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 }
+/* v34 — debt due items in agenda */
+.agenda .line.debt i{border-color:transparent!important;background:transparent!important;font-size:13px;display:grid;place-items:center}
+.agenda .line.debt span{color:var(--g-accent-strong)}

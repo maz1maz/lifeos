@@ -181,3 +181,81 @@
 .fn-note { margin: 10px 2px 0; font-size: 12.5px; color: var(--g-muted); }
 .fn-catpick { background: color-mix(in srgb, var(--g-accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--g-accent) 45%, transparent); color: var(--g-accent-strong); border-radius: 7px; font: inherit; font-size: 12px; padding: 2px 6px; cursor: pointer; }
 @media (max-width: 700px) { .fn-mp-btn { min-width: 0; flex: 1; } .fn-mp { width: 100%; } .fn-drawer { width: 100%; } }
+
+/* ===== v32 — debts & portfolio ===== */
+.fn-debt-sum, .fn-pf-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0 14px; }
+.fn-pf-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fn-debt-sum > div, .fn-pf-sum > div { border: 1px solid var(--g-border); border-radius: var(--g-radius-control); padding: 10px 12px; background: rgba(255,255,255,.02); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fn-debt-sum small, .fn-pf-sum small { color: var(--g-muted); font-size: 12px; }
+.fn-debt-sum b, .fn-pf-sum b { font-size: 18px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fn-debt-sum em, .fn-pf-sum em { font-style: normal; font-size: 11.5px; color: var(--g-muted); }
+.fn-debt-sum .pos b, .fn-pf-sum .pos b, .fn-pf-sum .pos em { color: var(--g-good, #34d399); }
+.fn-debt-sum .neg b, .fn-pf-sum .neg b, .fn-pf-sum .neg em { color: #fb7185; }
+.fn-debt-sum .net { border-color: var(--g-border-2); background: rgba(255,255,255,.04); }
+.fn-pf-sum .fn-note { grid-column: 1 / -1; margin: 0; }
+.fn-debt-group { margin-top: 6px; }
+.fn-debt-group h3 { margin: 10px 0 6px; font-size: 13px; color: var(--g-muted); font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.fn-debt-group h3::after { content: ''; flex: 1; height: 1px; background: var(--g-border); }
+.fn-debt { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "main due amt" "ops ops ops" "pay pay pay"; align-items: center; gap: 6px 12px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--g-border); border-radius: var(--g-radius-control); border-inline-start: 3px solid var(--g-border-2); background: rgba(255,255,255,.015); }
+.fn-debt-group.receivable .fn-debt { border-inline-start-color: color-mix(in srgb, #34d399 60%, transparent); }
+.fn-debt-group.payable .fn-debt { border-inline-start-color: color-mix(in srgb, #fb7185 60%, transparent); }
+.fn-debt.late { background: color-mix(in srgb, #fb7185 7%, transparent); }
+.fn-debt-main { grid-area: main; min-width: 0; display: flex; flex-direction: column; }
+.fn-debt-main small { color: var(--g-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fn-debt .amt { grid-area: amt; font-weight: 900; white-space: nowrap; }
+.fn-debt .fn-ops { grid-area: ops; display: flex; gap: 6px; justify-content: flex-end; }
+.fn-debt .fn-ops button.ok { color: #34d399; border-color: color-mix(in srgb, #34d399 40%, transparent); }
+.fn-due { grid-area: due; font-size: 11.5px; padding: 3px 8px; border-radius: 99px; border: 1px solid var(--g-border-2); color: var(--g-muted); white-space: nowrap; }
+.fn-due.soon { color: #fbbf24; border-color: color-mix(in srgb, #fbbf24 45%, transparent); }
+.fn-due.late { color: #fb7185; border-color: color-mix(in srgb, #fb7185 50%, transparent); font-weight: 800; }
+.fn-pay { grid-area: pay; display: flex; gap: 6px; flex-wrap: wrap; }
+.fn-pay input, .fn-pay select { flex: 1 1 140px; min-height: 38px; background: rgba(0,0,0,.35); border: 1px solid var(--line, var(--g-border-2)); color: var(--g-text); border-radius: var(--g-radius-control); padding: 0 10px; font: inherit; font-size: 13px; }
+.fn-pay .fn-save { width: auto; padding: 0 18px; }
+.fn-pf-row b[title] { white-space: nowrap; }
+@media (max-width: 700px) { .fn-debt-sum { grid-template-columns: 1fr 1fr; } .fn-debt-sum .net { grid-column: 1 / -1; } .fn-debt { grid-template-areas: "main amt" "due due" "ops ops" "pay pay"; grid-template-columns: minmax(0,1fr) auto; } .fn-due { justify-self: start; } }
+
+/* ===== v33 — budgets ===== */
+.fn-link { background: none; border: 0; padding: 2px 4px; color: var(--g-accent-strong); font: inherit; font-size: 12.5px; cursor: pointer; }
+.fn-link.del { color: #fb7185; }
+.fn-link:hover { text-decoration: underline; }
+.fn-btotal { border: 1px solid var(--g-border-2); border-radius: var(--g-radius-card); padding: 14px; background: rgba(255,255,255,.025); margin-bottom: 12px; }
+.fn-btotal-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.fn-btotal-top > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fn-btotal-top small { color: var(--g-muted); font-size: 12px; }
+.fn-btotal-top b { font-size: 17px; font-weight: 900; white-space: nowrap; }
+.fn-btotal-top b.pos { color: #34d399; } .fn-btotal-top b.neg { color: #fb7185; }
+.fn-bt-ops { display: flex; justify-content: flex-end; margin-top: 6px; }
+.fn-bbar { position: relative; height: 10px; border-radius: 99px; background: rgba(255,255,255,.07); overflow: visible; }
+.fn-bbar.sm { height: 6px; margin: 6px 0 4px; }
+.fn-bbar i { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: inherit; background: #34d399; transition: width .3s; }
+.fn-bbar u { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--g-text); opacity: .55; border-radius: 2px; }
+.warn .fn-bbar i, .fn-btotal.warn .fn-bbar i { background: #fbbf24; }
+.over .fn-bbar i, .fn-btotal.over .fn-bbar i { background: #fb7185; }
+.fn-brows { display: grid; gap: 8px; }
+.fn-brow { border: 1px solid var(--g-border); border-radius: var(--g-radius-control); padding: 10px 12px; background: rgba(255,255,255,.015); }
+.fn-brow.over { border-color: color-mix(in srgb, #fb7185 45%, transparent); background: color-mix(in srgb, #fb7185 6%, transparent); }
+.fn-brow.warn { border-color: color-mix(in srgb, #fbbf24 40%, transparent); }
+.fn-brow-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.fn-brow-top b { font-size: 14px; }
+.fn-brow-num { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.fn-brow-num em { font-style: normal; color: var(--g-muted); font-weight: 400; }
+.fn-brow-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; }
+.fn-brow-foot small { color: var(--g-muted); font-size: 12px; }
+.fn-brow.over .fn-brow-foot small { color: #fb7185; font-weight: 700; }
+.fn-binline { margin-top: 8px; }
+.fn-brow-add { display: grid; gap: 8px; margin-top: 4px; }
+.fn-brow-add select { min-height: 40px; background: transparent; border: 1px dashed var(--g-border-2); color: var(--g-muted); border-radius: var(--g-radius-control); padding: 0 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.fn-fun-note { margin: 12px 4px 0; }
+.fn-acc { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--g-border); border-radius: var(--g-radius-control); background: rgba(255,255,255,.02); }
+.fn-acc > div { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.fn-acc small { color: var(--g-muted); font-size: 12px; }
+.fn-acc strong { font-size: 16px; font-weight: 900; white-space: nowrap; }
+.fn-acc.arch { opacity: .55; }
+.fn-accounts { display: grid; gap: 8px; }
+.fn-file { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border: 1px dashed var(--g-border-2); border-radius: var(--g-radius-control); color: var(--g-text); font-size: 13px; cursor: pointer; }
+.fn-file:hover { border-color: var(--g-accent); color: var(--g-accent-strong); }
+.fn-report { width: min(560px, 100%); padding: 18px; max-height: 90vh; overflow: auto; }
+.fn-report .fn-head b { font-size: 15px; }
+.fn-report pre { white-space: pre-wrap; font: inherit; font-size: 14px; line-height: 2; margin: 8px 0 14px; padding: 14px; border-radius: var(--g-radius-control); background: rgba(0,0,0,.25); border: 1px solid var(--g-border); }
+.fn-report-ops { display: flex; gap: 10px; align-items: center; }
+.fn-report-ops .fn-save { width: auto; padding: 10px 20px; }

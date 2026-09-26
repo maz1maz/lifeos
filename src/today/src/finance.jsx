@@ -32,6 +32,17 @@ const jRange = (k) => { const [y, m] = jParts(k); return { from: jToIso(y, m, 1)
 const legacyKey = (k) => { const [y, m] = jParts(k); return jToIso(y, m, 15).slice(0, 7) }
 const monthFa = (k) => { const [y, m] = jParts(k); return `${JMONTHS[m - 1]} ${faD(y)}` }
 const shiftMonth = (k, d) => { let [y, m] = jParts(k); m += d; while (m > 12) { m -= 12; y++ } while (m < 1) { m += 12; y-- } return `${y}-${String(m).padStart(2, '0')}` }
+const ACC_FA = { bank: 'بانک', card: 'کارت', cash: 'نقدی' }
+const GOLD_FA = { geram18: 'طلای ۱۸ عیار (گرم)', geram24: 'طلای ۲۴ عیار (گرم)', sekee: 'سکه امامی', sekeb: 'سکه بهار آزادی', nim: 'نیم‌سکه', rob: 'ربع‌سکه', gerami: 'سکه گرمی', mesghal: 'مثقال طلا' }
+const ASSET_FA = { crypto: 'رمزارز', stock: 'سهام', gold: 'طلا', dollar: 'ارز', euro: 'ارز', other: 'سایر' }
+const dueInfo = (iso) => {
+  if (!iso) return { label: 'بی‌سررسید', cls: '' }
+  const d = Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${isoToday()}T00:00:00Z`)) / 864e5)
+  if (d < 0) return { label: `${fa(-d)} روز گذشته`, cls: 'late' }
+  if (d === 0) return { label: 'امروز', cls: 'soon' }
+  if (d <= 7) return { label: `${fa(d)} روز مانده`, cls: 'soon' }
+  return { label: jalaliShort(iso), cls: '' }
+}
 const isMisc = (t) => t.kind === 'expense' && (!t.category || String(t.category).trim() === 'متفرقه')
 
 function MonthPicker({ value, onChange }) {
@@ -54,6 +65,16 @@ function MonthPicker({ value, onChange }) {
         </div>
       ) : null}
     </div>
+  )
+}
+
+function BudgetInline({ cat, value, hint, onSave, onCancel }) {
+  return (
+    <form className="fn-pay fn-binline" onSubmit={(e) => { e.preventDefault(); const v = Number(String(new FormData(e.currentTarget).get('limit') || '').replace(/[^\d]/g, '')); if (v > 0) onSave(cat, v) }}>
+      <input name="limit" required inputMode="numeric" autoFocus defaultValue={value || ''} placeholder={`سقف ${cat === '__total__' ? 'کل ماه' : cat} (ریال)${hint ? ` — این ماه ${Math.round(hint).toLocaleString('fa-IR')}` : ''}`} />
+      <button className="fn-save">ذخیره</button>
+      <button type="button" className="fn-link" onClick={onCancel}>انصراف</button>
+    </form>
   )
 }
 
@@ -86,6 +107,7 @@ const TABS = [
   { id: 'ledger', label: 'تراکنش‌ها' },
   { id: 'budget', label: 'بودجه و حساب‌ها' },
   { id: 'wealth', label: 'بدهی و سرمایه' },
+  { id: 'fun', label: 'سرگرمی' },
 ]
 const FILTERS = [['all', 'همه'], ['expense', 'هزینه'], ['income', 'درآمد'], ['transfer', 'انتقال'], ['misc', 'بدون دسته']]
 
@@ -147,7 +169,7 @@ export function FinanceReact({ Nav }) {
   const [unit, setUnit] = useState(() => { try { return localStorage.getItem('lifeos-fin-unit') || 'rial' } catch { return 'rial' } })
   UNIT = unit
   const switchUnit = (u) => { setUnit(u); try { localStorage.setItem('lifeos-fin-unit', u) } catch {} }
-  const [tab, setTab] = useState('dash')
+  const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(location.search).get('tab'); return TABS.some((x) => x.id === t) ? t : 'dash' } catch { return 'dash' } })
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, categories: {} })
   const [trend, setTrend] = useState([])
   const [txs, setTxs] = useState([])
@@ -167,6 +189,10 @@ export function FinanceReact({ Nav }) {
   const [alerts, setAlerts] = useState([])
   const [recatPreview, setRecatPreview] = useState(null)
   const [recatBusy, setRecatBusy] = useState(false)
+  const [rates, setRates] = useState({})
+  const [paying, setPaying] = useState(null)
+  const [budEdit, setBudEdit] = useState(null)
+  const [report, setReport] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -200,6 +226,13 @@ export function FinanceReact({ Nav }) {
   }, [month])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    api('/api/tgju').then((d) => {
+      const raw = d.items || d.data || {}, out = {}
+      for (const [k, v] of Object.entries(raw)) { const n = Number(String(v?.p ?? v?.price ?? '').replace(/[^\d.]/g, '')); if (n) out[k] = n }
+      setRates(out)
+    }).catch(() => {})
+  }, [])
 
   const send = async (path, body, message, method = 'POST') => {
     try { await api(path, { method, body: JSON.stringify(body) }); setNotice(message); await load() }
@@ -225,6 +258,70 @@ export function FinanceReact({ Nav }) {
     try { const r = await api(`/api/transactions/${item.id}`, { method: 'PATCH', body: JSON.stringify({ category, learn: true }) }); setNotice(`«${item.title}» ← ${category}${r.learned ? ` · ${fa(r.learned)} تراکنش مشابه هم دسته‌بندی شد` : ''}`); await load() } catch (e) { setNotice(e.message) }
   }
   const betMax = Math.max(1, ...betMonthItems.map((d) => Math.abs(d.result || 0)))
+
+  const usdRate = rates.price_dollar_rl || 0, eurRate = rates.price_eur || 0
+  const toRial = (n, cur) => (cur === 'USD' ? (usdRate ? n * usdRate : 0) : cur === 'EUR' ? (eurRate ? n * eurRate : 0) : n)
+  const debtGroups = { receivable: debts.filter((d) => d.type !== 'payable'), payable: debts.filter((d) => d.type === 'payable') }
+  const debtTot = {
+    rec: debtGroups.receivable.reduce((a, d) => a + toRial(Number(d.amount) || 0, d.currency || 'IRR'), 0),
+    pay: debtGroups.payable.reduce((a, d) => a + toRial(Number(d.amount) || 0, d.currency || 'IRR'), 0),
+    hasUsd: debts.some((d) => d.currency === 'USD'), usdMissing: debts.some((d) => d.currency === 'USD') && !usdRate,
+  }
+  const pf = (() => {
+    const rows = (portfolio.items || []).map((item) => {
+      const cur = item.currency || 'IRR', q = Number(item.quantity) || 0
+      const live = item.assetType === 'gold' && rates[item.symbol] ? rates[item.symbol] * q : null
+      const value = live != null ? live : item.assetType === 'dollar' ? q * usdRate : item.assetType === 'euro' ? q * eurRate : toRial(Number(item.marketValue || item.value || 0), cur)
+      const cost = toRial(Number(item.costBasis || 0), cur)
+      const pnl = live != null || item.assetType === 'dollar' || item.assetType === 'euro' ? (cost ? value - cost : 0) : toRial(Number(item.unrealizedPnl || 0), cur)
+      const native = cur !== 'IRR' && item.assetType !== 'dollar' && item.assetType !== 'euro' ? `${fa(Math.round((Number(item.marketValue || 0)) * 100) / 100)} ${cur === 'USD' ? '$' : cur}` : ''
+      const label = item.assetType === 'dollar' ? 'دلار' : item.assetType === 'euro' ? 'یورو' : GOLD_FA[item.symbol] || item.symbol
+      return { item, value, cost, pnl, native, label }
+    }).sort((a, b) => b.value - a.value)
+    const total = rows.reduce((a, r) => a + r.value, 0), cost = rows.reduce((a, r) => a + r.cost, 0), pnl = rows.reduce((a, r) => a + r.pnl, 0)
+    return { rows, total, cost, pnl }
+  })()
+
+  const bud = (() => {
+    const bmap = Object.fromEntries((budgets.budgets || []).map((b) => [b.category, Number(b.limit) || 0]))
+    const spentBy = summary.categories || {}
+    const spent = Number(budgets.totalSpent ?? expense) || 0
+    const total = Number(budgets.totalBudget) || 0
+    const names = [...new Set([...Object.keys(spentBy), ...Object.keys(bmap)])].filter((c) => c && c !== 'انتقال')
+    const stateOf = (pct) => (pct > 100 ? 'over' : pct >= 80 ? 'warn' : 'ok')
+    const rows = names.map((cat) => { const sp = Number(spentBy[cat]) || 0, limit = bmap[cat] || 0, pct = limit ? Math.round((sp / limit) * 100) : 0; return { cat, spent: sp, limit, pct, share: expense ? Math.round((sp / expense) * 100) : 0, state: limit ? stateOf(pct) : 'none' } })
+      .sort((a, b) => (b.limit ? 1 : 0) - (a.limit ? 1 : 0) || b.pct - a.pct || b.spent - a.spent)
+    const { from, to } = jRange(month), t = isoToday(), dayMs = 864e5
+    const len = Math.round((Date.parse(to) - Date.parse(from)) / dayMs) + 1
+    const inMonth = t >= from && t <= to
+    const daysLeft = inMonth ? Math.round((Date.parse(to) - Date.parse(t)) / dayMs) + 1 : 0
+    const timePct = inMonth ? Math.round(((len - daysLeft + 1) / len) * 100) : null
+    const pct = total ? Math.round((spent / total) * 100) : 0
+    return { rows, spent, total, left: total - spent, pct, state: stateOf(pct), daysLeft, timePct }
+  })()
+  const saveBudget = async (category, limit, remove = false) => {
+    try { await api('/api/budgets', { method: 'POST', body: JSON.stringify(remove ? { month, category, remove: true } : { month, category, limit: Number(limit) }) }); setBudEdit(null); setNotice(remove ? 'سقف حذف شد.' : 'سقف ذخیره شد.'); await load() } catch (e) { setNotice(e.message) }
+  }
+  const copyBudgets = async () => {
+    try {
+      const pm = shiftMonth(month, -1), r = jRange(pm)
+      const prev = await api(`/api/budgets?month=${pm}&legacy=${legacyKey(pm)}&from=${r.from}&to=${r.to}`)
+      const list = [...(prev.budgets || []).map((b) => [b.category, b.limit]), ...(prev.totalBudget ? [['__total__', prev.totalBudget]] : [])]
+      if (!list.length) return setNotice(`${monthFa(pm)} هم بودجه‌ای نداشت.`)
+      for (const [category, limit] of list) await api('/api/budgets', { method: 'POST', body: JSON.stringify({ month, category, limit }) })
+      setNotice(`${fa(list.length)} سقف از ${monthFa(pm)} کپی شد.`); await load()
+    } catch (e) { setNotice(e.message) }
+  }
+
+  const openReport = async (k = month) => {
+    const [jy, jm] = jParts(k)
+    setReport({ k, text: '' })
+    try { const r = await api(`/api/finance/monthly-report?jy=${jy}&jm=${jm}`); setReport({ k, text: r.text }) } catch (e) { setReport({ k, text: e.message }) }
+  }
+  const sendReport = async () => {
+    const [jy, jm] = jParts(report.k)
+    try { await api(`/api/finance/monthly-report?jy=${jy}&jm=${jm}`, { method: 'POST' }); setNotice('گزارش به تلگرام فرستاده شد ✓') } catch (e) { setNotice(e.message) }
+  }
 
   const submitTx = (e) => {
     e.preventDefault()
@@ -305,8 +402,8 @@ export function FinanceReact({ Nav }) {
             <div className="fn-chips">
               <span className="fn-unit" role="radiogroup" aria-label="واحد نمایش">{[['rial', 'ریال'], ['toman', 'تومان']].map(([k, l]) => <button key={k} type="button" className={unit === k ? 'on' : ''} onClick={() => switchUnit(k)}>{l}</button>)}</span>
               <span className="fn-chip">دارایی: {compact(netWorth)}</span>
-              <span className="fn-chip">طلب: {compact(receivable)}</span>
-              <span className="fn-chip">بدهی: {compact(payable)}</span>
+              <span className="fn-chip">طلب: {compact(debtTot.rec)}</span>
+              <span className="fn-chip">بدهی: {compact(debtTot.pay)}</span>
             </div>
           </div>
           {tab === 'dash' ? <>
@@ -343,7 +440,7 @@ export function FinanceReact({ Nav }) {
         {tab === 'dash' ? (
           <div className="fn-grid">
             <section className="fn-glass fn-card">
-              <h2>روند ۶ ماهه</h2>
+              <div className="fn-head"><h2>روند ۶ ماهه</h2><button type="button" className="fn-add" onClick={() => openReport()}>📊 گزارش {monthFa(month)}</button></div>
               <p className="sub">درآمد سبز · هزینه صورتی · از خلاصهٔ ماهانهٔ LifeOS</p>
               <AreaChart series={trend} />
             </section>
@@ -442,38 +539,56 @@ export function FinanceReact({ Nav }) {
 </Drawer></div>
               <div className="fn-accounts">
                 {accounts.map((a) => (
-                  <div key={a.id} className="fn-soft">
-                    <b>{a.name}</b>
-                    <small>{a.type} · {faMoney(a.balance ?? a.openingBalance ?? 0)}</small>
-                    <button type="button" className="fn-ops" onClick={() => setEditing({ type: 'account', item: a })} style={{ marginTop: 8 }}>ویرایش</button>
+                  <div key={a.id} className={`fn-acc ${a.archived ? 'arch' : ''}`}>
+                    <div><b>{a.name}</b><small>{ACC_FA[a.type] || a.type}{a.archived ? ' · بایگانی' : ''}</small></div>
+                    <strong title={faMoney(a.balance ?? a.openingBalance ?? 0)}>{short(a.balance ?? a.openingBalance ?? 0)}</strong>
+                    <button type="button" className="fn-link" onClick={() => setEditing({ type: 'account', item: a })}>ویرایش</button>
                   </div>
                 ))}
               </div>
             </section>
             <section className="fn-glass fn-list">
-              <div className="fn-head"><h2>بودجهٔ {monthFa(month)}</h2><Drawer label="بودجه" title="سقف بودجه">
-<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/budgets', { month, category: f.get('category'), limit: Number(f.get('limit')) }, 'بودجه ذخیره شد.'); e.currentTarget.reset() }}>
-                <select name="category"><option value="__total__">سقف کل ماه</option>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
-                <input name="limit" required inputMode="numeric" placeholder="سقف، ریال" />
-                <button className="fn-save">ذخیرهٔ بودجه</button>
-              </form>
-</Drawer></div>
-              <p className="sub">{budgets.totalBudget ? `${short(budgets.totalSpent || 0, false)} از ${short(budgets.totalBudget)}` : `هزینهٔ ماه: ${short(budgets.totalSpent || 0)}`}</p>
-              <div className="fn-budget">
-                {(budgets.budgets || []).map((item) => {
-                  const pct = item.limit ? Math.min(100, Math.round((item.spent / item.limit) * 100)) : 0
-                  return (
-                    <article key={item.id}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><b>{item.category}</b><small>{short(item.spent, false)} / {short(item.limit)}</small></div>
-                      <div className={`fn-gauge${item.spent > item.limit ? ' over' : ''}`}><i style={{ width: `${pct}%` }} /></div>
-                    </article>
-                  )
-                })}
+              <div className="fn-head"><h2>بودجهٔ {monthFa(month)}</h2></div>
+              <div className={`fn-btotal ${bud.total ? bud.state : ''}`}>
+                <div className="fn-btotal-top">
+                  <div><small>هزینهٔ ماه</small><b title={faMoney(bud.spent)}>{short(bud.spent)}</b></div>
+                  {bud.total ? <div><small>سقف کل</small><b title={faMoney(bud.total)}>{short(bud.total)}</b></div> : null}
+                  {bud.total ? <div><small>{bud.left >= 0 ? 'باقی‌مانده' : 'بیش از سقف'}</small><b className={bud.left >= 0 ? 'pos' : 'neg'}>{short(Math.abs(bud.left))}</b></div> : null}
+                  {bud.total && bud.daysLeft > 0 && bud.left > 0 ? <div><small>روزانه تا آخر ماه ({fa(bud.daysLeft)} روز)</small><b>{short(bud.left / bud.daysLeft)}</b></div> : null}
+                </div>
+                {bud.total ? <div className="fn-bbar"><i style={{ width: `${Math.min(100, bud.pct)}%` }} />{bud.timePct != null ? <u style={{ insetInlineStart: `${bud.timePct}%` }} title="امروز" /> : null}</div> : <p className="fn-note">سقف کل ماه تعیین نشده.{' '}<button type="button" className="fn-link" onClick={() => setBudEdit('__total__')}>تعیین سقف کل</button></p>}
+                {budEdit === '__total__' ? <BudgetInline cat="__total__" value={bud.total} onSave={saveBudget} onCancel={() => setBudEdit(null)} /> : null}
+                {bud.total ? <div className="fn-bt-ops"><button type="button" className="fn-link" onClick={() => setBudEdit(budEdit === '__total__' ? null : '__total__')}>تغییر سقف کل</button></div> : null}
+              </div>
+              {!(budgets.budgets || []).length ? <div className="fn-banner"><span>برای {monthFa(month)} هنوز بودجهٔ دسته‌ای نداری.</span><button type="button" className="fn-save" onClick={copyBudgets}>کپی از {monthFa(shiftMonth(month, -1))}</button></div> : null}
+              <div className="fn-brows">
+                {bud.rows.map((r) => (
+                  <article key={r.cat} className={`fn-brow ${r.state}`}>
+                    <div className="fn-brow-top">
+                      <b>{ICONS[r.cat] || '•'} {r.cat}</b>
+                      <span className="fn-brow-num">{short(r.spent, false)}{r.limit ? <> / {short(r.limit)}</> : <em> · بدون سقف</em>}</span>
+                    </div>
+                    {r.limit ? <div className="fn-bbar sm"><i style={{ width: `${Math.min(100, r.pct)}%` }} /></div> : null}
+                    <div className="fn-brow-foot">
+                      <small>{r.limit ? (r.spent > r.limit ? `${short(r.spent - r.limit)} بیشتر از سقف` : `${short(r.limit - r.spent)} مانده · ${fa(r.pct)}٪`) : `${fa(r.share)}٪ هزینهٔ ماه`}</small>
+                      <span>
+                        <button type="button" className="fn-link" onClick={() => setBudEdit(budEdit === r.cat ? null : r.cat)}>{r.limit ? 'تغییر سقف' : 'سقف بگذار'}</button>
+                        {r.limit ? <button type="button" className="fn-link del" onClick={() => saveBudget(r.cat, 0, true)}>حذف سقف</button> : null}
+                      </span>
+                    </div>
+                    {budEdit === r.cat ? <BudgetInline cat={r.cat} value={r.limit} hint={r.spent} onSave={saveBudget} onCancel={() => setBudEdit(null)} /> : null}
+                  </article>
+                ))}
+                {!bud.rows.length ? <p className="fn-empty">هنوز هزینه‌ای برای این ماه نیست.</p> : null}
+                <div className="fn-brow-add">
+                  <select value="" onChange={(e) => e.target.value && setBudEdit(e.target.value)} aria-label="سقف برای دستهٔ دیگر"><option value="">＋ سقف برای دستهٔ دیگر…</option>{CATS.filter((c) => c !== 'حقوق' && !bud.rows.some((r) => r.cat === c)).map((c) => <option key={c} value={c}>{c}</option>)}</select>
+                  {budEdit && budEdit !== '__total__' && !bud.rows.some((r) => r.cat === budEdit) ? <BudgetInline cat={budEdit} value={0} onSave={saveBudget} onCancel={() => setBudEdit(null)} /> : null}
+                </div>
               </div>
               <div style={{ marginTop: 18 }}>
                 <h2>درون‌ریزی صورت‌حساب</h2>
                 <p className="sub">CSV / XLS / XLSX — فقط پیش‌نمایش، بعد تأیید</p>
-                <input type="file" accept=".csv,.xls,.xlsx" onChange={previewImport} />
+                <label className="fn-file">📄 انتخاب فایل صورت‌حساب<input type="file" accept=".csv,.xls,.xlsx" onChange={previewImport} hidden /></label>
                 {importPreview ? (
                   <form className="fn-form" style={{ padding: 0, marginTop: 10 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const items = (importPreview.items || []).filter((x) => !x.duplicate); send('/api/transactions/import-bank/commit', { items, account: f.get('account') }, `${fa(items.length)} تراکنش ارسال شد.`); setImportPreview(null) }}>
                     <p>{fa(importPreview.newCount || 0)} تازه · {fa(importPreview.duplicateCount || 0)} تکراری</p>
@@ -504,15 +619,41 @@ export function FinanceReact({ Nav }) {
                 <button className="fn-save">افزودن</button>
               </form>
 </Drawer></div>
-              {debts.length ? debts.map((item) => (
-                <article key={item.id} className="fn-row">
-                  <div>
-                    <b>{item.type === 'payable' ? 'بدهی به ' : 'طلب از '}{item.person}</b>
-                    <small>{item.currency === 'USD' ? `${fa(item.amount)} دلار` : faMoney(item.amount)}{item.dueDate ? ` · ${jalaliShort(item.dueDate)}` : ''}{item.note ? ` · ${item.note}` : ''}</small>
-                  </div>
-                  <button type="button" onClick={() => send(`/api/debts/${item.id}/settle`, { account: item.currency === 'IRR' ? (accounts.find((a) => !a.archived)?.name || '') : '' }, 'تسویه شد.')}>تسویه</button>
-                </article>
-              )) : <p className="fn-empty">بدهی یا طلب بازی نیست.</p>}
+              <div className="fn-debt-sum">
+                <div className="pos"><small>طلب من</small><b title={faMoney(debtTot.rec)}>{short(debtTot.rec)}</b><em>{fa(debtGroups.receivable.length)} مورد</em></div>
+                <div className="neg"><small>بدهی من</small><b title={faMoney(debtTot.pay)}>{short(debtTot.pay)}</b><em>{fa(debtGroups.payable.length)} مورد</em></div>
+                <div className={debtTot.rec - debtTot.pay >= 0 ? 'pos net' : 'neg net'}><small>خالص</small><b title={faMoney(debtTot.rec - debtTot.pay)}>{debtTot.rec - debtTot.pay >= 0 ? '+' : '−'}{short(Math.abs(debtTot.rec - debtTot.pay))}</b><em>{debtTot.usdMissing ? 'دلاری‌ها بدون نرخ روز' : debtTot.hasUsd ? `دلار به نرخ ${short(rates.price_dollar_rl, false)}` : ' '}</em></div>
+              </div>
+              {!debts.length ? <p className="fn-empty">بدهی یا طلب بازی نیست.</p> : [['receivable', 'طلب‌های من'], ['payable', 'بدهی‌های من']].map(([k, title]) => debtGroups[k].length ? (
+                <div key={k} className={`fn-debt-group ${k}`}>
+                  <h3>{title}</h3>
+                  {debtGroups[k].map((item) => {
+                    const due = dueInfo(item.dueDate)
+                    return (
+                      <article key={item.id} className={`fn-debt ${due.cls}`}>
+                        <div className="fn-debt-main">
+                          <b>{item.person}</b>
+                          <small>{item.note || ' '}{item.paid ? ` · ${item.currency === 'USD' ? fa(item.paid) + ' دلار' : short(item.paid)} پرداخت‌شده` : ''}</small>
+                        </div>
+                        <span className={`fn-due ${due.cls}`}>{due.label}</span>
+                        <span className={`amt ${k === 'receivable' ? 'pos' : 'neg'}`} title={item.currency === 'USD' ? '' : faMoney(item.amount)}>{item.currency === 'USD' ? `${fa(item.amount)} $` : short(item.amount)}</span>
+                        <div className="fn-ops">
+                          <button type="button" onClick={() => setPaying(paying === item.id ? null : item.id)}>{k === 'receivable' ? 'دریافت بخشی' : 'پرداخت بخشی'}</button>
+                          <button type="button" onClick={() => setEditing({ type: 'debt', item })}>ویرایش</button>
+                          <button type="button" className="ok" onClick={() => { if (window.confirm(`${k === 'receivable' ? 'طلب از' : 'بدهی به'} ${item.person} کامل تسویه شد؟`)) send(`/api/debts/${item.id}/settle`, { account: item.currency === 'IRR' ? (accounts.find((a) => !a.archived)?.name || '') : '' }, 'تسویه شد.') }}>تسویه</button>
+                        </div>
+                        {paying === item.id ? (
+                          <form className="fn-pay" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send(`/api/debts/${item.id}/pay`, { amount: Number(f.get('amount')), date: f.get('date') || isoToday(), account: item.currency === 'IRR' && f.get('account') !== '' ? f.get('account') : '' }, 'ثبت شد.'); setPaying(null) }}>
+                            <input name="amount" required inputMode="numeric" placeholder={`مبلغ (${item.currency === 'USD' ? 'دلار' : 'ریال'})`} autoFocus />
+                            {item.currency === 'IRR' ? <select name="account"><option value="">بدون ثبت تراکنش</option>{accounts.filter((a) => !a.archived).map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}</select> : null}
+                            <button className="fn-save">ثبت</button>
+                          </form>
+                        ) : null}
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : null)}
             </section>
             <section className="fn-glass fn-list">
               <div className="fn-head"><h2>سبد سرمایه</h2><Drawer label="خرید / فروش" title="تراکنش سرمایه‌گذاری">
@@ -535,20 +676,23 @@ export function FinanceReact({ Nav }) {
                 <button className="fn-save">ثبت سرمایه‌گذاری</button>
               </form>
 </Drawer></div>
-              <p className="sub">{Object.entries(portfolio.totals || {}).length ? Object.entries(portfolio.totals).map(([c, t]) => {
-                const pnl = Number(t?.unrealizedPnl || 0)
-                return `${fa(t?.value || 0)} ${c} · سود/زیان ${pnl >= 0 ? '+' : ''}${fa(pnl)}`
-              }).join(' · ') : 'ارزش گزارش‌شده: —'}</p>
-              {portfolio.items?.length ? portfolio.items.map((item) => {
-                const pnl = Number(item.unrealizedPnl || 0)
-                return (
-                  <article key={`${item.assetType}-${item.symbol}`} className="fn-row">
-                    <div><b>{item.symbol}</b><small>{item.assetType} · تعداد {fa(item.quantity)}</small></div>
-                    <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : ''}{fa(pnl)}</span>
-                    <b>{fa(item.marketValue || item.value || 0)} {item.currency || ''}</b>
-                  </article>
-                )
-              }) : <p className="fn-empty">دارایی ثبت نشده.</p>}
+              {portfolio.items?.length ? (
+                <div className="fn-pf-sum">
+                  <div><small>ارزش روز سبد</small><b title={faMoney(pf.total)}>{short(pf.total)}</b></div>
+                  <div className={pf.pnl >= 0 ? 'pos' : 'neg'}><small>سود / زیان</small><b>{pf.pnl >= 0 ? '+' : '−'}{short(Math.abs(pf.pnl))}</b>{pf.cost ? <em>{pf.pnl >= 0 ? '+' : '−'}{fa(Math.abs(Math.round((pf.pnl / pf.cost) * 1000) / 10))}٪</em> : null}</div>
+                  <p className="fn-note">نرخ‌ها از بازار: {rates.price_dollar_rl ? `دلار ${short(rates.price_dollar_rl, false)}` : 'دلار —'}{rates.price_eur ? ` · یورو ${short(rates.price_eur, false)}` : ''}</p>
+                </div>
+              ) : null}
+              {portfolio.items?.length ? pf.rows.map((row) => (
+                <article key={`${row.item.assetType}-${row.item.symbol}`} className="fn-row fn-pf-row">
+                  <div>
+                    <b>{row.label}</b>
+                    <small>{ASSET_FA[row.item.assetType] || row.item.assetType} · {fa(row.item.quantity)} واحد{row.native ? ` · ${row.native}` : ''}</small>
+                  </div>
+                  <span className={`amt ${row.pnl >= 0 ? 'pos' : 'neg'}`}>{row.pnl ? `${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl), false)}` : ''}</span>
+                  <b title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</b>
+                </article>
+              )) : <p className="fn-empty">دارایی ثبت نشده.</p>}
               <div className="fn-alerts">
                 <div className="fn-head"><h2>هشدار قیمت</h2><Drawer label="هشدار" title="هشدار قیمت">
 <form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/investments/alerts', { symbol: f.get('symbol'), condition: f.get('condition'), value: Number(f.get('value')) }, 'هشدار ثبت شد.'); e.currentTarget.reset() }}>
@@ -575,6 +719,12 @@ export function FinanceReact({ Nav }) {
             </section>
           </div>
 
+          </>
+        ) : null}
+
+        {tab === 'fun' ? (
+          <>
+          <p className="fn-note fn-fun-note">پوکر و بت جدا از درآمد و هزینه‌اند و در آمار ماه حساب نمی‌شوند.</p>
           <div className="fn-2">
             <section className="fn-glass fn-list">
               <div className="fn-head"><h2>پوکر</h2><Drawer label="جلسه" title="جلسهٔ پوکر">
@@ -664,24 +814,55 @@ export function FinanceReact({ Nav }) {
         ) : null}
       </div>
 
+      {report ? (
+        <div className="fn-modal" onClick={() => setReport(null)}>
+          <div className="fn-glass fn-report" onClick={(e) => e.stopPropagation()}>
+            <div className="fn-head"><h2>گزارش ماهانه</h2>
+              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, -1))} aria-label="ماه قبل">›</button>
+              <b>{monthFa(report.k)}</b>
+              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, 1))} aria-label="ماه بعد">‹</button>
+            </div>
+            <pre>{report.text || 'در حال ساخت…'}</pre>
+            <div className="fn-report-ops">
+              <button type="button" className="fn-save" onClick={sendReport}>ارسال به تلگرام</button>
+              <button type="button" className="fn-link" onClick={() => { try { navigator.clipboard.writeText(report.text); setNotice('کپی شد.') } catch {} }}>کپی متن</button>
+              <button type="button" className="fn-link" onClick={() => setReport(null)}>بستن</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {editing ? (
         <div className="fn-modal" onClick={() => setEditing(null)}>
           <form className="fn-glass fn-form" onClick={(e) => e.stopPropagation()} onSubmit={(e) => {
             e.preventDefault()
             const f = new FormData(e.currentTarget)
-            const body = editing.type === 'account'
+            const body = editing.type === 'debt'
+              ? { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), dueDate: f.get('dueDate') || null, note: f.get('note') }
+              : editing.type === 'account'
               ? { name: f.get('name'), type: f.get('type'), balance: Number(f.get('amount')), archived: f.get('archived') === 'on' }
               : editing.type === 'poker'
               ? { date: f.get('date'), buyIn: Number(f.get('buyIn')), cashOut: Number(f.get('cashOut')), location: f.get('location'), note: f.get('note') }
               : editing.type === 'bet'
               ? { date: f.get('date'), start: Number(f.get('start') || 0), deposit: Number(f.get('deposit') || 0), withdraw: Number(f.get('withdraw') || 0), balance: Number(f.get('balance')), note: f.get('note') }
               : { title: f.get('title'), amount: Number(f.get('amount')), category: f.get('category'), kind: f.get('kind'), account: f.get('account'), date: f.get('date'), tags: f.get('tags') }
-            const path = editing.type === 'account' ? 'accounts' : editing.type === 'poker' ? 'poker' : editing.type === 'bet' ? 'bet' : 'transactions'
+            const path = editing.type === 'debt' ? 'debts' : editing.type === 'account' ? 'accounts' : editing.type === 'poker' ? 'poker' : editing.type === 'bet' ? 'bet' : 'transactions'
             send(`/api/${path}/${editing.item.id}`, body, 'ذخیره شد.', 'PATCH')
             setEditing(null)
           }}>
-            <h2>ویرایش {editing.type === 'account' ? 'حساب' : editing.type === 'poker' ? 'جلسهٔ پوکر' : editing.type === 'bet' ? 'روز بت' : 'تراکنش'}</h2>
-            {editing.type === 'account' ? (
+            <h2>ویرایش {editing.type === 'debt' ? 'بدهی / طلب' : editing.type === 'account' ? 'حساب' : editing.type === 'poker' ? 'جلسهٔ پوکر' : editing.type === 'bet' ? 'روز بت' : 'تراکنش'}</h2>
+            {editing.type === 'debt' ? (
+              <>
+                <input name="person" required defaultValue={editing.item.person} placeholder="نام شخص" />
+                <div>
+                  <select name="type" defaultValue={editing.item.type}><option value="payable">بدهی من</option><option value="receivable">طلب من</option></select>
+                  <select name="currency" defaultValue={editing.item.currency || 'IRR'}><option value="IRR">ریال</option><option value="USD">دلار</option></select>
+                </div>
+                <input name="amount" required inputMode="numeric" defaultValue={editing.item.amount} placeholder="مبلغ باقی‌مانده" />
+                <JalaliDateInput name="dueDate" defaultValue={editing.item.dueDate || ''} />
+                <input name="note" defaultValue={editing.item.note} placeholder="یادداشت" />
+              </>
+            ) : editing.type === 'account' ? (
               <>
                 <input name="name" required defaultValue={editing.item.name} />
                 <div>
