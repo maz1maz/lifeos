@@ -288,8 +288,8 @@ function TransportBar({ item, playing, setPlaying, position, setPosition, onSave
 
         <div className="md-tmeta">
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-            <span className="md-label">{item ? (item.source === 'youtube' ? 'YOUTUBE' : 'SPOTIFY') : 'STANDBY'}</span>
-            <span className="md-label" style={{ opacity: 0.6 }}>{item ? (ytId ? 'VIDEO' : 'TRACK') : 'NO SIGNAL'}</span>
+            <span className="md-label">{item ? (item.source === 'youtube' ? 'یوتیوب' : 'اسپاتیفای') : 'آماده'}</span>
+            <span className="md-label" style={{ opacity: 0.6 }}>{item ? (ytId ? 'ویدیو' : 'آهنگ') : 'چیزی پخش نمی‌شه'}</span>
           </div>
           <h3>{item?.title || 'دستگاه آماده‌به‌کار است'}</h3>
           <p>{item?.artist || 'یک قطعه را برای پخش انتخاب کنید'}</p>
@@ -582,16 +582,16 @@ export function MediaReact({ Nav, initialTab }) {
       <div className="md-page">
         <header className="md-hero">
           <div>
-            <div className="md-label">LIFEOS · MEDIA DESK</div>
-            <h1>میزِ رسانه</h1>
+            
+            <h1>رسانه</h1>
             <p>پخش، تاریخچه، پلی‌لیست‌ها و آمارِ اسپاتیفای و یوتیوب در یک دستگاه — از دفتر واقعی LifeOS، بدون کاتالوگ نمایشی.</p>
           </div>
           <div className="md-units">
             {[
-              { id: 'desk', title: 'میز', sub: 'نمای کلی', code: 'UNIT 00 · DESK' },
-              { id: 'spotify', title: 'اسپاتیفای', sub: spOn ? 'متصل' : (integ?.spotify?.configured ? 'آمادهٔ اتصال' : 'پیکربندی نشده'), code: 'UNIT 01 · AUDIO' },
-              { id: 'youtube', title: 'یوتیوب', sub: ytOn ? 'متصل' : (integ?.youtube?.configured ? 'آمادهٔ اتصال' : 'پیکربندی نشده'), code: 'UNIT 02 · VIDEO' },
-              { id: 'life', title: 'تاریخچهٔ زندگی', sub: `${fa(life.length)} ثبت`, code: 'UNIT 09 · LOG' },
+              { id: 'desk', title: 'میز', sub: 'نمای کلی', code: '' },
+              { id: 'spotify', title: 'اسپاتیفای', sub: spOn ? 'متصل' : (integ?.spotify?.configured ? 'آمادهٔ اتصال' : 'پیکربندی نشده'), code: '' },
+              { id: 'youtube', title: 'یوتیوب', sub: ytOn ? 'متصل' : (integ?.youtube?.configured ? 'آمادهٔ اتصال' : 'پیکربندی نشده'), code: '' },
+              { id: 'life', title: 'تاریخچهٔ زندگی', sub: `${fa(life.length)} ثبت`, code: '' },
             ].map((u) => (
               <button key={u.id} type="button" className={`md-unit${unit === u.id ? ' on' : ''}`} onClick={() => setUnit(u.id)}>
                 <div className="md-label">
@@ -608,7 +608,7 @@ export function MediaReact({ Nav, initialTab }) {
           <div className="md-strip bad">
             <button type="button" className="md-btn" onClick={() => setNotice('')}>×</button>
             <strong style={{ flex: 1 }}>{notice}</strong>
-            <span className="md-label">ERR</span>
+            <span className="md-label">خطا</span>
           </div>
         ) : (
           <div className="md-strip">
@@ -616,7 +616,7 @@ export function MediaReact({ Nav, initialTab }) {
             <p style={{ flex: 1, margin: 0, fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'var(--mute)' }}>
               {log[0] ? `${log[0].t}  —  ${log[0].at}` : 'آماده: پخش روی نوار پایین، ثبت در دفتر با دکمهٔ LifeOS.'}
             </p>
-            <span className="md-label">LOG</span>
+            <span className="md-label">گزارش</span>
           </div>
         )}
 
@@ -656,7 +656,7 @@ export function MediaReact({ Nav, initialTab }) {
         ) : null}
 
         {unit === 'life' ? (
-          <Panel code="UNIT 09 / LIFE" title="تاریخچهٔ زندگی" hint={`${fa(lifeShown.length)} مورد`}>
+          <Panel code="" title="تاریخچهٔ زندگی" hint={`${fa(lifeShown.length)} مورد`}>
             <div style={{ display: 'flex', gap: 6, padding: '10px 14px' }}>
               {Object.entries(MEDIA_KIND_LABELS).map(([k, lab]) => (
                 <button key={k} type="button" className={`md-btn${lifeKind === k ? ' on' : ''}`} onClick={() => setLifeKind(k)}>{lab}</button>
@@ -685,7 +685,7 @@ export function MediaReact({ Nav, initialTab }) {
         ) : (
           <div className="md-grid">
             <Panel
-              code={unit === 'youtube' ? 'UNIT 03 / WATCH' : 'UNIT 03 / FEED'}
+              code={unit === 'youtube' ? '' : ''}
               title={hits.length ? 'نتیجهٔ جستجو' : (unit === 'youtube' ? 'آخرها دیده‌شده' : 'آخرها پخش‌شده')}
               hint={`${fa(list.length)} مورد · ${unit === 'youtube' ? (ytOn ? 'همگام از حساب' : 'اتصال لازم است') : (spOn ? 'همگام از حساب' : 'اتصال یا جستجو')}`}
             >
@@ -714,7 +714,7 @@ export function MediaReact({ Nav, initialTab }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {unit !== 'youtube' && spotify.artists.length ? (
-                <Panel code="UNIT 04 / ARTISTS" title="بالاترین‌ها">
+                <Panel code="" title="بالاترین‌ها">
                   <div className="md-artists">
                     {spotify.artists.map((a) => (
                       <a key={a.id || a.name} className="md-artist" href={a.url || '#'} target="_blank" rel="noreferrer">
@@ -726,14 +726,14 @@ export function MediaReact({ Nav, initialTab }) {
                 </Panel>
               ) : null}
 
-              <Panel code="UNIT 06 / PLAYLISTS" title="لیست‌های پخش" hint={fa(playlists.length)}>
+              <Panel code="" title="لیست‌های پخش" hint={fa(playlists.length)}>
                 {!playlists.length ? (
                   <div className="md-empty"><b>قفسه خالی است</b>لیستی از حساب متصل نیامد.</div>
                 ) : (
                   <div className="md-pls">
                     {playlists.map((pl) => (
                       <button key={pl.id || pl.title || pl.name} type="button" className="md-pl" onClick={() => openPlaylist(pl, unit === 'youtube' ? 'youtube' : 'spotify')}>
-                        <div className="md-label">{pl.owner || pl.channel || 'PLAYLIST'}</div>
+                        <div className="md-label">{pl.owner || pl.channel || 'پلی‌لیست'}</div>
                         <b>{pl.title || pl.name}</b>
                         <small>{pl.count || pl.tracks || pl.itemCount ? `${fa(pl.count || pl.tracks || pl.itemCount)} مورد` : ''}</small>
                       </button>
@@ -743,7 +743,7 @@ export function MediaReact({ Nav, initialTab }) {
               </Panel>
 
               {unit === 'youtube' ? (
-                <Panel code="UNIT 05 / SUBSCRIPTIONS" title="اشتراک‌ها" hint={fa(youtube.subscriptions.length)}>
+                <Panel code="" title="اشتراک‌ها" hint={fa(youtube.subscriptions.length)}>
                   {!youtube.subscriptions.length ? (
                     <div className="md-empty"><b>قفسه خالی است</b>اشتراکی از حساب متصل نیامد.</div>
                   ) : (
@@ -766,16 +766,16 @@ export function MediaReact({ Nav, initialTab }) {
         )}
 
         <div style={{ marginTop: 16 }}>
-          <Panel code="UNIT 07 / METER" title="آمارِ سی‌روزِ اخیر" hint="محاسبه‌شده از تاریخچهٔ LifeOS" tone="amber">
+          <Panel code="" title="آمارِ سی‌روزِ اخیر" hint="محاسبه‌شده از تاریخچهٔ LifeOS" tone="amber">
             <div className="md-stats">
-              <div className="md-stat"><div className="md-label">PLAYS · پخش</div><b>{fa(stats.n30)}</b><small>در سی روز اخیر</small></div>
-              <div className="md-stat"><div className="md-label">MINUTES · دقیقه</div><b className="amber">{fa(stats.minutes)}</b><small>برآورد از ثبت‌ها</small></div>
-              <div className="md-stat"><div className="md-label">WATCHED · یوتیوب</div><b>{fa(stats.nYt)}</b><small>اسپاتیفای {fa(stats.nSp)}</small></div>
-              <div className="md-stat"><div className="md-label">STREAK · پیاپی</div><b className="signal">{fa(stats.streak)}</b><small>کل دفتر: {fa(stats.nAll)}</small></div>
+              <div className="md-stat"><div className="md-label">پخش</div><b>{fa(stats.n30)}</b><small>در سی روز اخیر</small></div>
+              <div className="md-stat"><div className="md-label">دقیقه</div><b className="amber">{fa(stats.minutes)}</b><small>برآورد از ثبت‌ها</small></div>
+              <div className="md-stat"><div className="md-label">یوتیوب</div><b>{fa(stats.nYt)}</b><small>اسپاتیفای {fa(stats.nSp)}</small></div>
+              <div className="md-stat"><div className="md-label">پیاپی</div><b className="signal">{fa(stats.streak)}</b><small>کل دفتر: {fa(stats.nAll)}</small></div>
             </div>
             <div style={{ borderTop: '1px solid rgba(36,72,92,.6)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 18px 0', alignItems: 'baseline' }}>
-                <p className="md-label" style={{ margin: 0 }}>HOURS · پراکندگی ساعت ثبت</p>
+                <p className="md-label" style={{ margin: 0 }}>پراکندگی ساعت ثبت</p>
                 <p style={{ margin: 0, fontFamily: 'ui-monospace, monospace', fontSize: 11, color: 'var(--mute)' }}>
                   پرتکرارترین صدا: <span style={{ color: 'var(--amber)' }}>{stats.topArtist}</span> — {fa(stats.topShare)}٪
                 </p>
@@ -791,7 +791,7 @@ export function MediaReact({ Nav, initialTab }) {
             </div>
             {stats.top.length ? (
               <div style={{ padding: '4px 8px 12px' }}>
-                <div className="md-label" style={{ padding: '0 10px 6px' }}>UNIT 08 / SUGGEST · از تاریخچهٔ خودتان</div>
+                <div className="md-label" style={{ padding: '0 10px 6px' }}>از تاریخچهٔ خودتان</div>
                 <div className="md-pls">
                   {stats.top.map(([title, n]) => (
                     <button key={title} type="button" className="md-pl" onClick={() => { setQ(title); cueItem({ title, source: 'spotify', artist: '', url: '', cover: '', id: title }) }}>
@@ -824,7 +824,7 @@ export function MediaReact({ Nav, initialTab }) {
             <span className="md-screw r" aria-hidden="true" />
             <header className="md-modal-head">
               <div>
-                <div className="md-label">UNIT 06 / PLAYLIST · {plView.source === 'youtube' ? 'یوتیوب' : 'اسپاتیفای'}</div>
+                <div className="md-label">{plView.source === 'youtube' ? 'یوتیوب' : 'اسپاتیفای'}</div>
                 <h2>{plView.pl.title || plView.pl.name}</h2>
                 <p className="md-modal-sub">
                   {[

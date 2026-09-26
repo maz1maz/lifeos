@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import './finance.css'
 import { jalaliShort, jalaliDay } from './jalali'
+import { JalaliDateInput } from './jdate';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -229,7 +230,7 @@ export function FinanceReact({ Nav }) {
             <div className="fn-mark">💠</div>
             <div>
               <p>نمای ماهانه · دادهٔ واقعی LifeOS</p>
-              <h1>دستیار مالی شخصی</h1>
+              <h1>مالی</h1>
             </div>
           </div>
           <nav className="fn-tabs">
@@ -305,7 +306,7 @@ export function FinanceReact({ Nav }) {
                 {accounts.filter((a) => !a.archived).map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}
               </select>
               <input name="tags" placeholder="تگ‌ها، با ویرگول" />
-              <input name="date" type="date" defaultValue={isoToday()} />
+              <JalaliDateInput name="date" defaultValue={isoToday()} />
               <button className="fn-save">ثبت تراکنش</button>
             </form>
             <section className="fn-glass fn-list">
@@ -379,7 +380,7 @@ export function FinanceReact({ Nav }) {
                 </div>
                 <div>
                   <input name="amount" required inputMode="numeric" placeholder="مبلغ" />
-                  <input name="date" type="date" defaultValue={isoToday()} />
+                  <JalaliDateInput name="date" defaultValue={isoToday()} />
                 </div>
                 <button className="fn-save">ثبت انتقال</button>
               </form>
@@ -441,7 +442,7 @@ export function FinanceReact({ Nav }) {
                   <select name="currency"><option value="IRR">ریال</option><option value="USD">دلار</option></select>
                 </div>
                 <input name="amount" required inputMode="numeric" placeholder="مبلغ" />
-                <input name="dueDate" type="date" />
+                <JalaliDateInput name="dueDate" />
                 <input name="note" placeholder="یادداشت" />
                 <button className="fn-save">افزودن</button>
               </form>
@@ -476,7 +477,7 @@ export function FinanceReact({ Nav }) {
                   <input name="price" required={!face} disabled={face} placeholder={face ? 'قیمت لازم نیست' : 'قیمت واحد'} />
                 </div>
                 <input name="fee" inputMode="decimal" placeholder="کارمزد" />
-                <input name="date" type="date" defaultValue={isoToday()} />
+                <JalaliDateInput name="date" defaultValue={isoToday()} />
                 <input name="note" placeholder="یادداشت" />
                 <button className="fn-save">ثبت سرمایه‌گذاری</button>
               </form>
@@ -531,7 +532,7 @@ export function FinanceReact({ Nav }) {
                 )
               }) : <p className="fn-empty">جلسه‌ای در این ماه نیست.</p>}
               <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={submitPoker}>
-                <input name="date" type="date" defaultValue={isoToday()} />
+                <JalaliDateInput name="date" defaultValue={isoToday()} />
                 <div>
                   <input name="buyIn" required inputMode="numeric" placeholder="ورودی (ریال)" />
                   <input name="cashOut" required inputMode="numeric" placeholder="خروجی (ریال)" />
@@ -574,7 +575,7 @@ export function FinanceReact({ Nav }) {
                 </article>
               )) : <p className="fn-empty">روزی برای این ماه ثبت نشده.</p>}
               <form className="fn-form" style={{ marginTop: 12, padding: 0 }} onSubmit={submitBet} key={bet.suggestedStartDate || 'bet-form'}>
-                <input name="date" type="date" defaultValue={isoToday()} />
+                <JalaliDateInput name="date" defaultValue={isoToday()} />
                 <div>
                   <input name="start" inputMode="decimal" defaultValue={bet.suggestedStart || 0} placeholder="مبلغی که داشتم ($)" />
                   <input name="balance" required inputMode="decimal" placeholder="موجودی پایان روز ($)" />
@@ -620,7 +621,7 @@ export function FinanceReact({ Nav }) {
               </>
             ) : editing.type === 'poker' ? (
               <>
-                <input name="date" type="date" required defaultValue={editing.item.date} />
+                <JalaliDateInput name="date" required defaultValue={editing.item.date} />
                 <div>
                   <input name="buyIn" required inputMode="numeric" defaultValue={editing.item.buyIn} placeholder="ورودی" />
                   <input name="cashOut" required inputMode="numeric" defaultValue={editing.item.cashOut} placeholder="خروجی" />
@@ -630,7 +631,7 @@ export function FinanceReact({ Nav }) {
               </>
             ) : editing.type === 'bet' ? (
               <>
-                <input name="date" type="date" required defaultValue={editing.item.date} />
+                <JalaliDateInput name="date" required defaultValue={editing.item.date} />
                 <div>
                   <input name="start" inputMode="decimal" defaultValue={editing.item.start} placeholder="مبلغی که داشتم" />
                   <input name="balance" required inputMode="decimal" defaultValue={editing.item.balance} placeholder="موجودی" />
@@ -650,7 +651,7 @@ export function FinanceReact({ Nav }) {
                   <input name="category" defaultValue={editing.item.category} />
                 </div>
                 <select name="account" defaultValue={editing.item.account}>{accounts.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}</select>
-                <input name="date" type="date" defaultValue={editing.item.date} />
+                <JalaliDateInput name="date" defaultValue={editing.item.date} />
                 <input name="tags" defaultValue={(editing.item.tags || []).join(', ')} />
               </>
             )}

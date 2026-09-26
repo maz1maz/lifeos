@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import './contacts.css';
 import { jalaliShort } from './jalali';
+import { JalaliDateInput } from './jdate';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -167,22 +168,22 @@ function Composer({ editing, onCloseEdit, onSaved }) {
       <div className="pb-composer-line" style={{ background: `linear-gradient(90deg, transparent, ${rel.hex}, transparent)` }} />
       <div className="pb-composer-head">
         <div>
-          <div className="pb-mono pb-cyan">{editing ? 'EDIT / ویرایش' : 'NEW / مخاطب تازه'}</div>
+          <div className="pb-mono pb-cyan">{editing ? 'ویرایش' : 'مخاطب تازه'}</div>
           <h2>{editing ? 'ویرایش کارت' : 'افزودن مخاطب'}</h2>
         </div>
         <span className="pb-avatar sm" style={{ background: `hsl(${hueOf(form.name || 'ن')} 45% 28%)` }}>{(form.name || '؟').trim().charAt(0)}</span>
       </div>
       <div className="pb-composer-body">
-        <label className="pb-mono pb-mute">NAME / نام</label>
+        <label className="pb-mono pb-mute">نام</label>
         <input ref={nameRef} value={form.name} onChange={e => set('name', e.target.value)} placeholder="نام و نام خانوادگی" maxLength={60} />
-        <label className="pb-mono pb-mute">GROUP / نسبت</label>
+        <label className="pb-mono pb-mute">نسبت</label>
         <div className="pb-rel-row">
           {REL_KEYS.map(k => {
             const r = REL[k];
             return <button key={k} type="button" className={form.relationship === k ? 'on' : ''} onClick={() => set('relationship', k)} style={form.relationship === k ? { borderColor: r.hex, color: r.hex } : undefined}>{r.label}</button>;
           })}
         </div>
-        <label className="pb-mono pb-mute">PHONE / تلفن</label>
+        <label className="pb-mono pb-mute">تلفن</label>
         <div className="pb-phone-rows">
           {form.phones.map((p, i) => (
             <div className="pb-phone-row" key={i}>
@@ -192,17 +193,17 @@ function Composer({ editing, onCloseEdit, onSaved }) {
           ))}
         </div>
         {form.phones.length < 5 && <button type="button" className="pb-ghost pb-phone-add" onClick={addPhoneRow}>+ شماره جدید</button>}
-        <label className="pb-mono pb-mute">EMAIL / ایمیل</label>
+        <label className="pb-mono pb-mute">ایمیل</label>
         <input value={form.email} onChange={e => set('email', e.target.value)} placeholder="name@mail.com" dir="ltr" />
         <div className="pb-2col">
-          <div><label className="pb-mono pb-mute">COMPANY / شرکت</label><input value={form.company} onChange={e => set('company', e.target.value)} placeholder="سازمان" /></div>
-          <div><label className="pb-mono pb-mute">TITLE / سمت</label><input value={form.jobTitle} onChange={e => set('jobTitle', e.target.value)} placeholder="عنوان شغلی" /></div>
+          <div><label className="pb-mono pb-mute">شرکت</label><input value={form.company} onChange={e => set('company', e.target.value)} placeholder="سازمان" /></div>
+          <div><label className="pb-mono pb-mute">سمت</label><input value={form.jobTitle} onChange={e => set('jobTitle', e.target.value)} placeholder="عنوان شغلی" /></div>
         </div>
         <div className="pb-2col">
-          <div><label className="pb-mono pb-mute">BIRTHDAY / تولد</label><input type="date" value={form.birthday} onChange={e => set('birthday', e.target.value)} /></div>
-          <div><label className="pb-mono pb-mute">FOLLOW-UP / پیگیری</label><input type="date" value={form.followUpDate} onChange={e => set('followUpDate', e.target.value)} /></div>
+          <div><label className="pb-mono pb-mute">تولد</label><JalaliDateInput value={form.birthday} onChange={v => set('birthday', v)} /></div>
+          <div><label className="pb-mono pb-mute">پیگیری</label><JalaliDateInput value={form.followUpDate} onChange={v => set('followUpDate', v)} /></div>
         </div>
-        <label className="pb-mono pb-mute">TAGS / برچسب</label>
+        <label className="pb-mono pb-mute">برچسب</label>
         <div className="pb-tag-input">
           {form.tags.map(t => <span key={t} className="pb-tag-chip">#{t}<button type="button" aria-label={`حذف ${t}`} onClick={() => setForm(f => ({ ...f, tags: f.tags.filter(x => x !== t) }))}><X size={12} /></button></span>)}
           <input value={tagDraft} onChange={e => setTagDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagDraft); } }} onBlur={() => addTag(tagDraft)} placeholder={form.tags.length ? '' : 'Enter برای برچسب'} />
@@ -211,7 +212,7 @@ function Composer({ editing, onCloseEdit, onSaved }) {
           <span><Star size={15} /> علاقه‌مندی — دسترسی سریع</span>
           <span className={`pb-switch ${form.favorite ? 'on' : ''}`}><i /></span>
         </button>
-        <label className="pb-mono pb-mute">NOTES / یادداشت</label>
+        <label className="pb-mono pb-mute">یادداشت</label>
         <textarea rows={4} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="نکتهٔ شخصی…" />
         {error && <p className="pb-error">{error}</p>}
         <div className="pb-composer-actions">
@@ -231,13 +232,13 @@ function Inspector({ contact, all, query, logs, onClose, onEdit, onFav, onDelete
     const max = Math.max(1, ...byRel.map(r => r.count));
     return (
       <div className="pb-inspector idle">
-        <div className="pb-mono pb-cyan">DIRECTORY / نمای کلی</div>
+        <div className="pb-mono pb-cyan">نمای کلی</div>
         <div className="pb-stat-grid">
           {[{ k: 'مخاطب', v: all.length }, { k: 'علاقه', v: all.filter(c => c.favorite).length }, { k: 'پیگیری', v: due }].map(s => (
             <div key={s.k}><b>{faNum(s.v)}</b><small>{s.k}</small></div>
           ))}
         </div>
-        <div className="pb-mono pb-mute">GROUPS / نسبت‌ها</div>
+        <div className="pb-mono pb-mute">نسبت‌ها</div>
         <ul className="pb-bars">{byRel.map(r => (
           <li key={r.key}><button type="button" onClick={() => onFocusRel(r.key)}>{r.label}</button><span className="pb-bar"><i style={{ width: `${Math.round((r.count / max) * 100)}%`, background: r.hex }} /></span><em>{r.count}</em></li>
         ))}</ul>
@@ -255,7 +256,7 @@ function Inspector({ contact, all, query, logs, onClose, onEdit, onFav, onDelete
     <article className="pb-inspector open">
       <div className="pb-insp-head" style={{ background: `linear-gradient(160deg, ${r.hex}26, transparent 65%)` }}>
         <div className="pb-insp-top">
-          <span className="pb-mono" style={{ color: r.hex }}>CARD / {r.label}</span>
+          <span className="pb-mono" style={{ color: r.hex }}>{r.label}</span>
           <button type="button" onClick={onClose} aria-label="بستن"><X size={14} /></button>
         </div>
         <div className="pb-insp-id">
@@ -278,7 +279,7 @@ function Inspector({ contact, all, query, logs, onClose, onEdit, onFav, onDelete
             <Phone size={13} />
             {splitPhones(contact.phone).map((p, i, arr) => (
               <React.Fragment key={i}>
-                <a className="pb-phone-link" href={telHref(p)}>{p}</a>
+                <a className="pb-phone-link" href={telHref(p)}><bdi dir="ltr">{p}</bdi></a>
                 {i < arr.length - 1 && <span className="pb-mute"> · </span>}
               </React.Fragment>
             ))}
@@ -291,7 +292,7 @@ function Inspector({ contact, all, query, logs, onClose, onEdit, onFav, onDelete
         {contact.tags.length > 0 && <div className="pb-tags">{contact.tags.map(t => <span key={t} style={{ color: r.hex, borderColor: `${r.hex}55`, background: r.wash }}>#{t}</span>)}</div>}
         {contact.notes && <p className="pb-notes">{contact.notes}</p>}
 
-        <div className="pb-mono pb-mute">LOG / ثبت تعامل</div>
+        <div className="pb-mono pb-mute">ثبت تعامل</div>
         <LogForm onSubmit={body => onLog(contact, body)} />
         <ul className="pb-logs">
           {(logs || []).length === 0 && <li className="pb-mute">هنوز تعاملی ثبت نشده.</li>}
@@ -323,7 +324,7 @@ function LogForm({ onSubmit }) {
     <form className="pb-log-form" onSubmit={send}>
       <select value={type} onChange={e => setType(e.target.value)}>{LOG_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}</select>
       <input value={note} onChange={e => setNote(e.target.value)} placeholder="یادداشت کوتاه" />
-      <input type="date" value={next} onChange={e => setNext(e.target.value)} title="پیگیری بعدی" />
+      <JalaliDateInput value={next} onChange={v => setNext(v)} title="پیگیری بعدی" />
       <button type="submit" disabled={busy}>{busy ? '…' : 'ثبت'}</button>
     </form>
   );
@@ -485,7 +486,7 @@ export function ContactsReact({ Nav }) {
         <div className="pb-grid">
           <div className={`pb-rail ${composerOpen ? 'open' : ''}`}>
             <div className="pb-rail-mobile">
-              <span className="pb-mono pb-mute">COMPOSER</span>
+              <span className="pb-mono pb-mute">نوشتن</span>
               <button type="button" aria-label="بستن" onClick={() => setComposerOpen(false)}><X size={15} /></button>
             </div>
             <Composer editing={editing} onCloseEdit={() => setEditing(null)} onSaved={fresh => { setItems(fresh); setEditing(null); setComposerOpen(false); }} />
@@ -514,7 +515,7 @@ export function ContactsReact({ Nav }) {
                 </div>
               )}
               <div className="pb-filter-row">
-                <span className="pb-mono pb-mute">{faNum(visible.length)} / {faNum(items.length)} CARD</span>
+                <span className="pb-mono pb-mute">{faNum(visible.length)} از {faNum(items.length)} مخاطب</span>
                 {filtersOn && <button type="button" className="pb-clear" onClick={() => { setQuery(''); setRelFilter(null); setOnlyFav(false); setLetter(null); }}>پاک کردن فیلتر</button>}
               </div>
             </div>
@@ -551,7 +552,7 @@ export function ContactsReact({ Nav }) {
                             <h3><Highlight text={c.name} query={query} />{c.favorite && <Star size={12} className="amber" fill="currentColor" />}</h3>
                             <span className="pb-rel" style={{ color: r.hex, background: r.wash }}>{r.label}</span>
                           </header>
-                          <p>{[c.jobTitle, c.company, c.phone].filter(Boolean).join(' · ') || '—'}</p>
+                          <p>{[c.jobTitle, c.company].filter(Boolean).join(' · ')}{(c.jobTitle || c.company) && c.phone ? ' · ' : ''}{splitPhones(c.phone).map((ph, i) => <React.Fragment key={i}>{i ? '، ' : ''}<bdi dir="ltr" className="pb-num">{ph}</bdi></React.Fragment>)}{!c.jobTitle && !c.company && !c.phone ? '—' : null}</p>
                           {due && <small className="due">پیگیری سررسید شده</small>}
                         </div>
                         <div className="pb-card-ops" onClick={e => e.stopPropagation()}>

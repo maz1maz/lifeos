@@ -4,6 +4,7 @@ import {
   Clock, Hash, Inbox, ListChecks, Pencil, Plus, Repeat, Search, Sun, Trash2, X
 } from 'lucide-react';
 import './planner.css';
+import { JalaliDateInput } from './jdate';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -128,7 +129,7 @@ export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
           </label>
           {!form.loose && (
             <div className="plnr-2col">
-              <div><label>سررسید</label><input type="date" value={form.date} onChange={e => set('date', e.target.value)} /></div>
+              <div><label>سررسید</label><JalaliDateInput value={form.date} onChange={v => set('date', v)} /></div>
               <div><label>ساعت</label><input type="time" value={form.startTime} onChange={e => set('startTime', e.target.value)} /></div>
             </div>
           )}
@@ -142,7 +143,7 @@ export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
               <div><b>یادآوری</b><small>یک یادآوری جدا روی تقویم می‌سازد</small></div>
               <button type="button" className={`plnr-switch ${form.reminderOn ? 'on' : ''}`} onClick={() => set('reminderOn', !form.reminderOn)} role="switch" aria-checked={form.reminderOn}><i /></button>
             </div>
-            {form.reminderOn && <div className="plnr-2col"><div><label>تاریخ یادآوری</label><input type="date" value={form.reminderDate} onChange={e => set('reminderDate', e.target.value)} /></div><div><label>ساعت</label><input type="time" value={form.reminderTime} onChange={e => set('reminderTime', e.target.value)} /></div></div>}
+            {form.reminderOn && <div className="plnr-2col"><div><label>تاریخ یادآوری</label><JalaliDateInput value={form.reminderDate} onChange={v => set('reminderDate', v)} /></div><div><label>ساعت</label><input type="time" value={form.reminderTime} onChange={e => set('reminderTime', e.target.value)} /></div></div>}
           </div>
         </div>
         <footer>
@@ -293,7 +294,7 @@ export function PlannerReact({ Nav }) {
           <div className="plnr-hero-title">
             <div className="plnr-mark"><ClipboardList size={24} strokeWidth={2} /></div>
             <div>
-              <h1>پلنر حرفه‌ای</h1>
+              <h1>برنامه‌ریز</h1>
               <p className="kicker">کارها و یادآوری‌ها، با ذخیره‌سازی واقعی در LifeOS</p>
             </div>
           </div>

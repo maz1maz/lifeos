@@ -4,6 +4,7 @@ import {
   Loader2, Pencil, Plus, Search, Star, Trash2, Upload, X
 } from 'lucide-react';
 import './documents.css';
+import { JalaliDateInput } from './jdate';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -201,8 +202,8 @@ function Composer({ editing, onCloseEdit, onSaved, toast }) {
         {form.type === 'سایر' && <input value={form.customType} onChange={e => set('customType', e.target.value)} placeholder="نوع سفارشی سند…" />}
         <input value={form.docNumber} onChange={e => set('docNumber', e.target.value)} placeholder="شماره / شناسه سند" dir="ltr" />
         <div className="dm-2col">
-          <label><span>تاریخ صدور</span><input type="date" value={form.issueDate} onChange={e => set('issueDate', e.target.value)} /></label>
-          <label><span>تاریخ انقضا</span><input type="date" value={form.expiryDate} onChange={e => set('expiryDate', e.target.value)} /></label>
+          <label><span>تاریخ صدور</span><JalaliDateInput value={form.issueDate} onChange={v => set('issueDate', v)} /></label>
+          <label><span>تاریخ انقضا</span><JalaliDateInput value={form.expiryDate} onChange={v => set('expiryDate', v)} /></label>
         </div>
         <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="برچسب‌ها (با ویرگول جدا کنید)" />
         <textarea rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="توضیحات" />
@@ -252,7 +253,7 @@ function Detail({ doc, query, onClose, onEdit, onFav, onDelete }) {
       <article className="dm-dialog dm-glass" onClick={e => e.stopPropagation()}>
         <div className="dm-dialog-head">
           <div>
-            <div className="dm-mono dm-cyan">DOCUMENT / {doc.type}</div>
+            <div className="dm-mono dm-cyan">{doc.type}</div>
             <h2><Highlight text={doc.title} query={query} />{doc.favorite && <Star size={16} className="amber" fill="currentColor" />}</h2>
           </div>
           <button type="button" className="dm-ghost" onClick={onClose} aria-label="بستن"><X size={16} /></button>
@@ -262,7 +263,7 @@ function Detail({ doc, query, onClose, onEdit, onFav, onDelete }) {
         <div className="dm-fields">
           <div><b>نوع</b>{doc.type}</div>
           <div><b>دسته</b>{doc.category}</div>
-          <div><b>شماره سند</b>{doc.docNumber || '—'}</div>
+          <div><b>شماره سند</b>{doc.docNumber ? <bdi dir="ltr">{doc.docNumber}</bdi> : '—'}</div>
           <div><b>صدور</b>{toFaDate(doc.issueDate)}</div>
           <div><b>انقضا</b>{exp ? <span className={`dm-exp ${exp.tone}`}>{exp.text}</span> : '—'}</div>
           <div><b>فایل</b>{doc.fileName || (doc.fileUrl ? 'پیوست' : 'بدون فایل')}{doc.fileSize ? ` · ${formatBytes(doc.fileSize)}` : ''}</div>
@@ -382,7 +383,7 @@ export function DocumentsReact({ Nav }) {
     const exp = expiryStatus(doc.expiryDate);
     return (
       <>
-        <p>{[doc.type, doc.category, doc.docNumber].filter(Boolean).join(' · ') || '—'}</p>
+        <p>{[doc.type, doc.category].filter(Boolean).join(' · ')}{doc.docNumber ? <>{doc.type || doc.category ? ' · ' : ''}<bdi dir="ltr">{doc.docNumber}</bdi></> : null}{!doc.type && !doc.category && !doc.docNumber ? '—' : null}</p>
         <div className="dm-meta">
           {doc.fileUrl && <span>پیوست</span>}
           {exp && <span className={`dm-exp ${exp.tone}`}>{exp.text}</span>}

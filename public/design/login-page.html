@@ -142,11 +142,7 @@ document.getElementById('form').addEventListener('submit',function(e){
       toast('خوش آمدی '+res.j.user.name+' 🌿');
       setTimeout(function(){location.href='/'},700);
     })
-    .catch(function(){
-      /* آفلاین/پیش‌نمایش */
-      toast((MODE==='signup'?'حساب ساخته شد (نمایشی): ':'ورود نمایشی: ')+email.split('@')[0]+' 🌿');
-      setTimeout(function(){location.href='cards-v2.html'},900);
-    });
+    .catch(function(){ showErr('اتصال به سرور برقرار نشد. اینترنت رو بررسی کن و دوباره امتحان کن.'); });
 });
 var mb=document.getElementById('modeBtn');
 mb.addEventListener('click',function(){var r=document.documentElement,l=r.dataset.mode==='light';

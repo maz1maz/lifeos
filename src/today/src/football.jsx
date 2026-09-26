@@ -70,7 +70,8 @@ function LeagueBadge({ league, large }) {
 
 export function FootballReact({ Nav }) {
   const [leagues, setLeagues] = useState([])
-  const [leagueId, setLeagueId] = useState('irn.1')
+  // Same default as the Today card: the league with the nearest match this week (cached by the home page).
+  const [leagueId, setLeagueId] = useState(() => { try { return JSON.parse(localStorage.getItem('lifeos-home-league-auto') || 'null')?.league || 'eng.1' } catch { return 'eng.1' } })
   const [standings, setStandings] = useState([])
   const [matches, setMatches] = useState([])
   const [loading, setLoading] = useState(false)
@@ -119,7 +120,8 @@ export function FootballReact({ Nav }) {
   const grouped = useMemo(() => {
     const map = new Map()
     for (const m of matches) {
-      const key = String(m.date || '').slice(0, 10) || '—'
+      const d = new Date(m.date)
+      const key = isNaN(d) ? (String(m.date || '').slice(0, 10) || '—') : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(d)
       if (!map.has(key)) map.set(key, [])
       map.get(key).push(m)
     }
