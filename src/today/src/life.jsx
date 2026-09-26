@@ -213,6 +213,65 @@ export function TravelPage({ Nav }) {
 /* ───────────────────────── Projects (kanban) ───────────────────────── */
 const COLS_K = [['todo', 'انجام نشده'], ['doing', 'در حال انجام'], ['review', 'بازبینی'], ['done', 'انجام شد']];
 const PCOLORS = ['#d8a44c', '#60a5fa', '#34d399', '#f472b6', '#a78bfa', '#fb923c'];
+/* Project charts: status split, burn-up (created vs done), weekly throughput, forecast */
+const KCOL = { todo: '#94a3b8', doing: '#60a5fa', review: '#fbbf24', done: '#34d399' };
+const dayOf = ms => ms ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms)) : '';
+function BurnUp({ cards, deadline, color }) {
+  const today = todayIso();
+  const first = cards.reduce((m, c) => { const d = dayOf(c.createdAt) || today; return d < m ? d : m; }, today);
+  let start = first < addDays(today, -60) ? addDays(today, -60) : first; if (start === today) start = addDays(today, -6);
+  const end = deadline && deadline > today && deadline <= addDays(today, 60) ? deadline : today;
+  const days = []; for (let d = start; d <= end; d = addDays(d, 1)) days.push(d);
+  const pts = days.map(d => ({ d, total: cards.filter(c => (dayOf(c.createdAt) || start) <= d).length, done: d > today ? null : cards.filter(c => c.col === 'done' && (dayOf(c.doneAt) || dayOf(c.updatedAt) || today) <= d).length }));
+  const W = 600, H = 170, P = 22, max = Math.max(1, ...pts.map(p => p.total));
+  const x = i => P + (i / Math.max(1, days.length - 1)) * (W - P * 2), y = v => H - P - (v / max) * (H - P * 2);
+  const line = k => pts.map((p, i) => p[k] == null ? '' : `${i && pts[i - 1][k] != null ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p[k]).toFixed(1)}`).join(' ');
+  const ti = days.indexOf(today);
+  return <svg className="lf-chart lf-burn" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="نمودار پیشرفت">
+    {[0, .5, 1].map(f => <line key={f} x1={P} x2={W - P} y1={y(max * f)} y2={y(max * f)} stroke="var(--g-border)" strokeDasharray="3 4" />)}
+    <path d={`${line('done')} L${x(ti)} ${H - P} L${x(0)} ${H - P} Z`} fill={color} opacity=".14" />
+    <path d={line('total')} fill="none" stroke="var(--g-muted)" strokeWidth="2" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
+    <path d={line('done')} fill="none" stroke={color} strokeWidth="2.6" vectorEffect="non-scaling-stroke" />
+    {ti < days.length - 1 ? <g><line x1={x(ti)} x2={x(ti)} y1={P} y2={H - P} stroke="var(--g-border-2)" /><line x1={x(days.length - 1)} x2={x(days.length - 1)} y1={P} y2={H - P} stroke="#fb7185" strokeDasharray="4 3" /></g> : null}
+    <text x={P} y={H - 5} fontSize="11" fill="var(--g-muted)" textAnchor="start">{jShort(start)}</text>
+    <text x={W - P} y={H - 5} fontSize="11" fill={ti < days.length - 1 ? '#fb7185' : 'var(--g-muted)'} textAnchor="end">{ti < days.length - 1 ? `مهلت ${jShort(end)}` : 'امروز'}</text>
+    <text x={P} y={14} fontSize="11" fill="var(--g-muted)" textAnchor="start">{fa(max)} کارت</text>
+  </svg>;
+}
+function ProjectStats({ project, cards }) {
+  const today = todayIso(), n = cards.length;
+  if (!n) return null;
+  const by = k => cards.filter(c => (c.col || 'todo') === k).length;
+  const done = by('done'), pct = Math.round(done / n * 100), open = n - done;
+  const late = cards.filter(c => c.col !== 'done' && c.due && c.due < today).length;
+  const hi = cards.filter(c => c.col !== 'done' && c.prio === 'h').length;
+  const weeks = Array.from({ length: 8 }, (_, i) => { const to = addDays(today, -7 * (7 - i)), from = addDays(to, -6); const v = cards.filter(c => c.col === 'done' && c.doneAt && dayOf(c.doneAt) >= from && dayOf(c.doneAt) <= to).length; const j = isoToJ(to); return { label: `${jShort(from)} تا ${jShort(to)}`, short: i === 7 ? 'این هفته' : `${faD(j.jd)}/${faD(j.jm)}`, v }; });
+  const pace = weeks.slice(-4).reduce((a, w) => a + w.v, 0) / 4;
+  const eta = open && pace > 0 ? addDays(today, Math.ceil(open / pace * 7)) : null;
+  const risk = eta && project.deadline && eta > project.deadline;
+  return <div className="lf-pstats">
+    <div className="lf-kpis">
+      <div><small>پیشرفت</small><b style={{ color: project.color }}>{fa(pct)}٪</b><em>{fa(done)} از {fa(n)} کارت</em></div>
+      <div className={late ? 'warn' : ''}><small>عقب‌افتاده</small><b>{fa(late)}</b><em>{hi ? `${fa(hi)} اولویت بالا باز` : 'اولویت بالای باز نداری'}</em></div>
+      <div><small>سرعت (میانگین ۴ هفته)</small><b>{fa(pace, 1)}</b><em>کارت در هفته</em></div>
+      <div className={risk ? 'warn' : ''}><small>پیش‌بینی پایان</small><b>{!open ? 'تمام شد ✓' : eta ? jShort(eta) : '—'}</b><em>{!open ? ' ' : !eta ? 'هنوز سرعتی ثبت نشده' : project.deadline ? (risk ? `بعد از مهلت (${jShort(project.deadline)})` : 'قبل از مهلت') : 'مهلتی تعیین نشده'}</em></div>
+    </div>
+    <div className="lf-pgrid">
+      <section className="lf-card"><h3>وضعیت کارت‌ها</h3>
+        <div className="lf-stack">{COLS_K.map(([k]) => by(k) ? <i key={k} style={{ flex: by(k), background: KCOL[k] }} title={`${fa(by(k))}`} /> : null)}</div>
+        <ul className="lf-legend">{COLS_K.map(([k, l]) => <li key={k}><i style={{ background: KCOL[k] }} />{l}<b>{fa(by(k))}</b><em>{fa(Math.round(by(k) / n * 100))}٪</em></li>)}</ul>
+      </section>
+      <section className="lf-card"><h3>روند انجام <small>— خط‌چین: کل کارت‌ها</small></h3><BurnUp cards={cards} deadline={project.deadline} color={project.color || PCOLORS[0]} /></section>
+      <section className="lf-card"><h3>کارهای انجام‌شده در هفته</h3><Bars data={weeks} height={130} color={project.color || PCOLORS[0]} /></section>
+    </div>
+  </div>;
+}
+function ProjectsOverview({ list, cards, onPick, cur }) {
+  if (list.length < 2) return null;
+  const today = todayIso();
+  return <section className="lf-card lf-pover"><h3>همهٔ پروژه‌ها</h3>{list.map(p => { const cs = cards.filter(c => c.projectId === p.id), d = cs.filter(c => c.col === 'done').length, late = cs.filter(c => c.col !== 'done' && c.due && c.due < today).length, pct = cs.length ? Math.round(d / cs.length * 100) : 0;
+    return <button key={p.id} className={cur === p.id ? 'on' : ''} onClick={() => onPick(p.id)}><span className="nm"><i style={{ background: p.color || PCOLORS[0] }} />{p.name}</span><span className="bar"><i style={{ width: `${pct}%`, background: p.color || PCOLORS[0] }} /></span><span className="pc">{fa(pct)}٪</span><span className="ct">{fa(d)}/{fa(cs.length)}{late ? <em> · {fa(late)} عقب</em> : null}</span>{p.deadline ? dueChip(p.deadline) : <span />}</button>; })}</section>;
+}
 export function ProjectsPage({ Nav }) {
   const projects = useCol('projects'), cards = useCol('cards');
   const [pid, setPid] = useState(() => { try { return localStorage.getItem('lifeos-project') || ''; } catch { return ''; } });
@@ -228,6 +287,7 @@ export function ProjectsPage({ Nav }) {
   return <Page Nav={Nav} kicker="کار" title="پروژه‌ها" actions={<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button>}>
     {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !list.length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. برای هر پروژه یک تابلو با ستون‌های «انجام نشده، در حال انجام، بازبینی، انجام شد» ساخته می‌شود.</p> : <>
       <div className="lf-tabs">{list.map(p => <button key={p.id} className={cur?.id === p.id ? 'on' : ''} onClick={() => setPid(p.id)}><i style={{ background: p.color || PCOLORS[0] }} />{p.name}<em>{fa(prog(p))}٪</em></button>)}</div>
+      <ProjectsOverview list={list} cards={cards.items || []} cur={cur?.id} onPick={setPid} />
       {cur ? <section className="lf-card">
         <div className="lf-row-head"><div><h2 style={{ color: cur.color }}>{cur.name}</h2><small>{[cur.client, cur.deadline ? `مهلت ${jShort(cur.deadline)}` : ''].filter(Boolean).join(' · ')} {cur.deadline ? dueChip(cur.deadline) : null}</small></div>
           <div className="lf-ops"><button className="lf-link" onClick={() => setEdit(cur)}>ویرایش</button><button className="lf-link" onClick={() => projects.patch(cur.id, { archived: true })}>بایگانی</button></div></div>
@@ -244,6 +304,7 @@ export function ProjectsPage({ Nav }) {
             </article>)}
           </div>;
         })}</div>
+        <ProjectStats project={cur} cards={mine} />
       </section> : null}
       {(projects.items || []).some(p => p.archived) ? <p className="lf-note">بایگانی: {(projects.items || []).filter(p => p.archived).map(p => <button key={p.id} className="lf-link" onClick={() => projects.patch(p.id, { archived: false })}>{p.name} ↩</button>)}</p> : null}
     </>}

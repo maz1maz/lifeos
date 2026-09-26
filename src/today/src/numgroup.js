@@ -2,6 +2,7 @@
 // (inputMode="numeric" | "decimal"). Commas are stripped in the capture phase of
 // submit, so every existing FormData → Number(...) reader keeps working unchanged.
 const SEL = 'input[inputmode="numeric"]:not([type="password"]):not(.amount):not([data-raw]),input[inputmode="decimal"]:not([type="password"]):not(.amount):not([data-raw])';
+const NATIVE = typeof HTMLInputElement !== 'undefined' ? Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set : null;
 const FA = '۰۱۲۳۴۵۶۷۸۹', AR = '٠١٢٣٤٥٦٧٨٩';
 const latin = s => String(s).replace(/[۰-۹]/g, d => FA.indexOf(d)).replace(/[٠-٩]/g, d => AR.indexOf(d)).replace(/[٫/]/g, '.');
 export const ungroup = s => latin(s).replace(/,/g, '');
@@ -19,7 +20,9 @@ function apply(el) {
   const digitsLeft = ungroup(before.slice(0, caret)).replace(/[^\d.]/g, '').length;
   const after = group(before, decimal);
   if (after === before) return;
-  el.value = after;
+  // Native setter: bypasses React's value tracker so controlled inputs still fire onChange
+  // (a plain el.value = … made React think nothing changed → state stuck at the first 3 digits).
+  NATIVE ? NATIVE.call(el, after) : (el.value = after);
   let pos = 0, seen = 0;
   while (pos < after.length && seen < digitsLeft) { if (/[\d.]/.test(after[pos])) seen++; pos++; }
   try { if (document.activeElement === el) el.setSelectionRange(pos, pos); } catch {}

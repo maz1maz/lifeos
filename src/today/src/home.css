@@ -932,3 +932,58 @@ html[data-mode="light"] .brand-logo{background:#105040}
 @media(min-width:1101px){.home-grid>.slot-focus>.card,.home-grid>.slot-bills>.card{height:auto!important;min-height:0}}
 .home-grid>.slot-focus,.home-grid>.slot-bills{align-self:start}
 .focus-card .lf-focus{padding:6px 0}
+/* v42 — the clock / quick-add bar is part of the top header: full width, flush under it, same inner edges */
+@media(min-width:1101px){
+  .page.home>.hero.bar{margin-inline:calc(-1 * clamp(12px,2vw,32px));margin-top:-14px;width:auto;border-radius:0;border-inline:0;border-top:0;border-bottom:1px solid var(--g-border);padding:4px 3%;min-height:64px;box-sizing:border-box;display:flex;align-items:center;background:var(--g-panel);box-shadow:0 12px 24px -18px rgba(0,0,0,.6)}
+}
+
+/* v43 — day card: photo visible (no frosted panel, lighter fade); weather: flat, no boxes */
+.dc2 .hero-bg-fade{background:linear-gradient(180deg,rgba(6,10,14,.45) 0%,rgba(6,10,14,0) 28%,rgba(6,10,14,0) 50%,rgba(6,10,14,.55) 72%,rgba(6,10,14,.88) 100%)}
+.dc2 .dc-panel{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:0;box-shadow:none;padding:0 2px;gap:8px;text-shadow:0 1px 3px rgba(0,0,0,.75),0 2px 12px rgba(0,0,0,.5)}
+.dc2 .dc-num{font-size:58px;text-shadow:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.45))}
+.dc2 .dc-progress{grid-template-columns:1fr 1fr;gap:12px}
+.dc2 .dc-progress span{font-size:11.5px}
+.dc2 .dc-progress i{height:3px;background:rgba(255,255,255,.22)}
+.dc2 .dc-chip:not(.bday):not(.off){background:rgba(0,0,0,.38);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);text-shadow:none}
+
+.wx2 .wx-body{gap:0!important}
+.wx2 .wx-hero{padding:4px 2px 12px;border:0;background:none;margin:0}
+.wx2 .wx-hero strong{text-shadow:0 2px 16px rgba(0,0,0,.35)}
+.wx2 .wx-panel{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:0;border-radius:0}
+.wx2 .wx-hours{border-top:1px solid rgba(255,255,255,.14);border-bottom:1px solid rgba(255,255,255,.14);padding:10px 0;margin:0}
+.wx2 .wx-tiles{gap:0;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid rgba(255,255,255,.14)}
+.wx2 .wx-tile{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:0;border-radius:0;padding:10px 10px 10px 0;border-top:1px solid rgba(255,255,255,.1)}
+.wx2 .wx-tile:nth-child(-n+3){border-top:0}
+.wx2 .wx-tile:not(:nth-child(3n+1)){border-inline-start:1px solid rgba(255,255,255,.1);padding-inline-start:10px}
+.wx2 .wx-tile b{font-size:19px}
+.wx2 .wx-days{padding:4px 0 0}
+.wx2 .wx-days>div{border-bottom-color:rgba(255,255,255,.08)}
+
+/* v43 — market card: add/remove/reorder items */
+.mkh-acts{display:inline-flex;align-items:center;gap:10px}
+.mkh-acts a{color:var(--g-accent-strong);text-decoration:none;font-size:13px}
+.mkh-add{border:1px solid var(--g-border-2);background:transparent;color:var(--g-text);font:inherit;font-size:12.5px;padding:4px 10px;border-radius:999px;cursor:pointer}
+.mkh-add:hover,.mkh-add.on{border-color:var(--g-accent);color:var(--g-accent-strong);background:var(--g-accent-soft)}
+.mkh-pick{display:grid;gap:6px;margin:4px 0 10px;padding:10px;border:1px solid var(--g-border-2);border-radius:14px;background:var(--g-panel-2)}
+.mkh-pick input{width:100%;box-sizing:border-box;padding:9px 12px;border-radius:10px;border:1px solid var(--g-border-2);background:var(--g-panel);color:var(--g-text);font:inherit}
+.mkh-pick>small{color:var(--g-muted);font-size:11.5px}
+.mkh-pick-list{max-height:230px;overflow-y:auto;display:grid;gap:2px;scrollbar-width:thin}
+.mkh-pick-list button{display:grid;grid-template-columns:24px 1fr auto 22px;align-items:center;gap:8px;padding:6px 8px;border:0;border-radius:8px;background:none;color:inherit;font:inherit;font-size:13px;text-align:right;cursor:pointer}
+.mkh-pick-list button:hover{background:var(--g-panel)}
+.mkh-pick-list button b{font-size:12px;color:var(--g-muted);font-weight:500}
+.mkh-pick-list button i{font-style:normal;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--g-border-2);font-size:12px}
+.mkh-pick-list button.on i{background:var(--g-accent);border-color:var(--g-accent);color:var(--g-accent-fg,#1a1204)}
+.mkh-pick-list .market-logo,.mkh-pick-list img{width:22px;height:22px}
+.mkh-wrap{display:flex;align-items:center;gap:4px}
+.mkh-wrap>.mkh-row{flex:1;min-width:0}
+.mkh-edit{display:inline-flex;gap:2px}
+.mkh-edit button{width:24px;height:24px;border-radius:7px;border:1px solid var(--g-border);background:transparent;color:var(--g-muted);cursor:pointer;font-size:10px;padding:0}
+.mkh-edit button:disabled{opacity:.3;cursor:default}
+.mkh-edit button.x{color:#fb7185;font-size:14px}
+
+/* v43 — agenda: edit pencil next to each task / reminder */
+.agenda .ag-row{display:flex;align-items:center;gap:4px}
+.agenda .ag-row>.line{flex:1;min-width:0}
+.agenda .ag-edit{flex:none;width:28px;height:28px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--g-muted);cursor:pointer;display:grid;place-items:center;opacity:.35;transition:opacity .15s,border-color .15s}
+.agenda .ag-row:hover .ag-edit,.agenda .ag-edit:focus-visible{opacity:1;border-color:var(--g-border-2);color:var(--g-accent-strong)}
+@media(hover:none){.agenda .ag-edit{opacity:.8}}

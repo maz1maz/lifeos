@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 // Shared Jalali (Shamsi) date input — stores/returns ISO Gregorian "YYYY-MM-DD" like <input type="date">,
 // but shows and picks dates in the Persian calendar.
@@ -67,7 +67,17 @@ function JPop({ value, onPick, clearable, min }) {
   const [fy, fm, fd] = first.split('-').map(Number);
   const lead = (new Date(fy, fm - 1, fd).getDay() + 1) % 7;
   const len = monthLen(ym.jy, ym.jm);
-  return <div className="jdi-pop" role="dialog" aria-label="انتخاب تاریخ">
+  // Keep the popup inside its scroll container (e.g. a side drawer): flip to the other edge if it would be clipped.
+  const pop = useRef(null);
+  useLayoutEffect(() => {
+    const el = pop.current; if (!el || getComputedStyle(el).position === 'fixed') return;
+    let box = { left: 0, right: window.innerWidth };
+    for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) { const o = getComputedStyle(p); if (/(auto|scroll|hidden|clip)/.test(o.overflowX + o.overflow)) { const r = p.getBoundingClientRect(); box = { left: Math.max(0, r.left), right: Math.min(window.innerWidth, r.right) }; break; } }
+    const r = el.getBoundingClientRect();
+    if (r.left < box.left + 4) { el.style.insetInlineStart = 'auto'; el.style.insetInlineEnd = '0'; const r2 = el.getBoundingClientRect(); if (r2.right > box.right - 4) { el.style.insetInlineEnd = 'auto'; el.style.insetInlineStart = 'auto'; el.style.left = `${box.left + 4 - el.offsetParent.getBoundingClientRect().left}px`; } }
+    else if (r.right > box.right - 4) { el.style.insetInlineStart = 'auto'; el.style.insetInlineEnd = '0'; }
+  }, []);
+  return <div className="jdi-pop" ref={pop} role="dialog" aria-label="انتخاب تاریخ">
     <div className="jdi-head">
       <button type="button" onClick={() => setYm(y => ({ ...y, jy: y.jy - 1 }))} aria-label="سال قبل">»</button>
       <button type="button" onClick={() => shift(-1)} aria-label="ماه قبل">›</button>

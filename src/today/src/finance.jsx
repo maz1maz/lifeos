@@ -3,6 +3,7 @@ import './finance.css'
 import { jalaliShort, jalaliDay } from './jalali'
 import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './jdate';
 import { BillsPanel } from './life';
+import { FunOverview } from './fun';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -186,6 +187,7 @@ export function FinanceReact({ Nav }) {
   const [holdAssetType, setHoldAssetType] = useState('crypto')
   const [importPreview, setImportPreview] = useState(null)
   const [poker, setPoker] = useState([])
+  const [pokerAll, setPokerAll] = useState([])
   const [pokerSummary, setPokerSummary] = useState({ sessions: 0, profit: 0, wins: 0, losses: 0, pushes: 0, totalBuyIn: 0, totalCashOut: 0 })
   const [bet, setBet] = useState({ items: [], stats: {}, suggestedStart: 0, suggestedStartDate: null })
   const [alerts, setAlerts] = useState([])
@@ -207,7 +209,7 @@ export function FinanceReact({ Nav }) {
     try {
       const months = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5))
       const { from, to } = jRange(month), rq = `from=${from}&to=${to}`
-      const [sum, list, acc, bud, debt, pf, pk, pkSum, bt, al, ...hist] = await Promise.all([
+      const [sum, list, acc, bud, debt, pf, pk, pkSum, bt, al, pkAll, ...hist] = await Promise.all([
         api(`/api/finance?${rq}`),
         api(`/api/transactions?${rq}`),
         api('/api/accounts'),
@@ -218,6 +220,7 @@ export function FinanceReact({ Nav }) {
         api(`/api/poker/summary?${rq}`).catch(() => ({})),
         api(`/api/bet?${rq}`).catch(() => ({ items: [], stats: {} })),
         api('/api/investments/alerts').catch(() => ({ items: [] })),
+        api('/api/poker').catch(() => ({ items: [] })),
         ...months.map((m) => { const r = jRange(m); return api(`/api/finance?from=${r.from}&to=${r.to}`).catch(() => ({ income: 0, expense: 0 })) }),
       ])
       setSummary(sum)
@@ -227,6 +230,7 @@ export function FinanceReact({ Nav }) {
       setDebts(debt.items || [])
       setPortfolio(pf || { items: [], totals: {} })
       setPoker(pk.items || [])
+      setPokerAll(pkAll.items || [])
       setPokerSummary(pkSum || {})
       setBet(bt || { items: [], stats: {} })
       setAlerts(al.items || [])
@@ -838,6 +842,7 @@ export function FinanceReact({ Nav }) {
         {tab === 'fun' ? (
           <>
           <p className="fn-note fn-fun-note">پوکر و بت جدا از درآمد و هزینه‌اند و در آمار ماه حساب نمی‌شوند.</p>
+          <FunOverview poker={pokerAll} bet={bet.items || []} usdRate={usdRate} monthFrom={mRange.from} monthTo={mRange.to} />
           <div className="fn-2">
             <section className="fn-glass fn-list">
               <div className="fn-head"><h2>پوکر</h2><Drawer label="جلسه" title="جلسهٔ پوکر">

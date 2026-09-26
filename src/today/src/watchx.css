@@ -1,10 +1,10 @@
 .wx { min-height: 100vh; background: var(--g-bg, #0a0a0b); color: var(--g-text); }
 .wx-page { max-width: 1180px; margin: 0 auto; padding: 18px 16px 60px; }
-.wx-hero { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 20px 22px; border: 1px solid var(--g-border); border-radius: var(--g-radius-card); background: var(--g-panel); margin-bottom: 14px; }
-.wx-hero p { margin: 0 0 4px; color: var(--g-accent-strong); font-size: 13px; }
-.wx-hero h1 { margin: 0; font-size: 26px; font-weight: 900; }
-.wx-hero small { color: var(--g-muted); font-size: 12.5px; }
-.wx-hero-ops { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.wxp-hero { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 20px 22px; border: 1px solid var(--g-border); border-radius: var(--g-radius-card); background: var(--g-panel); margin-bottom: 14px; }
+.wxp-hero p { margin: 0 0 4px; color: var(--g-accent-strong); font-size: 13px; }
+.wxp-hero h1 { margin: 0; font-size: 26px; font-weight: 900; }
+.wxp-hero small { color: var(--g-muted); font-size: 12.5px; }
+.wxp-hero-ops { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .wx-btn { border: 0; background: var(--g-accent); color: var(--g-accent-fg); font: inherit; font-weight: 800; font-size: 13px; padding: 9px 16px; border-radius: var(--g-radius-control); cursor: pointer; }
 .wx-btn.ghost { background: transparent; border: 1px solid var(--g-border-2); color: var(--g-text); }
 .wx-btn.done { background: rgba(52,211,153,.15); color: #34d399; }
@@ -43,4 +43,4 @@
 .wx-why { margin: 2px 0 0; font-size: 12.5px; color: var(--g-accent-strong); }
 .wx-ov { margin: 0; font-size: 12.5px; line-height: 1.8; color: var(--g-muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .wx-card .wx-btn { margin-top: auto; align-self: flex-start; }
-@media (max-width: 700px) { .wx-day { grid-template-columns: 1fr; gap: 6px; } .wx-items { grid-template-columns: 1fr; } .wx-hero h1 { font-size: 21px; } }
+@media (max-width: 700px) { .wx-day { grid-template-columns: 1fr; gap: 6px; } .wx-items { grid-template-columns: 1fr; } .wxp-hero h1 { font-size: 21px; } }

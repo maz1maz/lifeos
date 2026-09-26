@@ -194,6 +194,30 @@ export async function createPlannerItem(kind, body) {
   return saved;
 }
 
+// Create or update a task / reminder (used by the planner and the home agenda card).
+export async function savePlannerItem(kind, body, editing) {
+  const today = isoToday();
+  if (kind === 'reminder' && !editing) {
+    const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+    if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
+  } else if (kind === 'reminder' && editing?.task?._reminder) {
+    await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+    if (body.files?.length) await uploadAttachments('reminder', editing.task.id, body.files);
+  } else {
+    const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
+    let saved;
+    if (editing) saved = await api(`/api/tasks/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    else saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+    const existingReminder = editing?.reminder;
+    if (body.reminderOn && body.reminderDate) {
+      const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 };
+      if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'PATCH', body: JSON.stringify(rBody) });
+      else await api('/api/reminders', { method: 'POST', body: JSON.stringify(rBody) });
+    } else if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'DELETE' });
+    if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
+  }
+}
+
 export function PlannerReact({ Nav }) {
   const [kind, setKind] = useState('task');
   const [tasks, setTasks] = useState([]);
@@ -252,25 +276,7 @@ export function PlannerReact({ Nav }) {
 
   const submit = async body => {
     try {
-      if (kind === 'reminder' && !editing) {
-        const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
-        if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
-      } else if (kind === 'reminder' && editing?.task?._reminder) {
-        await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
-        if (body.files?.length) await uploadAttachments('reminder', editing.task.id, body.files);
-      } else {
-        const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
-        let saved;
-        if (editing) saved = await api(`/api/tasks/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
-        else saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
-        const existingReminder = editing?.reminder;
-        if (body.reminderOn && body.reminderDate) {
-          const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 };
-          if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'PATCH', body: JSON.stringify(rBody) });
-          else await api('/api/reminders', { method: 'POST', body: JSON.stringify(rBody) });
-        } else if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'DELETE' });
-        if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
-      }
+      await savePlannerItem(kind, body, editing);
       setDrawerOpen(false); setEditing(null); flash(editing ? 'تغییرات ذخیره شد ✓' : 'ثبت شد ✓'); load();
     } catch (error) { flash(error.message); }
   };

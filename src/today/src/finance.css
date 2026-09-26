@@ -297,3 +297,4 @@
 .fn-rec .fn-due { grid-area: auto; }
 .fn-ycol span { font-size: 10.5px; white-space: nowrap; }
 @media (max-width: 700px) { .fn-ycol span { font-size: 8.5px; writing-mode: vertical-rl; transform: rotate(180deg); height: 38px; } }
+.fn-bet-mini{direction:ltr}.fn-bet-bar{flex:0 1 34px}.fn-bet-bar i{max-width:22px}

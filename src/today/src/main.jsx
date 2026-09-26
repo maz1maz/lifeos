@@ -6,7 +6,7 @@ import './planner.css';
 import { NotesReact } from './notes';
 import { ContactsReact } from './contacts';
 import { DocumentsReact } from './documents';
-import { PlannerReact, TaskDrawer, createPlannerItem } from './planner';
+import { PlannerReact, TaskDrawer, createPlannerItem, savePlannerItem } from './planner';
 import { MediaReact } from './media';
 import { MarketReact } from './market';
 import { CalendarReact } from './calendar';
@@ -212,6 +212,7 @@ function HomePage() {
     });
   }, []);
   const [drawerKind, setDrawerKind] = useState(null);
+  const [editItem, setEditItem] = useState(null); // { kind, initial } for the home agenda edit drawer
   const [notice, setNotice] = useState('');
   const [streak, setStreak] = useState(0);
   const [aqi, setAqi] = useState(null);
@@ -273,6 +274,14 @@ function HomePage() {
       setNotice(date === today ? 'با موفقیت ثبت شد.' : `برای ${jalaliDayLabel(date)} ثبت شد.`); load();
     } catch (error) { setNotice(error.message); }
   };
+  const openEdit = item => {
+    const r = item.raw;
+    if (item.kind === 'task') { setEditItem({ kind: 'task', initial: { task: r, reminder: (data.reminders || []).find(x => x.taskId === r.id) || null } }); return; }
+    const linked = r.taskId && (allTasks || []).find(t => t.id === r.taskId);
+    if (linked) { setEditItem({ kind: 'task', initial: { task: linked, reminder: r } }); return; }
+    setEditItem({ kind: 'reminder', initial: { task: { id: r.id, title: r.title, notes: '', date: r.date, startTime: r.time || '', priority: 'medium', recurrence: r.recurrence || null, leadMinutes: r.leadMinutes || 0, tags: [], done: !!r.done, _reminder: true }, reminder: null } });
+  };
+  const saveEdit = async body => { try { await savePlannerItem(editItem.kind, body, editItem.initial); setEditItem(null); setNotice('تغییرات ذخیره شد ✓'); load(); } catch (error) { setNotice(error.message); } };
   const saveDrawer = async body => { try { await createPlannerItem(drawerKind, body); setDrawerKind(null); setNotice('ثبت شد ✓'); load(); } catch (error) { setNotice(error.message); } };
   const saveDaily = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: today, mood: Number(form.get('mood')), sleep: form.get('sleep'), note: form.get('note'), bestMoment: form.get('bestMoment'), gratitude: form.get('gratitude'), tomorrowPlan: data.daily?.tomorrowPlan || '' }) }); setNotice('ثبت روزانه ذخیره شد.'); loadStreak(); load(); } catch (error) { setNotice(error.message); } };
   const allTasks = data.tasks.filter(t => !t.isReminder);
@@ -347,9 +356,9 @@ function HomePage() {
                 const late = !item.done && item.late;
                 const later = item.date && item.date > today, tmr = item.date === addDaysIso(today, 1);
                 const when = late ? `⛔ ${lateLabel(item.date)}` : later ? `${tmr ? 'فردا' : jalaliDayLabel(item.date)}${item.time ? ' · ' + faDigits(item.time) : ''}` : item.time ? faDigits(item.time) : !item.date ? 'بی‌تاریخ' : 'امروز';
-                return <button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} key={item.kind + item.id} onClick={() => item.debt ? (location.href = '/?page=finance&tab=wealth') : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
+                return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = '/?page=finance&tab=wealth') : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
                   <i>{item.debt ? '⏰' : item.done ? '✓' : ''}</i><span>{item.title}</span><small>{when}</small>
-                </button>;
+                </button>{item.debt ? null : <button type="button" className="ag-edit" onClick={() => openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}</div>;
               })}{!items.length && <p className="empty">{kind === 'task' ? 'کاری برای امروز نداری.' : 'یادآوری‌ای برای امروز نداری.'}</p>}</div>
             </div>;
           })}
@@ -361,6 +370,7 @@ function HomePage() {
       }} />
     </div>
     <TaskDrawer open={!!drawerKind} kind={drawerKind || 'task'} initial={null} onClose={() => setDrawerKind(null)} onSubmit={saveDrawer} />
+    <TaskDrawer open={!!editItem} kind={editItem?.kind || 'task'} initial={editItem?.initial || null} onClose={() => setEditItem(null)} onSubmit={saveEdit} />
     <ModulesOnboarding />
   </main>;
 }
@@ -601,7 +611,7 @@ function SeriesReact({ Nav = TopNav }) {
 
         <div className="strk-search">
           <Search size={16} className="strk-search-ic" />
-          <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const f = results.find(x => !addedIds.has(String(x.tvmazeId))); if (f) addShow(f); } if (e.key === 'Escape') { setQuery(''); setResults([]); } }} placeholder="جستجوی سریال برای افزودن… (انگلیسی)" />
+          <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const f = results.find(x => !addedIds.has(String(x.tvmazeId))); if (f) addShow(f); } if (e.key === 'Escape') { setQuery(''); setResults([]); } }} placeholder="نام سریال (انگلیسی، با سال اختیاری مثل Monster 2022) یا لینک TVMaze / IMDb" />
           {searching && <span className="strk-spinner" />}
           {results.length > 0 && (
             <div className="strk-results">
@@ -1056,12 +1066,40 @@ function AppearanceSettings({ flash }) {
       <div className="hs-choices">{APP_SIZES.map(([id, label, z]) => <button type="button" key={id} className={a.size === id ? 'on' : ''} onClick={() => set({ size: id })}><span style={{ fontSize: `${Math.round(15 * z)}px` }}>{label}</span></button>)}</div>
     </article>
     <article>
-      <div><b>ساعت کشورهای دیگه</b><small>حداکثر دو شهر کنار ساعت تهران.</small></div>
+      <div><b>ساعت کشورهای دیگه</b><small>هر شهر یا کشوری را جستجو کن — حداکثر سه ساعت کنار ساعت تهران. روی ساعت انتخاب‌شده بزن تا حذف شود.</small></div>
       <WorldClockPicker flash={flash} />
     </article>
   </>;
 }
+const clockName = e => { const [tz, label] = String(e).split('|'); return label || (WORLD_ZONES.find(([, z]) => z === tz) || [])[0] || tz.split('/').pop().replace(/_/g, ' '); };
+const zoneOk = tz => { try { new Intl.DateTimeFormat('en', { timeZone: tz }).format(); return true; } catch { return false; } };
+const ALL_ZONES = (() => { try { return Intl.supportedValuesOf('timeZone'); } catch { return WORLD_ZONES.map(([, z]) => z); } })();
 function WorldClockPicker({ flash }) {
+  const [sel, setSel] = useState(() => readLs('lifeos-world-clocks', []));
+  const [q, setQ] = useState(''), [found, setFound] = useState([]), [busy, setBusy] = useState(false);
+  const save = next => { if (next.length > 3) next = next.slice(-3); setSel(next); writeLs('lifeos-world-clocks', next); flash(next.length ? 'ساعت‌ها ذخیره شد ✓' : 'ساعت‌های دیگر حذف شد'); };
+  const has = e => sel.some(x => x.split('|')[0] === e.split('|')[0] && clockName(x) === clockName(e));
+  const add = e => { if (!has(e)) save([...sel, e]); setQ(''); setFound([]); };
+  useEffect(() => {
+    const t = q.trim(); if (t.length < 2) { setFound([]); return; }
+    const low = t.toLowerCase();
+    const local = [...WORLD_ZONES.filter(([n, z]) => n.includes(t) || z.toLowerCase().includes(low)).map(([n, z]) => ({ e: z, name: n, sub: z })), ...ALL_ZONES.filter(z => z.toLowerCase().replace(/_/g, ' ').includes(low) && !WORLD_ZONES.some(([, w]) => w === z)).slice(0, 6).map(z => ({ e: z, name: z.split('/').pop().replace(/_/g, ' '), sub: z }))];
+    setFound(local);
+    const h = setTimeout(() => { setBusy(true); fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(t)}&count=8&language=fa&format=json`).then(r => r.json()).then(d => {
+      const geo = (d.results || []).filter(r => r.timezone && zoneOk(r.timezone)).map(r => ({ e: `${r.timezone}|${r.name}`, name: r.name, sub: [r.admin1, r.country].filter(Boolean).join('، ') }));
+      setFound(f => { const seen = new Set(); return [...geo, ...f].filter(x => { const k = clockName(x.e) + x.e.split('|')[0]; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 12); });
+    }).catch(() => {}).finally(() => setBusy(false)); }, 350);
+    return () => clearTimeout(h);
+  }, [q]);
+  const now = new Date();
+  return <div className="wcp">
+    {sel.length ? <div className="hs-choices wrap">{sel.map(e => <button type="button" key={e} className="on" onClick={() => save(sel.filter(x => x !== e))} title="حذف">{clockName(e)} <small dir="ltr">{zoneOk(e.split('|')[0]) ? new Intl.DateTimeFormat('fa-IR', { timeZone: e.split('|')[0], hour: '2-digit', minute: '2-digit', hour12: false }).format(now) : ''}</small> ×</button>)}</div> : null}
+    <div className="wcp-search"><Search size={15} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="جستجوی هر شهر یا کشور… (فارسی یا انگلیسی)" />{busy ? <i className="strk-spinner" /> : null}</div>
+    {found.length ? <div className="wcp-results">{found.map(x => <button type="button" key={x.e} onClick={() => add(x.e)} disabled={has(x.e)}><b>{x.name}</b><small>{x.sub}</small><em dir="ltr">{new Intl.DateTimeFormat('fa-IR', { timeZone: x.e.split('|')[0], hour: '2-digit', minute: '2-digit', hour12: false }).format(now)}</em></button>)}</div> : null}
+    {!q ? <div className="hs-choices wrap">{WORLD_ZONES.filter(([, tz]) => !sel.some(x => x.split('|')[0] === tz)).map(([name, tz]) => <button type="button" key={tz} onClick={() => add(tz)}>{name}</button>)}</div> : null}
+  </div>;
+}
+function WorldClockPickerOld({ flash }) {
   const [sel, setSel] = useState(() => readLs('lifeos-world-clocks', []));
   const toggle = tz => { let next = sel.includes(tz) ? sel.filter(x => x !== tz) : [...sel, tz]; if (next.length > 2) next = next.slice(-2); setSel(next); writeLs('lifeos-world-clocks', next); flash(next.length ? 'ساعت‌ها ذخیره شد ✓' : 'ساعت‌های دیگه حذف شدن.'); };
   return <div className="hs-choices wrap">{WORLD_ZONES.map(([name, tz]) => <button type="button" key={tz} className={sel.includes(tz) ? 'on' : ''} onClick={() => toggle(tz)}>{name}</button>)}</div>;
@@ -1178,13 +1216,13 @@ function SettingsReact() {
         <section className="planner-list integration-list" id="googleCalendarCard">
           <h2>اتصال‌ها</h2>
           {cards.map(([id, title, page]) => {
-            const state = integrations[id] || integrations[id.replace('-', '')] || {};
+            const state = integrations[id] || integrations[id.replace(/-(\w)/g, (_, c) => c.toUpperCase())] || {};
             const connected = Boolean(state.connected);
             return (
               <article key={id}>
                 <div>
                   <b>{title}</b>
-                  <small>{connected ? 'متصل است' : 'متصل نیست'}</small>
+                  <small>{connected ? `متصل است${state.email ? ` · ${state.email}` : ''}${state.lastSyncAt ? ` · آخرین همگام‌سازی ${new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'short', timeStyle: 'short' }).format(new Date(state.lastSyncAt))}` : ''}${state.lastError ? ` · ⚠ ${state.lastError}` : ''}` : state.configured === false ? 'روی سرور تنظیم نشده' : 'متصل نیست'}</small>
                   {id === 'google-calendar' && <p>تقویم اختصاصی LifeOS داخل حساب گوگلت ساخته می‌شود؛ حذف آن در گوگل دادهٔ هسته را پاک نمی‌کند.</p>}
                 </div>
                 {connected ? <>
@@ -1283,31 +1321,42 @@ const HOME_MARKET_DEFAULT = ['price_dollar_rl', 'price_eur', 'price_gbp', 'price
 // Items shown on Today = the ones starred (★) on the Market page; falls back to a default set.
 const homeMarketKeys = () => { const f = readLs('lifeos-market-favs', null); const keys = Array.isArray(f) ? f.filter(x => String(x).startsWith('t:')).map(x => x.slice(2)) : []; return keys.length ? keys : HOME_MARKET_DEFAULT; };
 function Market() {
-  const [rows, setRows] = useState([]), [hist, setHist] = useState({}), [notice, setNotice] = useState(''), [chart, setChart] = useState(null);
+  const [all, setAll] = useState([]), [keys, setKeys] = useState(homeMarketKeys), [hist, setHist] = useState({}), [notice, setNotice] = useState(''), [chart, setChart] = useState(null);
+  const [pick, setPick] = useState(false), [q, setQ] = useState('');
+  useEffect(() => { api('/api/tgju').then(data => setAll(tgjuRows(data))).catch(error => setNotice(error.message)); }, []);
+  const rows = useMemo(() => keys.map(k => all.find(r => r.key === k)).filter(Boolean).slice(0, 12), [all, keys]);
   useEffect(() => {
-    api('/api/tgju').then(data => {
-      const all = tgjuRows(data);
-      const top = homeMarketKeys().map(k => all.find(r => r.key === k)).filter(Boolean).slice(0, 10);
-      setRows(top);
-      Promise.all(top.map(item => api(`/api/tgju/history?key=${encodeURIComponent(item.key)}&days=30`).then(d => [item.key, (d.items || []).map(x => x.price)]).catch(() => [item.key, null])))
-        .then(pairs => setHist(Object.fromEntries(pairs)));
-    }).catch(error => setNotice(error.message));
-  }, []);
+    const need = rows.filter(r => !(r.key in hist)); if (!need.length) return;
+    Promise.all(need.map(item => api(`/api/tgju/history?key=${encodeURIComponent(item.key)}&days=30`).then(d => [item.key, (d.items || []).map(x => x.price)]).catch(() => [item.key, null])))
+      .then(pairs => setHist(h => ({ ...h, ...Object.fromEntries(pairs) })));
+  }, [rows]);
+  // Home items are the market page's starred "t:" favourites (same storage), so both stay in sync.
+  const save = next => { setKeys(next); const f = readLs('lifeos-market-favs', []); writeLs('lifeos-market-favs', [...(Array.isArray(f) ? f.filter(x => !String(x).startsWith('t:')) : []), ...next.map(k => 't:' + k)]); };
+  const toggle = k => save(keys.includes(k) ? keys.filter(x => x !== k) : [...keys, k].slice(0, 12));
+  const move = (k, d) => { const i = keys.indexOf(k), j = i + d; if (j < 0 || j >= keys.length) return; const n = [...keys]; [n[i], n[j]] = [n[j], n[i]]; save(n); };
+  const found = useMemo(() => { const t = q.trim().toLowerCase(); return all.filter(r => !t || `${r.name} ${r.key}`.toLowerCase().includes(t)).slice(0, 40); }, [all, q]);
   const isGlobal = k => ['oil_brent', 'oil', 'nickel', 'platinum', 'copper', 'silver', 'aluminium', 'aluminum'].includes(k);
-  return <Card className="market" icon={LineChart} title="بازارها" action={<a href="/?page=market" title="با ستاره زدن در صفحهٔ بازار، اقلام این کارت رو انتخاب کن">همه بازارها ←</a>}>
+  return <Card className="market" icon={LineChart} title="بازارها" action={<span className="mkh-acts"><button type="button" className={`mkh-add ${pick ? 'on' : ''}`} onClick={() => setPick(p => !p)} title="افزودن یا حذف آیتم">{pick ? 'تمام' : '＋ آیتم'}</button><a href="/?page=market">همه ←</a></span>}>
+    {pick ? <div className="mkh-pick">
+      <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="جستجو: دلار، سکه، بیت‌کوین، طلا…" />
+      <small>{keys.length} از ۱۲ · برای افزودن یا حذف روی هر مورد بزن</small>
+      <div className="mkh-pick-list">{found.map(r => <button type="button" key={r.key} className={keys.includes(r.key) ? 'on' : ''} onClick={() => toggle(r.key)}>
+        <MarketLogo k={r.key} fallback={marketIcon(r.key)} /><span>{r.name}</span><b>{fa(r.p)}</b><i>{keys.includes(r.key) ? '✓' : '＋'}</i>
+      </button>)}{!found.length ? <p className="empty">{all.length ? 'چیزی پیدا نشد.' : 'در حال دریافت…'}</p> : null}</div>
+    </div> : null}
     <small className="unit-note">قیمت‌ها به ریال · روی هر ردیف بزن تا نمودارش باز بشه</small>
-    {rows.length ? <div className="mkh-list">{rows.map(item => {
+    {rows.length ? <div className="mkh-list">{rows.map((item, i) => {
       const h = hist[item.key] || [], prev = h.length > 1 ? h[h.length - 2] : 0; let dp = item.dp;
       if (!dp && prev && item.p) { dp = (item.p - prev) / prev * 100; if (Math.abs(dp) > 25) dp = 0; }
       const change = dp ? `${dp > 0 ? '▲' : '▼'}${Math.abs(dp).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪` : '۰٪'; const up = !change.includes('▼');
-      return <button type="button" className="market-row mkh-row" key={item.key} onClick={() => setChart(item)}>
+      return <div className="mkh-wrap" key={item.key}><button type="button" className="market-row mkh-row" onClick={() => setChart(item)}>
         <MarketLogo k={item.key} fallback={marketIcon(item.key)} />
         <span className="mkh-name">{item.name}</span>
         <span className="mkh-spark">{h.length > 1 ? <Sparkline data={h} up={up} uid={item.key} width={64} height={24} /> : null}</span>
         <b className="mkh-price">{fa(item.p)}</b>
         <small className={`mkh-chg ${change.includes('▼') ? 'negative' : dp ? 'positive' : ''}`}>{change}</small>
-      </button>;
-    })}</div> : <p className="empty">{notice || 'در حال دریافت بازار…'}</p>}
+      </button>{pick ? <span className="mkh-edit"><button type="button" onClick={() => move(item.key, -1)} disabled={!i} aria-label="بالاتر">▲</button><button type="button" onClick={() => move(item.key, 1)} disabled={i === rows.length - 1} aria-label="پایین‌تر">▼</button><button type="button" className="x" onClick={() => toggle(item.key)} aria-label="حذف">×</button></span> : null}</div>;
+    })}</div> : <p className="empty">{notice || (all.length ? 'آیتمی انتخاب نشده — «＋ آیتم» را بزن.' : 'در حال دریافت بازار…')}</p>}
     {chart && <PriceChart symbol={chart.key} name={chart.name} unit={isGlobal(chart.key) ? 'دلار' : 'ریال'} onClose={() => setChart(null)} />}
   </Card>;
 }
@@ -1537,7 +1586,7 @@ const zoneParts = (d, tz) => Object.fromEntries(new Intl.DateTimeFormat('en-GB',
 const zoneMinutes = (d, tz) => { const p = zoneParts(d, tz); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute) / 60000; };
 function DigitalClock() {
   const [now, setNow] = useState(() => new Date());
-  const [zones] = useState(() => readLs('lifeos-world-clocks', []).filter(tz => WORLD_ZONES.some(([, z]) => z === tz)).slice(0, 2));
+  const [zones] = useState(() => readLs('lifeos-world-clocks', []).filter(e => zoneOk(String(e).split('|')[0])).slice(0, 3));
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
   const parts = zoneParts(now, 'Asia/Tehran');
   const tehranMin = zoneMinutes(now, 'Asia/Tehran');
@@ -1546,11 +1595,11 @@ function DigitalClock() {
       <b>{faDigits(parts.hour)}</b><i className={Number(parts.second) % 2 ? 'blink' : ''}>:</i><b>{faDigits(parts.minute)}</b><small>{faDigits(parts.second)}</small>
       <span>به وقت تهران</span>
     </div>
-    {zones.map(tz => {
-      const p = zoneParts(now, tz), diff = zoneMinutes(now, tz) - tehranMin, h = +p.hour % 24, night = h < 6 || h >= 19;
+    {zones.map(entry => {
+      const tz = String(entry).split('|')[0], p = zoneParts(now, tz), diff = zoneMinutes(now, tz) - tehranMin, h = +p.hour % 24, night = h < 6 || h >= 19;
       const dh = Math.trunc(Math.abs(diff) / 60), dm = Math.abs(diff) % 60;
-      const name = WORLD_ZONES.find(([, z]) => z === tz)[0];
-      return <div className="wclock" key={tz}>
+      const name = clockName(entry);
+      return <div className="wclock" key={entry}>
         <small>{name} {night ? '🌙' : '☀️'}</small>
         <b dir="ltr">{faDigits(`${p.hour}:${p.minute}`)}</b>
         <span>{diff === 0 ? 'هم‌ساعت تهران' : `${[dh ? `${fa(dh)} ساعت` : '', dm ? `${fa(dm)} دقیقه` : ''].filter(Boolean).join(' و ')} ${diff > 0 ? 'جلوتر' : 'عقب‌تر'}`}</span>

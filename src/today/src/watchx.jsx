@@ -37,7 +37,7 @@ export function UpcomingPage({ Nav }) {
   return <main className="wx" dir="rtl">
     <Nav />
     <div className="wx-page">
-      <header className="wx-hero">
+      <header className="wxp-hero">
         <div><p>تقویم پخش</p><h1>قسمت‌های تازه</h1><small>{data?.upcoming ? `${faD(week)} قسمت در ۷ روز آینده · از ${faD(data.total || 0)} سریال شما` : ''}</small></div>
         <button type="button" className="wx-btn ghost" onClick={() => load(true)} disabled={busy}>{busy ? 'در حال به‌روزرسانی…' : '↻ به‌روزرسانی'}</button>
       </header>
@@ -86,9 +86,9 @@ export function DiscoverPage({ Nav }) {
   return <main className="wx" dir="rtl">
     <Nav />
     <div className="wx-page">
-      <header className="wx-hero">
+      <header className="wxp-hero">
         <div><p>بر اساس سلیقهٔ شما</p><h1>پیشنهاد برای تماشا</h1><small>{data?.source === 'tmdb' ? 'از روی فهرست‌های «مشابه» TMDB برای بهترین‌های شما' : data?.source === 'ai' ? 'انتخاب هوش مصنوعی از روی بهترین‌های شما' : ''}</small></div>
-        <div className="wx-hero-ops">
+        <div className="wxp-hero-ops">
           <span className="wx-seg">{[['series', 'سریال'], ['movie', 'فیلم']].map(([k, l]) => <button key={k} type="button" className={kind === k ? 'on' : ''} onClick={() => setKind(k)}>{l}</button>)}</span>
           <button type="button" className="wx-btn ghost" onClick={() => load(true)} disabled={busy}>↻ پیشنهاد تازه</button>
         </div>
