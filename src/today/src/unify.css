@@ -159,3 +159,10 @@ html[data-mode="light"] select option,html[data-mode="light"] select optgroup{ba
 .shp .strk-ep-list li{padding-block:7px}
 .shp .strk-ep-info{display:flex;align-items:baseline;gap:10px}
 .shp .strk-ep-info small{margin-inline-start:auto;color:var(--g-muted)}
+/* v35 — offline bar */
+.offline-bar{position:fixed;inset-inline:0;bottom:0;z-index:150;padding:10px 16px;background:#3b2a0b;color:#fde68a;font-size:13px;text-align:center;border-top:1px solid #a16207}
+.digest-card .plnr-switch{width:44px;height:24px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid var(--g-border-2);position:relative;cursor:pointer;flex:none}
+.digest-card .plnr-switch i{position:absolute;top:50%;right:3px;width:17px;height:17px;margin-top:-8.5px;border-radius:99px;background:#fff;transition:transform .18s}
+.digest-card .plnr-switch.on{background:var(--g-accent);border-color:var(--g-accent)}
+.digest-card .plnr-switch.on i{transform:translateX(-19px)}
+.digest-card .finance-action{text-decoration:none}

@@ -193,6 +193,13 @@ export function FinanceReact({ Nav }) {
   const [paying, setPaying] = useState(null)
   const [budEdit, setBudEdit] = useState(null)
   const [report, setReport] = useState(null)
+  const [recurring, setRecurring] = useState([])
+  const [goals, setGoals] = useState([])
+  const [year, setYear] = useState(null)
+  const [yearKind, setYearKind] = useState('expense')
+  const [draft, setDraft] = useState({ key: 0 })
+  const [scanning, setScanning] = useState(false)
+  const [goalDep, setGoalDep] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -221,6 +228,9 @@ export function FinanceReact({ Nav }) {
       setPokerSummary(pkSum || {})
       setBet(bt || { items: [], stats: {} })
       setAlerts(al.items || [])
+      api('/api/transactions/recurring').then((d) => setRecurring(d.items || [])).catch(() => {})
+      api('/api/savings-goals').then((d) => setGoals(d.items || [])).catch(() => {})
+      api(`/api/finance/year?jy=${jParts(month)[0]}`).then(setYear).catch(() => setYear(null))
       setTrend(hist.map((h, i) => ({ month: months[i], label: JMONTHS[jParts(months[i])[1] - 1], income: h.income || 0, expense: h.expense || 0 })))
     } catch (e) { setNotice(e.message) }
   }, [month])
@@ -326,8 +336,9 @@ export function FinanceReact({ Nav }) {
   const submitTx = (e) => {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
-    send('/api/transactions', { title: f.get('title'), amount: Number(f.get('amount')), kind: f.get('kind'), category: f.get('category') || '', account: f.get('account') || 'بدون حساب', date: f.get('date') || isoToday(), tags: f.get('tags') }, 'تراکنش ثبت شد.')
-    e.currentTarget.reset()
+    const rec = f.get('recurrence') || null
+    send('/api/transactions', { title: f.get('title'), amount: Number(f.get('amount')), kind: f.get('kind'), category: f.get('category') || '', account: f.get('account') || 'بدون حساب', date: f.get('date') || isoToday(), tags: f.get('tags'), recurrence: rec }, rec ? 'تراکنش تکراری ثبت شد 🔁' : 'تراکنش ثبت شد.')
+    e.currentTarget.reset(); setDraft((d) => ({ key: d.key + 1 }))
   }
 
   const previewImport = async (e) => {
@@ -344,6 +355,28 @@ export function FinanceReact({ Nav }) {
       setImportPreview(preview)
     } catch (err) { setNotice(err.message) }
     e.target.value = ''
+  }
+
+  const scanReceipt = async (e) => {
+    const file = e.target.files?.[0]; e.target.value = ''
+    if (!file) return
+    setScanning(true)
+    try {
+      const img = await new Promise((res, rej) => { const u = URL.createObjectURL(file), im = new Image(); im.onload = () => { URL.revokeObjectURL(u); res(im) }; im.onerror = rej; im.src = u })
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas')
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+      const r = await api('/api/transactions/receipt-scan', { method: 'POST', body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85) }) })
+      setDraft((d) => ({ key: d.key + 1, title: r.title, amount: r.amount ? Number(r.amount).toLocaleString('en-US') : '', category: CATS.includes(r.category) ? r.category : '', kind: r.kind, date: r.date || isoToday(), scanned: true }))
+    } catch (err) { setNotice(err.message) }
+    setScanning(false)
+  }
+  const stopRecurring = async (r) => { if (!window.confirm(`تکرار «${r.title}» متوقف شود؟ (تراکنش‌های ثبت‌شده می‌مانند)`)) return; await send('/api/transactions/recurring/stop', { recurrenceId: r.recurrenceId }, 'تکرار متوقف شد.') }
+  const REC_FA = { jmonthly: 'ماهانه (شمسی)', monthly: 'ماهانه (میلادی)', weekly: 'هفتگی', yearly: 'سالانه', daily: 'روزانه' }
+  const goalInfo = (g) => {
+    const pct = g.target ? Math.min(100, Math.round((g.saved / g.target) * 100)) : 0, left = Math.max(0, g.target - g.saved)
+    let perMonth = null, monthsLeft = null
+    if (g.deadline && left > 0) { const days = Math.round((Date.parse(g.deadline) - Date.parse(isoToday())) / 864e5); monthsLeft = Math.max(1, Math.ceil(days / 30)); perMonth = days > 0 ? left / monthsLeft : null }
+    return { pct, left, perMonth, monthsLeft, late: g.deadline && g.deadline < isoToday() && left > 0 }
   }
 
   const submitPoker = (e) => {
@@ -452,23 +485,51 @@ export function FinanceReact({ Nav }) {
           </div>
         ) : null}
 
+        {tab === 'dash' && year ? (() => {
+          const cur = year.current || [], prev = year.previous || [], key = yearKind
+          const max = Math.max(1, ...cur.map((x) => x[key]), ...prev.map((x) => x[key]))
+          const upto = cur.filter((x) => !x.future).length
+          const tc = cur.slice(0, upto).reduce((a, x) => a + x[key], 0), tp = prev.slice(0, upto).reduce((a, x) => a + x[key], 0)
+          const ch = tp ? Math.round(((tc - tp) / tp) * 100) : null
+          return (
+            <section className="fn-glass fn-card fn-year">
+              <div className="fn-head"><h2>مقایسهٔ سالانه · {faD(year.jy)} با {faD(year.jy - 1)}</h2>
+                <span className="fn-unit">{[['expense', 'هزینه'], ['income', 'درآمد']].map(([k, l]) => <button key={k} type="button" className={yearKind === k ? 'on' : ''} onClick={() => setYearKind(k)}>{l}</button>)}</span>
+              </div>
+              <p className="sub">از ابتدای سال تا {JMONTHS[Math.max(0, upto - 1)]}: {short(tc)} {ch != null ? <b className={(key === 'expense' ? ch <= 0 : ch >= 0) ? 'pos' : 'neg'}>{ch >= 0 ? '▲' : '▼'} {fa(Math.abs(ch))}٪</b> : null} نسبت به همین بازهٔ پارسال ({short(tp)})</p>
+              <div className="fn-ybars">
+                {cur.map((x, i) => (
+                  <div key={x.m} className={`fn-ycol ${x.future ? 'future' : ''}`} title={`${JMONTHS[i]} — امسال ${faMoney(x[key])} · پارسال ${faMoney(prev[i]?.[key] || 0)}`}>
+                    <div className="fn-ypair"><i className="prev" style={{ height: `${Math.round(((prev[i]?.[key] || 0) / max) * 100)}%` }} /><i className={`cur ${key}`} style={{ height: `${Math.round((x[key] / max) * 100)}%` }} /></div>
+                    <span>{JMONTHS[i]}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="fn-note"><i className="fn-lg cur" /> {faD(year.jy)} <i className="fn-lg prev" /> {faD(year.jy - 1)}</p>
+            </section>
+          )
+        })() : null}
+
         {tab === 'ledger' ? (
           <div className="fn-ledger" id="ledger">
             <section className="fn-glass fn-list">
               <div className="fn-head"><h2>دفتر {monthFa(month)}</h2><Drawer label="تراکنش تازه">
-<form className="fn-form" onSubmit={submitTx}>
-              <input name="title" required placeholder="شرح" />
-              <input name="amount" required inputMode="numeric" placeholder="مبلغ (ریال)" />
+<form className="fn-form" onSubmit={submitTx} key={draft.key}>
+              <label className={`fn-file fn-scan ${scanning ? 'busy' : ''}`}>{scanning ? '⏳ در حال خواندن رسید…' : '📷 پر کردن از روی عکس رسید / پیامک'}<input type="file" accept="image/*" capture="environment" hidden onChange={scanReceipt} disabled={scanning} /></label>
+              {draft.scanned ? <p className="fn-note">✓ از روی تصویر پر شد — قبل از ثبت چک کن.</p> : null}
+              <input name="title" required placeholder="شرح" defaultValue={draft.title || ''} />
+              <input name="amount" required inputMode="numeric" placeholder="مبلغ (ریال)" defaultValue={draft.amount || ''} />
               <div>
-                <select name="kind"><option value="expense">هزینه</option><option value="income">درآمد</option></select>
-                <select name="category"><option value="">دسته: خودکار از روی شرح</option>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
+                <select name="kind" defaultValue={draft.kind || 'expense'}><option value="expense">هزینه</option><option value="income">درآمد</option></select>
+                <select name="category" defaultValue={draft.category || ''}><option value="">دسته: خودکار از روی شرح</option>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
               </div>
+              <select name="recurrence" defaultValue=""><option value="">بدون تکرار</option><option value="jmonthly">🔁 هر ماه (همان روز ماه شمسی)</option><option value="weekly">🔁 هر هفته</option><option value="yearly">🔁 هر سال</option></select>
               <select name="account">
                 <option value="بدون حساب">بدون حساب</option>
                 {accounts.filter((a) => !a.archived).map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}
               </select>
               <input name="tags" placeholder="تگ‌ها، با ویرگول" />
-              <JalaliDateInput name="date" defaultValue={isoToday()} />
+              <JalaliDateInput name="date" defaultValue={draft.date || isoToday()} />
               <button className="fn-save">ثبت تراکنش</button>
             </form>
               </Drawer></div>
@@ -546,6 +607,19 @@ export function FinanceReact({ Nav }) {
                   </div>
                 ))}
               </div>
+              <div className="fn-head" style={{ marginTop: 18 }}><h2>🔁 پرداخت‌ها و دریافت‌های تکراری</h2></div>
+              {recurring.length ? recurring.map((r) => {
+                const due = dueInfo(r.nextDate)
+                return (
+                  <article key={r.recurrenceId} className="fn-rec">
+                    <div><b>{r.title}</b><small>{REC_FA[r.recurrence] || r.recurrence} · {r.category} · {fa(r.count)} بار ثبت شده</small></div>
+                    <span className={`fn-due ${due.cls}`}>بعدی: {due.label === 'امروز' ? 'امروز' : jalaliShort(r.nextDate)}</span>
+                    <span className={`amt ${r.kind === 'income' ? 'pos' : 'neg'}`}>{short(r.amount)}</span>
+                    <button type="button" className="fn-link del" onClick={() => stopRecurring(r)}>توقف</button>
+                  </article>
+                )
+              }) : <p className="fn-empty">تراکنش تکراری نداری. در «تراکنش تازه»، گزینهٔ «تکرار» را انتخاب کن تا اجاره، قسط یا حقوق هر ماه خودکار ثبت شود و قبلش در پیام صبح یادآوری بیاید.</p>}
+              {recurring.length ? <p className="fn-note">جمع تکراری ماهانه: هزینه {short(recurring.filter((r) => r.kind !== 'income').reduce((a, r) => a + (r.recurrence === 'weekly' ? r.amount * 4.3 : r.recurrence === 'yearly' ? r.amount / 12 : r.amount), 0))} · درآمد {short(recurring.filter((r) => r.kind === 'income').reduce((a, r) => a + (r.recurrence === 'weekly' ? r.amount * 4.3 : r.recurrence === 'yearly' ? r.amount / 12 : r.amount), 0))}</p> : null}
             </section>
             <section className="fn-glass fn-list">
               <div className="fn-head"><h2>بودجهٔ {monthFa(month)}</h2></div>
@@ -604,6 +678,41 @@ export function FinanceReact({ Nav }) {
 
         {tab === 'wealth' ? (
           <>
+          <section className="fn-glass fn-list fn-goals">
+            <div className="fn-head"><h2>🎯 اهداف پس‌انداز</h2><Drawer label="هدف" title="هدف پس‌انداز تازه">
+              <form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/savings-goals', { title: f.get('title'), icon: f.get('icon') || '🎯', target: Number(f.get('target')), saved: Number(f.get('saved') || 0), deadline: f.get('deadline') || null }, 'هدف ثبت شد.'); e.currentTarget.reset() }}>
+                <div><input name="icon" placeholder="🎯" maxLength={4} style={{ maxWidth: 70, textAlign: 'center' }} /><input name="title" required placeholder="مثلاً لپ‌تاپ، سفر، ماشین" /></div>
+                <input name="target" required inputMode="numeric" placeholder="مبلغ هدف (ریال)" />
+                <input name="saved" inputMode="numeric" placeholder="تا الان جمع کرده‌ام (اختیاری)" />
+                <JalaliDateInput name="deadline" placeholder="تا چه تاریخی؟ (اختیاری)" />
+                <button className="fn-save">ثبت هدف</button>
+              </form>
+            </Drawer></div>
+            {goals.length ? <div className="fn-goal-grid">{goals.map((g) => {
+              const gi = goalInfo(g)
+              return (
+                <article key={g.id} className={`fn-goal ${gi.pct >= 100 ? 'done' : ''} ${gi.late ? 'late' : ''}`}>
+                  <div className="fn-goal-top"><span className="fn-goal-ic">{g.icon || '🎯'}</span><div><b>{g.title}</b><small>{g.deadline ? `تا ${jalaliShort(g.deadline)}` : 'بدون مهلت'}</small></div><strong>{fa(gi.pct)}٪</strong></div>
+                  <div className="fn-bbar"><i style={{ width: `${gi.pct}%` }} /></div>
+                  <div className="fn-goal-nums"><span title={faMoney(g.saved)}>{short(g.saved, false)}</span><span>از {short(g.target)}</span></div>
+                  <small className="fn-goal-hint">{gi.pct >= 100 ? '🎉 به هدف رسیدی!' : gi.late ? `مهلت گذشته · ${short(gi.left)} مانده` : gi.perMonth ? `ماهی ${short(gi.perMonth)} تا ${fa(gi.monthsLeft)} ماه دیگر` : `${short(gi.left)} مانده`}</small>
+                  {goalDep === g.id ? (
+                    <form className="fn-pay" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget), v = Number(f.get('amount')); send(`/api/savings-goals/${g.id}/deposit`, { amount: f.get('dir') === 'out' ? -v : v }, 'ثبت شد.'); setGoalDep(null) }}>
+                      <select name="dir"><option value="in">واریز</option><option value="out">برداشت</option></select>
+                      <input name="amount" required inputMode="numeric" placeholder="مبلغ" autoFocus />
+                      <button className="fn-save">ثبت</button>
+                    </form>
+                  ) : (
+                    <div className="fn-goal-ops">
+                      <button type="button" className="fn-add" onClick={() => setGoalDep(g.id)}>＋ واریز / برداشت</button>
+                      <button type="button" className="fn-link del" onClick={() => { if (window.confirm(`هدف «${g.title}» حذف شود؟`)) send(`/api/savings-goals/${g.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
+                    </div>
+                  )}
+                </article>
+              )
+            })}</div> : <p className="fn-empty">هدفی ثبت نشده. برای خرید بزرگ یا سفر هدف بگذار تا ببینی ماهی چقدر باید کنار بگذاری.</p>}
+          </section>
+
           <div className="fn-2" id="debts">
             <section className="fn-glass fn-list">
               <div className="fn-head"><h2>بدهی و طلب</h2><Drawer label="بدهی / طلب">

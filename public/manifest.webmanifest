@@ -1,1 +1,26 @@
-{"name": "هسته — داشبورد شخصی", "short_name": "هسته", "start_url": "/", "display": "standalone", "background_color": "#0b1018", "theme_color": "#0b1018", "lang": "fa", "icons": [{"src": "/assets/img/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": "/assets/img/icon-512.png", "sizes": "512x512", "type": "image/png"}, {"src": "/assets/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}]}
+{
+  "name": "LifeOS — داشبورد شخصی",
+  "short_name": "LifeOS",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "dir": "rtl",
+  "lang": "fa",
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
+  "description": "کارها، مالی، سریال‌ها، بازار و یادداشت‌ها در یک‌جا",
+  "icons": [
+    { "src": "/assets/img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/img/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "ثبت تراکنش", "short_name": "تراکنش", "url": "/?page=finance&tab=ledger", "icons": [{ "src": "/assets/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "کارها و برنامه‌ریز", "short_name": "کارها", "url": "/?page=planner", "icons": [{ "src": "/assets/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "عادت‌ها", "short_name": "عادت‌ها", "url": "/?page=habits", "icons": [{ "src": "/assets/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "سریال‌ها", "short_name": "سریال", "url": "/?page=series", "icons": [{ "src": "/assets/img/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

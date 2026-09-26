@@ -467,7 +467,7 @@ export function DocumentsReact({ Nav }) {
             <div className="dm-tools">
               <div className="dm-search">
                 <Search size={15} />
-                <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجو در عنوان، نوع، شماره، برچسب…  (Ctrl+K)" />
+                <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجو در عنوان، نوع، شماره، برچسب…" />
                 {query && <button type="button" onClick={() => setQuery('')} aria-label="پاک کردن"><X size={14} /></button>}
               </div>
               <select className={filterType !== 'همه' ? 'on' : ''} value={filterType} onChange={e => setFilterType(e.target.value)} aria-label="نوع">{usedTypes.map(([t, n]) => <option key={t} value={t}>{t === 'همه' ? 'همهٔ انواع' : `${t} (${faNum(n)})`}</option>)}</select>

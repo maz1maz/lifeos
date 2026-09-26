@@ -137,6 +137,26 @@ async function main() {
     const deb = (await call('/api/debts', { cookie })).d.items.find((x) => x.person === 'تست');
     const pay = await call(`/api/debts/${deb.id}/pay`, { method: 'POST', cookie, body: { amount: 2000000 } });
     check('partial debt payment reduces amount', pay.status === 200 && pay.d.amount === 3000000 && pay.d.paid === 2000000);
+    const rec = await call('/api/transactions', { method: 'POST', cookie, body: { title: 'اجاره', amount: 1000, kind: 'expense', category: 'مسکن', date: daysAgo(70), recurrence: 'jmonthly' } });
+    check('jalali-monthly recurring tx created', rec.status === 201 && rec.d.recurrenceId);
+    const rl = await call('/api/transactions/recurring', { cookie });
+    const chain = (rl.d?.items || []).find((x) => x.title === 'اجاره');
+    check('recurring list advances the chain (>=2 occurrences, next date in future)', chain && chain.count >= 2 && chain.nextDate > today(), JSON.stringify(chain));
+    const stop = await call('/api/transactions/recurring/stop', { method: 'POST', cookie, body: { recurrenceId: rec.d.recurrenceId } });
+    check('stop recurring', stop.status === 200 && stop.d.stopped >= 1);
+    const yr = await call(`/api/finance/year?jy=${parseInt(jp.year)}`, { cookie });
+    check('year comparison -> 12+12 months', yr.status === 200 && yr.d.current.length === 12 && yr.d.previous.length === 12);
+    const g = await call('/api/savings-goals', { method: 'POST', cookie, body: { title: 'لپ‌تاپ', target: 100 } });
+    const dep = await call(`/api/savings-goals/${g.d.id}/deposit`, { method: 'POST', cookie, body: { amount: 40 } });
+    check('savings goal deposit', dep.status === 200 && dep.d.saved === 40);
+    const wr = await call('/api/finance/weekly-report', { cookie });
+    check('weekly report text', wr.status === 200 && /مرور هفته/.test(wr.d.text));
+    const scan = await call('/api/transactions/receipt-scan', { method: 'POST', cookie, body: { image: 'data:image/png;base64,AAAA' } });
+    check('receipt scan without AI key -> 503 (not 500)', scan.status === 503);
+    const upc = await call('/api/movies/upcoming', { cookie });
+    check('upcoming episodes -> 200 with lists', upc.status === 200 && Array.isArray(upc.d.upcoming) && Array.isArray(upc.d.recent));
+    const recs = await call('/api/movies/recommendations?type=series', { cookie });
+    check('recommendations without seeds -> 200 with message (no crash)', recs.status === 200 && Array.isArray(recs.d.items));
   }
   const applied = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: { apply: true } });
   check('recategorize apply -> 200', applied.status === 200 && applied.d && applied.d.applied === true);

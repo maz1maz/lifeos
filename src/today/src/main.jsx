@@ -21,10 +21,13 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
+import { HabitsPage, WeeklyPage } from './habits';
+import { UpcomingPage, DiscoverPage } from './watchx';
+import { CommandPalette } from './palette';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -81,7 +84,7 @@ function Sparkline({ data, up, width = 72, height = 28, uid = 'sp', color: force
 }
 
 const NAV_GROUPS = [
-  ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays]]],
+  ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays], ['habits', 'عادت‌ها', Flame], ['week', 'مرور هفته', ClipboardCheck]]],
   ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
   ['سرگرمی', [['football', 'فوتبال', Trophy], ['series', 'فیلم و سریال', Clapperboard], ['media', 'رسانه', Music]]],
   ['آرشیو', [['notes', 'یادداشت‌ها', StickyNote], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
@@ -105,7 +108,9 @@ function TopNav({ active, right }) {
       <a className="brand" href="/" aria-label="LifeOS"><i className="brand-logo" aria-hidden="true" /><span>LifeOS</span></a>
       <span className="nav-current">{current[1]}</span>
       <span className="nav-spacer" />
+      <button type="button" className="nav-search" onClick={() => window.dispatchEvent(new Event('lifeos:search'))} aria-label="جستجو (Ctrl+K)" title="جستجو — Ctrl+K"><Search size={17} /><span>جستجو</span><kbd>Ctrl K</kbd></button>
       {right}
+      <CommandPalette pages={[...NAV_PAGES, ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']]} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
@@ -119,39 +124,43 @@ function TopNav({ active, right }) {
 // Planner + Calendar live in one place: same data, two ways of looking at it.
 // Series + Movies in one place (like Planner + Calendar).
 function WatchHub({ initial }) {
-  const [view, setView] = useState(initial === 'movies' ? 'movies' : 'series');
+  const [view, setView] = useState(['movies', 'upcoming', 'discover'].includes(initial) ? initial : 'series');
   const go = v => { setView(v); try { history.replaceState(null, '', `/?page=${v}`); } catch {} window.scrollTo(0, 0); };
   const HubNav = () => <>
     <TopNav active="series" />
     <div className="hub-switch" role="tablist" aria-label="فیلم و سریال">
       <button type="button" role="tab" aria-selected={view === 'series'} className={view === 'series' ? 'on' : ''} onClick={() => go('series')}><Clapperboard size={16} />سریال‌ها</button>
       <button type="button" role="tab" aria-selected={view === 'movies'} className={view === 'movies' ? 'on' : ''} onClick={() => go('movies')}><Film size={16} />فیلم‌ها</button>
+      <button type="button" role="tab" aria-selected={view === 'upcoming'} className={view === 'upcoming' ? 'on' : ''} onClick={() => go('upcoming')}><CalendarDays size={16} />تقویم پخش</button>
+      <button type="button" role="tab" aria-selected={view === 'discover'} className={view === 'discover' ? 'on' : ''} onClick={() => go('discover')}><Sparkles size={16} />پیشنهاد</button>
     </div>
   </>;
-  return view === 'movies' ? <MoviesReact Nav={HubNav} /> : <SeriesReact Nav={HubNav} />;
+  return view === 'movies' ? <MoviesReact Nav={HubNav} /> : view === 'upcoming' ? <UpcomingPage Nav={HubNav} /> : view === 'discover' ? <DiscoverPage Nav={HubNav} /> : <SeriesReact Nav={HubNav} />;
 }
 
 function PlanHub({ initial }) {
   const [view, setView] = useState(initial);
-  const go = v => { setView(v); try { history.replaceState(null, '', v === 'calendar' ? '/?page=calendar' : '/?page=planner'); } catch {} window.scrollTo(0, 0); };
+  const go = v => { setView(v); try { history.replaceState(null, '', `/?page=${{ calendar: 'calendar', habits: 'habits', week: 'week' }[v] || 'planner'}`); } catch {} window.scrollTo(0, 0); };
   const HubNav = () => <>
-    <TopNav active="planner" />
+    <TopNav active={view === "habits" ? "habits" : view === "week" ? "week" : "planner"} />
     <div className="hub-switch" role="tablist" aria-label="نمای برنامه‌ریز">
       <button type="button" role="tab" aria-selected={view === 'list'} className={view === 'list' ? 'on' : ''} onClick={() => go('list')}><ListChecks size={16} />لیست کارها</button>
       <button type="button" role="tab" aria-selected={view === 'calendar'} className={view === 'calendar' ? 'on' : ''} onClick={() => go('calendar')}><CalendarDays size={16} />تقویم</button>
+      <button type="button" role="tab" aria-selected={view === 'habits'} className={view === 'habits' ? 'on' : ''} onClick={() => go('habits')}><Flame size={16} />عادت‌ها</button>
+      <button type="button" role="tab" aria-selected={view === 'week'} className={view === 'week' ? 'on' : ''} onClick={() => go('week')}><ClipboardCheck size={16} />مرور هفته</button>
     </div>
   </>;
-  return view === 'calendar' ? <CalendarReact Nav={HubNav} /> : <PlannerReact Nav={HubNav} />;
+  return view === 'calendar' ? <CalendarReact Nav={HubNav} /> : view === 'habits' ? <HabitsPage Nav={HubNav} /> : view === 'week' ? <WeeklyPage Nav={HubNav} /> : <PlannerReact Nav={HubNav} />;
 }
 
 // Router first: other pages must not pay for the Today page's data fetching.
 function App() {
   const page = new URLSearchParams(location.search).get('page');
-  if (page === 'calendar' || page === 'planner') return <PlanHub initial={page === 'calendar' ? 'calendar' : 'list'} />;
+  if (page === 'calendar' || page === 'planner' || page === 'habits' || page === 'week') return <PlanHub initial={page === 'planner' ? 'list' : page} />;
   if (page === 'finance') return <FinanceReact Nav={TopNav} />;
   if (page === 'market') return <MarketReact Nav={TopNav} />;
   if (page === 'football') return <FootballPage />;
-  if (page === 'movies' || page === 'series') return <WatchHub initial={page} />;
+  if (['movies', 'series', 'upcoming', 'discover'].includes(page)) return <WatchHub initial={page} />;
   if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;
   if (page === 'notes') return <NotesReact Nav={TopNav} />;
   if (page === 'documents') return <DocumentsReact Nav={TopNav} />;
@@ -1073,13 +1082,13 @@ function SettingsReact() {
   const [pinNew, setPinNew] = useState(''), [pinCur, setPinCur] = useState('');
   const [tgLink, setTgLink] = useState(null);
   const [tgBackupBusy, setTgBackupBusy] = useState(false);
-  const [digest, setDigest] = useState({ tgMorningHour: 9, tgEveningHour: 23, tgMorningOn: true, tgEveningOn: true, tgMonthlyOn: true, tgReports: true });
+  const [digest, setDigest] = useState({ tgMorningHour: 9, tgEveningHour: 23, tgMorningOn: true, tgEveningOn: true, tgMonthlyOn: true, tgWeeklyOn: true, tgReports: true });
   const [chatLog, setChatLog] = useState([]), [chatInput, setChatInput] = useState(''), [chatBusy, setChatBusy] = useState(false);
 
   const load = () => api('/api/integrations').then(setIntegrations).catch(error => setNotice(error.message));
   const loadMe = () => api('/api/me').then(data => {
     setMe(data.user || null);
-    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false, tgMonthlyOn: data.user.tgMonthlyOn !== false }));
+    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false, tgMonthlyOn: data.user.tgMonthlyOn !== false, tgWeeklyOn: data.user.tgWeeklyOn !== false, tgLastBackup: data.user.tgLastBackup || null }));
   }).catch(error => setNotice(error.message));
   useEffect(() => { load(); loadMe(); }, []);
 
@@ -1215,10 +1224,16 @@ function SettingsReact() {
             <button type="button" className={`plnr-switch ${digest.tgMonthlyOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgMonthlyOn} onClick={() => saveDigest({ tgMonthlyOn: !digest.tgMonthlyOn })}><i /></button>
           </article>
           <article>
+            <div><b>🗓 مرور هفته</b><small>جمعه‌ها ساعت گزارش عصر: کارهای انجام‌شده، عادت‌ها، هزینهٔ هفته و سررسیدهای هفتهٔ بعد</small></div>
+            <button type="button" className={`plnr-switch ${digest.tgWeeklyOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgWeeklyOn} onClick={() => saveDigest({ tgWeeklyOn: !digest.tgWeeklyOn })}><i /></button>
+          </article>
+          <article>
             <div><b>ارسال گزارش‌ها در تلگرام</b><small>خاموش‌کردن یعنی هیچ دایجستی فرستاده نشود</small></div>
             <button type="button" className={`plnr-switch ${digest.tgReports ? 'on' : ''}`} role="switch" aria-checked={digest.tgReports} onClick={() => saveDigest({ tgReports: !digest.tgReports })}><i /></button>
           </article>
         </section>
+
+        <BackupInstallCard lastBackup={digest.tgLastBackup} />
 
         <section className="planner-list ai-chat-card" id="aiChatCard">
           <h2>چت با دستیار هوش مصنوعی</h2>
@@ -1830,4 +1845,38 @@ function FinanceMini({ todaySpend }) {
 }
 
 applyAppearance(readLs('lifeos-appearance', APPEARANCE_DEFAULT));
-createRoot(document.getElementById('root')).render(<App />);
+function BackupInstallCard({ lastBackup }) {
+  const [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [last, setLast] = useState(lastBackup), [canInstall, setCanInstall] = useState(!!window.__lifeosInstall);
+  useEffect(() => setLast(lastBackup), [lastBackup]);
+  useEffect(() => { const f = () => setCanInstall(!!window.__lifeosInstall); window.addEventListener('lifeos:installable', f); return () => window.removeEventListener('lifeos:installable', f); }, []);
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const backupNow = async () => { setBusy(true); try { const r = await api('/api/backup/now', { method: 'POST' }); setLast(r.date); setMsg('بکاپ به تلگرام فرستاده شد ✓'); } catch (e) { setMsg(e.message); } setBusy(false); };
+  const install = async () => { const p = window.__lifeosInstall; if (!p) return; p.prompt(); try { await p.userChoice; } catch {} window.__lifeosInstall = null; setCanInstall(false); };
+  const lastLabel = last ? (last === isoToday() ? 'امروز' : jalaliDayLabel(last)) : 'هنوز نه';
+  return <section className="planner-list digest-card">
+    <h2>📦 بکاپ و نصب اپ</h2>
+    <article>
+      <div><b>🗄 بکاپ خودکار روزانه در تلگرام</b><small>هر روز یک فایل JSON از همهٔ داده‌ها به تلگرامت فرستاده می‌شود · آخرین بکاپ: {lastLabel}</small></div>
+      <div className="digest-controls"><button type="button" className="finance-action" onClick={backupNow} disabled={busy}>{busy ? '…' : 'بکاپ الان'}</button><a className="finance-action" href="/api/export" download="lifeos-export.json">دانلود فایل</a></div>
+    </article>
+    <article>
+      <div><b>📱 نصب روی گوشی / دسکتاپ</b><small>{standalone ? 'اپ نصب شده است ✓ — بدون اینترنت هم آخرین داده‌ها قابل مشاهده‌اند.' : ios ? 'در سافاری دکمهٔ Share و بعد «Add to Home Screen» را بزن.' : canInstall ? 'مثل یک اپ جدا باز می‌شود و بدون اینترنت هم آخرین داده‌ها را نشان می‌دهد.' : 'از منوی مرورگر گزینهٔ «Install app» یا «Add to Home screen» را بزن.'}</small></div>
+      {canInstall && !standalone ? <button type="button" className="save" onClick={install}>نصب</button> : null}
+    </article>
+    {msg ? <p className="muted">{msg}</p> : null}
+  </section>;
+}
+
+function OfflineBar() {
+  const [off, setOff] = useState(!navigator.onLine);
+  useEffect(() => { const a = () => setOff(false), b = () => setOff(true); window.addEventListener('online', a); window.addEventListener('offline', b); return () => { window.removeEventListener('online', a); window.removeEventListener('offline', b); }; }, []);
+  return off ? <div className="offline-bar" role="status">⚡ آفلاین هستی — آخرین داده‌های ذخیره‌شده نمایش داده می‌شود؛ ثبت و ویرایش بعد از وصل شدن.</div> : null;
+}
+
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window.__lifeosInstall = e; window.dispatchEvent(new Event('lifeos:installable')); });
+if ('serviceWorker' in navigator && !navigator.webdriver && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+}
+
+createRoot(document.getElementById('root')).render(<><App /><OfflineBar /></>);

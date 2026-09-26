@@ -923,3 +923,4 @@ html[data-mode="light"] .brand-logo{background:#105040}
 /* v34 — debt due items in agenda */
 .agenda .line.debt i{border-color:transparent!important;background:transparent!important;font-size:13px;display:grid;place-items:center}
 .agenda .line.debt span{color:var(--g-accent-strong)}
+@media(max-width:700px){.hub-switch{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;scrollbar-width:none;padding-inline:12px}.hub-switch::-webkit-scrollbar{display:none}.hub-switch button{white-space:nowrap;flex:none}}
