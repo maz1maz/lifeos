@@ -209,6 +209,18 @@ async function main() {
     const m44 = await call(`/api/tasks/${t44.id}`, { method: 'PATCH', cookie, body: { mit: today() } });
     check('task can be starred as one of today\'s three', m44.d && m44.d.mit === today());
     check('bad mit value cleared', (await call(`/api/tasks/${t44.id}`, { method: 'PATCH', cookie, body: { mit: '<x>' } })).d.mit === '');
+    // v45: admin overview — only the first account (no ADMIN_EMAILS) may read it
+    const ad1 = await call('/api/admin/overview', { cookie });
+    const meA = (await call('/api/me', { cookie })).d.user;
+    check('admin flag matches access', (ad1.status === 200) === (meA.isAdmin === true), `${ad1.status} ${meA.isAdmin}`);
+    if (ad1.status === 200) check('admin overview lists users without secrets', ad1.d.totals.users >= 1 && ad1.d.users.every(u => !('password' in u) && !('salt' in u)) && ad1.d.weeks.length === 12);
+    const em45 = `wsmoke_second_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'Second', email: em45, password: 'secret123' } });
+    const lg45 = await call('/api/auth/login', { method: 'POST', body: { email: em45, password: 'secret123' } });
+    const ck45 = String((typeof lg45.headers.getSetCookie === 'function' ? lg45.headers.getSetCookie()[0] : lg45.headers.get('set-cookie')) || '').split(';')[0];
+    check('a later account is not admin -> 403', (await call('/api/admin/overview', { cookie: ck45 })).status === 403);
+    check('me.isAdmin false for later account', (await call('/api/me', { cookie: ck45 })).d.user.isAdmin === false);
+    check('anonymous admin -> 401', (await call('/api/admin/overview')).status === 401);
     const upc = await call('/api/movies/upcoming', { cookie });
     check('upcoming episodes -> 200 with lists', upc.status === 200 && Array.isArray(upc.d.upcoming) && Array.isArray(upc.d.recent));
     const recs = await call('/api/movies/recommendations?type=series', { cookie });

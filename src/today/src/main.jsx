@@ -21,13 +21,14 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Target, Timer, BarChart3, ShoppingCart, Receipt
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Target, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
 import { HabitsPage, WeeklyPage } from './habits';
 import { UpcomingPage, DiscoverPage } from './watchx';
 import { CommandPalette } from './palette';
+import { AdminPage } from './admin';
 import { HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, FocusCard, ShoppingPanel, BillsWeekCard, LifeStatsPage } from './life';
 
 const api = async (url, options) => {
@@ -91,10 +92,14 @@ const NAV_GROUPS = [
   ['زندگی', [['health', 'سلامت', HeartPulse], ['car', 'خودرو', Car], ['travel', 'سفر', Plane], ['football', 'فوتبال', Trophy], ['series', 'فیلم و سریال', Clapperboard], ['media', 'رسانه', Music]]],
   ['آرشیو', [['notes', 'یادداشت‌ها و خرید', StickyNote], ['journal', 'روزنگار', BookOpen], ['learning', 'یادگیری', GraduationCap], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
 ];
-const NAV_PAGES = [...NAV_GROUPS.flatMap(([, items]) => items), ['settings', 'تنظیمات', Settings]];
+const NAV_PAGES = [...NAV_GROUPS.flatMap(([, items]) => items), ['settings', 'تنظیمات', Settings], ['admin', 'مدیریت', ShieldCheck]];
+let ME_ONCE = null;
+const meOnce = () => (ME_ONCE ||= api('/api/me').then(d => d.user || null).catch(() => null));
 function TopNav({ active, right }) {
   const [open, setOpen] = useState(false);
   const mods = useModules();
+  const [admin, setAdmin] = useState(() => readLs('lifeos-is-admin', false));
+  useEffect(() => { meOnce().then(u => { const a = !!u?.isAdmin; setAdmin(a); writeLs('lifeos-is-admin', a); }); }, []);
   const groups = NAV_GROUPS.map(([t, items]) => [t, items.filter(([pg]) => pageOn(mods, pg))]).filter(([, items]) => items.length);
   useEffect(() => {
     document.body.classList.toggle('nav-lock', open);
@@ -114,12 +119,12 @@ function TopNav({ active, right }) {
       <span className="nav-spacer" />
       <button type="button" className="nav-search" onClick={() => window.dispatchEvent(new Event('lifeos:search'))} aria-label="جستجو (Ctrl+K)" title="جستجو — Ctrl+K"><Search size={17} /><span>جستجو</span><kbd>Ctrl K</kbd></button>
       {right}
-      <CommandPalette pages={[...NAV_PAGES, ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => pageOn(mods, pg))} />
+      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => pageOn(mods, pg))} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
         {groups.map(([title, items]) => <div className="drawer-group" key={title}><small>{title}</small>{items.map(link)}</div>)}
-        <div className="drawer-foot">{link(['settings', 'تنظیمات', Settings])}</div>
+        <div className="drawer-foot">{admin ? link(['admin', 'مدیریت کاربران', ShieldCheck]) : null}{link(['settings', 'تنظیمات', Settings])}</div>
       </aside>
     </nav>
   );
@@ -186,6 +191,7 @@ function App() {
   if (page === 'documents') return <DocumentsReact Nav={TopNav} />;
   if (page === 'contacts') return <ContactsReact Nav={TopNav} />;
   if (page === 'settings') return <SettingsReact />;
+  if (page === 'admin') return <AdminPage Nav={() => <TopNav active="admin" />} />;
   return <HomePage />;
 }
 function HomePage() {
