@@ -89,3 +89,34 @@ i.cost{background:var(--g-muted)}
 .fu-how{margin:6px 0 0;color:var(--g-muted);font-size:11.5px}
 .fu-bars.dense{gap:3px}.fu-bars.dense span{font-size:9.5px}
 .fu-bar span{white-space:nowrap;overflow:hidden}
+/* v50 — mode switch, full-width charts, readable daily/monthly net bars */
+.fu-card{--fu-poker:#a78bfa;--fu-bet:#38bdf8}
+.fu-grid{grid-template-columns:1fr!important}
+.fu-modebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fu-modebar small{color:var(--g-muted);font-size:12px}
+.fu-modebar .fu-seg button{font-size:13px;padding:5px 16px}
+.fu-l.total{stroke:var(--fu-total)}
+.m-poker .fu-l.poker,.m-bet .fu-l.bet{stroke-width:3;opacity:1}
+.fu-dot.poker{fill:var(--fu-poker)}.fu-dot.bet{fill:var(--fu-bet)}
+.fu-nb{display:grid;gap:10px}
+.fu-bars{height:260px!important;gap:6px!important}
+.fu-bar{grid-template-rows:auto 1fr 1fr auto!important;cursor:pointer;border-radius:8px;padding:2px 0}
+.fu-bar.on{background:var(--g-panel)}
+.fu-bar-val{display:grid;justify-items:center;line-height:1.25;min-height:30px}
+.fu-bar-val b{font-size:12px;white-space:nowrap}
+.fu-bar-val b.pos{color:var(--g-good,#34d399)}.fu-bar-val b.neg{color:var(--g-bad,#f87171)}
+.fu-bar-val em{font-style:normal;font-size:10px;color:var(--g-muted)}
+.fu-bar-half{gap:3px}
+.fu-bar-half i{width:auto!important;flex:0 1 16px;max-width:16px!important}
+.fu-bar-half.up i{border-radius:4px 4px 0 0}.fu-bar-half.down i{border-radius:0 0 4px 4px}
+.fu-bar-half i.poker{background:var(--fu-poker)}.fu-bar-half i.bet{background:var(--fu-bet)}
+.fu-bar>span{font-size:11.5px;color:var(--g-text);text-align:center;margin-top:4px}
+.fu-nb-tip{display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:12.5px;padding:8px 12px;border-radius:10px;background:var(--g-panel);border:1px solid var(--g-border);min-height:20px}
+.fu-nb-tip.muted{color:var(--g-muted)}
+.fu-nb-tip span{display:inline-flex;align-items:center;gap:6px}
+.fu-nb-tip i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.fu-nb-tip b.pos{color:var(--g-good,#34d399)}.fu-nb-tip b.neg{color:var(--g-bad,#f87171)}
+.fu-legend i.poker{background:var(--fu-poker)}.fu-legend i.bet{background:var(--fu-bet)}
+.fu-ticks{position:relative;height:18px;margin-top:-20px;pointer-events:none}
+.fu-ticks span{position:absolute;top:0;transform:translateX(-50%);font-size:11px;color:var(--g-muted);white-space:nowrap}
+.fu-ticks span.first{transform:none}.fu-ticks span.last{transform:translateX(-100%)}

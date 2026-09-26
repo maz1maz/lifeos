@@ -3,7 +3,7 @@ import './finance.css'
 import { jalaliShort, jalaliDay } from './jalali'
 import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './jdate';
 import { BillsPanel } from './life';
-import { FunOverview, PfTrend, useUsdHistory, makeRateOn } from './fun';
+import { FunOverview, PfTrend, useUsdHistory, makeRateOn, setFunUnit } from './fun';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -171,6 +171,7 @@ export function FinanceReact({ Nav }) {
   const [month, setMonth] = useState(() => jKeyOf(isoToday()))
   const [unit, setUnit] = useState(() => { try { return localStorage.getItem('lifeos-fin-unit') || 'rial' } catch { return 'rial' } })
   UNIT = unit
+  setFunUnit(unit)
   const switchUnit = (u) => { setUnit(u); try { localStorage.setItem('lifeos-fin-unit', u) } catch {} }
   const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(location.search).get('tab'); return TABS.some((x) => x.id === t) ? t : 'dash' } catch { return 'dash' } })
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, categories: {} })
