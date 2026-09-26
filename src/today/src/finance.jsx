@@ -3,7 +3,7 @@ import './finance.css'
 import { jalaliShort, jalaliDay } from './jalali'
 import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './jdate';
 import { BillsPanel } from './life';
-import { FunOverview, PfTrend } from './fun';
+import { FunOverview, PfTrend, useUsdHistory, makeRateOn } from './fun';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -189,6 +189,7 @@ export function FinanceReact({ Nav }) {
   const [poker, setPoker] = useState([])
   const [pokerAll, setPokerAll] = useState([])
   const [pfSnaps, setPfSnaps] = useState(null)
+  const usdHist = useUsdHistory(tab === 'fun')
   const snapSent = useRef(false)
   const [pokerSummary, setPokerSummary] = useState({ sessions: 0, profit: 0, wins: 0, losses: 0, pushes: 0, totalBuyIn: 0, totalCashOut: 0 })
   const [bet, setBet] = useState({ items: [], stats: {}, suggestedStart: 0, suggestedStartDate: null })
@@ -931,6 +932,7 @@ export function FinanceReact({ Nav }) {
                   <div>
                     <b>{jalaliShort(item.date)}</b>
                     <small>داشتم {usd(item.start)} · واریز {usd(item.deposit)} · برداشت {usd(item.withdraw)} · موجودی {usd(item.balance)}{item.note ? ` · ${item.note}` : ''}</small>
+                    {(() => { const r = makeRateOn(usdHist, usdRate)(item.date, Number(item.usdRate)); return r ? <small className="fn-bet-rial">دلار {fa(Math.round(r))} · ≈ <span className={item.result >= 0 ? 'pos' : 'neg'}>{item.result >= 0 ? '+' : '−'}{short(Math.abs(item.result * r))}</span></small> : null })()}
                   </div>
                   <span className={`amt ${item.result >= 0 ? 'pos' : 'neg'}`}>{signedUsd(item.result)}</span>
                   <div className="fn-ops">

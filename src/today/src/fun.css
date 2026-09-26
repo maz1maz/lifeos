@@ -82,3 +82,10 @@ i.total{background:var(--fu-total)}i.poker{background:var(--fu-poker)}i.bet{back
 i.cost{background:var(--g-muted)}
 .fu-band.pos{fill:var(--g-good,#34d399);opacity:.14}.fu-band.neg{fill:var(--g-bad,#f87171);opacity:.14}
 @media(max-width:900px){.fu-streaks{grid-template-columns:1fr}.fu-loc{grid-template-columns:1fr auto}.fu-loc .bar{display:none}}
+.fu-range{flex-wrap:wrap}
+.fu-range button{font-size:12.5px;padding:5px 12px}
+.fu-ph{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.fu-ph h3{margin:0}
+.fu-how{margin:6px 0 0;color:var(--g-muted);font-size:11.5px}
+.fu-bars.dense{gap:3px}.fu-bars.dense span{font-size:9.5px}
+.fu-bar span{white-space:nowrap;overflow:hidden}

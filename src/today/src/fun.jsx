@@ -1,7 +1,7 @@
 // Poker + bet combined: all-time and month totals in rial (bet converted at today's dollar rate),
 // a cumulative P/L line chart and a 6-month net bar chart.
 import { useEffect, useMemo, useState } from 'react';
-import { isoToJ, MONTHS } from './jdate';
+import { isoToJ, jToIso, MONTHS } from './jdate';
 import { money, api } from './life';
 import './fun.css';
 
@@ -12,9 +12,20 @@ const usdTxt = n => `${sign(n)}$${faN(Math.abs(n), 2)}`;
 const jKey = iso => { const j = isoToJ(iso); return `${j.jy}-${String(j.jm).padStart(2, '0')}`; };
 const jLbl = iso => { const j = isoToJ(iso); return `${faN(j.jd)} ${MONTHS[j.jm - 1]}`; };
 
+// Shared: TGJU daily dollar closes (fetched once per page) and "rate of that day" lookup.
+let USD_HIST = null;
+export function useUsdHistory(enabled = true) {
+  const [hist, setHist] = useState([]);
+  useEffect(() => { if (!enabled) return; (USD_HIST ||= api('/api/tgju/history?key=price_dollar_rl&days=730').then(d => (d.items || []).filter(x => x.price > 0 && x.date)).catch(() => { USD_HIST = null; return []; })).then(setHist); }, [enabled]);
+  return hist;
+}
+export function makeRateOn(hist, rate) {
+  return (date, own) => { if (own > 0) return own; let lo = 0, hi = hist.length - 1, best = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (hist[m].date <= date) { best = m; lo = m + 1; } else hi = m - 1; } return best >= 0 ? hist[best].price : hist.length && date < hist[0].date ? hist[0].price : rate || (hist.length ? hist[hist.length - 1].price : 0); };
+}
+
 function CumChart({ days, hasBet }) {
   const [hi, setHi] = useState(null);
-  if (days.length < 2) return <p className="fu-empty">برای نمودار حداقل دو روز ثبت لازم است.</p>;
+  if (days.length < 2) return <p className="fu-empty">{days.length ? 'برای نمودار حداقل دو روز ثبت لازم است.' : 'در این بازه چیزی ثبت نشده — بازهٔ بزرگ‌تری انتخاب کن.'}</p>;
   const W = 720, H = 230, L = 8, R = 8, T = 16, B = 26;
   const vals = days.flatMap(d => [d.total, d.poker, ...(hasBet ? [d.bet] : []), 0]);
   let min = Math.min(...vals), max = Math.max(...vals); const pad = (max - min) * 0.08 || 1; min -= pad; max += pad;
@@ -73,7 +84,7 @@ function LossLimit({ status, onSave }) {
   </div>;
 }
 
-function Locations({ poker }) {
+function Locations({ poker, title = 'پوکر بر اساس مکان' }) {
   const rows = useMemo(() => {
     const m = {};
     poker.forEach(p => { const k = (p.location || '').trim() || 'بدون مکان'; const r = (m[k] ||= { name: k, n: 0, net: 0, wins: 0, buy: 0 }); const v = p.cashOut - p.buyIn; r.n++; r.net += v; r.buy += p.buyIn; if (v > 0) r.wins++; });
@@ -81,7 +92,7 @@ function Locations({ poker }) {
   }, [poker]);
   if (!rows.length) return null;
   const max = Math.max(1, ...rows.map(r => Math.abs(r.net)));
-  return <div className="fu-panel fu-locs"><h3>پوکر بر اساس مکان</h3>
+  return <div className="fu-panel fu-locs"><h3>{title}</h3>
     {rows.map(r => <div key={r.name} className="fu-loc">
       <span className="nm">{r.name}<em>{faN(r.n)} جلسه · وین‌ریت {faN(r.n ? (r.wins / r.n) * 100 : 0)}٪ · میانگین {signed(r.net / r.n)}</em></span>
       <span className="bar"><i className={r.net >= 0 ? 'pos' : 'neg'} style={{ width: `${Math.max(3, (Math.abs(r.net) / max) * 100)}%` }} /></span>
@@ -90,54 +101,81 @@ function Locations({ poker }) {
   </div>;
 }
 
-function MonthBars({ months }) {
-  const max = Math.max(1, ...months.map(m => Math.abs(m.net)));
-  return <div className="fu-bars">
-    {months.map(m => <div key={m.key} className="fu-bar" title={`${m.label}: ${signed(m.net)}`}>
+function NetBars({ items }) {
+  const max = Math.max(1, ...items.map(m => Math.abs(m.net))), dense = items.length > 14;
+  if (!items.length) return <p className="fu-empty">در این بازه چیزی ثبت نشده.</p>;
+  return <div className={`fu-bars ${dense ? 'dense' : ''}`} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+    {items.map(m => <div key={m.key} className="fu-bar" title={`${m.title || m.label}: ${signed(m.net)}`}>
       <div className="fu-bar-half up">{m.net > 0 ? <i className="pos" style={{ height: `${Math.max(4, (m.net / max) * 100)}%` }} /> : null}</div>
       <div className="fu-bar-half down">{m.net < 0 ? <i className="neg" style={{ height: `${Math.max(4, (-m.net / max) * 100)}%` }} /> : null}</div>
-      <small className={m.net > 0 ? 'pos' : m.net < 0 ? 'neg' : ''}>{m.net ? sign(m.net) + money(Math.abs(m.net)).replace(' ریال', '') : '—'}</small>
+      {dense ? null : <small className={m.net > 0 ? 'pos' : m.net < 0 ? 'neg' : ''}>{m.net ? sign(m.net) + money(Math.abs(m.net)).replace(' ریال', '') : '—'}</small>}
       <span>{m.label}</span>
     </div>)}
   </div>;
 }
 
-export function FunOverview({ poker = [], bet = [], usdRate = 0, monthFrom, monthTo }) {
+const RANGES = [['m', 'این ماه'], ['m2', 'این ماه و ماه قبل'], ['q', 'این فصل'], ['y', 'امسال'], ['all', 'از ابتدا']];
+const todayTeh = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date());
+function rangeFrom(r, today) {
+  const j = isoToJ(today);
+  if (r === 'm') return jToIso(j.jy, j.jm, 1);
+  if (r === 'm2') return j.jm === 1 ? jToIso(j.jy - 1, 12, 1) : jToIso(j.jy, j.jm - 1, 1);
+  if (r === 'q') return jToIso(j.jy, Math.floor((j.jm - 1) / 3) * 3 + 1, 1);
+  if (r === 'y') return jToIso(j.jy, 1, 1);
+  return '0000-00-00';
+}
+
+export function FunOverview({ poker = [], bet = [], usdRate = 0 }) {
+  const [range, setRange] = useState(() => { try { return localStorage.getItem('lifeos-fun-range') || 'm2'; } catch { return 'm2'; } });
+  const pick = r => { setRange(r); try { localStorage.setItem('lifeos-fun-range', r); } catch {} };
+  // Dollar rate of each bet day: the rate saved with the entry, else TGJU's daily close for that date (or the nearest earlier market day), else today's.
+  const hist = useUsdHistory(bet.length > 0);
   const data = useMemo(() => {
-    const rate = Number(usdRate) || 0, hasBet = bet.length > 0 && rate > 0;
+    const rate = Number(usdRate) || 0, hasBet = bet.length > 0 && (rate > 0 || hist.length > 0), today = todayTeh(), from = rangeFrom(range, today);
+    const rateOn = makeRateOn(hist, rate);
     const byDate = {};
     poker.forEach(p => { const d = (byDate[p.date] ||= { poker: 0, bet: 0, betUsd: 0 }); d.poker += (Number(p.cashOut) || 0) - (Number(p.buyIn) || 0); });
-    bet.forEach(b => { const d = (byDate[b.date] ||= { poker: 0, bet: 0, betUsd: 0 }); d.betUsd += Number(b.result) || 0; d.bet += (Number(b.result) || 0) * rate; });
-    const dates = Object.keys(byDate).sort();
-    let cp = 0, cb = 0; const days = dates.map(date => { cp += byDate[date].poker; cb += hasBet ? byDate[date].bet : 0; return { date, poker: cp, bet: cb, total: cp + cb }; });
-    const inMonth = d => d >= monthFrom && d <= monthTo;
+    bet.forEach(b => { const d = (byDate[b.date] ||= { poker: 0, bet: 0, betUsd: 0 }); d.betUsd += Number(b.result) || 0; d.bet += (Number(b.result) || 0) * rateOn(b.date, Number(b.usdRate)); });
+    const betRial = list => list.reduce((s, b) => s + (Number(b.result) || 0) * rateOn(b.date, Number(b.usdRate)), 0);
+    const dates = Object.keys(byDate).sort(), inR = dates.filter(d => d >= from && d <= today);
+    const net = d => byDate[d].poker + (hasBet ? byDate[d].bet : 0);
+    // running sum inside the chosen range, starting from zero at the range start
+    let cp = 0, cb = 0; const days = inR.map(date => { cp += byDate[date].poker; cb += hasBet ? byDate[date].bet : 0; return { date, poker: cp, bet: cb, total: cp + cb }; });
+    if (days.length && range !== 'all' && days[0].date > from) days.unshift({ date: from, poker: 0, bet: 0, total: 0 });
+    if (days.length && days[days.length - 1].date < today) days.push({ ...days[days.length - 1], date: today });
     const pokerAll = poker.reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdAll = bet.reduce((s, b) => s + (Number(b.result) || 0), 0);
-    const pokerM = poker.filter(p => inMonth(p.date)).reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdM = bet.filter(b => inMonth(b.date)).reduce((s, b) => s + (Number(b.result) || 0), 0);
+    const pR = poker.filter(p => p.date >= from && p.date <= today), bR = bet.filter(b => b.date >= from && b.date <= today);
+    const pokerR = pR.reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdR = bR.reduce((s, b) => s + (Number(b.result) || 0), 0);
     const seq = [...poker.map(p => ({ d: p.date, c: p.createdAt || 0, v: p.cashOut - p.buyIn })), ...bet.map(b => ({ d: b.date, c: 0, v: Number(b.result) || 0 }))].sort((a, b) => a.d.localeCompare(b.d) || a.c - b.c);
-    const units = seq.map(x => x.v), st = streaks(seq);
-    const wins = units.filter(v => v > 0).length, losses = units.filter(v => v < 0).length;
-    // last 6 Jalali months ending at the selected month
-    const endKey = jKey(monthTo), [ey, em] = endKey.split('-').map(Number), months = [];
-    for (let i = 5; i >= 0; i--) { let m = em - i, yy = ey; while (m < 1) { m += 12; yy--; } months.push({ key: `${yy}-${String(m).padStart(2, '0')}`, label: MONTHS[m - 1], net: 0 }); }
-    const mIx = Object.fromEntries(months.map((m, i) => [m.key, i]));
-    dates.forEach(d => { const i = mIx[jKey(d)]; if (i != null) months[i].net += byDate[d].poker + (hasBet ? byDate[d].bet : 0); });
-    return { days, hasBet, rate, pokerAll, betUsdAll, pokerM, betUsdM, totalAll: pokerAll + (hasBet ? betUsdAll * rate : 0), totalM: pokerM + (hasBet ? betUsdM * rate : 0), wins, losses, months, count: units.length, st };
-  }, [poker, bet, usdRate, monthFrom, monthTo]);
+    const st = streaks(seq), rUnits = [...pR.map(p => p.cashOut - p.buyIn), ...bR.map(b => Number(b.result) || 0)];
+    // bars: per day for the short ranges, per Jalali month otherwise
+    let bars;
+    if (range === 'm' || range === 'm2') bars = inR.map(d => { const j = isoToJ(d); return { key: d, label: faN(j.jd), title: jLbl(d), net: net(d) }; });
+    else {
+      const f = isoToJ(range === 'all' ? (dates[0] || today) : from), t = isoToJ(today), list = [];
+      for (let y = f.jy, m = f.jm; y < t.jy || (y === t.jy && m <= t.jm); m === 12 ? (y++, m = 1) : m++) list.push({ key: `${y}-${String(m).padStart(2, '0')}`, label: MONTHS[m - 1], title: `${MONTHS[m - 1]} ${faN(y)}`, net: 0 });
+      const ix = Object.fromEntries(list.map((x, i) => [x.key, i]));
+      inR.forEach(d => { const i = ix[jKey(d)]; if (i != null) list[i].net += net(d); });
+      bars = list.slice(-24);
+    }
+    return { days, hasBet, rate, from, pokerAll, betUsdAll, pokerR, betUsdR, totalAll: pokerAll + (hasBet ? betRial(bet) : 0), totalR: pokerR + (hasBet ? betRial(bR) : 0), betRialAll: betRial(bet), betRialR: betRial(bR), histOk: hist.length > 0, winsR: rUnits.filter(v => v > 0).length, lossesR: rUnits.filter(v => v < 0).length, countR: rUnits.length, count: seq.length, bars, st, pR };
+  }, [poker, bet, usdRate, range, hist]);
   const [status, setStatus] = useState(null);
   useEffect(() => { api(`/api/fun/status${usdRate ? `?usdRate=${Math.round(usdRate)}` : ''}`).then(setStatus).catch(() => {}); }, [usdRate, poker.length, bet.length]);
   const saveLimit = async v => { await api('/api/me', { method: 'PATCH', body: JSON.stringify({ funLossLimit: v }) }); setStatus(s => ({ ...(s || {}), limit: v })); };
   if (!data.count) return <section className="fn-glass fu-card"><LossLimit status={status} onSave={saveLimit} /></section>;
   const tone = n => (n > 0 ? 'pos' : n < 0 ? 'neg' : '');
+  const rLabel = RANGES.find(r => r[0] === range)?.[1] || '';
   return <section className="fn-glass fu-card">
     <div className="fu-head">
-      <div><h2>وضعیت کلی پوکر و بت</h2><p>{data.hasBet ? `بت با دلار ${faN(data.rate)} ریال به ریال تبدیل شده.` : bet.length ? 'نرخ دلار در دسترس نیست؛ بت فقط دلاری نشان داده می‌شود.' : 'فقط پوکر ثبت شده.'}</p></div>
-      <div className="fu-legend"><span><i className="total" />جمع</span><span><i className="poker" />پوکر</span>{data.hasBet ? <span><i className="bet" />بت</span> : null}</div>
+      <div><h2>وضعیت کلی پوکر و بت</h2><p>{data.hasBet ? (data.histOk ? 'بت با نرخ دلار همان روز به ریال تبدیل شده.' : `بت با دلار امروز (${faN(data.rate)} ریال) تبدیل شده؛ تاریخچهٔ نرخ در دسترس نبود.`) : bet.length ? 'نرخ دلار در دسترس نیست؛ بت فقط دلاری نشان داده می‌شود.' : 'فقط پوکر ثبت شده.'}</p></div>
+      <div className="fu-seg fu-range">{RANGES.map(([k, l]) => <button type="button" key={k} className={range === k ? 'on' : ''} onClick={() => pick(k)}>{l}</button>)}</div>
     </div>
     <div className="fu-kpis">
-      <div className={`fu-kpi main ${tone(data.totalAll)}`}><small>جمع کل از ابتدا</small><b>{signed(data.totalAll)}</b><em>{faN(data.wins)} برد · {faN(data.losses)} باخت · وین‌ریت {faN(data.count ? (data.wins / data.count) * 100 : 0)}٪</em></div>
-      <div className={`fu-kpi ${tone(data.totalM)}`}><small>این ماه</small><b>{signed(data.totalM)}</b><em>پوکر {signed(data.pokerM)}</em></div>
-      <div className={`fu-kpi ${tone(data.pokerAll)}`}><small>پوکر · کل</small><b>{signed(data.pokerAll)}</b><em>{faN(poker.length)} جلسه</em></div>
-      <div className={`fu-kpi ${tone(data.betUsdAll)}`}><small>بت · کل</small><b>{usdTxt(data.betUsdAll)}</b><em>{data.hasBet ? `≈ ${signed(data.betUsdAll * data.rate)}` : `${faN(bet.length)} روز`}</em></div>
+      <div className={`fu-kpi main ${tone(data.totalR)}`}><small>جمع · {rLabel}</small><b>{signed(data.totalR)}</b><em>{data.countR ? `${faN(data.winsR)} برد · ${faN(data.lossesR)} باخت · وین‌ریت ${faN((data.winsR / data.countR) * 100)}٪` : 'در این بازه چیزی ثبت نشده'}</em></div>
+      <div className={`fu-kpi ${tone(data.totalAll)}`}><small>جمع کل از ابتدا</small><b>{signed(data.totalAll)}</b><em>پوکر {signed(data.pokerAll)} · بت {usdTxt(data.betUsdAll)}</em></div>
+      <div className={`fu-kpi ${tone(data.pokerR)}`}><small>پوکر · {rLabel}</small><b>{signed(data.pokerR)}</b><em>{faN(data.pR.length)} جلسه</em></div>
+      <div className={`fu-kpi ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{usdTxt(data.betUsdR)}</b><em>{data.hasBet ? `≈ ${signed(data.betRialR)}` : 'بدون نرخ دلار'}</em></div>
     </div>
     <LossLimit status={status} onSave={saveLimit} />
     <div className="fu-streaks">
@@ -146,10 +184,10 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthFrom, mont
       <span className="neg"><small>بیشترین باخت پشت‌سرهم</small><b>{faN(data.st.worstLoss)}</b></span>
     </div>
     <div className="fu-grid">
-      <div className="fu-panel"><h3>روند تجمعی</h3><CumChart days={data.days} hasBet={data.hasBet} /></div>
-      <div className="fu-panel"><h3>خالص ۶ ماه اخیر</h3><MonthBars months={data.months} /></div>
+      <div className="fu-panel"><div className="fu-ph"><h3>روند · {rLabel}</h3><div className="fu-legend"><span><i className="total" />جمع</span><span><i className="poker" />پوکر</span>{data.hasBet ? <span><i className="bet" />بت</span> : null}</div></div><CumChart days={data.days} hasBet={data.hasBet} /><p className="fu-how">هر نقطه = جمع سود و زیان از ابتدای بازه تا آن روز (پوکر به ریال، بت × نرخ دلار همان روز).</p></div>
+      <div className="fu-panel"><h3>{range === 'm' || range === 'm2' ? 'خالص هر روز بازی' : 'خالص هر ماه'}</h3><NetBars items={data.bars} /></div>
     </div>
-    <Locations poker={poker} />
+    <Locations poker={data.pR} title={`پوکر بر اساس مکان · ${rLabel}`} />
   </section>;
 }
 

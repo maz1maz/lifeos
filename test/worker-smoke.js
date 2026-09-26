@@ -192,6 +192,8 @@ async function main() {
     check('invalid backup freq ignored', (await call('/api/me', { cookie })).d.user.backupFreq === 'daily');
     await call('/api/poker', { method: 'POST', cookie, body: { date: today(), buyIn: 300000000, cashOut: 100000000, location: 'X', usdRate: 1000000 } });
     await call('/api/bet', { method: 'POST', cookie, body: { date: today(), start: 100, balance: 50, usdRate: 1000000 } });
+    const bt44 = (await call('/api/bet', { cookie })).d.items.find(x => x.date === today());
+    check('bet day keeps the dollar rate it was entered with', bt44 && bt44.usdRate === 1000000, JSON.stringify(bt44));
     const fs44 = (await call('/api/fun/status', { cookie })).d;
     check('fun status: month net = poker + bet×rate', fs44.limit === 100000000 && fs44.poker === -200000000 && fs44.betUsd === -50 && fs44.net === -250000000, JSON.stringify(fs44));
     const pr44 = (await call('/api/col/projects', { method: 'POST', cookie, body: { name: 'پروژه تست', deadline: today() } })).d;

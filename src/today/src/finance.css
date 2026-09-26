@@ -298,3 +298,4 @@
 .fn-ycol span { font-size: 10.5px; white-space: nowrap; }
 @media (max-width: 700px) { .fn-ycol span { font-size: 8.5px; writing-mode: vertical-rl; transform: rotate(180deg); height: 38px; } }
 .fn-bet-mini{direction:ltr}.fn-bet-bar{flex:0 1 34px}.fn-bet-bar i{max-width:22px}
+.fn-bet-rial{display:block;margin-top:2px;opacity:.85}.fn-bet-rial .pos{color:var(--g-good,#34d399)}.fn-bet-rial .neg{color:var(--g-bad,#f87171)}
