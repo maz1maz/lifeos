@@ -5,6 +5,7 @@ import { useCol, Page, FormDrawer, api, fa, faD, jShort, todayIso, dueChip } fro
 import { JalaliDateInput } from './jdate';
 import './courses.css';
 import { CopyBtn, xcAuto } from './xcards';
+import { SideLayout } from './sidelist';
 const CS_HEX = { violet: '#9f47f0', graphite: '#3a3a42', cyan: '#17bcd6', blue: '#3478f6', gold: '#e0a93c', green: '#22b884', rose: '#f04466' };
 
 const rial = n => `${fa(Math.round(Number(n) || 0), 0)} ریال`;
@@ -150,15 +151,10 @@ export function CoursesPage({ Nav }) {
 
   const sessions = Math.max(0, Math.min(60, Number(cur?.sessions) || 0));
   const active = rows.filter(s => s.status !== 'withdrawn');
-  return <Page Nav={Nav} kicker="کار" title="دوره‌ها و دانشجوها" sub="شهریه، پرداخت‌ها، سررسیدها و حضور و غیاب هر دوره" actions={<button className="lf-btn" onClick={() => setCEdit({})}>＋ دورهٔ تازه</button>}>
+  return <Page Nav={Nav} className="wide" kicker="کار" title="دوره‌ها و دانشجوها" sub="شهریه، پرداخت‌ها، سررسیدها و حضور و غیاب هر دوره" actions={<button className="lf-btn" onClick={() => setCEdit({})}>＋ دورهٔ تازه</button>}>
     {courses.items === null ? <p className="lf-empty">در حال دریافت…</p> : !list.length ? <p className="lf-empty">هنوز دوره‌ای نساختی. با «＋ دورهٔ تازه» شروع کن؛ هر دوره لیست دانشجوها و حساب شهریهٔ خودش را دارد.</p> : <>
-      <div className="lf-pstrip cs-strip" role="tablist">{list.map(c => { const sm = courseSum(c), pct = sm.fee ? Math.round(sm.paid / sm.fee * 100) : 0, on = cur?.id === c.id, col = c.color || xcAuto(c.id);
-        return <button key={c.id} role="tab" aria-selected={on} className={`lf-pchip ${on ? 'on' : ''} ${sm.n ? '' : 'empty'} ${['gold', 'cyan'].includes(col) ? 'light' : ''}`} style={{ '--pc': CS_HEX[col] || CS_HEX.graphite }} onClick={() => pick(c.id)}>
-          {on ? <span className="ok">✓</span> : null}
-          <b>{c.name}</b>
-          <span className="bar"><i style={{ flex: Math.max(pct, 0.001), background: '#fff' }} /><i style={{ flex: Math.max(100 - pct, 0.001), background: 'transparent' }} /></span>
-          <small>{fa(pct)}٪ وصول · {fa(sm.n)} نفر{c.status ? ` · ${STATUS.find(x => x[0] === c.status)?.[1] || ''}` : ''}</small>
-        </button>; })}</div>
+      <SideLayout storageKey="lifeos-course-side" title="دوره‌ها" selected={cur?.id} onPick={pick} tabs={[['active', 'فعال'], ['done', 'تمام‌شده']]}
+        items={list.map(c => { const sm = courseSum(c), pct = sm.fee ? Math.round(sm.paid / sm.fee * 100) : 0, col = c.color || xcAuto(c.id); return { id: c.id, name: c.name, color: CS_HEX[col] || CS_HEX.graphite, dim: !sm.n, group: c.status === 'done' ? 'done' : 'active', bar: [{ flex: Math.max(pct, 0.001), color: '#34d399' }, { flex: Math.max(100 - pct, 0.001), color: 'transparent' }], sub: `${fa(pct)}٪ وصول · ${fa(sm.n)} نفر${c.startDate ? ` · ${jShort(c.startDate)}` : ''}` }; })}>
       {cur ? <section className="lf-card cs-course">
         <div className="lf-row-head"><div><h2>{cur.name}</h2><small>{[cur.startDate ? `شروع ${jShort(cur.startDate)}` : '', sessions ? `${fa(sessions)} جلسه` : '', cur.price ? `شهریه ${rial(cur.price)}` : ''].filter(Boolean).join(' · ')}</small></div>
           <div className="lf-ops"><button className="lf-link" onClick={() => setCEdit(cur)}>ویرایش دوره</button><button className="lf-link" onClick={() => setCopy(true)}>کپی از دورهٔ دیگر</button><button className="lf-link" onClick={() => toCsv(cur, rows)}>خروجی اکسل</button><button className="lf-link" onClick={() => printList(cur, rows)}>چاپ</button></div></div>
@@ -214,6 +210,7 @@ export function CoursesPage({ Nav }) {
           </>}
         </div>}
       </section> : null}
+      </SideLayout>
     </>}
     <FormDrawer open={!!cEdit} title={cEdit?.id ? 'ویرایش دوره' : 'دورهٔ تازه'} fields={cFields} initial={cEdit} onClose={() => setCEdit(null)} onSubmit={async b => { if (cEdit.id) await courses.patch(cEdit.id, b); else { const r = await courses.add(b); pick(r.id); } }} extra={() => cEdit?.id ? <button type="button" className="lf-link del" onClick={removeCourse}>حذف این دوره</button> : null} />
     <FormDrawer open={!!sEdit} title={sEdit?.id ? 'ویرایش دانشجو' : 'دانشجوی تازه'} fields={sFields} initial={sEdit} onClose={() => setSEdit(null)} onSubmit={saveStudent}

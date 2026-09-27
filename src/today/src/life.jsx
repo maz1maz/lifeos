@@ -2,7 +2,8 @@
 // journal, yearly goals, focus timer, shopping list, bills and life statistics.
 // All of them sit on the generic per-user collections API (/api/col/<name>).
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { JalaliDateInput, isoToJ, MONTHS } from './jdate';
+import { JalaliDateInput, isoToJ, jToIso, MONTHS } from './jdate';
+import { SideLayout } from './sidelist';
 import './life.css';
 
 export const api = async (url, options) => {
@@ -283,6 +284,17 @@ function ProjectStrip({ list, cards, cur, onPick }) {
     </button>; })}</div>;
 }
 const lightHex = hex => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return false; const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.62; };
+// "ارسال نقشه‌ها ! @علی ۱۵ مهر" → title + high priority + owner + due date
+function parseQuick(text) {
+  let t = ' ' + String(text || '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)) + ' ', prio = null, owner = '', due = '';
+  if (/[!！]/.test(t)) { prio = 'h'; t = t.replace(/[!！]+/g, ' '); }
+  const at = t.match(/\s@([^\s@!]+)/); if (at) { owner = at[1].replace(/_/g, ' '); t = t.replace(at[0], ' '); }
+  const today = todayIso();
+  const rel = [[/\s(پس[‌\s]?فردا)(?=\s)/, 2], [/\s(فردا)(?=\s)/, 1], [/\s(امروز)(?=\s)/, 0]];
+  for (const [re, n] of rel) { const m = t.match(re); if (m) { due = addDays(today, n); t = t.replace(m[0], ' '); break; } }
+  if (!due) { const re = new RegExp('\\s(\\d{1,2})\\s*(' + MONTHS.join('|') + ')(?=\\s)'); const m = t.match(re); if (m) { const d = Number(m[1]), mi = MONTHS.indexOf(m[2]) + 1, j = isoToJ(today); if (d >= 1 && d <= 31) { let iso = jToIso(j.jy, mi, d); if (iso < today) iso = jToIso(j.jy + 1, mi, d); due = iso; t = t.replace(m[0], ' '); } } }
+  return { title: t.replace(/\s+/g, ' ').trim(), prio, owner, due };
+}
 const PNAMES = ['طلایی', 'آبی', 'سبز', 'صورتی', 'بنفش', 'نارنجی'];
 export function ProjectsPage({ Nav }) {
   const projects = useCol('projects'), cards = useCol('cards');
@@ -303,9 +315,12 @@ export function ProjectsPage({ Nav }) {
     const same = items.filter(p => !p.color || p.color === PCOLORS[0]); if (same.length < 2) return;
     same.slice(1).forEach((p, i) => projects.patch(p.id, { color: PCOLORS[(i + 1) % PCOLORS.length] }));
   }, [projects.items === null]);
-  return <Page Nav={Nav} kicker="کار" title="پروژه‌ها" actions={<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button>}>
-    {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !list.length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. برای هر پروژه یک تابلو با ستون‌های «انجام نشده، در حال انجام، بازبینی، انجام شد» ساخته می‌شود.</p> : <>
-      <ProjectStrip list={list} cards={cards.items || []} cur={cur?.id} onPick={setPid} />
+  return <Page Nav={Nav} className="wide" kicker="کار" title="پروژه‌ها" actions={<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button>}>
+    {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !(projects.items || []).length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. برای هر پروژه یک تابلو با ستون‌های «انجام نشده، در حال انجام، بازبینی، انجام شد» ساخته می‌شود.</p> : <>
+      <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'بایگانی']]}
+        items={(projects.items || []).map(p => { const cs = (cards.items || []).filter(c => c.projectId === p.id), by = Object.fromEntries(COLS_K.map(([k]) => [k, cs.filter(c => (c.col || 'todo') === k).length])), n = cs.length, late = cs.filter(c => c.col !== 'done' && c.due && c.due < todayIso()).length;
+          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: !n, group: p.archived ? 'archived' : n && by.done === n ? 'done' : 'active', bar: n ? COLS_K.map(([k]) => ({ flex: by[k], color: KCOL[k] })) : null, sub: n ? `${fa(by.done)} از ${fa(n)} · ${fa(Math.round(by.done / n * 100))}٪${late ? ` · ${fa(late)} عقب` : ''}${p.deadline ? ` · ${jShort(p.deadline)}` : ''}` : 'هنوز کارتی ندارد' }; })}
+        renderArchived={x => <div key={x.id} className="sl-arch" style={{ '--c': x.color }}><span><i />{x.name}</span><button type="button" onClick={() => { projects.patch(x.id, { archived: false }); setPid(x.id); }}>برگردون</button></div>}>
       {cur ? <section className="lf-card">
         {(() => { const today = todayIso(), by = Object.fromEntries(COLS_K.map(([k]) => [k, mine.filter(c => (c.col || 'todo') === k).length])), n = mine.length, pct = n ? Math.round(by.done / n * 100) : 0, { pace, open, eta } = projEta(mine, today), late = mine.filter(c => c.col !== 'done' && c.due && c.due < today).sort((a, b) => a.due.localeCompare(b.due)), soon = mine.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((a, b) => a.due.localeCompare(b.due)), risk = eta && cur.deadline && eta > cur.deadline;
           return <>
@@ -315,7 +330,14 @@ export function ProjectsPage({ Nav }) {
             {n ? <div className="lf-pk"><div><small>پیشرفت</small><b style={{ color: cur.color || PCOLORS[0] }}>{fa(pct)}٪</b></div>{COLS_K.map(([k, l]) => <div key={k}><small><i style={{ background: KCOL[k] }} />{l}</small><b>{fa(by[k])}</b></div>)}</div> : null}
             {late.length || soon.length ? <div className="lf-palerts">{late.slice(0, 4).map(c => <button key={c.id} className="late" onClick={() => setCardEdit(c)}>⛔ {c.title} · {jShort(c.due)}</button>)}{soon.slice(0, 4).map(c => <button key={c.id} className="soon" onClick={() => setCardEdit(c)}>⏳ {c.title} · {jShort(c.due)}</button>)}</div> : null}
           </>; })()}
-        <form className="lf-inline" onSubmit={e => { e.preventDefault(); if (!quick.trim()) return; cards.add({ projectId: cur.id, title: quick.trim(), col: 'todo', prio: 'n' }); setQuick(''); }}><input id="lf-quick-card" value={quick} onChange={e => setQuick(e.target.value)} placeholder="کار تازه برای این پروژه… (Enter)" /><button className="lf-btn">＋</button></form>
+        {(() => { const pq = parseQuick(quick); return <>
+          <form className="lf-inline" onSubmit={e => { e.preventDefault(); if (!pq.title) return; cards.add({ projectId: cur.id, title: pq.title, col: 'todo', prio: pq.prio || 'n', owner: pq.owner, due: pq.due }); setQuick(''); }}>
+            <input id="lf-quick-card" value={quick} onChange={e => setQuick(e.target.value)} placeholder="کار تازه… (Enter) — میان‌بر: ! اولویت بالا · @نام مسئول · فردا / ۱۵ مهر مهلت" />
+            <button type="button" className="lf-btn ghost" onClick={() => { setCardEdit({ projectId: cur.id, title: pq.title, col: 'todo', prio: pq.prio || 'n', owner: pq.owner, due: pq.due }); setQuick(''); }}>جزئیات…</button>
+            <button className="lf-btn">＋</button>
+          </form>
+          {quick.trim() && (pq.prio || pq.owner || pq.due) ? <p className="lf-qhint">«{pq.title || '…'}»{pq.prio ? <span className="hi">اولویت بالا</span> : null}{pq.owner ? <span>مسئول: {pq.owner}</span> : null}{pq.due ? <span>مهلت: {jShort(pq.due)}</span> : null}</p> : null}
+        </>; })()}
         <div className="lf-kanban">{COLS_K.map(([k, label]) => {
           const cs = mine.filter(c => (c.col || 'todo') === k).sort((a, b) => (b.prio === 'h') - (a.prio === 'h') || String(a.due || '9').localeCompare(String(b.due || '9')));
           return <div key={k} className={`lf-kcol ${drag ? 'dropping' : ''}`} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const c = mine.find(x => x.id === drag); if (c && c.col !== k) move(c, k); setDrag(null); }}>
@@ -328,11 +350,11 @@ export function ProjectsPage({ Nav }) {
           </div>;
         })}</div>
         <ProjectStats project={cur} cards={mine} />
-      </section> : null}
-      {(projects.items || []).some(p => p.archived) ? <p className="lf-note">بایگانی: {(projects.items || []).filter(p => p.archived).map(p => <button key={p.id} className="lf-link" onClick={() => projects.patch(p.id, { archived: false })}>{p.name} ↩</button>)}</p> : null}
+      </section> : <p className="lf-empty">پروژهٔ فعالی نیست — از تب «بایگانی» برگردون یا «＋ پروژه» بساز.</p>}
+      </SideLayout>
     </>}
     <FormDrawer open={!!edit} title={edit?.id ? 'ویرایش پروژه' : 'پروژهٔ تازه'} fields={pFields} initial={edit} onClose={() => setEdit(null)} onSubmit={async b => { if (edit.id) await projects.patch(edit.id, b); else { const r = await projects.add(b); setPid(r.id); } }} />
-    <FormDrawer open={!!cardEdit} title="کارت" fields={cFields} initial={cardEdit} onClose={() => setCardEdit(null)} onSubmit={b => cards.patch(cardEdit.id, b)} extra={() => <button type="button" className="lf-link del" onClick={() => { cards.remove(cardEdit.id); setCardEdit(null); }}>حذف این کارت</button>} />
+    <FormDrawer open={!!cardEdit} title={cardEdit?.id ? 'کارت' : 'کار تازه'} fields={cFields} initial={cardEdit} onClose={() => setCardEdit(null)} onSubmit={b => cardEdit.id ? cards.patch(cardEdit.id, b) : cards.add({ ...b, projectId: cardEdit.projectId, doneAt: b.col === 'done' ? Date.now() : null })} extra={() => cardEdit?.id ? <button type="button" className="lf-link del" onClick={() => { cards.remove(cardEdit.id); setCardEdit(null); }}>حذف این کارت</button> : null} />
   </Page>;
 }
 
