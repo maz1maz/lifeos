@@ -213,3 +213,30 @@
 .lf-kmove button:hover{background:var(--g-panel)}
 @media(max-width:800px){.lf-pover .lf-prow{grid-template-columns:120px minmax(0,1fr) 60px}.lf-pover .lf-prow>.lt,.lf-pover .lf-prow>.dl{display:none}}
 .lf-xproj{margin-bottom:14px}
+/* v56 — project strip + board header */
+.lf-pstrip{display:flex;gap:10px;overflow-x:auto;padding:6px 4px 12px;margin-bottom:6px;scrollbar-width:thin}
+.lf-pchip{position:relative;flex:0 0 210px;min-height:72px;border-radius:16px;border:0;padding:10px 14px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;text-align:start;color:#fff;font:inherit;cursor:pointer;background:linear-gradient(155deg,var(--pc),color-mix(in srgb,var(--pc) 58%,#000));box-shadow:0 8px 20px -12px rgba(0,0,0,.6);transition:transform .15s,filter .15s}
+.lf-pchip:hover{transform:translateY(-2px);filter:brightness(1.06)}
+.lf-pchip.light{color:#1c1300}
+.lf-pchip.on{outline:2px solid #f0c060;outline-offset:3px}
+.lf-pchip.empty{opacity:.5}.lf-pchip.empty.on{opacity:.85}
+.lf-pchip b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-inline-end:22px}
+.lf-pchip small{font-size:11px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lf-pchip .bar{display:flex;height:5px;gap:1px;border-radius:4px;overflow:hidden;background:rgba(0,0,0,.25)}
+.lf-pchip .bar i{display:block;min-width:3px}
+.lf-pchip .ok{position:absolute;top:8px;inset-inline-end:8px;width:18px;height:18px;border-radius:50%;background:#f0c060;color:#1c1300;font-size:11px;font-weight:900;display:grid;place-items:center}
+.lf-phead small .bad{color:#fb7185}
+.lf-pops{display:grid;justify-items:end;gap:6px}
+.lf-dots{display:flex;gap:6px}
+.lf-dots button{width:20px;height:20px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:0 0 0 1px rgba(0,0,0,.3) inset}
+.lf-dots button.on{border-color:var(--g-text)}
+.lf-dots button:hover{transform:scale(1.12)}
+.lf-pk{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:12px 0 10px}
+.lf-pk>div{background:var(--g-panel-2);border:1px solid var(--g-border);border-radius:12px;padding:8px 12px;display:grid;gap:2px}
+.lf-pk small{display:flex;align-items:center;gap:6px;color:var(--g-muted);font-size:11.5px}
+.lf-pk small i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.lf-pk b{font-size:17px}
+.lf-palerts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.lf-palerts button{border:0;font:inherit;font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer}
+.lf-palerts .late{background:rgba(251,113,133,.12);color:#fb7185}.lf-palerts .soon{background:rgba(251,191,36,.12);color:#fbbf24}
+@media(max-width:700px){.lf-pk{grid-template-columns:repeat(3,1fr)}.lf-pops{justify-items:start}}

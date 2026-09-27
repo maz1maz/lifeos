@@ -59,3 +59,8 @@
 .cs-pays>div.full span{color:#34d399}
 .cs-pops{display:inline-flex;gap:12px}
 .cs-xcards{margin-bottom:12px}.fn-xacc,.fn-xpf{margin:6px 0 10px}
+.cs-strip{margin-bottom:8px}
+.cs-headx{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 2px}
+.cs-cardcopy{min-width:280px}
+.cs-cardcopy .xc-copy{background:var(--g-panel-2);border-color:var(--g-border-2);color:var(--g-text)}
+.cs-headx .lf-palerts{margin:0}

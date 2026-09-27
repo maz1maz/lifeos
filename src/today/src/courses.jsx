@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react';
 import { useCol, Page, FormDrawer, api, fa, faD, jShort, todayIso, dueChip } from './life';
 import { JalaliDateInput } from './jdate';
 import './courses.css';
-import { XCards, CopyBtn, xcAuto } from './xcards';
+import { CopyBtn, xcAuto } from './xcards';
+const CS_HEX = { violet: '#9f47f0', graphite: '#3a3a42', cyan: '#17bcd6', blue: '#3478f6', gold: '#e0a93c', green: '#22b884', rose: '#f04466' };
 
 const rial = n => `${fa(Math.round(Number(n) || 0), 0)} ریال`;
 const num = v => { const n = Number(String(v ?? '').replace(/[,٬\s]/g, '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))); return Number.isFinite(n) ? n : 0; };
@@ -151,21 +152,21 @@ export function CoursesPage({ Nav }) {
   const active = rows.filter(s => s.status !== 'withdrawn');
   return <Page Nav={Nav} kicker="کار" title="دوره‌ها و دانشجوها" sub="شهریه، پرداخت‌ها، سررسیدها و حضور و غیاب هر دوره" actions={<button className="lf-btn" onClick={() => setCEdit({})}>＋ دورهٔ تازه</button>}>
     {courses.items === null ? <p className="lf-empty">در حال دریافت…</p> : !list.length ? <p className="lf-empty">هنوز دوره‌ای نساختی. با «＋ دورهٔ تازه» شروع کن؛ هر دوره لیست دانشجوها و حساب شهریهٔ خودش را دارد.</p> : <>
-      <XCards className="cs-xcards" items={list} cols={Math.min(3, Math.max(2, list.length))} open={xOpen} onOpen={v => { setXOpen(v); if (v) pick(v); }}
-        surface={c => c.color || xcAuto(c.id)} selected={cur?.id}
-        renderBody={c => { const s = courseSum(c), pct = s.fee ? Math.round(s.paid / s.fee * 100) : 0; return <>
-          <div className="xc-top"><span className="xc-ic">🎓</span><span className="xc-name">{c.name}</span></div>
-          <div><div className="xc-sub">{STATUS.find(x => x[0] === (c.status || 'enroll'))?.[1]}{c.startDate ? ` · ${jShort(c.startDate)}` : ''} · {fa(s.n)} نفر</div><div className="xc-bar" style={{ margin: '8px 0 4px' }}><i style={{ width: `${Math.min(100, pct)}%` }} /></div><div className="xc-sub keep">{fa(pct)}٪ وصول · {fa(s.n)} نفر</div></div>
-        </>; }}
-        renderMore={c => { const cs = all.filter(x => x.courseId === c.id), owe = cs.map(x => ({ x, m: studentMoney(x) })).filter(o => o.m.remaining > 0).sort((a, b) => String(a.x.dueDate || '9').localeCompare(String(b.x.dueDate || '9'))), s = courseSum(c); return <>
-          <div className="xc-kv"><div><small>دریافتی</small><b>{rial(s.paid)}</b></div><div><small>باقی‌مانده</small><b>{rial(Math.max(0, s.fee - s.paid))}</b></div><div><small>بدهکار</small><b>{fa(owe.length)} نفر</b></div></div>
-          {owe.length ? <div className="xc-list">{owe.slice(0, 4).map(({ x, m }) => <div key={x.id}><span>{x.name}{x.dueDate ? <small> · سررسید {jShort(x.dueDate)}</small> : null}</span><b>{rial(m.remaining)}</b></div>)}</div> : <p className="xc-sub">همه تسویه کرده‌اند ✓</p>}
-          {c.cardNo ? <CopyBtn label="کارت واریز" text={c.cardNo} /> : null}
-          <div className="xc-row"><button type="button" className="xc-pill" onClick={() => { pick(c.id); setSEdit({ fee: c.price || '', status: 'active' }); }}>＋ دانشجو</button><button type="button" className="xc-pill" onClick={() => setCEdit(c)}>ویرایش دوره</button></div>
-        </>; }} />
+      <div className="lf-pstrip cs-strip" role="tablist">{list.map(c => { const sm = courseSum(c), pct = sm.fee ? Math.round(sm.paid / sm.fee * 100) : 0, on = cur?.id === c.id, col = c.color || xcAuto(c.id);
+        return <button key={c.id} role="tab" aria-selected={on} className={`lf-pchip ${on ? 'on' : ''} ${sm.n ? '' : 'empty'} ${['gold', 'cyan'].includes(col) ? 'light' : ''}`} style={{ '--pc': CS_HEX[col] || CS_HEX.graphite }} onClick={() => pick(c.id)}>
+          {on ? <span className="ok">✓</span> : null}
+          <b>{c.name}</b>
+          <span className="bar"><i style={{ flex: Math.max(pct, 0.001), background: '#fff' }} /><i style={{ flex: Math.max(100 - pct, 0.001), background: 'transparent' }} /></span>
+          <small>{fa(pct)}٪ وصول · {fa(sm.n)} نفر{c.status ? ` · ${STATUS.find(x => x[0] === c.status)?.[1] || ''}` : ''}</small>
+        </button>; })}</div>
       {cur ? <section className="lf-card cs-course">
         <div className="lf-row-head"><div><h2>{cur.name}</h2><small>{[cur.startDate ? `شروع ${jShort(cur.startDate)}` : '', sessions ? `${fa(sessions)} جلسه` : '', cur.price ? `شهریه ${rial(cur.price)}` : ''].filter(Boolean).join(' · ')}</small></div>
           <div className="lf-ops"><button className="lf-link" onClick={() => setCEdit(cur)}>ویرایش دوره</button><button className="lf-link" onClick={() => setCopy(true)}>کپی از دورهٔ دیگر</button><button className="lf-link" onClick={() => toCsv(cur, rows)}>خروجی اکسل</button><button className="lf-link" onClick={() => printList(cur, rows)}>چاپ</button></div></div>
+        {(() => { const owe = rows.map(x => ({ x, m: studentMoney(x) })).filter(o => o.m.remaining > 0 && o.x.dueDate).sort((a, b) => a.x.dueDate.localeCompare(b.x.dueDate)); const col = cur.color || xcAuto(cur.id); return <div className="cs-headx">
+          <div className="lf-dots" role="radiogroup" aria-label="رنگ دوره">{Object.entries(CS_HEX).map(([k, h]) => <button key={k} role="radio" aria-checked={col === k} className={col === k ? 'on' : ''} style={{ background: h }} onClick={() => courses.patch(cur.id, { color: k })} title={k} />)}</div>
+          {cur.cardNo ? <div className="cs-cardcopy"><CopyBtn label="کارت واریز" text={cur.cardNo} /></div> : null}
+          {owe.length ? <div className="lf-palerts">{owe.slice(0, 6).map(({ x, m }) => <button key={x.id} className={x.dueDate < todayIso() ? 'late' : 'soon'} onClick={() => { setTab('money'); setQ(''); setOpen(x.id); setTimeout(() => document.getElementById('cs-row-' + x.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }}>{x.dueDate < todayIso() ? '⛔' : '⏳'} {x.name} · {rial(m.remaining)} · {jShort(x.dueDate)}</button>)}</div> : null}
+        </div>; })()}
         <div className="lf-kpis cs-kpis">
           <div><small>دانشجو</small><b>{fa(rows.length - sum.off)}</b><em>{fa(sum.clear)} تسویه · {fa(sum.owe)} بدهکار{sum.off ? ` · ${fa(sum.off)} انصراف` : ''}</em></div>
           <div><small>جمع شهریه‌ها</small><b>{rial(sum.fee)}</b><em>بیعانه‌ها {rial(sum.dep)}</em></div>
@@ -181,7 +182,7 @@ export function CoursesPage({ Nav }) {
         </div>
         {tab === 'money' ? <div className="cs-table">
           <div className="cs-tr cs-th"><span>#</span><span>نام و نام خانوادگی</span><span>تماس</span><span>شهریه</span><span>پرداخت‌شده</span><span>باقی‌مانده</span><span>سررسید</span><span>توضیحات</span><span /></div>
-          {shown.map((s, i) => { const m = studentMoney(s), off = s.status === 'withdrawn', wa = waLink(s); return <div key={s.id} className={`cs-row ${off ? 'off' : m.remaining ? 'owe' : 'clear'} ${open === s.id ? 'open' : ''}`}>
+          {shown.map((s, i) => { const m = studentMoney(s), off = s.status === 'withdrawn', wa = waLink(s); return <div key={s.id} id={'cs-row-' + s.id} className={`cs-row ${off ? 'off' : m.remaining ? 'owe' : 'clear'} ${open === s.id ? 'open' : ''}`}>
             <div className="cs-tr" onClick={() => setOpen(open === s.id ? null : s.id)}>
               <span className="n">{fa(i + 1)}</span>
               <span className="nm"><b>{s.name}</b>{off ? <em className="tag off">انصراف</em> : m.remaining ? <em className="tag">قسطی</em> : <em className="tag ok">{s.plan === 'full' ? 'نقدی' : 'تسویه'}</em>}{history(s.phone, s.id).length ? <em className="tag old" title={history(s.phone, s.id).map(h => h.c?.name).join('، ')}>دورهٔ دیگر</em> : null}</span>
