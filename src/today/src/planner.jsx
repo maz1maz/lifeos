@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import './planner.css';
 import { JalaliDateInput } from './jdate';
+import { useProjectDue, cardHref, PChip } from './pcards';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -247,14 +248,16 @@ export function PlannerReact({ Nav }) {
 
   const source = kind === 'reminder' ? standaloneReminders : tasks;
 
+  const pDue = useProjectDue(true);
+  const pOpen = pDue.items.filter(c => !c._done);
   const counts = useMemo(() => ({
     open: source.filter(x => !x.done).length,
-    today: source.filter(x => !x.done && x.date === today).length,
+    today: source.filter(x => !x.done && x.date === today).length + (kind === 'task' ? pOpen.length : 0),
     upcoming: source.filter(x => !x.done && x.date > today && x.date <= weekAhead).length,
     reminders: kind === 'reminder' ? source.filter(x => !x.done).length : tasks.filter(x => !x.done && reminderByTask[x.id]).length,
     done: source.filter(x => x.done).length,
     all: source.length
-  }), [source, reminderByTask, kind]);
+  }), [source, reminderByTask, kind, pOpen.length]);
 
   const visible = useMemo(() => {
     let list = source;
@@ -382,9 +385,19 @@ export function PlannerReact({ Nav }) {
           ))}
         </nav>
 
+        {kind === 'task' && filter === 'today' && pDue.items.length ? <ul className="plnr-pcards" aria-label="کارهای پروژه">
+          <h4>🗂 کارهای پروژه <small>{fa(pOpen.length)} باز · از تابلوی پروژه‌ها</small></h4>
+          {pDue.items.map(c => { const late = c.due < today; return <li key={c.id} className={`plnr-pc ${c._done ? 'done' : ''}`} style={{ '--c': c.color }}>
+            <button type="button" className="ck" onClick={() => pDue.done(c)} aria-label={`انجام شد: ${c.title}`}>{c._done ? '✓' : ''}</button>
+            <b><PChip c={c} />{c.prio === 'h' ? <em className="pc-hi">!</em> : null}{c.title}</b>
+            <small className={late && !c._done ? 'late' : ''}>{late ? '⛔ عقب‌افتاده' : 'امروز'}{c.owner ? ` · ${c.owner}` : ''}</small>
+            <a href={cardHref(c)} title="باز کردن در پروژه">✎</a>
+          </li>; })}
+        </ul> : null}
+
         {loading && source.length === 0 ? (
           <div aria-label="در حال بارگذاری">{[0, 1, 2].map(i => <div key={i} className="plnr-skel" />)}</div>
-        ) : visible.length === 0 ? (
+        ) : visible.length === 0 && kind === 'task' && filter === 'today' && pDue.items.length ? null : visible.length === 0 ? (
           <div className="plnr-empty">
             <div className="icon"><Inbox size={28} /></div>
             <div>

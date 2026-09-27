@@ -68,7 +68,8 @@ export function FormDrawer({ open, title, fields, initial, onClose, onSubmit, su
       <div className="lf-drawer-body">
         {fields.filter(f => !f.show || f.show(v)).map(f => <label key={f.k} className={`lf-field ${f.half ? 'half' : ''}`}>
           <span>{f.l}{f.req ? ' *' : ''}{f.hint ? <em> ({f.hint})</em> : null}</span>
-          {f.t === 'date' ? <JalaliDateInput value={v[f.k] || ''} onChange={x => set(f.k, x)} />
+          {f.t === 'days' ? <span className="lf-days">{f.o.map(([k, l]) => { const on = (v[f.k] || []).map(Number).includes(k); return <button type="button" key={k} className={on ? 'on' : ''} onClick={() => set(f.k, on ? (v[f.k] || []).filter(x => Number(x) !== k) : [...(v[f.k] || []), k])}>{l}</button>; })}</span>
+            : f.t === 'date' ? <JalaliDateInput value={v[f.k] || ''} onChange={x => set(f.k, x)} />
             : f.t === 'sel' ? <select value={v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)}>{f.o.map(([a, b]) => <option key={a} value={a}>{b}</option>)}</select>
             : f.t === 'area' ? <textarea rows={f.rows || 3} value={v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} />
             : <input value={f.t === 'money' ? grp(v[f.k]) : v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} inputMode={f.t === 'num' ? 'decimal' : f.t === 'money' ? 'numeric' : undefined} data-raw={f.t === 'num' ? '' : undefined} type={f.t === 'time' ? 'time' : 'text'} />}
@@ -298,7 +299,7 @@ function parseQuick(text) {
 const PNAMES = ['طلایی', 'آبی', 'سبز', 'صورتی', 'بنفش', 'نارنجی'];
 export function ProjectsPage({ Nav }) {
   const projects = useCol('projects'), cards = useCol('cards');
-  const [pid, setPid] = useState(() => { try { return localStorage.getItem('lifeos-project') || ''; } catch { return ''; } });
+  const [pid, setPid] = useState(() => { const u = new URLSearchParams(location.search).get('pid'); if (u) return u; try { return localStorage.getItem('lifeos-project') || ''; } catch { return ''; } });
   const [edit, setEdit] = useState(null), [cardEdit, setCardEdit] = useState(null), [drag, setDrag] = useState(null), [quick, setQuick] = useState('');
   const list = (projects.items || []).filter(p => !p.archived);
   const cur = list.find(p => p.id === pid) || list[0] || null;
@@ -308,6 +309,12 @@ export function ProjectsPage({ Nav }) {
   const pFields = [{ k: 'name', l: 'نام پروژه', req: true }, { k: 'client', l: 'کارفرما / مشتری', half: true }, { k: 'deadline', l: 'مهلت', t: 'date', half: true }, { k: 'color', l: 'رنگ', t: 'sel', o: PCOLORS.map((c, i) => [c, PNAMES[i]]), def: () => PCOLORS.find(c => !list.some(p => (p.color || PCOLORS[0]) === c)) || PCOLORS[list.length % PCOLORS.length] }, { k: 'note', l: 'توضیح', t: 'area' }];
   const cFields = [{ k: 'title', l: 'عنوان', req: true }, { k: 'col', l: 'ستون', t: 'sel', o: COLS_K, def: 'todo', half: true }, { k: 'due', l: 'مهلت', t: 'date', half: true }, { k: 'owner', l: 'مسئول', half: true }, { k: 'prio', l: 'اولویت', t: 'sel', o: [['n', 'عادی'], ['h', 'بالا'], ['l', 'پایین']], def: 'n', half: true }, { k: 'note', l: 'جزئیات', t: 'area', rows: 4 }];
   const move = (c, col) => cards.patch(c.id, { col, doneAt: col === 'done' ? Date.now() : null });
+  // deep link from Today / calendar / planner: ?page=projects&pid=…&card=… opens that card
+  useEffect(() => {
+    if (!cards.items) return; const u = new URLSearchParams(location.search), id = u.get('card'); if (!id) return;
+    const c = cards.items.find(x => x.id === id); if (c) { setPid(c.projectId); setCardEdit(c); }
+    u.delete('card'); u.delete('pid'); try { history.replaceState(null, '', location.pathname + '?' + u.toString()); } catch {}
+  }, [cards.items === null]);
   // once: projects that all got the default gold get distinct colours (you can change any of them later)
   useEffect(() => {
     const items = projects.items; if (!items || items.length < 2) return;
@@ -321,7 +328,7 @@ export function ProjectsPage({ Nav }) {
         items={(projects.items || []).map(p => { const cs = (cards.items || []).filter(c => c.projectId === p.id), by = Object.fromEntries(COLS_K.map(([k]) => [k, cs.filter(c => (c.col || 'todo') === k).length])), n = cs.length, late = cs.filter(c => c.col !== 'done' && c.due && c.due < todayIso()).length;
           return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: !n, group: p.archived ? 'archived' : n && by.done === n ? 'done' : 'active', bar: n ? COLS_K.map(([k]) => ({ flex: by[k], color: KCOL[k] })) : null, sub: n ? `${fa(by.done)} از ${fa(n)} · ${fa(Math.round(by.done / n * 100))}٪${late ? ` · ${fa(late)} عقب` : ''}${p.deadline ? ` · ${jShort(p.deadline)}` : ''}` : 'هنوز کارتی ندارد' }; })}
         renderArchived={x => <div key={x.id} className="sl-arch" style={{ '--c': x.color }}><span><i />{x.name}</span><button type="button" onClick={() => { projects.patch(x.id, { archived: false }); setPid(x.id); }}>برگردون</button></div>}>
-      {cur ? <section className="lf-card">
+      {cur ? <section className="lf-card sl-top" style={{ '--c': cur.color || PCOLORS[0] }}>
         {(() => { const today = todayIso(), by = Object.fromEntries(COLS_K.map(([k]) => [k, mine.filter(c => (c.col || 'todo') === k).length])), n = mine.length, pct = n ? Math.round(by.done / n * 100) : 0, { pace, open, eta } = projEta(mine, today), late = mine.filter(c => c.col !== 'done' && c.due && c.due < today).sort((a, b) => a.due.localeCompare(b.due)), soon = mine.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((a, b) => a.due.localeCompare(b.due)), risk = eta && cur.deadline && eta > cur.deadline;
           return <>
             <div className="lf-row-head lf-phead"><div><h2 style={{ color: cur.color || PCOLORS[0] }}>{cur.name}</h2><small>{[cur.client, cur.deadline ? `مهلت ${jShort(cur.deadline)}` : ''].filter(Boolean).join(' · ')} {cur.deadline ? dueChip(cur.deadline) : null}{n ? <> · {!open ? 'تمام شد ✓' : eta ? <>پیش‌بینی پایان: {jShort(eta)}{risk ? <b className="bad"> ⚠ بعد از مهلت</b> : null}</> : 'هنوز سرعتی ثبت نشده'}{pace ? ` · ${fa(pace, 1)} کارت در هفته` : ''}</> : null}</small></div>

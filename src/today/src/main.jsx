@@ -28,8 +28,9 @@ import './numgroup';
 import { HabitsPage, WeeklyPage } from './habits';
 import { UpcomingPage, DiscoverPage } from './watchx';
 import { CommandPalette } from './palette';
-import { AdminPage } from './admin';
-import { CoursesPage } from './courses';
+import { AdminPage, MsgBar } from './admin';
+import { CoursesPage, ClassTodayCard } from './courses';
+import { useProjectDue, cardHref, PChip } from './pcards';
 import { HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, FocusCard, ShoppingPanel, BillsWeekCard, LifeStatsPage } from './life';
 
 const api = async (url, options) => {
@@ -263,6 +264,7 @@ function HomePage() {
   useEffect(() => { api('/api/debts').then(d => { const lim = addDaysIso(isoToday(), 7); setDueDebts((d.items || []).filter(x => x.dueDate && x.dueDate <= lim)); }).catch(() => {}); }, []);
   const [dueFees, setDueFees] = useState([]);
   useEffect(() => { if (modOn(mods, 'courses')) api('/api/courses/due?days=7').then(d => setDueFees(d.items || [])).catch(() => {}); }, []);
+  const pDue = useProjectDue(modOn(mods, 'projects'));
   const [ticked, setTicked] = useState(() => { const t = readLs('lifeos-ticked', null); return t && t.date === isoToday() ? t.ids : []; });
   const markTicked = id => setTicked(ids => { const next = ids.includes(id) ? ids : [...ids, id]; writeLs('lifeos-ticked', { date: isoToday(), ids: next }); return next; });
   const toggleTask = async task => { markTicked('t' + task.id); await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }); load(); };
@@ -304,7 +306,7 @@ function HomePage() {
   const tasks = allTasks
     .filter(t => t.date === today || !t.done || ticked.includes('t' + t.id))
     .sort((a, b) => (a.done - b.done) || String(a.date).localeCompare(String(b.date)) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
-  const overdueTasks = allTasks.filter(t => !t.done && t.deadline && t.deadline < today);
+  const overdueTasks = [...allTasks.filter(t => !t.done && t.deadline && t.deadline < today), ...pDue.items.filter(c => !c._done && c.due < today)];
   const tomorrowIso = useMemo(() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }, [today]);
   const dueTomorrowTasks = allTasks.filter(t => !t.done && t.deadline === tomorrowIso);
   const todaySpend = data.transactions.filter(t => t.kind === 'expense').reduce((n, t) => n + (Number(t.amount) || 0), 0);
@@ -313,6 +315,7 @@ function HomePage() {
   const agenda = [
     ...tasks.map(t => ({ kind: 'task', id: t.id, title: t.title, done: !!t.done, time: t.startTime || '', date: (t.deadline && t.deadline < (t.date || today)) ? t.deadline : (t.date || ''), raw: t })),
     ...data.reminders.filter(r => r.date === today || !r.done || ticked.includes('r' + r.id)).map(r => ({ kind: 'reminder', id: r.id, title: r.title, done: !!r.done, time: r.time || '', date: r.date || today, raw: r })),
+    ...pDue.items.map(c => ({ kind: 'task', pcard: true, id: 'pc' + c.id, title: c.title, done: !!c._done, time: '', date: c.due, raw: c })),
     ...dueFees.map(x => ({ kind: 'reminder', debt: true, href: '/?page=courses', id: 'fee' + x.id, title: `🎓 شهریهٔ ${x.name}${x.course ? ' · ' + x.course : ''} · ${shortRial(x.remaining)}`, done: false, time: '', date: x.dueDate, raw: x })),
     ...dueDebts.map(x => ({ kind: 'reminder', debt: true, id: 'debt' + x.id, title: `${x.type === 'payable' ? 'سررسید بدهی به' : 'سررسید طلب از'} ${x.person} · ${x.currency === 'USD' ? fa(x.amount) + ' دلار' : shortRial(x.amount)}`, done: false, time: '', date: x.dueDate, raw: x }))
   ].map(x => ({ ...x, late: !x.done && !!x.date && x.date < today }))
@@ -362,6 +365,7 @@ function HomePage() {
         calendar: (<LiveCalendar today={today} />),
         ...(modOn(mods, 'market') ? { market: (<Market />) } : modOn(mods, 'finance') ? { goals: (<GoalsMini />) } : { habits: (<HabitsMini />) })
       }} />
+      {modOn(mods, 'courses') ? <ClassTodayCard /> : null}
       <Layout id="grid" className="grid home-grid" editing={layoutEdit} cards={{
         agenda: (<Card className="agenda" icon={CheckSquare2} title="کارها و یادآوری‌ها" action={<a href="/?page=planner">برنامه‌ریز ←</a>}>
           <div className={`ag-mit ${mitList.length ? '' : 'empty'}`}>
@@ -377,9 +381,9 @@ function HomePage() {
                 const late = !item.done && item.late;
                 const later = item.date && item.date > today, tmr = item.date === addDaysIso(today, 1);
                 const when = late ? `⛔ ${lateLabel(item.date)}` : later ? `${tmr ? 'فردا' : jalaliDayLabel(item.date)}${item.time ? ' · ' + faDigits(item.time) : ''}` : item.time ? faDigits(item.time) : !item.date ? 'بی‌تاریخ' : 'امروز';
-                return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = item.href || '/?page=finance&tab=wealth') : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
-                  <i>{item.debt ? '⏰' : item.done ? '✓' : ''}</i><span>{item.title}</span><small>{when}</small>
-                </button>{item.kind === 'task' && !item.debt ? <button type="button" className={`ag-star ${item.raw.mit === today ? 'on' : ''}`} onClick={() => toggleMit(item.raw)} aria-label={item.raw.mit === today ? 'حذف از سه کار مهم' : 'افزودن به سه کار مهم'} title="سه کار مهم امروز">{item.raw.mit === today ? '★' : '☆'}</button> : null}{item.debt ? null : <button type="button" className="ag-edit" onClick={() => openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}</div>;
+                return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = item.href || '/?page=finance&tab=wealth') : item.pcard ? pDue.done(item.raw) : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
+                  <i>{item.debt ? '⏰' : item.done ? '✓' : ''}</i><span>{item.pcard ? <><PChip c={item.raw} />{item.raw.prio === 'h' ? <em className="pc-hi">!</em> : null}</> : null}{item.title}</span><small>{when}</small>
+                </button>{item.kind === 'task' && !item.debt && !item.pcard ? <button type="button" className={`ag-star ${item.raw.mit === today ? 'on' : ''}`} onClick={() => toggleMit(item.raw)} aria-label={item.raw.mit === today ? 'حذف از سه کار مهم' : 'افزودن به سه کار مهم'} title="سه کار مهم امروز">{item.raw.mit === today ? '★' : '☆'}</button> : null}{item.debt ? null : <button type="button" className="ag-edit" onClick={() => item.pcard ? (location.href = cardHref(item.raw)) : openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}</div>;
               })}{!items.length && <p className="empty">{kind === 'task' ? 'کاری برای امروز نداری.' : 'یادآوری‌ای برای امروز نداری.'}</p>}</div>
             </div>;
           })}
@@ -1178,6 +1182,7 @@ function HomeSettings({ me, onSaved, flash }) {
 }
 
 function SettingsReact() {
+  const mods = useModules();
   const [integrations, setIntegrations] = useState({}), [notice, setNotice] = useState('');
   const [me, setMe] = useState(null);
   const [pinNew, setPinNew] = useState(''), [pinCur, setPinCur] = useState('');
@@ -1189,7 +1194,7 @@ function SettingsReact() {
   const load = () => api('/api/integrations').then(setIntegrations).catch(error => setNotice(error.message));
   const loadMe = () => api('/api/me').then(data => {
     setMe(data.user || null);
-    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false, tgMonthlyOn: data.user.tgMonthlyOn !== false, tgWeeklyOn: data.user.tgWeeklyOn !== false, tgProjectsOn: data.user.tgProjectsOn !== false, backupFreq: data.user.backupFreq || 'weekly', tgLastBackup: data.user.tgLastBackup || null }));
+    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false, tgMonthlyOn: data.user.tgMonthlyOn !== false, tgWeeklyOn: data.user.tgWeeklyOn !== false, tgProjectsOn: data.user.tgProjectsOn !== false, tgFeeRemindOn: data.user.tgFeeRemindOn !== false, tgCoursesMonthlyOn: data.user.tgCoursesMonthlyOn !== false, backupFreq: data.user.backupFreq || 'weekly', tgLastBackup: data.user.tgLastBackup || null }));
   }).catch(error => setNotice(error.message));
   useEffect(() => { load(); loadMe(); }, []);
 
@@ -1332,6 +1337,14 @@ function SettingsReact() {
             <div><b>📁 گزارش هفتگی پروژه‌ها</b><small>جمعه‌ها ساعت گزارش عصر: پیشرفت هر پروژه، کارت‌های انجام‌شدهٔ هفته، عقب‌افتاده‌ها، مهلت‌ها و کارهای هفتهٔ بعد · <button type="button" className="linkish" onClick={async () => { try { await api('/api/projects/report', { method: 'POST' }); setNotice('گزارش پروژه‌ها به تلگرام فرستاده شد ✓'); } catch (e) { setNotice(e.message); } }}>الان بفرست</button></small></div>
             <button type="button" className={`plnr-switch ${digest.tgProjectsOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgProjectsOn} onClick={() => saveDigest({ tgProjectsOn: !digest.tgProjectsOn })}><i /></button>
           </article>
+          {modOn(mods, 'courses') ? <><article>
+            <div><b>🎓 یادآوری سررسید شهریه</b><small>دو روز مانده به سررسید هر دانشجو، ساعت گزارش صبح: نام، مانده و دکمهٔ «پیام واتساپ» با متن آماده</small></div>
+            <button type="button" className={`plnr-switch ${digest.tgFeeRemindOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgFeeRemindOn} onClick={() => saveDigest({ tgFeeRemindOn: !digest.tgFeeRemindOn })}><i /></button>
+          </article>
+          <article>
+            <div><b>📚 گزارش ماهانهٔ دوره‌ها</b><small>اول هر ماه: دریافتی ماه، مانده، بدهکارها و درصد حضور هر دوره · <button type="button" className="linkish" onClick={async () => { try { await api('/api/courses/report?prev=0', { method: 'POST' }); setNotice('گزارش این ماه دوره‌ها به تلگرام فرستاده شد ✓'); } catch (e) { setNotice(e.message); } }}>الان بفرست (این ماه)</button></small></div>
+            <button type="button" className={`plnr-switch ${digest.tgCoursesMonthlyOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgCoursesMonthlyOn} onClick={() => saveDigest({ tgCoursesMonthlyOn: !digest.tgCoursesMonthlyOn })}><i /></button>
+          </article></> : null}
           <article>
             <div><b>ارسال گزارش‌ها در تلگرام</b><small>خاموش‌کردن یعنی هیچ دایجستی فرستاده نشود</small></div>
             <button type="button" className={`plnr-switch ${digest.tgReports ? 'on' : ''}`} role="switch" aria-checked={digest.tgReports} onClick={() => saveDigest({ tgReports: !digest.tgReports })}><i /></button>
@@ -2127,4 +2140,4 @@ if ('serviceWorker' in navigator && !navigator.webdriver && (location.protocol =
   window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
 }
 
-createRoot(document.getElementById('root')).render(<><App /><OfflineBar /></>);
+createRoot(document.getElementById('root')).render(<><App /><OfflineBar /><MsgBar load={meOnce} /></>);

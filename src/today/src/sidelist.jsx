@@ -15,6 +15,7 @@ export function SideLayout({ storageKey, title, items, tabs, selected, onPick, r
   const cur = items.find(x => x.id === selected);
   const pick = id => { onPick(id); setMenu(false); };
   const row = x => <button key={x.id} type="button" className={`sl-row ${x.id === selected ? 'on' : ''} ${x.dim ? 'dim' : ''}`} style={{ '--c': x.color }} onClick={() => pick(x.id)} title={x.name}>
+    <span className="sl-ini">{[...x.name.trim()][0] || '•'}</span>
     <span className="sl-name">{x.name}</span>
     {x.bar ? <span className="sl-bar">{x.bar.map((b, i) => b.flex ? <i key={i} style={{ flex: b.flex, background: b.color }} /> : null)}</span> : null}
     <small>{x.sub}</small>
