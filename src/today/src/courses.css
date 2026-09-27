@@ -58,3 +58,4 @@
 .cs-pays>div{grid-template-columns:90px 150px 1fr auto!important}
 .cs-pays>div.full span{color:#34d399}
 .cs-pops{display:inline-flex;gap:12px}
+.cs-xcards{margin-bottom:12px}.fn-xacc,.fn-xpf{margin:6px 0 10px}

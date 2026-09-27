@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useCol, Page, FormDrawer, api, fa, faD, jShort, todayIso, dueChip } from './life';
 import { JalaliDateInput } from './jdate';
 import './courses.css';
+import { XCards, CopyBtn } from './xcards';
 
 const rial = n => `${fa(Math.round(Number(n) || 0), 0)} ریال`;
 const num = v => { const n = Number(String(v ?? '').replace(/[,٬\s]/g, '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))); return Number.isFinite(n) ? n : 0; };
@@ -84,6 +85,7 @@ export function CoursesPage({ Nav }) {
   const courses = useCol('courses'), students = useCol('students');
   const [cid, setCid] = useState(() => { try { return localStorage.getItem('lifeos-course') || ''; } catch { return ''; } });
   const [cEdit, setCEdit] = useState(null), [sEdit, setSEdit] = useState(null), [pay, setPay] = useState(null), [payEdit, setPayEdit] = useState(null), [copy, setCopy] = useState(false);
+  const [xOpen, setXOpen] = useState(null);
   const [tab, setTab] = useState('money'), [open, setOpen] = useState(null), [msg, setMsg] = useState(''), [q, setQ] = useState('');
   const list = (courses.items || []).slice().sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')) || (b.createdAt || 0) - (a.createdAt || 0));
   const cur = list.find(c => c.id === cid) || list[0] || null;
@@ -149,10 +151,18 @@ export function CoursesPage({ Nav }) {
   const active = rows.filter(s => s.status !== 'withdrawn');
   return <Page Nav={Nav} kicker="کار" title="دوره‌ها و دانشجوها" sub="شهریه، پرداخت‌ها، سررسیدها و حضور و غیاب هر دوره" actions={<button className="lf-btn" onClick={() => setCEdit({})}>＋ دورهٔ تازه</button>}>
     {courses.items === null ? <p className="lf-empty">در حال دریافت…</p> : !list.length ? <p className="lf-empty">هنوز دوره‌ای نساختی. با «＋ دورهٔ تازه» شروع کن؛ هر دوره لیست دانشجوها و حساب شهریهٔ خودش را دارد.</p> : <>
-      <div className="cs-courses">{list.map(c => { const s = courseSum(c), pct = s.fee ? Math.round(s.paid / s.fee * 100) : 0; return <button key={c.id} className={cur?.id === c.id ? 'on' : ''} onClick={() => pick(c.id)}>
-        <b>{c.name}</b><small>{STATUS.find(x => x[0] === (c.status || 'enroll'))?.[1]}{c.startDate ? ` · ${jShort(c.startDate)}` : ''} · {fa(s.n)} نفر</small>
-        <span className="cs-mini"><i style={{ width: `${Math.min(100, pct)}%` }} /></span><em>{fa(pct)}٪ وصول</em>
-      </button>; })}</div>
+      <XCards className="cs-xcards" items={list} cols={Math.min(3, Math.max(2, list.length))} open={xOpen} onOpen={v => { setXOpen(v); if (v) pick(v); }}
+        surface={(c, i) => c.id === cur?.id && xOpen == null ? 'gold' : ['graphite', 'violet', 'blue', 'cyan', 'green'][i % 5]}
+        renderBody={c => { const s = courseSum(c), pct = s.fee ? Math.round(s.paid / s.fee * 100) : 0; return <>
+          <div className="xc-top"><span className="xc-ic">🎓</span><span className="xc-name">{c.name}</span></div>
+          <div><div className="xc-sub">{STATUS.find(x => x[0] === (c.status || 'enroll'))?.[1]}{c.startDate ? ` · ${jShort(c.startDate)}` : ''} · {fa(s.n)} نفر</div><div className="xc-bar" style={{ margin: '8px 0 4px' }}><i style={{ width: `${Math.min(100, pct)}%` }} /></div><div className="xc-sub">{fa(pct)}٪ وصول{cur?.id === c.id ? ' · انتخاب‌شده' : ''}</div></div>
+        </>; }}
+        renderMore={c => { const cs = all.filter(x => x.courseId === c.id), owe = cs.map(x => ({ x, m: studentMoney(x) })).filter(o => o.m.remaining > 0).sort((a, b) => String(a.x.dueDate || '9').localeCompare(String(b.x.dueDate || '9'))), s = courseSum(c); return <>
+          <div className="xc-kv"><div><small>دریافتی</small><b>{rial(s.paid)}</b></div><div><small>باقی‌مانده</small><b>{rial(Math.max(0, s.fee - s.paid))}</b></div><div><small>بدهکار</small><b>{fa(owe.length)} نفر</b></div></div>
+          {owe.length ? <div className="xc-list">{owe.slice(0, 4).map(({ x, m }) => <div key={x.id}><span>{x.name}{x.dueDate ? <small> · سررسید {jShort(x.dueDate)}</small> : null}</span><b>{rial(m.remaining)}</b></div>)}</div> : <p className="xc-sub">همه تسویه کرده‌اند ✓</p>}
+          {c.cardNo ? <CopyBtn label="کارت واریز" text={c.cardNo} /> : null}
+          <div className="xc-row"><button type="button" className="xc-pill" onClick={() => { pick(c.id); setSEdit({ fee: c.price || '', status: 'active' }); }}>＋ دانشجو</button><button type="button" className="xc-pill" onClick={() => setCEdit(c)}>ویرایش دوره</button></div>
+        </>; }} />
       {cur ? <section className="lf-card cs-course">
         <div className="lf-row-head"><div><h2>{cur.name}</h2><small>{[cur.startDate ? `شروع ${jShort(cur.startDate)}` : '', sessions ? `${fa(sessions)} جلسه` : '', cur.price ? `شهریه ${rial(cur.price)}` : ''].filter(Boolean).join(' · ')}</small></div>
           <div className="lf-ops"><button className="lf-link" onClick={() => setCEdit(cur)}>ویرایش دوره</button><button className="lf-link" onClick={() => setCopy(true)}>کپی از دورهٔ دیگر</button><button className="lf-link" onClick={() => toCsv(cur, rows)}>خروجی اکسل</button><button className="lf-link" onClick={() => printList(cur, rows)}>چاپ</button></div></div>

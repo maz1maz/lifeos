@@ -4,6 +4,7 @@ import { jalaliShort, jalaliDay } from './jalali'
 import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './jdate';
 import { BillsPanel } from './life';
 import { FunOverview, PfTrend, useUsdHistory, makeRateOn, setFunUnit } from './fun';
+import { XCards, CopyBtn, Spark, XC_SURFACES } from './xcards';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -165,6 +166,24 @@ function Donut({ slices }) {
       </div>
     </div>
   )
+}
+
+
+// expanded asset card: quantity, cost, P/L and a 30-day price sparkline from TGJU (gold / dollar / euro)
+function AssetMore({ row }) {
+  const key = row.item.assetType === 'gold' ? row.item.symbol : row.item.assetType === 'dollar' ? 'price_dollar_rl' : row.item.assetType === 'euro' ? 'price_eur' : null
+  const [hist, setHist] = useState(null)
+  useEffect(() => { if (key) api(`/api/tgju/history?key=${encodeURIComponent(key)}&days=30`).then((d) => setHist((d.items || []).map((x) => x.price).filter((v) => v > 0))).catch(() => setHist([])) }, [key])
+  const pct = row.cost ? (row.pnl / row.cost) * 100 : 0, ch = hist && hist.length > 1 ? ((hist[hist.length - 1] - hist[0]) / hist[0]) * 100 : null
+  return <>
+    <div className="xc-kv">
+      <div><small>ارزش روز</small><b>{faMoney(row.value)}</b></div>
+      <div><small>بهای خرید</small><b>{row.cost ? faMoney(row.cost) : '—'}</b></div>
+      <div><small>سود / زیان</small><b>{row.pnl ? `${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl))}` : '—'}{row.cost ? ` (${pct >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(pct * 10) / 10))}٪)` : ''}</b></div>
+      <div><small>مقدار</small><b>{fa(row.item.quantity)} واحد</b></div>
+    </div>
+    {key ? (hist === null ? <p className="xc-sub">در حال دریافت نمودار…</p> : hist.length > 1 ? <div><Spark data={hist} up={hist[hist.length - 1] >= hist[0]} /><p className="xc-sub">قیمت ۳۰ روز اخیر{ch != null ? ` · ${ch >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(ch * 10) / 10))}٪` : ''}</p></div> : <p className="xc-sub">تاریخچهٔ قیمت در دسترس نیست.</p>) : null}
+  </>
 }
 
 export function FinanceReact({ Nav }) {
@@ -618,15 +637,18 @@ export function FinanceReact({ Nav }) {
                 <button className="fn-save">ثبت انتقال</button>
               </form>
 </Drawer></div>
-              <div className="fn-accounts">
-                {accounts.map((a) => (
-                  <div key={a.id} className={`fn-acc ${a.archived ? 'arch' : ''}`}>
-                    <div><b>{a.name}</b><small>{ACC_FA[a.type] || a.type}{a.archived ? ' · بایگانی' : ''}</small></div>
-                    <strong title={faMoney(a.balance ?? a.openingBalance ?? 0)}>{short(a.balance ?? a.openingBalance ?? 0)}</strong>
-                    <button type="button" className="fn-link" onClick={() => setEditing({ type: 'account', item: a })}>ویرایش</button>
-                  </div>
-                ))}
-              </div>
+              <XCards className="fn-xacc" items={accounts} surface={(a, i) => a.color || XC_SURFACES[i % XC_SURFACES.length]}
+                renderBody={(a) => <>
+                  <div className="xc-top"><span className="xc-ic">{a.type === 'cash' ? '💵' : a.type === 'bank' ? '🏦' : '💳'}</span><span className="xc-name">{a.name}</span></div>
+                  <div><div className="xc-val" title={faMoney(a.balance ?? a.openingBalance ?? 0)}>{short(a.balance ?? a.openingBalance ?? 0)}</div><div className="xc-sub">{ACC_FA[a.type] || a.type}{a.cardNo ? ` · ${String(a.cardNo).replace(/\D/g, '').slice(-4)}` : ''}</div></div>
+                </>}
+                renderMore={(a) => { const mine = txs.filter((t) => t.account === a.name || t.toAccount === a.name).slice(0, 5); return <>
+                  <div className="xc-kv"><div><small>موجودی دقیق</small><b>{faMoney(a.balance ?? a.openingBalance ?? 0)}</b></div><div><small>تراکنش‌های این ماه</small><b>{fa(txs.filter((t) => t.account === a.name || t.toAccount === a.name).length)}</b></div></div>
+                  {a.cardNo ? <CopyBtn label="شماره کارت" text={a.cardNo} /> : null}
+                  {a.sheba ? <CopyBtn label="شبا" text={a.sheba} /> : null}
+                  {mine.length ? <div className="xc-list">{mine.map((t) => <div key={t.id}><span>{t.title}<small> · {jalaliShort(t.date)}</small></span><b>{t.kind === 'income' || t.toAccount === a.name ? '+' : '−'}{short(t.amount)}</b></div>)}</div> : <p className="xc-sub">این ماه تراکنشی با این حساب نیست.</p>}
+                  <div className="xc-row"><button type="button" className="xc-pill" onClick={() => setEditing({ type: 'account', item: a })}>ویرایش و شماره کارت</button></div>
+                </> }} />
               <div className="fn-head" style={{ marginTop: 18 }}><h2>🔁 پرداخت‌ها و دریافت‌های تکراری</h2></div>
               {recurring.length ? recurring.map((r) => {
                 const due = dueInfo(r.nextDate)
@@ -815,16 +837,13 @@ export function FinanceReact({ Nav }) {
                 </div>
               ) : null}
               {portfolio.items?.length ? <PfTrend snaps={pfSnaps || []} /> : null}
-              {portfolio.items?.length ? pf.rows.map((row) => (
-                <article key={`${row.item.assetType}-${row.item.symbol}`} className="fn-row fn-pf-row">
-                  <div>
-                    <b>{row.label}</b>
-                    <small>{ASSET_FA[row.item.assetType] || row.item.assetType} · {fa(row.item.quantity)} واحد{row.native ? ` · ${row.native}` : ''}</small>
-                  </div>
-                  <span className={`amt ${row.pnl >= 0 ? 'pos' : 'neg'}`}>{row.pnl ? `${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl), false)}` : ''}</span>
-                  <b title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</b>
-                </article>
-              )) : <p className="fn-empty">دارایی ثبت نشده.</p>}
+              {portfolio.items?.length ? <XCards className="fn-xpf" items={pf.rows} getKey={(r) => `${r.item.assetType}-${r.item.symbol}`}
+                surface={(r) => r.item.assetType === 'gold' ? 'gold' : r.item.assetType === 'dollar' ? 'green' : r.item.assetType === 'euro' ? 'blue' : r.item.assetType === 'crypto' ? 'violet' : r.item.assetType === 'stock' ? 'cyan' : 'graphite'}
+                renderBody={(row) => <>
+                  <div className="xc-top"><span className="xc-ic">{row.item.assetType === 'gold' ? '🪙' : row.item.assetType === 'dollar' ? '💵' : row.item.assetType === 'euro' ? '💶' : row.item.assetType === 'crypto' ? '₿' : row.item.assetType === 'stock' ? '📈' : '📦'}</span><span className="xc-name">{row.label}</span></div>
+                  <div><div className="xc-val" title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</div><div className="xc-sub">{fa(row.item.quantity)} واحد{row.pnl ? ` · ${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl), false)}` : ''}</div></div>
+                </>}
+                renderMore={(row) => <AssetMore row={row} />} /> : <p className="fn-empty">دارایی ثبت نشده.</p>}
               <div className="fn-alerts">
                 <div className="fn-head"><h2>هشدار قیمت</h2><Drawer label="هشدار" title="هشدار قیمت">
 <form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/investments/alerts', { symbol: f.get('symbol'), condition: f.get('condition'), value: Number(f.get('value')) }, 'هشدار ثبت شد.'); e.currentTarget.reset() }}>
@@ -974,7 +993,7 @@ export function FinanceReact({ Nav }) {
             const body = editing.type === 'debt'
               ? { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), dueDate: f.get('dueDate') || null, note: f.get('note') }
               : editing.type === 'account'
-              ? { name: f.get('name'), type: f.get('type'), balance: Number(f.get('amount')), archived: f.get('archived') === 'on' }
+              ? { name: f.get('name'), type: f.get('type'), balance: Number(f.get('amount')), archived: f.get('archived') === 'on', cardNo: f.get('cardNo') || '', sheba: f.get('sheba') || '', color: f.get('color') || '' }
               : editing.type === 'poker'
               ? { date: f.get('date'), buyIn: Number(f.get('buyIn')), cashOut: Number(f.get('cashOut')), location: f.get('location'), note: f.get('note') }
               : editing.type === 'bet'
@@ -1003,6 +1022,9 @@ export function FinanceReact({ Nav }) {
                   <select name="type" defaultValue={editing.item.type}><option value="bank">بانک</option><option value="card">کارت</option><option value="cash">نقدی</option></select>
                   <input name="amount" inputMode="numeric" defaultValue={editing.item.balance ?? editing.item.openingBalance ?? 0} />
                 </div>
+                <input name="cardNo" dir="ltr" data-raw defaultValue={editing.item.cardNo || ''} placeholder="شماره کارت (اختیاری)" />
+                <input name="sheba" dir="ltr" defaultValue={editing.item.sheba || ''} placeholder="شبا IR… (اختیاری)" />
+                <select name="color" defaultValue={editing.item.color || ''}><option value="">رنگ کارت: خودکار</option>{[['violet', 'بنفش'], ['graphite', 'مشکی'], ['cyan', 'فیروزه‌ای'], ['blue', 'آبی'], ['gold', 'طلایی'], ['green', 'سبز'], ['rose', 'قرمز']].map(([k, l]) => <option key={k} value={k}>رنگ کارت: {l}</option>)}</select>
                 <label><input name="archived" type="checkbox" defaultChecked={editing.item.archived} /> بایگانی</label>
               </>
             ) : editing.type === 'poker' ? (
