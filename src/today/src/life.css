@@ -189,3 +189,26 @@
 .lf-pover .ct em{font-style:normal;color:#fb7185}
 @media(max-width:1000px){.lf-pgrid{grid-template-columns:1fr}.lf-pover button{grid-template-columns:1fr 1.4fr 40px;}.lf-pover .ct,.lf-pover button>span:last-child{display:none}}
 .lf-burn{direction:ltr}
+/* v51 — projects list: aligned columns, bar length = card count, status segments; clear move buttons */
+.lf-pover-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.lf-pover-head h3{margin:0}
+.lf-legend.row{flex-direction:row;margin:0;gap:14px;font-size:12px;color:var(--g-muted)}
+.lf-legend.row li{display:inline-flex;grid-template-columns:none;align-items:center;gap:6px}
+.lf-pover .lf-prow{display:grid;grid-template-columns:220px minmax(0,1fr) 90px 56px 110px;align-items:center;gap:14px;width:100%;padding:9px 10px;border:1px solid transparent;border-radius:10px;background:none;color:inherit;font:inherit;text-align:start;cursor:pointer}
+.lf-pover .lf-prow-h{cursor:default;color:var(--g-muted);font-size:11.5px;padding-block:4px}
+.lf-pover .lf-prow:not(.lf-prow-h):hover,.lf-pover .lf-prow.on{background:var(--g-panel-2);border-color:var(--g-border)}
+.lf-pover .lf-prow.on{border-color:var(--g-border-2)}
+.lf-prow .nm{display:flex;align-items:center;gap:8px;min-width:0}
+.lf-prow .nm i{width:9px;height:9px;border-radius:3px;flex:none}
+.lf-prow .nm b{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lf-prow .track{display:flex;align-items:center;height:12px;border-radius:7px;background:color-mix(in srgb,var(--g-border) 55%,transparent)}
+.lf-prow .track .fill{display:flex;height:100%;gap:2px;border-radius:7px;overflow:hidden}
+.lf-prow .track .fill i{display:block;min-width:4px}
+.lf-prow .track em{font-style:normal;font-size:11.5px;color:var(--g-muted);padding-inline-start:10px}
+.lf-prow .ct{font-size:12.5px;color:var(--g-text)}
+.lf-prow .lt{font-size:12.5px;color:var(--g-muted);text-align:center}.lf-prow .lt.bad{color:#fb7185;font-weight:700}
+.lf-prow .dl{font-size:12px;color:var(--g-muted);text-align:start}
+.lf-kmove button{width:auto!important;padding:0 8px;font-size:11.5px;white-space:nowrap}
+.lf-kmove button.fw{color:var(--g-accent-strong);border-color:color-mix(in srgb,var(--g-accent) 50%,transparent)}
+.lf-kmove button:hover{background:var(--g-panel)}
+@media(max-width:800px){.lf-pover .lf-prow{grid-template-columns:120px minmax(0,1fr) 60px}.lf-pover .lf-prow>.lt,.lf-pover .lf-prow>.dl{display:none}}

@@ -267,10 +267,21 @@ function ProjectStats({ project, cards }) {
   </div>;
 }
 function ProjectsOverview({ list, cards, onPick, cur }) {
-  if (list.length < 2) return null;
+  if (!list.length) return null;
   const today = todayIso();
-  return <section className="lf-card lf-pover"><h3>همهٔ پروژه‌ها</h3>{list.map(p => { const cs = cards.filter(c => c.projectId === p.id), d = cs.filter(c => c.col === 'done').length, late = cs.filter(c => c.col !== 'done' && c.due && c.due < today).length, pct = cs.length ? Math.round(d / cs.length * 100) : 0;
-    return <button key={p.id} className={cur === p.id ? 'on' : ''} onClick={() => onPick(p.id)}><span className="nm"><i style={{ background: p.color || PCOLORS[0] }} />{p.name}</span><span className="bar"><i style={{ width: `${pct}%`, background: p.color || PCOLORS[0] }} /></span><span className="pc">{fa(pct)}٪</span><span className="ct">{fa(d)}/{fa(cs.length)}{late ? <em> · {fa(late)} عقب</em> : null}</span>{p.deadline ? dueChip(p.deadline) : <span />}</button>; })}</section>;
+  const rows = list.map(p => { const cs = cards.filter(c => c.projectId === p.id), by = k => cs.filter(c => (c.col || 'todo') === k).length; return { p, cs, n: cs.length, by: Object.fromEntries(COLS_K.map(([k]) => [k, by(k)])), late: cs.filter(c => c.col !== 'done' && c.due && c.due < today).length }; })
+    .sort((a, b) => String(a.p.deadline || '9999').localeCompare(String(b.p.deadline || '9999')) || b.n - a.n);
+  const max = Math.max(1, ...rows.map(r => r.n));
+  return <section className="lf-card lf-pover"><div className="lf-pover-head"><h3>پروژه‌ها</h3><ul className="lf-legend row">{COLS_K.map(([k, l]) => <li key={k}><i style={{ background: KCOL[k] }} />{l}</li>)}</ul></div>
+    <div className="lf-prow lf-prow-h"><span>پروژه</span><span>کارت‌ها (طول = تعداد)</span><span>انجام‌شده</span><span>عقب</span><span>مهلت</span></div>
+    {rows.map(({ p, n, by, late }) => <button key={p.id} className={`lf-prow ${cur === p.id ? 'on' : ''}`} onClick={() => onPick(p.id)}>
+      <span className="nm"><i style={{ background: p.color || PCOLORS[0] }} /><b>{p.name}</b></span>
+      <span className="track">{n ? <span className="fill" style={{ width: `${Math.max(6, (n / max) * 100)}%` }} title={COLS_K.map(([k, l]) => `${l}: ${fa(by[k])}`).join(' · ')}>{COLS_K.map(([k]) => by[k] ? <i key={k} style={{ flex: by[k], background: KCOL[k] }} /> : null)}</span> : <em>هنوز کارتی ندارد</em>}</span>
+      <span className="ct">{n ? `${fa(by.done)} از ${fa(n)}` : '—'}</span>
+      <span className={`lt ${late ? 'bad' : ''}`}>{late ? fa(late) : '—'}</span>
+      <span className="dl">{p.deadline ? dueChip(p.deadline) : '—'}</span>
+    </button>)}
+  </section>;
 }
 export function ProjectsPage({ Nav }) {
   const projects = useCol('projects'), cards = useCol('cards');
@@ -286,7 +297,6 @@ export function ProjectsPage({ Nav }) {
   const move = (c, col) => cards.patch(c.id, { col, doneAt: col === 'done' ? Date.now() : null });
   return <Page Nav={Nav} kicker="کار" title="پروژه‌ها" actions={<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button>}>
     {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !list.length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. برای هر پروژه یک تابلو با ستون‌های «انجام نشده، در حال انجام، بازبینی، انجام شد» ساخته می‌شود.</p> : <>
-      <div className="lf-tabs">{list.map(p => <button key={p.id} className={cur?.id === p.id ? 'on' : ''} onClick={() => setPid(p.id)}><i style={{ background: p.color || PCOLORS[0] }} />{p.name}<em>{fa(prog(p))}٪</em></button>)}</div>
       <ProjectsOverview list={list} cards={cards.items || []} cur={cur?.id} onPick={setPid} />
       {cur ? <section className="lf-card">
         <div className="lf-row-head"><div><h2 style={{ color: cur.color }}>{cur.name}</h2><small>{[cur.client, cur.deadline ? `مهلت ${jShort(cur.deadline)}` : ''].filter(Boolean).join(' · ')} {cur.deadline ? dueChip(cur.deadline) : null}</small></div>
@@ -300,7 +310,7 @@ export function ProjectsPage({ Nav }) {
             {cs.map(c => <article key={c.id} className={`lf-kcard ${c.prio === 'h' ? 'hi' : ''}`} draggable onDragStart={() => setDrag(c.id)} onDragEnd={() => setDrag(null)} onClick={() => setCardEdit(c)}>
               <b>{c.title}</b>
               <small>{[c.owner, c.due ? jShort(c.due) : ''].filter(Boolean).join(' · ')}{c.due && c.col !== 'done' ? dueChip(c.due) : null}</small>
-              <div className="lf-kmove" onClick={e => e.stopPropagation()}>{COLS_K.findIndex(x => x[0] === k) > 0 ? <button onClick={() => move(c, COLS_K[COLS_K.findIndex(x => x[0] === k) - 1][0])} aria-label="ستون قبل">›</button> : <span />}{COLS_K.findIndex(x => x[0] === k) < 3 ? <button onClick={() => move(c, COLS_K[COLS_K.findIndex(x => x[0] === k) + 1][0])} aria-label="ستون بعد">‹</button> : null}</div>
+              {(() => { const ci = COLS_K.findIndex(x => x[0] === k), prev = COLS_K[ci - 1], next = COLS_K[ci + 1]; return <div className="lf-kmove" onClick={e => e.stopPropagation()}>{prev ? <button className="bk" onClick={() => move(c, prev[0])} title={`برگرداندن به «${prev[1]}»`}>→ {prev[1]}</button> : <span />}{next ? <button className="fw" onClick={() => move(c, next[0])} title={`بردن به «${next[1]}»`}>{next[1]} ←</button> : null}</div>; })()}
             </article>)}
           </div>;
         })}</div>
