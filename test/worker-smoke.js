@@ -236,6 +236,17 @@ async function main() {
       check('re-enabled user can log in again', (await call('/api/auth/login', { method: 'POST', body: { email: em45, password: 'secret123' } })).status === 200);
       check('non-admin cannot use admin actions', (await call(`/api/admin/users/${sec.id}/logout`, { method: 'POST', cookie: ck2, body: {} })).status !== 200);
     }
+    // v52: courses & students — dues from payments, withdrawn students owe nothing
+    const co52 = (await call('/api/col/courses', { method: 'POST', cookie, body: { name: 'نما ۱', price: 100000000 } })).d;
+    const due = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
+    await call('/api/col/students', { method: 'POST', cookie, body: { courseId: co52.id, name: 'علی', fee: 100000000, dueDate: due, payments: [{ id: 'a', kind: 'deposit', amount: 30000000 }, { id: 'b', kind: 'installment', amount: 20000000 }] } });
+    await call('/api/col/students', { method: 'POST', cookie, body: { courseId: co52.id, name: 'سارا', fee: 100000000, dueDate: due, status: 'withdrawn', payments: [{ id: 'c', kind: 'deposit', amount: 30000000 }] } });
+    await call('/api/col/students', { method: 'POST', cookie, body: { courseId: co52.id, name: 'رضا', fee: 100000000, dueDate: due, payments: [{ id: 'd', kind: 'deposit', amount: 100000000 }] } });
+    const du52 = (await call('/api/courses/due', { cookie })).d.items;
+    check('course dues: only students still owing, with the right remaining', du52.length === 1 && du52[0].name === 'علی' && du52[0].remaining === 50000000 && du52[0].course === 'نما ۱', JSON.stringify(du52));
+    await call('/api/me', { method: 'PATCH', cookie, body: { modules: { courses: true } } });
+    const mo52 = (await call('/api/me', { cookie })).d.user.modules;
+    check('modules: courses kept, CRM is opt-in (off unless crmOn)', mo52.courses === true && mo52.crmOn === false);
     const upc = await call('/api/movies/upcoming', { cookie });
     check('upcoming episodes -> 200 with lists', upc.status === 200 && Array.isArray(upc.d.upcoming) && Array.isArray(upc.d.recent));
     const recs = await call('/api/movies/recommendations?type=series', { cookie });

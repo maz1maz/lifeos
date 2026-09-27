@@ -20,7 +20,7 @@ export const jShort = iso => { if (!/^\d{4}-\d{2}-\d{2}/.test(iso || '')) return
 export const money = n => { const a = Math.abs(Number(n) || 0), f = v => v.toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : 1 }); return (n < 0 ? '−' : '') + (a >= 1e9 ? `${f(a / 1e9)} میلیارد` : a >= 1e6 ? `${f(a / 1e6)} میلیون` : fa(a, 0)) + ' ریال'; };
 const num = v => { const n = Number(String(v ?? '').replace(/[,٬]/g, '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))); return Number.isFinite(n) ? n : 0; };
 export const daysTo = iso => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(todayIso() + 'T00:00:00Z')) / 864e5);
-const dueChip = iso => { if (!iso) return null; const d = daysTo(iso); const cls = d < 0 ? 'late' : d <= 7 ? 'soon' : ''; return <span className={`lf-due ${cls}`}>{d < 0 ? `${fa(-d)} روز گذشته` : d === 0 ? 'امروز' : d <= 30 ? `${fa(d)} روز دیگر` : jShort(iso)}</span>; };
+export const dueChip = iso => { if (!iso) return null; const d = daysTo(iso); const cls = d < 0 ? 'late' : d <= 7 ? 'soon' : ''; return <span className={`lf-due ${cls}`}>{d < 0 ? `${fa(-d)} روز گذشته` : d === 0 ? 'امروز' : d <= 30 ? `${fa(d)} روز دیگر` : jShort(iso)}</span>; };
 
 export function useCol(name) {
   const [items, setItems] = useState(null);

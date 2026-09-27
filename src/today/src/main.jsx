@@ -29,6 +29,7 @@ import { HabitsPage, WeeklyPage } from './habits';
 import { UpcomingPage, DiscoverPage } from './watchx';
 import { CommandPalette } from './palette';
 import { AdminPage } from './admin';
+import { CoursesPage } from './courses';
 import { HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, FocusCard, ShoppingPanel, BillsWeekCard, LifeStatsPage } from './life';
 
 const api = async (url, options) => {
@@ -87,7 +88,7 @@ function Sparkline({ data, up, width = 72, height = 28, uid = 'sp', color: force
 
 const NAV_GROUPS = [
   ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays]]],
-  ['کار', [['projects', 'پروژه‌ها', LayoutGrid], ['crm', 'مشتری و فروش', Briefcase]]],
+  ['کار', [['projects', 'پروژه‌ها', LayoutGrid], ['courses', 'دوره‌ها و دانشجوها', GraduationCap], ['crm', 'مشتری و فروش', Briefcase]]],
   ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
   ['زندگی', [['health', 'سلامت', HeartPulse], ['car', 'خودرو', Car], ['travel', 'سفر', Plane], ['football', 'فوتبال', Trophy], ['series', 'فیلم و سریال', Clapperboard], ['media', 'رسانه', Music]]],
   ['آرشیو', [['notes', 'یادداشت‌ها و خرید', StickyNote], ['journal', 'روزنگار', BookOpen], ['learning', 'یادگیری', GraduationCap], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
@@ -179,7 +180,7 @@ function PlanHub({ initial }) {
 function App() {
   const page = new URLSearchParams(location.search).get('page');
   if (['calendar', 'planner', 'habits', 'week', 'goals', 'focus', 'stats'].includes(page)) return <PlanHub initial={page === 'planner' ? 'list' : page} />;
-  const LIFE = { health: HealthPage, car: CarPage, travel: TravelPage, projects: ProjectsPage, crm: CrmPage, learning: LearningPage, journal: JournalPage };
+  const LIFE = { courses: CoursesPage, health: HealthPage, car: CarPage, travel: TravelPage, projects: ProjectsPage, crm: CrmPage, learning: LearningPage, journal: JournalPage };
   if (LIFE[page]) { const P = LIFE[page]; return <P Nav={() => <TopNav active={page} />} />; }
   if (page === 'shopping') return <NotesHub initial="shop" />;
   if (page === 'finance') return <FinanceReact Nav={TopNav} />;
@@ -260,6 +261,8 @@ function HomePage() {
   }, []);
   const [dueDebts, setDueDebts] = useState([]);
   useEffect(() => { api('/api/debts').then(d => { const lim = addDaysIso(isoToday(), 7); setDueDebts((d.items || []).filter(x => x.dueDate && x.dueDate <= lim)); }).catch(() => {}); }, []);
+  const [dueFees, setDueFees] = useState([]);
+  useEffect(() => { if (modOn(mods, 'courses')) api('/api/courses/due?days=7').then(d => setDueFees(d.items || [])).catch(() => {}); }, []);
   const [ticked, setTicked] = useState(() => { const t = readLs('lifeos-ticked', null); return t && t.date === isoToday() ? t.ids : []; });
   const markTicked = id => setTicked(ids => { const next = ids.includes(id) ? ids : [...ids, id]; writeLs('lifeos-ticked', { date: isoToday(), ids: next }); return next; });
   const toggleTask = async task => { markTicked('t' + task.id); await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }); load(); };
@@ -310,6 +313,7 @@ function HomePage() {
   const agenda = [
     ...tasks.map(t => ({ kind: 'task', id: t.id, title: t.title, done: !!t.done, time: t.startTime || '', date: (t.deadline && t.deadline < (t.date || today)) ? t.deadline : (t.date || ''), raw: t })),
     ...data.reminders.filter(r => r.date === today || !r.done || ticked.includes('r' + r.id)).map(r => ({ kind: 'reminder', id: r.id, title: r.title, done: !!r.done, time: r.time || '', date: r.date || today, raw: r })),
+    ...dueFees.map(x => ({ kind: 'reminder', debt: true, href: '/?page=courses', id: 'fee' + x.id, title: `🎓 شهریهٔ ${x.name}${x.course ? ' · ' + x.course : ''} · ${shortRial(x.remaining)}`, done: false, time: '', date: x.dueDate, raw: x })),
     ...dueDebts.map(x => ({ kind: 'reminder', debt: true, id: 'debt' + x.id, title: `${x.type === 'payable' ? 'سررسید بدهی به' : 'سررسید طلب از'} ${x.person} · ${x.currency === 'USD' ? fa(x.amount) + ' دلار' : shortRial(x.amount)}`, done: false, time: '', date: x.dueDate, raw: x }))
   ].map(x => ({ ...x, late: !x.done && !!x.date && x.date < today }))
     .map(x => ({ ...x, rank: x.late ? 0 : x.date === today ? 1 : x.date ? 2 : 3 }))
@@ -373,7 +377,7 @@ function HomePage() {
                 const late = !item.done && item.late;
                 const later = item.date && item.date > today, tmr = item.date === addDaysIso(today, 1);
                 const when = late ? `⛔ ${lateLabel(item.date)}` : later ? `${tmr ? 'فردا' : jalaliDayLabel(item.date)}${item.time ? ' · ' + faDigits(item.time) : ''}` : item.time ? faDigits(item.time) : !item.date ? 'بی‌تاریخ' : 'امروز';
-                return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = '/?page=finance&tab=wealth') : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
+                return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = item.href || '/?page=finance&tab=wealth') : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
                   <i>{item.debt ? '⏰' : item.done ? '✓' : ''}</i><span>{item.title}</span><small>{when}</small>
                 </button>{item.kind === 'task' && !item.debt ? <button type="button" className={`ag-star ${item.raw.mit === today ? 'on' : ''}`} onClick={() => toggleMit(item.raw)} aria-label={item.raw.mit === today ? 'حذف از سه کار مهم' : 'افزودن به سه کار مهم'} title="سه کار مهم امروز">{item.raw.mit === today ? '★' : '☆'}</button> : null}{item.debt ? null : <button type="button" className="ag-edit" onClick={() => openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}</div>;
               })}{!items.length && <p className="empty">{kind === 'task' ? 'کاری برای امروز نداری.' : 'یادآوری‌ای برای امروز نداری.'}</p>}</div>
@@ -428,6 +432,20 @@ function seriesHasFresh(item) {
   const by = item.seasonEpisodes || {};
   return Object.keys(by).some(s => Number(s) > cur && (Number(by[s].aired) || 0) > 0);
 }
+// The episode the "دیدم" button will record (same rule as quickWatch): next in this season, or E1 of the next aired season.
+function nextToWatch(item) {
+  if (item.status === 'watchlist') return { s: 1, e: 1 };
+  const cur = Number(item.currentSeason) || 1, ep0 = Number(item.currentEpisode) || 0, aired = seasonAiredCount(item, cur) || Number(item.airedInSeason) || 0;
+  const roll = aired && ep0 >= aired && (Number((item.seasonEpisodes || {})[cur + 1]?.aired) || 0) > 0;
+  return roll ? { s: cur + 1, e: 1 } : { s: cur, e: ep0 + 1 };
+}
+const watchLabel = item => { const n = nextToWatch(item); return `دیدم ف${fa(n.s)} ق${fa(n.e)}`; };
+// Caught up on everything aired AND the current season has finished airing → waiting for a new season.
+function waitingNewSeason(item) {
+  if (item.status !== 'watching' || seriesHasFresh(item)) return false;
+  const cur = Number(item.currentSeason) || 1, aired = seasonAiredCount(item, cur), total = seasonTotalCount(item, cur) || aired;
+  return aired > 0 && aired >= total;
+}
 function episodesWatchedCount(item) {
   const by = item.seasonEpisodes || {}, cur = Number(item.currentSeason) || 1;
   let n = 0;
@@ -438,7 +456,8 @@ function seriesAiredTotal(item) {
   const by = item.seasonEpisodes || {};
   return Object.values(by).reduce((n, s) => n + (Number(s.aired) || 0), 0);
 }
-const SERIES_TABS = [['all', 'همه'], ['watching', 'در حال تماشا'], ['watchlist', 'بعداً'], ['completed', 'تمام‌شده'], ['dropped', 'رها‌شده']];
+const SERIES_TABS = [['all', 'همه'], ['watching', 'در حال تماشا'], ['waiting', 'در انتظار فصل جدید'], ['watchlist', 'بعداً'], ['completed', 'تمام‌شده'], ['dropped', 'رها‌شده']];
+const seriesInTab = (x, tab) => tab === 'all' ? true : tab === 'waiting' ? waitingNewSeason(x) : tab === 'watching' ? x.status === 'watching' && !waitingNewSeason(x) : x.status === tab;
 const SHOW_STATUS_FA = { Running: 'در حال پخش', Ended: 'پایان‌یافته', 'To Be Determined': 'نامشخص', 'In Development': 'در دست تولید' };
 function ShowPreview({ show, added, busy, onAdd, onOpen, onClose }) {
   const [eps, setEps] = useState(null), [openS, setOpenS] = useState(null);
@@ -614,7 +633,7 @@ function SeriesReact({ Nav = TopNav }) {
   }, [items]);
 
   const unseenOf = x => { const c = Number(x.currentSeason) || 1; return Math.max(0, (seasonAiredCount(x, c) || Number(x.airedInSeason) || 0) - (Number(x.currentEpisode) || 0)); };
-  const shown = (tab === 'all' ? items : items.filter(x => x.status === tab)).slice().sort((a, b) => (seriesHasFresh(b) - seriesHasFresh(a)) || (b.lastTouchedAt || b.createdAt || 0) - (a.lastTouchedAt || a.createdAt || 0));
+  const shown = items.filter(x => seriesInTab(x, tab)).slice().sort((a, b) => (seriesHasFresh(b) - seriesHasFresh(a)) || (b.lastTouchedAt || b.createdAt || 0) - (a.lastTouchedAt || a.createdAt || 0));
 
   return (
     <main className="strk" dir="rtl">
@@ -688,7 +707,7 @@ function SeriesReact({ Nav = TopNav }) {
         <div className="strk-tabs">
           {SERIES_TABS.map(([key, label]) => (
             <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
-              {label} ({fa(key === 'all' ? items.length : items.filter(x => x.status === key).length)})
+              {label} ({fa(items.filter(x => seriesInTab(x, key)).length)})
             </button>
           ))}
         </div>
@@ -711,10 +730,10 @@ function SeriesReact({ Nav = TopNav }) {
                 <i className="sr-bar"><u style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--g-good)' : undefined }} /></i>
                 <small className="sr-total">{airedTotal ? `${fa(watched)} از ${fa(airedTotal)} قسمت کل سریال` : ''}</small>
                 <div className="sr-foot">
-                  {item.status === 'watchlist' ? <span className="muted">هنوز شروع نشده</span> : item.status === 'completed' ? <span className="sr-ok">✓ تمام شد</span> : left > 0 ? <span className="sr-new">{fa(left)} قسمت ندیده</span> : fresh ? <span className="sr-new">فصل تازه</span> : <span className="muted">منتظر قسمت بعد</span>}
+                  {item.status === 'watchlist' ? <span className="muted">هنوز شروع نشده</span> : item.status === 'completed' ? <span className="sr-ok">✓ تمام شد</span> : left > 0 ? <span className="sr-new">{fa(left)} قسمت ندیده</span> : fresh ? <span className="sr-new">فصل تازه</span> : waitingNewSeason(item) ? <span className="muted">منتظر فصل جدید</span> : <span className="muted">منتظر قسمت بعد</span>}
                   <span className="sr-actions">
                     <button type="button" className="ghost" onClick={() => setOpen(item)}>قسمت‌ها</button>
-                    {canWatch && <button type="button" disabled={busyId === item.id} onClick={() => quickWatch(item)}><Check size={14} />{item.status === 'watchlist' ? 'شروع' : 'دیدم'}</button>}
+                    {canWatch && <button type="button" disabled={busyId === item.id} onClick={() => quickWatch(item)}><Check size={14} /><span dir="rtl">{watchLabel(item)}</span></button>}
                   </span>
                 </div>
               </div>
@@ -1420,10 +1439,11 @@ const readLs = (k, f) => { try { const v = JSON.parse(localStorage.getItem(k) ||
 const writeLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
 // ── per-user sections ("بخش‌های من"): hide what a user doesn't use, everywhere ──
-const MODULES = [['projects', 'پروژه‌ها', '🗂', 'تابلوی کانبان برای پروژه‌ها'], ['crm', 'مشتری و فروش', '💼', 'مشتری، پیش‌فاکتور و پیگیری'], ['health', 'سلامت', '💪', 'وزن، خواب، ورزش و آب'], ['car', 'خودرو', '🚗', 'بیمه، معاینه، سرویس و هزینه‌ها'], ['travel', 'سفر', '✈️', 'برنامه، بودجه و لیست وسایل'], ['journal', 'روزنگار', '📔', 'نوشته و عکس روزانه'], ['learning', 'یادگیری', '🎓', 'کتاب‌ها و دوره‌ها'], ['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
-const PAGE_MODULE = { projects: 'projects', crm: 'crm', health: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
+const MODULES = [['projects', 'پروژه‌ها', '🗂', 'تابلوی کانبان برای پروژه‌ها'], ['courses', 'دوره‌ها و دانشجوها', '🎓', 'شهریه، پرداخت‌ها و حضور و غیاب'], ['crmOn', 'مشتری و فروش', '💼', 'مشتری، پیش‌فاکتور و پیگیری (پیش‌فرض خاموش)'], ['health', 'سلامت', '💪', 'وزن، خواب، ورزش و آب'], ['car', 'خودرو', '🚗', 'بیمه، معاینه، سرویس و هزینه‌ها'], ['travel', 'سفر', '✈️', 'برنامه، بودجه و لیست وسایل'], ['journal', 'روزنگار', '📔', 'نوشته و عکس روزانه'], ['learning', 'یادگیری', '🎓', 'کتاب‌ها و دوره‌ها'], ['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
+const PAGE_MODULE = { projects: 'projects', courses: 'courses', crm: 'crmOn', health: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
 let MODS_CACHE = readLs('lifeos-modules', null);
-const modOn = (m, k) => !m || m[k] !== false;
+const OPT_IN = new Set(['crmOn']); // off unless explicitly turned on
+const modOn = (m, k) => OPT_IN.has(k) ? !!(m && m[k] === true) : (!m || m[k] !== false);
 const pageOn = (m, page) => !PAGE_MODULE[page] || modOn(m, PAGE_MODULE[page]);
 function setModules(m, needsOnboard = false) { MODS_CACHE = m; writeLs('lifeos-modules', m); window.__needsOnboard = needsOnboard; window.dispatchEvent(new Event('lifeos:modules')); }
 function useModules() {
@@ -1438,9 +1458,9 @@ function useModules() {
 }
 async function saveModules(m) { setModules(m); try { await api('/api/me', { method: 'PATCH', body: JSON.stringify({ modules: m }) }); } catch {} }
 function ModulesPicker({ value, onChange }) {
-  const cur = value || Object.fromEntries(MODULES.map(([k]) => [k, true]));
+  const cur = { ...Object.fromEntries(MODULES.map(([k]) => [k, modOn(value, k)])), ...(value || {}) };
   return <div className="mods-grid">{MODULES.map(([k, label, icon, sub]) => {
-    const on = cur[k] !== false;
+    const on = OPT_IN.has(k) ? cur[k] === true : cur[k] !== false;
     return <button type="button" key={k} className={`mods-item ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => onChange({ ...cur, [k]: !on })}>
       <span className="mods-ic">{icon}</span><span className="mods-txt"><b>{label}</b><small>{sub}</small></span><i className="mods-check">{on ? '✓' : ''}</i>
     </button>;
@@ -1971,7 +1991,7 @@ function SeriesCard() {
           <i className="sr-bar"><u style={{ width: `${pct}%` }} /></i>
           <div className="sr-foot">
             {item.status === 'watchlist' ? <span className="muted">{item.network || 'هنوز شروع نشده'}</span> : left > 0 ? <span className="sr-new">{fa(left)} قسمت ندیده</span> : seriesHasFresh(item) ? <span className="sr-new">فصل تازه</span> : <span className="muted">منتظر قسمت بعد</span>}
-            {(item.status === 'watchlist' || left > 0 || seriesHasFresh(item)) && <button type="button" disabled={busy === item.id} onClick={() => watchNext(item)}><Check size={14} />{item.status === 'watchlist' ? 'شروع کردم' : 'دیدم'}</button>}
+            {(item.status === 'watchlist' || left > 0 || seriesHasFresh(item)) && <button type="button" disabled={busy === item.id} onClick={() => watchNext(item)}><Check size={14} /><span dir="rtl">{watchLabel(item)}</span></button>}
           </div>
         </div>
       </div>;
