@@ -212,3 +212,4 @@
 .lf-kmove button.fw{color:var(--g-accent-strong);border-color:color-mix(in srgb,var(--g-accent) 50%,transparent)}
 .lf-kmove button:hover{background:var(--g-panel)}
 @media(max-width:800px){.lf-pover .lf-prow{grid-template-columns:120px minmax(0,1fr) 60px}.lf-pover .lf-prow>.lt,.lf-pover .lf-prow>.dl{display:none}}
+.lf-xproj{margin-bottom:14px}

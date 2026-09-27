@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useCol, Page, FormDrawer, api, fa, faD, jShort, todayIso, dueChip } from './life';
 import { JalaliDateInput } from './jdate';
 import './courses.css';
-import { XCards, CopyBtn } from './xcards';
+import { XCards, CopyBtn, xcAuto } from './xcards';
 
 const rial = n => `${fa(Math.round(Number(n) || 0), 0)} ریال`;
 const num = v => { const n = Number(String(v ?? '').replace(/[,٬\s]/g, '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))); return Number.isFinite(n) ? n : 0; };
@@ -98,7 +98,7 @@ export function CoursesPage({ Nav }) {
   const history = (phone, selfId) => { const p = normPhone(phone); if (p.length < 10) return []; return all.filter(s => normPhone(s.phone) === p && s.id !== selfId && s.courseId !== cur?.id).map(s => ({ s, c: (courses.items || []).find(c => c.id === s.courseId) })); };
   const flash = t => { setMsg(t); setTimeout(() => setMsg(m => (m === t ? '' : m)), 4000); };
 
-  const cFields = [{ k: 'name', l: 'نام دوره', req: true, ph: 'مثلاً طراحی و اجرای نما — دوره ۱' }, { k: 'startDate', l: 'تاریخ شروع', t: 'date', half: true }, { k: 'sessions', l: 'تعداد جلسات', t: 'num', half: true, def: '8' }, { k: 'price', l: 'شهریهٔ هر نفر (ریال)', t: 'money', half: true }, { k: 'status', l: 'وضعیت', t: 'sel', o: STATUS, def: 'enroll', half: true }, { k: 'cardNo', l: 'شماره کارت (برای پیام یادآوری)', half: true }, { k: 'cardName', l: 'به نام', half: true }, { k: 'notes', l: 'توضیحات', t: 'area' }];
+  const cFields = [{ k: 'name', l: 'نام دوره', req: true, ph: 'مثلاً طراحی و اجرای نما — دوره ۱' }, { k: 'startDate', l: 'تاریخ شروع', t: 'date', half: true }, { k: 'sessions', l: 'تعداد جلسات', t: 'num', half: true, def: '8' }, { k: 'price', l: 'شهریهٔ هر نفر (ریال)', t: 'money', half: true }, { k: 'status', l: 'وضعیت', t: 'sel', o: STATUS, def: 'enroll', half: true }, { k: 'color', l: 'رنگ کارت', t: 'sel', o: [['', 'خودکار'], ['violet', 'بنفش'], ['graphite', 'مشکی'], ['cyan', 'فیروزه‌ای'], ['blue', 'آبی'], ['gold', 'طلایی'], ['green', 'سبز'], ['rose', 'قرمز']], half: true }, { k: 'cardNo', l: 'شماره کارت (برای پیام یادآوری)', half: true }, { k: 'cardName', l: 'به نام', half: true }, { k: 'notes', l: 'توضیحات', t: 'area' }];
   const inst = v => (v.plan || 'installment') === 'installment';
   const sFields = [{ k: 'name', l: 'نام و نام خانوادگی', req: true }, { k: 'phone', l: 'شماره تماس', half: true, ph: '۰۹۱۲…' }, { k: 'fee', l: 'شهریه (ریال)', t: 'money', half: true, hint: 'برای تخفیف تغییر بده' }, { k: 'plan', l: 'نوع پرداخت', t: 'sel', o: PLAN, def: 'installment', half: true }, ...(sEdit && !sEdit.id ? [{ k: 'deposit', l: 'بیعانه (ریال)', t: 'money', half: true, hint: 'اختیاری', show: inst }] : []), { k: 'dueDate', l: 'سررسید باقی‌مانده', t: 'date', half: true, show: inst }, { k: 'status', l: 'وضعیت', t: 'sel', o: [['active', 'فعال'], ['withdrawn', 'انصراف']], def: 'active', half: true }, { k: 'notes', l: 'توضیحات', t: 'area' }];
 
@@ -152,10 +152,10 @@ export function CoursesPage({ Nav }) {
   return <Page Nav={Nav} kicker="کار" title="دوره‌ها و دانشجوها" sub="شهریه، پرداخت‌ها، سررسیدها و حضور و غیاب هر دوره" actions={<button className="lf-btn" onClick={() => setCEdit({})}>＋ دورهٔ تازه</button>}>
     {courses.items === null ? <p className="lf-empty">در حال دریافت…</p> : !list.length ? <p className="lf-empty">هنوز دوره‌ای نساختی. با «＋ دورهٔ تازه» شروع کن؛ هر دوره لیست دانشجوها و حساب شهریهٔ خودش را دارد.</p> : <>
       <XCards className="cs-xcards" items={list} cols={Math.min(3, Math.max(2, list.length))} open={xOpen} onOpen={v => { setXOpen(v); if (v) pick(v); }}
-        surface={(c, i) => c.id === cur?.id && xOpen == null ? 'gold' : ['graphite', 'violet', 'blue', 'cyan', 'green'][i % 5]}
+        surface={c => c.color || xcAuto(c.id)} selected={cur?.id}
         renderBody={c => { const s = courseSum(c), pct = s.fee ? Math.round(s.paid / s.fee * 100) : 0; return <>
           <div className="xc-top"><span className="xc-ic">🎓</span><span className="xc-name">{c.name}</span></div>
-          <div><div className="xc-sub">{STATUS.find(x => x[0] === (c.status || 'enroll'))?.[1]}{c.startDate ? ` · ${jShort(c.startDate)}` : ''} · {fa(s.n)} نفر</div><div className="xc-bar" style={{ margin: '8px 0 4px' }}><i style={{ width: `${Math.min(100, pct)}%` }} /></div><div className="xc-sub">{fa(pct)}٪ وصول{cur?.id === c.id ? ' · انتخاب‌شده' : ''}</div></div>
+          <div><div className="xc-sub">{STATUS.find(x => x[0] === (c.status || 'enroll'))?.[1]}{c.startDate ? ` · ${jShort(c.startDate)}` : ''} · {fa(s.n)} نفر</div><div className="xc-bar" style={{ margin: '8px 0 4px' }}><i style={{ width: `${Math.min(100, pct)}%` }} /></div><div className="xc-sub keep">{fa(pct)}٪ وصول · {fa(s.n)} نفر</div></div>
         </>; }}
         renderMore={c => { const cs = all.filter(x => x.courseId === c.id), owe = cs.map(x => ({ x, m: studentMoney(x) })).filter(o => o.m.remaining > 0).sort((a, b) => String(a.x.dueDate || '9').localeCompare(String(b.x.dueDate || '9'))), s = courseSum(c); return <>
           <div className="xc-kv"><div><small>دریافتی</small><b>{rial(s.paid)}</b></div><div><small>باقی‌مانده</small><b>{rial(Math.max(0, s.fee - s.paid))}</b></div><div><small>بدهکار</small><b>{fa(owe.length)} نفر</b></div></div>

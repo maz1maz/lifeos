@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { JalaliDateInput, isoToJ, MONTHS } from './jdate';
 import './life.css';
+import { XCards } from './xcards';
 
 export const api = async (url, options) => {
   const r = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -269,22 +270,27 @@ function ProjectStats({ project, cards }) {
     </div>
   </div>;
 }
-function ProjectsOverview({ list, cards, onPick, cur }) {
+function ProjectsOverview({ list, cards, onPick, cur, onEdit, onAddCard }) {
+  const [open, setOpen] = useState(null);
   if (!list.length) return null;
   const today = todayIso();
-  const rows = list.map(p => { const cs = cards.filter(c => c.projectId === p.id), by = k => cs.filter(c => (c.col || 'todo') === k).length; return { p, cs, n: cs.length, by: Object.fromEntries(COLS_K.map(([k]) => [k, by(k)])), late: cs.filter(c => c.col !== 'done' && c.due && c.due < today).length }; })
-    .sort((a, b) => String(a.p.deadline || '9999').localeCompare(String(b.p.deadline || '9999')) || b.n - a.n);
-  const max = Math.max(1, ...rows.map(r => r.n));
-  return <section className="lf-card lf-pover"><div className="lf-pover-head"><h3>پروژه‌ها</h3><ul className="lf-legend row">{COLS_K.map(([k, l]) => <li key={k}><i style={{ background: KCOL[k] }} />{l}</li>)}</ul></div>
-    <div className="lf-prow lf-prow-h"><span>پروژه</span><span>کارت‌ها (طول = تعداد)</span><span>انجام‌شده</span><span>عقب</span><span>مهلت</span></div>
-    {rows.map(({ p, n, by, late }) => <button key={p.id} className={`lf-prow ${cur === p.id ? 'on' : ''}`} onClick={() => onPick(p.id)}>
-      <span className="nm"><i style={{ background: p.color || PCOLORS[0] }} /><b>{p.name}</b></span>
-      <span className="track">{n ? <span className="fill" style={{ width: `${Math.max(6, (n / max) * 100)}%` }} title={COLS_K.map(([k, l]) => `${l}: ${fa(by[k])}`).join(' · ')}>{COLS_K.map(([k]) => by[k] ? <i key={k} style={{ flex: by[k], background: KCOL[k] }} /> : null)}</span> : <em>هنوز کارتی ندارد</em>}</span>
-      <span className="ct">{n ? `${fa(by.done)} از ${fa(n)}` : '—'}</span>
-      <span className={`lt ${late ? 'bad' : ''}`}>{late ? fa(late) : '—'}</span>
-      <span className="dl">{p.deadline ? dueChip(p.deadline) : '—'}</span>
-    </button>)}
-  </section>;
+  const info = p => { const cs = cards.filter(c => c.projectId === p.id), by = Object.fromEntries(COLS_K.map(([k]) => [k, cs.filter(c => (c.col || 'todo') === k).length])); return { cs, n: cs.length, by, done: by.done, late: cs.filter(c => c.col !== 'done' && c.due && c.due < today), soon: cs.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((x, y) => x.due.localeCompare(y.due)) }; };
+  const rows = list.map(p => ({ p, ...info(p) })).sort((a, b) => (!a.n) - (!b.n) || String(a.p.deadline || '9999').localeCompare(String(b.p.deadline || '9999')) || b.n - a.n);
+  const byId = Object.fromEntries(rows.map(r => [r.p.id, r]));
+  return <XCards className="lf-xproj" items={rows.map(r => r.p)} cols={3} open={open} onOpen={v => { setOpen(v); if (v) onPick(v); }} selected={cur}
+    hex={p => p.color || PCOLORS[0]} itemClass={p => byId[p.id].n ? '' : 'empty'}
+    renderBody={p => { const r = byId[p.id], pct = r.n ? Math.round(r.done / r.n * 100) : 0; return <>
+      <div className="xc-top"><span className="xc-ic">🗂</span><span className="xc-name">{p.name}</span></div>
+      <div>{r.n ? <div className="xc-stack">{COLS_K.map(([k]) => r.by[k] ? <i key={k} style={{ flex: r.by[k], background: KCOL[k] }} /> : null)}</div> : null}
+        <div className="xc-sub keep" style={{ marginTop: 6 }}>{r.n ? `${fa(r.done)} از ${fa(r.n)} کارت · ${fa(pct)}٪` : 'هنوز کارتی ندارد'}{r.late.length ? ` · ⛔ ${fa(r.late.length)} عقب` : ''}{p.deadline ? ` · مهلت ${jShort(p.deadline)}` : ''}</div></div>
+    </>; }}
+    renderMore={p => { const r = byId[p.id], weeks = 4, recent = r.cs.filter(c => c.col === 'done' && c.doneAt && Date.now() - c.doneAt < weeks * 7 * 864e5).length, pace = recent / weeks, open2 = r.n - r.done, eta = open2 && pace > 0 ? addDays(today, Math.ceil(open2 / pace * 7)) : null; return <>
+      <div className="xc-kv">{COLS_K.map(([k, l]) => <div key={k}><small>{l}</small><b>{fa(r.by[k])}</b></div>)}</div>
+      {r.late.length ? <div className="xc-list">{r.late.slice(0, 3).map(c => <div key={c.id}><span>⛔ {c.title}</span><small>{jShort(c.due)}</small></div>)}</div> : null}
+      {r.soon.length ? <div className="xc-list">{r.soon.slice(0, 3).map(c => <div key={c.id}><span>⏳ {c.title}</span><small>{jShort(c.due)}</small></div>)}</div> : null}
+      <p className="xc-sub">{!r.n ? 'اولین کار این پروژه را اضافه کن.' : !open2 ? 'همهٔ کارت‌ها انجام شده ✓' : eta ? `با سرعت ۴ هفتهٔ اخیر، پایان حدود ${jShort(eta)}${p.deadline && eta > p.deadline ? ' — بعد از مهلت!' : ''}` : 'هنوز سرعتی ثبت نشده.'}</p>
+      <div className="xc-row"><button type="button" className="xc-pill" onClick={() => onAddCard(p.id)}>＋ کار تازه</button><button type="button" className="xc-pill" onClick={() => onEdit(p)}>ویرایش</button></div>
+    </>; }} />;
 }
 export function ProjectsPage({ Nav }) {
   const projects = useCol('projects'), cards = useCol('cards');
@@ -300,12 +306,12 @@ export function ProjectsPage({ Nav }) {
   const move = (c, col) => cards.patch(c.id, { col, doneAt: col === 'done' ? Date.now() : null });
   return <Page Nav={Nav} kicker="کار" title="پروژه‌ها" actions={<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button>}>
     {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !list.length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. برای هر پروژه یک تابلو با ستون‌های «انجام نشده، در حال انجام، بازبینی، انجام شد» ساخته می‌شود.</p> : <>
-      <ProjectsOverview list={list} cards={cards.items || []} cur={cur?.id} onPick={setPid} />
+      <ProjectsOverview list={list} cards={cards.items || []} cur={cur?.id} onPick={setPid} onEdit={setEdit} onAddCard={id => { setPid(id); setTimeout(() => { const el = document.getElementById('lf-quick-card'); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); } }, 60); }} />
       {cur ? <section className="lf-card">
         <div className="lf-row-head"><div><h2 style={{ color: cur.color }}>{cur.name}</h2><small>{[cur.client, cur.deadline ? `مهلت ${jShort(cur.deadline)}` : ''].filter(Boolean).join(' · ')} {cur.deadline ? dueChip(cur.deadline) : null}</small></div>
           <div className="lf-ops"><button className="lf-link" onClick={() => setEdit(cur)}>ویرایش</button><button className="lf-link" onClick={() => projects.patch(cur.id, { archived: true })}>بایگانی</button></div></div>
         <div className="lf-prog"><i style={{ width: `${prog(cur)}%`, background: cur.color }} /></div>
-        <form className="lf-inline" onSubmit={e => { e.preventDefault(); if (!quick.trim()) return; cards.add({ projectId: cur.id, title: quick.trim(), col: 'todo', prio: 'n' }); setQuick(''); }}><input value={quick} onChange={e => setQuick(e.target.value)} placeholder="کار تازه برای این پروژه… (Enter)" /><button className="lf-btn">＋</button></form>
+        <form className="lf-inline" onSubmit={e => { e.preventDefault(); if (!quick.trim()) return; cards.add({ projectId: cur.id, title: quick.trim(), col: 'todo', prio: 'n' }); setQuick(''); }}><input id="lf-quick-card" value={quick} onChange={e => setQuick(e.target.value)} placeholder="کار تازه برای این پروژه… (Enter)" /><button className="lf-btn">＋</button></form>
         <div className="lf-kanban">{COLS_K.map(([k, label]) => {
           const cs = mine.filter(c => (c.col || 'todo') === k).sort((a, b) => (b.prio === 'h') - (a.prio === 'h') || String(a.due || '9').localeCompare(String(b.due || '9')));
           return <div key={k} className={`lf-kcol ${drag ? 'dropping' : ''}`} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const c = mine.find(x => x.id === drag); if (c && c.col !== k) move(c, k); setDrag(null); }}>

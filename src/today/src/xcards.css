@@ -49,3 +49,17 @@
 .xc-gold .xc-pill,.xc-cyan .xc-pill,.xc-gold .xc-copy,.xc-cyan .xc-copy{color:inherit;border-color:rgba(0,0,0,.18)}
 .xc-gold .xc-bar i,.xc-cyan .xc-bar i{background:currentColor}
 .xc-spark polyline{stroke:currentColor}
+/* v55 — fixed colours, selection ring, compact keeps a sub line, custom hex surfaces */
+.xc-hex{background:linear-gradient(155deg,var(--xc-hex),color-mix(in srgb,var(--xc-hex) 62%,#000))}
+.xc-light{color:#1c1300}
+.xc-light .xc-pill,.xc-light .xc-copy{color:inherit;border-color:rgba(0,0,0,.18)}
+.xc-light .xc-bar i{background:currentColor}
+.xc.sel{outline:2px solid #f0c060;outline-offset:3px}
+.xc-selmark{position:absolute;z-index:2;top:12px;inset-inline-end:52px;height:24px;min-width:24px;padding:0 6px;border-radius:999px;background:#f0c060;color:#1c1300;font-weight:900;font-size:13px;display:grid;place-items:center;pointer-events:none}
+.xc.compact .xc-selmark{top:8px;inset-inline-end:8px;height:18px;min-width:18px;font-size:11px}
+.xc.compact .xc-sub.keep{display:block;font-size:11px}
+.xc.empty{opacity:.55;min-height:110px}
+.xc.empty.open{opacity:1}
+.xc-stack{display:flex;height:7px;border-radius:5px;overflow:hidden;gap:2px;background:rgba(0,0,0,.22)}
+.xc-stack i{display:block;min-width:3px}
+.xc.compact .xc-stack{height:5px}

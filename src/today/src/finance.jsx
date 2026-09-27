@@ -4,7 +4,7 @@ import { jalaliShort, jalaliDay } from './jalali'
 import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './jdate';
 import { BillsPanel } from './life';
 import { FunOverview, PfTrend, useUsdHistory, makeRateOn, setFunUnit } from './fun';
-import { XCards, CopyBtn, Spark, XC_SURFACES } from './xcards';
+import { XCards, CopyBtn, Spark, xcAuto } from './xcards';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -637,10 +637,10 @@ export function FinanceReact({ Nav }) {
                 <button className="fn-save">ثبت انتقال</button>
               </form>
 </Drawer></div>
-              <XCards className="fn-xacc" items={accounts} surface={(a, i) => a.color || XC_SURFACES[i % XC_SURFACES.length]}
+              <XCards className="fn-xacc" items={accounts} surface={(a) => a.color || xcAuto(a.id)}
                 renderBody={(a) => <>
                   <div className="xc-top"><span className="xc-ic">{a.type === 'cash' ? '💵' : a.type === 'bank' ? '🏦' : '💳'}</span><span className="xc-name">{a.name}</span></div>
-                  <div><div className="xc-val" title={faMoney(a.balance ?? a.openingBalance ?? 0)}>{short(a.balance ?? a.openingBalance ?? 0)}</div><div className="xc-sub">{ACC_FA[a.type] || a.type}{a.cardNo ? ` · ${String(a.cardNo).replace(/\D/g, '').slice(-4)}` : ''}</div></div>
+                  <div><div className="xc-val" title={faMoney(a.balance ?? a.openingBalance ?? 0)}>{short(a.balance ?? a.openingBalance ?? 0)}</div><div className="xc-sub keep">{ACC_FA[a.type] || a.type}{a.cardNo ? ` · ${String(a.cardNo).replace(/\D/g, '').slice(-4)}` : ''}</div></div>
                 </>}
                 renderMore={(a) => { const mine = txs.filter((t) => t.account === a.name || t.toAccount === a.name).slice(0, 5); return <>
                   <div className="xc-kv"><div><small>موجودی دقیق</small><b>{faMoney(a.balance ?? a.openingBalance ?? 0)}</b></div><div><small>تراکنش‌های این ماه</small><b>{fa(txs.filter((t) => t.account === a.name || t.toAccount === a.name).length)}</b></div></div>
