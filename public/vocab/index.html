@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1116">
+<title>زبان — LifeOS</title>
+<meta name="description" content="اپ فلش‌کارت آفلاین برای واژگان انگلیسی آیلتس و نما و ساختمان با معنی فارسی، تلفظ، آزمون و مرور فاصله‌دار (SRS)">
+<style>:root{
+  --bg:#0e1116; --bg2:#151a22; --bg3:#1c2430; --line:#26303e;
+  --tx:#e8eef7; --tx2:#9fb0c6; --tx3:#6f8199;
+  --acc:#3ba7ff; --acc2:#1d7fd6; --ok:#35c592; --warn:#f0b232; --bad:#f0596b; --pur:#a97bff;
+  --r:16px; --sh:0 6px 24px rgba(0,0,0,.35);
+  --f:"Vazirmatn","IRANSans","Sahel",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;
+  --fe:"Inter","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:radial-gradient(1200px 700px at 85% -10%,#1a2740 0%,transparent 60%),var(--bg);
+  color:var(--tx); font-family:var(--f); direction:rtl; min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font-family:inherit;color:inherit}
+.wrap{max-width:1060px;margin:0 auto;padding:14px 14px 96px}
+.en{font-family:var(--fe);direction:ltr;unicode-bidi:isolate}
+
+/* ---------- header ---------- */
+header.top{
+  position:sticky;top:0;z-index:30;backdrop-filter:blur(10px);
+  background:rgba(14,17,22,.82);border-bottom:1px solid var(--line);
+}
+.topin{max-width:1060px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:16px}
+.logo{
+  width:34px;height:34px;border-radius:11px;flex:0 0 auto;
+  background:linear-gradient(140deg,var(--acc),var(--pur));display:grid;place-items:center;
+  font-family:var(--fe);font-weight:900;color:#08111c;font-size:13px
+}
+.brand small{display:block;font-weight:600;font-size:11px;color:var(--tx3)}
+nav.tabs{display:flex;gap:6px;margin-inline-start:auto;flex-wrap:wrap}
+.tab{
+  border:1px solid var(--line);background:var(--bg2);color:var(--tx2);
+  padding:8px 13px;border-radius:999px;font-size:13.5px;font-weight:700;cursor:pointer;transition:.15s
+}
+.tab:hover{color:var(--tx);border-color:#33465e}
+.tab.on{background:linear-gradient(140deg,var(--acc),var(--acc2));color:#06121d;border-color:transparent}
+
+/* ---------- generic ---------- */
+.card{background:linear-gradient(180deg,var(--bg2),#12171f);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+.pad{padding:16px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.muted{color:var(--tx3);font-size:13px}
+h2{font-size:19px;margin:0 0 4px}
+h3{font-size:15.5px;margin:0 0 8px}
+.btn{
+  border:1px solid var(--line);background:var(--bg3);color:var(--tx);
+  padding:10px 15px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;transition:.15s
+}
+.btn:hover{border-color:#3a4f6a;transform:translateY(-1px)}
+.btn.pri{background:linear-gradient(140deg,var(--acc),var(--acc2));color:#05121e;border-color:transparent}
+.btn.ok{background:linear-gradient(140deg,#3ad39b,#1ea877);color:#04170f;border-color:transparent}
+.btn.bad{background:linear-gradient(140deg,#f4677a,#c93b50);color:#1b0206;border-color:transparent}
+.btn.warn{background:linear-gradient(140deg,#f5c153,#d99a17);color:#1e1400;border-color:transparent}
+.btn.ghost{background:transparent}
+.btn.sm{padding:7px 11px;font-size:13px;border-radius:10px}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.pill{border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--tx2);background:var(--bg3)}
+.pill.b1{color:#ffd580;border-color:#5a4413;background:#2a2110}
+.pill.b2{color:#8ad3ff;border-color:#17405c;background:#111f2b}
+.pill.b3{color:#9be7c4;border-color:#134a37;background:#0e2019}
+.pill.b4{color:#cbb2ff;border-color:#3a2a63;background:#191430}
+input[type=text],input[type=number],input[type=search],select,textarea{
+  background:var(--bg3);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:14px;width:100%
+}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(59,167,255,.35);border-color:var(--acc)}
+label.f{display:block;font-size:12.5px;color:var(--tx2);margin:0 0 5px}
+.hide{display:none!important}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+.bar{height:9px;border-radius:99px;background:var(--bg3);overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--pur))}
+.stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 13px}
+.stat b{display:block;font-size:23px;font-weight:800;letter-spacing:.5px}
+.stat span{font-size:12px;color:var(--tx3)}
+
+/* ---------- flashcard ---------- */
+.fcwrap{perspective:1600px;margin:14px 0}
+.fc{position:relative;display:grid;min-height:330px;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.2,.8,.2,1)}
+.fc>.face{grid-area:1/1}
+.fc.flip{transform:rotateY(180deg)}
+.face{
+  position:relative;backface-visibility:hidden;border-radius:20px;border:1px solid var(--line);
+  background:linear-gradient(170deg,#182231,#111721);box-shadow:var(--sh);padding:22px;
+  overflow:auto;max-height:74vh
+}
+.face.back{transform:rotateY(180deg);background:linear-gradient(170deg,#152029,#111820)}
+.word{font-size:clamp(32px,7vw,52px);font-weight:800;letter-spacing:-.5px;margin:0 0 6px}
+.phon{color:var(--tx3);font-size:14px}
+.meaning{font-size:clamp(22px,4.4vw,30px);font-weight:800;margin:6px 0 2px;line-height:1.7}
+.def{background:#0f1620;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:12px;font-size:15.5px;line-height:1.7}
+.def b{color:var(--acc)}
+.def b{display:block;color:var(--acc);font-size:14px;letter-spacing:.2px}
+.defen{display:block;direction:ltr;text-align:left;margin-top:5px;font-family:var(--fe);unicode-bidi:isolate;color:#d7e4f5;font-size:15px;line-height:1.75}
+.ex{font-family:var(--fe);direction:ltr;text-align:left;font-size:15px;line-height:1.7;color:#d7e4f5;margin-top:10px;padding-inline-start:12px;border-inline-start:3px solid var(--pur)}
+.exfa{direction:rtl;text-align:right;font-size:14px;line-height:1.8;color:#9fb3cc;margin-top:2px;padding-left:12px;padding-right:12px;border-left:3px solid rgba(139,109,255,.35);border-right:none}
+.syn{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.progline{display:flex;gap:6px;margin-top:12px}
+.dot{flex:1;height:6px;border-radius:99px;background:var(--bg3)}
+.dot.on{background:linear-gradient(90deg,var(--acc),var(--pur))}
+.ratebar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+@media(max-width:560px){.ratebar{grid-template-columns:repeat(2,1fr)}}
+
+/* ---------- quiz ---------- */
+.qopt{
+  border:1px solid var(--line);background:var(--bg3);border-radius:14px;padding:14px 15px;
+  font-size:17px;font-weight:700;cursor:pointer;transition:.15s;text-align:start;width:100%
+}
+.qopt:hover{border-color:var(--acc);transform:translateY(-1px)}
+.qopt.right{background:#0f2c22;border-color:#2c7f60;color:#b8f4d9}
+.qopt.wrong{background:#2c1119;border-color:#8b3244;color:#ffc9d2}
+.qopt .num{font-family:var(--fe);color:var(--tx3);font-size:12px;margin-inline-end:8px}
+
+/* ---------- list ---------- */
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th,td{text-align:start;padding:10px 9px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--tx3);font-size:12.5px;font-weight:700;position:sticky;top:0;background:var(--bg2)}
+tr:hover td{background:#151d27}
+audio{display:none}
+mark{background:#2b3a24;color:#c8f0a8;border-radius:4px;padding:0 2px}
+
+/* ---------- modal / toast ---------- */
+.mask{position:fixed;inset:0;background:rgba(4,7,11,.72);backdrop-filter:blur(4px);display:grid;place-items:center;z-index:80;padding:16px}
+.modal{max-width:640px;width:100%;max-height:86vh;overflow:auto}
+.toast{
+  position:fixed;inset-inline:0;bottom:18px;margin:auto;width:max-content;max-width:92vw;
+  background:#0f1b27;border:1px solid var(--line);border-radius:12px;padding:10px 16px;z-index:99;
+  box-shadow:var(--sh);font-size:14px;transition:.25s;opacity:0;transform:translateY(12px);pointer-events:none
+}
+.toast.on{opacity:1;transform:none}
+.sw{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--tx2)}
+.sw input{width:auto}
+.chip{border:1px solid var(--line);background:var(--bg3);border-radius:999px;padding:6px 11px;font-size:13px;cursor:pointer;color:var(--tx2)}
+.chip.on{background:var(--acc);color:#05121e;border-color:transparent;font-weight:700}
+.kbd{font-family:var(--fe);background:var(--bg3);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px;font-size:12px}
+footer{color:var(--tx3);font-size:12.5px;text-align:center;padding:24px 10px;line-height:1.9}
+
+/* readability of the small captions inside the coloured rating buttons */
+.ratebar .btn .muted{color:inherit;opacity:.8;font-size:12px;font-weight:600}
+.qopt .num{opacity:.65}
+@media(max-width:560px){
+  .face{padding:16px}
+  .topin{padding:8px 10px}
+  .brand{font-size:14.5px}
+  .tab{padding:7px 10px;font-size:12.5px}
+  .stat b{font-size:19px}
+}
+
+/* on phones the topic chips become one horizontally scrollable line */
+@media(max-width:700px){
+  #topicBar{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+  #topicBar .chip{flex:0 0 auto}
+  #topicBar.exp{flex-wrap:wrap;overflow:visible}
+}
+
+@media(max-width:700px){.onlywide{display:none}}
+
+/* ---------- login gate ---------- */
+.loginwrap{min-height:100vh;display:grid;place-items:center;padding:20px 14px}
+.logincard{max-width:440px;width:100%}
+.logo.big{width:58px;height:58px;font-size:19px;border-radius:19px;margin:0 auto}
+.alert{background:#2c1119;border:1px solid #8b3244;color:#ffc9d2;border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.8;margin-bottom:10px}
+/* password inputs in login/profile: dark surface, legible text */
+input[type=password]{background:var(--bg3);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:14px;width:100%;color:var(--tx);direction:ltr;text-align:left;min-height:42px}
+input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:var(--acc)}
+
+.top{top:0}
+#syncNote{color:#f59e0b;font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- login gate -->
+<div id="loginShell" class="hide">
+  <div class="loginwrap"><div id="loginMain" style="width:100%;max-width:440px"></div></div>
+</div>
+
+<div id="appShell" class="hide">
+<header class="top">
+  <div class="topin">
+    <div class="brand">
+      <div class="logo">۷K</div>
+      <div>۷۰۰۰ واژهٔ آیلتس
+        <small><span id="deckSize">۷۱۶۷</span> واژه · معنی فارسی · مرور فاصله‌دار</small>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab on" data-v="study">کارت‌ها</button>
+      <button class="tab" data-v="quiz">آزمون</button>
+      <button class="tab" data-v="browse">فهرست واژه‌ها</button>
+      <button class="tab" data-v="stats">پیشرفت</button>
+      <button class="tab" data-v="settings">تنظیمات</button>
+      <button class="tab" id="helpBtn" title="راهنما">؟</button>
+      <button class="tab" id="userBtn" title="حساب من">کاربر</button>
+      <button class="tab" id="logoutBtn" title="خروج از حساب">خروج</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="card pad" style="margin:12px 0">
+    <div class="between" style="margin-bottom:8px">
+      <span class="muted">فیلتر موضوعی<span class="onlywide"> — می‌توانی روی یک موضوع آیلتسی تمرکز کنی</span>:</span>
+      <span class="chip" id="topicToggle" style="display:none">نمایش همه</span>
+    </div>
+    <div class="row" id="topicBar" style="gap:6px"></div>
+  </div>
+
+  <section class="view" id="v-study"><div id="studyMain"></div></section>
+  <section class="view hide" id="v-quiz"><div id="quizMain"></div></section>
+  <section class="view hide" id="v-browse"><div id="browseMain"></div></section>
+  <section class="view hide" id="v-stats"><div id="statsMain"></div></section>
+  <section class="view hide" id="v-settings"><div id="setMain"></div></section>
+
+  <footer>
+    زبان · LifeOS · پیشرفت روی حساب LifeOS ذخیره می‌شود و روی همهٔ دستگاه‌ها یکی است <span id="syncNote"></span><br>
+    معنی‌ها از دیکشنری‌های باز انگلیسی–فارسی، تعریف و مثال از WordNet
+  </footer>
+</div>
+
+</div><!-- /appShell -->
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

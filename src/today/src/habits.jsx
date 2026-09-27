@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { isoToJ, MONTHS } from './jdate';
 import './habits.css';
+import { VocabStats } from './vocab';
 
 const api = async (url, options) => {
   const r = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -135,6 +136,7 @@ export function WeeklyPage({ Nav }) {
             <div className="hb-save"><button type="button" className="hb-btn" onClick={save}>ذخیره</button><small>{saved}</small></div>
           </section>
         </div>
+        <div style={{ marginTop: 16 }}><VocabStats compact /></div>
       </>}
     </div>
   </main>;

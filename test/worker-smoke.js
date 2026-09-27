@@ -52,10 +52,12 @@ function makeEnv() {
           _params: [],
           bind(...p) { st._params = p; return st; },
           async first() {
+            if (sql.startsWith('SELECT value FROM kv WHERE key=?')) { const v = (store.extra || {})[st._params[0]]; return v === undefined ? null : { value: v }; }
             if (sql.startsWith('SELECT value FROM kv')) return store.value === null ? null : { value: store.value };
             throw new Error('unexpected SQL in harness: ' + sql);
           },
           async run() {
+            if (sql.startsWith('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?)')) { (store.extra ||= {})[st._params[0]] = st._params[1]; return { success: true }; }
             if (sql.startsWith('INSERT INTO kv')) { store.value = st._params[0]; return { success: true }; }
             throw new Error('unexpected SQL in harness: ' + sql);
           },
@@ -280,6 +282,18 @@ async function main() {
       await call(`/api/col/courses/${cs.id}`, { method: 'PATCH', cookie, body: { skip: ['2030-01-08'], moves: { '2030-01-12': { date: '2030-01-13', time: '10:00' } } } });
       const f2 = await feed();
       check('cancelled session shifts the rest, moved session keeps its number', JSON.stringify(f2) === JSON.stringify(['2030-01-05 18:00', '2030-01-13 10:00', '2030-01-15 18:00', '2030-01-19 18:00']), JSON.stringify(f2));
+    }
+    { // v65: vocab progress stored per user in its own kv row + summary
+      check('vocab: empty state at first', (await call('/api/vocab', { cookie })).d.state === null);
+      const t0 = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date()), y = new Date(Date.parse(t0 + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
+      const st = { cards: { apple: { b: 2, due: Date.now() - 1000 }, facade: { b: 6, due: Date.now() + 9e9 }, cladding: { b: 3, due: Date.now() + 9e7 } }, settings: { dailyNew: 10 }, days: { [t0]: { r: 5, n: 3 }, [y]: { r: 2, n: 0 } } };
+      check('vocab: save -> 200', (await call('/api/vocab', { method: 'PUT', cookie, body: { state: st } })).status === 200);
+      check('vocab: read back', Object.keys((await call('/api/vocab', { cookie })).d.state.cards).length === 3);
+      const sm = (await call('/api/vocab/summary', { cookie })).d.summary;
+      check('vocab summary: due/new/learning/mastered/streak', sm.due === 1 && sm.newLeft === 7 && sm.learning === 2 && sm.mastered === 1 && sm.streak === 2, JSON.stringify(sm));
+      check('vocab: bad payload refused', (await call('/api/vocab', { method: 'PUT', cookie, body: { state: { cards: [] } } })).status === 400);
+      check('vocab: anonymous 401', (await call('/api/vocab')).status === 401);
+      check('db row stays small (vocab not inside main db)', !JSON.stringify((await call('/api/me', { cookie })).d).includes('cladding'));
     }
     { // v64: fee reminders due within 2 days + monthly course report text
       const t0 = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date()), plus = n => new Date(Date.parse(t0 + 'T12:00:00Z') + n * 864e5).toISOString().slice(0, 10);

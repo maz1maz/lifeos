@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { JalaliDateInput, isoToJ, jToIso, MONTHS } from './jdate';
 import { SideLayout } from './sidelist';
 import './life.css';
+import { VocabStats } from './vocab';
 
 export const api = async (url, options) => {
   const r = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -678,6 +679,7 @@ export function LifeStatsPage({ Nav }) {
         <section className="lf-card"><h2>خرج به تفکیک روز هفته</h2><Bars data={byWd('spend')} color="#fb7185" rtl /></section>
         <section className="lf-card"><h2>حال به تفکیک روز هفته</h2><Bars data={byWd('mood')} color="#34d399" rtl /></section>
       </div>
+      <VocabStats />
     </>}
   </Page>;
 }
