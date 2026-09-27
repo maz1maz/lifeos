@@ -44,6 +44,8 @@ export function Page({ Nav, kicker, title, sub, actions, children, className = '
 }
 
 // Side drawer with a form built from a field list; used by every module for add/edit.
+// money fields show thousands separators even for values filled in by code (numgroup only reacts to typing)
+const grp = x => { if (x === undefined || x === null || x === '') return ''; const t = String(x); return /^\d+$/.test(t) ? Number(t).toLocaleString('en-US') : typeof x === 'number' ? x.toLocaleString('en-US') : t; };
 export function FormDrawer({ open, title, fields, initial, onClose, onSubmit, submitLabel = 'ذخیره', extra }) {
   const [v, setV] = useState({});
   const [busy, setBusy] = useState(false), [err, setErr] = useState('');
@@ -53,7 +55,8 @@ export function FormDrawer({ open, title, fields, initial, onClose, onSubmit, su
   const set = (k, x) => setV(o => ({ ...o, [k]: x }));
   const submit = async e => {
     e.preventDefault();
-    const miss = fields.find(f => f.req && (v[f.k] === undefined || v[f.k] === ''));
+    const vis = f => !f.show || f.show(v);
+    const miss = fields.find(f => vis(f) && f.req && (v[f.k] === undefined || v[f.k] === ''));
     if (miss) { setErr(`«${miss.l}» لازم است.`); return; }
     const out = { ...v }; fields.forEach(f => { if (f.t === 'num' || f.t === 'money') out[f.k] = v[f.k] === '' || v[f.k] === undefined ? null : num(v[f.k]); });
     setBusy(true); try { await onSubmit(out); onClose(); } catch (x) { setErr(x.message); } setBusy(false);
@@ -62,12 +65,12 @@ export function FormDrawer({ open, title, fields, initial, onClose, onSubmit, su
     <form className="lf-drawer" onClick={e => e.stopPropagation()} onSubmit={submit}>
       <header><h2>{title}</h2><button type="button" onClick={onClose} aria-label="بستن">×</button></header>
       <div className="lf-drawer-body">
-        {fields.map(f => <label key={f.k} className={`lf-field ${f.half ? 'half' : ''}`}>
+        {fields.filter(f => !f.show || f.show(v)).map(f => <label key={f.k} className={`lf-field ${f.half ? 'half' : ''}`}>
           <span>{f.l}{f.req ? ' *' : ''}{f.hint ? <em> ({f.hint})</em> : null}</span>
           {f.t === 'date' ? <JalaliDateInput value={v[f.k] || ''} onChange={x => set(f.k, x)} />
             : f.t === 'sel' ? <select value={v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)}>{f.o.map(([a, b]) => <option key={a} value={a}>{b}</option>)}</select>
             : f.t === 'area' ? <textarea rows={f.rows || 3} value={v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} />
-            : <input value={v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} inputMode={f.t === 'num' ? 'decimal' : f.t === 'money' ? 'numeric' : undefined} data-raw={f.t === 'num' ? '' : undefined} type={f.t === 'time' ? 'time' : 'text'} />}
+            : <input value={f.t === 'money' ? grp(v[f.k]) : v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} inputMode={f.t === 'num' ? 'decimal' : f.t === 'money' ? 'numeric' : undefined} data-raw={f.t === 'num' ? '' : undefined} type={f.t === 'time' ? 'time' : 'text'} />}
         </label>)}
         {extra ? extra(v, set) : null}
         {err ? <p className="lf-err">{err}</p> : null}

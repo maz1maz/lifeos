@@ -1010,3 +1010,5 @@ html[data-mode="light"] .brand-logo{background:#105040}
 @media(hover:none){.agenda .ag-star{opacity:.8}}
 .linkish{border:0;background:none;color:var(--g-accent-strong);font:inherit;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 @media(min-width:1101px){.home-grid .agenda{grid-template-rows:auto auto minmax(0,1fr)!important}}
+.wcp-sel button{display:inline-flex!important;flex-direction:row!important;align-items:center;gap:8px}.wcp-sel button span{opacity:.7}
+.wcp-sel{justify-content:flex-start!important}

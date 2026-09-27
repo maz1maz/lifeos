@@ -9,22 +9,23 @@ const rial = n => `${fa(Math.round(Number(n) || 0), 0)} ریال`;
 const num = v => { const n = Number(String(v ?? '').replace(/[,٬\s]/g, '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))); return Number.isFinite(n) ? n : 0; };
 const normPhone = p => String(p || '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/\D/g, '').replace(/^98/, '0').replace(/^9/, '09');
 const STATUS = [['enroll', 'ثبت‌نام'], ['running', 'در حال برگزاری'], ['done', 'تمام‌شده']];
-const KIND = { deposit: 'بیعانه', installment: 'قسط', refund: 'بازپرداخت' };
+const KIND = { full: 'پرداخت کامل', deposit: 'بیعانه', installment: 'قسط', refund: 'بازپرداخت' };
+const PLAN = [['installment', 'قسطی'], ['full', 'نقدی (کامل)']];
 const rid = () => Math.random().toString(36).slice(2, 10);
 export function studentMoney(st) {
   const pays = st.payments || [], paid = pays.reduce((n, x) => n + (x.kind === 'refund' ? -1 : 1) * (Number(x.amount) || 0), 0);
   const fee = Number(st.fee) || 0, off = st.status === 'withdrawn';
-  return { fee: off ? Math.max(0, paid) : fee, paid, remaining: off ? 0 : Math.max(0, fee - paid), deposit: pays.filter(x => x.kind === 'deposit').reduce((n, x) => n + (Number(x.amount) || 0), 0) };
+  return { fee: off ? Math.max(0, paid) : fee, paid, remaining: off ? 0 : Math.max(0, fee - paid), deposit: pays.filter(x => x.kind === 'deposit' || x.kind === 'full').reduce((n, x) => n + (Number(x.amount) || 0), 0) };
 }
 
-function PayDrawer({ st, course, onClose, onSave }) {
+function PayDrawer({ st, edit, onClose, onSave }) {
   const m = studentMoney(st);
-  const [f, setF] = useState({ kind: (st.payments || []).length ? 'installment' : 'deposit', amount: m.remaining ? m.remaining.toLocaleString('en-US') : '', date: todayIso(), method: 'کارت به کارت', note: '', toFinance: true });
+  const [f, setF] = useState(edit ? { kind: edit.kind, amount: Number(edit.amount || 0).toLocaleString('en-US'), date: edit.date || todayIso(), method: edit.method || '', note: edit.note || '', toFinance: !!edit.txId } : { kind: (st.payments || []).length ? 'installment' : 'deposit', amount: m.remaining ? m.remaining.toLocaleString('en-US') : '', date: todayIso(), method: 'کارت به کارت', note: '', toFinance: true });
   const [busy, setBusy] = useState(false), [err, setErr] = useState('');
   const set = (k, v) => setF(o => ({ ...o, [k]: v }));
   const submit = async e => { e.preventDefault(); const amount = num(f.amount); if (!amount) { setErr('مبلغ را بنویس.'); return; } setBusy(true); try { await onSave({ ...f, amount }); onClose(); } catch (x) { setErr(x.message); } setBusy(false); };
   return <div className="lf-drawer-bg" onClick={onClose}><form className="lf-drawer" onClick={e => e.stopPropagation()} onSubmit={submit}>
-    <header><h2>پرداخت · {st.name}</h2><button type="button" onClick={onClose} aria-label="بستن">×</button></header>
+    <header><h2>{edit ? 'ویرایش پرداخت' : 'پرداخت'} · {st.name}</h2><button type="button" onClick={onClose} aria-label="بستن">×</button></header>
     <div className="lf-drawer-body">
       <p className="cs-note">شهریه {rial(m.fee)} · پرداخت‌شده {rial(m.paid)} · <b>باقی‌مانده {rial(m.remaining)}</b></p>
       <label className="lf-field half"><span>نوع</span><select value={f.kind} onChange={e => set('kind', e.target.value)}>{Object.entries(KIND).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
@@ -35,7 +36,7 @@ function PayDrawer({ st, course, onClose, onSave }) {
       <label className="cs-check"><input type="checkbox" checked={f.toFinance} onChange={e => set('toFinance', e.target.checked)} /> در «مالی» هم به‌عنوان {f.kind === 'refund' ? 'هزینه' : 'درآمد'} با دستهٔ «آموزش» ثبت شود</label>
       {err ? <p className="lf-err">{err}</p> : null}
     </div>
-    <footer><button className="lf-btn" disabled={busy}>{busy ? '…' : 'ثبت پرداخت'}</button><button type="button" className="lf-btn ghost" onClick={onClose}>انصراف</button></footer>
+    <footer><button className="lf-btn" disabled={busy}>{busy ? '…' : edit ? 'ذخیرهٔ تغییرات' : 'ثبت پرداخت'}</button><button type="button" className="lf-btn ghost" onClick={onClose}>انصراف</button></footer>
   </form></div>;
 }
 
@@ -82,7 +83,7 @@ function printList(course, rows) {
 export function CoursesPage({ Nav }) {
   const courses = useCol('courses'), students = useCol('students');
   const [cid, setCid] = useState(() => { try { return localStorage.getItem('lifeos-course') || ''; } catch { return ''; } });
-  const [cEdit, setCEdit] = useState(null), [sEdit, setSEdit] = useState(null), [pay, setPay] = useState(null), [copy, setCopy] = useState(false);
+  const [cEdit, setCEdit] = useState(null), [sEdit, setSEdit] = useState(null), [pay, setPay] = useState(null), [payEdit, setPayEdit] = useState(null), [copy, setCopy] = useState(false);
   const [tab, setTab] = useState('money'), [open, setOpen] = useState(null), [msg, setMsg] = useState(''), [q, setQ] = useState('');
   const list = (courses.items || []).slice().sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')) || (b.createdAt || 0) - (a.createdAt || 0));
   const cur = list.find(c => c.id === cid) || list[0] || null;
@@ -96,7 +97,8 @@ export function CoursesPage({ Nav }) {
   const flash = t => { setMsg(t); setTimeout(() => setMsg(m => (m === t ? '' : m)), 4000); };
 
   const cFields = [{ k: 'name', l: 'نام دوره', req: true, ph: 'مثلاً طراحی و اجرای نما — دوره ۱' }, { k: 'startDate', l: 'تاریخ شروع', t: 'date', half: true }, { k: 'sessions', l: 'تعداد جلسات', t: 'num', half: true, def: '8' }, { k: 'price', l: 'شهریهٔ هر نفر (ریال)', t: 'money', half: true }, { k: 'status', l: 'وضعیت', t: 'sel', o: STATUS, def: 'enroll', half: true }, { k: 'cardNo', l: 'شماره کارت (برای پیام یادآوری)', half: true }, { k: 'cardName', l: 'به نام', half: true }, { k: 'notes', l: 'توضیحات', t: 'area' }];
-  const sFields = [{ k: 'name', l: 'نام و نام خانوادگی', req: true }, { k: 'phone', l: 'شماره تماس', half: true, ph: '۰۹۱۲…' }, { k: 'fee', l: 'شهریه (ریال)', t: 'money', half: true, hint: 'برای تخفیف تغییر بده' }, ...(sEdit && !sEdit.id ? [{ k: 'deposit', l: 'بیعانه (ریال)', t: 'money', half: true, hint: 'اختیاری' }] : []), { k: 'dueDate', l: 'سررسید باقی‌مانده', t: 'date', half: true }, { k: 'status', l: 'وضعیت', t: 'sel', o: [['active', 'فعال'], ['withdrawn', 'انصراف']], def: 'active', half: true }, { k: 'notes', l: 'توضیحات', t: 'area' }];
+  const inst = v => (v.plan || 'installment') === 'installment';
+  const sFields = [{ k: 'name', l: 'نام و نام خانوادگی', req: true }, { k: 'phone', l: 'شماره تماس', half: true, ph: '۰۹۱۲…' }, { k: 'fee', l: 'شهریه (ریال)', t: 'money', half: true, hint: 'برای تخفیف تغییر بده' }, { k: 'plan', l: 'نوع پرداخت', t: 'sel', o: PLAN, def: 'installment', half: true }, ...(sEdit && !sEdit.id ? [{ k: 'deposit', l: 'بیعانه (ریال)', t: 'money', half: true, hint: 'اختیاری', show: inst }] : []), { k: 'dueDate', l: 'سررسید باقی‌مانده', t: 'date', half: true, show: inst }, { k: 'status', l: 'وضعیت', t: 'sel', o: [['active', 'فعال'], ['withdrawn', 'انصراف']], def: 'active', half: true }, { k: 'notes', l: 'توضیحات', t: 'area' }];
 
   const finTx = async (st, p) => {
     if (!p.toFinance) return null;
@@ -108,16 +110,34 @@ export function CoursesPage({ Nav }) {
     await students.patch(st.id, { payments: [...(st.payments || []), payment] });
     flash(`${KIND[p.kind]} ${rial(p.amount)} برای ${st.name} ثبت شد${txId ? ' و در مالی هم آمد' : ''}.`);
   };
+  const editPayment = async (st, old, p) => {
+    let txId = old.txId || null;
+    const title = `${p.kind === 'refund' ? 'بازپرداخت' : KIND[p.kind]} شهریه · ${st.name} · ${cur.name}`;
+    if (txId && !p.toFinance) { try { await api(`/api/transactions/${txId}`, { method: 'DELETE' }); } catch {} txId = null; }
+    else if (txId) { try { await api(`/api/transactions/${txId}`, { method: 'PATCH', body: JSON.stringify({ title, amount: p.amount, kind: p.kind === 'refund' ? 'expense' : 'income', date: p.date }) }); } catch {} }
+    else if (p.toFinance) txId = await finTx(st, p);
+    await students.patch(st.id, { payments: (st.payments || []).map(x => x.id === old.id ? { ...x, kind: p.kind, amount: p.amount, date: p.date, method: p.method || '', note: p.note || '', txId } : x) });
+    flash('پرداخت ویرایش شد.');
+  };
   const delPayment = async (st, p) => {
     if (!window.confirm(`این ${KIND[p.kind]} (${rial(p.amount)}) حذف شود؟${p.txId ? '\nتراکنش مربوط در مالی هم حذف می‌شود.' : ''}`)) return;
     if (p.txId) { try { await api(`/api/transactions/${p.txId}`, { method: 'DELETE' }); } catch {} }
     await students.patch(st.id, { payments: (st.payments || []).filter(x => x.id !== p.id) });
   };
   const saveStudent = async b => {
-    const { deposit, ...body } = b;
-    if (sEdit.id) return students.patch(sEdit.id, body);
-    const st = await students.add({ ...body, courseId: cur.id, fee: body.fee ?? cur.price ?? 0, payments: [], attendance: [] });
-    if (deposit) await addPayment(st, { kind: 'deposit', amount: deposit, date: todayIso(), method: '', note: '', toFinance: true });
+    const { deposit, ...body } = b, full = body.plan === 'full';
+    if (full) body.dueDate = '';
+    if (sEdit.id) {
+      const st = await students.patch(sEdit.id, body);
+      // switched to «نقدی»: settle whatever is still open with one full payment
+      const m = studentMoney({ ...sEdit, ...body });
+      if (full && sEdit.plan !== 'full' && m.remaining > 0 && body.status !== 'withdrawn') await addPayment({ ...sEdit, ...body, ...(st || {}) }, { kind: 'full', amount: m.remaining, date: todayIso(), method: '', note: 'تسویهٔ کامل', toFinance: true });
+      return;
+    }
+    const st = await students.add({ ...body, plan: body.plan || 'installment', courseId: cur.id, fee: body.fee ?? cur.price ?? 0, payments: [], attendance: [] });
+    const fee = Number(st.fee) || 0;
+    if (full && fee) await addPayment(st, { kind: 'full', amount: fee, date: todayIso(), method: '', note: '', toFinance: true });
+    else if (deposit) await addPayment(st, { kind: 'deposit', amount: deposit, date: todayIso(), method: '', note: '', toFinance: true });
   };
   const copyText = async st => { const t = reminderText(st, cur); try { await navigator.clipboard.writeText(t); flash('متن یادآوری کپی شد — در واتس‌اپ یا تلگرام بچسبان.'); } catch { window.prompt('متن را کپی کن:', t); } };
   const waLink = st => { const p = normPhone(st.phone); return p.length >= 10 ? `https://wa.me/98${p.replace(/^0/, '')}?text=${encodeURIComponent(reminderText(st, cur))}` : null; };
@@ -154,17 +174,17 @@ export function CoursesPage({ Nav }) {
           {shown.map((s, i) => { const m = studentMoney(s), off = s.status === 'withdrawn', wa = waLink(s); return <div key={s.id} className={`cs-row ${off ? 'off' : m.remaining ? 'owe' : 'clear'} ${open === s.id ? 'open' : ''}`}>
             <div className="cs-tr" onClick={() => setOpen(open === s.id ? null : s.id)}>
               <span className="n">{fa(i + 1)}</span>
-              <span className="nm"><b>{s.name}</b>{off ? <em className="tag off">انصراف</em> : m.remaining ? null : <em className="tag ok">تسویه</em>}{history(s.phone, s.id).length ? <em className="tag old" title={history(s.phone, s.id).map(h => h.c?.name).join('، ')}>دورهٔ دیگر</em> : null}</span>
+              <span className="nm"><b>{s.name}</b>{off ? <em className="tag off">انصراف</em> : m.remaining ? <em className="tag">قسطی</em> : <em className="tag ok">{s.plan === 'full' ? 'نقدی' : 'تسویه'}</em>}{history(s.phone, s.id).length ? <em className="tag old" title={history(s.phone, s.id).map(h => h.c?.name).join('، ')}>دورهٔ دیگر</em> : null}</span>
               <span dir="ltr" className="ph">{s.phone || '—'}</span>
               <span>{fa(m.fee, 0)}</span>
               <span className="pos">{fa(m.paid, 0)}</span>
               <span className={m.remaining ? 'neg' : ''}>{m.remaining ? fa(m.remaining, 0) : '—'}</span>
               <span>{s.dueDate && m.remaining ? dueChip(s.dueDate) : '—'}</span>
               <span className="nt" title={s.notes || ''}>{s.notes || '—'}</span>
-              <span className="ops" onClick={e => e.stopPropagation()}>{!off ? <button className="cs-b pay" onClick={() => setPay(s)}>＋ پرداخت</button> : null}<button className="cs-b" onClick={() => setSEdit(s)}>ویرایش</button></span>
+              <span className="ops" onClick={e => e.stopPropagation()}>{!off && m.remaining > 0 ? <button className="cs-b pay" onClick={() => setPay(s)}>＋ پرداخت</button> : null}<button className="cs-b" onClick={() => setSEdit(s)}>ویرایش</button></span>
             </div>
             {open === s.id ? <div className="cs-detail">
-              <div className="cs-pays">{(s.payments || []).length ? (s.payments || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date))).map(p => <div key={p.id} className={p.kind}><b>{KIND[p.kind]}</b><span>{p.kind === 'refund' ? '−' : '+'}{rial(p.amount)}</span><small>{jShort(p.date)}{p.method ? ` · ${p.method}` : ''}{p.note ? ` · ${p.note}` : ''}{p.txId ? ' · در مالی ✓' : ''}</small><button className="lf-link del" onClick={() => delPayment(s, p)}>حذف</button></div>) : <p className="lf-empty">هنوز پرداختی ثبت نشده.</p>}</div>
+              <div className="cs-pays">{(s.payments || []).length ? (s.payments || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date))).map(p => <div key={p.id} className={p.kind}><b>{KIND[p.kind]}</b><span>{p.kind === 'refund' ? '−' : '+'}{rial(p.amount)}</span><small>{jShort(p.date)}{p.method ? ` · ${p.method}` : ''}{p.note ? ` · ${p.note}` : ''}{p.txId ? ' · در مالی ✓' : ''}</small><span className="cs-pops"><button className="lf-link" onClick={() => setPayEdit({ st: s, p })}>ویرایش</button><button className="lf-link del" onClick={() => delPayment(s, p)}>حذف</button></span></div>) : <p className="lf-empty">هنوز پرداختی ثبت نشده.</p>}</div>
               {m.remaining ? <div className="cs-remind"><button className="cs-b" onClick={() => copyText(s)}>📋 کپی متن یادآوری</button>{wa ? <a className="cs-b" href={wa} target="_blank" rel="noreferrer">واتس‌اپ</a> : null}<small>{reminderText(s, cur).split('\n')[1]}</small></div> : null}
               {s.notes ? <p className="cs-notes">📝 {s.notes}</p> : null}
               {history(s.phone, s.id).length ? <p className="cs-notes">🎓 در دوره‌های دیگر: {history(s.phone, s.id).map(h => `${h.c?.name || '—'} (${studentMoney(h.s).remaining ? 'بدهکار ' + rial(studentMoney(h.s).remaining) : 'تسویه'})`).join('، ')}</p> : null}
@@ -187,7 +207,8 @@ export function CoursesPage({ Nav }) {
     <FormDrawer open={!!cEdit} title={cEdit?.id ? 'ویرایش دوره' : 'دورهٔ تازه'} fields={cFields} initial={cEdit} onClose={() => setCEdit(null)} onSubmit={async b => { if (cEdit.id) await courses.patch(cEdit.id, b); else { const r = await courses.add(b); pick(r.id); } }} extra={() => cEdit?.id ? <button type="button" className="lf-link del" onClick={removeCourse}>حذف این دوره</button> : null} />
     <FormDrawer open={!!sEdit} title={sEdit?.id ? 'ویرایش دانشجو' : 'دانشجوی تازه'} fields={sFields} initial={sEdit} onClose={() => setSEdit(null)} onSubmit={saveStudent}
       extra={(v) => { const h = history(v.phone, sEdit?.id); return <>{h.length ? <p className="cs-notes">🎓 این شماره در دوره‌های دیگر: {h.map(x => `${x.c?.name || '—'}${studentMoney(x.s).remaining ? ` (بدهکار ${rial(studentMoney(x.s).remaining)})` : ' (تسویه)'}`).join('، ')}</p> : null}{sEdit?.id ? <button type="button" className="lf-link del" onClick={() => { if (window.confirm(`«${sEdit.name}» حذف شود؟ پرداخت‌هایش هم پاک می‌شود (تراکنش‌های مالی می‌مانند).`)) { students.remove(sEdit.id); setSEdit(null); } }}>حذف دانشجو</button> : null}</>; }} />
-    {pay ? <PayDrawer st={pay} course={cur} onClose={() => setPay(null)} onSave={p => addPayment(pay, p)} /> : null}
+    {pay ? <PayDrawer st={pay} onClose={() => setPay(null)} onSave={p => addPayment(pay, p)} /> : null}
+    {payEdit ? <PayDrawer st={payEdit.st} edit={payEdit.p} onClose={() => setPayEdit(null)} onSave={p => editPayment(payEdit.st, payEdit.p, p)} /> : null}
     {copy && cur ? <CopyDrawer courses={list} students={all} target={cur} onClose={() => setCopy(false)} onCopy={doCopy} /> : null}
   </Page>;
 }

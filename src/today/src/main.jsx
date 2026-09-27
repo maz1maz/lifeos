@@ -1133,10 +1133,9 @@ function WorldClockPicker({ flash }) {
   }, [q]);
   const now = new Date();
   return <div className="wcp">
-    {sel.length ? <div className="hs-choices wrap">{sel.map(e => <button type="button" key={e} className="on" onClick={() => save(sel.filter(x => x !== e))} title="حذف">{clockName(e)} <small dir="ltr">{zoneOk(e.split('|')[0]) ? new Intl.DateTimeFormat('fa-IR', { timeZone: e.split('|')[0], hour: '2-digit', minute: '2-digit', hour12: false }).format(now) : ''}</small> ×</button>)}</div> : null}
+    {sel.length ? <div className="hs-choices wrap wcp-sel">{sel.map(e => <button type="button" key={e} className="on" onClick={() => save(sel.filter(x => x !== e))} title="حذف">{clockName(e)} <span aria-hidden="true">×</span></button>)}</div> : null}
     <div className="wcp-search"><Search size={15} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="جستجوی هر شهر یا کشور… (فارسی یا انگلیسی)" />{busy ? <i className="strk-spinner" /> : null}</div>
     {found.length ? <div className="wcp-results">{found.map(x => <button type="button" key={x.e} onClick={() => add(x.e)} disabled={has(x.e)}><b>{x.name}</b><small>{x.sub}</small><em dir="ltr">{new Intl.DateTimeFormat('fa-IR', { timeZone: x.e.split('|')[0], hour: '2-digit', minute: '2-digit', hour12: false }).format(now)}</em></button>)}</div> : null}
-    {!q ? <div className="hs-choices wrap">{WORLD_ZONES.filter(([, tz]) => !sel.some(x => x.split('|')[0] === tz)).map(([name, tz]) => <button type="button" key={tz} onClick={() => add(tz)}>{name}</button>)}</div> : null}
   </div>;
 }
 function WorldClockPickerOld({ flash }) {
