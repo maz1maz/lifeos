@@ -294,6 +294,7 @@ function renderStudy() {
       </div>
       ${cur.d ? `<div class="def"><b>تعریف</b><span class="defen en">${esc(cur.d)}</span>${cur.df ? `<span class="deffa">${esc(cur.df)}</span>` : ""}</div>` : ""}
       ${cur.e ? `<div class="exbox"><div class="ex">“${esc(cur.e)}”</div>${cur.ef ? `<div class="exfa">${esc(cur.ef)}</div>` : ""}</div>` : ""}
+      ${sensesHtml(cur)}
       ${(cur.s && cur.s.length) ? `<div class="syn">${cur.s.map(x => `<span class="pill en">${esc(x)}</span>`).join("")}</div>` : ""}
       <div class="row" style="margin-top:14px">
         <button class="btn sm" id="editBtn">✎ ویرایش معنی</button>
@@ -447,6 +448,10 @@ function drawQuestion() {
   if (d === "en2fa") autoSpeak(it.w);
 }
 
+function sensesHtml(w) {
+  if (!w.x || w.x.length < 2) return "";
+  return `<div class="senses">${w.x.slice(1).map(([p, fa, d, df, e, ef], i) => `<div class="def"><b>معنی ${i + 2}${p ? " · " + esc(p) : ""}: ${esc(fa)}</b>${d ? `<span class="defen en">${esc(d)}</span>` : ""}${df ? `<span class="deffa">${esc(df)}</span>` : ""}${e ? `<div class="ex">“${esc(e)}”</div>` : ""}${ef ? `<div class="exfa">${esc(ef)}</div>` : ""}</div>`).join("")}</div>`;
+}
 function label(x) { return meaningsOf(x)[0] || x.w; }
 function makeOptions(it, dir) {
   const key = o => dir === "en2fa" ? label(o) : o.w;
@@ -585,6 +590,7 @@ function wordSheet(w) {
     <div class="meaning" style="font-size:22px">${meaningsOf(x).map(esc).join(" • ")}</div>
     ${x.d ? `<div class="def"><b>تعریف</b><span class="defen en">${esc(x.d)}</span>${x.df ? `<span class="deffa">${esc(x.df)}</span>` : ""}</div>` : ""}
     ${x.e ? `<div class="exbox"><div class="ex">“${esc(x.e)}”</div>${x.ef ? `<div class="exfa">${esc(x.ef)}</div>` : ""}</div>` : ""}
+    ${sensesHtml(x)}
     ${(x.s || []).length ? `<div class="syn">${x.s.map(s => `<span class="pill en">${esc(s)}</span>`).join("")}</div>` : ""}
     <div class="muted" style="margin-top:12px">
       وضعیت: ${!c ? "واژهٔ نو" : BOX_LABEL[c.b]} · مرور بعدی: ${c && c.due ? new Date(c.due).toLocaleString("fa-IR") : "—"}
@@ -1092,7 +1098,7 @@ function boot() {
     fetch("words.json").then(r => r.json()),
     fetch("/api/vocab", { credentials: "same-origin" }).then(r => r.ok ? r.json() : { state: null })
   ]).then(([rows, remote]) => {
-    DECK = rows.map(r => ({ w: r[0], fa: r[1], t: r[2], lv: r[3], p: r[4], d: r[5], e: r[6], s: r[7], z: r[8], ef: r[9], df: r[10] || '' }));
+    DECK = rows.map(r => ({ w: r[0], fa: r[1], t: r[2], lv: r[3], p: r[4], d: r[5], e: r[6], s: r[7], z: r[8], ef: r[9], df: r[10] || '', x: r[11] || [] }));
     USER = "lifeos";
     const o = remote && remote.state;
     const d = DEF();
