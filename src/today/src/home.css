@@ -4,7 +4,8 @@
 .topbar .nav-toggle:hover{border-color:var(--g-accent);color:var(--g-accent-strong)}
 .topbar .nav-current{display:inline;color:var(--g-muted);font-size:13px;white-space:nowrap;padding-inline-start:12px;border-inline-start:1px solid var(--g-border)}
 .nav-spacer{flex:1}
-.topbar,.drawer{-webkit-user-select:none;user-select:none}
+.topbar,.drawer,.drawer *,.nav-scrim{-webkit-user-select:none;user-select:none}
+.drawer ::selection,.topbar ::selection{background:transparent}
 /* the drawer lives inside the sticky .topbar (its own stacking context, z 20): lift the whole bar while the menu is open so sticky page bars (e.g. the project picker, z 24) cannot cover the drawer */
 .topbar.menu-open{z-index:60}
 .topbar .links{display:none !important}

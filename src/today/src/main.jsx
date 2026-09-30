@@ -107,8 +107,13 @@ function TopNav({ active, right }) {
   useEffect(() => {
     document.body.classList.toggle('nav-lock', open);
     const onKey = e => { if (e.key === 'Escape') setOpen(false); };
+    // While the drawer is open nothing may be text-selected: a stray selection (e.g. focus coming back from the
+    // vocab iframe) painted every menu label with the gold ::selection colour.
+    const clearSel = () => { try { window.getSelection()?.removeAllRanges(); } catch {} };
+    const noSelect = e => e.preventDefault();
+    if (open) { clearSel(); document.addEventListener('selectstart', noSelect); }
     window.addEventListener('keydown', onKey);
-    return () => { document.body.classList.remove('nav-lock'); window.removeEventListener('keydown', onKey); };
+    return () => { document.body.classList.remove('nav-lock'); window.removeEventListener('keydown', onKey); document.removeEventListener('selectstart', noSelect); };
   }, [open]);
   const current = NAV_PAGES.find(([page]) => page === (active || '')) || NAV_PAGES[0];
   const link = ([page, label, Icon]) => <a className={page === (active || '') ? 'active' : ''} href={page ? `/?page=${page}` : '/'} key={page || 'home'} onClick={() => setOpen(false)}><Icon size={17} strokeWidth={2.1} /><span>{label}</span></a>;
