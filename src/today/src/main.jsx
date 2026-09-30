@@ -316,7 +316,14 @@ function HomePage() {
   const nowHm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
   const agenda = [
     ...tasks.map(t => ({ kind: 'task', id: t.id, title: t.title, done: !!t.done, time: t.startTime || '', date: (t.deadline && t.deadline < (t.date || today)) ? t.deadline : (t.date || ''), raw: t })),
-    ...data.reminders.filter(r => r.date === today || !r.done || ticked.includes('r' + r.id)).map(r => ({ kind: 'reminder', id: r.id, title: r.title, done: !!r.done, time: r.time || '', date: r.date || today, raw: r })),
+    ...data.reminders.filter((r, index, rows) => {
+      if (!(r.date === today || !r.done || ticked.includes('r' + r.id))) return false;
+      // Older versions could create the same automatic project reminder more
+      // than once before its id was saved on the project step.
+      if (!String(r.title || '').startsWith('یادآوری پروژهٔ ')) return true;
+      const key = `${r.title}|${r.date || ''}|${r.time || ''}`;
+      return rows.findIndex(x => `${x.title}|${x.date || ''}|${x.time || ''}` === key) === index;
+    }).map(r => ({ kind: 'reminder', id: r.id, title: r.title, done: !!r.done, time: r.time || '', date: r.date || today, raw: r })),
     ...pDue.items.map(c => ({ kind: 'task', pcard: true, id: 'pc' + c.id, title: c.title, done: !!c._done, time: '', date: c.due, raw: c })),
     ...dueFees.map(x => ({ kind: 'reminder', debt: true, href: '/?page=courses', id: 'fee' + x.id, title: `🎓 شهریهٔ ${x.name}${x.course ? ' · ' + x.course : ''} · ${shortRial(x.remaining)}`, done: false, time: '', date: x.dueDate, raw: x })),
     ...dueDebts.map(x => ({ kind: 'reminder', debt: true, id: 'debt' + x.id, title: `${x.type === 'payable' ? 'سررسید بدهی به' : 'سررسید طلب از'} ${x.person} · ${x.currency === 'USD' ? fa(x.amount) + ' دلار' : shortRial(x.amount)}`, done: false, time: '', date: x.dueDate, raw: x }))
@@ -1184,6 +1191,54 @@ function HomeSettings({ me, onSaved, flash }) {
   </section>;
 }
 
+const readDataUrl = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('خواندن فایل لوگو ناموفق بود.')); reader.onload = () => resolve(String(reader.result || '')); reader.readAsDataURL(file); });
+const loadImage = src => new Promise((resolve, reject) => { const image = new Image(); image.onerror = () => reject(new Error('تصویر لوگو قابل استفاده نیست.')); image.onload = () => resolve(image); image.src = src; });
+async function compactReportLogo(file) {
+  if (!file || !/^image\/(png|jpe?g|webp)$/i.test(file.type)) throw new Error('لوگو باید PNG، JPG یا WebP باشد.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('حجم فایل لوگو حداکثر ۵ مگابایت است.');
+  const image = await loadImage(await readDataUrl(file));
+  for (const [edge, quality] of [[520, .86], [400, .8], [300, .72]]) {
+    const ratio = Math.min(1, edge / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width) * ratio));
+    canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height) * ratio));
+    const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const value = canvas.toDataURL('image/webp', quality);
+    if (value.length <= 210000) return value;
+  }
+  throw new Error('فایل لوگو بعد از کوچک‌سازی هم بزرگ است؛ یک لوگوی ساده‌تر انتخاب کن.');
+}
+function ReportPrintSettings({ flash }) {
+  const [config, setConfig] = useState({ headerText: '', footerText: '', logo: '' });
+  const [busy, setBusy] = useState(false), [logoBusy, setLogoBusy] = useState(false);
+  useEffect(() => { api('/api/report-brand').then(data => setConfig({ headerText: data.headerText || '', footerText: data.footerText || '', logo: data.logo || '' })).catch(error => flash(error.message)); }, []);
+  const set = (key, value) => setConfig(current => ({ ...current, [key]: value }));
+  const save = async () => {
+    setBusy(true);
+    try { await api('/api/report-brand', { method: 'PATCH', body: JSON.stringify(config) }); flash('قالب گزارش ذخیره شد ✓'); }
+    catch (error) { flash(error.message); }
+    finally { setBusy(false); }
+  };
+  const chooseLogo = async event => {
+    const file = event.target.files?.[0]; event.target.value = '';
+    if (!file) return;
+    setLogoBusy(true);
+    try { set('logo', await compactReportLogo(file)); flash('لوگو آمادهٔ ذخیره است.'); }
+    catch (error) { flash(error.message); }
+    finally { setLogoBusy(false); }
+  };
+  return <section className="planner-list report-print-settings" id="reportPrintSettings">
+    <h2>قالب گزارش PDF پروژه‌ها</h2>
+    <p>متن و لوگوی این بخش در چاپ و «ذخیره به صورت PDF» همهٔ گزارش‌های پروژه استفاده می‌شود. شمارهٔ صفحه خودکار است.</p>
+    <div className="report-print-grid">
+      <label><span>متن سربرگ (بالا، سمت چپ)</span><input value={config.headerText} maxLength={140} onChange={e => set('headerText', e.target.value)} placeholder="مثال: شرکت نمای مدرن" /></label>
+      <label><span>متن پابرگ</span><input value={config.footerText} maxLength={220} onChange={e => set('footerText', e.target.value)} placeholder="مثال: تلفن، آدرس یا متن محرمانه" /></label>
+    </div>
+    <div className="report-logo-row"><div>{config.logo ? <img src={config.logo} alt="پیش‌نمایش لوگوی گزارش" /> : <i>بدون لوگو</i>}<small>PNG، JPG یا WebP؛ پیش از ذخیره کوچک می‌شود.</small></div><div><label className="outline report-logo-picker">{logoBusy ? 'آماده‌سازی…' : 'انتخاب لوگو'}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={chooseLogo} disabled={logoBusy} /></label>{config.logo ? <button type="button" className="finance-action" onClick={() => set('logo', '')}>حذف لوگو</button> : null}</div></div>
+    <button type="button" className="save report-print-save" disabled={busy || logoBusy} onClick={save}>{busy ? 'در حال ذخیره…' : 'ذخیرهٔ قالب گزارش'}</button>
+  </section>;
+}
+
 function SettingsReact() {
   const mods = useModules();
   const [integrations, setIntegrations] = useState({}), [notice, setNotice] = useState('');
@@ -1259,6 +1314,7 @@ function SettingsReact() {
         {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
 
         <HomeSettings me={me} onSaved={loadMe} flash={setNotice} />
+        <ReportPrintSettings flash={setNotice} />
 
         <section className="planner-list integration-list" id="googleCalendarCard">
           <h2>اتصال‌ها</h2>
@@ -1969,32 +2025,26 @@ function FootballPage() {
 }
 
 function SeriesCard() {
-  const [all, setAll] = useState(null), [tab, setTab] = useState('watching');
+  const [all, setAll] = useState(null);
   const load = () => api('/api/movies').then(d => setAll((d.items || []).filter(x => x.type === 'series'))).catch(() => setAll([]));
   useEffect(() => { load(); }, []);
   const onChange = load;
   const unseen = x => { const cur = Number(x.currentSeason) || 1, ep = Number(x.currentEpisode) || 0; return Math.max(0, (seasonAiredCount(x, cur) || Number(x.airedInSeason) || 0) - ep) + (seriesHasFresh(x) ? 1 : 0); };
-  const watching = (all || []).filter(x => x.status === 'watching').sort((a, b) => (unseen(b) > 0) - (unseen(a) > 0) || (b.lastTouchedAt || b.createdAt || 0) - (a.lastTouchedAt || a.createdAt || 0));
-  const queue = (all || []).filter(x => x.status === 'watchlist').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  const items = tab === 'watching' ? watching : queue;
+  const watching = (all || []).filter(x => x.status === 'watching' && !waitingNewSeason(x)).sort((a, b) => (unseen(b) > 0) - (unseen(a) > 0) || (b.lastTouchedAt || b.createdAt || 0) - (a.lastTouchedAt || a.createdAt || 0));
   const [busy, setBusy] = useState(null), [msg, setMsg] = useState('');
   const watchNext = async item => {
     const cur = Number(item.currentSeason) || 1, ep = Number(item.currentEpisode) || 0;
     const aired = seasonAiredCount(item, cur) || Number(item.airedInSeason) || 0;
     const by = item.seasonEpisodes || {};
     // finished the season and the next one has aired episodes → move to S+1 E1
-    const next = item.status === 'watchlist' ? { currentSeason: 1, currentEpisode: 1, status: 'watching' } : aired && ep >= aired && (Number(by[cur + 1]?.aired) || 0) > 0 ? { currentSeason: cur + 1, currentEpisode: 1 } : { currentSeason: cur, currentEpisode: ep + 1 };
+    const next = aired && ep >= aired && (Number(by[cur + 1]?.aired) || 0) > 0 ? { currentSeason: cur + 1, currentEpisode: 1 } : { currentSeason: cur, currentEpisode: ep + 1 };
     setBusy(item.id);
     try { await api(`/api/movies/${item.id}`, { method: 'PATCH', body: JSON.stringify(next) }); setMsg(`«${item.title}» فصل ${fa(next.currentSeason)} قسمت ${fa(next.currentEpisode)} ✓`); onChange(); }
     catch (e) { setMsg(e.message); }
     setBusy(null); setTimeout(() => setMsg(''), 3000);
   };
   return <Card title="سریال‌های من" icon={Clapperboard} className="series series2" action={<a href="/?page=series">همهٔ سریال‌ها ←</a>}>
-    <div className="fb-tabs sr-tabs">
-      <button type="button" className={tab === 'watching' ? 'on' : ''} onClick={() => setTab('watching')}>در حال تماشا <em>{fa(watching.length)}</em></button>
-      <button type="button" className={tab === 'queue' ? 'on' : ''} onClick={() => setTab('queue')}>منتظر دیدن <em>{fa(queue.length)}</em></button>
-    </div>
-    {all === null ? <p className="empty">در حال دریافت…</p> : items.length ? <div className="sr-grid">{items.map(item => {
+    {all === null ? <p className="empty">در حال دریافت…</p> : watching.length ? <div className="sr-grid">{watching.map(item => {
       const cur = Number(item.currentSeason) || 1, ep = Number(item.currentEpisode) || 0;
       const aired = seasonAiredCount(item, cur) || Number(item.airedInSeason) || 0, total = seasonTotalCount(item, cur) || Number(item.totalEpisodes) || aired;
       const left = Math.max(0, aired - ep), pct = aired ? Math.min(100, ep / aired * 100) : 0;
@@ -2005,12 +2055,12 @@ function SeriesCard() {
           <small>فصل {fa(cur)} · قسمت {fa(ep)}{total ? ` از ${fa(total)}` : ''}</small>
           <i className="sr-bar"><u style={{ width: `${pct}%` }} /></i>
           <div className="sr-foot">
-            {item.status === 'watchlist' ? <span className="muted">{item.network || 'هنوز شروع نشده'}</span> : left > 0 ? <span className="sr-new">{fa(left)} قسمت ندیده</span> : seriesHasFresh(item) ? <span className="sr-new">فصل تازه</span> : <span className="muted">منتظر قسمت بعد</span>}
-            {(item.status === 'watchlist' || left > 0 || seriesHasFresh(item)) && <button type="button" disabled={busy === item.id} onClick={() => watchNext(item)}><Check size={14} /><span dir="rtl">{watchLabel(item)}</span></button>}
+            {left > 0 ? <span className="sr-new">{fa(left)} قسمت ندیده</span> : seriesHasFresh(item) ? <span className="sr-new">فصل تازه</span> : <span className="muted">منتظر قسمت بعد</span>}
+            {(left > 0 || seriesHasFresh(item)) && <button type="button" disabled={busy === item.id} onClick={() => watchNext(item)}><Check size={14} /><span dir="rtl">{watchLabel(item)}</span></button>}
           </div>
         </div>
       </div>;
-    })}</div> : <p className="empty">{tab === 'watching' ? 'سریالی در حال تماشا نیست.' : 'لیست «منتظر دیدن» خالیه. از صفحهٔ سریال‌ها اضافه کن.'}</p>}
+    })}</div> : <p className="empty">سریالی در حال تماشا نیست.</p>}
     {msg && <small className="sr-msg">{msg}</small>}
   </Card>;
 }

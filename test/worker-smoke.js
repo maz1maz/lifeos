@@ -40,29 +40,55 @@ function daysAgo(n) {
   return dt.toISOString().slice(0, 10);
 }
 
-// In-memory fake for the only D1 surface worker.js touches:
-//   SELECT value FROM kv WHERE key='db'  -> .first()
-//   INSERT INTO kv ... ON CONFLICT DO UPDATE -> .bind(json, ts).run()
-function makeEnv() {
-  const store = { value: null };
+// In-memory D1 `kv` table. Storage v2 reads a marker plus a key prefix and
+// commits its migration through D1.batch(), so the harness intentionally
+// models those three surfaces as well as ordinary prepared statements.
+function makeEnv(legacy = null) {
+  const store = new Map();
+  if (legacy !== null) store.set('db', JSON.stringify(legacy));
+  const run = async (sql, params) => {
+    if (sql.startsWith('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?) ON CONFLICT')) {
+      store.set(params[0], params[1]);
+      return { success: true };
+    }
+    if (sql.startsWith('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?)')) {
+      if (store.has(params[0])) throw new Error('UNIQUE constraint failed: kv.key');
+      store.set(params[0], params[1]);
+      return { success: true };
+    }
+    if (sql.startsWith('DELETE FROM kv WHERE key=?')) {
+      store.delete(params[0]);
+      return { success: true };
+    }
+    throw new Error('unexpected SQL in harness: ' + sql);
+  };
   return {
     DB: {
+      _store: store,
       prepare(sql) {
         const st = {
           _params: [],
           bind(...p) { st._params = p; return st; },
           async first() {
-            if (sql.startsWith('SELECT value FROM kv WHERE key=?')) { const v = (store.extra || {})[st._params[0]]; return v === undefined ? null : { value: v }; }
-            if (sql.startsWith('SELECT value FROM kv')) return store.value === null ? null : { value: store.value };
+            if (sql.startsWith('SELECT value FROM kv WHERE key=?')) { const v = store.get(st._params[0]); return v === undefined ? null : { value: v }; }
+            throw new Error('unexpected SQL in harness: ' + sql);
+          },
+          async all() {
+            if (sql.startsWith('SELECT key,value FROM kv WHERE key LIKE ?')) {
+              const prefix = String(st._params[0] || '').replace(/%$/, '');
+              return { results: [...store.entries()].filter(([key]) => key.startsWith(prefix)).map(([key, value]) => ({ key, value })) };
+            }
             throw new Error('unexpected SQL in harness: ' + sql);
           },
           async run() {
-            if (sql.startsWith('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?)')) { (store.extra ||= {})[st._params[0]] = st._params[1]; return { success: true }; }
-            if (sql.startsWith('INSERT INTO kv')) { store.value = st._params[0]; return { success: true }; }
-            throw new Error('unexpected SQL in harness: ' + sql);
+            return run(sql, st._params);
           },
         };
         return st;
+      },
+      async batch(statements) {
+        for (const statement of statements) await statement.run();
+        return statements.map(() => ({ success: true }));
       },
     },
     ASSETS: { fetch: async () => new Response('not found', { status: 404 }) },
@@ -89,7 +115,13 @@ async function main() {
   }
   if (!worker || typeof worker.fetch !== 'function') throw new Error('worker.js did not export { fetch }');
 
-  const env = makeEnv();
+  // The legacy value is just under D1's former hard limit. It contains a
+  // user-owned array large enough to prove that v2 splits it before saving.
+  const env = makeEnv({
+    users: [], sessions: [], tasks: [], inbox: [], daily: [],
+    transactions: Array.from({ length: 4 }, (_, i) => ({ id: 'seed-' + i, userId: 'seed-user', note: 'x'.repeat(400000) })),
+    _meta: { currencyUnit: 'IRR' },
+  });
   async function call(p, { method = 'GET', cookie = null, body = null } = {}) {
     const headers = {};
     if (cookie) headers.cookie = cookie;
@@ -109,6 +141,9 @@ async function main() {
   const email = `wsmoke_${Date.now()}@example.com`;
   const signup = await call('/api/auth/signup', { method: 'POST', body: { name: 'Wsmoke', email, password: 'secret123' } });
   check('signup -> 201', signup.status === 201);
+  const v2Rows = [...env.DB._store.entries()].filter(([key]) => key.startsWith('state:v2:'));
+  check('legacy state migrates to v2 shards', env.DB._store.has('state:v2:meta') && !env.DB._store.has('db') && v2Rows.some(([key]) => key.includes('seed-user')));
+  check('each persisted state shard stays below the safe size', v2Rows.filter(([key]) => key !== 'state:v2:meta').every(([, value]) => Buffer.byteLength(value) <= 1600000));
   const setCookies = typeof signup.headers.getSetCookie === 'function' ? signup.headers.getSetCookie() : [signup.headers.get('set-cookie')];
   const sidCookie = String(setCookies[0] || '').split(';')[0];
   check('signup sets an sid cookie', sidCookie.startsWith('sid='));
@@ -187,6 +222,9 @@ async function main() {
     check('bad share code -> 404', (await worker.fetch(new Request('https://worker-smoke.local/s/deadbeef00'), env, {})).status === 404);
     // v44: loss limit, poker+bet month status, project report, portfolio snapshots, top-3 tasks
     check('me exposes backup/limit/project-report settings', await (async () => { const m = (await call('/api/me', { cookie })).d.user; return m.backupFreq === 'weekly' && m.funLossLimit === 0 && m.tgProjectsOn === true; })());
+    const reportBrand = await call('/api/report-brand', { method: 'PATCH', cookie, body: { headerText: 'شرکت نما <b>', footerText: 'تهران · تلفن ۱۲۳', logo: 'data:image/png;base64,AA==' } });
+    check('project PDF branding saves sanitized header, footer and logo', reportBrand.status === 200 && reportBrand.d.headerText === 'شرکت نما b' && reportBrand.d.footerText === 'تهران · تلفن ۱۲۳' && reportBrand.d.logo === 'data:image/png;base64,AA==');
+    check('project PDF branding rejects an oversized logo', (await call('/api/report-brand', { method: 'PATCH', cookie, body: { logo: 'data:image/png;base64,' + 'A'.repeat(230000) } })).status === 400);
     await call('/api/me', { method: 'PATCH', cookie, body: { funLossLimit: '100,000,000', backupFreq: 'daily' } });
     const me44 = (await call('/api/me', { cookie })).d.user;
     check('loss limit accepts grouped digits; backup freq saved', me44.funLossLimit === 100000000 && me44.backupFreq === 'daily');
@@ -273,6 +311,18 @@ async function main() {
       check('calendar feed includes open project cards on their due date', cf.length === 3 && cf.every(x => x.source === 'lifeos'), JSON.stringify(cf));
       await call(`/api/col/cards/${c1.id}`, { method: 'PATCH', cookie, body: { col: 'done', doneAt: Date.now() } });
       check('ticked card leaves the due list', (await call('/api/projects/due', { cookie })).d.items.length === 1);
+    }
+    { // Project dossier: contract, finance and procurement records stay isolated per project/user.
+      const p = (await call('/api/col/projects', { method: 'POST', cookie, body: { name: 'پروندهٔ پروژه', projectCode: 'P-1405', contractNo: 'C-12' } })).d;
+      const ct = await call('/api/col/projectContracts', { method: 'POST', cookie, body: { projectId: p.id, contractName: 'قرارداد نما', amount: 5000000 } });
+      const fn = await call('/api/col/projectFinancials', { method: 'POST', cookie, body: { projectId: p.id, title: 'پیش‌پرداخت', kind: 'expense', amount: 700000 } });
+      const sp = await call('/api/col/projectSupplies', { method: 'POST', cookie, body: { projectId: p.id, title: 'سنگ', category: 'مصالح', quantity: 2, unit: 'تن', unitPrice: 300000 } });
+      const pp = await call('/api/col/projectProcesses', { method: 'POST', cookie, body: { projectId: p.id, department: 'فنی', title: 'ابعادبرداری دقیق', status: 'todo' } });
+      const got = (await call('/api/col/projectContracts', { cookie })).d.items;
+      check('project dossier stores contract, financial, supply, and process records', ct.status === 201 && fn.status === 201 && sp.status === 201 && pp.status === 201 && got.some(x => x.id === ct.d.id && x.projectId === p.id && x.amount === 5000000), JSON.stringify({ ct: ct.status, fn: fn.status, sp: sp.status, pp: pp.status }));
+      const repeatProcess = await call('/api/col/projectProcesses', { method: 'POST', cookie, body: { projectId: p.id, department: 'فنی', title: 'ابعادبرداری دقیق', status: 'done' } });
+      const projectProcesses = (await call('/api/col/projectProcesses', { cookie })).d.items.filter(x => x.projectId === p.id && x.department === 'فنی' && x.title === 'ابعادبرداری دقیق');
+      check('project process seed cannot undo an already ticked stage', repeatProcess.status === 200 && repeatProcess.d.id === pp.d.id && repeatProcess.d.status === 'done' && projectProcesses.length === 1, JSON.stringify({ repeatProcess, projectProcesses }));
     }
     { // v63: course sessions from start date + weekdays, cancel pushes later, move changes date
       const cs = (await call('/api/col/courses', { method: 'POST', cookie, body: { name: 'کلاس', startDate: '2030-01-05', sessions: 4, days: [6, 2], time: '18:00' } })).d; // 2030-01-05 is Saturday

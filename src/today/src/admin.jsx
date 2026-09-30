@@ -90,7 +90,7 @@ export function AdminPage({ Nav }) {
     <div className="adm-grid">
       <section className="lf-card"><h3>عضو جدید و کاربران فعال · ۱۲ هفته</h3><Weeks weeks={d.weeks} /><div className="adm-legend"><span><i className="s" />عضو جدید</span><span><i className="a" />فعال</span></div></section>
       <section className="lf-card"><h3>بخش‌های فعال کاربرها</h3>{mods.map(([k, n]) => <div className="adm-mod" key={k}><span>{MOD_FA[k] || k}</span><i style={{ width: `${(n / modMax) * 100}%` }} /><b>{fa(n)}</b></div>)}</section>
-      <section className={`lf-card adm-db ${dbPct > 80 ? 'warn' : ''}`}><h3>حجم دیتابیس</h3><b>{kb(T.dbBytes)}</b><div className="adm-dbbar"><i style={{ width: `${dbPct}%` }} /></div><small>{fa(dbPct, 1)}٪ از سقف ۲ مگابایتی یک ردیف D1. {dbPct > 80 ? 'نزدیک سقف است — وقت جدا کردن داده‌ها به چند ردیف است.' : 'جای کافی هست.'}</small></section>
+      <section className={`lf-card adm-db ${dbPct > 80 ? 'warn' : ''}`}><h3>{T.storageMode === 'sharded' ? 'بزرگ‌ترین ردیف داده' : 'حجم دیتابیس'}</h3><b>{kb(T.dbBytes)}</b><div className="adm-dbbar"><i style={{ width: `${dbPct}%` }} /></div><small>{fa(dbPct, 1)}٪ از سقف ۲ مگابایتی هر ردیف D1. {T.storageMode === 'sharded' ? `${fa(T.dbShards || 0)} ردیف مستقل ذخیره شده؛ حجم کل داده ${kb(T.dbLogicalBytes || 0)} است.` : (dbPct > 80 ? 'نزدیک سقف است — مهاجرت به ذخیره‌سازی چندردیفی در اولین درخواست انجام می‌شود.' : 'جای کافی هست.')}</small></section>
     </div>
     {msg ? <p className="lf-note adm-msg">{msg}<button className="lf-link" onClick={() => setMsg('')}>×</button></p> : null}
     <section className="lf-card adm-users">

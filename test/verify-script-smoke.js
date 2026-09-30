@@ -28,19 +28,37 @@ function check(name, cond, extra) {
   else { fail++; console.log(`  FAIL- ${name}` + (extra ? `  [${extra}]` : '')); }
 }
 
-// Fake for the only D1 surface the worker touches (same shape as worker-smoke.js):
-//   SELECT value FROM kv WHERE key='db' / INSERT INTO kv ... ON CONFLICT DO UPDATE
+// D1 `kv` fake matching the storage-v2 worker surface: point reads, prefix
+// reads, upserts, deletes and transactional batches.
 function makeEnv(assetMode) {
   const mode = assetMode || 'plain';
-  const store = { value: null };
+  const store = new Map();
+  const run = async (sql, params) => {
+    if (sql.startsWith('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?) ON CONFLICT')) {
+      store.set(params[0], params[1]);
+      return { success: true };
+    }
+    if (sql.startsWith('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?)')) {
+      if (store.has(params[0])) throw new Error('UNIQUE constraint failed: kv.key');
+      store.set(params[0], params[1]);
+      return { success: true };
+    }
+    if (sql.startsWith('DELETE FROM kv WHERE key=?')) {
+      store.delete(params[0]);
+      return { success: true };
+    }
+    throw new Error('unexpected SQL in harness: ' + sql);
+  };
   return {
     DB: {
       prepare(sql) {
         const st = { _params: [], bind(...p) { st._params = p; return st; },
-          async first() { if (sql.startsWith('SELECT value FROM kv')) return store.value === null ? null : { value: store.value }; throw new Error('unexpected SQL in harness: ' + sql); },
-          async run() { if (sql.startsWith('INSERT INTO kv')) { store.value = st._params[0]; return { success: true }; } throw new Error('unexpected SQL in harness: ' + sql); } };
+          async first() { if (sql.startsWith('SELECT value FROM kv WHERE key=?')) { const value = store.get(st._params[0]); return value === undefined ? null : { value }; } throw new Error('unexpected SQL in harness: ' + sql); },
+          async all() { if (sql.startsWith('SELECT key,value FROM kv WHERE key LIKE ?')) { const prefix = String(st._params[0] || '').replace(/%$/, ''); return { results: [...store.entries()].filter(([key]) => key.startsWith(prefix)).map(([key, value]) => ({ key, value })) }; } throw new Error('unexpected SQL in harness: ' + sql); },
+          async run() { return run(sql, st._params); } };
         return st;
       },
+      async batch(statements) { for (const statement of statements) await statement.run(); return statements.map(() => ({ success: true })); },
     },
     // Serve real files from public/, like the production ASSETS binding does.
     //   mode 'plain' — exact paths only (a server with no html_handling at all)
