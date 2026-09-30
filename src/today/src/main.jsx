@@ -116,7 +116,18 @@ function TopNav({ active, right }) {
     return () => { document.body.classList.remove('nav-lock'); window.removeEventListener('keydown', onKey); document.removeEventListener('selectstart', noSelect); };
   }, [open]);
   const current = NAV_PAGES.find(([page]) => page === (active || '')) || NAV_PAGES[0];
-  const link = ([page, label, Icon]) => <a className={page === (active || '') ? 'active' : ''} href={page ? `/?page=${page}` : '/'} key={page || 'home'} onClick={() => setOpen(false)}><Icon size={17} strokeWidth={2.1} /><span>{label}</span></a>;
+  // Close the drawer (and its blurred scrim) first, then navigate on the next frames, so the page never
+  // sits frozen behind an open, blurred menu while the next page loads. Same page = just close.
+  const navFromDrawer = (e, page) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    try { window.getSelection()?.removeAllRanges(); } catch {}
+    setOpen(false);
+    if (page === (active || '') && !location.search.includes('pid=')) return;
+    const href = e.currentTarget.getAttribute('href');
+    requestAnimationFrame(() => requestAnimationFrame(() => { location.href = href; }));
+  };
+  const link = ([page, label, Icon]) => <a className={page === (active || '') ? 'active' : ''} href={page ? `/?page=${page}` : '/'} key={page || 'home'} onClick={e => navFromDrawer(e, page)}><Icon size={17} strokeWidth={2.1} /><span>{label}</span></a>;
   return (
     <nav className={`topbar${open ? ' menu-open' : ''}`}>
       <button type="button" className="nav-toggle" aria-label={open ? 'بستن منو' : 'بازکردن منو'} aria-expanded={open} onClick={() => setOpen(v => !v)}>
