@@ -236,7 +236,7 @@ export async function sendProjectReportToTelegram(data) {
   return filename;
 }
 
-// Opens the browser print dialog (file name = reportFileName) and then sends the PDF to the user's Telegram.
+// Opens the browser print dialog; the suggested file name is reportFileName.
 export async function printProjectReport(data) {
   const title = reportFileName(data.project).replace(/\.pdf$/, '');
   const frame = mountFrame('lf-report-print-frame', 695, projectReportHtml(data), false);
@@ -248,5 +248,4 @@ export async function printProjectReport(data) {
   const prevTitle = document.title;
   document.title = title;
   try { frame.contentWindow.focus(); frame.contentWindow.print(); } finally { document.title = prevTitle; }
-  return sendProjectReportToTelegram(data);
 }
