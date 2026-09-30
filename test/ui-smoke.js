@@ -173,8 +173,10 @@ for (const file of ['public/design/calendar-page.html','public/design/settings-p
 {
   const { referencedBundles, staleBundles } = require('../scripts/prune-stale-bundles.js');
   const live = [...referencedBundles()];
+  // index-c-*.js = lazy chunks (e.g. PDF export) listed only in the manifest
+  const entry = live.filter((f) => !f.startsWith('index-c-'));
   check('index.html points at exactly one JS bundle and one CSS bundle',
-    live.filter((f) => f.endsWith('.js')).length === 1 && live.filter((f) => f.endsWith('.css')).length === 1, live.join(', '));
+    entry.filter((f) => f.endsWith('.js')).length === 1 && entry.filter((f) => f.endsWith('.css')).length === 1, live.join(', '));
   check('every bundle index.html references actually exists in public/assets',
     live.every((f) => fs.existsSync(path.join(ROOT, 'public', 'assets', f))), live.join(', '));
   const stale = staleBundles();

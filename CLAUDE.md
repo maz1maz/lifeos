@@ -25,7 +25,7 @@
 ```bash
 npm ci
 npm run build:today      # حتماً قبل از تست؛ بدون build، ui/verify تست‌ها قرمز می‌شوند
-npm test                 # smoke(490) + worker-smoke(211) + verify-script(26) + ui-smoke(44) — همه باید سبز باشند
+npm test                 # smoke(490) + worker-smoke(212) + verify-script(26) + ui-smoke(44) — همه باید سبز باشند
 npm start                # server.js روی :3000
 npm run dev:today        # vite dev
 node cloudflare/port.js  # ⚠️ فعلاً ممنوع — بالا را ببین
