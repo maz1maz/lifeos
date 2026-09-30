@@ -1,6 +1,7 @@
 // Printable A4 project report. Rendered as a standalone document inside a hidden
 // iframe so the app's dark theme, layout and fixed headers never leak into the PDF.
-import { fa, jl, jShort, money, todayIso } from './life';
+import { api, fa, jl, jShort, money, todayIso } from './life';
+import { isoToJ } from './jdate';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cssStr = s => String(s ?? '').replace(/[\\"]/g, '\\$&').replace(/[\r\n]+/g, ' ');
@@ -17,12 +18,13 @@ const CSS = (brand, reportNo) => `
   @bottom-right{content:"${cssStr(brand.footerText || '')}";font:400 8pt Vazirmatn,Tahoma,sans-serif;color:#64748b}
   @top-left{content:"${cssStr(reportNo)}";font:400 7.5pt Vazirmatn,Tahoma,sans-serif;color:#94a3b8}}
 @page:first{@top-left{content:none}}
+html.capture body{width:695px}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#fff;color:#0f172a;font:400 9.5pt/1.7 Vazirmatn,Tahoma,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{direction:rtl}
 .num,td.n{font-feature-settings:"tnum";white-space:nowrap}
 header.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding-bottom:10px;border-bottom:2.5px solid #0f172a}
-header.top .kicker{font-size:8.5pt;color:#475569;letter-spacing:.2px}
+header.top .kicker{font-size:8.5pt;color:#475569}
 header.top h1{font-size:18pt;font-weight:800;line-height:1.35;margin:2px 0}
 header.top .meta{font-size:8pt;color:#475569}
 header.top .brand{text-align:left;max-width:60mm;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
@@ -30,6 +32,7 @@ header.top .brand img{max-height:16mm;max-width:45mm;object-fit:contain}
 header.top .brand b{font-size:10pt}
 .status{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:99px;font-size:8.5pt;font-weight:700;border:1px solid}
 .status.ok{color:#047857;border-color:#6ee7b7;background:#ecfdf5}.status.warn{color:#b45309;border-color:#fcd34d;background:#fffbeb}.status.bad{color:#be123c;border-color:#fda4af;background:#fff1f2}
+h2.pb{break-before:page}
 h2{font-size:11pt;font-weight:800;margin:16px 0 7px;padding-inline-start:8px;border-inline-start:3.5px solid #0f172a;break-after:avoid}
 .summary{margin-top:10px;padding:9px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:9.5pt}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;break-inside:avoid}
@@ -119,22 +122,103 @@ export function projectReportHtml(d) {
 <tr><td>جمع واریزی‌ها</td><td class="n">${rial(paid)}</td></tr>
 <tr><td>مطالبات معوق صورت‌وضعیت</td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr>
 </tbody><tfoot><tr><td>ماندهٔ قرارداد (پس از دریافتی‌ها)</td><td class="n">${rial(Math.max(0, contractTotal - received))}</td></tr></tfoot></table></div></div>
-<h2>صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">جمع</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
-${next.length ? `<h2>اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
-<h2>وضعیت مراحل اجرایی</h2><table><thead><tr><th style="width:7%">ردیف</th><th>مرحله</th><th style="width:15%">وضعیت</th><th style="width:13%">تاریخ</th><th style="width:18%">مسئول</th></tr></thead><tbody>${stageRows}</tbody></table>
+<h2 class="pb">صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">جمع</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
+${next.length ? `<h2 class="pb">اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
+<h2 class="pb">وضعیت مراحل اجرایی</h2><table><thead><tr><th style="width:7%">ردیف</th><th>مرحله</th><th style="width:15%">وضعیت</th><th style="width:13%">تاریخ</th><th style="width:18%">مسئول</th></tr></thead><tbody>${stageRows}</tbody></table>
 <div class="sign"><div>تهیه‌کننده</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
 </body></html>`;
 }
 
-export function printProjectReport(data) {
-  document.getElementById('lf-report-print-frame')?.remove();
+const pad2 = n => String(n).padStart(2, '0');
+// "1405-07-08_13-45_<project>.pdf" — sorts by date in any file manager.
+export function reportFileName(project) {
+  const now = new Date(), iso = todayIso(), j = isoToJ(iso);
+  const hm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Tehran' }).format(now).replace(':', '-');
+  const name = String(project?.name || 'project').replace(/[\\/<>:"|?*\u0000-\u001f]/g, '_').replace(/\s+/g, ' ').trim().slice(0, 80);
+  return `${j.jy}-${pad2(j.jm)}-${pad2(j.jd)}_${hm}_${name}.pdf`;
+}
+
+function mountFrame(id, width, html, hidden = true) {
+  document.getElementById(id)?.remove();
   const frame = document.createElement('iframe');
-  frame.id = 'lf-report-print-frame';
+  frame.id = id;
   frame.setAttribute('aria-hidden', 'true');
-  frame.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px;top:0';
+  frame.style.cssText = `position:fixed;width:${width}px;height:10px;border:0;left:-10000px;top:0${hidden ? ';visibility:hidden' : ''}`;
   document.body.appendChild(frame);
   const doc = frame.contentDocument;
-  doc.open(); doc.write(projectReportHtml(data)); doc.close();
-  const go = () => { frame.contentWindow.focus(); frame.contentWindow.print(); };
-  (doc.fonts?.ready || Promise.resolve()).then(() => setTimeout(go, 50));
+  doc.open(); doc.write(html); doc.close();
+  return frame;
+}
+
+// A strip of text drawn by the browser (so Persian is shaped correctly) for the PDF header/footer.
+function stripImage(doc, right, left, W) {
+  const c = doc.createElement('canvas'), k = 2; c.width = W * k; c.height = 18 * k;
+  const x = c.getContext('2d'); x.scale(k, k); x.fillStyle = '#fff'; x.fillRect(0, 0, W, 18);
+  x.font = '400 10.5px Vazirmatn, Tahoma, sans-serif'; x.fillStyle = '#64748b'; x.textBaseline = 'middle'; x.direction = 'rtl';
+  if (right) { x.textAlign = 'right'; x.fillText(right, W, 9); }
+  if (left) { x.textAlign = 'left'; x.fillText(left, 0, 9); }
+  return c.toDataURL('image/png');
+}
+
+// Builds the same report as a real PDF file (A4, rasterised at 2x) for sending to Telegram.
+export async function projectReportPdf(data) {
+  const [{ jsPDF }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('html2canvas')]);
+  const W = 695, pageH = Math.floor(W * 261 / 184), MX = 13, MT = 16;
+  const frame = mountFrame('lf-report-pdf-frame', W, projectReportHtml(data));
+  try {
+    const doc = frame.contentDocument;
+    doc.documentElement.classList.add('capture');
+    await (doc.fonts?.ready || Promise.resolve());
+    const body = doc.body, total = Math.ceil(body.scrollHeight);
+    frame.style.height = total + 'px';
+    const top0 = body.getBoundingClientRect().top;
+    const breaks = [...doc.querySelectorAll('tr, h2, .kpis, .two, .sign, .summary, p.empty')].map(el => Math.round(el.getBoundingClientRect().top - top0)).filter(y => y > 0).sort((a, b) => a - b);
+    const forced = [...doc.querySelectorAll('h2.pb')].map(el => Math.round(el.getBoundingClientRect().top - top0) - 8).filter(y => y > 0);
+    const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: W, height: total, windowWidth: W, windowHeight: total, logging: false });
+    const k = canvas.width / W, pages = [];
+    for (let start = 0; start < total - 4;) {
+      let end = Math.min(total, start + pageH);
+      const f = forced.find(y => y > start + 4 && y <= end);
+      if (f) end = f;
+      else if (end < total) { const b = breaks.filter(y => y > start + 120 && y <= end).pop(); if (b) end = b; }
+      pages.push([start, end]); start = end;
+    }
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+    const faNum = n => Number(n).toLocaleString('fa-IR');
+    const running = `${data.project.name} – ${jl(todayIso())}`;
+    pages.forEach(([s, e], i) => {
+      if (i) pdf.addPage();
+      const c = doc.createElement('canvas'); c.width = canvas.width; c.height = Math.round((e - s) * k);
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(canvas, 0, Math.round(s * k), canvas.width, c.height, 0, 0, canvas.width, c.height);
+      pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', MX, MT, 184, (e - s) * 184 / W, undefined, 'FAST');
+      const stripH = 18 * 184 / W;
+      if (i) pdf.addImage(stripImage(doc, '', running, W), 'PNG', MX, 7, 184, stripH);
+      pdf.addImage(stripImage(doc, data.brand?.footerText || '', `صفحهٔ ${faNum(i + 1)} از ${faNum(pages.length)}`, W), 'PNG', MX, 297 - 12, 184, stripH);
+    });
+    pdf.setProperties({ title: reportFileName(data.project).replace(/\.pdf$/, ''), subject: 'گزارش وضعیت پروژه', creator: 'LifeOS' });
+    return pdf.output('blob');
+  } finally { frame.remove(); }
+}
+
+const blobToDataUrl = blob => new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = () => reject(r.error); r.readAsDataURL(blob); });
+
+export async function sendProjectReportToTelegram(data) {
+  const filename = reportFileName(data.project);
+  const blob = await projectReportPdf(data);
+  await api('/api/projects/report-pdf', { method: 'POST', body: JSON.stringify({ filename, caption: `📄 گزارش وضعیت پروژهٔ ${data.project.name}\n${jl(todayIso())}`, data: await blobToDataUrl(blob) }) });
+  return filename;
+}
+
+// Opens the browser print dialog (file name = reportFileName) and then sends the PDF to the user's Telegram.
+export async function printProjectReport(data) {
+  const title = reportFileName(data.project).replace(/\.pdf$/, '');
+  const frame = mountFrame('lf-report-print-frame', 800, projectReportHtml(data), false);
+  const doc = frame.contentDocument;
+  doc.title = title;
+  await (doc.fonts?.ready || Promise.resolve());
+  const prevTitle = document.title;
+  document.title = title;
+  try { frame.contentWindow.focus(); frame.contentWindow.print(); } finally { document.title = prevTitle; }
+  return sendProjectReportToTelegram(data);
 }

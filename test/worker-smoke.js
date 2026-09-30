@@ -399,6 +399,7 @@ async function main() {
   check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');
   const integ = await call('/api/integrations', { cookie });
   check('integrations shows telegram connected', integ.d.telegram.connected === true && integ.d.telegram.userId === '123456789');
+  check('project report PDF -> 503 without bot token (no network)', (await call('/api/projects/report-pdf', { method: 'POST', cookie, body: { filename: 'r.pdf', data: 'data:application/pdf;base64,JVBERi0=' } })).status === 503);
   check('unlink telegram -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } })).status === 200);
   check('spotify connect -> 503 (no creds, pre-network)', (await call('/api/integrations/spotify/connect', { cookie })).status === 503);
   check('youtube connect -> 503 (no creds, pre-network)', (await call('/api/integrations/youtube/connect', { cookie })).status === 503);
