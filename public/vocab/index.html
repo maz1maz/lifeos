@@ -18,7 +18,7 @@
   --fe:"Inter","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0}
+html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
 body{
   background:radial-gradient(1200px 700px at 85% -10%,#1a2740 0%,transparent 60%),var(--bg);
   color:var(--tx); font-family:var(--f); direction:rtl; min-height:100vh;
@@ -194,6 +194,9 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 .fc{height:470px;min-height:0}
 .fc>.face{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 @media(max-width:700px){.fc{height:520px}}
+/* LifeOS v68: phones — shorter card so the rating buttons are visible without scrolling; no keyboard hints on touch screens */
+@media(max-width:700px){.fc{height:clamp(300px,50vh,440px)}}
+@media(hover:none) and (pointer:coarse){.kbonly{display:none!important}}
 </style>
 </head>
 <body>
