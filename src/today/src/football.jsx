@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, X } from 'lucide-react'
 import './football.css'
+import { jalaliShort } from './jalali'
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -20,6 +21,7 @@ const LEAGUE_META = {
   'por.1': { mark: 'PT', color: '#3d8f4a' },
   'uefa.champions': { mark: 'UCL', color: '#4c61c7' },
   'uefa.europa': { mark: 'UEL', color: '#dc9e3d' },
+  'uefa.nations': { mark: 'UNL', color: '#2fa3d6' },
   'afc.champions': { mark: 'AFC', color: '#9f7cca' },
   'ksa.1': { mark: 'KSA', color: '#2f9e5f' },
 }
@@ -68,7 +70,8 @@ function LeagueBadge({ league, large }) {
 
 export function FootballReact({ Nav }) {
   const [leagues, setLeagues] = useState([])
-  const [leagueId, setLeagueId] = useState('irn.1')
+  // Same default as the Today card: the league with the nearest match this week (cached by the home page).
+  const [leagueId, setLeagueId] = useState(() => { try { return JSON.parse(localStorage.getItem('lifeos-home-league-auto') || 'null')?.league || 'eng.1' } catch { return 'eng.1' } })
   const [standings, setStandings] = useState([])
   const [matches, setMatches] = useState([])
   const [loading, setLoading] = useState(false)
@@ -117,7 +120,8 @@ export function FootballReact({ Nav }) {
   const grouped = useMemo(() => {
     const map = new Map()
     for (const m of matches) {
-      const key = String(m.date || '').slice(0, 10) || '—'
+      const d = new Date(m.date)
+      const key = isNaN(d) ? (String(m.date || '').slice(0, 10) || '—') : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(d)
       if (!map.has(key)) map.set(key, [])
       map.get(key).push(m)
     }
@@ -188,7 +192,7 @@ export function FootballReact({ Nav }) {
                   <h3>برنامهٔ بازی‌های آینده</h3>
                   {upcoming.length ? upcoming.map(([day, list]) => (
                     <div className="fixture-group" key={day}>
-                      <div className="fixture-date"><span>{faNum(day)}</span></div>
+                      <div className="fixture-date"><span>{jalaliShort(day)}</span></div>
                       <ul className="fixture-list">
                         {list.map((item) => {
                           const home = asTeam(item.home, item.homeLogo)
@@ -220,7 +224,7 @@ export function FootballReact({ Nav }) {
                   <h3>بازی‌های قبل</h3>
                   {finished.length ? finished.map(([day, list]) => (
                     <div className="fixture-group" key={day}>
-                      <div className="fixture-date"><span>{faNum(day)}</span></div>
+                      <div className="fixture-date"><span>{jalaliShort(day)}</span></div>
                       <ul className="fixture-list">
                         {list.map((item) => {
                           const home = asTeam(item.home, item.homeLogo)

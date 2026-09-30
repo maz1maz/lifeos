@@ -186,3 +186,7 @@
   .cal-modal { align-items: end; padding: 0; }
   .cal-modal-box { width: 100%; max-height: 92vh; overflow: auto; border-radius: var(--g-radius-card) var(--g-radius-card) 0 0; }
 }
+.cal-item.card { border-right-color: var(--c, #a78bfa); }
+.cal-chip.card { background: rgba(167,139,250,.18); color: #c4b5fd; }
+.cal-item.session { border-right-color: #34d399; }
+.cal-chip.session { background: rgba(52,211,153,.16); color: #6ee7b7; }

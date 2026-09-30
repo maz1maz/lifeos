@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownUp, Check, Download, FileText, ImagePlus, LayoutGrid, Loader2,
-  Paperclip, Pin, PinOff, Plus, Rows3, Search, SlidersHorizontal, Trash2, X
+  Paperclip, Pencil, Pin, PinOff, Plus, Rows3, Search, SlidersHorizontal, Trash2, X
 } from 'lucide-react';
 import './notes.css';
 
@@ -38,8 +38,8 @@ const toIso = value => {
 const shortDate = iso => {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  const p = v => String(v).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  try { return d.toLocaleDateString('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
+  catch { return '—'; }
 };
 const longDate = iso => {
   try { return new Date(iso).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' }); }
@@ -166,15 +166,15 @@ function Composer({ editing, onCloseEdit, onSaved }) {
       <div className="nd-composer-line" style={{ background: `linear-gradient(90deg, transparent, ${active.hex}, transparent)` }} />
       <div className="nd-composer-head">
         <div>
-          <div className="nd-mono nd-cyan">{editing ? 'EDIT / ویرایش' : 'NEW / یادداشت تازه'}</div>
+          <div className="nd-mono nd-cyan">{editing ? 'ویرایش' : 'یادداشت تازه'}</div>
           <h2>{editing ? 'ویرایش' : 'افزودن'}</h2>
         </div>
         <span className="nd-swatch" style={{ background: active.hex, boxShadow: `0 0 22px -6px ${active.hex}` }} aria-hidden />
       </div>
       <div className="nd-composer-body">
-        <label className="nd-mono nd-mute">TITLE / عنوان</label>
+        <label className="nd-mono nd-mute">عنوان</label>
         <input ref={titleRef} value={title} onChange={e => setTitle(e.target.value)} placeholder="عنوان…" maxLength={140} />
-        <label className="nd-mono nd-mute">TAGS / برچسب‌ها</label>
+        <label className="nd-mono nd-mute">برچسب‌ها</label>
         <div className="nd-tag-input">
           {tags.map(tag => (
             <span key={tag} className="nd-tag-chip">#{tag}<button type="button" aria-label={`حذف برچسب ${tag}`} onClick={() => setTags(p => p.filter(t => t !== tag))}><X size={12} /></button></span>
@@ -183,7 +183,7 @@ function Composer({ editing, onCloseEdit, onSaved }) {
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagDraft); } if (e.key === 'Backspace' && !tagDraft) setTags(p => p.slice(0, -1)); }}
             onBlur={() => addTag(tagDraft)} placeholder={tags.length ? '' : 'کلید Enter برای برچسب'} />
         </div>
-        <span className="nd-mono nd-mute">COLOR / رنگ</span>
+        <span className="nd-mono nd-mute">رنگ</span>
         <div className="nd-color-row">
           {COLORS.map(c => {
             const on = c.key === color;
@@ -196,9 +196,9 @@ function Composer({ editing, onCloseEdit, onSaved }) {
           <span><Pin size={15} /> سنجاق شود بالای فهرست</span>
           <span className={`nd-switch ${pinned ? 'on' : ''}`}><i /></span>
         </button>
-        <label className="nd-mono nd-mute">BODY / متن</label>
+        <label className="nd-mono nd-mute">متن</label>
         <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="متن یادداشت…" rows={6} />
-        <span className="nd-mono nd-mute">FILES / پیوست ({files.length}/{MAX_FILES_PER_NOTE})</span>
+        <span className="nd-mono nd-mute">پیوست ({files.length}/{MAX_FILES_PER_NOTE})</span>
         <div className={`nd-drop ${dragging ? 'on' : ''}`}
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
@@ -283,18 +283,18 @@ function Inspector({ note, allNotes, query, onClose, onEdit, onTogglePin, onDele
     const max = Math.max(1, ...perColor.map(p => p.count));
     return (
       <div className="nd-inspector idle">
-        <div className="nd-mono nd-cyan">ANALYTICS / نمای کلی</div>
+        <div className="nd-mono nd-cyan">نمای کلی</div>
         <div className="nd-stat-grid">
           {[{ k: 'یادداشت', v: total }, { k: 'سنجاق‌شده', v: pinnedCount }, { k: 'پیوست', v: files }].map(s => (
             <div key={s.k}><b>{faNum(s.v)}</b><small>{s.k}</small></div>
           ))}
         </div>
-        <div className="nd-mono nd-mute">COLORS / توزیع رنگ</div>
+        <div className="nd-mono nd-mute">توزیع رنگ</div>
         <ul className="nd-color-bars">{perColor.map(c => (
           <li key={c.key}><span>{c.label}</span><span className="nd-bar"><i style={{ width: `${Math.round((c.count / max) * 100)}%`, background: c.hex, boxShadow: `0 0 12px -2px ${c.hex}` }} /></span><em>{c.count}</em></li>
         ))}</ul>
         {topTags.length > 0 && <>
-          <div className="nd-mono nd-mute">TAGS / برچسب‌ها</div>
+          <div className="nd-mono nd-mute">برچسب‌ها</div>
           <div className="nd-tag-cloud">{topTags.map(([t, n]) => <button key={t} type="button" onClick={() => onFocusTag(t)}>#{t}<em>{n}</em></button>)}</div>
         </>}
         <p className="nd-hint">یک یادداشت را از فهرست انتخاب کنید تا متن کامل و پیوست‌هایش اینجا باز شود.<br /><span>Ctrl</span> + <span>K</span> برای جست‌وجو، <span>Esc</span> برای بستن.</p>
@@ -306,7 +306,7 @@ function Inspector({ note, allNotes, query, onClose, onEdit, onTogglePin, onDele
     <article className="nd-inspector open">
       <div className="nd-insp-head" style={{ background: `linear-gradient(160deg, ${c.hex}26, transparent 65%)`, borderBottom: `1px solid ${c.hex}33` }}>
         <div className="nd-insp-top">
-          <span className="nd-mono" style={{ color: c.hex }}>NOTE / #{String(note.id).slice(0, 8)}</span>
+          <span className="nd-mono" style={{ color: c.hex }}>#{String(note.id).slice(0, 8)}</span>
           <button type="button" onClick={onClose} aria-label="بستن"><X size={14} /></button>
         </div>
         <h2>{note.title}</h2>
@@ -319,7 +319,7 @@ function Inspector({ note, allNotes, query, onClose, onEdit, onTogglePin, onDele
       <div className="nd-insp-body">
         <p className="nd-full"><Highlight text={note.body || 'بدون متن.'} query={query} /></p>
         {note.attachments.length > 0 && <>
-          <div className="nd-mono nd-mute">ATTACHMENTS / پیوست‌ها ({note.attachments.length})</div>
+          <div className="nd-mono nd-mute">پیوست‌ها ({note.attachments.length})</div>
           <div className="nd-thumbs">{note.attachments.filter(a => isImage(a.mime)).map((a, i) => (
             <a key={a.id || i} href={a.data} download={a.name} title={`${a.name} — ${bytes(a.size)}`}>
               <img src={a.data} alt={a.name} /><span>{a.name}</span>
@@ -431,98 +431,61 @@ export function NotesReact({ Nav }) {
   const filtersOn = Boolean(colorFilter || tagFilter || query.trim());
   const sortLabel = sort === 'updated' ? 'آخرین ویرایش' : sort === 'created' ? 'تاریخ ایجاد' : 'عنوان';
 
+  const toggleCheck = async (note, lineIdx) => {
+    const lines = note.body.split('\n');
+    const m = lines[lineIdx].match(/^(\s*[-*]\s*)\[( |x|X)\](.*)$/); if (!m) return;
+    lines[lineIdx] = `${m[1]}[${m[2] === ' ' ? 'x' : ' '}]${m[3]}`;
+    const text = lines.join('\n');
+    setNotes(ns => ns.map(n => n.id === note.id ? { ...n, body: text } : n));
+    try { await api(`/api/inbox/${note.id}`, { method: 'PATCH', body: JSON.stringify({ text }) }); } catch (error) { setNotice(error.message); load(); }
+  };
+  const pinnedList = visible.filter(n => n.pinned), restList = visible.filter(n => !n.pinned);
+  const tileProps = { query, busyId, onOpen: n => setSelectedId(n.id), onEdit: handleEdit, onTogglePin: handleTogglePin, onDelete: handleDelete, onCheck: toggleCheck };
+
   return (
-    <main className="nd" dir="rtl">
+    <main className="nd nd2" dir="rtl">
       {Nav && <Nav active="notes" />}
-      <header className="nd-mast">
-        <div className="nd-mast-fade" />
-        <div className="nd-mast-inner">
-          <div>
-            <div className="nd-mono nd-cyan nd-kicker"><span /> LifeOS — دفترچهٔ یادداشت</div>
-            <h1>یادداشت‌ها</h1>
-            <p>هر فکر رنگ خودش را دارد. یادداشت بنویس، برچسب بزن، سنجاق کن، فایل و عکس پیوست کن و در یک چشم‌به‌هم‌زدن پیداش کن.</p>
-          </div>
-          <div className="nd-mast-stats">
-            {[{ k: 'کل یادداشت‌ها', v: notes.length }, { k: 'سنجاق‌شده', v: notes.filter(n => n.pinned).length }, { k: 'پیوست', v: notes.reduce((s, n) => s + n.attachments.length, 0) }].map(s => (
-              <div key={s.k}><b>{faNum(s.v)}</b><span className="nd-mono nd-mute">{s.k}</span></div>
-            ))}
-            <button type="button" className="nd-save nd-mast-add" onClick={() => { setEditing(null); setComposerOpen(true); }}><Plus size={16} /> یادداشت تازه</button>
+      <div className="nd2-page">
+        <div className="nd2-bar">
+          <h1>یادداشت‌ها</h1>
+          <label className="nd2-search"><Search size={16} /><input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجو در عنوان، متن و برچسب…" aria-label="جستجو در یادداشت‌ها" />{query && <button type="button" onClick={() => setQuery('')} aria-label="پاک کردن"><X size={14} /></button>}</label>
+          <button type="button" className="nd2-new" onClick={() => { setEditing(null); setComposerOpen(true); }}><Plus size={16} />یادداشت تازه</button>
+          <div className="nd2-filters">
+            <button type="button" className={`nd2-chip ${!colorFilter && !tagFilter ? 'on' : ''}`} onClick={() => { setColorFilter(null); setTagFilter(null); }}>همه <em>{faNum(notes.length)}</em></button>
+            {COLORS.filter(c => colorFilter === c.key || notes.some(n => n.color === c.key)).map(c => <button key={c.key} type="button" className={`nd2-chip ${colorFilter === c.key ? 'on' : ''}`} onClick={() => setColorFilter(colorFilter === c.key ? null : c.key)}><i style={{ background: c.hex }} />{c.label}</button>)}
+            {allTags.length > 0 && <select className={`nd2-sort nd2-tagsel ${tagFilter ? 'on' : ''}`} value={tagFilter || ''} onChange={e => setTagFilter(e.target.value || null)} aria-label="برچسب"><option value=""># همهٔ برچسب‌ها</option>{allTags.map(([t, n]) => <option key={t} value={t}>#{t} ({faNum(n)})</option>)}</select>}
+            <select className="nd2-sort" value={sort} onChange={e => setSort(e.target.value)} aria-label="مرتب‌سازی"><option value="updated">آخرین ویرایش</option><option value="created">تاریخ ایجاد</option><option value="title">عنوان</option></select>
           </div>
         </div>
-      </header>
 
-      <div className="nd-workspace">
         {notice && <div className="notice">{notice}<button type="button" onClick={() => setNotice('')}>×</button></div>}
-        <div className="nd-grid">
-          <div className={`nd-rail ${composerOpen ? 'open' : ''}`}>
-            <div className="nd-rail-mobile">
-              <span className="nd-mono nd-mute">COMPOSER</span>
-              <button type="button" aria-label="بستن" onClick={() => setComposerOpen(false)}><X size={15} /></button>
-            </div>
-            <Composer editing={editing} onCloseEdit={() => setEditing(null)} onSaved={fresh => { setNotes(fresh); setEditing(null); setComposerOpen(false); }} />
+
+        {visible.length === 0 ? (
+          <div className="nd2-empty">
+            <h3>{notes.length === 0 ? 'هنوز یادداشتی نداری' : 'چیزی پیدا نشد'}</h3>
+            <p>{notes.length === 0 ? 'با دکمهٔ «یادداشت تازه» اولین یادداشت رو بنویس. برای چک‌لیست، خط‌ها رو با «- [ ]» شروع کن.' : 'عبارت دیگری امتحان کن یا فیلترها رو بردار.'}</p>
+            {notes.length === 0 ? <button type="button" className="nd2-new" onClick={() => { setEditing(null); setComposerOpen(true); }}><Plus size={16} />یادداشت تازه</button>
+              : <button type="button" className="nd2-chip" onClick={() => { setQuery(''); setColorFilter(null); setTagFilter(null); }}>نمایش همه</button>}
           </div>
-
-          <section className="nd-ledger">
-            <div className="nd-toolbar">
-              <div className="nd-tools">
-                <div className="nd-search">
-                  <Search size={16} />
-                  <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} aria-label="جست‌وجو در یادداشت‌ها" placeholder="جست‌وجو در عنوان، متن و برچسب…  (Ctrl+K)" />
-                  {query && <button type="button" aria-label="پاک کردن جست‌وجو" onClick={() => setQuery('')}><X size={14} /></button>}
-                </div>
-                <div className="nd-color-filter">
-                  <button type="button" onClick={() => setColorFilter(null)} title="همهٔ رنگ‌ها" aria-pressed={colorFilter === null} className={colorFilter === null ? 'all on' : 'all'}>✓</button>
-                  {COLORS.map(c => (
-                    <button key={c.key} type="button" onClick={() => setColorFilter(colorFilter === c.key ? null : c.key)} title={c.label} aria-pressed={colorFilter === c.key}
-                      style={{ background: c.hex, boxShadow: colorFilter === c.key ? `0 0 0 2px #071522, 0 0 0 3.5px ${c.hex}` : undefined, opacity: colorFilter && colorFilter !== c.key ? 0.35 : 1 }} />
-                  ))}
-                </div>
-                <div className="nd-sort">
-                  <button type="button" onClick={() => setSort('updated')} className={sort === 'updated' ? 'on' : ''}><ArrowDownUp size={12} /> {sortLabel}</button>
-                  <button type="button" aria-label="تغییر مرتب‌سازی" onClick={() => setSort(sort === 'updated' ? 'created' : sort === 'created' ? 'title' : 'updated')}><SlidersHorizontal size={13} /></button>
-                </div>
-                <div className="nd-view">
-                  <button type="button" onClick={() => setView('list')} aria-pressed={view === 'list'} title="نمای فهرستی" className={view === 'list' ? 'on' : ''}><Rows3 size={14} /></button>
-                  <button type="button" onClick={() => setView('grid')} aria-pressed={view === 'grid'} title="نمای شبکه‌ای" className={view === 'grid' ? 'on' : ''}><LayoutGrid size={14} /></button>
-                </div>
-              </div>
-              <div className="nd-filter-row">
-                <span className="nd-mono nd-mute">{faNum(visible.length)} / {faNum(notes.length)} RESULT</span>
-                {tagFilter && <button type="button" className="nd-chip" onClick={() => setTagFilter(null)}>#{tagFilter}<X size={11} /></button>}
-                {colorFilter && <button type="button" className="nd-chip" onClick={() => setColorFilter(null)} style={{ color: colorOf(colorFilter).hex }}>{colorOf(colorFilter).label}<X size={11} /></button>}
-                {filtersOn && <button type="button" className="nd-clear" onClick={() => { setQuery(''); setColorFilter(null); setTagFilter(null); }}>پاک کردن همه</button>}
-              </div>
-              {allTags.length > 0 && <div className="nd-tag-bar">{allTags.slice(0, 14).map(([t, n]) => (
-                <button key={t} type="button" className={tagFilter === t ? 'on' : ''} onClick={() => setTagFilter(tagFilter === t ? null : t)}>#{t}<em>{n}</em></button>
-              ))}</div>}
-            </div>
-
-            {visible.length === 0 ? (
-              <div className="nd-empty">
-                <h3>{notes.length === 0 ? 'هنوز یادداشتی نداری' : 'چیزی پیدا نشد'}</h3>
-                <p>{notes.length === 0 ? 'از ستون کناری اولین یادداشت را بنویس؛ رنگش را انتخاب کن و عکس پیوست کن.' : 'عبارت دیگری امتحان کن، یا فیلتر رنگ و برچسب را بردار.'}</p>
-                {notes.length > 0 && <button type="button" className="nd-save ghost" onClick={() => { setQuery(''); setColorFilter(null); setTagFilter(null); }}>نمایش همهٔ یادداشت‌ها</button>}
-              </div>
-            ) : (
-              <div className={view === 'grid' ? 'nd-cards grid' : 'nd-cards list'}>
-                {visible.map(note => (
-                  <NoteCard key={note.id} note={note} query={query} view={view} busy={busyId === note.id} selected={note.id === selectedId}
-                    onSelect={id => setSelectedId(id === selectedId ? null : id)} onEdit={handleEdit} onTogglePin={handleTogglePin} onDelete={handleDelete} />
-                ))}
-              </div>
-            )}
-          </section>
-
-          <aside className="nd-aside">
-            <Inspector note={selected} allNotes={notes} query={query} onClose={() => setSelectedId(null)} onEdit={handleEdit} onTogglePin={handleTogglePin} onDelete={handleDelete} onFocusTag={t => setTagFilter(t)} onConvert={handleConvert} />
-          </aside>
-        </div>
+        ) : <>
+          {pinnedList.length > 0 && <><div className="nd2-sec">سنجاق‌شده</div><div className="nd2-grid">{pinnedList.map(n => <NoteTile key={n.id} note={n} {...tileProps} />)}</div></>}
+          {restList.length > 0 && <><div className="nd2-sec">{pinnedList.length ? 'همهٔ یادداشت‌ها' : `${faNum(restList.length)} یادداشت`}</div><div className="nd2-grid">{restList.map(n => <NoteTile key={n.id} note={n} {...tileProps} />)}</div></>}
+        </>}
       </div>
+
+      {composerOpen && (
+        <div className="nd2-modal" onClick={() => { setComposerOpen(false); setEditing(null); }}>
+          <div className="nd2-modal-box" onClick={e => e.stopPropagation()}>
+            <div className="nd2-modal-head"><b>{editing ? 'ویرایش یادداشت' : 'یادداشت تازه'}</b><button type="button" aria-label="بستن" onClick={() => { setComposerOpen(false); setEditing(null); }}><X size={16} /></button></div>
+            <Composer editing={editing} onCloseEdit={() => { setEditing(null); setComposerOpen(false); }} onSaved={fresh => { setNotes(fresh); setEditing(null); setComposerOpen(false); }} />
+          </div>
+        </div>
+      )}
 
       {selected && (
         <div className="nd-drawer" onClick={() => setSelectedId(null)}>
           <div onClick={e => e.stopPropagation()}>
-            <Inspector note={selected} allNotes={notes} query={query} onClose={() => setSelectedId(null)} onEdit={handleEdit} onTogglePin={handleTogglePin} onDelete={handleDelete}
+            <Inspector note={selected} allNotes={notes} query={query} onClose={() => setSelectedId(null)} onEdit={n => { setSelectedId(null); handleEdit(n); }} onTogglePin={handleTogglePin} onDelete={handleDelete}
               onFocusTag={t => { setTagFilter(t); setSelectedId(null); }} onConvert={handleConvert} />
           </div>
         </div>
@@ -532,3 +495,38 @@ export function NotesReact({ Nav }) {
     </main>
   );
 }
+
+const CHECK_RE = /^\s*[-*]\s*\[( |x|X)\]\s?(.*)$/;
+function NoteTile({ note, query, busyId, onOpen, onEdit, onTogglePin, onDelete, onCheck }) {
+  const c = colorOf(note.color);
+  const lines = note.body.split('\n');
+  const checks = lines.map((l, i) => { const m = l.match(CHECK_RE); return m ? { i, done: m[1] !== ' ', text: m[2] } : null; }).filter(Boolean);
+  const isList = checks.length > 0 && checks.length >= lines.filter(l => l.trim()).length - 1;
+  const titleLine = note.title && lines[0]?.trim() === note.title.trim();
+  const bodyText = (titleLine ? lines.slice(1) : lines).join('\n').trim();
+  const doneN = checks.filter(x => x.done).length;
+  const d = note.updatedAt ? new Date(note.updatedAt) : null;
+  const dateLabel = d && !isNaN(d) ? new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Tehran' }).format(d) : '';
+  return (
+    <article className="nd2-note" style={{ '--c': c.hex }} onClick={() => onOpen(note)} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') onOpen(note); }}>
+      <div className="nd2-acts" onClick={e => e.stopPropagation()}>
+        <button type="button" title="ویرایش" onClick={() => onEdit(note)}><Pencil size={13} /></button>
+        <button type="button" title={note.pinned ? 'برداشتن سنجاق' : 'سنجاق'} disabled={busyId === note.id} onClick={() => onTogglePin(note)}><Pin size={13} /></button>
+        <button type="button" title="حذف" disabled={busyId === note.id} onClick={() => onDelete(note.id)}><Trash2 size={13} /></button>
+      </div>
+      <div className="nd2-hd"><h3><Highlight text={note.title} query={query} /></h3>{note.pinned && <span className="nd2-pinned">سنجاق</span>}</div>
+      {isList ? (
+        <ul className="nd2-cl" onClick={e => e.stopPropagation()}>
+          {checks.slice(0, 7).map(x => <li key={x.i} className={x.done ? 'd' : ''}><button type="button" onClick={() => onCheck(note, x.i)} aria-pressed={x.done}><i />{x.text}</button></li>)}
+          {checks.length > 7 && <li className="more">و {faNum(checks.length - 7)} مورد دیگر…</li>}
+        </ul>
+      ) : bodyText ? <p><Highlight text={bodyText} query={query} /></p> : null}
+      {note.attachments.some(a => isImage(a.mime)) && <div className="nd2-thumb"><img src={note.attachments.find(a => isImage(a.mime)).data} alt="" loading="lazy" /></div>}
+      <div className="nd2-ft">
+        <span className="nd2-tags">{isList ? <span>{faNum(doneN)} از {faNum(checks.length)}</span> : null}{note.tags.slice(0, 2).map(t => <span key={t} className="nd2-tag">#{t}</span>)}</span>
+        <span>{note.attachments.length ? `📎 ${faNum(note.attachments.length)} · ` : ''}{dateLabel}</span>
+      </div>
+    </article>
+  );
+}
+

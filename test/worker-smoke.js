@@ -52,10 +52,12 @@ function makeEnv() {
           _params: [],
           bind(...p) { st._params = p; return st; },
           async first() {
+            if (sql.startsWith('SELECT value FROM kv WHERE key=?')) { const v = (store.extra || {})[st._params[0]]; return v === undefined ? null : { value: v }; }
             if (sql.startsWith('SELECT value FROM kv')) return store.value === null ? null : { value: store.value };
             throw new Error('unexpected SQL in harness: ' + sql);
           },
           async run() {
+            if (sql.startsWith('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?)')) { (store.extra ||= {})[st._params[0]] = st._params[1]; return { success: true }; }
             if (sql.startsWith('INSERT INTO kv')) { store.value = st._params[0]; return { success: true }; }
             throw new Error('unexpected SQL in harness: ' + sql);
           },
@@ -126,6 +128,190 @@ async function main() {
   await call('/api/transactions', { method: 'POST', cookie, body: { title: 'داروخانه', amount: 310000, kind: 'expense', date: today() } });
   const preview = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: {} });
   check('recategorize preview -> 200 (categorizeTransaction wired)', preview.status === 200 && preview.d && preview.d.applied === false && preview.d.matched >= 1);
+  {
+    await call('/api/debts', { method: 'POST', cookie, body: { person: 'تست', amount: 5000000, type: 'payable', dueDate: today() } });
+    const jp = Object.fromEntries(new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn', { timeZone: 'Asia/Tehran', year: 'numeric', month: 'numeric' }).formatToParts(new Date()).map((x) => [x.type, x.value]));
+    const rep = await call(`/api/finance/monthly-report?jy=${parseInt(jp.year)}&jm=${parseInt(jp.month)}`, { cookie });
+    check('monthly report -> 200 with income/expense lines', rep.status === 200 && /گزارش ماهانه/.test(rep.d?.text || '') && /هزینه/.test(rep.d.text), (rep.d?.text || rep.text).slice(0, 200));
+    check('monthly report lists the due debt', /بدهی به تست/.test(rep.d?.text || ''));
+    const bad = await call('/api/finance/monthly-report?jy=1405&jm=13', { cookie });
+    check('monthly report rejects bad month -> 400', bad.status === 400);
+    const deb = (await call('/api/debts', { cookie })).d.items.find((x) => x.person === 'تست');
+    const pay = await call(`/api/debts/${deb.id}/pay`, { method: 'POST', cookie, body: { amount: 2000000 } });
+    check('partial debt payment reduces amount', pay.status === 200 && pay.d.amount === 3000000 && pay.d.paid === 2000000);
+    const rec = await call('/api/transactions', { method: 'POST', cookie, body: { title: 'اجاره', amount: 1000, kind: 'expense', category: 'مسکن', date: daysAgo(70), recurrence: 'jmonthly' } });
+    check('jalali-monthly recurring tx created', rec.status === 201 && rec.d.recurrenceId);
+    const rl = await call('/api/transactions/recurring', { cookie });
+    const chain = (rl.d?.items || []).find((x) => x.title === 'اجاره');
+    check('recurring list advances the chain (>=2 occurrences, next date in future)', chain && chain.count >= 2 && chain.nextDate > today(), JSON.stringify(chain));
+    const stop = await call('/api/transactions/recurring/stop', { method: 'POST', cookie, body: { recurrenceId: rec.d.recurrenceId } });
+    check('stop recurring', stop.status === 200 && stop.d.stopped >= 1);
+    const yr = await call(`/api/finance/year?jy=${parseInt(jp.year)}`, { cookie });
+    check('year comparison -> 12+12 months', yr.status === 200 && yr.d.current.length === 12 && yr.d.previous.length === 12);
+    const g = await call('/api/savings-goals', { method: 'POST', cookie, body: { title: 'لپ‌تاپ', target: 100 } });
+    const dep = await call(`/api/savings-goals/${g.d.id}/deposit`, { method: 'POST', cookie, body: { amount: 40 } });
+    check('savings goal deposit', dep.status === 200 && dep.d.saved === 40);
+    const wr = await call('/api/finance/weekly-report', { cookie });
+    check('weekly report text', wr.status === 200 && /مرور هفته/.test(wr.d.text));
+    const scan = await call('/api/transactions/receipt-scan', { method: 'POST', cookie, body: { image: 'data:image/png;base64,AAAA' } });
+    check('receipt scan without AI key -> 503 (not 500)', scan.status === 503);
+    const nd = await call('/api/tasks', { method: 'POST', cookie, body: { title: 'بدون تاریخ', date: '' } });
+    check('task without a chosen date defaults to today', nd.status === 201 && nd.d.date === today(), nd.d && nd.d.date);
+    const att = await call('/api/attachments', { method: 'POST', cookie, body: { ownerType: 'task', ownerId: nd.d.id, name: 'a.txt', dataUrl: 'data:text/plain;base64,aGk=' } });
+    check('attachment without telegram -> 503 with message (not 500)', att.status === 503);
+    const mods = await call('/api/me', { method: 'PATCH', cookie, body: { modules: { football: false, watch: false } } });
+    const me2 = await call('/api/me', { cookie });
+    check('per-user modules saved', mods.status === 200 && me2.d.user.modules && me2.d.user.modules.football === false && me2.d.user.modules.finance === true);
+    const rm = await call('/api/reminders', { method: 'POST', cookie, body: { title: 'قرص', date: today(), time: '09:00', leadMinutes: 10 } });
+    check('reminder stores lead time', rm.status === 201 && rm.d.leadMinutes === 10);
+    const sn = await call(`/api/reminders/${rm.d.id}/act`, { method: 'POST', cookie, body: { act: 'snooze' } });
+    check('reminder snooze moves time ~15 min ahead', sn.status === 200 && /^\d{2}:\d{2}$/.test(sn.d.reminder.time) && sn.d.reminder.time !== '09:00');
+    const tm = await call(`/api/reminders/${rm.d.id}/act`, { method: 'POST', cookie, body: { act: 'tomorrow' } });
+    check('reminder tomorrow', tm.status === 200 && tm.d.reminder.date > today());
+    const dn = await call(`/api/reminders/${rm.d.id}/act`, { method: 'POST', cookie, body: { act: 'done' } });
+    check('reminder done', dn.status === 200 && dn.d.reminder.done === true);
+    const pk = await call('/api/push/key', { cookie });
+    check('VAPID public key generated (65-byte P-256, base64url)', pk.status === 200 && /^[A-Za-z0-9_-]{86,88}$/.test(pk.d.publicKey), pk.d && pk.d.publicKey);
+    const pk2 = await call('/api/push/key', { cookie });
+    check('VAPID key is stable', pk2.d.publicKey === pk.d.publicKey);
+    const c1 = await call('/api/col/health', { method: 'POST', cookie, body: { date: today(), weight: 80.5, id: 'hack', userId: 'x' } });
+    check('collection create strips id/userId', c1.status === 201 && c1.d.weight === 80.5 && c1.d.id !== 'hack');
+    const c2 = await call(`/api/col/health/${c1.d.id}`, { method: 'PATCH', cookie, body: { weight: 80 } });
+    check('collection patch', c2.status === 200 && c2.d.weight === 80);
+    check('unknown collection -> 404', (await call('/api/col/secrets', { cookie })).status === 404);
+    const sh = await call('/api/shop/share', { method: 'POST', cookie, body: {} });
+    const pub = await worker.fetch(new Request(`https://worker-smoke.local/api/s/${sh.d.code}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ add: 'نان، شیر' }) }), env, {});
+    const pj = await pub.json();
+    check('shared shopping list works without login', pub.status === 200 && pj.items.length === 2);
+    check('shared list page served', (await worker.fetch(new Request(`https://worker-smoke.local/s/${sh.d.code}`), env, {})).status === 200);
+    check('bad share code -> 404', (await worker.fetch(new Request('https://worker-smoke.local/s/deadbeef00'), env, {})).status === 404);
+    // v44: loss limit, poker+bet month status, project report, portfolio snapshots, top-3 tasks
+    check('me exposes backup/limit/project-report settings', await (async () => { const m = (await call('/api/me', { cookie })).d.user; return m.backupFreq === 'weekly' && m.funLossLimit === 0 && m.tgProjectsOn === true; })());
+    await call('/api/me', { method: 'PATCH', cookie, body: { funLossLimit: '100,000,000', backupFreq: 'daily' } });
+    const me44 = (await call('/api/me', { cookie })).d.user;
+    check('loss limit accepts grouped digits; backup freq saved', me44.funLossLimit === 100000000 && me44.backupFreq === 'daily');
+    await call('/api/me', { method: 'PATCH', cookie, body: { backupFreq: 'hourly' } });
+    check('invalid backup freq ignored', (await call('/api/me', { cookie })).d.user.backupFreq === 'daily');
+    await call('/api/poker', { method: 'POST', cookie, body: { date: today(), buyIn: 300000000, cashOut: 100000000, location: 'X', usdRate: 1000000 } });
+    await call('/api/bet', { method: 'POST', cookie, body: { date: today(), start: 100, balance: 50, usdRate: 1000000 } });
+    const bt44 = (await call('/api/bet', { cookie })).d.items.find(x => x.date === today());
+    check('bet day keeps the dollar rate it was entered with', bt44 && bt44.usdRate === 1000000, JSON.stringify(bt44));
+    const fs44 = (await call('/api/fun/status', { cookie })).d;
+    check('fun status: month net = poker + bet×rate', fs44.limit === 100000000 && fs44.poker === -200000000 && fs44.betUsd === -50 && fs44.net === -250000000, JSON.stringify(fs44));
+    const pr44 = (await call('/api/col/projects', { method: 'POST', cookie, body: { name: 'پروژه تست', deadline: today() } })).d;
+    await call('/api/col/cards', { method: 'POST', cookie, body: { projectId: pr44.id, title: 'کارت ۱', col: 'done', doneAt: Date.now() } });
+    await call('/api/col/cards', { method: 'POST', cookie, body: { projectId: pr44.id, title: 'کارت ۲', col: 'todo' } });
+    const rep44 = (await call('/api/projects/report', { cookie })).d;
+    check('weekly project report text', /پروژه تست/.test(rep44.text) && /۵۰٪/.test(rep44.text) && /کارت ۱/.test(rep44.text), rep44.text);
+    check('project report send without telegram -> 503', (await call('/api/projects/report', { method: 'POST', cookie })).status === 503);
+    await call('/api/portfolio/snapshots', { method: 'POST', cookie, body: { date: '2026-01-01', value: 1000, cost: 800 } });
+    await call('/api/portfolio/snapshots', { method: 'POST', cookie, body: { date: '2026-01-01', value: 1200, cost: 800 } });
+    const ps44 = (await call('/api/portfolio/snapshots', { cookie })).d.items;
+    check('portfolio snapshot upserts per day', ps44.length === 1 && ps44[0].value === 1200);
+    check('bad snapshot -> 400', (await call('/api/portfolio/snapshots', { method: 'POST', cookie, body: { value: 'x' } })).status === 400);
+    const t44 = (await call('/api/tasks', { method: 'POST', cookie, body: { title: 'مهم' } })).d;
+    const m44 = await call(`/api/tasks/${t44.id}`, { method: 'PATCH', cookie, body: { mit: today() } });
+    check('task can be starred as one of today\'s three', m44.d && m44.d.mit === today());
+    check('bad mit value cleared', (await call(`/api/tasks/${t44.id}`, { method: 'PATCH', cookie, body: { mit: '<x>' } })).d.mit === '');
+    // v45: admin overview — only the first account (no ADMIN_EMAILS) may read it
+    const ad1 = await call('/api/admin/overview', { cookie });
+    const meA = (await call('/api/me', { cookie })).d.user;
+    check('admin flag matches access', (ad1.status === 200) === (meA.isAdmin === true), `${ad1.status} ${meA.isAdmin}`);
+    if (ad1.status === 200) check('admin overview lists users without secrets', ad1.d.totals.users >= 1 && ad1.d.users.every(u => !('password' in u) && !('salt' in u)) && ad1.d.weeks.length === 12);
+    const em45 = `wsmoke_second_${Date.now()}@example.com`;
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'Second', email: em45, password: 'secret123' } });
+    const lg45 = await call('/api/auth/login', { method: 'POST', body: { email: em45, password: 'secret123' } });
+    const ck45 = String((typeof lg45.headers.getSetCookie === 'function' ? lg45.headers.getSetCookie()[0] : lg45.headers.get('set-cookie')) || '').split(';')[0];
+    check('a later account is not admin -> 403', (await call('/api/admin/overview', { cookie: ck45 })).status === 403);
+    check('me.isAdmin false for later account', (await call('/api/me', { cookie: ck45 })).d.user.isAdmin === false);
+    check('anonymous admin -> 401', (await call('/api/admin/overview')).status === 401);
+    if (ad1.status === 200) {
+      const sec = (await call('/api/admin/overview', { cookie })).d.users.find(u => u.email === em45);
+      const lo = await call(`/api/admin/users/${sec.id}/logout`, { method: 'POST', cookie, body: {} });
+      check('admin force-logout closes the other user\'s sessions', lo.status === 200 && lo.d.closed >= 1 && !(await call('/api/me', { cookie: ck45 })).d.user);
+      const lg2 = await call('/api/auth/login', { method: 'POST', body: { email: em45, password: 'secret123' } });
+      const ck2 = String((typeof lg2.headers.getSetCookie === 'function' ? lg2.headers.getSetCookie()[0] : lg2.headers.get('set-cookie')) || '').split(';')[0];
+      const dis = await call(`/api/admin/users/${sec.id}/disable`, { method: 'POST', cookie, body: { disabled: true } });
+      check('disable -> session dead, login refused 403', dis.status === 200 && !(await call('/api/me', { cookie: ck2 })).d.user && (await call('/api/auth/login', { method: 'POST', body: { email: em45, password: 'secret123' } })).status === 403);
+      check('admin cannot disable self', (await call(`/api/admin/users/${ad1.d.users.find(u => u.admin).id}/disable`, { method: 'POST', cookie, body: { disabled: true } })).status === 400);
+      await call(`/api/admin/users/${sec.id}/disable`, { method: 'POST', cookie, body: { disabled: false } });
+      check('re-enabled user can log in again', (await call('/api/auth/login', { method: 'POST', body: { email: em45, password: 'secret123' } })).status === 200);
+      check('non-admin cannot use admin actions', (await call(`/api/admin/users/${sec.id}/logout`, { method: 'POST', cookie: ck2, body: {} })).status !== 200);
+      const lg3 = await call('/api/auth/login', { method: 'POST', body: { email: em45, password: 'secret123' } });
+      const ck3 = String((typeof lg3.headers.getSetCookie === 'function' ? lg3.headers.getSetCookie()[0] : lg3.headers.get('set-cookie')) || '').split(';')[0];
+      const sm = await call('/api/admin/message', { method: 'POST', cookie, body: { to: [sec.id], text: 'سلام، نسخهٔ تازه آمد' } });
+      const inb = (await call('/api/me', { cookie: ck3 })).d.user.msgs;
+      check('admin message reaches the user inbox', sm.status === 200 && sm.d.n === 1 && inb.length === 1 && inb[0].text === 'سلام، نسخهٔ تازه آمد', JSON.stringify(inb));
+      await call(`/api/messages/${inb[0].id}/read`, { method: 'POST', cookie: ck3, body: {} });
+      check('read message leaves the inbox', (await call('/api/me', { cookie: ck3 })).d.user.msgs.length === 0);
+      check('non-admin cannot send messages', (await call('/api/admin/message', { method: 'POST', cookie: ck3, body: { to: 'all', text: 'x' } })).status === 403);
+      check('empty message refused', (await call('/api/admin/message', { method: 'POST', cookie, body: { to: 'all', text: '  ' } })).status === 400);
+      const all = await call('/api/admin/message', { method: 'POST', cookie, body: { to: 'all', text: 'به همه' } });
+      check('broadcast skips the admin, logged in sentMsgs', all.status === 200 && all.d.n >= 1 && (await call('/api/admin/overview', { cookie })).d.sentMsgs[0].text === 'به همه' && (await call('/api/me', { cookie })).d.user.msgs.length === 0);
+    }
+    // v52: courses & students — dues from payments, withdrawn students owe nothing
+    const co52 = (await call('/api/col/courses', { method: 'POST', cookie, body: { name: 'نما ۱', price: 100000000 } })).d;
+    const due = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
+    await call('/api/col/students', { method: 'POST', cookie, body: { courseId: co52.id, name: 'علی', fee: 100000000, dueDate: due, payments: [{ id: 'a', kind: 'deposit', amount: 30000000 }, { id: 'b', kind: 'installment', amount: 20000000 }] } });
+    await call('/api/col/students', { method: 'POST', cookie, body: { courseId: co52.id, name: 'سارا', fee: 100000000, dueDate: due, status: 'withdrawn', payments: [{ id: 'c', kind: 'deposit', amount: 30000000 }] } });
+    await call('/api/col/students', { method: 'POST', cookie, body: { courseId: co52.id, name: 'رضا', fee: 100000000, dueDate: due, payments: [{ id: 'd', kind: 'deposit', amount: 100000000 }] } });
+    const du52 = (await call('/api/courses/due', { cookie })).d.items;
+    check('course dues: only students still owing, with the right remaining', du52.length === 1 && du52[0].name === 'علی' && du52[0].remaining === 50000000 && du52[0].course === 'نما ۱', JSON.stringify(du52));
+    await call('/api/me', { method: 'PATCH', cookie, body: { modules: { courses: true } } });
+    const mo52 = (await call('/api/me', { cookie })).d.user.modules;
+    check('modules: courses kept, CRM is opt-in (off unless crmOn)', mo52.courses === true && mo52.crmOn === false);
+    { const t0 = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date()), y0 = new Date(Date.parse(t0 + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10), n0 = new Date(Date.parse(t0 + 'T12:00:00Z') + 5 * 864e5).toISOString().slice(0, 10);
+      const pr = (await call('/api/col/projects', { method: 'POST', cookie, body: { name: 'سایت', color: '#60a5fa' } })).d, pa = (await call('/api/col/projects', { method: 'POST', cookie, body: { name: 'قدیمی', archived: true } })).d;
+      const c1 = (await call('/api/col/cards', { method: 'POST', cookie, body: { projectId: pr.id, title: 'امروزی', col: 'todo', due: t0, prio: 'h' } })).d;
+      await call('/api/col/cards', { method: 'POST', cookie, body: { projectId: pr.id, title: 'عقب', col: 'doing', due: y0 } });
+      await call('/api/col/cards', { method: 'POST', cookie, body: { projectId: pr.id, title: 'تمام', col: 'done', due: y0 } });
+      await call('/api/col/cards', { method: 'POST', cookie, body: { projectId: pr.id, title: 'بعدا', col: 'todo', due: n0 } });
+      await call('/api/col/cards', { method: 'POST', cookie, body: { projectId: pa.id, title: 'بایگانی', col: 'todo', due: t0 } });
+      const pd = (await call('/api/projects/due', { cookie })).d.items;
+      check('project dues: today + overdue, not done/archived/future, with project name+colour', pd.length === 2 && pd[0].title === 'عقب' && pd[1].title === 'امروزی' && pd[1].project === 'سایت' && pd[1].color === '#60a5fa', JSON.stringify(pd));
+      const cf = (await call(`/api/calendar/feed?from=${y0}&to=${n0}`, { cookie })).d.items.filter(x => x.kind === 'card');
+      check('calendar feed includes open project cards on their due date', cf.length === 3 && cf.every(x => x.source === 'lifeos'), JSON.stringify(cf));
+      await call(`/api/col/cards/${c1.id}`, { method: 'PATCH', cookie, body: { col: 'done', doneAt: Date.now() } });
+      check('ticked card leaves the due list', (await call('/api/projects/due', { cookie })).d.items.length === 1);
+    }
+    { // v63: course sessions from start date + weekdays, cancel pushes later, move changes date
+      const cs = (await call('/api/col/courses', { method: 'POST', cookie, body: { name: 'کلاس', startDate: '2030-01-05', sessions: 4, days: [6, 2], time: '18:00' } })).d; // 2030-01-05 is Saturday
+      const feed = async () => (await call('/api/calendar/feed?from=2030-01-01&to=2030-02-28', { cookie })).d.items.filter(x => x.kind === 'session' && x.courseId === cs.id).map(x => x.date + ' ' + x.time);
+      const f1 = await feed();
+      check('sessions generated on class weekdays', JSON.stringify(f1) === JSON.stringify(['2030-01-05 18:00', '2030-01-08 18:00', '2030-01-12 18:00', '2030-01-15 18:00']), JSON.stringify(f1));
+      await call(`/api/col/courses/${cs.id}`, { method: 'PATCH', cookie, body: { skip: ['2030-01-08'], moves: { '2030-01-12': { date: '2030-01-13', time: '10:00' } } } });
+      const f2 = await feed();
+      check('cancelled session shifts the rest, moved session keeps its number', JSON.stringify(f2) === JSON.stringify(['2030-01-05 18:00', '2030-01-13 10:00', '2030-01-15 18:00', '2030-01-19 18:00']), JSON.stringify(f2));
+    }
+    { // v65: vocab progress stored per user in its own kv row + summary
+      check('vocab: empty state at first', (await call('/api/vocab', { cookie })).d.state === null);
+      const t0 = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date()), y = new Date(Date.parse(t0 + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
+      const st = { cards: { apple: { b: 2, due: Date.now() - 1000 }, facade: { b: 6, due: Date.now() + 9e9 }, cladding: { b: 3, due: Date.now() + 9e7 } }, settings: { dailyNew: 10 }, days: { [t0]: { r: 5, n: 3 }, [y]: { r: 2, n: 0 } } };
+      check('vocab: save -> 200', (await call('/api/vocab', { method: 'PUT', cookie, body: { state: st } })).status === 200);
+      check('vocab: read back', Object.keys((await call('/api/vocab', { cookie })).d.state.cards).length === 3);
+      const sm = (await call('/api/vocab/summary', { cookie })).d.summary;
+      check('vocab summary: due/new/learning/mastered/streak', sm.due === 1 && sm.newLeft === 7 && sm.learning === 2 && sm.mastered === 1 && sm.streak === 2, JSON.stringify(sm));
+      check('vocab: bad payload refused', (await call('/api/vocab', { method: 'PUT', cookie, body: { state: { cards: [] } } })).status === 400);
+      check('vocab: anonymous 401', (await call('/api/vocab')).status === 401);
+      check('db row stays small (vocab not inside main db)', !JSON.stringify((await call('/api/me', { cookie })).d).includes('cladding'));
+    }
+    { // v64: fee reminders due within 2 days + monthly course report text
+      const t0 = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date()), plus = n => new Date(Date.parse(t0 + 'T12:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+      const cr = (await call('/api/col/courses', { method: 'POST', cookie, body: { name: 'گزارشی', price: 100 } })).d;
+      await call('/api/col/students', { method: 'POST', cookie, body: { courseId: cr.id, name: 'نزدیک', phone: '09121234567', fee: 1000000, dueDate: plus(1), payments: [{ id: 'q1', kind: 'deposit', amount: 400000, date: t0 }] } });
+      await call('/api/col/students', { method: 'POST', cookie, body: { courseId: cr.id, name: 'دور', fee: 1000000, dueDate: plus(9), payments: [] } });
+      await call('/api/col/students', { method: 'POST', cookie, body: { courseId: cr.id, name: 'تسویه', fee: 1000000, dueDate: plus(1), payments: [{ id: 'q2', kind: 'full', amount: 1000000, date: t0 }] } });
+      const rep = (await call('/api/courses/report?prev=0', { cookie })).d;
+      check('fee reminders: only owing students due within 2 days', rep.fees.includes('نزدیک') && !rep.fees.includes('دور') && !rep.fees.includes('تسویه'), JSON.stringify(rep.fees));
+      check('monthly course report lists course, received and owing', /گزارشی/.test(rep.text) && /دریافتی/.test(rep.text) && /بدهکار/.test(rep.text), rep.text);
+      const me64 = (await call('/api/me', { method: 'PATCH', cookie, body: { tgFeeRemindOn: false } }), (await call('/api/me', { cookie })).d.user);
+      check('fee reminder toggle saved', me64.tgFeeRemindOn === false && me64.tgCoursesMonthlyOn === true);
+    }
+    const upc = await call('/api/movies/upcoming', { cookie });
+    check('upcoming episodes -> 200 with lists', upc.status === 200 && Array.isArray(upc.d.upcoming) && Array.isArray(upc.d.recent));
+    const recs = await call('/api/movies/recommendations?type=series', { cookie });
+    check('recommendations without seeds -> 200 with message (no crash)', recs.status === 200 && Array.isArray(recs.d.items));
+  }
   const applied = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: { apply: true } });
   check('recategorize apply -> 200', applied.status === 200 && applied.d && applied.d.applied === true);
   const reverted = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: { revert: true } });
