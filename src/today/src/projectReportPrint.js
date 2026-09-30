@@ -33,6 +33,8 @@ header.top .brand b{font-size:10pt}
 .status{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:99px;font-size:8.5pt;font-weight:700;border:1px solid}
 .status.ok{color:#047857;border-color:#6ee7b7;background:#ecfdf5}.status.warn{color:#b45309;border-color:#fcd34d;background:#fffbeb}.status.bad{color:#be123c;border-color:#fda4af;background:#fff1f2}
 h2.pb{break-before:page}
+.p1{break-after:page;overflow:hidden}.p1i{transform-origin:top right}
+@media print{html,body{height:auto!important}}
 h2{font-size:11pt;font-weight:800;margin:16px 0 7px;padding-inline-start:8px;border-inline-start:3.5px solid #0f172a;break-after:avoid}
 .summary{margin-top:10px;padding:9px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:9.5pt}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;break-inside:avoid}
@@ -104,6 +106,7 @@ export function projectReportHtml(d) {
   const next = stages.filter(s => s.status !== 'done').sort((a, b) => (valid(a.date) ? a.date : '9').localeCompare(valid(b.date) ? b.date : '9')).slice(0, 6);
 
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${esc(reportNo)}</title><style>${CSS(brand, reportNo)}</style></head><body>
+<section class="p1"><div class="p1i">
 <header class="top"><div><div class="kicker">گزارش وضعیت پروژه</div><h1>${esc(project.name)}</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}${project.client ? `  |  کارفرما: ${esc(project.client)}` : ''}</div><span class="status ${state[0]}">${state[1]}</span></div>
 <div class="brand">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div></header>
 <div class="summary"><b>خلاصهٔ مدیریتی:</b> ${summary}</div>
@@ -122,11 +125,28 @@ export function projectReportHtml(d) {
 <tr><td>جمع واریزی‌ها</td><td class="n">${rial(paid)}</td></tr>
 <tr><td>مطالبات معوق صورت‌وضعیت</td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr>
 </tbody><tfoot><tr><td>ماندهٔ قرارداد (پس از دریافتی‌ها)</td><td class="n">${rial(Math.max(0, contractTotal - received))}</td></tr></tfoot></table></div></div>
-<h2 class="pb">صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">جمع</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
+</div></section>
+<h2>صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">جمع</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
 ${next.length ? `<h2 class="pb">اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
 <h2 class="pb">وضعیت مراحل اجرایی</h2><table><thead><tr><th style="width:7%">ردیف</th><th>مرحله</th><th style="width:15%">وضعیت</th><th style="width:13%">تاریخ</th><th style="width:18%">مسئول</th></tr></thead><tbody>${stageRows}</tbody></table>
 <div class="sign"><div>تهیه‌کننده</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
 </body></html>`;
+}
+
+// Page 1 (header → financial summary) must fit on one A4 page so statements start on page 2.
+// If it is taller (long names, logo, many fields), widen the inner box and scale it down to fit.
+function fitFirstPage(doc, W) {
+  const outer = doc.querySelector('.p1'), inner = doc.querySelector('.p1i');
+  if (!outer || !inner) return;
+  const avail = Math.floor(W * 256 / 184);
+  let k = 1, h = inner.offsetHeight;
+  for (let i = 0; i < 3 && h * k > avail; i++) {
+    k = Math.max(0.55, avail / h);
+    inner.style.width = `${W / k}px`;
+    h = inner.offsetHeight;
+  }
+  k = Math.min(1, avail / h);
+  if (k < 1) { inner.style.width = `${W / k}px`; inner.style.transform = `scale(${k})`; outer.style.height = `${Math.ceil(h * k)}px`; }
 }
 
 const pad2 = n => String(n).padStart(2, '0');
@@ -169,11 +189,17 @@ export async function projectReportPdf(data) {
     const doc = frame.contentDocument;
     doc.documentElement.classList.add('capture');
     await (doc.fonts?.ready || Promise.resolve());
+    fitFirstPage(doc, W);
+    await (doc.fonts?.ready || Promise.resolve());
     const body = doc.body, total = Math.ceil(body.scrollHeight);
     frame.style.height = total + 'px';
     const top0 = body.getBoundingClientRect().top;
     const breaks = [...doc.querySelectorAll('tr, h2, .kpis, .two, .sign, .summary, p.empty')].map(el => Math.round(el.getBoundingClientRect().top - top0)).filter(y => y > 0).sort((a, b) => a - b);
-    const forced = [...doc.querySelectorAll('h2.pb')].map(el => Math.round(el.getBoundingClientRect().top - top0) - 8).filter(y => y > 0);
+    const p1 = doc.querySelector('.p1');
+    const forced = [
+      ...(p1 ? [Math.round(p1.getBoundingClientRect().bottom - top0)] : []),
+      ...[...doc.querySelectorAll('h2.pb')].map(el => Math.round(el.getBoundingClientRect().top - top0) - 8)
+    ].filter(y => y > 0).sort((a, b) => a - b);
     const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: W, height: total, windowWidth: W, windowHeight: total, logging: false });
     const k = canvas.width / W, pages = [];
     for (let start = 0; start < total - 4;) {
@@ -213,10 +239,12 @@ export async function sendProjectReportToTelegram(data) {
 // Opens the browser print dialog (file name = reportFileName) and then sends the PDF to the user's Telegram.
 export async function printProjectReport(data) {
   const title = reportFileName(data.project).replace(/\.pdf$/, '');
-  const frame = mountFrame('lf-report-print-frame', 800, projectReportHtml(data), false);
+  const frame = mountFrame('lf-report-print-frame', 695, projectReportHtml(data), false);
   const doc = frame.contentDocument;
   doc.title = title;
+  doc.documentElement.classList.add('capture');
   await (doc.fonts?.ready || Promise.resolve());
+  fitFirstPage(doc, 695);
   const prevTitle = document.title;
   document.title = title;
   try { frame.contentWindow.focus(); frame.contentWindow.print(); } finally { document.title = prevTitle; }
