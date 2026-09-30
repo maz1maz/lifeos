@@ -3,7 +3,7 @@
    - pages: network-first, fall back to the cached shell (the app routes by ?page=…)
    - GET /api/*: network-first, fall back to the last good response (so data is readable offline)
    Nothing is ever written offline; mutations fail with a clear message. */
-const VERSION = 'lifeos-v39';
+const VERSION = 'lifeos-v40';
 const SHELL = VERSION + '-shell', DATA = VERSION + '-data';
 const PRECACHE = ['/', '/manifest.webmanifest', '/assets/img/icon-192.png', '/assets/img/icon-512.png', '/assets/img/logo-mask.png', '/assets/fonts/vazirmatn-arabic.woff2', '/assets/fonts/vazirmatn-latin.woff2'];
 const NO_CACHE_API = /^\/api\/(auth|telegram|backup|export|google|spotify|youtube|ai\/)/;
@@ -33,7 +33,8 @@ self.addEventListener('fetch', e => {
     e.respondWith(caches.match(req).then(m => m || fetch(req).then(r => { if (okToCache(r)) { const c = r.clone(); caches.open(SHELL).then(x => x.put(req, c)); } return r; })));
     return;
   }
-  e.respondWith(caches.match(req).then(m => { const net = fetch(req).then(r => { if (okToCache(r)) { const c = r.clone(); caches.open(SHELL).then(x => x.put(req, c)); } return r; }).catch(() => m); return m || net; }));
+  // other same-origin files (vocab app, words.json, shared css/js) are not content-hashed: network-first so a deploy shows up on the next load
+  e.respondWith(fetch(req).then(r => { if (okToCache(r)) { const c = r.clone(); caches.open(SHELL).then(x => x.put(req, c)); } return r; }).catch(() => caches.match(req)));
 });
 
 // ── Web Push: the server sends an empty push; we fetch what to show (keeps payloads out of push services) ──
