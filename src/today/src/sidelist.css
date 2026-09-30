@@ -43,3 +43,7 @@
 .sl-main{min-width:0}@media(max-width:900px){.sl-layout,.sl-layout.collapsed{grid-template-columns:minmax(0,1fr)}}
 
 .sl-top{border-top:4px solid var(--c)!important}
+/* drag-to-reorder */
+.sl-row[draggable="true"]{cursor:grab}
+.sl-row.dragging{opacity:.45;cursor:grabbing}
+.sl-row.drop-before{box-shadow:inset 0 3px 0 var(--g-accent)}

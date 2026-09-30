@@ -11,6 +11,8 @@ export default defineConfig({
   build: {
     outDir: '../../public',
     emptyOutDir: false,
-    manifest: 'today-manifest.json'
+    manifest: 'today-manifest.json',
+    // lazy chunks (PDF export) share the gitignored index-* prefix so prune-stale-bundles manages them
+    rollupOptions: { output: { chunkFileNames: 'assets/index-c-[hash].js' } }
   }
 });

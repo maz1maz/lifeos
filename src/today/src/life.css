@@ -378,3 +378,34 @@
   .lf-report-finance{break-inside:avoid;page-break-inside:avoid;gap:6px!important;margin-bottom:8px!important}.lf-report-finance>div{padding:7px!important}.lf-report-table-wrap{overflow:visible!important;width:100%!important}.lf-project-report table{width:100%!important;min-width:0!important;table-layout:fixed!important;font-size:8.5px!important;page-break-inside:auto}.lf-project-report thead{display:table-header-group}.lf-project-report tr{break-inside:avoid;page-break-inside:avoid}.lf-project-report th,.lf-project-report td{padding:5px 3px!important;border-color:#cbd5e1!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important;line-height:1.45!important}
   .lf-project-report .lf-report-stages{break-before:page;page-break-before:always}.lf-report-stages ol{gap:5px!important}.lf-report-stages li{break-inside:avoid;page-break-inside:avoid;padding:6px!important}.lf-report-stages li>b{font-size:9.5px!important}.lf-report-stages li small{font-size:8.5px!important}
 }
+/* project report: print + Telegram send status */
+.lf-report-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px;max-width:260px}
+.lf-report-send{font-size:12px;color:#34d399;line-height:1.6;text-align:left}
+.lf-report-send.err{color:#fb7185}
+/* projects comparison */
+.lf-compare{margin-top:12px}
+.lf-compare-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.lf-compare-head h2{margin:0}
+.lf-compare-chips{display:flex;flex-wrap:wrap;gap:6px}
+.lf-compare-chips span,.lf-compare-state{padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;border:1px solid transparent}
+.st-bad{color:#fb7185;background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.3)}
+.st-warn{color:#fbbf24;background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.3)}
+.st-ok{color:#60a5fa;background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.3)}
+.st-done{color:#34d399;background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.3)}
+.lf-compare-wrap{overflow-x:auto}
+.lf-compare table{width:100%;border-collapse:collapse;font-size:13px;min-width:900px}
+.lf-compare th{text-align:right;font-weight:600;color:var(--g-muted);padding:8px;border-bottom:1px solid var(--g-border);white-space:nowrap}
+.lf-compare th button{all:unset;cursor:pointer;color:var(--g-text);font-weight:700;border-bottom:1px dashed var(--g-border-2)}
+.lf-compare th button.on{color:var(--g-accent-strong, var(--g-accent));border-bottom-color:currentColor}
+.lf-compare td{padding:9px 8px;border-bottom:1px solid var(--g-border);vertical-align:middle;white-space:nowrap}
+.lf-compare td small{display:block;color:var(--g-muted);font-size:11px}
+.lf-compare tbody tr{cursor:pointer}
+.lf-compare tbody tr:hover td{background:rgba(255,255,255,.035)}
+.lf-compare td.nm{font-weight:700;white-space:normal;min-width:160px}
+.lf-compare td.nm i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-inline-end:7px}
+.lf-compare td.neg{color:#fb7185}.lf-compare td.pos{color:#34d399}
+.lf-compare-bar{height:6px;width:110px;background:rgba(148,163,184,.2);border-radius:3px;overflow:hidden}
+.lf-compare-bar em{display:block;height:100%;background:var(--c)}
+.lf-compare tfoot td{font-weight:800;border-top:2px solid var(--g-border-2);border-bottom:0}
+.lf-compare-hint{margin:10px 0 0;color:var(--g-muted);font-size:12px}
+.st-none{color:#94a3b8;background:rgba(148,163,184,.12);border-color:rgba(148,163,184,.3)}
