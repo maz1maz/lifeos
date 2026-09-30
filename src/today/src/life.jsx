@@ -369,6 +369,24 @@ function ContractTimeline({ contract }) {
 // Ticking the last stage (اجرا → تحویل پروژه) finishes the project even if earlier rows were skipped.
 const DELIVERY_STAGE = PROJECT_PROCESS_TEMPLATE[PROJECT_PROCESS_TEMPLATE.length - 1];
 const isDelivered = items => (items || []).some(x => x.department === DELIVERY_STAGE[0] && x.title === DELIVERY_STAGE[1] && x.status === 'done');
+// Weighted progress (agreed 1405-07): control 10%, technical 15%, supply 30% (spread evenly over their stages),
+// execution 45% with explicit per-stage weights. The three "install finished" stages also take a partial percent.
+const DEPT_WEIGHT = { 'کنترل پروژه': 10, 'فنی': 15, 'تأمین': 30 };
+const EXEC_WEIGHT = { 'ابعادبرداری دقیق': 2, 'شروع زیرسازی': 3, 'شروع نصب پنجره': 3, 'شروع نصب کرتین‌وال': 3, 'شروع نصب نما': 3, 'اتمام نصب پنجره': 9, 'اتمام نصب کرتین‌وال': 11, 'اتمام نصب نما': 9, 'تحویل پروژه': 2 };
+export const INSTALL_STAGES = new Set(['اتمام نصب پنجره', 'اتمام نصب کرتین‌وال', 'اتمام نصب نما'].map(t => `اجرا|${t}`));
+const DEPT_STAGES = PROJECT_PROCESS_TEMPLATE.reduce((m, [d]) => ({ ...m, [d]: (m[d] || 0) + 1 }), {});
+export const stageWeight = (department, title) => department === 'اجرا' ? (EXEC_WEIGHT[title] || 0) : (DEPT_WEIGHT[department] || 0) / (DEPT_STAGES[department] || 1);
+export const isInstallStage = s => INSTALL_STAGES.has(`${s.department}|${s.title}`);
+export const stageCredit = s => s?.status === 'done' ? 1 : s && isInstallStage(s) ? Math.max(0, Math.min(100, Number(s.percent) || 0)) / 100 : 0;
+// 0–100 for the whole project, or for one department; only a fully finished scope reads 100
+export function weightedProgress(stages, department) {
+  const by = new Map((stages || []).map(s => [`${s.department}|${s.title}`, s]));
+  let total = 0, got = 0;
+  for (const [d, t] of PROJECT_PROCESS_TEMPLATE) { if (department && d !== department) continue; const w = stageWeight(d, t); total += w; got += w * stageCredit(by.get(`${d}|${t}`)); }
+  if (!total) return 0;
+  const pct = got / total * 100;
+  return pct >= 99.999 ? 100 : Math.min(99, Math.round(pct));
+}
 function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd, onSeed, onCompletionChange }) {
   const [localItems, setLocalItems] = useState(items);
   const [departmentFilter, setDepartmentFilter] = useState('');
@@ -416,16 +434,16 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
   const done = visibleItems.filter(x => x.status === 'done').length;
   const ordered = visibleItems.slice().sort((a, b) => (PROJECT_PROCESS_ORDER[`${a.department}|${a.title}`] ?? Number(a.order || 999)) - (PROJECT_PROCESS_ORDER[`${b.department}|${b.title}`] ?? Number(b.order || 999))).filter(item => !departmentFilter || item.department === departmentFilter);
   const deptClass = department => `dept-${String(department).replaceAll(' ', '-')}`;
-  const depts = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'].map(department => { const all = visibleItems.filter(x => x.department === department), complete = all.filter(x => x.status === 'done').length; return { department, total: all.length, complete, pct: all.length ? Math.round(complete / all.length * 100) : 0 }; });
-  const pct = Math.round(done / PROJECT_PROCESS_TEMPLATE.length * 100);
+  const depts = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'].map(department => { const all = visibleItems.filter(x => x.department === department), complete = all.filter(x => x.status === 'done').length; return { department, total: all.length, complete, pct: all.length ? weightedProgress(visibleItems, department) : 0 }; });
+  const pct = weightedProgress(visibleItems);
   const row = (item, index) => {
     const number = (PROJECT_PROCESS_ORDER[`${item.department}|${item.title}`] ?? index) + 1;
     return <article key={item.id} className={`lf-process-row ${deptClass(item.department)} ${item.status === 'done' ? 'done' : ''}`}>
       <div className="lf-process-row-head">
         <button type="button" className="lf-process-check" onClick={() => patch(item.id, { status: item.status === 'done' ? 'todo' : 'done' })} aria-label={item.status === 'done' ? `برگرداندن ${item.title}` : `انجام ${item.title}`}>{item.status === 'done' ? '✓' : ''}</button>
         <span className="lf-process-no">{fa(number)}</span>
-        <b className="lf-process-title" title={item.title}>{item.title}</b>
-        <span className={`lf-process-dept ${deptClass(item.department)}`}>{item.department}</span>
+        <b className="lf-process-title" title={item.title}>{isInstallStage(item) && item.status !== 'done' ? <label className="lf-process-pct" title="درصد نصب انجام‌شده"><input type="number" min="0" max="100" inputMode="numeric" defaultValue={item.percent || ''} placeholder="۰" onBlur={e => { const v = Math.max(0, Math.min(100, Math.round(num(e.target.value)))); if (v >= 100) patch(item.id, { percent: 100, status: 'done' }); else if (v !== (Number(item.percent) || 0)) patch(item.id, { percent: v }); }} /><span>٪ نصب</span></label> : null}{item.title}</b>
+        <span className={`lf-process-dept ${deptClass(item.department)}`} title="وزن این مرحله در پیشرفت کل">{item.department} <em className="lf-process-w">{fa(stageWeight(item.department, item.title), 1)}٪</em></span>
       </div>
       <div className="lf-process-row-fields">
         <label className="lf-process-field lf-process-reminder-field"><span className="lf-process-field-label">یادآوری</span><JalaliDateInput className="lf-process-reminder" value={item.reminderDate || ''} onChange={value => save(item, 'reminderDate', value)} placeholder="یادآوری" /></label>
@@ -464,7 +482,7 @@ function projectMetrics(project, contract, financials, processes) {
   const byStage = new Map((processes || []).map(x => [`${x.department}|${x.title}`, x]));
   const stages = PROJECT_PROCESS_TEMPLATE.map(([department, title]) => ({ department, title, ...(byStage.get(`${department}|${title}`) || { status: 'todo' }) }));
   const today = todayIso(), valid = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
-  const done = stages.filter(x => x.status === 'done').length, progress = stages.length ? Math.round(done / stages.length * 100) : 0;
+  const done = stages.filter(x => x.status === 'done').length, progress = weightedProgress(stages);
   const late = stages.filter(x => x.status !== 'done' && valid(x.date) && x.date < today).length;
   const start = contract?.contractStartDate, end = contract?.contractEndDate;
   const days = valid(start) && valid(end) ? Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 864e5)) : 0;
@@ -516,10 +534,10 @@ function ProjectReport({ project, contract, financials, processes }) {
   const byStage = new Map((processes || []).map(item => [`${item.department}|${item.title}`, item]));
   const stages = PROJECT_PROCESS_TEMPLATE.map(([department, title], order) => ({ department, title, order, ...(byStage.get(`${department}|${title}`) || { status: 'todo' }) }));
   const completed = stages.filter(item => item.status === 'done').length;
-  const progress = stages.length ? Math.round(completed / stages.length * 100) : 0;
+  const progress = weightedProgress(stages);
   const departments = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'].map(department => {
     const rows = stages.filter(item => item.department === department), done = rows.filter(item => item.status === 'done').length;
-    return { department, done, total: rows.length, progress: rows.length ? Math.round(done / rows.length * 100) : 0 };
+    return { department, done, total: rows.length, progress: weightedProgress(stages, department) };
   });
   const statementRows = (financials || []).slice().sort((a, b) => Number(a.statementNo || 0) - Number(b.statementNo || 0));
   const statementTotal = statementRows.reduce((sum, item) => sum + num(item.amount), 0);
@@ -721,8 +739,8 @@ export function ProjectsPage({ Nav }) {
     {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !(projects.items || []).length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. با «＋ پروژه» فقط نامش را وارد کن؛ سپس اطلاعات پروژه و قرارداد را کامل می‌کنی.</p> : <>
       {compare && list.length > 1 ? <ProjectsCompare projects={ordered} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده']]}
         onReorder={reorderProjects}
-        items={ordered.map(p => { const stageByKey = new Map((processes.items || []).filter(x => x.projectId === p.id).map(x => [`${x.department}|${x.title}`, x])), total = PROJECT_PROCESS_TEMPLATE.length, done = PROJECT_PROCESS_TEMPLATE.filter(([department, title]) => stageByKey.get(`${department}|${title}`)?.status === 'done').length, pct = total ? Math.round(done / total * 100) : 0;
-          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: (p.status === 'done' || done === total || stageByKey.get(`${DELIVERY_STAGE[0]}|${DELIVERY_STAGE[1]}`)?.status === 'done') ? 'done' : 'active', bar: [{ flex: done, color: '#34d399' }, { flex: total - done, color: '#334155' }], sub: `${fa(done)} از ${fa(total)} مرحله · ${fa(pct)}٪` }; })}>
+        items={ordered.map(p => { const stageByKey = new Map((processes.items || []).filter(x => x.projectId === p.id).map(x => [`${x.department}|${x.title}`, x])), total = PROJECT_PROCESS_TEMPLATE.length, done = PROJECT_PROCESS_TEMPLATE.filter(([department, title]) => stageByKey.get(`${department}|${title}`)?.status === 'done').length, pct = weightedProgress([...stageByKey.values()]);
+          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: (p.status === 'done' || done === total || stageByKey.get(`${DELIVERY_STAGE[0]}|${DELIVERY_STAGE[1]}`)?.status === 'done') ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>
       {cur ? <section className="lf-card sl-top" style={{ '--c': cur.color || PCOLORS[0] }}>
         {(() => { const today = todayIso(), late = mine.filter(c => c.col !== 'done' && c.due && c.due < today).sort((a, b) => a.due.localeCompare(b.due)), soon = mine.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((a, b) => a.due.localeCompare(b.due));
           return <>

@@ -217,9 +217,11 @@ function filtered() {
     (!FILTER.starsOnly || S.stars.includes(x.w))
   );
 }
+const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
+// topic counts follow the chosen level, so «C2 → عمومی» shows how many C2 words that topic has
 function topics() {
   const m = new Map();
-  DECK.forEach(x => m.set(x.t, (m.get(x.t) || 0) + 1));
+  DECK.forEach(x => { if (FILTER.lv === "all" || x.lv === FILTER.lv) m.set(x.t, (m.get(x.t) || 0) + 1); });
   return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
 }
 
@@ -260,7 +262,7 @@ function renderStudy() {
   <div class="fcwrap"><div class="fc ${flipped ? "flip" : ""}" id="fc">
     <div class="face front">
       <div class="between">
-        <span class="pill ${levelClass(cur.lv)}">${esc(cur.lv)}</span>
+        <span class="row" style="gap:6px"><span class="pill ${levelClass(cur.lv)}">${esc(cur.lv)}</span>${cur.t ? `<span class="pill">${esc(cur.t)}</span>` : ""}</span>
         <span class="row" style="gap:6px">
           ${cur.p ? `<span class="pill">${esc(cur.p)}</span>` : ""}
           <span class="pill" style="cursor:pointer" id="starBtn" title="ستاره‌دار کردن">${S.stars.includes(cur.w) ? "★" : "☆"}</span>
@@ -268,7 +270,6 @@ function renderStudy() {
       </div>
       <div style="text-align:center;margin-top:26px">
         <h1 class="word en">${esc(cur.w)}</h1>
-        <div class="muted">${esc(cur.t)}</div>
         <div class="row" style="justify-content:center;margin-top:16px">
           <button class="btn sm" id="speakBtn" title="هر بار برای شنیدن دوباره بزن">${SPK} تلفظ</button>
           <button class="btn sm" id="repeatBtn" title="سه بار پشت‌سرهم پخش کن">↻ ۳ بار</button>
@@ -285,19 +286,18 @@ function renderStudy() {
 
     <div class="face back">
       <div class="between">
-        <span class="pill ${levelClass(cur.lv)}">${esc(cur.lv)}</span>
-        <span class="row" style="gap:6px"><span class="pill">${esc(cur.t)}</span>${cur.p ? `<span class="pill">${esc(cur.p)}</span>` : ""}</span>
+        <span class="row" style="gap:6px"><span class="pill ${levelClass(cur.lv)}">${esc(cur.lv)}</span>${cur.t ? `<span class="pill">${esc(cur.t)}</span>` : ""}</span>
+        <span class="row" style="gap:6px">${cur.p ? `<span class="pill">${esc(cur.p)}</span>` : ""}</span>
       </div>
       <div style="text-align:center;margin-top:10px">
         <div class="en muted" style="font-size:20px;font-weight:700">${esc(cur.w)}</div>
         <div class="meaning">${meaningsOf(cur).map(esc).join(" • ") || "—"}</div>
       </div>
-      ${cur.d ? `<div class="def"><b>تعریف</b><span class="defen en">${esc(cur.d)}</span>${cur.df ? `<span class="deffa">${esc(cur.df)}</span>` : ""}</div>` : ""}
+      ${cur.d ? `<div class="def def-c"><span class="defen en">${esc(cur.d)}</span>${cur.df ? `<span class="deffa">${esc(cur.df)}</span>` : ""}</div>` : ""}
       ${cur.e ? `<div class="exbox"><div class="ex">“${esc(cur.e)}”</div>${cur.ef ? `<div class="exfa">${esc(cur.ef)}</div>` : ""}</div>` : ""}
       ${sensesHtml(cur)}
-      ${(cur.s && cur.s.length) ? `<div class="syn">${cur.s.map(x => `<span class="pill en">${esc(x)}</span>`).join("")}</div>` : ""}
+      ${(cur.s && cur.s.length) ? `<div class="syn"><span class="muted syn-l">هم‌معنی:</span>${cur.s.map(x => `<span class="pill en">${esc(x)}</span>`).join("")}</div>` : ""}
       <div class="row" style="margin-top:14px">
-        <button class="btn sm" id="editBtn">✎ ویرایش معنی</button>
         <button class="btn sm" id="speakBtn2">${SPK} تلفظ</button>
         <button class="btn sm" id="repeatBtn2">↻ ۳ بار</button>
       </div>
@@ -570,9 +570,9 @@ function renderBrowse() {
   </div>`;
   $("#bq").addEventListener("input", e => { query = e.target.value; shown = 60; renderBrowse(); $("#bq").focus(); });
   $("#bsort").addEventListener("change", e => { shown = 60; sortMode = e.target.value; renderBrowse(); });
-  $$("[data-lv]").forEach(c => c.onclick = () => { FILTER.lv = c.dataset.lv; render(); });
+  $$("[data-lv]").forEach(c => c.onclick = () => { FILTER.lv = c.dataset.lv; renderFilters(); render(); });
   $$("[data-star]").forEach(c => c.onclick = () => { FILTER.starsOnly = !FILTER.starsOnly; render(); });
-  $$("[data-clear]").forEach(c => c.onclick = () => { FILTER = { topic: "all", lv: "all", starsOnly: false }; query = ""; render(); });
+  $$("[data-clear]").forEach(c => c.onclick = () => { FILTER = { topic: "all", lv: "all", starsOnly: false }; query = ""; renderFilters(); render(); });
   const m = $("#more"); if (m) m.onclick = () => { shown += 60; renderBrowse(); };
   $$("tbody tr").forEach(tr => tr.onclick = () => wordSheet(tr.dataset.w));
 }
@@ -1059,8 +1059,17 @@ function profileSheet() {
 
 /* ------------------------------------------------------------ filter chips */
 function renderFilters() {
+  const lvCount = l => DECK.filter(x => x.lv === l).length;
+  const lb = $("#levelBar");
+  if (lb) {
+    lb.innerHTML = `<span class="chip ${FILTER.lv === "all" ? "on" : ""}" data-lvf="all">همهٔ سطوح</span>` +
+      LEVELS.map(l => `<span class="chip ${FILTER.lv === l ? "on" : ""}" data-lvf="${l}">${l} <small>(${fa(lvCount(l))})</small></span>`).join("");
+    $$("#levelBar [data-lvf]").forEach(c => c.onclick = () => { FILTER.lv = c.dataset.lvf; cur = null; renderFilters(); render(); });
+  }
   const tl = topics();
-  $("#topicBar").innerHTML = `<span class="chip ${FILTER.topic === "all" ? "on" : ""}" data-t="all">همهٔ موضوع‌ها (${fa(DECK.length)})</span>` +
+  if (FILTER.topic !== "all" && !tl.some(([t]) => t === FILTER.topic)) tl.push([FILTER.topic, 0]);
+  const inLevel = tl.reduce((a, [, n]) => a + n, 0);
+  $("#topicBar").innerHTML = `<span class="chip ${FILTER.topic === "all" ? "on" : ""}" data-t="all">همهٔ موضوع‌ها (${fa(inLevel)})</span>` +
     tl.map(([t, n]) => `<span class="chip ${FILTER.topic === t ? "on" : ""}" data-t="${esc(t)}">${esc(t)} (${fa(n)})</span>`).join("");
   $$("#topicBar [data-t]").forEach(c => c.onclick = () => { FILTER.topic = c.dataset.t; cur = null; renderFilters(); render(); });
   const tg = $("#topicToggle");

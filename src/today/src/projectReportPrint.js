@@ -1,6 +1,6 @@
 // Printable A4 project report. Rendered as a standalone document inside a hidden
 // iframe so the app's dark theme, layout and fixed headers never leak into the PDF.
-import { api, fa, jl, jShort, money, todayIso } from './life';
+import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, stageWeight } from './life';
 import { isoToJ } from './jdate';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -68,7 +68,7 @@ export function projectReportHtml(d) {
   const { project, contract, brand, stages, departments, statements } = d;
   const today = todayIso();
   const done = stages.filter(s => s.status === 'done').length;
-  const progress = stages.length ? Math.round(done / stages.length * 100) : 0;
+  const progress = weightedProgress(stages);
   const contractTotal = Number(contract?.amount) || 0, advance = Number(contract?.advancePayment) || 0;
   const stTotal = statements.reduce((s, x) => s + (Number(x.amount) || 0), 0);
   const paid = statements.reduce((s, x) => s + (Number(x.paidAmount) || 0), 0);
@@ -100,9 +100,9 @@ export function projectReportHtml(d) {
 
   const stRows = statements.map(s => { const a = Number(s.amount) || 0, p = Number(s.paidAmount) || 0; const step = s.statementSent ? `ارسال صورت‌وضعیت${s.statementSentDate ? '، ' + jShort(s.statementSentDate) : ''}` : s.noticeApproved ? `تأیید اعلام وضعیت${s.noticeApprovedDate ? '، ' + jShort(s.noticeApprovedDate) : ''}` : s.noticeSent ? `ارسال اعلام وضعیت${s.noticeSentDate ? '، ' + jShort(s.noticeSentDate) : ''}` : 'ثبت اولیه'; return `<tr><td class="n">${fa(s.statementNo || 0)}</td><td>${step}</td><td class="n">${rial(a)}</td><td class="n">${rial(p)}</td><td class="n">${s.paymentDate ? jShort(s.paymentDate) : '<span class="muted">—</span>'}</td><td class="n">${a - p > 0 ? rial(a - p) : '<span class="badge b-done">تسویه</span>'}</td></tr>`; }).join('');
 
-  const statusBadge = s => s.status === 'done' ? '<span class="badge b-done">انجام شد</span>' : valid(s.date) && s.date < today ? '<span class="badge b-late">عقب‌افتاده</span>' : s.status === 'doing' ? '<span class="badge b-doing">در حال انجام</span>' : '<span class="badge b-todo">در انتظار</span>';
+  const statusBadge = s => s.status === 'done' ? '<span class="badge b-done">انجام شد</span>' : valid(s.date) && s.date < today ? '<span class="badge b-late">عقب‌افتاده</span>' : isInstallStage(s) && Number(s.percent) > 0 ? `<span class="badge b-doing">${fa(Number(s.percent), 0)}٪ نصب</span>` : s.status === 'doing' ? '<span class="badge b-doing">در حال انجام</span>' : '<span class="badge b-todo">در انتظار</span>';
   let n = 0;
-  const stageRows = departments.map(dep => { const rows = stages.filter(s => s.department === dep.department); return `<tr class="grp"><td colspan="5">${esc(dep.department)} <span class="muted">(${fa(dep.done)} از ${fa(dep.total)} انجام‌شده)</span></td></tr>` + rows.map(s => `<tr class="${s.status === 'done' ? 'done' : ''}"><td class="n">${fa(++n)}</td><td>${esc(s.title)}${s.note ? `<div class="muted">${esc(s.note)}</div>` : ''}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join(''); }).join('');
+  const stageRows = departments.map(dep => { const rows = stages.filter(s => s.department === dep.department); return `<tr class="grp"><td colspan="6">${esc(dep.department)} <span class="muted">(${fa(dep.done)} از ${fa(dep.total)} انجام‌شده)</span></td></tr>` + rows.map(s => `<tr class="${s.status === 'done' ? 'done' : ''}"><td class="n">${fa(++n)}</td><td>${esc(s.title)}${s.note ? `<div class="muted">${esc(s.note)}</div>` : ''}</td><td class="n">${fa(stageWeight(s.department, s.title), 1)}٪</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join(''); }).join('');
   const next = stages.filter(s => s.status !== 'done').sort((a, b) => (valid(a.date) ? a.date : '9').localeCompare(valid(b.date) ? b.date : '9')).slice(0, 6);
 
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${esc(reportNo)}</title><style>${CSS(brand, reportNo)}</style></head><body>
@@ -111,7 +111,7 @@ export function projectReportHtml(d) {
 <div class="brand">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div></header>
 <div class="summary"><b>خلاصهٔ مدیریتی:</b> ${summary}</div>
 <div class="kpis">
-<div class="kpi"><small>پیشرفت اجرایی</small><b class="num">${pct(progress)}</b>${bar(progress, '#0f172a')}<span>${fa(done)} از ${fa(stages.length)} مرحله</span></div>
+<div class="kpi"><small>پیشرفت اجرایی (وزنی)</small><b class="num">${pct(progress)}</b>${bar(progress, '#0f172a')}<span>${fa(done)} از ${fa(stages.length)} مرحله</span></div>
 <div class="kpi"><small>زمان سپری‌شده</small><b class="num">${timePct == null ? '—' : pct(timePct)}</b>${bar(timePct || 0, '#64748b')}<span>${totalDays ? `${fa(elapsed)} از ${fa(totalDays)} روز` : 'تاریخ ثبت نشده'}</span></div>
 <div class="kpi ${variance == null ? '' : variance < 0 ? 'bad' : 'good'}"><small>انحراف از برنامه</small><b class="num">${variance == null ? '—' : variance === 0 ? 'منطبق' : `${pct(Math.abs(variance))} ${variance < 0 ? 'عقب' : 'جلو'}`}</b><span>پیشرفت اجرایی نسبت به زمان</span></div>
 <div class="kpi"><small>وصولی از قرارداد</small><b class="num">${pct(receivedPct)}</b>${bar(receivedPct, '#059669')}<span>${money(received)} از ${money(contractTotal)}</span></div>
@@ -128,7 +128,7 @@ export function projectReportHtml(d) {
 </div></section>
 <h2>صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">جمع</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
 ${next.length ? `<h2 class="pb">اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
-<h2 class="pb">وضعیت مراحل اجرایی</h2><table><thead><tr><th style="width:7%">ردیف</th><th>مرحله</th><th style="width:15%">وضعیت</th><th style="width:13%">تاریخ</th><th style="width:18%">مسئول</th></tr></thead><tbody>${stageRows}</tbody></table>
+<h2 class="pb">وضعیت مراحل اجرایی</h2><table><thead><tr><th style="width:7%">ردیف</th><th>مرحله</th><th style="width:8%">وزن</th><th style="width:15%">وضعیت</th><th style="width:13%">تاریخ</th><th style="width:18%">مسئول</th></tr></thead><tbody>${stageRows}</tbody></table>
 <div class="sign"><div>تهیه‌کننده</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
 </body></html>`;
 }
