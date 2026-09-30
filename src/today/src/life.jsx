@@ -366,6 +366,9 @@ function ContractTimeline({ contract }) {
   const today = todayIso(), total = Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 864e5)), elapsed = Math.round((Date.parse(today) - Date.parse(start)) / 864e5), remaining = Math.round((Date.parse(end) - Date.parse(today)) / 864e5), overdue = remaining < 0, pct = Math.max(0, Math.min(100, Math.round(elapsed / total * 100)));
   return <div className={`lf-contract-timeline ${overdue ? 'overdue' : ''}`}><div><b>زمان قرارداد</b><strong>{fa(pct)}٪</strong><span>{overdue ? `${fa(-remaining)} روز از اتمام گذشته` : remaining === 0 ? 'امروز آخرین روز قرارداد است' : `${fa(remaining)} روز تا اتمام قرارداد`}</span></div><div className="lf-contract-timeline-bar"><i style={{ width: `${pct}%` }} /></div><small>{jShort(start)} تا {jShort(end)}</small></div>;
 }
+// Ticking the last stage (اجرا → تحویل پروژه) finishes the project even if earlier rows were skipped.
+const DELIVERY_STAGE = PROJECT_PROCESS_TEMPLATE[PROJECT_PROCESS_TEMPLATE.length - 1];
+const isDelivered = items => (items || []).some(x => x.department === DELIVERY_STAGE[0] && x.title === DELIVERY_STAGE[1] && x.status === 'done');
 function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd, onSeed, onCompletionChange }) {
   const [localItems, setLocalItems] = useState(items);
   const [departmentFilter, setDepartmentFilter] = useState('');
@@ -400,10 +403,11 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
     // Wait for the stage write before changing the project's status; otherwise
     // the two old JSON snapshots can race and restore the unchecked stage.
     if (Object.prototype.hasOwnProperty.call(body, 'status')) {
-      const nextDone = visibleItems.filter(item => (item.id === id ? { ...item, ...body } : item).status === 'done').length;
+      const after = visibleItems.map(item => item.id === id ? { ...item, ...body } : item);
+      const nextDone = after.filter(item => item.status === 'done').length;
       try {
         const result = saved ? await saved : undefined;
-        if (result !== undefined) await onCompletionChange?.(nextDone === PROJECT_PROCESS_TEMPLATE.length);
+        if (result !== undefined) await onCompletionChange?.(nextDone === PROJECT_PROCESS_TEMPLATE.length || isDelivered(after));
       } catch { /* useCol reloads the row after a failed optimistic write */ }
     }
     return saved;
@@ -469,7 +473,7 @@ function projectMetrics(project, contract, financials, processes) {
   const amount = num(contract?.amount), advance = num(contract?.advancePayment);
   const stTotal = (financials || []).reduce((a, x) => a + num(x.amount), 0), paid = (financials || []).reduce((a, x) => a + num(x.paidAmount), 0);
   const received = advance + paid, variance = timePct == null ? null : progress - timePct;
-  const state = progress === 100 ? 'done' : (variance != null && variance < -15) || late ? 'bad' : variance != null && variance < 0 ? 'warn' : !contract || (!days && !amount) ? 'none' : 'ok';
+  const state = progress === 100 || isDelivered(stages) ? 'done' : (variance != null && variance < -15) || late ? 'bad' : variance != null && variance < 0 ? 'warn' : !contract || (!days && !amount) ? 'none' : 'ok';
   return { done, total: stages.length, progress, late, timePct, variance, daysLeft, end, amount, received, receivedPct: amount ? Math.min(100, Math.round(received / amount * 100)) : null, outstanding: Math.max(0, stTotal - paid), state };
 }
 const STATE_LABEL = { ok: 'مطابق برنامه', warn: 'اندکی عقب', bad: 'نیازمند پیگیری', done: 'تکمیل‌شده', none: 'قرارداد ناقص' };
@@ -712,7 +716,7 @@ export function ProjectsPage({ Nav }) {
       {compare && list.length > 1 ? <ProjectsCompare projects={ordered} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده']]}
         onReorder={reorderProjects}
         items={ordered.map(p => { const stageByKey = new Map((processes.items || []).filter(x => x.projectId === p.id).map(x => [`${x.department}|${x.title}`, x])), total = PROJECT_PROCESS_TEMPLATE.length, done = PROJECT_PROCESS_TEMPLATE.filter(([department, title]) => stageByKey.get(`${department}|${title}`)?.status === 'done').length, pct = total ? Math.round(done / total * 100) : 0;
-          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: (p.status === 'done' || done === total) ? 'done' : 'active', bar: [{ flex: done, color: '#34d399' }, { flex: total - done, color: '#334155' }], sub: `${fa(done)} از ${fa(total)} مرحله · ${fa(pct)}٪` }; })}>
+          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: (p.status === 'done' || done === total || stageByKey.get(`${DELIVERY_STAGE[0]}|${DELIVERY_STAGE[1]}`)?.status === 'done') ? 'done' : 'active', bar: [{ flex: done, color: '#34d399' }, { flex: total - done, color: '#334155' }], sub: `${fa(done)} از ${fa(total)} مرحله · ${fa(pct)}٪` }; })}>
       {cur ? <section className="lf-card sl-top" style={{ '--c': cur.color || PCOLORS[0] }}>
         {(() => { const today = todayIso(), late = mine.filter(c => c.col !== 'done' && c.due && c.due < today).sort((a, b) => a.due.localeCompare(b.due)), soon = mine.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((a, b) => a.due.localeCompare(b.due));
           return <>
