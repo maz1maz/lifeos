@@ -501,6 +501,7 @@ button,input,select,textarea{font-family:inherit}
 .home-settings article>div:first-child{display:grid;gap:3px}
 .hs-name{display:flex;gap:8px}
 .hs-name input,.home-settings select{min-width:220px;padding:9px 12px;border-radius:10px;border:1px solid var(--g-border-2);background:rgba(255,255,255,.03);color:var(--g-text);font:inherit}
+.report-print-settings{margin-top:16px}.report-print-settings>p{margin:0 0 14px;color:var(--g-muted);font-size:12px;line-height:1.8}.report-print-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.report-print-grid label{display:grid;gap:6px;color:var(--g-muted);font-size:12px}.report-print-grid input{width:100%;min-width:0;padding:10px 12px;border:1px solid var(--g-border-2);border-radius:10px;background:rgba(255,255,255,.03);color:var(--g-text);font:inherit}.report-logo-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:12px;padding:10px;border:1px dashed var(--g-border-2);border-radius:12px}.report-logo-row>div:first-child{display:flex;align-items:center;gap:10px;min-width:0}.report-logo-row img{max-width:160px;max-height:48px;object-fit:contain}.report-logo-row i{font-style:normal;color:var(--g-muted);font-size:12px}.report-logo-row small{color:var(--g-muted);font-size:11px}.report-logo-row>div:last-child{display:flex;align-items:center;gap:8px}.report-logo-picker{display:inline-flex!important;align-items:center;justify-content:center;cursor:pointer}.report-logo-picker input{display:none}.report-print-save{margin-top:12px}
 .hs-layout{align-items:flex-start!important}
 .hs-rows{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
 .hs-row ol{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:5px;min-width:220px}
@@ -826,6 +827,7 @@ html[data-mode="light"] .brand-logo{background:#105040}
   .home-settings article{flex-direction:column;align-items:stretch}
   .hs-choices{justify-content:flex-start}
   .hs-name input,.home-settings select{min-width:0;width:100%}
+  .report-print-grid{grid-template-columns:1fr}.report-logo-row{align-items:stretch;flex-direction:column}.report-logo-row>div:last-child{justify-content:space-between}
   .hs-row ol{min-width:0}
   /* drawer full height on phones */
   .drawer{width:86vw}
@@ -984,6 +986,7 @@ html[data-mode="light"] .brand-logo{background:#105040}
 /* v43 — agenda: edit pencil next to each task / reminder */
 .agenda .ag-row{display:flex;align-items:center;gap:4px}
 .agenda .ag-row>.line{flex:1;min-width:0}
+.agenda .ag-reminder .line>span{font-family:Vazirmatn,Tahoma,sans-serif;font-weight:500;line-height:1.75}
 .agenda .ag-edit{flex:none;width:28px;height:28px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--g-muted);cursor:pointer;display:grid;place-items:center;opacity:.35;transition:opacity .15s,border-color .15s}
 .agenda .ag-row:hover .ag-edit,.agenda .ag-edit:focus-visible{opacity:1;border-color:var(--g-border-2);color:var(--g-accent-strong)}
 @media(hover:none){.agenda .ag-edit{opacity:.8}}

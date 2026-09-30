@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ArrowDownRight, ArrowUpRight, Bell, Calculator, Clock, RefreshCw, Search, Star, TrendingDown, TrendingUp
+  ArrowDownRight, ArrowUpRight, Bell, Calculator, Clock, Plus, RefreshCw, Search, Star, TrendingDown, TrendingUp
 } from 'lucide-react'
 import './market.css'
 import { MarketLogo } from './market-logos'
@@ -14,17 +14,17 @@ const TGJU_LABELS = {
   price_dollar_rl: 'دلار آزاد', price_eur: 'یورو', price_gbp: 'پوند', price_aed: 'درهم', price_try: 'لیر',
   geram18: 'گرم ۱۸ عیار', geram24: 'گرم ۲۴ عیار', sekee: 'سکه امامی', sekeb: 'سکه بهار آزادی',
   rob: 'ربع سکه', nim: 'نیم سکه', mesghal: 'مثقال', oil_brent: 'نفت برنت', oil: 'نفت',
-  nickel: 'نیکل', platinum: 'پلاتین', copper: 'مس', silver: 'نقره', aluminium: 'آلومینیوم', aluminum: 'آلومینیوم',
+  ons: 'اونس جهانی طلا', nickel: 'نیکل', platinum: 'پلاتین', copper: 'مس', silver: 'نقره', aluminium: 'آلومینیوم', aluminum: 'آلومینیوم',
 }
 const TGJU_ICONS = {
   price_dollar_rl: '💵', price_eur: '💶', price_gbp: '💷', price_aed: '💴', price_try: '💴',
   geram18: '🟡', geram24: '🟡', sekee: '🪙', sekeb: '🪙', rob: '🪙', nim: '🪙', mesghal: '🟡',
-  oil_brent: '🛢️', oil: '🛢️', nickel: '⚙️', platinum: '⚪', copper: '🟠', silver: '⚪',
+  ons: '🥇', oil_brent: '🛢️', oil: '🛢️', nickel: '⚙️', platinum: '⚪', copper: '🟠', silver: '⚪',
 }
 const CAT = {
   currency: new Set(['price_dollar_rl', 'price_eur', 'price_gbp', 'price_aed', 'price_try']),
   gold: new Set(['geram18', 'geram24', 'sekee', 'sekeb', 'rob', 'nim', 'mesghal']),
-  global: new Set(['oil_brent', 'oil', 'nickel', 'platinum', 'copper', 'silver', 'aluminium', 'aluminum']),
+  global: new Set(['ons', 'oil_brent', 'oil', 'nickel', 'platinum', 'copper', 'silver', 'aluminium', 'aluminum']),
 }
 
 const fa = (n, d = 0) => {
@@ -143,6 +143,8 @@ export function MarketReact({ Nav }) {
   const [favs, setFavs] = useState(() => loadJson(FAV_KEY, ['t:price_dollar_rl', 'c:bitcoin', 't:geram18']))
   const [alerts, setAlerts] = useState(() => loadJson(ALERT_KEY, []))
   const [showConv, setShowConv] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+  const [addQuery, setAddQuery] = useState('')
   const [showAlert, setShowAlert] = useState(null)
   const [convAmt, setConvAmt] = useState(1)
   const [convFrom, setConvFrom] = useState('USDT')
@@ -224,6 +226,10 @@ export function MarketReact({ Nav }) {
   const withSpark = (list) => list.map((x) => x.market === 'tehran' && hist[x.key]?.length ? { ...x, sparkline: hist[x.key] } : x)
 
   const all = useMemo(() => withSpark([...tehran, ...crypto, ...stocks]), [tehran, crypto, stocks, hist])
+  const addableItems = useMemo(() => {
+    const query = addQuery.trim().toLowerCase()
+    return all.filter((item) => !favs.includes(item.id) && (!query || `${item.name} ${item.symbol || ''} ${item.key || ''}`.toLowerCase().includes(query)))
+  }, [all, favs, addQuery])
 
   useEffect(() => {
     if (!all.length || !alerts.length) return
@@ -307,6 +313,7 @@ export function MarketReact({ Nav }) {
             </div>
           </div>
           <div className="mk-actions">
+            <button type="button" className="mk-btn" onClick={() => { setAddQuery(''); setShowAdd(true) }}><Plus size={15} /> افزودن آیتم</button>
             <button type="button" className="mk-btn" onClick={() => setShowConv(true)}><Calculator size={15} /> مبدل ارز</button>
             <button type="button" className="mk-btn" onClick={() => { loadTehran(); loadCrypto() }} title="تازه‌سازی">
               <RefreshCw size={15} className={loadingT || loadingC ? 'spin' : ''} />
@@ -365,6 +372,23 @@ export function MarketReact({ Nav }) {
 
         {selected && selected.market === 'tehran' ? <PriceChart symbol={selected.key} name={selected.name} unit={selected.category === 'global' ? 'دلار' : 'ریال'} onClose={() => setSelected(null)} /> : null}
       </div>
+
+      {showAdd ? (
+        <div className="mk-modal" onClick={() => setShowAdd(false)}>
+          <div className="mk-card mk-modal-box mk-add-box" onClick={(e) => e.stopPropagation()}>
+            <header>
+              <h3><Plus size={18} color="#60a5fa" /> افزودن به نشان‌شده‌ها</h3>
+              <button type="button" onClick={() => setShowAdd(false)}>✕</button>
+            </header>
+            <input autoFocus value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder="مثال: اونس، طلا، دلار، بیت‌کوین…" />
+            <div className="mk-add-list">
+              {addableItems.length ? addableItems.map((item) => <button type="button" key={item.id} onClick={() => { toggleFav(item.id); flash(`«${item.name}» به نشان‌شده‌ها اضافه شد`); setShowAdd(false) }}>
+                <span>{item.image ? <img src={item.image} alt="" /> : <span className="mk-ico">{item.icon || '📈'}</span>}<b>{item.name}</b>{item.symbol ? <small>({item.symbol})</small> : null}</span><Plus size={16} />
+              </button>) : <p className="mk-empty">مورد تازه‌ای با این نام نیست یا قبلاً اضافه شده است.</p>}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showConv ? (
         <div className="mk-modal" onClick={() => setShowConv(false)}>

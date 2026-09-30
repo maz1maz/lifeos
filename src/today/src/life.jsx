@@ -8,7 +8,7 @@ import './life.css';
 import { VocabStats } from './vocab';
 
 export const api = async (url, options) => {
-  const r = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
+  const r = await fetch(url, { credentials: 'include', cache: 'no-store', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
   const b = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(b.error || 'دریافت اطلاعات ناموفق بود.');
   return b;
@@ -24,15 +24,34 @@ const num = v => { const n = Number(String(v ?? '').replace(/[,٬]/g, '').replac
 export const daysTo = iso => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(todayIso() + 'T00:00:00Z')) / 864e5);
 export const dueChip = iso => { if (!iso) return null; const d = daysTo(iso); const cls = d < 0 ? 'late' : d <= 7 ? 'soon' : ''; return <span className={`lf-due ${cls}`}>{d < 0 ? `${fa(-d)} روز گذشته` : d === 0 ? 'امروز' : d <= 30 ? `${fa(d)} روز دیگر` : jShort(iso)}</span>; };
 
+// D1 currently stores the app state in one record.  Two simultaneous collection
+// mutations can therefore write stale snapshots over one another.  Serialize
+// browser-side collection writes so an optimistic tick cannot be undone by the
+// next background checklist/project write.
+let colMutationQueue = Promise.resolve();
+const queueColMutation = work => {
+  const next = colMutationQueue.then(work, work);
+  colMutationQueue = next.catch(() => {});
+  return next;
+};
+
 export function useCol(name) {
   const [items, setItems] = useState(null);
   const [err, setErr] = useState('');
   const load = () => api(`/api/col/${name}`).then(d => setItems(d.items || [])).catch(e => { setErr(e.message); setItems([]); });
   useEffect(() => { load(); }, [name]);
-  const add = async body => { const r = await api(`/api/col/${name}`, { method: 'POST', body: JSON.stringify(body) }); setItems(xs => [...(xs || []), r]); return r; };
-  const patch = async (id, body) => { setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) }); setItems(xs => (xs || []).map(x => x.id === id ? r : x)); return r; } catch (e) { setErr(e.message); load(); } };
-  const remove = async id => { setItems(xs => (xs || []).filter(x => x.id !== id)); try { await api(`/api/col/${name}/${id}`, { method: 'DELETE' }); } catch (e) { setErr(e.message); load(); } };
-  return { items, add, patch, remove, reload: load, err, setErr };
+  const upsertLocal = (xs, row) => { const list = xs || [], index = list.findIndex(item => item.id === row.id); return index < 0 ? [...list, row] : list.map((item, i) => i === index ? row : item); };
+  const add = async body => { const r = await queueColMutation(() => api(`/api/col/${name}`, { method: 'POST', body: JSON.stringify(body) })); setItems(xs => upsertLocal(xs, r)); return r; };
+  const addMany = async rows => {
+    if (!rows?.length) return [];
+    const result = await queueColMutation(() => api(`/api/col/${name}`, { method: 'POST', body: JSON.stringify({ items: rows }) }));
+    const made = result.items || [];
+    setItems(xs => made.reduce((next, row) => upsertLocal(next, row), xs || []));
+    return made;
+  };
+  const patch = async (id, body) => { setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) })); setItems(xs => (xs || []).map(x => x.id === id ? r : x)); return r; } catch (e) { setErr(e.message); load(); } };
+  const remove = async id => { setItems(xs => (xs || []).filter(x => x.id !== id)); try { await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'DELETE' })); } catch (e) { setErr(e.message); load(); } };
+  return { items, add, addMany, patch, remove, reload: load, err, setErr };
 }
 
 export function Page({ Nav, kicker, title, sub, actions, children, className = '' }) {
@@ -60,21 +79,22 @@ export function FormDrawer({ open, title, fields, initial, onClose, onSubmit, su
     const vis = f => !f.show || f.show(v);
     const miss = fields.find(f => vis(f) && f.req && (v[f.k] === undefined || v[f.k] === ''));
     if (miss) { setErr(`«${miss.l}» لازم است.`); return; }
-    const out = { ...v }; fields.forEach(f => { if (f.t === 'num' || f.t === 'money') out[f.k] = v[f.k] === '' || v[f.k] === undefined ? null : num(v[f.k]); });
+    const out = { ...v }; fields.forEach(f => { if (f.calc) out[f.k] = f.calc(v); else if (f.t === 'num' || f.t === 'money') out[f.k] = v[f.k] === '' || v[f.k] === undefined ? null : num(v[f.k]); });
     setBusy(true); try { await onSubmit(out); onClose(); } catch (x) { setErr(x.message); } setBusy(false);
   };
   return <div className="lf-drawer-bg" onClick={onClose}>
     <form className="lf-drawer" onClick={e => e.stopPropagation()} onSubmit={submit}>
       <header><h2>{title}</h2><button type="button" onClick={onClose} aria-label="بستن">×</button></header>
       <div className="lf-drawer-body">
-        {fields.filter(f => !f.show || f.show(v)).map(f => <label key={f.k} className={`lf-field ${f.half ? 'half' : ''}`}>
+        {fields.filter(f => !f.show || f.show(v)).map(f => { const value = f.calc ? f.calc(v) : v[f.k]; return <label key={f.k} className={`lf-field ${f.half ? 'half' : ''}`}>
           <span>{f.l}{f.req ? ' *' : ''}{f.hint ? <em> ({f.hint})</em> : null}</span>
           {f.t === 'days' ? <span className="lf-days">{f.o.map(([k, l]) => { const on = (v[f.k] || []).map(Number).includes(k); return <button type="button" key={k} className={on ? 'on' : ''} onClick={() => set(f.k, on ? (v[f.k] || []).filter(x => Number(x) !== k) : [...(v[f.k] || []), k])}>{l}</button>; })}</span>
+            : f.t === 'check' ? <span className="lf-check-toggle"><input type="checkbox" checked={!!value} onChange={e => set(f.k, e.target.checked)} /> <b>{value ? 'انجام شد' : 'انجام نشده'}</b></span>
             : f.t === 'date' ? <JalaliDateInput value={v[f.k] || ''} onChange={x => set(f.k, x)} />
             : f.t === 'sel' ? <select value={v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)}>{f.o.map(([a, b]) => <option key={a} value={a}>{b}</option>)}</select>
-            : f.t === 'area' ? <textarea rows={f.rows || 3} value={v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} />
-            : <input value={f.t === 'money' ? grp(v[f.k]) : v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} inputMode={f.t === 'num' ? 'decimal' : f.t === 'money' ? 'numeric' : undefined} data-raw={f.t === 'num' ? '' : undefined} type={f.t === 'time' ? 'time' : 'text'} />}
-        </label>)}
+            : f.t === 'area' ? <textarea rows={f.rows || 3} value={value ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} readOnly={!!f.calc} />
+            : <input value={f.t === 'money' ? grp(value) : value ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} inputMode={f.t === 'num' ? 'decimal' : f.t === 'money' ? 'numeric' : undefined} data-raw={f.t === 'num' ? '' : undefined} type={f.t === 'time' ? 'time' : 'text'} readOnly={!!f.calc} />}
+        </label>; })}
         {extra ? extra(v, set) : null}
         {err ? <p className="lf-err">{err}</p> : null}
       </div>
@@ -298,18 +318,328 @@ function parseQuick(text) {
   return { title: t.replace(/\s+/g, ' ').trim(), prio, owner, due };
 }
 const PNAMES = ['طلایی', 'آبی', 'سبز', 'صورتی', 'بنفش', 'نارنجی'];
+
+const PROJECT_FILE_TABS = [['overview', 'اطلاعات پروژه و قرارداد'], ['finance', 'اطلاعات مالی'], ['supply', 'مراحل اجرایی'], ['report', 'گزارش']];
+const PROJECT_PROCESS_TEMPLATE = [
+  ['کنترل پروژه', 'تأیید رنگ از کارفرما'],
+  ['کنترل پروژه', 'فرم ابعادبرداری برآوردی'],
+  ['کنترل پروژه', 'فرم ابعادبرداری دقیق'],
+  ['اجرا', 'ابعادبرداری دقیق'],
+  ['تأمین', 'سفارش بیلت بر اساس قرارداد'],
+  ['تأمین', 'سفارش یراق‌آلات بر اساس قرارداد'],
+  ['تأمین', 'عقد قرارداد شیشه'],
+  ['کنترل پروژه', 'ارسال تیپ‌بندی پنجره بر اساس قرارداد به کارفرما جهت تأیید'],
+  ['کنترل پروژه', 'دریافت تأیید برآورد پنجره از کارفرما'],
+  ['فنی', 'ارسال جزئیات برآورد پنجره جهت تأمین به کارخانه'],
+  ['کنترل پروژه', 'ارسال تیپ‌بندی کرتین‌وال بر اساس قرارداد به کارفرما جهت تأیید'],
+  ['کنترل پروژه', 'دریافت تأیید برآورد کرتین‌وال از کارفرما'],
+  ['فنی', 'ارسال جزئیات برآورد کرتین‌وال جهت تأمین به کارخانه'],
+  ['فنی', 'تهیه نقشهٔ جزئیات ساخت دقیق'],
+  ['کنترل پروژه', 'دریافت تأیید نقشهٔ جزئیات ساخت از کارفرما'],
+  ['فنی', 'ارسال جزئیات ساخت دقیق به کارخانه'],
+  ['فنی', 'تهیه لیست ابعاد شیشه'],
+  ['کنترل پروژه', 'ارسال لیست شیشه به کارفرما / کارخانه شیشه'],
+  ['فنی', 'تهیه نقشهٔ شاپ'],
+  ['کنترل پروژه', 'دریافت تأیید نقشهٔ شاپ از کارفرما'],
+  ['فنی', 'ارسال نقشهٔ شاپ به کارخانه'],
+  ['تأمین', 'وضعیت تأمین پروفیل‌ها'],
+  ['تأمین', 'وضعیت تأمین شیشه'],
+  ['تأمین', 'وضعیت تأمین اقلام نما'],
+  ['تأمین', 'ارسال پنجره به پروژه'],
+  ['تأمین', 'ارسال کرتین‌وال به پروژه'],
+  ['تأمین', 'ارسال اقلام نما به پروژه'],
+  ['اجرا', 'شروع نصب پنجره'],
+  ['اجرا', 'شروع نصب کرتین‌وال'],
+  ['اجرا', 'شروع نصب نما'],
+  ['اجرا', 'شروع زیرسازی'],
+  ['اجرا', 'اتمام نصب پنجره'],
+  ['اجرا', 'اتمام نصب کرتین‌وال'],
+  ['اجرا', 'اتمام نصب نما'],
+  ['اجرا', 'تحویل پروژه']
+];
+const PROJECT_PROCESS_ORDER = Object.fromEntries(PROJECT_PROCESS_TEMPLATE.map(([department, title], order) => [`${department}|${title}`, order]));
+function ContractTimeline({ contract }) {
+  const start = contract?.contractStartDate || '';
+  const end = contract?.contractEndDate || '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) return <div className="lf-contract-timeline empty"><b>زمان قرارداد</b><span>تاریخ شروع و اتمام قرارداد را وارد کنید</span></div>;
+  const today = todayIso(), total = Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 864e5)), elapsed = Math.round((Date.parse(today) - Date.parse(start)) / 864e5), remaining = Math.round((Date.parse(end) - Date.parse(today)) / 864e5), overdue = remaining < 0, pct = Math.max(0, Math.min(100, Math.round(elapsed / total * 100)));
+  return <div className={`lf-contract-timeline ${overdue ? 'overdue' : ''}`}><div><b>زمان قرارداد</b><strong>{fa(pct)}٪</strong><span>{overdue ? `${fa(-remaining)} روز از اتمام گذشته` : remaining === 0 ? 'امروز آخرین روز قرارداد است' : `${fa(remaining)} روز تا اتمام قرارداد`}</span></div><div className="lf-contract-timeline-bar"><i style={{ width: `${pct}%` }} /></div><small>{jShort(start)} تا {jShort(end)}</small></div>;
+}
+function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd, onSeed, onCompletionChange }) {
+  const [localItems, setLocalItems] = useState(items);
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const pendingCreates = useRef(new Set());
+  useEffect(() => { setLocalItems(items || []); }, [projectId, items]);
+  useEffect(() => {
+    (items || []).forEach(item => {
+      const order = PROJECT_PROCESS_ORDER[`${item.department}|${item.title}`];
+      if (order !== undefined) pendingCreates.current.delete(`template-${order}`);
+    });
+  }, [items]);
+  useEffect(() => { pendingCreates.current.clear(); }, [projectId]);
+  const existing = new Map((localItems || []).map(x => [`${x.department}|${x.title}`, x]));
+  const fixed = PROJECT_PROCESS_TEMPLATE.map(([department, title], order) => existing.get(`${department}|${title}`) || { id: `template-${order}`, projectId, department, title, order, status: 'todo' });
+  // Older checklist rows are retained in storage but intentionally not shown:
+  // each project always uses this one fixed, current checklist.
+  const visibleItems = fixed;
+  const patch = async (id, body) => {
+    setLocalItems(xs => { const list = xs || []; if (String(id).startsWith('template-') && !list.some(x => x.id === id)) { const item = visibleItems.find(x => x.id === id); return item ? [...list, { ...item, ...body }] : list; } return list.map(x => x.id === id ? { ...x, ...body } : x); });
+    let saved;
+    if (String(id).startsWith('template-')) {
+      const item = visibleItems.find(x => x.id === id);
+      if (item && !pendingCreates.current.has(id)) {
+        pendingCreates.current.add(id);
+        saved = Promise.resolve(onAdd({ projectId: item.projectId, department: item.department, title: item.title, order: item.order, status: item.status || 'todo', ...body })).catch(error => {
+          setLocalItems(xs => (xs || []).filter(x => x.id !== id));
+          throw error;
+        }).finally(() => pendingCreates.current.delete(id));
+      }
+    } else saved = Promise.resolve(onPatch(id, body));
+    // The fixed checklist is the source of truth for project completion.
+    // Wait for the stage write before changing the project's status; otherwise
+    // the two old JSON snapshots can race and restore the unchecked stage.
+    if (Object.prototype.hasOwnProperty.call(body, 'status')) {
+      const nextDone = visibleItems.filter(item => (item.id === id ? { ...item, ...body } : item).status === 'done').length;
+      try {
+        const result = saved ? await saved : undefined;
+        if (result !== undefined) await onCompletionChange?.(nextDone === PROJECT_PROCESS_TEMPLATE.length);
+      } catch { /* useCol reloads the row after a failed optimistic write */ }
+    }
+    return saved;
+  };
+  const save = (item, key, value) => { if (value !== (item[key] || '')) patch(item.id, { [key]: value }); };
+  const done = visibleItems.filter(x => x.status === 'done').length;
+  const ordered = visibleItems.slice().sort((a, b) => (PROJECT_PROCESS_ORDER[`${a.department}|${a.title}`] ?? Number(a.order || 999)) - (PROJECT_PROCESS_ORDER[`${b.department}|${b.title}`] ?? Number(b.order || 999))).filter(item => !departmentFilter || item.department === departmentFilter);
+  const deptClass = department => `dept-${String(department).replaceAll(' ', '-')}`;
+  const depts = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'].map(department => { const all = visibleItems.filter(x => x.department === department), complete = all.filter(x => x.status === 'done').length; return { department, total: all.length, complete, pct: all.length ? Math.round(complete / all.length * 100) : 0 }; });
+  const pct = Math.round(done / PROJECT_PROCESS_TEMPLATE.length * 100);
+  const row = (item, index) => {
+    const number = (PROJECT_PROCESS_ORDER[`${item.department}|${item.title}`] ?? index) + 1;
+    return <article key={item.id} className={`lf-process-row ${deptClass(item.department)} ${item.status === 'done' ? 'done' : ''}`}>
+      <div className="lf-process-row-head">
+        <button type="button" className="lf-process-check" onClick={() => patch(item.id, { status: item.status === 'done' ? 'todo' : 'done' })} aria-label={item.status === 'done' ? `برگرداندن ${item.title}` : `انجام ${item.title}`}>{item.status === 'done' ? '✓' : ''}</button>
+        <span className="lf-process-no">{fa(number)}</span>
+        <b className="lf-process-title" title={item.title}>{item.title}</b>
+        <span className={`lf-process-dept ${deptClass(item.department)}`}>{item.department}</span>
+      </div>
+      <div className="lf-process-row-fields">
+        <label className="lf-process-field lf-process-reminder-field"><span className="lf-process-field-label">یادآوری</span><JalaliDateInput className="lf-process-reminder" value={item.reminderDate || ''} onChange={value => save(item, 'reminderDate', value)} placeholder="یادآوری" /></label>
+        <label className="lf-process-field lf-process-date-field"><span className="lf-process-field-label">تاریخ انجام</span><JalaliDateInput className="lf-process-date" value={item.date || ''} onChange={value => save(item, 'date', value)} placeholder="تاریخ انجام" /></label>
+        <label className="lf-process-field lf-process-owner-field"><span className="lf-process-field-label">مسئول</span><input className="lf-process-owner" defaultValue={item.owner || ''} placeholder="نام مسئول" onBlur={e => save(item, 'owner', e.target.value.trim())} /></label>
+        <label className="lf-process-field lf-process-note-field"><span className="lf-process-field-label">توضیحات</span><input className="lf-process-note" defaultValue={item.note || ''} placeholder="توضیحات مرحله" onBlur={e => save(item, 'note', e.target.value.trim())} /></label>
+      </div>
+    </article>;
+  };
+  return <div className="lf-processes"><section>
+    <h4>مراحل پروژه<em>{fa(done)} از {fa(PROJECT_PROCESS_TEMPLATE.length)} انجام</em></h4>
+    <div className="lf-process-metrics">
+      <div className="lf-process-dept-stats lf-process-departments" aria-label="فیلتر مراحل بر اساس واحد">{depts.map(x => <button type="button" key={x.department} className={`${deptClass(x.department)} ${departmentFilter === x.department ? 'on' : ''}`} onClick={() => setDepartmentFilter(current => current === x.department ? '' : x.department)} aria-pressed={departmentFilter === x.department} title={departmentFilter === x.department ? 'نمایش همهٔ مراحل' : `فقط مراحل ${x.department}`}><span><b>{x.department}</b><small>{fa(x.complete)} از {fa(x.total)}</small></span><i><em style={{ width: `${x.pct}%` }} /></i><small>{fa(x.pct)}٪ تکمیل</small></button>)}</div>
+      <div className="lf-process-summary"><ContractTimeline contract={contract} /><div className="lf-process-progress">
+        <div className="lf-process-progress-top"><b>پیشرفت کل پروژه</b><strong>{fa(pct)}٪</strong><span>{fa(done)} از {fa(PROJECT_PROCESS_TEMPLATE.length)} مرحله</span></div>
+        <div className="lf-process-progress-bar"><i style={{ width: `${pct}%` }} /></div>
+      </div></div>
+    </div>
+    {departmentFilter ? <div className="lf-process-filter-note"><b>فیلتر: {departmentFilter}</b><button type="button" onClick={() => setDepartmentFilter('')}>نمایش همه ×</button></div> : null}
+    <div className="lf-process-cols"><span>انجام</span><span>ردیف</span><span>یادآوری</span><span>واحد</span><span>مراحل پروژه</span><span>تاریخ</span><span>مسئول</span><span>توضیحات</span></div>
+    {ordered.map(row)}
+  </section></div>;
+}
+function ContractFinancials({ contract, onPatch, onAddStatement }) {
+  const save = (key, value) => { const next = { ...(contract || {}), [key]: num(value) }; next.remainingAmount = Math.max(0, num(next.amount) - num(next.advancePayment)); onPatch(next); };
+  return <section className="lf-contract-financials"><header className="lf-contract-financials-head"><h4>اطلاعات مالی قرارداد</h4><button type="button" className="lf-btn ghost" onClick={onAddStatement}>＋ صورت‌وضعیت</button></header><div><label><span>مبلغ کل قرارداد</span><input defaultValue={contract?.amount || ''} inputMode="numeric" onBlur={e => save('amount', e.target.value)} /></label><label><span>مبلغ پیش‌پرداخت</span><input defaultValue={contract?.advancePayment || ''} inputMode="numeric" onBlur={e => save('advancePayment', e.target.value)} /></label><label><span>مبلغ باقی‌مانده (خودکار)</span><output>{money(contract?.remainingAmount ?? Math.max(0, num(contract?.amount) - num(contract?.advancePayment)))}</output></label></div></section>;
+}
+function StatementCards({ items, contract, onPatchContract, onPatch, onRemove, onAddStatement }) {
+  const total = items.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  const paid = items.reduce((s, x) => s + (Number(x.paidAmount) || 0), 0);
+  const save = (item, key, value) => { if (value !== (item[key] || '')) onPatch(item.id, { [key]: value }); };
+  const stage = (item, check, date, label) => <div className="lf-statement-stage"><label><input type="checkbox" checked={!!item[check]} onChange={e => onPatch(item.id, { [check]: e.target.checked })} />{label}</label><JalaliDateInput value={item[date] || ''} onChange={value => onPatch(item.id, { [date]: value })} /></div>;
+  return <><ContractFinancials contract={contract} onPatch={onPatchContract} onAddStatement={onAddStatement} /><div className="lf-finance-summary"><div><small>جمع صورت‌وضعیت‌ها</small><b>{money(total)}</b></div><div><small>جمع واریزی کارفرما</small><b>{money(paid)}</b></div><div><small>جمع باقی‌مانده</small><b>{money(Math.max(0, total - paid))}</b></div></div><div className="lf-statement-cards">{items.slice().sort((a, b) => Number(a.statementNo || 0) - Number(b.statementNo || 0)).map(item => <article className="lf-statement-card" key={item.id}><header><b>صورت‌وضعیت شماره {item.statementNo ? fa(item.statementNo) : '—'}</b><button type="button" className="lf-link del" onClick={() => window.confirm('این صورت‌وضعیت حذف شود؟') && onRemove(item.id)}>حذف</button></header><div className="lf-statement-stages">{stage(item, 'noticeSent', 'noticeSentDate', 'ارسال اعلام وضعیت')}{stage(item, 'noticeApproved', 'noticeApprovedDate', 'تأیید اعلام وضعیت')}{stage(item, 'statementSent', 'statementSentDate', 'ارسال صورت‌وضعیت')}</div><div className="lf-statement-money"><label>مبلغ صورت‌وضعیت<input defaultValue={item.amount || ''} inputMode="numeric" placeholder="مبلغ" onBlur={e => save(item, 'amount', num(e.target.value))} /></label><label>تاریخ واریز<JalaliDateInput value={item.paymentDate || ''} onChange={value => onPatch(item.id, { paymentDate: value })} /></label><label>واریزی کارفرما<input defaultValue={item.paidAmount || ''} inputMode="numeric" placeholder="مبلغ واریزی" onBlur={e => save(item, 'paidAmount', num(e.target.value))} /></label><div><small>باقی‌مانده</small><b>{money(Math.max(0, (Number(item.amount) || 0) - (Number(item.paidAmount) || 0)))}</b></div></div><input className="lf-statement-note" defaultValue={item.note || ''} placeholder="توضیحات صورت‌وضعیت" onBlur={e => save(item, 'note', e.target.value.trim())} /></article>)}</div></>;
+}
+function ProjectReport({ project, contract, financials, processes }) {
+  const [reportBrand, setReportBrand] = useState({ headerText: '', footerText: '', logo: '' });
+  useEffect(() => {
+    let active = true;
+    api('/api/report-brand').then(data => { if (active) setReportBrand(data || {}); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+  const byStage = new Map((processes || []).map(item => [`${item.department}|${item.title}`, item]));
+  const stages = PROJECT_PROCESS_TEMPLATE.map(([department, title], order) => ({ department, title, order, ...(byStage.get(`${department}|${title}`) || { status: 'todo' }) }));
+  const completed = stages.filter(item => item.status === 'done').length;
+  const progress = stages.length ? Math.round(completed / stages.length * 100) : 0;
+  const departments = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'].map(department => {
+    const rows = stages.filter(item => item.department === department), done = rows.filter(item => item.status === 'done').length;
+    return { department, done, total: rows.length, progress: rows.length ? Math.round(done / rows.length * 100) : 0 };
+  });
+  const statementRows = (financials || []).slice().sort((a, b) => Number(a.statementNo || 0) - Number(b.statementNo || 0));
+  const statementTotal = statementRows.reduce((sum, item) => sum + num(item.amount), 0);
+  const paidTotal = statementRows.reduce((sum, item) => sum + num(item.paidAmount), 0);
+  const contractTotal = num(contract?.amount), advance = num(contract?.advancePayment), contractRemaining = Math.max(0, contractTotal - advance);
+  const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+  const start = contract?.contractStartDate || '', end = contract?.contractEndDate || '';
+  const contractDays = validDate(start) && validDate(end) ? Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 864e5)) : 0;
+  const elapsed = contractDays ? Math.max(0, Math.min(contractDays, Math.round((Date.parse(todayIso()) - Date.parse(start)) / 864e5))) : 0;
+  const timeProgress = contractDays ? Math.round(elapsed / contractDays * 100) : null;
+  const received = advance + paidTotal;
+  const receivedProgress = contractTotal ? Math.max(0, Math.min(100, Math.round(received / contractTotal * 100))) : 0;
+  const timelineBehind = timeProgress != null && timeProgress > progress + 15;
+  const projectState = progress === 100 ? 'تکمیل شده' : timelineBehind ? 'نیازمند پیگیری' : 'در جریان';
+  const value = item => item || '—';
+  const reportHeaderText = String(reportBrand.headerText || '').trim();
+  const reportFooterText = String(reportBrand.footerText || '').trim();
+  const reportLogo = /^data:image\/(?:png|jpeg|webp);base64,/i.test(String(reportBrand.logo || '')) ? reportBrand.logo : '';
+  const hasReportBrand = !!(reportHeaderText || reportLogo);
+  const printedAt = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date());
+  const printReport = () => {
+    const body = document.body, printClass = 'lf-printing-project-report';
+    const clean = () => body.classList.remove(printClass);
+    body.classList.add(printClass);
+    window.addEventListener('afterprint', clean, { once: true });
+    window.print();
+  };
+  return <article className="lf-project-report" dir="rtl">
+    <header className={`lf-report-head ${hasReportBrand ? 'has-report-brand' : ''}`}>
+      {hasReportBrand ? <aside className="lf-report-print-brand" aria-label="سربرگ گزارش">{reportLogo ? <img src={reportLogo} alt="لوگوی گزارش" /> : null}{reportHeaderText ? <b>{reportHeaderText}</b> : null}</aside> : null}
+      <div><p>گزارش عملکرد پروژه</p><h2>{project.name}</h2><small>تهیه‌شده در {printedAt}</small></div>
+      <div className={`lf-report-status ${timelineBehind ? 'attention' : progress === 100 ? 'complete' : ''}`}><b>{projectState}</b><span>{fa(progress)}٪ پیشرفت اجرایی</span></div>
+      <button type="button" className="lf-btn lf-report-print" onClick={printReport}>🖨 چاپ / ذخیرهٔ PDF</button>
+    </header>
+    <section className="lf-report-metrics">
+      <div className="lf-report-chart report-progress"><div className="lf-report-ring" style={{ '--progress': `${progress * 3.6}deg` }}><b>{fa(progress)}٪</b><small>اجرایی</small></div><div><small>پیشرفت مراحل</small><b>{fa(completed)} از {fa(stages.length)} مرحله</b><span>مراحل اجرایی تکمیل شده</span></div></div>
+      <div className={`lf-report-chart report-time ${timelineBehind ? 'attention' : ''}`}><div className={`lf-report-ring ${timeProgress == null ? 'empty' : ''}`} style={{ '--progress': `${(timeProgress || 0) * 3.6}deg` }}><b>{timeProgress == null ? '—' : `${fa(timeProgress)}٪`}</b><small>زمان</small></div><div><small>زمان قرارداد</small><b>{validDate(end) ? jShort(end) : 'تاریخ ثبت نشده'}</b><span>{contractDays ? `${fa(elapsed)} از ${fa(contractDays)} روز قرارداد` : 'برای نمودار، تاریخ شروع و اتمام را وارد کنید'}</span></div></div>
+      <div className="lf-report-money report-contract"><small>مبلغ کل قرارداد</small><b>{money(contractTotal)}</b><span>پیش‌پرداخت: {money(advance)}</span></div>
+      <div className="lf-report-money report-received"><small>دریافتی از کارفرما</small><b>{money(received)}</b><i className="lf-report-inline-meter"><em style={{ width: `${receivedProgress}%` }} /></i><span>{fa(receivedProgress)}٪ از مبلغ قرارداد · مانده: {money(contractRemaining)}</span></div>
+    </section>
+    <section className="lf-report-section lf-report-info"><h3>اطلاعات پروژه و قرارداد</h3><dl>
+      <div><dt>کد پروژه</dt><dd>{value(project.projectCode)}</dd></div><div><dt>کارفرما</dt><dd>{value(project.client)}</dd></div><div><dt>شماره تماس کارفرما</dt><dd dir="ltr">{value(project.clientPhone)}</dd></div><div><dt>مسئول ارتباط پروژه</dt><dd>{value(project.owner)}</dd></div><div><dt>شماره تماس مسئول</dt><dd dir="ltr">{value(project.contactPhone)}</dd></div><div><dt>شماره قرارداد</dt><dd>{value(contract?.contractNo)}</dd></div><div><dt>آیتم‌های قرارداد</dt><dd>{value(contract?.subject)}</dd></div><div><dt>متراژ قرارداد</dt><dd>{contract?.area ? `${fa(contract.area)} مترمربع` : '—'}</dd></div><div><dt>نوع تسویه</dt><dd>{{ cash: 'نقدی', check: 'چک', statement: 'صورت‌وضعیتی', barter: 'تهاتری', other: 'سایر' }[contract?.settlementType] || '—'}</dd></div><div><dt>شروع قرارداد</dt><dd>{validDate(start) ? jl(start) : '—'}</dd></div><div><dt>اتمام قرارداد</dt><dd>{validDate(end) ? jl(end) : '—'}</dd></div>
+    </dl></section>
+    <section className="lf-report-section"><h3>نمودار پیشرفت واحدها</h3><div className="lf-report-departments">{departments.map(item => <div key={item.department} className={`dept-${item.department.replaceAll(' ', '-')}`}><div><b>{item.department}</b><span>{fa(item.done)} از {fa(item.total)}</span></div><i><em style={{ width: `${item.progress}%` }} /></i><small>{fa(item.progress)}٪ تکمیل</small></div>)}</div></section>
+    <section className="lf-report-section"><h3>خلاصهٔ مالی و صورت‌وضعیت‌ها</h3><div className="lf-report-finance"><div><small>جمع صورت‌وضعیت‌ها</small><b>{money(statementTotal)}</b></div><div><small>جمع واریزی‌ها</small><b>{money(paidTotal)}</b></div><div><small>ماندهٔ صورت‌وضعیت‌ها</small><b>{money(Math.max(0, statementTotal - paidTotal))}</b></div></div>
+      {statementRows.length ? <div className="lf-report-table-wrap"><table><thead><tr><th>شماره</th><th>اعلام وضعیت</th><th>تأیید</th><th>ارسال صورت‌وضعیت</th><th>مبلغ</th><th>واریزی</th><th>مانده</th></tr></thead><tbody>{statementRows.map(item => <tr key={item.id}><td>{fa(item.statementNo)}</td><td>{item.noticeSent ? '✓' : '—'} {item.noticeSentDate ? jShort(item.noticeSentDate) : ''}</td><td>{item.noticeApproved ? '✓' : '—'} {item.noticeApprovedDate ? jShort(item.noticeApprovedDate) : ''}</td><td>{item.statementSent ? '✓' : '—'} {item.statementSentDate ? jShort(item.statementSentDate) : ''}</td><td>{money(item.amount)}</td><td>{money(item.paidAmount)}</td><td>{money(Math.max(0, num(item.amount) - num(item.paidAmount)))}</td></tr>)}</tbody></table></div> : <p className="lf-empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>}
+    </section>
+    <section className="lf-report-section lf-report-stages"><h3>وضعیت مراحل اجرایی</h3><ol>{stages.map((item, index) => <li key={`${item.department}|${item.title}`} className={item.status === 'done' ? 'done' : ''}><span>{fa(index + 1)}</span><b>{item.title}</b><em>{item.department}</em><small>{item.status === 'done' ? `انجام شد${item.date ? ` · ${jShort(item.date)}` : ''}` : item.date ? jShort(item.date) : 'در انتظار انجام'}{item.owner ? ` · مسئول: ${item.owner}` : ''}</small></li>)}</ol></section>
+    {reportFooterText ? <footer className="lf-report-print-footer"><span>{reportFooterText}</span></footer> : null}
+  </article>;
+}
+function ProjectInfoSheet({ project, contract, onPatchProject, onPatchContract }) {
+  const setProject = (key, value) => onPatchProject({ [key]: value });
+  const setContract = (key, value) => {
+    const next = { ...(contract || {}), [key]: value };
+    if (key === 'amount' || key === 'advancePayment') next.remainingAmount = Math.max(0, num(next.amount) - num(next.advancePayment));
+    onPatchContract(next);
+  };
+  const input = (group, key, label, opts = {}) => <label className={`lf-sheet-field ${opts.wide ? 'wide' : ''}`}><span>{label}</span><input defaultValue={(group === 'project' ? project : contract)?.[key] || ''} placeholder={opts.placeholder || ''} inputMode={opts.money ? 'numeric' : undefined} onBlur={e => (group === 'project' ? setProject : setContract)(key, opts.money ? num(e.target.value) : e.target.value.trim())} /></label>;
+  const date = (key, label) => <label className="lf-sheet-field"><span>{label}</span><JalaliDateInput value={contract?.[key] || ''} onChange={value => setContract(key, value)} /></label>;
+  return <div className="lf-project-sheet">
+    <h4>اطلاعات پروژه و قرارداد</h4>
+    <div className="lf-project-sheet-grid">
+      {input('project', 'projectCode', 'کد پروژه')}{input('project', 'name', 'نام پروژه', { placeholder: 'نام پروژه' })}
+      {input('project', 'client', 'کارفرما')}{input('project', 'clientPhone', 'شماره تماس کارفرما')}
+      {input('project', 'owner', 'مسئول ارتباط پروژه')}{input('project', 'contactPhone', 'شماره تماس مسئول ارتباط')}
+      {input('contract', 'contractNo', 'شماره قرارداد')}{input('contract', 'subject', 'آیتم‌های قرارداد', { placeholder: 'پنجره، کرتن‌وال، لوور' })}
+      {date('contractStartDate', 'تاریخ شروع قرارداد')}{date('contractEndDate', 'تاریخ اتمام قرارداد')}
+      {input('contract', 'area', 'متراژ قرارداد (مترمربع)', { money: true })}
+      <label className="lf-sheet-field"><span>نوع تسویه</span><select value={contract?.settlementType || 'cash'} onChange={e => setContract('settlementType', e.target.value)}><option value="cash">نقدی</option><option value="check">چک</option><option value="statement">صورت‌وضعیتی</option><option value="barter">تهاتری</option><option value="other">سایر</option></select></label>
+      <label className="lf-sheet-field wide"><span>توضیحات پروژه</span><textarea defaultValue={project.note || ''} placeholder="توضیحات پروژه" onBlur={e => setProject('note', e.target.value.trim())} /></label>
+      <label className="lf-sheet-field wide"><span>توضیحات قرارداد</span><textarea defaultValue={contract?.note || ''} placeholder="توضیحات قرارداد" onBlur={e => setContract('note', e.target.value.trim())} /></label>
+    </div>
+  </div>;
+}
+function ProjectFile({ project, contracts, financials, supplies, processes, onEdit, onPatchProject, onPatchContract, onToggleProcess, onPatchProcess, onAddProcess, onSeedProcesses, onCompletionChange, onAddFinance, onPatchFinance, onRemoveFinance }) {
+  const [tab, setTab] = useState('overview');
+  const contract = contracts[0] || null;
+  const nextStatementNo = Math.max(0, ...financials.map(row => Number(row.statementNo) || 0)) + 1;
+  return <section className="lf-card lf-project-file">
+    <div className="lf-tabs">{PROJECT_FILE_TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'finance' ? <em>{fa(financials.length)}</em> : null}</button>)}</div>
+    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={() => onAddFinance(nextStatementNo)} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
+  </section>;
+}
 export function ProjectsPage({ Nav }) {
-  const projects = useCol('projects'), cards = useCol('cards');
+  const projects = useCol('projects'), cards = useCol('cards'), contracts = useCol('projectContracts'), financials = useCol('projectFinancials'), supplies = useCol('projectSupplies'), processes = useCol('projectProcesses');
   const [pid, setPid] = useState(() => { const u = new URLSearchParams(location.search).get('pid'); if (u) return u; try { return localStorage.getItem('lifeos-project') || ''; } catch { return ''; } });
-  const [edit, setEdit] = useState(null), [cardEdit, setCardEdit] = useState(null), [drag, setDrag] = useState(null), [quick, setQuick] = useState('');
-  const list = (projects.items || []).filter(p => !p.archived);
+  const [edit, setEdit] = useState(null), [cardEdit, setCardEdit] = useState(null), [fileEdit, setFileEdit] = useState(null), [drag, setDrag] = useState(null), [quick, setQuick] = useState('');
+  const processSeeds = useRef(new Set());
+  const contractSeeds = useRef(new Set());
+  const contractReminderSeeds = useRef(new Set());
+  const processReminderFlights = useRef(new Set());
+  // Projects no longer have an archive view; older archived records remain
+  // visible instead of becoming inaccessible.
+  const list = projects.items || [];
   const cur = list.find(p => p.id === pid) || list[0] || null;
   useEffect(() => { if (cur) try { localStorage.setItem('lifeos-project', cur.id); } catch {} }, [cur?.id]);
   const mine = (cards.items || []).filter(c => cur && c.projectId === cur.id);
-  const prog = p => { const cs = (cards.items || []).filter(c => c.projectId === p.id); return cs.length ? Math.round(cs.filter(c => c.col === 'done').length / cs.length * 100) : 0; };
-  const pFields = [{ k: 'name', l: 'نام پروژه', req: true }, { k: 'client', l: 'کارفرما / مشتری', half: true }, { k: 'deadline', l: 'مهلت', t: 'date', half: true }, { k: 'color', l: 'رنگ', t: 'sel', o: PCOLORS.map((c, i) => [c, PNAMES[i]]), def: () => PCOLORS.find(c => !list.some(p => (p.color || PCOLORS[0]) === c)) || PCOLORS[list.length % PCOLORS.length] }, { k: 'note', l: 'توضیح', t: 'area' }];
+  // Creating a project deliberately asks for only its name. Everything else is
+  // filled in the always-open project/contract sheet immediately afterwards.
+  const pFields = [{ k: 'name', l: 'نام پروژه', req: true, ph: 'مثال: مجتمع آفتاب' }];
+  // Contract identity and dates live on the contract record, not the project.
+  const contractFields = [{ k: 'contractNo', l: 'شماره قرارداد', half: true }, { k: 'contractStartDate', l: 'تاریخ شروع قرارداد', t: 'date', half: true }, { k: 'contractEndDate', l: 'تاریخ اتمام قرارداد', t: 'date', half: true }, { k: 'subject', l: 'آیتم‌های قرارداد', ph: 'مثال: پنجره، کرتن‌وال، لوور (چند مورد را با ویرگول جدا کنید)', half: true }, { k: 'area', l: 'متراژ قرارداد (مترمربع)', t: 'num', half: true }, { k: 'amount', l: 'مبلغ کل قرارداد', t: 'money', half: true }, { k: 'advancePayment', l: 'مبلغ پیش‌پرداخت', t: 'money', half: true }, { k: 'remainingAmount', l: 'مبلغ باقی‌مانده', t: 'money', calc: v => Math.max(0, num(v.amount) - num(v.advancePayment)), hint: 'خودکار', half: true }, { k: 'settlementType', l: 'نوع تسویه', t: 'sel', o: [['cash', 'نقدی'], ['check', 'چک'], ['statement', 'صورت‌وضعیتی'], ['barter', 'تهاتری'], ['other', 'سایر']], def: 'cash', half: true }, { k: 'note', l: 'توضیح', t: 'area' }];
+  const financialFields = [{ k: 'statementNo', l: 'شماره صورت‌وضعیت', t: 'num', req: true, half: true }, { k: 'noticeSent', l: 'ارسال اعلام وضعیت به کارفرما', t: 'check', def: false, half: true }, { k: 'noticeSentDate', l: 'تاریخ ارسال اعلام وضعیت', t: 'date', half: true }, { k: 'noticeApproved', l: 'تأیید اعلام وضعیت', t: 'check', def: false, half: true }, { k: 'noticeApprovedDate', l: 'تاریخ تأیید اعلام وضعیت', t: 'date', half: true }, { k: 'statementSent', l: 'ارسال صورت‌وضعیت', t: 'check', def: false, half: true }, { k: 'statementSentDate', l: 'تاریخ ارسال صورت‌وضعیت', t: 'date', half: true }, { k: 'amount', l: 'مبلغ صورت‌وضعیت', t: 'money', half: true }, { k: 'paymentDate', l: 'تاریخ واریز کارفرما', t: 'date', half: true }, { k: 'paidAmount', l: 'مبلغ واریز کارفرما بابت صورت‌وضعیت', t: 'money', half: true }, { k: 'remainingAmount', l: 'مبلغ باقی‌مانده', t: 'money', calc: v => Math.max(0, num(v.amount) - num(v.paidAmount)), hint: 'خودکار', half: true }, { k: 'note', l: 'توضیح', t: 'area' }];
+  const supplyFields = [{ k: 'title', l: 'عنوان تأمین / اجرا', req: true }, { k: 'category', l: 'دسته‌بندی', half: true }, { k: 'supplier', l: 'تأمین‌کننده', half: true }, { k: 'date', l: 'تاریخ', t: 'date', half: true }, { k: 'quantity', l: 'مقدار', t: 'num', half: true }, { k: 'unit', l: 'واحد', half: true }, { k: 'unitPrice', l: 'قیمت واحد', t: 'money', half: true }, { k: 'note', l: 'توضیح', t: 'area' }];
+  const processFields = [{ k: 'title', l: 'مرحله', req: true }, { k: 'department', l: 'واحد', t: 'sel', o: [['کنترل پروژه', 'کنترل پروژه'], ['فنی', 'فنی'], ['تأمین', 'تأمین'], ['اجرا', 'اجرا']], half: true }, { k: 'status', l: 'وضعیت', t: 'sel', o: [['todo', 'انجام نشده'], ['doing', 'در حال انجام'], ['done', 'انجام شد']], def: 'todo', half: true }, { k: 'date', l: 'تاریخ', t: 'date', half: true }, { k: 'owner', l: 'مسئول', half: true }, { k: 'note', l: 'توضیح', t: 'area' }];
+  const fileConfig = { contract: { col: contracts, fields: contractFields, title: 'اطلاعات قرارداد' }, finance: { col: financials, fields: financialFields, title: 'ثبت مالی پروژه' }, supply: { col: supplies, fields: supplyFields, title: 'مراحل اجرایی' }, process: { col: processes, fields: processFields, title: 'مرحلهٔ پروژه' } };
   const cFields = [{ k: 'title', l: 'عنوان', req: true }, { k: 'col', l: 'ستون', t: 'sel', o: COLS_K, def: 'todo', half: true }, { k: 'due', l: 'مهلت', t: 'date', half: true }, { k: 'owner', l: 'مسئول', half: true }, { k: 'prio', l: 'اولویت', t: 'sel', o: [['n', 'عادی'], ['h', 'بالا'], ['l', 'پایین']], def: 'n', half: true }, { k: 'note', l: 'جزئیات', t: 'area', rows: 4 }];
   const move = (c, col) => cards.patch(c.id, { col, doneAt: col === 'done' ? Date.now() : null });
+  const toggleProcess = item => processes.patch(item.id, { status: item.status === 'done' ? 'todo' : 'done' });
+  const patchProcess = async (id, body) => {
+    const item = (processes.items || []).find(x => x.id === id);
+    await processes.patch(id, body);
+    if (!item || (!Object.prototype.hasOwnProperty.call(body, 'reminderDate') && !Object.prototype.hasOwnProperty.call(body, 'owner') && !Object.prototype.hasOwnProperty.call(body, 'note'))) return;
+    const next = { ...item, ...body };
+    const title = `یادآوری پروژهٔ ${cur.name}: ${item.title}`;
+    const notes = [`مسئول: ${next.owner || 'تعیین نشده'}`, `توضیحات: ${next.note || '—'}`].join('\n');
+    try {
+      if (next.reminderDate) {
+        const payload = { title, date: next.reminderDate, time: '09:00', whenLabel: next.reminderDate, notes };
+        if (next.reminderId) await api(`/api/reminders/${next.reminderId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        else if (!processReminderFlights.current.has(id)) {
+          processReminderFlights.current.add(id);
+          try { const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify(payload) }); if (r?.id) await processes.patch(id, { reminderId: r.id }); }
+          finally { processReminderFlights.current.delete(id); }
+        }
+      } else if (next.reminderId) {
+        await api(`/api/reminders/${next.reminderId}`, { method: 'DELETE' });
+        await processes.patch(id, { reminderId: null });
+      }
+    } catch { /* the date remains visible locally even if notification sync is temporarily unavailable */ }
+  };
+  useEffect(() => {
+    if (!projects.items || !processes.items) return;
+    // Upgrade every existing project, not just the one currently open, to the
+    // current fixed checklist. Legacy rows remain stored for safety but are
+    // not displayed by the checklist.
+    (projects.items || []).forEach(project => {
+      if (processSeeds.current.has(project.id)) return;
+      processSeeds.current.add(project.id);
+      const existing = new Set((processes.items || []).filter(x => x.projectId === project.id).map(x => `${x.department}|${x.title}`));
+      const missing = PROJECT_PROCESS_TEMPLATE.filter(([department, title]) => !existing.has(`${department}|${title}`));
+      if (!missing.length) return;
+      (async () => {
+        try {
+          await processes.addMany(missing.map(([department, title]) => ({ projectId: project.id, department, title, order: PROJECT_PROCESS_ORDER[`${department}|${title}`] ?? 0, status: 'todo' })));
+        } catch { processSeeds.current.delete(project.id); }
+      })();
+    });
+  }, [projects.items, processes.items]);
+  useEffect(() => {
+    if (!cur || !contracts.items || contracts.items.some(x => x.projectId === cur.id) || contractSeeds.current.has(cur.id)) return;
+    contractSeeds.current.add(cur.id);
+    contracts.add({ projectId: cur.id, settlementType: 'cash', amount: 0, advancePayment: 0, remainingAmount: 0 }).catch(() => contractSeeds.current.delete(cur.id));
+  }, [cur?.id, contracts.items]);
+  useEffect(() => {
+    const contract = (contracts.items || []).find(x => cur && x.projectId === cur.id);
+    const end = contract?.contractEndDate || '';
+    if (!cur || !contract?.id || !/^\d{4}-\d{2}-\d{2}$/.test(end)) return;
+    const key = `${contract.id}:${end}`;
+    if (contractReminderSeeds.current.has(key)) return;
+    contractReminderSeeds.current.add(key);
+    const date = end < todayIso() ? todayIso() : addDays(end, -7);
+    const payload = { title: `تمدید قرارداد پروژهٔ ${cur.name}`, date, time: '09:00', whenLabel: date, notes: `تاریخ اتمام قرارداد: ${jShort(end)}` };
+    (async () => {
+      try {
+        if (contract.contractRenewalReminderId) await api(`/api/reminders/${contract.contractRenewalReminderId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        else { const reminder = await api('/api/reminders', { method: 'POST', body: JSON.stringify(payload) }); if (reminder?.id) await contracts.patch(contract.id, { contractRenewalReminderId: reminder.id }); }
+      } catch { contractReminderSeeds.current.delete(key); }
+    })();
+  }, [cur?.id, cur?.name, contracts.items]);
   // deep link from Today / calendar / planner: ?page=projects&pid=…&card=… opens that card
   useEffect(() => {
     if (!cards.items) return; const u = new URLSearchParams(location.search), id = u.get('card'); if (!id) return;
@@ -324,44 +654,23 @@ export function ProjectsPage({ Nav }) {
     same.slice(1).forEach((p, i) => projects.patch(p.id, { color: PCOLORS[(i + 1) % PCOLORS.length] }));
   }, [projects.items === null]);
   return <Page Nav={Nav} className="wide" kicker="کار" title="پروژه‌ها" actions={<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button>}>
-    {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !(projects.items || []).length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. برای هر پروژه یک تابلو با ستون‌های «انجام نشده، در حال انجام، بازبینی، انجام شد» ساخته می‌شود.</p> : <>
-      <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'بایگانی']]}
-        items={(projects.items || []).map(p => { const cs = (cards.items || []).filter(c => c.projectId === p.id), by = Object.fromEntries(COLS_K.map(([k]) => [k, cs.filter(c => (c.col || 'todo') === k).length])), n = cs.length, late = cs.filter(c => c.col !== 'done' && c.due && c.due < todayIso()).length;
-          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: !n, group: p.archived ? 'archived' : n && by.done === n ? 'done' : 'active', bar: n ? COLS_K.map(([k]) => ({ flex: by[k], color: KCOL[k] })) : null, sub: n ? `${fa(by.done)} از ${fa(n)} · ${fa(Math.round(by.done / n * 100))}٪${late ? ` · ${fa(late)} عقب` : ''}${p.deadline ? ` · ${jShort(p.deadline)}` : ''}` : 'هنوز کارتی ندارد' }; })}
-        renderArchived={x => <div key={x.id} className="sl-arch" style={{ '--c': x.color }}><span><i />{x.name}</span><button type="button" onClick={() => { projects.patch(x.id, { archived: false }); setPid(x.id); }}>برگردون</button></div>}>
+    {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !(projects.items || []).length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. با «＋ پروژه» فقط نامش را وارد کن؛ سپس اطلاعات پروژه و قرارداد را کامل می‌کنی.</p> : <>
+      <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده']]}
+        items={(projects.items || []).map(p => { const stageByKey = new Map((processes.items || []).filter(x => x.projectId === p.id).map(x => [`${x.department}|${x.title}`, x])), total = PROJECT_PROCESS_TEMPLATE.length, done = PROJECT_PROCESS_TEMPLATE.filter(([department, title]) => stageByKey.get(`${department}|${title}`)?.status === 'done').length, pct = total ? Math.round(done / total * 100) : 0;
+          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: (p.status === 'done' || done === total) ? 'done' : 'active', bar: [{ flex: done, color: '#34d399' }, { flex: total - done, color: '#334155' }], sub: `${fa(done)} از ${fa(total)} مرحله · ${fa(pct)}٪` }; })}>
       {cur ? <section className="lf-card sl-top" style={{ '--c': cur.color || PCOLORS[0] }}>
-        {(() => { const today = todayIso(), by = Object.fromEntries(COLS_K.map(([k]) => [k, mine.filter(c => (c.col || 'todo') === k).length])), n = mine.length, pct = n ? Math.round(by.done / n * 100) : 0, { pace, open, eta } = projEta(mine, today), late = mine.filter(c => c.col !== 'done' && c.due && c.due < today).sort((a, b) => a.due.localeCompare(b.due)), soon = mine.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((a, b) => a.due.localeCompare(b.due)), risk = eta && cur.deadline && eta > cur.deadline;
+        {(() => { const today = todayIso(), late = mine.filter(c => c.col !== 'done' && c.due && c.due < today).sort((a, b) => a.due.localeCompare(b.due)), soon = mine.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((a, b) => a.due.localeCompare(b.due));
           return <>
-            <div className="lf-row-head lf-phead"><div><h2 style={{ color: cur.color || PCOLORS[0] }}>{cur.name}</h2><small>{[cur.client, cur.deadline ? `مهلت ${jShort(cur.deadline)}` : ''].filter(Boolean).join(' · ')} {cur.deadline ? dueChip(cur.deadline) : null}{n ? <> · {!open ? 'تمام شد ✓' : eta ? <>پیش‌بینی پایان: {jShort(eta)}{risk ? <b className="bad"> ⚠ بعد از مهلت</b> : null}</> : 'هنوز سرعتی ثبت نشده'}{pace ? ` · ${fa(pace, 1)} کارت در هفته` : ''}</> : null}</small></div>
-              <div className="lf-pops"><div className="lf-dots" role="radiogroup" aria-label="رنگ پروژه">{PCOLORS.map((c, i) => <button key={c} role="radio" aria-checked={(cur.color || PCOLORS[0]) === c} title={PNAMES[i]} className={(cur.color || PCOLORS[0]) === c ? 'on' : ''} style={{ background: c }} onClick={() => projects.patch(cur.id, { color: c })} />)}</div>
-                <div className="lf-ops"><button className="lf-link" onClick={() => setEdit(cur)}>ویرایش</button><button className="lf-link" onClick={() => projects.patch(cur.id, { archived: true })}>بایگانی</button></div></div></div>
-            {n ? <div className="lf-pk"><div><small>پیشرفت</small><b style={{ color: cur.color || PCOLORS[0] }}>{fa(pct)}٪</b></div>{COLS_K.map(([k, l]) => <div key={k}><small><i style={{ background: KCOL[k] }} />{l}</small><b>{fa(by[k])}</b></div>)}</div> : null}
+            <div className="lf-row-head lf-phead"><div><h2 style={{ color: cur.color || PCOLORS[0] }}>{cur.name}</h2><small>{[cur.client, cur.deadline ? `مهلت ${jShort(cur.deadline)}` : ''].filter(Boolean).join(' · ')} {cur.deadline ? dueChip(cur.deadline) : null}</small></div>
+              <div className="lf-pops"><div className="lf-dots" role="radiogroup" aria-label="رنگ پروژه">{PCOLORS.map((c, i) => <button key={c} role="radio" aria-checked={(cur.color || PCOLORS[0]) === c} title={PNAMES[i]} className={(cur.color || PCOLORS[0]) === c ? 'on' : ''} style={{ background: c }} onClick={() => projects.patch(cur.id, { color: c })} />)}</div></div></div>
             {late.length || soon.length ? <div className="lf-palerts">{late.slice(0, 4).map(c => <button key={c.id} className="late" onClick={() => setCardEdit(c)}>⛔ {c.title} · {jShort(c.due)}</button>)}{soon.slice(0, 4).map(c => <button key={c.id} className="soon" onClick={() => setCardEdit(c)}>⏳ {c.title} · {jShort(c.due)}</button>)}</div> : null}
           </>; })()}
-        {(() => { const pq = parseQuick(quick); return <>
-          <form className="lf-inline" onSubmit={e => { e.preventDefault(); if (!pq.title) return; cards.add({ projectId: cur.id, title: pq.title, col: 'todo', prio: pq.prio || 'n', owner: pq.owner, due: pq.due }); setQuick(''); }}>
-            <input id="lf-quick-card" value={quick} onChange={e => setQuick(e.target.value)} placeholder="کار تازه… (Enter) — میان‌بر: ! اولویت بالا · @نام مسئول · فردا / ۱۵ مهر مهلت" />
-            <button type="button" className="lf-btn ghost" onClick={() => { setCardEdit({ projectId: cur.id, title: pq.title, col: 'todo', prio: pq.prio || 'n', owner: pq.owner, due: pq.due }); setQuick(''); }}>جزئیات…</button>
-            <button className="lf-btn">＋</button>
-          </form>
-          {quick.trim() && (pq.prio || pq.owner || pq.due) ? <p className="lf-qhint">«{pq.title || '…'}»{pq.prio ? <span className="hi">اولویت بالا</span> : null}{pq.owner ? <span>مسئول: {pq.owner}</span> : null}{pq.due ? <span>مهلت: {jShort(pq.due)}</span> : null}</p> : null}
-        </>; })()}
-        <div className="lf-kanban">{COLS_K.map(([k, label]) => {
-          const cs = mine.filter(c => (c.col || 'todo') === k).sort((a, b) => (b.prio === 'h') - (a.prio === 'h') || String(a.due || '9').localeCompare(String(b.due || '9')));
-          return <div key={k} className={`lf-kcol ${drag ? 'dropping' : ''}`} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const c = mine.find(x => x.id === drag); if (c && c.col !== k) move(c, k); setDrag(null); }}>
-            <h3>{label}<em>{fa(cs.length)}</em></h3>
-            {cs.map(c => <article key={c.id} className={`lf-kcard ${c.prio === 'h' ? 'hi' : ''}`} draggable onDragStart={() => setDrag(c.id)} onDragEnd={() => setDrag(null)} onClick={() => setCardEdit(c)}>
-              <b>{c.title}</b>
-              <small>{[c.owner, c.due ? jShort(c.due) : ''].filter(Boolean).join(' · ')}{c.due && c.col !== 'done' ? dueChip(c.due) : null}</small>
-              {(() => { const ci = COLS_K.findIndex(x => x[0] === k), prev = COLS_K[ci - 1], next = COLS_K[ci + 1]; return <div className="lf-kmove" onClick={e => e.stopPropagation()}>{prev ? <button className="bk" onClick={() => move(c, prev[0])} title={`برگرداندن به «${prev[1]}»`}>→ {prev[1]}</button> : <span />}{next ? <button className="fw" onClick={() => move(c, next[0])} title={`بردن به «${next[1]}»`}>{next[1]} ←</button> : null}</div>; })()}
-            </article>)}
-          </div>;
-        })}</div>
-        <ProjectStats project={cur} cards={mine} />
-      </section> : <p className="lf-empty">پروژهٔ فعالی نیست — از تب «بایگانی» برگردون یا «＋ پروژه» بساز.</p>}
+        <ProjectFile project={cur} contracts={(contracts.items || []).filter(x => x.projectId === cur.id)} financials={(financials.items || []).filter(x => x.projectId === cur.id)} supplies={(supplies.items || []).filter(x => x.projectId === cur.id)} processes={(processes.items || []).filter(x => x.projectId === cur.id)} onEdit={(kind, row) => setFileEdit({ kind, row })} onPatchProject={body => projects.patch(cur.id, body)} onPatchContract={body => { const existing = (contracts.items || []).find(x => x.projectId === cur.id); return existing ? contracts.patch(existing.id, body) : contracts.add({ ...body, projectId: cur.id }); }} onToggleProcess={toggleProcess} onPatchProcess={patchProcess} onAddProcess={body => processes.add({ ...body, projectId: cur.id })} onCompletionChange={complete => { const status = complete ? 'done' : 'active', completedAt = complete ? (cur.completedAt || todayIso()) : null; if ((cur.status || 'active') === status && (!complete || cur.completedAt)) return Promise.resolve(); return projects.patch(cur.id, { status, completedAt }); }} onAddFinance={next => financials.add({ projectId: cur.id, statementNo: next })} onPatchFinance={(id, body) => financials.patch(id, body)} onRemoveFinance={id => financials.remove(id)} onSeedProcesses={async () => { if ((processes.items || []).some(x => x.projectId === cur.id)) return; for (const [department, title] of PROJECT_PROCESS_TEMPLATE) await processes.add({ projectId: cur.id, department, title, order: PROJECT_PROCESS_ORDER[`${department}|${title}`], status: 'todo' }); }} />
+      </section> : <p className="lf-empty">پروژه‌ای نیست — با «＋ پروژه» یک پروژه بساز.</p>}
       </SideLayout>
     </>}
-    <FormDrawer open={!!edit} title={edit?.id ? 'ویرایش پروژه' : 'پروژهٔ تازه'} fields={pFields} initial={edit} onClose={() => setEdit(null)} onSubmit={async b => { if (edit.id) await projects.patch(edit.id, b); else { const r = await projects.add(b); setPid(r.id); } }} />
+    <FormDrawer open={!!edit} title={edit?.id ? 'ویرایش پروژه' : 'پروژهٔ تازه'} submitLabel={edit?.id ? 'ذخیره' : 'ساخت پروژه'} fields={pFields} initial={edit} onClose={() => setEdit(null)} onSubmit={async b => { if (edit.id) await projects.patch(edit.id, b); else { const color = PCOLORS.find(c => !list.some(p => (p.color || PCOLORS[0]) === c)) || PCOLORS[list.length % PCOLORS.length]; const r = await projects.add({ ...b, color }); setPid(r.id); } }} />
+    <FormDrawer open={!!fileEdit} title={fileEdit ? `${fileConfig[fileEdit.kind].title}${fileEdit.row?.id ? ' — ویرایش' : ''}` : ''} fields={fileEdit ? fileConfig[fileEdit.kind].fields : []} initial={fileEdit?.row} onClose={() => setFileEdit(null)} onSubmit={async b => { const cfg = fileConfig[fileEdit.kind]; if (fileEdit.row?.id) await cfg.col.patch(fileEdit.row.id, b); else await cfg.col.add({ ...b, projectId: cur.id }); }} extra={() => fileEdit?.row?.id ? <button type="button" className="lf-link del" onClick={() => { fileConfig[fileEdit.kind].col.remove(fileEdit.row.id); setFileEdit(null); }}>حذف</button> : null} />
     <FormDrawer open={!!cardEdit} title={cardEdit?.id ? 'کارت' : 'کار تازه'} fields={cFields} initial={cardEdit} onClose={() => setCardEdit(null)} onSubmit={b => cardEdit.id ? cards.patch(cardEdit.id, b) : cards.add({ ...b, projectId: cardEdit.projectId, doneAt: b.col === 'done' ? Date.now() : null })} extra={() => cardEdit?.id ? <button type="button" className="lf-link del" onClick={() => { cards.remove(cardEdit.id); setCardEdit(null); }}>حذف این کارت</button> : null} />
   </Page>;
 }

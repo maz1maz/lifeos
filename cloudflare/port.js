@@ -75,6 +75,45 @@ const header = fs.readFileSync(path.join(__dirname, 'header.js'), 'utf8');
 const footer = fs.readFileSync(path.join(__dirname, 'footer.js'), 'utf8');
 
 // ---------------------------------------------------------------------------
+// Route-loss guard: `worker.js` is currently ahead of server.js.  This build
+// script must never turn a successful local Node build into a destructive
+// overwrite of the deployed Worker. Compare the generated candidate with the
+// checked-in Worker before running later parity checks or writing anything, so
+// the first failure reports the user-visible capability loss.
+//
+// This deliberately has no "force" switch. Re-enabling generation is a
+// migration milestone: first port the missing routes and their platform
+// helpers to server.js/header.js/footer.js, then this comparison will pass.
+// ---------------------------------------------------------------------------
+function apiRouteLiterals(text) {
+  const routes = new Set();
+  const re = /['\"`](\/api\/[A-Za-z0-9_./:-]+)['\"`]/g;
+  let match;
+  while ((match = re.exec(text)) !== null) routes.add(match[1]);
+  return routes;
+}
+
+const candidate = header + block + footer;
+const workerPath = path.join(__dirname, 'worker.js');
+const existingWorker = fs.readFileSync(workerPath, 'utf8');
+const existingRoutes = apiRouteLiterals(existingWorker);
+const candidateRoutes = apiRouteLiterals(candidate);
+const lostRoutes = [...existingRoutes].filter(route => !candidateRoutes.has(route)).sort();
+if (lostRoutes.length) {
+  console.error('');
+  console.error('ERROR: refusing to overwrite cloudflare/worker.js because the generated file would remove ' + lostRoutes.length + ' existing API route literal(s).');
+  console.error('worker.js is the current source of truth until the Node/Worker migration is complete.');
+  console.error('');
+  console.error('  routes that would be lost:');
+  for (const route of lostRoutes) console.error('    ' + route);
+  console.error('');
+  console.error('Port the routes (and any D1/Telegram helpers) to server.js plus header.js/footer.js first.');
+  console.error('No files were written. See REMAINING-WORK.md: Worker/Node synchronization.');
+  console.error('');
+  process.exit(1);
+}
+
+// ---------------------------------------------------------------------------
 // Drift guard: the route block below is copied from server.js, but every helper
 // it calls must already exist in header.js / footer.js — those two files are
 // hand-written and are NOT generated from server.js. If a helper is added to
@@ -423,7 +462,7 @@ if (drifted.length) {
 }
 console.log('Helper-parity guard OK: ' + shared.length + ' helpers shared by server.js and header.js/footer.js are the same code (' + PLATFORM_HELPERS.size + ' platform-specific exceptions)');
 
-fs.writeFileSync(path.join(__dirname, 'worker.js'), header + block + footer);
-console.log('Wrote cloudflare/worker.js (' + (header + block + footer).split('\n').length + ' lines)');
+fs.writeFileSync(workerPath, candidate);
+console.log('Wrote cloudflare/worker.js (' + candidate.split('\n').length + ' lines)');
 console.log('header.js and footer.js are hand-written (not generated) — edit those directly for anything');
 console.log('outside the mechanically-ported route bodies, then re-run this script.');

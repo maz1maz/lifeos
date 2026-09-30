@@ -9,7 +9,7 @@
   - دادهٔ محلی: `data/db.json` (یک blob JSON) + بکاپ روزانه در `data/backups/`.
   - helperها: خطوط ۱–۶۳۳ · `handleRequest`: خط ~۶۳۴ · بلوک مسیرها: از `if(p==='/api/auth/signup'` تا `let file=p==='/'…` (~۸۴۲) · سرو استاتیک و تایمرها بعد از آن.
 - **Worker کلادفلر = `cloudflare/worker.js`.**
-  - ⚠️ از v50–v66 (شاخهٔ loving-brown) کد مستقیم در `worker.js` نوشته شده (کاربر disabled، تکرار جلالی `jmonthly`، …) و در `server.js`/`header.js` نیست. **تا آشتی‌دادن، `node cloudflare/port.js` را اجرا نکن** (~۳۲۰ خط فیچر پاک می‌شود). تغییرات Worker را فعلاً مستقیم در `worker.js` بده.
+  - ⚠️ از v50–v66 (شاخهٔ loving-brown) کد مستقیم در `worker.js` نوشته شده (کاربر disabled، تکرار جلالی `jmonthly`، …) و در `server.js`/`header.js` نیست. **تا آشتی‌دادن، `node cloudflare/port.js` را اجرا نکن** (port.js حالا گارد route-loss دارد و بدون نوشتن فایل با خطا متوقف می‌شود). تغییرات Worker را فعلاً مستقیم در `worker.js` بده.
   - `node cloudflare/port.js` = `cloudflare/header.js` + بلوک مسیرهای server.js (تبدیل‌شده به Web API) + `cloudflare/footer.js`.
   - helper جدید در server.js ⇒ همان را داخل `makeHelpers(env)` در `header.js` هم اضافه کن (گاردهای Drift/Export/Helper-parity در port.js چک می‌کنند).
   - مسیرهای فقط-Worker (tgju، webhook تلگرام، uploads، cron، دروازهٔ لاگین) در `footer.js` هستند.
@@ -25,7 +25,7 @@
 ```bash
 npm ci
 npm run build:today      # حتماً قبل از تست؛ بدون build، ui/verify تست‌ها قرمز می‌شوند
-npm test                 # smoke(490) + worker-smoke(205) + verify-script(26) + ui-smoke(39) — همه باید سبز باشند
+npm test                 # smoke(490) + worker-smoke(211) + verify-script(26) + ui-smoke(44) — همه باید سبز باشند
 npm start                # server.js روی :3000
 npm run dev:today        # vite dev
 node cloudflare/port.js  # ⚠️ فعلاً ممنوع — بالا را ببین
@@ -38,4 +38,4 @@ npm run deploy           # build + wrangler deploy (فقط با اجازهٔ ک�
 - متن UI فارسی، `dir=rtl`، اعداد با `fa()`/`toLocaleString('fa-IR')`. واحد پول ذخیره‌شده **ریال** است (`_meta.currencyUnit='IRR'`)، نمایش تومان = ÷۱۰.
 - تاریخ‌ها ISO با منطقهٔ `Asia/Tehran`؛ نمایش جلالی با `Intl` (`fa-IR-u-ca-persian`).
 - کلیدهای API در `.env` (نمونه: `.env.example`) / `wrangler secret`. هرگز commit نکن.
-- `ielts-content-all-45-files-COMPLETE.zip` در ریشه = دادهٔ واژگان IELTS (۴۵ فایل JSON، ۴۴۹۴ واژه) کامل؛ همهٔ واژه‌ها در `public/vocab/words.json` کلید دارند؛ واردسازی (تبدیل قالب) هنوز انجام نشده.
+- `ielts-content-all-45-files-COMPLETE.zip` در ریشه = دادهٔ واژگان IELTS (۴۵ فایل JSON، ۴۴۹۴ واژه) واردشده با `node scripts/import-ielts.js <dir>` (بعد از unzip). ستون ۱۱ اختیاری `words.json` = معنی‌های اضافه `[[pos,fa,d,df,e,ef],…]`.
