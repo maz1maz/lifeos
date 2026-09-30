@@ -8,7 +8,8 @@
 - **بک‌اند مرجع = `server.js`** (Node خام، بدون فریم‌ورک، ~۹۷۵ خط ولی خطوط خیلی بلند/minified-style).
   - دادهٔ محلی: `data/db.json` (یک blob JSON) + بکاپ روزانه در `data/backups/`.
   - helperها: خطوط ۱–۶۳۳ · `handleRequest`: خط ~۶۳۴ · بلوک مسیرها: از `if(p==='/api/auth/signup'` تا `let file=p==='/'…` (~۸۴۲) · سرو استاتیک و تایمرها بعد از آن.
-- **Worker کلادفلر = `cloudflare/worker.js` — تولیدی، دستی ویرایش نکن.**
+- **Worker کلادفلر = `cloudflare/worker.js`.**
+  - ⚠️ از v50–v66 (شاخهٔ loving-brown) کد مستقیم در `worker.js` نوشته شده (کاربر disabled، تکرار جلالی `jmonthly`، …) و در `server.js`/`header.js` نیست. **تا آشتی‌دادن، `node cloudflare/port.js` را اجرا نکن** (~۳۲۰ خط فیچر پاک می‌شود). تغییرات Worker را فعلاً مستقیم در `worker.js` بده.
   - `node cloudflare/port.js` = `cloudflare/header.js` + بلوک مسیرهای server.js (تبدیل‌شده به Web API) + `cloudflare/footer.js`.
   - helper جدید در server.js ⇒ همان را داخل `makeHelpers(env)` در `header.js` هم اضافه کن (گاردهای Drift/Export/Helper-parity در port.js چک می‌کنند).
   - مسیرهای فقط-Worker (tgju، webhook تلگرام، uploads، cron، دروازهٔ لاگین) در `footer.js` هستند.
@@ -24,16 +25,17 @@
 ```bash
 npm ci
 npm run build:today      # حتماً قبل از تست؛ بدون build، ui/verify تست‌ها قرمز می‌شوند
-npm test                 # smoke(490) + worker-smoke(134) + verify-script(26) + ui-smoke(39) — همه باید سبز باشند
+npm test                 # smoke(490) + worker-smoke(205) + verify-script(26) + ui-smoke(39) — همه باید سبز باشند
 npm start                # server.js روی :3000
 npm run dev:today        # vite dev
-node cloudflare/port.js  # بعد از هر تغییر مسیر/helper در server.js
+node cloudflare/port.js  # ⚠️ فعلاً ممنوع — بالا را ببین
 npm run deploy           # build + wrangler deploy (فقط با اجازهٔ کاربر)
 ```
 
 ## قواعد کار
-- هر تغییر API: اول `server.js` → بعد `node cloudflare/port.js` → `npm test`.
+- هر تغییر API: هم `server.js` هم `worker.js` (تا آشتی port.js) → `npm test`.
+- اپ زبان: `public/vocab/` (`words.json` = آرایهٔ فشرده) + `src/today/src/vocab.jsx` + `/api/vocab`.
 - متن UI فارسی، `dir=rtl`، اعداد با `fa()`/`toLocaleString('fa-IR')`. واحد پول ذخیره‌شده **ریال** است (`_meta.currencyUnit='IRR'`)، نمایش تومان = ÷۱۰.
 - تاریخ‌ها ISO با منطقهٔ `Asia/Tehran`؛ نمایش جلالی با `Intl` (`fa-IR-u-ca-persian`).
 - کلیدهای API در `.env` (نمونه: `.env.example`) / `wrangler secret`. هرگز commit نکن.
-- `ielts-content-all-45-files-COMPLETE.zip` در ریشه = دادهٔ واژگان IELTS (۴۵ فایل JSON، ۴۴۹۴ واژه) برای ماژول آیندهٔ یادگیری؛ هنوز به اپ وصل نشده.
+- `ielts-content-all-45-files-COMPLETE.zip` در ریشه = دادهٔ واژگان IELTS (۴۵ فایل JSON، ۴۴۹۴ واژه) کامل؛ همهٔ واژه‌ها در `public/vocab/words.json` کلید دارند؛ واردسازی (تبدیل قالب) هنوز انجام نشده.
