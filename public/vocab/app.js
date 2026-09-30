@@ -217,9 +217,11 @@ function filtered() {
     (!FILTER.starsOnly || S.stars.includes(x.w))
   );
 }
+const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
+// topic counts follow the chosen level, so «C2 → عمومی» shows how many C2 words that topic has
 function topics() {
   const m = new Map();
-  DECK.forEach(x => m.set(x.t, (m.get(x.t) || 0) + 1));
+  DECK.forEach(x => { if (FILTER.lv === "all" || x.lv === FILTER.lv) m.set(x.t, (m.get(x.t) || 0) + 1); });
   return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
 }
 
@@ -570,9 +572,9 @@ function renderBrowse() {
   </div>`;
   $("#bq").addEventListener("input", e => { query = e.target.value; shown = 60; renderBrowse(); $("#bq").focus(); });
   $("#bsort").addEventListener("change", e => { shown = 60; sortMode = e.target.value; renderBrowse(); });
-  $$("[data-lv]").forEach(c => c.onclick = () => { FILTER.lv = c.dataset.lv; render(); });
+  $$("[data-lv]").forEach(c => c.onclick = () => { FILTER.lv = c.dataset.lv; renderFilters(); render(); });
   $$("[data-star]").forEach(c => c.onclick = () => { FILTER.starsOnly = !FILTER.starsOnly; render(); });
-  $$("[data-clear]").forEach(c => c.onclick = () => { FILTER = { topic: "all", lv: "all", starsOnly: false }; query = ""; render(); });
+  $$("[data-clear]").forEach(c => c.onclick = () => { FILTER = { topic: "all", lv: "all", starsOnly: false }; query = ""; renderFilters(); render(); });
   const m = $("#more"); if (m) m.onclick = () => { shown += 60; renderBrowse(); };
   $$("tbody tr").forEach(tr => tr.onclick = () => wordSheet(tr.dataset.w));
 }
@@ -1059,8 +1061,17 @@ function profileSheet() {
 
 /* ------------------------------------------------------------ filter chips */
 function renderFilters() {
+  const lvCount = l => DECK.filter(x => x.lv === l).length;
+  const lb = $("#levelBar");
+  if (lb) {
+    lb.innerHTML = `<span class="chip ${FILTER.lv === "all" ? "on" : ""}" data-lvf="all">همهٔ سطوح</span>` +
+      LEVELS.map(l => `<span class="chip ${FILTER.lv === l ? "on" : ""}" data-lvf="${l}">${l} <small>(${fa(lvCount(l))})</small></span>`).join("");
+    $$("#levelBar [data-lvf]").forEach(c => c.onclick = () => { FILTER.lv = c.dataset.lvf; cur = null; renderFilters(); render(); });
+  }
   const tl = topics();
-  $("#topicBar").innerHTML = `<span class="chip ${FILTER.topic === "all" ? "on" : ""}" data-t="all">همهٔ موضوع‌ها (${fa(DECK.length)})</span>` +
+  if (FILTER.topic !== "all" && !tl.some(([t]) => t === FILTER.topic)) tl.push([FILTER.topic, 0]);
+  const inLevel = tl.reduce((a, [, n]) => a + n, 0);
+  $("#topicBar").innerHTML = `<span class="chip ${FILTER.topic === "all" ? "on" : ""}" data-t="all">همهٔ موضوع‌ها (${fa(inLevel)})</span>` +
     tl.map(([t, n]) => `<span class="chip ${FILTER.topic === t ? "on" : ""}" data-t="${esc(t)}">${esc(t)} (${fa(n)})</span>`).join("");
   $$("#topicBar [data-t]").forEach(c => c.onclick = () => { FILTER.topic = c.dataset.t; cur = null; renderFilters(); render(); });
   const tg = $("#topicToggle");

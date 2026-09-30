@@ -197,6 +197,9 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 /* LifeOS v68: phones — shorter card so the rating buttons are visible without scrolling; no keyboard hints on touch screens */
 @media(max-width:700px){.fc{height:clamp(300px,50vh,440px)}}
 @media(hover:none) and (pointer:coarse){.kbonly{display:none!important}}
+/* LifeOS v69: level filter above topics */
+#levelBar .chip small{opacity:.7;font-size:11px}
+@media(max-width:700px){#levelBar{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}#levelBar .chip{flex:0 0 auto}}
 </style>
 </head>
 <body>
@@ -232,9 +235,10 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 
   <div class="card pad" style="margin:12px 0">
     <div class="between" style="margin-bottom:8px">
-      <span class="muted">فیلتر موضوعی<span class="onlywide"> — می‌توانی روی یک موضوع آیلتسی تمرکز کنی</span>:</span>
+      <span class="muted">فیلتر سطح و موضوع<span class="onlywide"> — اول سطح، بعد موضوع را انتخاب کن</span>:</span>
       <span class="chip" id="topicToggle" style="display:none">نمایش همه</span>
     </div>
+    <div class="row" id="levelBar" style="gap:6px;margin-bottom:10px" aria-label="سطح"></div>
     <div class="row" id="topicBar" style="gap:6px"></div>
   </div>
 
