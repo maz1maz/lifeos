@@ -3,6 +3,7 @@
 
 Input: text files, one word per line:
   word | pos | meanings (، separated) | def_en | def_fa | ex_en | ex_fa | synonyms (comma separated, optional)
+A field that is exactly "=" keeps the current value (e.g. a correct WordNet definition).
 Extra senses of the same word follow on lines starting with "+":
   + word | pos | meaning | def_en | def_fa | ex_en | ex_fa
 They are stored in column 11 ([[pos, fa, d, df, e, ef], ...], primary sense first) and their
@@ -16,6 +17,7 @@ import json, os, sys
 path = os.path.join(os.path.dirname(__file__), '..', 'public', 'vocab', 'words.json')
 rows = json.load(open(path, encoding='utf-8'))
 by = {r[0].lower(): r for r in rows}
+orig = {r[0].lower(): list(r) for r in rows}  # '=' on a '+' line refers to the value before this run
 done, missing, bad = 0, [], []
 for f in sys.argv[1:]:
     for n, line in enumerate(open(f, encoding='utf-8'), 1):
@@ -37,11 +39,17 @@ for f in sys.argv[1:]:
         if extra:
             if len(r) < 12:
                 r.append([[r[4], '، '.join(r[1]), r[5], r[10], r[6], r[9]]])
-            r[11].append([p[1], p[2], p[3], p[4], p[5], p[6]])
+            o = orig[p[0].lower()]
+            ov = {1: o[4], 3: o[5], 4: o[10], 5: o[6], 6: o[9]}
+            q = [ov[i] if i in ov and p[i] == '=' else p[i] for i in range(7)]
+            r[11].append([q[1], q[2], q[3], q[4], q[5], q[6]])
             r[1] += [m for m in fa if m not in r[1]]
             continue
         syn = [s.strip() for s in (p[7] if len(p) > 7 else '').split(',') if s.strip()]
-        r[1], r[4], r[5], r[6], r[7], r[9], r[10] = fa, p[1], p[3], p[5], syn, p[6], p[4]
+        keep = lambda v, old: old if v == '=' else v
+        r[1] = r[1] if p[2] == '=' else fa
+        r[4], r[5], r[10], r[6], r[9] = keep(p[1], r[4]), keep(p[3], r[5]), keep(p[4], r[10]), keep(p[5], r[6]), keep(p[6], r[9])
+        r[7] = r[7] if len(p) > 7 and p[7] == '=' else syn
         del r[11:]
         done += 1
 if bad:
