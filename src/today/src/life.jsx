@@ -6,7 +6,7 @@ import { JalaliDateInput, isoToJ, jToIso, MONTHS } from './jdate';
 import { SideLayout } from './sidelist';
 import './life.css';
 import { VocabStats } from './vocab';
-import { printProjectReport } from './projectReportPrint';
+import { printProjectReport, sendProjectReportToTelegram } from './projectReportPrint';
 
 export const api = async (url, options) => {
   const r = await fetch(url, { credentials: 'include', cache: 'no-store', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -542,12 +542,14 @@ function ProjectReport({ project, contract, financials, processes }) {
   const hasReportBrand = !!(reportHeaderText || reportLogo);
   const printedAt = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date());
   const [sendState, setSendState] = useState({ busy: false, msg: '', error: false });
-  const printReport = async () => {
+  const reportData = () => ({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo }, stages, departments, statements: statementRows });
+  const printReport = () => printProjectReport(reportData());
+  const sendReport = async () => {
     if (sendState.busy) return;
-    setSendState({ busy: true, msg: 'در حال ساخت PDF و ارسال به تلگرام…', error: false });
+    setSendState({ busy: true, msg: 'در حال ساخت PDF و ارسال…', error: false });
     try {
-      const name = await printProjectReport({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo }, stages, departments, statements: statementRows });
-      setSendState({ busy: false, msg: `✓ «${name}» به تلگرام ارسال شد.`, error: false });
+      await sendProjectReportToTelegram(reportData());
+      setSendState({ busy: false, msg: '✓ PDF گزارش به تلگرام ارسال شد.', error: false });
     } catch (e) { setSendState({ busy: false, msg: e.message || 'ارسال به تلگرام ناموفق بود.', error: true }); }
   };
   return <article className="lf-project-report" dir="rtl">
@@ -555,7 +557,7 @@ function ProjectReport({ project, contract, financials, processes }) {
       {hasReportBrand ? <aside className="lf-report-print-brand" aria-label="سربرگ گزارش">{reportLogo ? <img src={reportLogo} alt="لوگوی گزارش" /> : null}{reportHeaderText ? <b>{reportHeaderText}</b> : null}</aside> : null}
       <div><p>گزارش عملکرد پروژه</p><h2>{project.name}</h2><small>تهیه‌شده در {printedAt}</small></div>
       <div className={`lf-report-status ${timelineBehind ? 'attention' : progress === 100 ? 'complete' : ''}`}><b>{projectState}</b><span>{fa(progress)}٪ پیشرفت اجرایی</span></div>
-      <div className="lf-report-actions"><button type="button" className="lf-btn lf-report-print" onClick={printReport} disabled={sendState.busy}>{sendState.busy ? '⏳ در حال ارسال…' : '🖨 چاپ / PDF + ارسال به تلگرام'}</button>{sendState.msg ? <small className={`lf-report-send ${sendState.error ? 'err' : ''}`} role="status">{sendState.msg}</small> : null}</div>
+      <div className="lf-report-actions"><div className="lf-report-btns"><button type="button" className="lf-btn lf-report-print" onClick={printReport}>🖨 چاپ / ذخیرهٔ PDF</button><button type="button" className="lf-btn ghost lf-report-print" onClick={sendReport} disabled={sendState.busy}>{sendState.busy ? '⏳ در حال ارسال…' : '✈ ارسال به تلگرام'}</button></div>{sendState.msg ? <small className={`lf-report-send ${sendState.error ? 'err' : ''}`} role="status">{sendState.msg}</small> : null}</div>
     </header>
     <section className="lf-report-metrics">
       <div className="lf-report-chart report-progress"><div className="lf-report-ring" style={{ '--progress': `${progress * 3.6}deg` }}><b>{fa(progress)}٪</b><small>اجرایی</small></div><div><small>پیشرفت مراحل</small><b>{fa(completed)} از {fa(stages.length)} مرحله</b><span>مراحل اجرایی تکمیل شده</span></div></div>
@@ -609,7 +611,10 @@ function ProjectFile({ project, contracts, financials, supplies, processes, onEd
 }
 export function ProjectsPage({ Nav }) {
   const projects = useCol('projects'), cards = useCol('cards'), contracts = useCol('projectContracts'), financials = useCol('projectFinancials'), supplies = useCol('projectSupplies'), processes = useCol('projectProcesses');
-  const [pid, setPid] = useState(() => { const u = new URLSearchParams(location.search).get('pid'); if (u) return u; try { return localStorage.getItem('lifeos-project') || ''; } catch { return ''; } });
+  const [pid, setPidRaw] = useState(() => { const u = new URLSearchParams(location.search).get('pid'); if (u) return u; try { return localStorage.getItem('lifeos-project') || ''; } catch { return ''; } });
+  // a project remembered from last visit is only reopened while it is still active; an explicit pick (click, deep link) always wins
+  const [picked, setPicked] = useState(() => !!new URLSearchParams(location.search).get('pid'));
+  const setPid = id => { setPicked(true); setPidRaw(id); };
   const [edit, setEdit] = useState(null), [cardEdit, setCardEdit] = useState(null), [fileEdit, setFileEdit] = useState(null), [drag, setDrag] = useState(null), [quick, setQuick] = useState('');
   const processSeeds = useRef(new Set());
   const contractSeeds = useRef(new Set());
@@ -622,7 +627,8 @@ export function ProjectsPage({ Nav }) {
   // manual order from drag-and-drop in the side list; projects without `order` keep creation order at the end
   const ordered = list.map((p, i) => [p, Number.isFinite(p.order) ? p.order : 1e6 + i]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
   const reorderProjects = ids => { const pos = new Map(ordered.map((p, i) => [p.id, i])), group = ids.map(id => pos.get(id)).sort((a, b) => a - b); ids.forEach((id, i) => { const p = list.find(x => x.id === id); if (p && p.order !== group[i]) projects.patch(id, { order: group[i] }); }); ordered.forEach((p, i) => { if (!ids.includes(p.id) && p.order !== i) projects.patch(p.id, { order: i }); }); };
-  const cur = list.find(p => p.id === pid) || list[0] || null;
+  const isFinished = p => { if (p.status === 'done') return true; const mine = (processes.items || []).filter(x => x.projectId === p.id && x.status === 'done'), keys = new Set(mine.map(x => `${x.department}|${x.title}`)); return keys.has(`${DELIVERY_STAGE[0]}|${DELIVERY_STAGE[1]}`) || PROJECT_PROCESS_TEMPLATE.every(([d, t]) => keys.has(`${d}|${t}`)); };
+  const cur = (() => { const p = list.find(x => x.id === pid); if (p && (picked || !isFinished(p))) return p; return ordered.find(x => !isFinished(x)) || p || ordered[0] || null; })();
   useEffect(() => { if (cur) try { localStorage.setItem('lifeos-project', cur.id); } catch {} }, [cur?.id]);
   const mine = (cards.items || []).filter(c => cur && c.projectId === cur.id);
   // Creating a project deliberately asks for only its name. Everything else is
