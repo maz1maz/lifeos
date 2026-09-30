@@ -4,6 +4,7 @@
 .topbar .nav-toggle:hover{border-color:var(--g-accent);color:var(--g-accent-strong)}
 .topbar .nav-current{display:inline;color:var(--g-muted);font-size:13px;white-space:nowrap;padding-inline-start:12px;border-inline-start:1px solid var(--g-border)}
 .nav-spacer{flex:1}
+.topbar,.drawer{-webkit-user-select:none;user-select:none}
 .topbar .links{display:none !important}
 .nav-scrim{display:block;position:fixed;inset:0;z-index:48;border:0;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);animation:fadeIn .2s ease}
 .drawer{position:fixed;top:0;right:0;bottom:0;width:min(300px,86vw);z-index:51;display:flex;flex-direction:column;gap:14px;overflow-y:auto;padding:18px 14px calc(18px + env(safe-area-inset-bottom,0px));background:var(--g-panel);border-inline-start:1px solid var(--g-border-2);box-shadow:-20px 0 60px rgba(0,0,0,.4);transform:translateX(105%);transition:transform .25s var(--g-motion-ease);visibility:hidden}
