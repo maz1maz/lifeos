@@ -194,6 +194,9 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 .fc{height:470px;min-height:0}
 .fc>.face{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 @media(max-width:700px){.fc{height:520px}}
+/* LifeOS v68: phones — shorter card so the rating buttons are visible without scrolling; no keyboard hints on touch screens */
+@media(max-width:700px){.fc{height:clamp(300px,50vh,440px)}}
+@media(hover:none) and (pointer:coarse){.kbonly{display:none!important}}
 </style>
 </head>
 <body>

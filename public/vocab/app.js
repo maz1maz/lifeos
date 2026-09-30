@@ -279,7 +279,7 @@ function renderStudy() {
         ${[1,2,3,4,5,6].map(i => `<span class="dot ${boxOf(cur.w) >= i ? "on" : ""}"></span>`).join("")}
       </div>
       <div class="muted" style="position:absolute;inset-inline:22px;bottom:34px;text-align:center">
-        برای دیدن معنی، روی کارت بزن یا <span class="kbd">Space</span> بزن
+        برای دیدن معنی، روی کارت بزن<span class="kbonly"> یا <span class="kbd">Space</span> بزن</span>
       </div>
     </div>
 
@@ -313,7 +313,7 @@ function renderStudy() {
   <div class="row" style="margin-top:10px;justify-content:center">
     <button class="btn sm ghost" id="prevBtn">قبلی</button>
     <button class="btn sm ghost" id="skipBtn">پرش به واژهٔ بعد</button>
-    <span class="muted">میان‌بر: <span class="kbd">Space</span> برگرداندن · <span class="kbd">۱..۴</span> ارزیابی · <span class="kbd">S</span> تلفظ</span>
+    <span class="muted kbonly">میان‌بر: <span class="kbd">Space</span> برگرداندن · <span class="kbd">۱..۴</span> ارزیابی · <span class="kbd">S</span> تلفظ</span>
   </div>`;
 
   // events
