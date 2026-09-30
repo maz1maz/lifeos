@@ -262,7 +262,7 @@ function renderStudy() {
   <div class="fcwrap"><div class="fc ${flipped ? "flip" : ""}" id="fc">
     <div class="face front">
       <div class="between">
-        <span class="pill ${levelClass(cur.lv)}">${esc(cur.lv)}</span>
+        <span class="row" style="gap:6px"><span class="pill ${levelClass(cur.lv)}">${esc(cur.lv)}</span>${cur.t ? `<span class="pill">${esc(cur.t)}</span>` : ""}</span>
         <span class="row" style="gap:6px">
           ${cur.p ? `<span class="pill">${esc(cur.p)}</span>` : ""}
           <span class="pill" style="cursor:pointer" id="starBtn" title="ستاره‌دار کردن">${S.stars.includes(cur.w) ? "★" : "☆"}</span>
@@ -270,7 +270,6 @@ function renderStudy() {
       </div>
       <div style="text-align:center;margin-top:26px">
         <h1 class="word en">${esc(cur.w)}</h1>
-        <div class="muted">${esc(cur.t)}</div>
         <div class="row" style="justify-content:center;margin-top:16px">
           <button class="btn sm" id="speakBtn" title="هر بار برای شنیدن دوباره بزن">${SPK} تلفظ</button>
           <button class="btn sm" id="repeatBtn" title="سه بار پشت‌سرهم پخش کن">↻ ۳ بار</button>
@@ -287,19 +286,18 @@ function renderStudy() {
 
     <div class="face back">
       <div class="between">
-        <span class="pill ${levelClass(cur.lv)}">${esc(cur.lv)}</span>
-        <span class="row" style="gap:6px"><span class="pill">${esc(cur.t)}</span>${cur.p ? `<span class="pill">${esc(cur.p)}</span>` : ""}</span>
+        <span class="row" style="gap:6px"><span class="pill ${levelClass(cur.lv)}">${esc(cur.lv)}</span>${cur.t ? `<span class="pill">${esc(cur.t)}</span>` : ""}</span>
+        <span class="row" style="gap:6px">${cur.p ? `<span class="pill">${esc(cur.p)}</span>` : ""}</span>
       </div>
       <div style="text-align:center;margin-top:10px">
         <div class="en muted" style="font-size:20px;font-weight:700">${esc(cur.w)}</div>
         <div class="meaning">${meaningsOf(cur).map(esc).join(" • ") || "—"}</div>
       </div>
-      ${cur.d ? `<div class="def"><b>تعریف</b><span class="defen en">${esc(cur.d)}</span>${cur.df ? `<span class="deffa">${esc(cur.df)}</span>` : ""}</div>` : ""}
+      ${cur.d ? `<div class="def def-c"><span class="defen en">${esc(cur.d)}</span>${cur.df ? `<span class="deffa">${esc(cur.df)}</span>` : ""}</div>` : ""}
       ${cur.e ? `<div class="exbox"><div class="ex">“${esc(cur.e)}”</div>${cur.ef ? `<div class="exfa">${esc(cur.ef)}</div>` : ""}</div>` : ""}
       ${sensesHtml(cur)}
-      ${(cur.s && cur.s.length) ? `<div class="syn">${cur.s.map(x => `<span class="pill en">${esc(x)}</span>`).join("")}</div>` : ""}
+      ${(cur.s && cur.s.length) ? `<div class="syn"><span class="muted syn-l">هم‌معنی:</span>${cur.s.map(x => `<span class="pill en">${esc(x)}</span>`).join("")}</div>` : ""}
       <div class="row" style="margin-top:14px">
-        <button class="btn sm" id="editBtn">✎ ویرایش معنی</button>
         <button class="btn sm" id="speakBtn2">${SPK} تلفظ</button>
         <button class="btn sm" id="repeatBtn2">↻ ۳ بار</button>
       </div>

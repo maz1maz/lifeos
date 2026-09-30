@@ -197,6 +197,11 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 /* LifeOS v68: phones — shorter card so the rating buttons are visible without scrolling; no keyboard hints on touch screens */
 @media(max-width:700px){.fc{height:clamp(300px,50vh,440px)}}
 @media(hover:none) and (pointer:coarse){.kbonly{display:none!important}}
+/* LifeOS v70: card back — definitions centred, no label; synonyms labelled */
+.def-c{text-align:center}
+.def-c .defen{text-align:center}
+.def-c .deffa{text-align:center}
+.syn-l{font-size:12px;align-self:center}
 /* LifeOS v69: level filter above topics */
 #levelBar .chip small{opacity:.7;font-size:11px}
 @media(max-width:700px){#levelBar{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}#levelBar .chip{flex:0 0 auto}}
