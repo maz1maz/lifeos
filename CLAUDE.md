@@ -38,4 +38,4 @@ npm run deploy           # build + wrangler deploy (فقط با اجازهٔ ک�
 - متن UI فارسی، `dir=rtl`، اعداد با `fa()`/`toLocaleString('fa-IR')`. واحد پول ذخیره‌شده **ریال** است (`_meta.currencyUnit='IRR'`)، نمایش تومان = ÷۱۰.
 - تاریخ‌ها ISO با منطقهٔ `Asia/Tehran`؛ نمایش جلالی با `Intl` (`fa-IR-u-ca-persian`).
 - کلیدهای API در `.env` (نمونه: `.env.example`) / `wrangler secret`. هرگز commit نکن.
-- `ielts-content-all-45-files-COMPLETE.zip` در ریشه = دادهٔ واژگان IELTS (۴۵ فایل JSON، ۴۴۹۴ واژه) واردشده با `node scripts/import-ielts.js <dir>` (بعد از unzip). ستون ۱۱ اختیاری `words.json` = معنی‌های اضافه `[[pos,fa,d,df,e,ef],…]`.
+- بستهٔ IELTS (zip، از ریپو حذف شد — در تاریخچهٔ git پیش از این کامیت هست) = دادهٔ واژگان IELTS (۴۵ فایل JSON، ۴۴۹۴ واژه) واردشده با `node scripts/import-ielts.js <dir>` (بعد از unzip). ستون ۱۱ اختیاری `words.json` = معنی‌های اضافه `[[pos,fa,d,df,e,ef],…]`.

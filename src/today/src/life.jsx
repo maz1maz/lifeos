@@ -6,6 +6,7 @@ import { JalaliDateInput, isoToJ, jToIso, MONTHS } from './jdate';
 import { SideLayout } from './sidelist';
 import './life.css';
 import { VocabStats } from './vocab';
+import { printProjectReport } from './projectReportPrint';
 
 export const api = async (url, options) => {
   const r = await fetch(url, { credentials: 'include', cache: 'no-store', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -473,13 +474,14 @@ function ProjectReport({ project, contract, financials, processes }) {
   const statementRows = (financials || []).slice().sort((a, b) => Number(a.statementNo || 0) - Number(b.statementNo || 0));
   const statementTotal = statementRows.reduce((sum, item) => sum + num(item.amount), 0);
   const paidTotal = statementRows.reduce((sum, item) => sum + num(item.paidAmount), 0);
-  const contractTotal = num(contract?.amount), advance = num(contract?.advancePayment), contractRemaining = Math.max(0, contractTotal - advance);
+  const contractTotal = num(contract?.amount), advance = num(contract?.advancePayment);
   const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
   const start = contract?.contractStartDate || '', end = contract?.contractEndDate || '';
   const contractDays = validDate(start) && validDate(end) ? Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 864e5)) : 0;
   const elapsed = contractDays ? Math.max(0, Math.min(contractDays, Math.round((Date.parse(todayIso()) - Date.parse(start)) / 864e5))) : 0;
   const timeProgress = contractDays ? Math.round(elapsed / contractDays * 100) : null;
   const received = advance + paidTotal;
+  const contractRemaining = Math.max(0, contractTotal - received);
   const receivedProgress = contractTotal ? Math.max(0, Math.min(100, Math.round(received / contractTotal * 100))) : 0;
   const timelineBehind = timeProgress != null && timeProgress > progress + 15;
   const projectState = progress === 100 ? 'تکمیل شده' : timelineBehind ? 'نیازمند پیگیری' : 'در جریان';
@@ -489,13 +491,7 @@ function ProjectReport({ project, contract, financials, processes }) {
   const reportLogo = /^data:image\/(?:png|jpeg|webp);base64,/i.test(String(reportBrand.logo || '')) ? reportBrand.logo : '';
   const hasReportBrand = !!(reportHeaderText || reportLogo);
   const printedAt = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date());
-  const printReport = () => {
-    const body = document.body, printClass = 'lf-printing-project-report';
-    const clean = () => body.classList.remove(printClass);
-    body.classList.add(printClass);
-    window.addEventListener('afterprint', clean, { once: true });
-    window.print();
-  };
+  const printReport = () => printProjectReport({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo }, stages, departments, statements: statementRows });
   return <article className="lf-project-report" dir="rtl">
     <header className={`lf-report-head ${hasReportBrand ? 'has-report-brand' : ''}`}>
       {hasReportBrand ? <aside className="lf-report-print-brand" aria-label="سربرگ گزارش">{reportLogo ? <img src={reportLogo} alt="لوگوی گزارش" /> : null}{reportHeaderText ? <b>{reportHeaderText}</b> : null}</aside> : null}
