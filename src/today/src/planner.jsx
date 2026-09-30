@@ -4,6 +4,8 @@ import {
   Clock, Hash, Inbox, ListChecks, Pencil, Plus, Repeat, Search, Sun, Trash2, X
 } from 'lucide-react';
 import './planner.css';
+import { JalaliDateInput } from './jdate';
+import { useProjectDue, cardHref, PChip } from './pcards';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -17,7 +19,7 @@ const fa = n => Number(n || 0).toLocaleString('fa-IR');
 const faDigits = v => String(v ?? '').replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const iso = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const addDays = (date, n) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + n);
-const jalaliToday = () => new Intl.DateTimeFormat('fa-IR', { dateStyle: 'full', timeZone: 'Asia/Tehran' }).format(new Date());
+const jalaliToday = () => { const p = Object.fromEntries(new Intl.DateTimeFormat('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Tehran' }).formatToParts(new Date()).map(x => [x.type, x.value])); return `${p.weekday} ${p.day} ${p.month} ${p.year}`; };
 
 const PRIORITY_LABELS = { urgent: 'فوری', high: 'زیاد', medium: 'متوسط', low: 'کم' };
 const PRIORITY_TONE = { urgent: 'rose', high: 'rose', medium: 'amber', low: 'sky' };
@@ -60,6 +62,7 @@ function TaskCard({ task, index, reminder, onToggle, onEdit, onDelete }) {
           {task.startTime && <Chip icon={Clock}>{faDigits(task.startTime)}</Chip>}
           <Chip tone={PRIORITY_TONE[task.priority] || 'neutral'}><span className="plnr-chip-dot" />اولویت {PRIORITY_LABELS[task.priority] || task.priority}</Chip>
           {task.recurrence && <Chip tone="sky" icon={Repeat}>{REPEAT_LABELS[task.recurrence] || task.recurrence}</Chip>}
+          {task.attCount ? <Chip tone="neutral">📎 {Number(task.attCount).toLocaleString('fa-IR')}</Chip> : null}
           {reminder && <Chip tone="amber" icon={Bell}>یادآوری {reminder.time ? faDigits(reminder.time) : dueLabel(reminder.date)}</Chip>}
           {tags.map(tag => <Chip key={tag} icon={Hash}>{tag}</Chip>)}
         </div>
@@ -68,12 +71,21 @@ function TaskCard({ task, index, reminder, onToggle, onEdit, onDelete }) {
   );
 }
 
-function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
+export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
   const today = isoToday();
   const empty = { title: '', notes: '', date: today, startTime: kind === 'reminder' ? '08:30' : '09:00', priority: 'medium', recurrence: '', tags: '', reminderOn: kind === 'reminder', reminderDate: today, reminderTime: kind === 'reminder' ? '08:30' : '', loose: false };
   const [form, setForm] = useState(empty);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [files, setFiles] = useState([]);
+  const [existing, setExisting] = useState([]);
+  const ownerType = initial ? (initial.task._reminder ? 'reminder' : 'task') : null, ownerId = initial?.task?.id || null;
+  useEffect(() => {
+    setFiles([]); setExisting([]);
+    if (!open || !ownerId) return;
+    api(`/api/attachments?ownerType=${ownerType}&ownerId=${encodeURIComponent(ownerId)}`).then(d => setExisting(d.items || [])).catch(() => {});
+  }, [open, ownerId]);
+  const removeExisting = async a => { if (!window.confirm(`پیوست «${a.name}» حذف شود؟`)) return; try { await api(`/api/attachments/${a.id}`, { method: 'DELETE' }); setExisting(x => x.filter(y => y.id !== a.id)); } catch (e) { setErr(e.message); } };
   useEffect(() => {
     if (!open) return;
     if (initial) {
@@ -81,7 +93,7 @@ function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
         title: initial.task.title, notes: initial.task.notes || '', date: initial.task.date || today,
         startTime: initial.task.startTime || '', priority: initial.task.priority || 'medium',
         recurrence: initial.task.recurrence || '', tags: (initial.task.tags || []).join('، '),
-        reminderOn: !!initial.reminder, reminderDate: initial.reminder?.date || initial.task.date || today,
+        reminderOn: !!initial.reminder, reminderDate: initial.reminder?.date || initial.task.date || today, leadMinutes: Number(initial.reminder?.leadMinutes ?? initial.task.leadMinutes ?? 0),
         reminderTime: initial.reminder?.time || '', loose: !initial.task.date
       });
     } else setForm(empty);
@@ -103,10 +115,10 @@ function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
     setBusy(true);
     try {
       await onSubmit({
-        title: form.title.trim(), notes: form.notes, date: form.loose ? '' : form.date,
-        startTime: form.loose ? null : (form.startTime || null), priority: form.priority,
+        title: form.title.trim(), notes: form.notes, date: form.date || today,
+        startTime: form.startTime || null, priority: form.priority,
         recurrence: form.recurrence || null, tags: form.tags, reminderOn: form.reminderOn,
-        reminderDate: form.reminderDate, reminderTime: form.reminderTime, loose: form.loose, kind
+        reminderDate: form.reminderDate, reminderTime: form.reminderTime, leadMinutes: Number(form.leadMinutes) || 0, loose: false, kind, files
       });
     } finally { setBusy(false); }
   };
@@ -123,26 +135,30 @@ function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
         <div className="plnr-drawer-body">
           <div><label>عنوان <span className="req">*</span></label><input value={form.title} onChange={e => set('title', e.target.value)} placeholder="مثلاً ارسال گزارش هفتگی" autoFocus maxLength={220} />{err && <small className="plnr-err">{err}</small>}</div>
           <div><label>توضیحات</label><textarea rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="جزئیات بیشتر (اختیاری)" /></div>
-          <label className="plnr-chip" style={{ cursor: 'pointer' }}>
-            <input type="checkbox" checked={form.loose} onChange={e => set('loose', e.target.checked)} /> یادداشتِ بی‌تاریخ
-          </label>
-          {!form.loose && (
-            <div className="plnr-2col">
-              <div><label>سررسید</label><input type="date" value={form.date} onChange={e => set('date', e.target.value)} /></div>
-              <div><label>ساعت</label><input type="time" value={form.startTime} onChange={e => set('startTime', e.target.value)} /></div>
+          <div className="plnr-2col">
+            <div><label>سررسید <span>(خالی = امروز)</span></label><JalaliDateInput value={form.date} onChange={v => set('date', v)} /></div>
+            <div><label>ساعت</label><input type="time" value={form.startTime} onChange={e => set('startTime', e.target.value)} /></div>
+          </div>
+          <div className="plnr-att">
+            <label>پیوست <span>(عکس، PDF یا هر فایلی — در تلگرام ذخیره می‌شود)</span></label>
+            <div className="plnr-att-list">
+              {existing.map(a => <span key={a.id} className="plnr-att-chip"><a href={a.url} target="_blank" rel="noreferrer">📎 {a.name}</a><small>{fmtSize(a.size)}</small><button type="button" onClick={() => removeExisting(a)} aria-label="حذف پیوست"><X size={12} /></button></span>)}
+              {files.map((f, i) => <span key={i} className="plnr-att-chip new"><span>📎 {f.name}</span><small>{fmtSize(f.size)}</small><button type="button" onClick={() => setFiles(fs => fs.filter((_, j) => j !== i))} aria-label="برداشتن"><X size={12} /></button></span>)}
+              <label className="plnr-att-add">＋ افزودن فایل<input type="file" multiple hidden onChange={e => { const add = [...(e.target.files || [])].filter(f => f.size <= 20 * 1024 * 1024); if (add.length < (e.target.files || []).length) setErr('فایل‌های بزرگ‌تر از ۲۰ مگابایت اضافه نشدند.'); setFiles(fs => [...fs, ...add].slice(0, 10)); e.target.value = ''; }} /></label>
             </div>
-          )}
+          </div>
           <div className="plnr-2col">
             <div><label>اولویت</label><div className="plnr-select-wrap"><select value={form.priority} onChange={e => set('priority', e.target.value)}>{Object.keys(PRIORITY_LABELS).map(k => <option key={k} value={k}>{PRIORITY_LABELS[k]}</option>)}</select><ChevronDown size={15} /></div></div>
             <div><label>تکرار</label><div className="plnr-select-wrap"><select value={form.recurrence} onChange={e => set('recurrence', e.target.value)}><option value="">بدون تکرار</option>{Object.keys(REPEAT_LABELS).map(k => <option key={k} value={k}>{REPEAT_LABELS[k]}</option>)}</select><ChevronDown size={15} /></div></div>
           </div>
           <div><label>برچسب‌ها <span>(با ویرگول جدا کن)</span></label><input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="گزارش، فوری" /></div>
+          {(kind === 'reminder' || form.reminderOn) ? <div><label>هشدار زودتر <span>(تلگرام و اعلان گوشی)</span></label><div className="plnr-select-wrap"><select value={form.leadMinutes || 0} onChange={e => set('leadMinutes', Number(e.target.value))}>{LEAD_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div></div> : null}
           <div className="plnr-reminder-box">
             <div className="plnr-reminder-head">
               <div><b>یادآوری</b><small>یک یادآوری جدا روی تقویم می‌سازد</small></div>
               <button type="button" className={`plnr-switch ${form.reminderOn ? 'on' : ''}`} onClick={() => set('reminderOn', !form.reminderOn)} role="switch" aria-checked={form.reminderOn}><i /></button>
             </div>
-            {form.reminderOn && <div className="plnr-2col"><div><label>تاریخ یادآوری</label><input type="date" value={form.reminderDate} onChange={e => set('reminderDate', e.target.value)} /></div><div><label>ساعت</label><input type="time" value={form.reminderTime} onChange={e => set('reminderTime', e.target.value)} /></div></div>}
+            {form.reminderOn && <div className="plnr-2col"><div><label>تاریخ یادآوری</label><JalaliDateInput value={form.reminderDate} onChange={v => set('reminderDate', v)} /></div><div><label>ساعت</label><input type="time" value={form.reminderTime} onChange={e => set('reminderTime', e.target.value)} /></div></div>}
           </div>
         </div>
         <footer>
@@ -152,6 +168,55 @@ function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
       </form>
     </div>
   );
+}
+
+const LEAD_OPTS = [[0, 'فقط سر ساعت'], [10, '۱۰ دقیقه قبل'], [30, 'نیم ساعت قبل'], [60, 'یک ساعت قبل'], [180, 'سه ساعت قبل'], [1440, 'یک روز قبل']];
+const fmtSize = n => { n = Number(n) || 0; return n >= 1048576 ? `${(n / 1048576).toLocaleString('fa-IR', { maximumFractionDigits: 1 })} مگ` : `${Math.max(1, Math.round(n / 1024)).toLocaleString('fa-IR')} کیلو`; };
+const readDataUrl = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+// Files are stored in the user's Telegram (no R2); the site serves them back via /uploads/…
+export async function uploadAttachments(ownerType, ownerId, files) {
+  const errors = [];
+  for (const f of files || []) { try { await api('/api/attachments', { method: 'POST', body: JSON.stringify({ ownerType, ownerId, name: f.name, dataUrl: await readDataUrl(f) }) }); } catch (e) { errors.push(`${f.name}: ${e.message}`); } }
+  if (errors.length) throw new Error(errors.join(' · '));
+}
+
+// Create a new task or reminder from TaskDrawer's body (used by the Today page too).
+export async function createPlannerItem(kind, body) {
+  const today = isoToday();
+  if (kind === 'reminder') {
+    const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+    if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
+    return r;
+  }
+  const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
+  const saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+  if (body.reminderOn && body.reminderDate) await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 }) });
+  if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
+  return saved;
+}
+
+// Create or update a task / reminder (used by the planner and the home agenda card).
+export async function savePlannerItem(kind, body, editing) {
+  const today = isoToday();
+  if (kind === 'reminder' && !editing) {
+    const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+    if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
+  } else if (kind === 'reminder' && editing?.task?._reminder) {
+    await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+    if (body.files?.length) await uploadAttachments('reminder', editing.task.id, body.files);
+  } else {
+    const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
+    let saved;
+    if (editing) saved = await api(`/api/tasks/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    else saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+    const existingReminder = editing?.reminder;
+    if (body.reminderOn && body.reminderDate) {
+      const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 };
+      if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'PATCH', body: JSON.stringify(rBody) });
+      else await api('/api/reminders', { method: 'POST', body: JSON.stringify(rBody) });
+    } else if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'DELETE' });
+    if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
+  }
 }
 
 export function PlannerReact({ Nav }) {
@@ -178,19 +243,21 @@ export function PlannerReact({ Nav }) {
   const today = isoToday(), weekAhead = iso(addDays(new Date(`${today}T12:00:00`), 7));
   const standaloneReminders = useMemo(() => reminders.filter(r => !r.taskId).map(r => ({
     id: r.id, title: r.title, notes: '', date: r.date, startTime: r.time || '', priority: 'medium',
-    recurrence: r.recurrence || null, tags: [], done: !!r.done, createdAt: r.createdAt, _reminder: true
+    recurrence: r.recurrence || null, leadMinutes: r.leadMinutes || 0, tags: [], done: !!r.done, createdAt: r.createdAt, _reminder: true
   })), [reminders]);
 
   const source = kind === 'reminder' ? standaloneReminders : tasks;
 
+  const pDue = useProjectDue(true);
+  const pOpen = pDue.items.filter(c => !c._done);
   const counts = useMemo(() => ({
     open: source.filter(x => !x.done).length,
-    today: source.filter(x => !x.done && x.date === today).length,
+    today: source.filter(x => !x.done && x.date === today).length + (kind === 'task' ? pOpen.length : 0),
     upcoming: source.filter(x => !x.done && x.date > today && x.date <= weekAhead).length,
     reminders: kind === 'reminder' ? source.filter(x => !x.done).length : tasks.filter(x => !x.done && reminderByTask[x.id]).length,
     done: source.filter(x => x.done).length,
     all: source.length
-  }), [source, reminderByTask, kind]);
+  }), [source, reminderByTask, kind, pOpen.length]);
 
   const visible = useMemo(() => {
     let list = source;
@@ -212,22 +279,7 @@ export function PlannerReact({ Nav }) {
 
   const submit = async body => {
     try {
-      if (kind === 'reminder' && !editing) {
-        await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence }) });
-      } else if (kind === 'reminder' && editing?.task?._reminder) {
-        await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence }) });
-      } else {
-        const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
-        let saved;
-        if (editing) saved = await api(`/api/tasks/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
-        else saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
-        const existingReminder = editing?.reminder;
-        if (body.reminderOn && body.reminderDate) {
-          const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id };
-          if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'PATCH', body: JSON.stringify(rBody) });
-          else await api('/api/reminders', { method: 'POST', body: JSON.stringify(rBody) });
-        } else if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'DELETE' });
-      }
+      await savePlannerItem(kind, body, editing);
       setDrawerOpen(false); setEditing(null); flash(editing ? 'تغییرات ذخیره شد ✓' : 'ثبت شد ✓'); load();
     } catch (error) { flash(error.message); }
   };
@@ -281,7 +333,7 @@ export function PlannerReact({ Nav }) {
           <div className="plnr-hero-title">
             <div className="plnr-mark"><ClipboardList size={24} strokeWidth={2} /></div>
             <div>
-              <h1>پلنر حرفه‌ای</h1>
+              <h1>برنامه‌ریز</h1>
               <p className="kicker">کارها و یادآوری‌ها، با ذخیره‌سازی واقعی در LifeOS</p>
             </div>
           </div>
@@ -333,9 +385,19 @@ export function PlannerReact({ Nav }) {
           ))}
         </nav>
 
+        {kind === 'task' && filter === 'today' && pDue.items.length ? <ul className="plnr-pcards" aria-label="کارهای پروژه">
+          <h4>🗂 کارهای پروژه <small>{fa(pOpen.length)} باز · از تابلوی پروژه‌ها</small></h4>
+          {pDue.items.map(c => { const late = c.due < today; return <li key={c.id} className={`plnr-pc ${c._done ? 'done' : ''}`} style={{ '--c': c.color }}>
+            <button type="button" className="ck" onClick={() => pDue.done(c)} aria-label={`انجام شد: ${c.title}`}>{c._done ? '✓' : ''}</button>
+            <b><PChip c={c} />{c.prio === 'h' ? <em className="pc-hi">!</em> : null}{c.title}</b>
+            <small className={late && !c._done ? 'late' : ''}>{late ? '⛔ عقب‌افتاده' : 'امروز'}{c.owner ? ` · ${c.owner}` : ''}</small>
+            <a href={cardHref(c)} title="باز کردن در پروژه">✎</a>
+          </li>; })}
+        </ul> : null}
+
         {loading && source.length === 0 ? (
           <div aria-label="در حال بارگذاری">{[0, 1, 2].map(i => <div key={i} className="plnr-skel" />)}</div>
-        ) : visible.length === 0 ? (
+        ) : visible.length === 0 && kind === 'task' && filter === 'today' && pDue.items.length ? null : visible.length === 0 ? (
           <div className="plnr-empty">
             <div className="icon"><Inbox size={28} /></div>
             <div>
