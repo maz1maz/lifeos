@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ArrowDownRight, ArrowUpRight, Bell, Calculator, Clock, RefreshCw, Search, Star, TrendingDown, TrendingUp
+  ArrowDownRight, ArrowUpRight, Bell, Calculator, Clock, Plus, RefreshCw, Search, Star, TrendingDown, TrendingUp
 } from 'lucide-react'
 import './market.css'
+import { MarketLogo } from './market-logos'
+import { PriceChart } from './pricechart'
+import { jalaliShort } from './jalali'
 
 const FAV_KEY = 'lifeos-market-favs'
 const ALERT_KEY = 'lifeos-market-alerts'
@@ -11,17 +14,17 @@ const TGJU_LABELS = {
   price_dollar_rl: 'دلار آزاد', price_eur: 'یورو', price_gbp: 'پوند', price_aed: 'درهم', price_try: 'لیر',
   geram18: 'گرم ۱۸ عیار', geram24: 'گرم ۲۴ عیار', sekee: 'سکه امامی', sekeb: 'سکه بهار آزادی',
   rob: 'ربع سکه', nim: 'نیم سکه', mesghal: 'مثقال', oil_brent: 'نفت برنت', oil: 'نفت',
-  nickel: 'نیکل', platinum: 'پلاتین', copper: 'مس', silver: 'نقره',
+  ons: 'اونس جهانی طلا', nickel: 'نیکل', platinum: 'پلاتین', copper: 'مس', silver: 'نقره', aluminium: 'آلومینیوم', aluminum: 'آلومینیوم',
 }
 const TGJU_ICONS = {
   price_dollar_rl: '💵', price_eur: '💶', price_gbp: '💷', price_aed: '💴', price_try: '💴',
   geram18: '🟡', geram24: '🟡', sekee: '🪙', sekeb: '🪙', rob: '🪙', nim: '🪙', mesghal: '🟡',
-  oil_brent: '🛢️', oil: '🛢️', nickel: '⚙️', platinum: '⚪', copper: '🟠', silver: '⚪',
+  ons: '🥇', oil_brent: '🛢️', oil: '🛢️', nickel: '⚙️', platinum: '⚪', copper: '🟠', silver: '⚪',
 }
 const CAT = {
   currency: new Set(['price_dollar_rl', 'price_eur', 'price_gbp', 'price_aed', 'price_try']),
   gold: new Set(['geram18', 'geram24', 'sekee', 'sekeb', 'rob', 'nim', 'mesghal']),
-  global: new Set(['oil_brent', 'oil', 'nickel', 'platinum', 'copper', 'silver']),
+  global: new Set(['ons', 'oil_brent', 'oil', 'nickel', 'platinum', 'copper', 'silver', 'aluminium', 'aluminum']),
 }
 
 const fa = (n, d = 0) => {
@@ -116,15 +119,14 @@ function marketHours(now) {
   return { tehran, us }
 }
 
-function tomanRate(dollarPrice) {
+// TGJU free-market dollar is in rial; older feeds sent toman — normalise to rial.
+function rialRate(dollarPrice) {
   const n = Number(dollarPrice) || 0
   if (!n) return 0
-  return n > 200000 ? n / 10 : n
+  return n > 200000 ? n : n * 10
 }
 
 export function MarketReact({ Nav }) {
-  const [tab, setTab] = useState('tehran')
-  const [sub, setSub] = useState('currency')
   const [q, setQ] = useState('')
   const [sort, setSort] = useState('default')
   const [clock, setClock] = useState('')
@@ -141,6 +143,8 @@ export function MarketReact({ Nav }) {
   const [favs, setFavs] = useState(() => loadJson(FAV_KEY, ['t:price_dollar_rl', 'c:bitcoin', 't:geram18']))
   const [alerts, setAlerts] = useState(() => loadJson(ALERT_KEY, []))
   const [showConv, setShowConv] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+  const [addQuery, setAddQuery] = useState('')
   const [showAlert, setShowAlert] = useState(null)
   const [convAmt, setConvAmt] = useState(1)
   const [convFrom, setConvFrom] = useState('USDT')
@@ -209,19 +213,23 @@ export function MarketReact({ Nav }) {
         market: 'crypto',
       })))
     } catch {
-      setNotice((n) => n || 'کریپتو از CoinGecko نیامد — بقیهٔ بازار از LifeOS است.')
+      setNotice((n) => n || 'قیمت رمزارزها فعلاً در دسترس نیست؛ بقیهٔ بازار به‌روزه.')
       setCrypto([])
     } finally { setLoadingC(false) }
   }, [])
 
   useEffect(() => { loadTehran(); loadCrypto() }, [loadTehran, loadCrypto])
 
-  const usdToman = useMemo(() => tomanRate(tehran.find((x) => x.key === 'price_dollar_rl')?.price), [tehran])
+  const usdRial = useMemo(() => rialRate(tehran.find((x) => x.key === 'price_dollar_rl')?.price), [tehran])
   const hours = marketHours(new Date())
 
   const withSpark = (list) => list.map((x) => x.market === 'tehran' && hist[x.key]?.length ? { ...x, sparkline: hist[x.key] } : x)
 
   const all = useMemo(() => withSpark([...tehran, ...crypto, ...stocks]), [tehran, crypto, stocks, hist])
+  const addableItems = useMemo(() => {
+    const query = addQuery.trim().toLowerCase()
+    return all.filter((item) => !favs.includes(item.id) && (!query || `${item.name} ${item.symbol || ''} ${item.key || ''}`.toLowerCase().includes(query)))
+  }, [all, favs, addQuery])
 
   useEffect(() => {
     if (!all.length || !alerts.length) return
@@ -248,14 +256,7 @@ export function MarketReact({ Nav }) {
 
   const toggleFav = (id) => setFavs((xs) => xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id])
 
-  const openHist = async (item) => {
-    if (item.market !== 'tehran') { setSelected(item); setHistory([]); return }
-    setSelected(item)
-    try {
-      const d = await fetch(`/api/tgju/history?key=${encodeURIComponent(item.key)}`, { credentials: 'include' }).then((r) => r.json())
-      setHistory(d.items || d.data || [])
-    } catch { setHistory([]) }
-  }
+  const openHist = (item) => { if (item.market === 'tehran') setSelected(item) }
 
   const saveAlert = () => {
     const target = Number(String(alertTarget).replace(/,/g, ''))
@@ -267,12 +268,12 @@ export function MarketReact({ Nav }) {
   }
 
   const convOut = useMemo(() => {
-    if (!usdToman) return 0
-    if (convFrom === 'USDT') return convAmt * usdToman
+    if (!usdRial) return 0
+    if (convFrom === 'USDT') return convAmt * usdRial
     const coin = crypto.find((c) => c.symbol === convFrom)
-    if (coin?.price) return convAmt * coin.price * usdToman
+    if (coin?.price) return convAmt * coin.price * usdRial
     return 0
-  }, [convAmt, convFrom, crypto, usdToman])
+  }, [convAmt, convFrom, crypto, usdRial])
 
   const summaries = [
     tehran.find((x) => x.key === 'price_dollar_rl'),
@@ -281,12 +282,15 @@ export function MarketReact({ Nav }) {
     stocks[0],
   ].filter(Boolean)
 
-  const list = tab === 'favorites' ? all.filter((x) => favs.includes(x.id))
-    : tab === 'tehran' ? tehran.filter((x) => x.category === sub)
-    : tab === 'crypto' ? crypto
-    : stocks
-
-  const shown = filterSort(withSpark(list))
+  // One page, stacked sections (no tabs).
+  const sections = [
+    { id: 'fav', title: 'نشان‌شده‌ها', note: 'ستاره بزن تا اینجا جمع بشه', items: all.filter((x) => favs.includes(x.id)), hideEmpty: true },
+    { id: 'currency', title: 'ارز آزاد', note: 'به ریال', items: tehran.filter((x) => x.category === 'currency'), loading: loadingT },
+    { id: 'gold', title: 'طلا و سکه', note: 'به ریال', items: tehran.filter((x) => x.category === 'gold'), loading: loadingT },
+    { id: 'global', title: 'بازار جهانی', note: 'به دلار، با معادل ریالی', items: tehran.filter((x) => x.category === 'global'), loading: loadingT, hideEmpty: true },
+    { id: 'crypto', title: 'رمزارز', note: 'به دلار · نمودار ۷ روزه', items: crypto, loading: loadingC, hideEmpty: true },
+    { id: 'us', title: 'سهام آمریکا', note: 'به دلار', items: stocks, hideEmpty: true },
+  ].map((sec) => ({ ...sec, shown: filterSort(withSpark(sec.items)) }))
 
   const priceLabel = (item) => {
     if (item.market === 'crypto' || item.market === 'us') return `$${Number(item.price || 0).toLocaleString()}`
@@ -300,7 +304,7 @@ export function MarketReact({ Nav }) {
         <header className="mk-card mk-hero">
           <div>
             <p className="mk-live"><span className="mk-dot" /> به‌روزرسانی لحظه‌ای · تهران از LifeOS · کریپتو CoinGecko</p>
-            <h1>ترمینال هوشمند بازار</h1>
+            <h1>بازار</h1>
             <div className="mk-status">
               <span className="mk-pill"><Clock size={14} color="#60a5fa" /> {clock || '—'}</span>
               <span>تهران: {hours.tehran ? <b className="mk-open">● باز</b> : <b className="mk-closed">● بسته</b>}</span>
@@ -309,6 +313,7 @@ export function MarketReact({ Nav }) {
             </div>
           </div>
           <div className="mk-actions">
+            <button type="button" className="mk-btn" onClick={() => { setAddQuery(''); setShowAdd(true) }}><Plus size={15} /> افزودن آیتم</button>
             <button type="button" className="mk-btn" onClick={() => setShowConv(true)}><Calculator size={15} /> مبدل ارز</button>
             <button type="button" className="mk-btn" onClick={() => { loadTehran(); loadCrypto() }} title="تازه‌سازی">
               <RefreshCw size={15} className={loadingT || loadingC ? 'spin' : ''} />
@@ -327,68 +332,30 @@ export function MarketReact({ Nav }) {
           </div>
         </header>
 
-        {notice ? <div className="notice">{notice} <button type="button" onClick={() => setNotice('')}>بستن</button></div> : null}
+        {notice ? <div className="notice mk-soft-notice">{notice} <button type="button" onClick={() => setNotice('')}>بستن</button></div> : null}
 
-        <div className="mk-summaries">
-          {summaries.map((item) => {
+        <div className="mk-secs">
+        {sections.filter((sec) => sec.loading || sec.shown.length || !sec.hideEmpty).map((sec) => (
+          <section className="mk-card mk-list mk-sec" key={sec.id} id={`mk-${sec.id}`}>
+            <div className="mk-list-head"><b>{sec.title}</b><span>{sec.note}</span></div>
+            {sec.loading && !sec.shown.length ? <><SkeletonRow /><SkeletonRow /></> : !sec.shown.length ? <div className="mk-empty">{q ? 'موردی با این جستجو نیست.' : 'داده‌ای برای این بخش نیست.'}</div> : sec.shown.map((item) => {
             const up = (item.change || 0) >= 0
-            return (
-              <article key={item.id} className="mk-card mk-sum">
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                  <small>{item.icon || ''} {item.name}</small>
-                  <ChangeBadge n={item.change} />
-                </div>
-                <b>{priceLabel(item)} <em>{item.market === 'tehran' ? '' : item.market === 'us' ? 'دلار' : 'USD'}</em></b>
-                <Sparkline data={item.sparkline} up={up} uid={item.id} />
-              </article>
-            )
-          })}
-        </div>
-
-        <nav className="mk-tabs">
-          <button type="button" className={`fav${tab === 'favorites' ? ' on' : ''}`} onClick={() => setTab('favorites')}><Star size={14} fill="currentColor" /> نشان‌شده‌ها ({fa(favs.length)})</button>
-          <button type="button" className={tab === 'tehran' ? 'on' : ''} onClick={() => setTab('tehran')}>بازار تهران</button>
-          <button type="button" className={tab === 'crypto' ? 'on' : ''} onClick={() => setTab('crypto')}>کریپتو</button>
-          <button type="button" className={tab === 'us' ? 'on' : ''} onClick={() => setTab('us')}>سهام آمریکا</button>
-        </nav>
-
-        {tab === 'tehran' ? (
-          <div className="mk-subs">
-            {[['currency', 'ارز آزاد'], ['gold', 'طلا و سکه'], ['global', 'بازار جهانی']].map(([k, l]) => (
-              <button key={k} type="button" className={sub === k ? 'on' : ''} onClick={() => setSub(k)}>{l}</button>
-            ))}
-          </div>
-        ) : null}
-
-        <section className="mk-card mk-list">
-          <div className="mk-list-head">
-            <b>{tab === 'favorites' ? 'لیست دیده‌بان' : tab === 'tehran' ? 'ارز، طلا و فلزات' : tab === 'crypto' ? 'رمزارز · CoinGecko' : 'NASDAQ / NYSE'}</b>
-            <span>{tab === 'crypto' ? 'نمودار ۷روزه واقعی' : 'داده از سرویس LifeOS'}</span>
-          </div>
-
-          {tab === 'crypto' && loadingC ? <><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /></> : null}
-          {tab === 'tehran' && loadingT ? <><SkeletonRow /><SkeletonRow /><SkeletonRow /></> : null}
-
-          {!((tab === 'crypto' && loadingC) || (tab === 'tehran' && loadingT)) && !shown.length ? (
-            <div className="mk-empty">{tab === 'favorites' ? 'ستاره بزنید تا اینجا جمع شود.' : tab === 'us' ? 'سهام نیامد — کلید سرویس باید فعال باشد.' : tab === 'crypto' ? 'رمزارزی دریافت نشد.' : 'داده‌ای برای این دسته نیست.'}</div>
-          ) : shown.map((item) => {
-            const up = (item.change || 0) >= 0
-            const toman = item.market === 'crypto' && usdToman && item.price ? fa(Math.round(item.price * usdToman)) : ''
+            const rialEq = (item.market === 'crypto' || item.category === 'global') && usdRial && item.price ? fa(Math.round(item.price * usdRial)) : ''
             return (
               <article key={item.id} className="mk-row">
                 <div className="mk-name">
                   <button type="button" className={`mk-star${favs.includes(item.id) ? ' on' : ''}`} onClick={() => toggleFav(item.id)} aria-label="علاقه‌مندی">
                     <Star size={16} fill={favs.includes(item.id) ? 'currentColor' : 'none'} />
                   </button>
-                  {item.image ? <img src={item.image} alt="" /> : <span className="mk-ico">{item.icon || '📈'}</span>}
+                  {item.image ? <img src={item.image} alt="" /> : item.market === 'tehran' ? <MarketLogo k={item.key} size={34} fallback={item.icon} /> : <span className="mk-ico">{item.icon || '📈'}</span>}
                   <div>
                     <b>{item.name} {item.symbol ? <small>({item.symbol})</small> : null}</b>
-                    {toman ? <small>{toman} تومان</small> : null}
+                    {rialEq ? <small>≈ {rialEq} ریال</small> : null}
                   </div>
                 </div>
                 <div className="mk-price">
                   {priceLabel(item)}
-                  {item.market === 'tehran' ? <small>واحد بازار</small> : null}
+                  {item.market === 'tehran' ? <small>{item.category === 'global' ? 'دلار' : 'ریال'}</small> : null}
                 </div>
                 <Sparkline data={item.sparkline} up={up} uid={item.id} />
                 <div className="mk-row-ops">
@@ -399,21 +366,29 @@ export function MarketReact({ Nav }) {
               </article>
             )
           })}
+          </section>
+        ))}
+        </div>
 
-          {selected && history.length ? (
-            <div className="mk-hist">
-              <h3>تاریخچهٔ {selected.name}</h3>
-              <div className="mk-bars">
-                {history.slice(-30).map((point, i) => {
-                  const v = Number(point.p || point.price || point.value || 0)
-                  const max = Math.max(...history.map((x) => Number(x.p || x.price || x.value || 0)), 1)
-                  return <span key={point.date || i} title={`${point.date || ''}: ${v}`} style={{ height: `${Math.max(8, Math.min(100, v / max * 100))}%` }} />
-                })}
-              </div>
-            </div>
-          ) : null}
-        </section>
+        {selected && selected.market === 'tehran' ? <PriceChart symbol={selected.key} name={selected.name} unit={selected.category === 'global' ? 'دلار' : 'ریال'} onClose={() => setSelected(null)} /> : null}
       </div>
+
+      {showAdd ? (
+        <div className="mk-modal" onClick={() => setShowAdd(false)}>
+          <div className="mk-card mk-modal-box mk-add-box" onClick={(e) => e.stopPropagation()}>
+            <header>
+              <h3><Plus size={18} color="#60a5fa" /> افزودن به نشان‌شده‌ها</h3>
+              <button type="button" onClick={() => setShowAdd(false)}>✕</button>
+            </header>
+            <input autoFocus value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder="مثال: اونس، طلا، دلار، بیت‌کوین…" />
+            <div className="mk-add-list">
+              {addableItems.length ? addableItems.map((item) => <button type="button" key={item.id} onClick={() => { toggleFav(item.id); flash(`«${item.name}» به نشان‌شده‌ها اضافه شد`); setShowAdd(false) }}>
+                <span>{item.image ? <img src={item.image} alt="" /> : <span className="mk-ico">{item.icon || '📈'}</span>}<b>{item.name}</b>{item.symbol ? <small>({item.symbol})</small> : null}</span><Plus size={16} />
+              </button>) : <p className="mk-empty">مورد تازه‌ای با این نام نیست یا قبلاً اضافه شده است.</p>}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showConv ? (
         <div className="mk-modal" onClick={() => setShowConv(false)}>
@@ -423,15 +398,15 @@ export function MarketReact({ Nav }) {
               <button type="button" onClick={() => setShowConv(false)}>✕</button>
             </header>
             <label>مقدار</label>
-            <input type="number" value={convAmt} onChange={(e) => setConvAmt(Number(e.target.value))} />
+            <input type="number" min="0" step="any" value={convAmt} onChange={(e) => setConvAmt(Math.max(0, Number(e.target.value) || 0))} />
             <label>از</label>
             <select value={convFrom} onChange={(e) => setConvFrom(e.target.value)}>
               <option value="USDT">تتر / دلار</option>
               {crypto.filter((c) => c.symbol !== 'USDT').map((c) => <option key={c.id} value={c.symbol}>{c.name} ({c.symbol})</option>)}
             </select>
             <div className="mk-conv-out">
-              <small>معادل تومان با دلار آزاد LifeOS</small>
-              <b>{usdToman ? fa(Math.round(convOut)) : '—'} <em style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'normal' }}>تومان</em></b>
+              <small>معادل ریالی با دلار آزاد LifeOS</small>
+              <b>{usdRial ? fa(Math.round(convOut)) : '—'} <em style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'normal' }}>ریال</em></b>
             </div>
           </div>
         </div>

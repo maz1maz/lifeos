@@ -111,6 +111,8 @@ async function main() {
   const googleFixture = await startGoogleCalendarFixtureServer();
   const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: {
     ...process.env, PORT: String(PORT), DB_PATH,
+    // Hermetic run: never inherit local .env secrets (they would turn "no network call" expectations into live calls).
+    SKIP_DOTENV: '1', STOCK_API_KEY: '', TMDB_API_KEY: '',
     GOOGLE_CLIENT_ID: 'fixture-client', GOOGLE_CLIENT_SECRET: 'fixture-secret',
     GOOGLE_CALENDAR_REDIRECT_URI: `${BASE}/api/integrations/google-calendar/callback`,
     GOOGLE_CALENDAR_AUTH_URL: googleFixture.base + '/auth', GOOGLE_CALENDAR_TOKEN_URL: googleFixture.base + '/token',

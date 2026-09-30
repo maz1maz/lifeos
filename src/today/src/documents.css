@@ -171,3 +171,6 @@
   .dm-rail { display: none; }
   .dm-rail.open { display: block; }
 }
+.dm-tools select.on { border-color: var(--dm-cyan); color: var(--dm-cyan); }
+.dm-tools select option { background: #1b1b1e; color: #ececee; }
+@media (max-width: 700px) { .dm-tools select { flex: 1 1 40%; } }

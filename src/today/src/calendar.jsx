@@ -3,6 +3,7 @@ import {
   Bell, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Grid3x3, LayoutGrid, List, Plus, Search, Trash2
 } from 'lucide-react'
 import './calendar.css'
+import { jalaliLabel } from './jalali.js'
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -15,7 +16,7 @@ const J_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 
 const G_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WEEK_SHORT = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج']
 const WEEK_FULL = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه']
-const KIND_LABEL = { task: 'کار', reminder: 'یادآوری', google: 'Google', occasion: 'مناسبت' }
+const KIND_LABEL = { task: 'کار', card: 'کار پروژه', session: 'کلاس', reminder: 'یادآوری', google: 'Google', occasion: 'مناسبت' }
 const OCCASIONS = [
   [1, 1, 'جشن نوروز', 1], [1, 2, 'عیدنوروز', 1], [1, 3, 'عیدنوروز', 1], [1, 4, 'عیدنوروز', 1],
   [1, 12, 'روز جمهوری اسلامی', 1], [1, 13, 'سیزده‌به‌در', 1], [2, 10, 'روز ملی خلیج فارس', 0],
@@ -110,7 +111,7 @@ export function CalendarReact({ Nav }) {
   const [note, setNote] = useState('')
   const [noteSaved, setNoteSaved] = useState('')
   const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState({ task: true, reminder: true, google: true, occasion: true })
+  const [filters, setFilters] = useState({ task: true, card: true, session: true, reminder: true, google: true, occasion: true })
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('')
   const [dialog, setDialog] = useState(null)
@@ -224,6 +225,8 @@ export function CalendarReact({ Nav }) {
 
   async function toggleItem(ev) {
     if (ev.kind === 'google') return
+    if (ev.kind === 'session') { location.href = '/?page=courses'; return }
+    if (ev.kind === 'card') { try { await api(`/api/col/cards/${ev.id}`, { method: 'PATCH', body: JSON.stringify({ col: 'done', doneAt: Date.now() }) }); load() } catch (e) { setStatus(e.message) } return }
     try {
       const path = ev.kind === 'reminder' ? `/api/reminders/${ev.id}` : `/api/tasks/${ev.id}`
       await api(path, { method: 'PATCH', body: JSON.stringify({ done: !ev.done }) })
@@ -261,6 +264,8 @@ export function CalendarReact({ Nav }) {
   const openNew = (day = selected, time = '') => setDialog({ id: 'new', title: '', date: day, time, kind: 'task', priority: 'medium', recurrence: '', notes: '' })
   const openEdit = (ev) => {
     if (ev.kind === 'google') { if (ev.url) window.open(ev.url, '_blank', 'noreferrer'); return }
+    if (ev.kind === 'session') { location.href = '/?page=courses'; return }
+    if (ev.kind === 'card') { location.href = `/?page=projects&pid=${encodeURIComponent(ev.projectId)}&card=${encodeURIComponent(ev.id)}`; return }
     setDialog({ id: ev.id, title: ev.title, date: String(ev.date || ev.startDate || selected).slice(0, 10), time: ev.time || ev.startTime || '', kind: ev.kind === 'reminder' ? 'reminder' : 'task', priority: ev.priority || 'medium', recurrence: ev.recurrence || '', notes: ev.notes || '' })
   }
 
@@ -364,7 +369,7 @@ export function CalendarReact({ Nav }) {
             <Search size={14} />
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="جست‌وجوی رویداد، کار یا یادداشت…" />
           </div>
-          {['task', 'reminder', 'google', 'occasion'].map((k) => (
+          {['task', 'card', 'session', 'reminder', 'google', 'occasion'].map((k) => (
             <button key={k} type="button" className={filters[k] ? 'on' : ''} onClick={() => setFilters((f) => ({ ...f, [k]: !f[k] }))}>{KIND_LABEL[k]}</button>
           ))}
           <button type="button" className={notifOn ? 'on' : ''} title="یادآوری مرورگر" onClick={() => {
@@ -406,7 +411,7 @@ export function CalendarReact({ Nav }) {
             <div className="cal-rail-sec">
               <h3>کارهای باز</h3>
               {openTasks.length ? openTasks.map((t) => (
-                <button type="button" key={t.id} className="cal-item task" onClick={() => openEdit(t)}><b>{t.title}</b><small>{String(t.date || '').slice(0, 10)}</small></button>
+                <button type="button" key={t.id} className="cal-item task" onClick={() => openEdit(t)}><b>{t.title}</b><small>{t.date ? jalaliLabel(String(t.date).slice(0, 10)) : 'بی‌تاریخ'}</small></button>
               )) : <p className="cal-empty">کار بازی در این بازه نیست.</p>}
             </div>
             <div className="cal-rail-sec">

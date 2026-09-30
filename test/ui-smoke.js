@@ -126,9 +126,26 @@ for (const [file, route] of Object.entries(migratedRoutes)) {
 const calendarRedirect = read('public/design/calendar-page.html');
 check('published calendar route opens the React calendar host',
   calendarRedirect.includes("/?page=calendar") && calendarRedirect.includes('location.replace'));
+check('vocabulary page loads its bundled Vazirmatn font instead of relying on a device fallback',
+  read('public/vocab/index.html').includes("font-family:'Vazirmatn'") && read('public/vocab/index.html').includes("/assets/fonts/vazirmatn-arabic.woff2"));
 check('React settings exposes a real Google Calendar OAuth/sync/disconnect card',
   todaySource.includes('id="googleCalendarCard"') && todaySource.includes('/api/integrations/${id}/connect') &&
   todaySource.includes('/api/integrations/google-calendar/sync') && todaySource.includes('/api/integrations/${name}/disconnect'));
+check('Projects provides a dossier for project, contract, repeatable statements, and procurement records',
+  read('src/today/src/life.jsx').includes('PROJECT_FILE_TABS') && read('src/today/src/life.jsx').includes("useCol('projectContracts')") &&
+  read('src/today/src/life.jsx').includes("useCol('projectFinancials')") && read('src/today/src/life.jsx').includes("useCol('projectSupplies')") &&
+  read('src/today/src/life.jsx').includes('PROJECT_PROCESS_TEMPLATE') && read('src/today/src/life.jsx').includes("useCol('projectProcesses')") &&
+  read('src/today/src/life.jsx').includes('noticeApprovedDate') && read('src/today/src/life.jsx').includes('statementSentDate') &&
+  read('src/today/src/life.jsx').includes('nextStatementNo'));
+check('Project checklist has accessible unit filters and matching unit chart colours',
+  read('src/today/src/life.jsx').includes('departmentFilter') && read('src/today/src/life.jsx').includes('aria-pressed={departmentFilter === x.department}') &&
+  read('src/today/src/life.css').includes('.lf-process-dept-stats>.dept-کنترل-پروژه') && read('src/today/src/life.css').includes('.lf-process-row .lf-process-check{display:grid;place-items:center;width:36px'));
+check('Project checklist is a labelled touch-friendly card layout on phones',
+  read('src/today/src/life.jsx').includes('lf-process-row-head') && read('src/today/src/life.jsx').includes('lf-process-row-fields') &&
+  read('src/today/src/life.css').includes("grid-template-areas:'head' 'fields'") && read('src/today/src/life.css').includes('width:44px;height:44px'));
+check('Project PDF reports include configurable branding and automatic page numbering',
+  read('src/today/src/life.jsx').includes("api('/api/report-brand')") && read('src/today/src/life.jsx').includes('lf-report-print-brand') &&
+  read('src/today/src/life.css').includes('counter(page)') && todaySource.includes('reportPrintSettings') && todaySource.includes('compactReportLogo'));
 check('React settings explains the dedicated LifeOS calendar and non-destructive delete policy',
   todaySource.includes('تقویم اختصاصی LifeOS') && todaySource.includes('حذف آن در گوگل دادهٔ هسته را پاک نمی‌کند'));
 const serverSource = read('server.js');

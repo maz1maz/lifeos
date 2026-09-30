@@ -4,6 +4,7 @@ import {
   Loader2, Pencil, Plus, Search, Star, Trash2, Upload, X
 } from 'lucide-react';
 import './documents.css';
+import { JalaliDateInput } from './jdate';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -201,8 +202,8 @@ function Composer({ editing, onCloseEdit, onSaved, toast }) {
         {form.type === 'سایر' && <input value={form.customType} onChange={e => set('customType', e.target.value)} placeholder="نوع سفارشی سند…" />}
         <input value={form.docNumber} onChange={e => set('docNumber', e.target.value)} placeholder="شماره / شناسه سند" dir="ltr" />
         <div className="dm-2col">
-          <label><span>تاریخ صدور</span><input type="date" value={form.issueDate} onChange={e => set('issueDate', e.target.value)} /></label>
-          <label><span>تاریخ انقضا</span><input type="date" value={form.expiryDate} onChange={e => set('expiryDate', e.target.value)} /></label>
+          <label><span>تاریخ صدور</span><JalaliDateInput value={form.issueDate} onChange={v => set('issueDate', v)} /></label>
+          <label><span>تاریخ انقضا</span><JalaliDateInput value={form.expiryDate} onChange={v => set('expiryDate', v)} /></label>
         </div>
         <input value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="برچسب‌ها (با ویرگول جدا کنید)" />
         <textarea rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="توضیحات" />
@@ -252,7 +253,7 @@ function Detail({ doc, query, onClose, onEdit, onFav, onDelete }) {
       <article className="dm-dialog dm-glass" onClick={e => e.stopPropagation()}>
         <div className="dm-dialog-head">
           <div>
-            <div className="dm-mono dm-cyan">DOCUMENT / {doc.type}</div>
+            <div className="dm-mono dm-cyan">{doc.type}</div>
             <h2><Highlight text={doc.title} query={query} />{doc.favorite && <Star size={16} className="amber" fill="currentColor" />}</h2>
           </div>
           <button type="button" className="dm-ghost" onClick={onClose} aria-label="بستن"><X size={16} /></button>
@@ -262,7 +263,7 @@ function Detail({ doc, query, onClose, onEdit, onFav, onDelete }) {
         <div className="dm-fields">
           <div><b>نوع</b>{doc.type}</div>
           <div><b>دسته</b>{doc.category}</div>
-          <div><b>شماره سند</b>{doc.docNumber || '—'}</div>
+          <div><b>شماره سند</b>{doc.docNumber ? <bdi dir="ltr">{doc.docNumber}</bdi> : '—'}</div>
           <div><b>صدور</b>{toFaDate(doc.issueDate)}</div>
           <div><b>انقضا</b>{exp ? <span className={`dm-exp ${exp.tone}`}>{exp.text}</span> : '—'}</div>
           <div><b>فایل</b>{doc.fileName || (doc.fileUrl ? 'پیوست' : 'بدون فایل')}{doc.fileSize ? ` · ${formatBytes(doc.fileSize)}` : ''}</div>
@@ -347,6 +348,14 @@ export function DocumentsReact({ Nav }) {
     return { total: items.length, fav, size, expiring, expired, withFile };
   }, [items]);
 
+  const countBy = (key, cur) => {
+    const m = new Map();
+    items.forEach(d => { if (d[key]) m.set(d[key], (m.get(d[key]) || 0) + 1); });
+    if (cur !== 'همه' && !m.has(cur)) m.set(cur, 0);
+    return [['همه', items.length], ...[...m.entries()].sort((a, b) => b[1] - a[1])];
+  };
+  const usedTypes = useMemo(() => countBy('type', filterType), [items, filterType]);
+  const usedCats = useMemo(() => countBy('category', filterCat), [items, filterCat]);
   const types = useMemo(() => {
     const s = new Set(DOC_TYPES);
     items.forEach(d => { if (d.type) s.add(d.type); });
@@ -382,7 +391,7 @@ export function DocumentsReact({ Nav }) {
     const exp = expiryStatus(doc.expiryDate);
     return (
       <>
-        <p>{[doc.type, doc.category, doc.docNumber].filter(Boolean).join(' · ') || '—'}</p>
+        <p>{[doc.type, doc.category].filter(Boolean).join(' · ')}{doc.docNumber ? <>{doc.type || doc.category ? ' · ' : ''}<bdi dir="ltr">{doc.docNumber}</bdi></> : null}{!doc.type && !doc.category && !doc.docNumber ? '—' : null}</p>
         <div className="dm-meta">
           {doc.fileUrl && <span>پیوست</span>}
           {exp && <span className={`dm-exp ${exp.tone}`}>{exp.text}</span>}
@@ -458,17 +467,14 @@ export function DocumentsReact({ Nav }) {
             <div className="dm-tools">
               <div className="dm-search">
                 <Search size={15} />
-                <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجو در عنوان، نوع، شماره، برچسب…  (Ctrl+K)" />
+                <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="جستجو در عنوان، نوع، شماره، برچسب…" />
                 {query && <button type="button" onClick={() => setQuery('')} aria-label="پاک کردن"><X size={14} /></button>}
               </div>
+              <select className={filterType !== 'همه' ? 'on' : ''} value={filterType} onChange={e => setFilterType(e.target.value)} aria-label="نوع">{usedTypes.map(([t, n]) => <option key={t} value={t}>{t === 'همه' ? 'همهٔ انواع' : `${t} (${faNum(n)})`}</option>)}</select>
+              <select className={filterCat !== 'همه' ? 'on' : ''} value={filterCat} onChange={e => setFilterCat(e.target.value)} aria-label="دسته">{usedCats.map(([t, n]) => <option key={t} value={t}>{t === 'همه' ? 'همهٔ دسته‌ها' : `${t} (${faNum(n)})`}</option>)}</select>
+              {(filterType !== 'همه' || filterCat !== 'همه') && <button type="button" className="dm-fav-btn" onClick={() => { setFilterType('همه'); setFilterCat('همه'); }}><X size={14} /> حذف فیلتر</button>}
               <select value={sortBy} onChange={e => setSortBy(e.target.value)}>{SORTS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}</select>
               <button type="button" className={`dm-fav-btn ${favOnly ? 'on' : ''}`} onClick={() => setFavOnly(v => !v)}><Star size={14} /> علاقه</button>
-            </div>
-            <div className="dm-filters">
-              {types.slice(0, 16).map(t => <button key={t} type="button" className={filterType === t ? 'on' : ''} onClick={() => setFilterType(t)}>{t}</button>)}
-            </div>
-            <div className="dm-filters">
-              {['همه', ...CATEGORIES].map(t => <button key={t} type="button" className={filterCat === t ? 'on' : ''} onClick={() => setFilterCat(t)}>{t}</button>)}
             </div>
 
             {visible.length === 0 ? (

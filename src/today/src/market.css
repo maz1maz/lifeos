@@ -124,6 +124,7 @@
 .mk-modal-box input, .mk-modal-box select {
   width: 100%; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--ink); border-radius: var(--g-radius-control); padding: 10px; font: inherit;
 }
+.mk-add-list{display:grid;gap:4px;max-height:55vh;overflow:auto;margin-top:12px}.mk-add-list>button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--g-radius-control);background:var(--g-panel-2);color:var(--ink);font:inherit;cursor:pointer}.mk-add-list>button:hover{border-color:var(--blue);background:var(--row)}.mk-add-list>button>span{display:flex;align-items:center;gap:8px;min-width:0}.mk-add-list img{width:25px;height:25px;border-radius:99px}.mk-add-list b{font-size:13px}.mk-add-list small{color:var(--mute);font-size:11px}
 .mk-conv-out { margin-top: 14px; background: var(--g-panel-2); border: 1px solid var(--line); border-radius: var(--g-radius-control); padding: 16px; text-align: center; }
 .mk-conv-out b { display: block; font-size: 22px; color: var(--up); }
 .mk-toast {
