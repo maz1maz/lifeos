@@ -18,11 +18,13 @@ function out(int $status, array $data): void {
 }
 
 $cfgFile = getenv('LIFEOS_STUDIO_CONFIG') ?: dirname(__DIR__) . '/lifeos-studio-config.php';
-if (!is_file($cfgFile)) out(503, ['error' => 'تنظیمات سرور هنوز کامل نشده است.']);
+if (!is_file($cfgFile)) out(503, ['error' => 'فایل lifeos-studio-config.php کنار پوشهٔ public_html پیدا نشد.']);
 $cfg = require $cfgFile;
+if (!is_array($cfg)) out(503, ['error' => 'فایل lifeos-studio-config.php خراب است (باید با return [ شروع شود).']);
 foreach (['lifeos_url', 'lifeos_token', 'login_email', 'password_hash'] as $k) {
-    if (empty($cfg[$k]) || str_contains((string)$cfg[$k], 'CHANGE_ME')) out(503, ['error' => 'تنظیمات سرور هنوز کامل نشده است.']);
+    if (empty($cfg[$k]) || str_contains((string)$cfg[$k], 'CHANGE_ME')) out(503, ['error' => "در lifeos-studio-config.php مقدار «{$k}» هنوز پر نشده است."]);
 }
+if (!preg_match('/^lfs_[0-9a-f]{64}$/', (string)$cfg['lifeos_token'])) out(503, ['error' => 'توکن در lifeos-studio-config.php کامل نیست (باید lfs_ و ۶۴ حرف باشد، بدون فاصله).']);
 $dataDir = $cfg['data_dir'] ?? dirname(__DIR__) . '/lifeos-studio-data';
 if (!is_dir($dataDir)) @mkdir($dataDir, 0700, true);
 
