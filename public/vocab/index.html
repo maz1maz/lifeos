@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0e1116">
+<meta name="theme-color" content="#0a0a0b">
 <title>زبان — LifeOS</title>
 <meta name="description" content="اپ فلش‌کارت آفلاین برای واژگان انگلیسی آیلتس و نما و ساختمان با معنی فارسی، تلفظ، آزمون و مرور فاصله‌دار (SRS)">
+<script>(function(){function m(){try{document.documentElement.dataset.mode=localStorage.getItem('lifeos-mode')||'dark'}catch(e){}}m();addEventListener('storage',function(e){if(!e.key||e.key==='lifeos-mode')m()})})()</script>
 <style>
 @font-face{font-family:'Vazirmatn';font-style:normal;font-weight:100 900;font-display:swap;src:url('/assets/fonts/vazirmatn-arabic.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
 @font-face{font-family:'Vazirmatn';font-style:normal;font-weight:100 900;font-display:swap;src:url('/assets/fonts/vazirmatn-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
@@ -231,6 +232,29 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 .nt-body code{direction:ltr;unicode-bidi:isolate;font-family:var(--fe);background:var(--bg3);border-radius:6px;padding:1px 5px}
 .nt-body mark{background:rgba(240,178,50,.28);color:inherit;border-radius:3px}
 @media(max-width:560px){.nt-body table{font-size:13px}.nt-body td,.nt-body th{padding:7px 8px}}
+
+/* ── LifeOS palette (gold on near-black, light mode like LifeOS) — this app used to have its own blue theme ── */
+:root{--bg:#0a0a0b;--bg2:#141416;--bg3:#1b1b1d;--line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.18);
+  --tx:#f5f5f5;--tx2:#9a9a9f;--tx3:#6b6b70;--acc:#d8a44c;--acc2:#b8862f;--accfg:#221904;--pur:#e6b563;
+  --ok:#34d399;--warn:#eab308;--bad:#f87171;--soft:rgba(216,164,76,.14);--face1:#18181a;--face2:#121214;--en:#ece9e2;--fa2:#a8a39a}
+html[data-mode="light"]{color-scheme:light;--bg:#f4f2ee;--bg2:#ffffff;--bg3:#f3f0ea;--line:rgba(28,26,23,.12);--line2:rgba(28,26,23,.22);
+  --tx:#1c1a17;--tx2:#6b665e;--tx3:#9a948a;--acc:#c48a2c;--acc2:#a8741e;--accfg:#ffffff;--pur:#d39a3c;
+  --ok:#059669;--warn:#b45309;--bad:#dc2626;--soft:rgba(196,138,44,.13);--face1:#ffffff;--face2:#f7f4ee;--en:#2a2620;--fa2:#6b665e;
+  --sh:0 1px 2px rgba(0,0,0,.04),0 8px 24px -14px rgba(0,0,0,.18)}
+body{background:var(--bg);color:var(--tx)}
+header,.top{background:color-mix(in srgb,var(--bg) 88%,transparent)!important}
+.tab:hover,.btn:hover{border-color:var(--line2)}
+.tab.on,.btn.pri,.chip.on{background:var(--acc)!important;color:var(--accfg)!important}
+.card{background:var(--bg2)!important}
+.face{background:linear-gradient(170deg,var(--face1),var(--face2))!important}
+.face.back{background:linear-gradient(170deg,var(--face2),var(--face1))!important}
+.defen,.ex{color:var(--en)!important}
+.exfa,.deffa{color:var(--fa2)!important}
+.exfa{border-left-color:var(--soft)!important}
+input:focus,select:focus,textarea:focus,input[type=password]:focus{outline-color:var(--soft)!important}
+.mask{background:rgba(0,0,0,.6)!important}
+.logo{background:var(--acc)!important;color:var(--accfg)!important}
+html[data-mode="light"] .nt-body mark{background:rgba(196,138,44,.25)}
 </style>
 </head>
 <body>
