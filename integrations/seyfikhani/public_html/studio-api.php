@@ -138,6 +138,22 @@ if ($action === 'logout' && $method === 'POST') {
     out(200, ['ok' => true, 'csrf' => $_SESSION['csrf']]);
 }
 
+// Connectivity check from the host (signed-in only): is LifeOS blocked, or Cloudflare as a whole?
+if ($action === 'diag') {
+    if (!signedIn($IDLE, $ABS)) out(401, ['error' => 'ابتدا وارد شو.']);
+    $targets = ['LifeOS' => rtrim((string)$cfg['lifeos_url'], '/') . '/api/ext/me', 'Cloudflare (www.cloudflare.com)' => 'https://www.cloudflare.com/cdn-cgi/trace', 'Google' => 'https://www.google.com/generate_204'];
+    if (!empty($_GET['u']) && preg_match('#^https://[a-z0-9.-]+$#i', (string)$_GET['u'])) $targets['آدرس آزمایشی'] = $_GET['u'] . '/cdn-cgi/trace';
+    $res = [];
+    foreach ($targets as $name => $url) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 8, CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_NOBODY => false]);
+        curl_exec($ch);
+        $res[] = ['name' => $name, 'status' => (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE), 'error' => curl_errno($ch) ? curl_errno($ch) . ' ' . curl_error($ch) : '', 'ms' => (int)(curl_getinfo($ch, CURLINFO_TOTAL_TIME) * 1000)];
+        curl_close($ch);
+    }
+    out(200, ['results' => $res]);
+}
+
 if ($action === 'api') {
     if (!signedIn($IDLE, $ABS)) out(401, ['error' => 'ابتدا وارد شو.']);
     if ($method !== 'GET') needCsrf();
