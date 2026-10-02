@@ -6,6 +6,11 @@
 .plnr-switch i{right:3px!important;left:auto!important;top:50%!important;margin-top:0!important;transform:translateY(-50%)!important}
 .plnr-switch.on i{right:auto!important;left:3px!important}
 
+/* Navigation is never text: a stray selection (e.g. a drag or double-tap that started in the vocab iframe) used to
+   paint every menu label with the gold ::selection colour. */
+.drawer,.drawer *,.topbar,.topbar *{-webkit-user-select:none;user-select:none}
+.drawer ::selection,.topbar ::selection{background:transparent}
+.topbar input,.topbar textarea,.drawer input{-webkit-user-select:text;user-select:text}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 button,a,[role=button],label{-webkit-tap-highlight-color:transparent}
 
