@@ -287,6 +287,15 @@ nav.tabs{gap:4px}
   #filterCard>.between .muted{display:none}
   #filterCard>.between{justify-content:flex-end}
 }
+
+/* tabs under the title; smaller rating buttons; topics can open fully */
+.topin>nav.tabs{flex-basis:100%;margin-inline-start:0;order:2}
+#topicBar.exp{flex-wrap:wrap!important;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-inline-end:0}
+#topicToggle{cursor:pointer;font-size:12px;padding:3px 10px}
+.ratebar{gap:6px;margin-top:10px}
+.ratebar .btn{padding:7px 8px!important;font-size:13.5px!important;border-radius:12px;min-height:0;line-height:1.5}
+.ratebar .btn .muted{font-size:11px!important}
+@media(max-width:560px){.ratebar{grid-template-columns:repeat(4,1fr)!important;gap:5px}.ratebar .btn{font-size:12px!important;padding:6px 4px!important}.ratebar .btn .muted,.ratebar .btn br{display:none}}
 </style>
 </head>
 <body>

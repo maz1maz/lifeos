@@ -1150,18 +1150,31 @@ function renderFilters() {
   $$("#topicBar [data-t]").forEach(c => c.onclick = () => { FILTER.topic = c.dataset.t; cur = null; renderFilters(); render(); });
   const tg = $("#topicToggle");
   if (tg) {
-    const narrow = !!(window.matchMedia && window.matchMedia("(max-width:700px)").matches);
-    tg.style.display = narrow ? "" : "none";
+    // one scrolling row by default; «همه ▾» opens every topic as wrapped chips (all screen sizes)
+    const bar = $("#topicBar");
+    tg.style.display = "";
+    tg.textContent = bar.classList.contains("exp") ? "بستن ▴" : "همهٔ موضوع‌ها ▾";
     tg.onclick = () => {
-      const bar = $("#topicBar");
       const on = bar.classList.toggle("exp");
-      tg.textContent = on ? "بستن فهرست" : "نمایش همه";
+      tg.textContent = on ? "بستن ▴" : "همهٔ موضوع‌ها ▾";
     };
   }
 }
 
+/* a mouse wheel scrolls the one-row chip bars sideways (touch already can) */
+function wheelScrollX(el) {
+  if (!el || el.dataset.wheel) return;
+  el.dataset.wheel = "1";
+  el.addEventListener("wheel", e => {
+    if (el.classList.contains("exp") || el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    el.scrollLeft -= e.deltaY;   // RTL: wheel down moves towards the end of the row
+  }, { passive: false });
+}
+
 /* ------------------------------------------------------------------- boot */
 function boot() {
+  wheelScrollX($("#levelBar")); wheelScrollX($("#topicBar"));
   $("#deckSize").textContent = fa(DECK.length);
   $$(".tab").forEach(t => t.onclick = () => { if (VIEW !== t.dataset.v) stopSpeaking(); VIEW = t.dataset.v; render(); });
   $("#helpBtn").onclick = () => { VIEW = "settings"; render(); };
