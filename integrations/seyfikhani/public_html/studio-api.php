@@ -146,6 +146,20 @@ if ($action === 'logout' && $method === 'POST') {
 // Connectivity check from the host (signed-in only): is LifeOS blocked, or Cloudflare as a whole?
 if ($action === 'diag') {
     if (!signedIn($IDLE, $ABS)) out(401, ['error' => 'ابتدا وارد شو.']);
+    session_write_close();
+    $base = rtrim((string)$cfg['lifeos_url'], '/');
+    if (!empty($_GET['lists'])) {
+        // time every list the panel loads, with the real token
+        $out = [];
+        foreach (['me', 'col/projects', 'col/cards', 'col/projectProcesses', 'col/projectContracts', 'col/projectFinancials', 'col/projectSupplies', 'col/courses', 'col/students', 'reminders'] as $p) {
+            $ch = curl_init($base . '/api/ext/' . $p);
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 8, CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, CURLOPT_HTTPHEADER => ['X-LifeOS-Token: ' . $cfg['lifeos_token'], 'Accept: application/json']]);
+            $b = curl_exec($ch);
+            $out[] = ['path' => $p, 'status' => (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE), 'bytes' => is_string($b) ? strlen($b) : 0, 'ms' => (int)(curl_getinfo($ch, CURLINFO_TOTAL_TIME) * 1000), 'error' => curl_errno($ch) ? curl_errno($ch) . ' ' . curl_error($ch) : ''];
+            curl_close($ch);
+        }
+        out(200, ['lists' => $out]);
+    }
     $targets = ['LifeOS (بدون توکن)' => rtrim((string)$cfg['lifeos_url'], '/') . '/api/ext/me', 'LifeOS (با توکن)' => rtrim((string)$cfg['lifeos_url'], '/') . '/api/ext/me', 'Cloudflare (www.cloudflare.com)' => 'https://www.cloudflare.com/cdn-cgi/trace', 'Google' => 'https://www.google.com/generate_204'];
     if (!empty($_GET['u']) && preg_match('#^https://[a-z0-9.-]+$#i', (string)$_GET['u'])) $targets['آدرس آزمایشی'] = $_GET['u'] . '/cdn-cgi/trace';
     // optional second token (e.g. a throwaway test account) to tell host-network problems from account-data problems
@@ -178,6 +192,7 @@ if ($action === 'diag') {
 if ($action === 'api') {
     if (!signedIn($IDLE, $ABS)) out(401, ['error' => 'ابتدا وارد شو.']);
     if ($method !== 'GET') needCsrf();
+    session_write_close();   // release the session lock: the panel fires several requests in parallel
     $path = (string)($_GET['p'] ?? '');
     $ID = '[A-Za-z0-9_-]{1,64}';
     $allowed = [
