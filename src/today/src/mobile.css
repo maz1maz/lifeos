@@ -1,0 +1,49 @@
+/* Phone / iPhone pass shared by LifeOS and the seyfikhani.ir studio. Imported last (main.jsx, studio.jsx). */
+
+/* Switches (all sizes): today.css moves the knob with right:19px and planner.css/unify.css with translateX(-20px);
+   together the «on» knob slid ~39px, outside the switch — on Settings that widened the page and iOS zoomed it out. */
+.plnr-switch{overflow:hidden}
+.plnr-switch i{right:3px!important;left:auto!important;top:50%!important;margin-top:0!important;transform:translateY(-50%)!important}
+.plnr-switch.on i{right:auto!important;left:3px!important}
+
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+button,a,[role=button],label{-webkit-tap-highlight-color:transparent}
+
+@media (max-width:700px){
+  /* iOS Safari zooms the page into any focused field under 16px */
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select,textarea{font-size:16px!important}
+  /* small round/square ticks keep their look but get a ~44px touch area */
+  .plnr-check,.cal-check{position:relative}
+  .plnr-check::after,.cal-check::after{content:'';position:absolute;inset:-11px}
+  .plnr-switch{width:50px!important;height:30px!important}
+  .plnr-switch i{width:22px!important;height:22px!important}
+  .lf-dots button{position:relative}
+  .lf-dots button::after{content:'';position:absolute;inset:-6px}
+  /* sideways-scrolling tables scroll with momentum */
+  [class*="table"],[class*="scroll"]{-webkit-overflow-scrolling:touch}
+  /* big amounts wrap instead of «…» */
+  .lf-kpis b{white-space:normal;overflow:visible;text-overflow:clip;font-size:16px;line-height:1.5;word-break:break-word}
+  .lf-hero{gap:10px}
+  .lf-hero-ops{flex-wrap:wrap}
+  /* students: the 9-column table becomes one card per student */
+  .cs-table{overflow:visible!important}
+  .cs-th{display:none!important}
+  .cs-row .cs-tr,.cs-tr.cs-foot{min-width:0!important;grid-template-columns:1fr 1fr!important;gap:8px 12px;padding:12px}
+  .cs-row{border-bottom:1px solid var(--g-border,rgba(255,255,255,.1))}
+  .cs-row .cs-tr>span:nth-child(1){display:none}
+  .cs-row .cs-tr>span:nth-child(2){grid-column:1/-1;font-size:15px}
+  .cs-row .cs-tr>span:nth-child(3){grid-column:1/-1;text-align:start}
+  .cs-row .cs-tr>span:nth-child(n+4):nth-child(-n+7)::before,.cs-tr.cs-foot>span:nth-child(n+4):nth-child(-n+6)::before{display:block;font-size:11px;font-weight:400;color:var(--g-muted,#9ca3af);margin-bottom:2px}
+  .cs-row .cs-tr>span:nth-child(4)::before,.cs-tr.cs-foot>span:nth-child(4)::before{content:'شهریه'}
+  .cs-row .cs-tr>span:nth-child(5)::before,.cs-tr.cs-foot>span:nth-child(5)::before{content:'پرداخت‌شده'}
+  .cs-row .cs-tr>span:nth-child(6)::before,.cs-tr.cs-foot>span:nth-child(6)::before{content:'باقی‌مانده'}
+  .cs-row .cs-tr>span:nth-child(7)::before{content:'سررسید'}
+  .cs-row .cs-tr>span:nth-child(8){grid-column:1/-1;white-space:normal}
+  .cs-row .cs-tr>span:nth-child(9){grid-column:1/-1;justify-content:flex-start;display:flex;gap:8px;flex-wrap:wrap}
+  .cs-tr.cs-foot>span:nth-child(1),.cs-tr.cs-foot>span:nth-child(3),.cs-tr.cs-foot>span:nth-child(n+7){display:none}
+  .cs-tr.cs-foot>span:nth-child(2){grid-column:1/-1}
+  /* chips with name · amount · date: let them wrap */
+  .lf-palerts{flex-direction:column;align-items:stretch}
+  .lf-palerts button{white-space:normal;text-align:start}
+  .lf-drawer{max-height:100dvh;padding-bottom:env(safe-area-inset-bottom)}
+}

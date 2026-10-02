@@ -33,6 +33,7 @@ import { CoursesPage, ClassTodayCard } from './courses';
 import { VocabPage, VocabTodayCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import { HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, FocusCard, ShoppingPanel, BillsWeekCard, LifeStatsPage } from './life';
+import './mobile.css'; // phone/iPhone pass — keep last so it overrides page CSS
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -2172,10 +2173,10 @@ function SiteTokensCard() {
     <h2>🌐 اتصال سایت شخصی</h2>
     <p className="muted" style={{ margin: '0 0 10px' }}>برای صفحهٔ خصوصی روی سایت خودت (مثلاً seyfikhani.ir). توکن فقط در فایل تنظیمات سرور سایت گذاشته می‌شود، نه در مرورگر؛ هر تغییری آن‌جا همین‌جا ذخیره می‌شود و برعکس.</p>
     {(items || []).map(t => <article key={t.id}><div><b>{t.label}</b><small>{t.scopes.map(label0).join(' · ')} · <span dir="ltr">{t.prefix}…</span>{t.lastUsedAt ? ` · آخرین استفاده ${new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'short', timeStyle: 'short' }).format(new Date(t.lastUsedAt))}` : ' · هنوز استفاده نشده'}</small></div><button type="button" className="finance-action" onClick={() => revoke(t)}>لغو</button></article>)}
-    <article>
-      <div><b>توکن تازه</b>
-        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="نام سایت" style={{ margin: '6px 0' }} />
-        {SITE_SCOPES.map(([k, l]) => <label key={k} style={{ display: 'block' }}><input type="checkbox" checked={!!scopes[k]} onChange={e => setScopes(o => ({ ...o, [k]: e.target.checked }))} /> {l}</label>)}
+    <article style={{ flexWrap: 'wrap' }}>
+      <div style={{ flex: '1 1 220px', minWidth: 0 }}><b>توکن تازه</b>
+        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="نام سایت" style={{ margin: '6px 0', width: '100%', boxSizing: 'border-box' }} />
+        {SITE_SCOPES.map(([k, l]) => <label key={k} style={{ display: 'block', overflowWrap: 'anywhere' }}><input type="checkbox" checked={!!scopes[k]} onChange={e => setScopes(o => ({ ...o, [k]: e.target.checked }))} /> {l}</label>)}
       </div>
       <button type="button" className="save" onClick={create}>ساخت توکن</button>
     </article>

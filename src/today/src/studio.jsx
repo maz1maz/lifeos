@@ -10,6 +10,7 @@ import './unify.css';
 import { ProjectsPage } from './life';
 import { CoursesPage } from './courses';
 import './numgroup';
+import './mobile.css';
 import './studio.css';
 
 const PROXY = 'studio-api.php';
