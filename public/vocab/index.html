@@ -205,6 +205,32 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 /* LifeOS v69: level filter above topics */
 #levelBar .chip small{opacity:.7;font-size:11px}
 @media(max-width:700px){#levelBar{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}#levelBar .chip{flex:0 0 auto}}
+
+/* «جزوه» tab: class notes (notes.md) by topic */
+.nt-top{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0 10px;display:flex;gap:8px;align-items:center}
+.nt-top input{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px}
+.nt-top .muted{white-space:nowrap;font-size:12px}
+.nt-intro{color:var(--tx2);font-size:13.5px;line-height:1.9;margin:0 0 10px}
+.nt-sec{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);margin:0 0 10px;overflow:hidden}
+.nt-sec>summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:700;display:flex;gap:8px;align-items:center}
+.nt-sec>summary::-webkit-details-marker{display:none}
+.nt-sec>summary::after{content:'▾';margin-inline-start:auto;color:var(--tx3);transition:transform .2s}
+.nt-sec[open]>summary::after{transform:rotate(180deg)}
+.nt-sec>summary em{font-style:normal;font-weight:400;font-size:12px;color:var(--tx3)}
+.nt-body{padding:0 14px 14px}
+.nt-body h4{margin:16px 0 8px;font-size:14.5px;color:var(--acc)}
+.nt-body p,.nt-body li{line-height:1.95;font-size:14px;color:var(--tx)}
+.nt-body ul{padding-inline-start:20px;margin:6px 0}
+.nt-body em{color:var(--tx2)}
+.nt-tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;margin:6px 0 10px}
+.nt-body table{width:100%;border-collapse:collapse;font-size:13.5px}
+.nt-body th{background:var(--bg3);color:var(--tx2);font-weight:600;text-align:start;padding:8px 10px;white-space:nowrap}
+.nt-body td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}
+.nt-body td.nt-en{direction:ltr;text-align:left;font-family:var(--fe);white-space:nowrap}
+.nt-body td.nt-en button{background:none;border:0;color:var(--acc);cursor:pointer;padding:0 6px 0 0;font-size:14px;vertical-align:middle}
+.nt-body code{direction:ltr;unicode-bidi:isolate;font-family:var(--fe);background:var(--bg3);border-radius:6px;padding:1px 5px}
+.nt-body mark{background:rgba(240,178,50,.28);color:inherit;border-radius:3px}
+@media(max-width:560px){.nt-body table{font-size:13px}.nt-body td,.nt-body th{padding:7px 8px}}
 </style>
 </head>
 <body>
@@ -227,6 +253,7 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
       <button class="tab on" data-v="study">کارت‌ها</button>
       <button class="tab" data-v="quiz">آزمون</button>
       <button class="tab" data-v="browse">فهرست واژه‌ها</button>
+      <button class="tab" data-v="notes">جزوه</button>
       <button class="tab" data-v="stats">پیشرفت</button>
       <button class="tab" data-v="settings">تنظیمات</button>
       <button class="tab" id="helpBtn" title="راهنما">؟</button>
@@ -238,7 +265,7 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 
 <div class="wrap">
 
-  <div class="card pad" style="margin:12px 0">
+  <div class="card pad" id="filterCard" style="margin:12px 0">
     <div class="between" style="margin-bottom:8px">
       <span class="muted">فیلتر سطح و موضوع<span class="onlywide"> — اول سطح، بعد موضوع را انتخاب کن</span>:</span>
       <span class="chip" id="topicToggle" style="display:none">نمایش همه</span>
@@ -250,6 +277,7 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
   <section class="view" id="v-study"><div id="studyMain"></div></section>
   <section class="view hide" id="v-quiz"><div id="quizMain"></div></section>
   <section class="view hide" id="v-browse"><div id="browseMain"></div></section>
+  <section class="view hide" id="v-notes"><div id="notesMain"></div></section>
   <section class="view hide" id="v-stats"><div id="statsMain"></div></section>
   <section class="view hide" id="v-settings"><div id="setMain"></div></section>
 

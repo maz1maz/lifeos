@@ -126,6 +126,8 @@ for (const [file, route] of Object.entries(migratedRoutes)) {
 const calendarRedirect = read('public/design/calendar-page.html');
 check('published calendar route opens the React calendar host',
   calendarRedirect.includes("/?page=calendar") && calendarRedirect.includes('location.replace'));
+check('vocabulary app has the «جزوه» tab backed by notes.md (topics as ## sections)',
+  read('public/vocab/index.html').includes('data-v="notes"') && read('public/vocab/app.js').includes('function renderNotes') && (read('public/vocab/notes.md').match(/^## /gm) || []).length >= 10);
 check('vocabulary page loads its bundled Vazirmatn font instead of relying on a device fallback',
   read('public/vocab/index.html').includes("font-family:'Vazirmatn'") && read('public/vocab/index.html').includes("/assets/fonts/vazirmatn-arabic.woff2"));
 check('React settings exposes a real Google Calendar OAuth/sync/disconnect card',

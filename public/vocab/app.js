@@ -231,11 +231,87 @@ let VIEW = "study";
 function render() {
   $$(".tab").forEach(t => t.classList.toggle("on", t.dataset.v === VIEW));
   $$(".view").forEach(v => v.classList.toggle("hide", v.id !== "v-" + VIEW));
+  const fc = $("#filterCard"); if (fc) fc.classList.toggle("hide", VIEW === "notes");   // level/topic filters do not apply to the notes
   if (VIEW === "study") renderStudy();
   if (VIEW === "quiz") renderQuizHome();
   if (VIEW === "browse") renderBrowse();
+  if (VIEW === "notes") renderNotes();
   if (VIEW === "stats") renderStats();
   if (VIEW === "settings") renderSettings();
+}
+
+
+/* ---------------------------------------------------------------- notes
+   «جزوه»: the private-class notes in notes.md (topic → vocabulary tables + grammar),
+   collapsible by topic, searchable in English and Persian, with 🔊 on English words. */
+let NOTES = null, notesQ = "";
+const ntInline = t => esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
+// "colleague / co-worker (n.)" → "colleague"; "boss = manager" → "boss"
+const ntSay = t => String(t).replace(/\([^)]*\)/g, "").split(/\s[\/=]\s|\s*\/\s*|\s=\s/)[0].replace(/[*`]/g, "").trim();
+function ntBlocks(lines) {
+  let html = "", i = 0;
+  const cells = l => l.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+  while (i < lines.length) {
+    const l = lines[i];
+    if (!l.trim()) { i++; continue; }
+    if (/^###\s/.test(l)) { html += `<h4>${ntInline(l.replace(/^###\s+/, ""))}</h4>`; i++; continue; }
+    if (/^\|/.test(l.trim())) {
+      const rows = []; while (i < lines.length && /^\|/.test(lines[i].trim())) rows.push(lines[i++]);
+      const head = cells(rows[0]), body = rows.slice(/^\|[\s:|-]+\|?$/.test((rows[1] || "").trim()) ? 2 : 1).map(cells);
+      const enCol = head.findIndex(h => /^english$/i.test(h));
+      html += `<div class="nt-tw"><table><thead><tr>${head.map(h => `<th>${ntInline(h)}</th>`).join("")}</tr></thead><tbody>` +
+        body.map(r => `<tr>${r.map((c, k) => k === enCol ? `<td class="nt-en"><button type="button" data-say="${esc(ntSay(c))}" aria-label="تلفظ">🔊</button>${ntInline(c)}</td>` : `<td dir="auto">${ntInline(c)}</td>`).join("")}</tr>`).join("") + "</tbody></table></div>";
+      continue;
+    }
+    if (/^\s*([-*]|\d+[.)])\s/.test(l)) {
+      const items = []; while (i < lines.length && /^\s*([-*]|\d+[.)])\s/.test(lines[i])) items.push(lines[i++].replace(/^\s*([-*]|\d+[.)])\s+/, ""));
+      html += `<ul>${items.map(t => `<li>${ntInline(t)}</li>`).join("")}</ul>`; continue;
+    }
+    const para = []; while (i < lines.length && lines[i].trim() && !/^(###\s|\||\s*([-*]|\d+[.)])\s)/.test(lines[i])) para.push(lines[i++]);
+    html += `<p>${ntInline(para.join(" "))}</p>`;
+  }
+  return html;
+}
+function ntParse(md) {
+  const lines = md.replace(/\r/g, "").split("\n"), out = { title: "", sections: [] };
+  let cur = null;
+  for (const l of lines) {
+    if (/^#\s/.test(l)) { out.title = l.replace(/^#\s+/, ""); continue; }
+    if (/^##\s/.test(l)) { cur = { title: l.replace(/^##\s+/, ""), lines: [] }; out.sections.push(cur); continue; }
+    if (cur) cur.lines.push(l);
+  }
+  out.sections.forEach(x => { x.html = ntBlocks(x.lines); x.words = x.lines.filter(l => /^\|/.test(l.trim()) && !/^\|[\s:|-]+\|?$/.test(l.trim())).length; });
+  return out;
+}
+async function renderNotes() {
+  const box = $("#notesMain");
+  if (!NOTES) {
+    box.innerHTML = `<p class="muted pad">در حال بارگذاری جزوه…</p>`;
+    try { const r = await fetch("notes.md", { cache: "no-cache" }); if (!r.ok) throw 0; NOTES = ntParse(await r.text()); }
+    catch (e) { box.innerHTML = `<p class="muted pad">جزوه بارگذاری نشد.</p>`; return; }
+    if (VIEW !== "notes") return;
+  }
+  box.innerHTML = `<div class="nt-top"><input id="ntQ" type="search" placeholder="جستجو در جزوه (انگلیسی یا فارسی)…" value="${esc(notesQ)}" autocomplete="off"><span class="muted" id="ntN"></span></div>` +
+    NOTES.sections.map((x, k) => `<details class="nt-sec"${k === 0 ? " open" : ""}><summary>${ntInline(x.title)}${x.words > 2 ? `<em>${x.words.toLocaleString("fa-IR")} ردیف</em>` : ""}</summary><div class="nt-body">${x.html}</div></details>`).join("");
+  const q = $("#ntQ");
+  q.oninput = () => { notesQ = q.value; ntFilter(); };
+  box.onclick = e => { const b = e.target.closest("button[data-say]"); if (b) { e.preventDefault(); speak(b.dataset.say); } };
+  ntFilter();
+}
+function ntFilter() {
+  const q = notesQ.trim().toLowerCase(), secs = $$("#notesMain .nt-sec");
+  let hits = 0;
+  secs.forEach(sec => {
+    if (!q) { sec.style.display = ""; sec.querySelectorAll("tr,p,li,h4,.nt-tw").forEach(e => e.style.display = ""); return; }
+    let n = 0;
+    sec.querySelectorAll("tbody tr,.nt-body>p,.nt-body li").forEach(e => { const ok = e.textContent.toLowerCase().includes(q); e.style.display = ok ? "" : "none"; if (ok) n++; });
+    sec.querySelectorAll(".nt-tw").forEach(t => t.style.display = t.querySelector("tbody tr:not([style*='none'])") ? "" : "none");
+    sec.querySelectorAll(".nt-body>h4").forEach(h => h.style.display = "none");
+    sec.style.display = n || sec.querySelector("summary").textContent.toLowerCase().includes(q) ? "" : "none";
+    if (n) sec.open = true;
+    hits += n;
+  });
+  const N = $("#ntN"); if (N) N.textContent = q ? `${hits.toLocaleString("fa-IR")} مورد` : "";
 }
 
 /* ---------------------------------------------------------------- study */
