@@ -148,11 +148,15 @@ if ($action === 'diag') {
     if (!signedIn($IDLE, $ABS)) out(401, ['error' => 'ابتدا وارد شو.']);
     $targets = ['LifeOS (بدون توکن)' => rtrim((string)$cfg['lifeos_url'], '/') . '/api/ext/me', 'LifeOS (با توکن)' => rtrim((string)$cfg['lifeos_url'], '/') . '/api/ext/me', 'Cloudflare (www.cloudflare.com)' => 'https://www.cloudflare.com/cdn-cgi/trace', 'Google' => 'https://www.google.com/generate_204'];
     if (!empty($_GET['u']) && preg_match('#^https://[a-z0-9.-]+$#i', (string)$_GET['u'])) $targets['آدرس آزمایشی'] = $_GET['u'] . '/cdn-cgi/trace';
+    // optional second token (e.g. a throwaway test account) to tell host-network problems from account-data problems
+    $altToken = (isset($_GET['t']) && preg_match('/\Alfs_[0-9a-f]{64}\z/', (string)$_GET['t'])) ? (string)$_GET['t'] : '';
+    if ($altToken !== '') $targets['LifeOS (توکن آزمایشی)'] = rtrim((string)$cfg['lifeos_url'], '/') . '/api/ext/me';
     $res = [];
     foreach ($targets as $name => $url) {
         $ch = curl_init($url);
         curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 8]);
         if ($name === 'LifeOS (با توکن)') curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $cfg['lifeos_token'], 'Accept: application/json']);
+        if ($name === 'LifeOS (توکن آزمایشی)') curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $altToken, 'Accept: application/json']);
         $b = curl_exec($ch);
         $res[] = ['name' => $name, 'status' => (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE), 'error' => curl_errno($ch) ? curl_errno($ch) . ' ' . curl_error($ch) : '', 'ms' => (int)(curl_getinfo($ch, CURLINFO_TOTAL_TIME) * 1000), 'body' => strpos($url, '/api/ext/') !== false && is_string($b) ? (function_exists('mb_substr') ? mb_substr($b, 0, 160) : preg_replace('/[^\x20-\x7e]/', '', substr($b, 0, 160))) : ''];
         curl_close($ch);
