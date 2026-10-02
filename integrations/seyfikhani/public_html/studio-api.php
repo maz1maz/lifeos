@@ -17,8 +17,21 @@ function out(int $status, array $data): void {
     exit;
 }
 
-$cfgFile = getenv('LIFEOS_STUDIO_CONFIG') ?: dirname(__DIR__) . '/lifeos-studio-config.php';
-if (!is_file($cfgFile)) out(503, ['error' => 'فایل lifeos-studio-config.php کنار پوشهٔ public_html پیدا نشد.']);
+$cfgFile = getenv('LIFEOS_STUDIO_CONFIG') ?: '';
+if ($cfgFile === '') {
+    // home folder = one level above public_html; on some hosts DOCUMENT_ROOT or HOME points there more reliably
+    $home = getenv('HOME') ?: '';
+    $docRoot = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
+    foreach (array_unique(array_filter([dirname(__DIR__), $docRoot !== '' ? dirname($docRoot) : '', $home])) as $dir) {
+        if (is_file($dir . '/lifeos-studio-config.php')) { $cfgFile = $dir . '/lifeos-studio-config.php'; break; }
+    }
+}
+if ($cfgFile === '' || !is_file($cfgFile)) {
+    // never serve secrets from the web root: if it was uploaded there, refuse and say so
+    if (is_file(__DIR__ . '/lifeos-studio-config.php')) out(503, ['error' => 'فایل تنظیمات داخل public_html است؛ آن را یک پوشه بالاتر (کنار public_html) ببر.']);
+    $names = array_values(array_filter(scandir(dirname(__DIR__)) ?: [], fn($n) => stripos($n, 'lifeos') !== false));
+    out(503, ['error' => 'فایل lifeos-studio-config.php کنار پوشهٔ public_html پیدا نشد.' . ($names ? ' فایل‌های مشابه آنجا: ' . implode('، ', $names) : '')]);
+}
 $cfg = require $cfgFile;
 if (!is_array($cfg)) out(503, ['error' => 'فایل lifeos-studio-config.php خراب است (باید با return [ شروع شود).']);
 foreach (['lifeos_url', 'lifeos_token', 'login_email', 'password_hash'] as $k) {
