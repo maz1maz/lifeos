@@ -1298,6 +1298,128 @@ async function handleApi(request, env) {
  // بتواند کل عملیات را برگرداند (عملیات گروهی روی دادهٔ مالی باید برگشت‌پذیر باشد).
  if(p==='/api/transactions/recategorize'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),d=await body(req);if(d.revert){let n=0;for(const t of db.transactions){if(t.userId===user.id&&t.catPrev){t.category=t.catPrev;delete t.catPrev;delete t.catRule;delete t.catAt;n++}}await write(db);return json(res,200,{reverted:n,message:n?'دستهٔ '+n+' تراکنش به حالت قبل برگشت.':'چیزی برای بازگردانی نیست (عملیات قبلی revert شده یا انجام نشده).'})}let rules=[];if(Array.isArray(d.rules))for(const r of d.rules.slice(0,40)){if(!r)continue;let w=String(r.word||r.keyword||'').trim().slice(0,40),c=String(r.cat||r.category||'').trim().slice(0,24);if(w.length>1&&c)rules.push({word:w,cat:c})}let scope=String(d.scope||'misc'),from=d.from?String(d.from):null,to=d.to?String(d.to):null,expenseOnly=!!d.expenseOnly,minAmount=d.minAmount!=null&&d.minAmount!==''?Number(d.minAmount):null,account=d.account?String(d.account):null,limit=Math.min(Number(d.limit)||400,2000);let mine=db.transactions.filter(t=>t.userId===user.id&&t.kind!=='transfer');if(from)mine=mine.filter(t=>String(t.date||'')>=from);if(to)mine=mine.filter(t=>String(t.date||'')<=to);if(account)mine=mine.filter(t=>String(t.account||'')===account);if(minAmount!=null&&isFinite(minAmount))mine=mine.filter(t=>Number(t.amount)>=minAmount);if(expenseOnly)mine=mine.filter(t=>t.kind!=='income');if(scope==='misc')mine=mine.filter(t=>(normalizeCategoryName(t.category)||'متفرقه')==='متفرقه');else if(scope==='auto')mine=mine.filter(t=>!t.catManual);let changes=[],summary={},skippedSame=0,skippedNoMatch=0,sumAmount=0;for(const t of mine){let r=categorizeTransaction(t,rules);if(!r.category){if(r.reason==='no-match')skippedNoMatch++;else skippedSame++;continue}let cur=normalizeCategoryName(t.category)||'متفرقه',rawCat=String(t.category||'').trim()||'متفرقه';if(normalizeCategoryName(r.category)===cur){skippedSame++;continue}changes.push({id:t.id,date:t.date||null,title:String(t.title||''),amount:Number(t.amount)||0,kind:t.kind||'expense',account:t.account||null,from:rawCat,to:r.category,keyword:r.keyword||null});summary[r.category]=summary[r.category]||{count:0,sum:0};summary[r.category].count++;summary[r.category].sum+=Number(t.amount)||0;sumAmount+=Number(t.amount)||0;if(d.apply){t.catPrev=rawCat;t.catRule=r.keyword||null;t.catAt=Date.now();t.category=r.category}}if(d.apply&&changes.length)await write(db);return json(res,200,{applied:!!d.apply&&changes.length>0,scanned:mine.length,matched:changes.length,changesTotal:changes.length,changes:changes.slice(0,limit),truncated:changes.length>limit,untouched:skippedSame+skippedNoMatch,noMatch:skippedNoMatch,alreadyOk:skippedSame,sumAmount,summary,scope,rulesUsed:rules.length,revertible:!!d.apply&&changes.length>0})}
  if(p==='/api/shop/share'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),d=await body(req);if(d.reset||!user.shopCode)user.shopCode=randHex(8);await write(db);return json(res,200,{code:user.shopCode})}
+ // ── Personal-site bridge (e.g. seyfikhani.ir) ─────────────────────────────
+ // A server-side proxy on the user's own site calls /api/ext/* with a scoped
+ // bearer token (never a session cookie). Only the collections granted by the
+ // token's scopes are reachable; finance, contacts, notes etc. are not.
+ // Tokens are managed by the signed-in user under /api/site-tokens; only a
+ // SHA-256 of each token is stored.
+ const extSha256=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+ if(p==='/api/site-tokens'||p.startsWith('/api/site-tokens/')){
+   let db=await read(),user=auth(req,res,db);db.siteTokens??=[];
+   const SCOPES=['projects','projectFiles','courses'];
+   const view=t=>({id:t.id,label:t.label,scopes:t.scopes,createdAt:t.createdAt,lastUsedAt:t.lastUsedAt||null,prefix:t.prefix});
+   if(p==='/api/site-tokens'&&req.method==='GET')return json(res,200,{items:db.siteTokens.filter(t=>t.userId===user.id).map(view)});
+   if(p==='/api/site-tokens'&&req.method==='POST'){
+     let d=await body(req),scopes=(Array.isArray(d.scopes)?d.scopes:['projects','courses']).filter(s=>SCOPES.includes(s));
+     if(!scopes.length)return json(res,400,{error:'حداقل یک دسترسی را انتخاب کن.'});
+     if(db.siteTokens.filter(t=>t.userId===user.id).length>=5)return json(res,400,{error:'حداکثر ۵ توکن فعال مجاز است؛ یکی را لغو کن.'});
+     let token='lfs_'+randHex(32),t={id:id(),userId:user.id,label:String(d.label||'سایت شخصی').slice(0,60),scopes:[...new Set(scopes)],hash:await extSha256(token),prefix:token.slice(0,10),createdAt:Date.now()};
+     db.siteTokens.push(t);await write(db);return json(res,201,{...view(t),token});
+   }
+   if(req.method==='DELETE'){let tid=p.split('/')[3],n=db.siteTokens.length;db.siteTokens=db.siteTokens.filter(t=>!(t.id===tid&&t.userId===user.id));if(db.siteTokens.length===n)return json(res,404,{error:'توکن پیدا نشد.'});await write(db);return json(res,200,{ok:true})}
+   return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+ }
+ if(p.startsWith('/api/ext/')){
+   let m=String(req.headers.get('authorization')||'').match(/^Bearer\s+(lfs_[0-9a-f]{64})$/);
+   if(!m)return json(res,401,{error:'توکن لازم است.'});
+   let rl=checkRateLimit('ext:'+m[1].slice(0,16),240,60e3);if(!rl.ok)return json(res,429,{error:'درخواست زیاد. '+rl.retrySec+' ثانیه صبر کن.'});
+   let db=await read(),h=await extSha256(m[1]),tok=(db.siteTokens||[]).find(t=>timingSafeEqualHex(String(t.hash||''),h));
+   let user=tok&&db.users.find(x=>x.id===tok.userId&&!x.disabled);
+   if(!user)return json(res,401,{error:'توکن نامعتبر یا لغوشده است.'});
+   const scopes=new Set(tok.scopes||[]);
+   const EXT_COLS={projects:'projects',cards:'projects',projectProcesses:'projects',projectContracts:'projectFiles',projectFinancials:'projectFiles',projectSupplies:'projectFiles',courses:'courses',students:'courses'};
+   const can=name=>EXT_COLS[name]&&scopes.has(EXT_COLS[name]);
+   const mine=name=>colOf(db,name).filter(x=>x.userId===user.id);
+   const parts=p.split('/').slice(3);   // e.g. ['col','projects','<id>']
+   if(Date.now()-(tok.lastUsedAt||0)>3600e3){tok.lastUsedAt=Date.now();db.__touch=true}
+   const done=async(status,obj)=>{if((req.method!=='GET'&&status<300)||db.__touch){delete db.__touch;await write(db)}return json(res,status,obj)};
+   const remNotes=(...xs)=>xs.filter(Boolean).join('\n').slice(0,2000);
+   const clean=x=>{let o={...x};delete o.userId;return o};
+   // A reminder created here is an ordinary LifeOS reminder (db.reminders) so the
+   // existing cron → Telegram/push path sends it. time is required for that path.
+   const putReminder=(r,d)=>{if((d.date&&d.date!==r.date)||(d.time&&d.time!==r.time)){delete r.notifiedAt;delete r.leadSentAt}Object.assign(r,d,{whenLabel:d.date||r.date})};
+   const syncProcessReminder=(item,project)=>{
+     let r=item.reminderId&&db.reminders.find(x=>x.id===item.reminderId&&x.userId===user.id);
+     if(!item.reminderDate){if(r)db.reminders=db.reminders.filter(x=>x!==r);item.reminderId=null;return}
+     let d={title:'یادآوری پروژهٔ '+(project&&project.name||'')+': '+item.title,date:item.reminderDate,time:item.reminderTime||'09:00',notes:remNotes('مسئول: '+(item.owner||'تعیین نشده'),'توضیحات: '+(item.note||'—')),projectId:item.projectId,source:'site'};
+     if(r)putReminder(r,d);else{r={id:id(),userId:user.id,done:false,recurrence:null,taskId:null,leadMinutes:0,createdAt:Date.now(),...d,whenLabel:d.date};db.reminders.push(r);item.reminderId=r.id}
+   };
+   if(parts[0]==='me'&&req.method==='GET')return done(200,{name:user.name,scopes:[...scopes],telegram:!!user.telegramUserId,today:today()});
+   if(parts[0]==='col'){
+     let name=parts[1],iid=parts[2];if(!can(name))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
+     let list=colOf(db,name);
+     if(!iid&&req.method==='GET')return done(200,{items:mine(name).map(clean)});
+     if(!iid&&req.method==='POST'){
+       let d=cleanItem(await body(req));
+       if(name!=='projects'&&name!=='courses'){let parent=name==='students'?'courses':'projects',pid=name==='students'?d.courseId:d.projectId;if(!mine(parent).some(x=>x.id===pid))return json(res,400,{error:'والد معتبر نیست.'})}
+       if(name==='projectProcesses'){let ex=list.find(x=>x.userId===user.id&&x.projectId===d.projectId&&x.department===d.department&&x.title===d.title);if(ex)return done(200,clean(ex))}
+       if(mine(name).length>=5000)return json(res,400,{error:'این مجموعه پر است.'});
+       let r={id:id(),userId:user.id,...d,createdAt:Date.now(),updatedAt:Date.now()};
+       if(name==='projectProcesses'&&r.reminderDate)syncProcessReminder(r,mine('projects').find(x=>x.id===r.projectId));
+       list.push(r);return done(201,clean(r));
+     }
+     let ix=list.findIndex(x=>x.id===iid&&x.userId===user.id);if(ix<0)return json(res,404,{error:'مورد پیدا نشد.'});
+     if(req.method==='GET')return done(200,clean(list[ix]));
+     if(req.method==='PATCH'){
+       let d=cleanItem(await body(req));delete d.projectId;delete d.courseId;delete d.reminderId;   // no moving rows between parents
+       let it=list[ix];Object.assign(it,d,{updatedAt:Date.now()});
+       if(name==='projectProcesses'&&['reminderDate','reminderTime','owner','note','title'].some(k=>k in d))syncProcessReminder(it,mine('projects').find(x=>x.id===it.projectId));
+       return done(200,clean(it));
+     }
+     if(req.method==='DELETE'){
+       let it=list[ix];
+       if(name==='projects'||name==='courses'){let kids=name==='projects'?['cards','projectProcesses','projectContracts','projectFinancials','projectSupplies']:['students'],key=name==='projects'?'projectId':'courseId';
+         if(kids.some(k=>colOf(db,k).some(x=>x.userId===user.id&&x[key]===it.id)))return json(res,409,{error:'اول زیرمجموعه‌ها را حذف کن (یا از داخل LifeOS حذف کن).'})}
+       if(it.reminderId)db.reminders=db.reminders.filter(x=>!(x.id===it.reminderId&&x.userId===user.id));
+       list.splice(ix,1);db.attachments=(db.attachments||[]).filter(a=>!(a.ownerType==='col'&&a.ownerId===iid));return done(200,{ok:true});
+     }
+     return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+   }
+   // Student payments (mirrors CoursesPage): optional mirror into Finance as an «آموزش» transaction.
+   if(parts[0]==='students'&&parts[2]==='payments'){
+     if(!scopes.has('courses'))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
+     let st=mine('students').find(x=>x.id===parts[1]);if(!st)return json(res,404,{error:'دانشجو پیدا نشد.'});
+     let course=mine('courses').find(x=>x.id===st.courseId)||{},KIND={full:'پرداخت کامل',deposit:'بیعانه',installment:'قسط',refund:'بازپرداخت'};
+     st.payments=Array.isArray(st.payments)?st.payments:[];
+     let pay=parts[3]&&st.payments.find(x=>x.id===parts[3]);if(parts[3]&&!pay)return json(res,404,{error:'پرداخت پیدا نشد.'});
+     const txTitle=x=>(x.kind==='refund'?'بازپرداخت':KIND[x.kind])+' شهریه · '+st.name+' · '+(course.name||'');
+     const dropTx=x=>{if(x.txId)db.transactions=db.transactions.filter(t=>!(t.id===x.txId&&t.userId===user.id));x.txId=null};
+     const putTx=x=>{let t=x.txId&&db.transactions.find(t=>t.id===x.txId&&t.userId===user.id),f={title:txTitle(x),amount:x.amount,kind:x.kind==='refund'?'expense':'income',date:x.date};if(t)Object.assign(t,f);else{t={id:id(),userId:user.id,...f,category:'آموزش',account:'بدون حساب',recurrence:null,recurrenceId:null,receipt:null,tripId:null,tags:[],createdAt:Date.now()};db.transactions.push(t);x.txId=t.id}};
+     if(req.method==='DELETE'&&pay){dropTx(pay);st.payments=st.payments.filter(x=>x!==pay);st.updatedAt=Date.now();return done(200,{ok:true})}
+     if(req.method==='POST'||req.method==='PATCH'){
+       let d=await body(req),x=pay||{id:Math.random().toString(36).slice(2,10),txId:null};
+       let kind=d.kind!==undefined?d.kind:x.kind,amount=d.amount!==undefined?Math.round(Number(d.amount)):x.amount;
+       if(!KIND[kind])return json(res,400,{error:'نوع پرداخت نامعتبر است.'});if(!(amount>0))return json(res,400,{error:'مبلغ را بنویس.'});
+       Object.assign(x,{kind,amount,date:/^\d{4}-\d{2}-\d{2}$/.test(d.date||'')?d.date:(x.date||today()),method:String(d.method??x.method??'').slice(0,60),note:String(d.note??x.note??'').slice(0,300)});
+       let toFin=d.toFinance!==undefined?!!d.toFinance:!!x.txId;if(toFin)putTx(x);else dropTx(x);
+       if(!pay)st.payments.push(x);st.updatedAt=Date.now();return done(pay?200:201,clean(st));
+     }
+     return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+   }
+   if(parts[0]==='reminders'){
+     if(!scopes.has('projects')&&!scopes.has('courses'))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
+     // Only reminders tied to a project/course the token can see are reachable.
+     const linked=r=>r.userId===user.id&&((r.projectId&&scopes.has('projects')&&mine('projects').some(x=>x.id===r.projectId))||(r.courseId&&scopes.has('courses')&&mine('courses').some(x=>x.id===r.courseId)));
+     const pick=d=>{let o={};if(d.title!==undefined)o.title=String(d.title).trim().slice(0,200);if(d.date!==undefined){if(!/^\d{4}-\d{2}-\d{2}$/.test(d.date))throw 'date';o.date=d.date}if(d.time!==undefined){if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(d.time))throw 'time';o.time=d.time}if(d.notes!==undefined)o.notes=String(d.notes).slice(0,2000);if(d.done!==undefined)o.done=!!d.done;if(d.leadMinutes!==undefined)o.leadMinutes=[10,30,60,180,1440].includes(Number(d.leadMinutes))?Number(d.leadMinutes):0;return o};
+     let rid=parts[1];
+     if(!rid&&req.method==='GET')return done(200,{items:db.reminders.filter(linked).map(clean).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time||'').localeCompare(String(b.time||'')))});
+     let d=req.method==='GET'||req.method==='DELETE'?{}:await body(req),o;
+     try{o=pick(d)}catch(e){return json(res,400,{error:e==='time'?'ساعت باید به شکل HH:MM باشد (برای ارسال تلگرام لازم است).':'تاریخ نامعتبر است.'})}
+     if(!rid&&req.method==='POST'){
+       if(!o.title||!o.date||!o.time)return json(res,400,{error:'عنوان، تاریخ و ساعت یادآوری لازم است.'});
+       let r={id:id(),userId:user.id,done:false,recurrence:null,taskId:null,leadMinutes:0,createdAt:Date.now(),source:'site',...o,whenLabel:o.date};
+       if(d.projectId)r.projectId=String(d.projectId);else if(d.courseId)r.courseId=String(d.courseId);
+       if(!linked(r))return json(res,400,{error:'یادآوری باید به یک پروژه یا دورهٔ مجاز وصل باشد.'});
+       db.reminders.push(r);return done(201,clean(r));
+     }
+     let r=db.reminders.find(x=>x.id===rid&&linked(x));if(!r)return json(res,404,{error:'یادآوری پیدا نشد.'});
+     if(req.method==='DELETE'){db.reminders=db.reminders.filter(x=>x!==r);for(const it of mine('projectProcesses'))if(it.reminderId===r.id){it.reminderId=null;it.reminderDate=''}return done(200,{ok:true})}
+     if(req.method==='PATCH'){putReminder(r,o);return done(200,clean(r))}
+     return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+   }
+   return json(res,404,{error:'مسیر پیدا نشد.'});
+ }
  // Checklist rows are identified by their project, unit, and fixed title. A
  // late template-seed request must never create a second "todo" row that can
  // overwrite a user's just-completed stage.

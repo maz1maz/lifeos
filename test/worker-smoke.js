@@ -658,6 +658,98 @@ async function main() {
     check('worker: manual sync requires a connected account', wy.status === 400 && /وصل/.test(wy.d.error || ''), JSON.stringify(wy.d));
   }
 
+  console.log('\n[W17] personal-site bridge: scoped tokens + /api/ext/*');
+  {
+    const ext = async (p, { method = 'GET', token, body = null } = {}) => {
+      const headers = {};
+      if (token) headers.authorization = 'Bearer ' + token;
+      let b; if (body !== null) { headers['content-type'] = 'application/json'; b = JSON.stringify(body); }
+      const res = await worker.fetch(new Request('https://worker-smoke.local' + p, { method, headers, body: b }), env, {});
+      const text = await res.text(); let d = null; try { d = text ? JSON.parse(text) : null; } catch (e) {}
+      if (res.status === 500) check(`no 500 on ${method} ${p}`, false, String(text).slice(0, 160));
+      return { status: res.status, d };
+    };
+    check('site tokens need a session', (await call('/api/site-tokens')).status === 401);
+    const mk = await call('/api/site-tokens', { method: 'POST', cookie, body: { label: 'seyfikhani.ir', scopes: ['projects', 'courses'] } });
+    const token = mk.d && mk.d.token;
+    check('create site token -> 201 + plaintext token once', mk.status === 201 && /^lfs_[0-9a-f]{64}$/.test(token || ''), JSON.stringify(mk.d));
+    const listed = await call('/api/site-tokens', { cookie });
+    check('token list never returns the token or its hash', listed.status === 200 && listed.d.items.length >= 1 && !JSON.stringify(listed.d).includes(token) && !JSON.stringify(listed.d).includes('"hash"'));
+    check('ext without token -> 401', (await ext('/api/ext/me')).status === 401);
+    check('ext with a cookie but no token -> 401', (await call('/api/ext/me', { cookie })).status === 401);
+    check('ext with a wrong token -> 401', (await ext('/api/ext/me', { token: 'lfs_' + '0'.repeat(64) })).status === 401);
+    const meR = await ext('/api/ext/me', { token });
+    check('ext /me -> scopes', meR.status === 200 && meR.d.scopes.includes('projects') && meR.d.scopes.includes('courses'), JSON.stringify(meR.d));
+
+    // projects: both directions share one record
+    const proj = await ext('/api/ext/col/projects', { method: 'POST', token, body: { name: 'نمای ویلا لواسان', client: 'آقای الف' } });
+    check('site creates a project -> 201', proj.status === 201 && proj.d.id && !('userId' in proj.d), JSON.stringify(proj.d));
+    const inApp = (await call('/api/col/projects', { cookie })).d.items.find(x => x.id === proj.d.id);
+    check('…and LifeOS sees it', !!inApp && inApp.client === 'آقای الف');
+    await call('/api/col/projects/' + proj.d.id, { method: 'PATCH', cookie, body: { deadline: '2026-12-01' } });
+    const back = (await ext('/api/ext/col/projects', { token })).d.items.find(x => x.id === proj.d.id);
+    check('LifeOS edit shows on the site', back && back.deadline === '2026-12-01');
+    check('site cannot read finance collections without the projectFiles scope', (await ext('/api/ext/col/projectFinancials', { token })).status === 403);
+    check('site cannot reach non-allowlisted collections', (await ext('/api/ext/col/health', { token })).status === 403);
+    check('site cannot reach normal APIs with the token', (await ext('/api/transactions', { token })).status === 401);
+    const card = await ext('/api/ext/col/cards', { method: 'POST', token, body: { projectId: proj.d.id, title: 'نقشه‌های اجرایی', col: 'todo' } });
+    check('site adds a kanban card', card.status === 201);
+    check('card under a foreign/unknown project is refused', (await ext('/api/ext/col/cards', { method: 'POST', token, body: { projectId: 'nope', title: 'x' } })).status === 400);
+    check('project with children cannot be deleted from the site', (await ext('/api/ext/col/projects/' + proj.d.id, { method: 'DELETE', token })).status === 409);
+
+    // process stage reminder → real db.reminders row
+    const stage = await ext('/api/ext/col/projectProcesses', { method: 'POST', token, body: { projectId: proj.d.id, department: 'فنی', title: 'ابعادبرداری دقیق', status: 'todo' } });
+    const st2 = await ext('/api/ext/col/projectProcesses/' + stage.d.id, { method: 'PATCH', token, body: { reminderDate: today(), owner: 'ملینا' } });
+    const rems = (await call('/api/reminders', { cookie })).d.items;
+    const sr = rems.find(r => r.id === st2.d.reminderId);
+    check('stage reminderDate creates a real LifeOS reminder', !!sr && sr.date === today() && sr.time === '09:00' && /ابعادبرداری/.test(sr.title), JSON.stringify({ st2: st2.d, sr }));
+    await ext('/api/ext/col/projectProcesses/' + stage.d.id, { method: 'PATCH', token, body: { reminderDate: '' } });
+    check('clearing the date removes that reminder', !(await call('/api/reminders', { cookie })).d.items.some(r => r.id === sr.id));
+
+    // free reminder tied to a project, then delivered by the real cron → Telegram path
+    check('reminder without time is refused (cron needs one)', (await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: proj.d.id, title: 'x', date: today() } })).status === 400);
+    check('reminder not tied to an allowed project is refused', (await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: 'nope', title: 'x', date: today(), time: '10:00' } })).status === 400);
+    const tz = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(Date.now() - 2 * 60e3));
+    const rr = await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: proj.d.id, title: 'تماس با کارفرما', date: today(), time: tz, notes: 'از سایت' } });
+    check('site reminder -> 201 and listed for the site', rr.status === 201 && (await ext('/api/ext/reminders', { token })).d.items.some(r => r.id === rr.d.id), JSON.stringify(rr.d));
+    check('site reminder appears in LifeOS reminders', (await call('/api/reminders', { cookie })).d.items.some(r => r.id === rr.d.id));
+    if (tz > '00:05') {
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777001' } });
+      const sent = [], realFetch = globalThis.fetch;
+      env.TELEGRAM_BOT_TOKEN = 'TEST';
+      globalThis.fetch = async (url, init) => {
+        if (String(url).includes('api.telegram.org')) { if (typeof init.body === 'string') sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { headers: { 'content-type': 'application/json' } }); }
+        return new Response('{}', { status: 404 });
+      };
+      try { const waits = []; await worker.scheduled({ cron: '*/5 * * * *', scheduledTime: Date.now() }, env, { waitUntil: p => waits.push(p) }); await Promise.allSettled(waits); }
+      finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; }
+      const msg = sent.find(m => /تماس با کارفرما/.test(m.text || ''));
+      check('cron sends the site-made reminder to Telegram', !!msg && msg.chat_id === '777001' && /از سایت/.test(msg.text), JSON.stringify(sent.map(m => m.text)).slice(0, 300));
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } });
+    }
+    check('site deletes its reminder', (await ext('/api/ext/reminders/' + rr.d.id, { method: 'DELETE', token })).status === 200);
+
+    // courses + students + payments
+    const course = await ext('/api/ext/col/courses', { method: 'POST', token, body: { name: 'دورهٔ نما ۱', price: 50000000, sessions: 8 } });
+    const stu = await ext('/api/ext/col/students', { method: 'POST', token, body: { courseId: course.d.id, name: 'سارا', phone: '09120000000', fee: 50000000, payments: [], attendance: [] } });
+    check('site adds course + student', course.status === 201 && stu.status === 201);
+    const pay = await ext('/api/ext/students/' + stu.d.id + '/payments', { method: 'POST', token, body: { kind: 'deposit', amount: 10000000, toFinance: true } });
+    const txId = pay.d && pay.d.payments && pay.d.payments[0] && pay.d.payments[0].txId;
+    const txs = (await call('/api/transactions', { cookie })).d.items;
+    check('payment with toFinance mirrors an «آموزش» income in LifeOS', pay.status === 201 && txs.some(t => t.id === txId && t.category === 'آموزش' && t.kind === 'income' && t.amount === 10000000), JSON.stringify(pay.d));
+    await ext('/api/ext/students/' + stu.d.id + '/payments/' + pay.d.payments[0].id, { method: 'DELETE', token });
+    check('deleting the payment removes its transaction', !(await call('/api/transactions', { cookie })).d.items.some(t => t.id === txId));
+    await call('/api/col/students/' + stu.d.id, { method: 'PATCH', cookie, body: { attendance: [1, 2] } });
+    check('LifeOS attendance edit shows on the site', ((await ext('/api/ext/col/students', { token })).d.items.find(s => s.id === stu.d.id) || {}).attendance.join() === '1,2');
+
+    // token scope + revoke
+    const onlyCourses = (await call('/api/site-tokens', { method: 'POST', cookie, body: { scopes: ['courses'] } })).d.token;
+    check('courses-only token cannot read projects', (await ext('/api/ext/col/projects', { token: onlyCourses })).status === 403);
+    const tid = (await call('/api/site-tokens', { cookie })).d.items.find(t => token.startsWith(t.prefix)).id;
+    check('revoke token -> 200', (await call('/api/site-tokens/' + tid, { method: 'DELETE', cookie })).status === 200);
+    check('revoked token -> 401', (await ext('/api/ext/me', { token })).status === 401);
+  }
+
   console.log('\n[W16] the login gate vs Cloudflare\'s extensionless asset URLs');
   {
     // Cloudflare serves static assets with "clean" URLs: `/x.html` answers 307 →

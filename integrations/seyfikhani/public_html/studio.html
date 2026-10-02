@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="referrer" content="same-origin">
+    <title>پنل ملینا | پروژه‌ها و دوره‌ها</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="favicon.svg?v=18" type="image/svg+xml">
+    <link rel="icon" href="favicon.ico?v=18" sizes="any">
+    <link rel="stylesheet" href="studio.css?v=1">
+</head>
+<body>
+    <header class="st-top">
+        <a href="index.html" class="st-brand"><img src="images/logo-mark.png?v=7" alt="" width="20" height="40">ملینا صیفی‌خانی</a>
+        <nav class="st-tabs" id="tabs" hidden>
+            <button type="button" data-tab="projects" class="on">پروژه‌ها</button>
+            <button type="button" data-tab="courses">دوره‌ها و دانشجوها</button>
+        </nav>
+        <div class="st-meta" id="meta" hidden><span id="syncState"></span><button type="button" id="refreshBtn" class="st-link">به‌روزرسانی</button><button type="button" id="logoutBtn" class="st-link">خروج</button></div>
+    </header>
+
+    <main id="app">
+        <section class="st-login" id="loginView" hidden>
+            <form id="loginForm" class="st-card">
+                <h1>ورود به پنل</h1>
+                <p class="st-muted">پروژه‌ها، دوره‌ها و دانشجوها — همگام با LifeOS</p>
+                <label>ایمیل<input type="email" name="email" autocomplete="username" required dir="ltr"></label>
+                <label>رمز<input type="password" name="password" autocomplete="current-password" required dir="ltr"></label>
+                <button class="st-btn" type="submit">ورود</button>
+                <p class="st-err" id="loginErr" role="alert"></p>
+            </form>
+        </section>
+        <div id="view"></div>
+    </main>
+
+    <div class="st-modal" id="modal" hidden><form class="st-card" id="modalForm"></form></div>
+    <div class="st-toast" id="toast" role="status" hidden></div>
+    <script src="studio.js?v=1"></script>
+</body>
+</html>

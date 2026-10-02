@@ -1143,7 +1143,7 @@ async function main() {
       await fetch(`${BASE}/api/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'G', email: email4, password: 'secret123' }) });
       const login4 = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email4, password: 'secret123' }) });
       const auth4 = { 'Content-Type': 'application/json', Cookie: login4.headers.get('set-cookie').split(';')[0] };
-      const txs4 = async () => ((await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth4 }).then(r => r.json())).items) || [];
+      const txs4 = async () => ((await fetch(`${BASE}/api/transactions?from=2000-01-01&to=2999-12-31`, { headers: auth4 }).then(r => r.json())).items) || [];
       const say = (text) => fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: auth4, body: JSON.stringify({ text }) }).then(r => r.json());
 
       const session = await say('پوکر خانه دوستان ۵۰ میلیون ورودی ۴۲ میلیون خروجی');
@@ -1161,7 +1161,7 @@ async function main() {
       const control = await say('خرید نان ۵۰۰ هزار');
       const after = await txs4();
       check('normal text still creates a transaction (the guard is not a blanket mute)', (control.actions || []).length === 1 && after.length === 1 && after[0].amount === 500_000, JSON.stringify(control.actions));
-      const fin = await fetch(`${BASE}/api/finance?month=2026-09`, { headers: auth4 }).then(r => r.json());
+      const fin = await fetch(`${BASE}/api/finance?month=${String(after[0]?.date || '').slice(0, 7)}`, { headers: auth4 }).then(r => r.json());
       check('poker/bet money never leaks into the finance totals', fin.expense === 500_000 && fin.income === 0, JSON.stringify({ income: fin.income, expense: fin.expense }));
     }
 

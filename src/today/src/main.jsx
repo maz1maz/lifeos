@@ -1359,6 +1359,8 @@ function SettingsReact() {
           </article>
         </section>
 
+        <SiteTokensCard />
+
         <form className="planner-form" id="pinCard" onSubmit={savePin}>
           <h2>PIN امنیتی</h2>
           <p>بعد از ورود، برای دیدن داشبورد PIN می‌خواهد — مناسب موبایل مشترک. برای خاموش‌کردن، فیلد PIN جدید را خالی بگذار و روی «خاموش‌کردن قفل» بزن.</p>
@@ -2151,6 +2153,33 @@ function NotifyCard() {
       <div><b>اعلان روی همین دستگاه</b><small>{!supported ? (ios && !standalone ? 'در آیفون اول سایت را «Add to Home Screen» کن و از همان آیکن باز کن.' : 'این مرورگر اعلان وب را پشتیبانی نمی‌کند.') : perm === 'denied' ? 'اجازهٔ اعلان در مرورگر بسته است؛ از تنظیمات سایت در مرورگر بازش کن.' : subscribed ? 'فعال است ✓ — یادآوری‌ها مثل پیام برنامه‌ها روی صفحه می‌آیند، حتی وقتی سایت بسته است.' : 'یادآوری‌ها مثل پیام برنامه‌ها روی گوشی یا کامپیوتر می‌آیند، حتی بدون تلگرام.'}</small></div>
       {supported && perm !== 'denied' ? <div className="digest-controls">{subscribed ? <><button type="button" className="finance-action" onClick={test}>آزمایش</button><button type="button" className="finance-action" onClick={disable} disabled={busy}>خاموش</button></> : <button type="button" className="save" onClick={enable} disabled={busy}>{busy ? '…' : 'فعال‌سازی'}</button>}</div> : null}
     </article>
+    {msg ? <p className="muted">{msg}</p> : null}
+  </section>;
+}
+
+// Scoped tokens for a personal website's server-side proxy (e.g. seyfikhani.ir/studio.html).
+// The token is shown once; LifeOS stores only its hash. Finance/contract data needs an explicit extra scope.
+const SITE_SCOPES = [['projects', 'پروژه‌ها (کارت‌ها، مراحل، یادآوری‌ها)'], ['courses', 'دوره‌ها و دانشجوها (پرداخت‌ها، حضور و غیاب)'], ['projectFiles', 'قرارداد، مالی و تأمین پروژه']];
+function SiteTokensCard() {
+  const [items, setItems] = useState(null), [label, setLabel] = useState('seyfikhani.ir'), [scopes, setScopes] = useState({ projects: true, courses: true }), [made, setMade] = useState(null), [msg, setMsg] = useState('');
+  const load = () => api('/api/site-tokens').then(d => setItems(d.items || [])).catch(e => { setItems([]); setMsg(e.message); });
+  useEffect(() => { load(); }, []);
+  const create = async () => { try { const r = await api('/api/site-tokens', { method: 'POST', body: JSON.stringify({ label, scopes: Object.keys(scopes).filter(k => scopes[k]) }) }); setMade(r.token); setMsg(''); load(); } catch (e) { setMsg(e.message); } };
+  const revoke = async t => { if (!window.confirm(`اتصال «${t.label}» لغو شود؟ سایت دیگر به LifeOS دسترسی نخواهد داشت.`)) return; try { await api(`/api/site-tokens/${t.id}`, { method: 'DELETE' }); load(); } catch (e) { setMsg(e.message); } };
+  const copy = async () => { try { await navigator.clipboard.writeText(made); setMsg('توکن کپی شد ✓'); } catch { setMsg('کپی نشد؛ دستی انتخاب و کپی کن.'); } };
+  const label0 = k => (SITE_SCOPES.find(x => x[0] === k) || [k, k])[1];
+  return <section className="planner-list digest-card" id="siteTokens">
+    <h2>🌐 اتصال سایت شخصی</h2>
+    <p className="muted" style={{ margin: '0 0 10px' }}>برای صفحهٔ خصوصی روی سایت خودت (مثلاً seyfikhani.ir). توکن فقط در فایل تنظیمات سرور سایت گذاشته می‌شود، نه در مرورگر؛ هر تغییری آن‌جا همین‌جا ذخیره می‌شود و برعکس.</p>
+    {(items || []).map(t => <article key={t.id}><div><b>{t.label}</b><small>{t.scopes.map(label0).join(' · ')} · <span dir="ltr">{t.prefix}…</span>{t.lastUsedAt ? ` · آخرین استفاده ${new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'short', timeStyle: 'short' }).format(new Date(t.lastUsedAt))}` : ' · هنوز استفاده نشده'}</small></div><button type="button" className="finance-action" onClick={() => revoke(t)}>لغو</button></article>)}
+    <article>
+      <div><b>توکن تازه</b>
+        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="نام سایت" style={{ margin: '6px 0' }} />
+        {SITE_SCOPES.map(([k, l]) => <label key={k} style={{ display: 'block' }}><input type="checkbox" checked={!!scopes[k]} onChange={e => setScopes(o => ({ ...o, [k]: e.target.checked }))} /> {l}{k === 'projectFiles' ? ' — فقط اگر لازم است' : ''}</label>)}
+      </div>
+      <button type="button" className="save" onClick={create}>ساخت توکن</button>
+    </article>
+    {made ? <p className="muted">فقط همین یک بار نشان داده می‌شود: <code dir="ltr" style={{ wordBreak: 'break-all' }}>{made}</code> <button type="button" className="finance-action" onClick={copy}>کپی</button></p> : null}
     {msg ? <p className="muted">{msg}</p> : null}
   </section>;
 }
