@@ -151,10 +151,13 @@ if ($action === 'diag') {
     // optional second token (e.g. a throwaway test account) to tell host-network problems from account-data problems
     $altToken = (isset($_GET['t']) && preg_match('/\Alfs_[0-9a-f]{64}\z/', (string)$_GET['t'])) ? (string)$_GET['t'] : '';
     if ($altToken !== '') $targets['LifeOS (توکن آزمایشی)'] = rtrim((string)$cfg['lifeos_url'], '/') . '/api/ext/me';
+    @set_time_limit(90);
+    // test token first so a hanging main token cannot hide its result behind the host's time limit
+    if (isset($targets['LifeOS (توکن آزمایشی)'])) $targets = ['LifeOS (توکن آزمایشی)' => $targets['LifeOS (توکن آزمایشی)']] + $targets;
     $res = [];
     foreach ($targets as $name => $url) {
         $ch = curl_init($url);
-        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 8]);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10, CURLOPT_CONNECTTIMEOUT => 6]);
         if ($name === 'LifeOS (با توکن)') curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $cfg['lifeos_token'], 'Accept: application/json']);
         if ($name === 'LifeOS (توکن آزمایشی)') curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $altToken, 'Accept: application/json']);
         $b = curl_exec($ch);
