@@ -737,6 +737,24 @@ async function main() {
     }
     check('site deletes its reminder', (await ext('/api/ext/reminders/' + rr.d.id, { method: 'DELETE', token })).status === 200);
 
+    // project report PDF → Telegram, uploaded in pieces
+    {
+      const pdf = Buffer.from('%PDF-1.4\n' + 'x'.repeat(5000)).toString('base64'), half = Math.ceil(pdf.length / 2), up = 'a1b2c3d4e5f60718';
+      for (const [n, data] of [[0, pdf.slice(0, half)], [1, pdf.slice(half)]]) await ext('/api/ext/report-chunk', { method: 'POST', token, body: { uploadId: up, n, total: 2, data } });
+      const noTg = await ext('/api/ext/report-send', { method: 'POST', token, body: { uploadId: up, total: 2, filename: 'r.pdf' } });
+      check('report-send without Telegram linked -> 503 and pieces are cleaned up', noTg.status === 503 && ![...env.DB._store.keys()].some(k => k.includes(up)), JSON.stringify(noTg.d));
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777002' } });
+      const sentDocs = [], realFetch = globalThis.fetch; env.TELEGRAM_BOT_TOKEN = 'TEST';
+      globalThis.fetch = async (url, init) => { if (String(url).includes('sendDocument')) { sentDocs.push(init.body); return new Response(JSON.stringify({ ok: true, result: {} }), { headers: { 'content-type': 'application/json' } }); } return new Response('{}', { status: 404 }); };
+      try {
+        for (const [n, data] of [[1, pdf.slice(half)], [0, pdf.slice(0, half)]]) await ext('/api/ext/report-chunk', { method: 'POST', token, body: { uploadId: up, n, total: 2, data } });
+        const ok2 = await ext('/api/ext/report-send', { method: 'POST', token, body: { uploadId: up, total: 2, filename: 'گزارش.pdf', caption: 'test' } });
+        check('report pieces (any order) are joined and sent to Telegram as one PDF', ok2.status === 200 && sentDocs.length === 1 && ![...env.DB._store.keys()].some(k => k.includes(up)), JSON.stringify(ok2.d));
+        const bad = await ext('/api/ext/report-send', { method: 'POST', token, body: { uploadId: 'ffffffffffffffff', total: 1 } });
+        check('report-send with missing pieces -> 400', bad.status === 400);
+      } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } }); }
+    }
+
     // courses + students + payments
     const course = await ext('/api/ext/col/courses', { method: 'POST', token, body: { name: 'دورهٔ نما ۱', price: 50000000, sessions: 8 } });
     const stu = await ext('/api/ext/col/students', { method: 'POST', token, body: { courseId: course.d.id, name: 'سارا', phone: '09120000000', fee: 50000000, payments: [], attendance: [] } });

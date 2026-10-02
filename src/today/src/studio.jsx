@@ -30,6 +30,7 @@ window.__lifeosApi = async (url, options = {}) => {
   if (/^\/api\/col\/[A-Za-z]+(\/[\w-]+)?$/.test(p)) target = '/api/ext' + p.slice(4);
   else if (/^\/api\/reminders(\/[\w-]+)?$/.test(p)) target = '/api/ext' + p.slice(4);
   else if (/^\/api\/transactions(\/[\w-]+)?$/.test(p) && method !== 'GET') target = '/api/ext' + p.slice(4);
+  else if (p === '/api/projects/report-pdf' && method === 'POST') target = '/api/ext/report-pdf';
   else if (p === '/api/report-brand') return {};
   else if (p === '/api/me') return { user: {} };
   else throw new Error('این بخش فقط داخل خود LifeOS در دسترس است.');

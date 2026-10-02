@@ -206,6 +206,28 @@ if ($action === 'api') {
         "#^/api/ext/reminders$#" => ['GET', 'POST'],
         "#^/api/ext/reminders/$ID$#" => ['PATCH', 'DELETE'],
     ];
+    // project report PDF → Telegram: the browser sends the whole file here; LifeOS gets it in ~45 KB pieces
+    if ($path === '/api/ext/report-pdf' && $method === 'POST') {
+        @set_time_limit(180);
+        $d = json_decode(file_get_contents('php://input') ?: '{}', true) ?: [];
+        if (!preg_match('#^data:application/pdf;base64,([A-Za-z0-9+/=]+)$#', (string)($d['data'] ?? ''), $m)) out(400, ['error' => 'فایل PDF معتبر نیست.']);
+        $b64 = $m[1];
+        if (strlen($b64) > 28000000) out(413, ['error' => 'حجم PDF بیش از ۲۰ مگابایت است.']);
+        $pieces = str_split($b64, 45000); $up = bin2hex(random_bytes(8)); $total = count($pieces);
+        $post = function ($p, $payload) use ($cfg) {
+            for ($try = 0; $try < 3; $try++) {
+                $ch = curl_init(rtrim((string)$cfg['lifeos_url'], '/') . $p);
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE), CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_CONNECTTIMEOUT => 8, CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, CURLOPT_ENCODING => '',
+                    CURLOPT_HTTPHEADER => ['X-LifeOS-Token: ' . $cfg['lifeos_token'], 'Content-Type: application/json', 'Accept: application/json']]);
+                $b = curl_exec($ch); $st = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE); curl_close($ch);
+                if ($b !== false && $st !== 0) return [$st, $b];
+            }
+            out(502, ['error' => 'ارسال گزارش به LifeOS قطع شد؛ دوباره امتحان کن.']);
+        };
+        foreach ($pieces as $n => $piece) { list($st, $b) = $post('/api/ext/report-chunk', ['uploadId' => $up, 'n' => $n, 'total' => $total, 'data' => $piece]); if ($st !== 200) { http_response_code($st); echo $b; exit; } }
+        list($st, $b) = $post('/api/ext/report-send', ['uploadId' => $up, 'total' => $total, 'filename' => (string)($d['filename'] ?? 'report.pdf'), 'caption' => (string)($d['caption'] ?? '')]);
+        http_response_code($st); echo $b; exit;
+    }
     $okPath = false;
     foreach ($allowed as $re => $methods) if (preg_match($re, $path) && in_array($method, $methods, true)) { $okPath = true; break; }
     if (!$okPath) out(403, ['error' => 'این درخواست مجاز نیست.']);

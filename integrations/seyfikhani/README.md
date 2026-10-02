@@ -48,7 +48,7 @@ LifeOS → تنظیمات → «اتصال سایت شخصی» → «لغو». �
 `api()` در `life.jsx` اگر `window.__lifeosApi` باشد از آن استفاده می‌کند؛ studio مسیرها را این‌طور می‌فرستد:
 `/api/col/*` → `/api/ext/col/*` · `/api/reminders*` → `/api/ext/reminders*` · `/api/transactions*` (فقط «آموزش») → `/api/ext/transactions*`.
 هر تغییر در این صفحه‌های LifeOS ⇒ `npm run build:studio` و آپلود دوبارهٔ `studio.html` + `studio-assets/`.
-گزارش PDF/تلگرامِ پروژه و پیوست‌ها فقط داخل خود LifeOS کار می‌کنند.
+«ارسال گزارش به تلگرام» از سایت هم کار می‌کند (PDF تکه‌تکه از پروکسی به `/api/ext/report-chunk` و `report-send` می‌رود). پیوست‌ها فقط داخل خود LifeOS.
 
 ## شبکهٔ هاست ایرانی
 - هاست درخواست‌هایی که هدر `Authorization` دارند را نگه می‌دارد ⇒ توکن با `X-LifeOS-Token` فرستاده می‌شود.
