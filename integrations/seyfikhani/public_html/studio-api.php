@@ -174,8 +174,13 @@ if ($action === 'api') {
     if ($payload !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
     $body = curl_exec($ch);
     $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    $errNo = curl_errno($ch); $err = curl_error($ch);
     curl_close($ch);
-    if ($body === false || $status === 0) out(502, ['error' => 'اتصال به LifeOS برقرار نشد.']);
+    if ($body === false || $status === 0) {
+        // the host's own network decides this; name the cause so it can be fixed (DNS, filtering, TLS, timeout)
+        $why = [6 => 'هاست آدرس LifeOS را پیدا نمی‌کند (DNS)', 7 => 'هاست به سرور LifeOS وصل نمی‌شود (احتمالاً فیلتر/فایروال)', 28 => 'زمان اتصال تمام شد (احتمالاً فیلتر)', 35 => 'خطای SSL/TLS (احتمالاً فیلتر روی SNI)', 56 => 'اتصال وسط کار قطع شد (احتمالاً فیلتر)', 60 => 'گواهی SSL قابل تأیید نیست'][$errNo] ?? 'خطای شبکه';
+        out(502, ['error' => 'اتصال به LifeOS برقرار نشد: ' . $why . ' — کد ' . $errNo . ($err ? ' (' . $err . ')' : '')]);
+    }
     if ($status === 401) out(502, ['error' => 'توکن LifeOS نامعتبر یا لغو شده است؛ در تنظیمات LifeOS توکن تازه بساز.']);
     http_response_code($status);
     echo $body;
