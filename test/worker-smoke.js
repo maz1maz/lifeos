@@ -742,6 +742,15 @@ async function main() {
     await call('/api/col/students/' + stu.d.id, { method: 'PATCH', cookie, body: { attendance: [1, 2] } });
     check('LifeOS attendance edit shows on the site', ((await ext('/api/ext/col/students', { token })).d.items.find(s => s.id === stu.d.id) || {}).attendance.join() === '1,2');
 
+    // contract/finance/supply need the projectFiles scope; contract end date → renewal reminder
+    const full = (await call('/api/site-tokens', { method: 'POST', cookie, body: { scopes: ['projects', 'projectFiles'] } })).d.token;
+    const ctr = await ext('/api/ext/col/projectContracts', { method: 'POST', token: full, body: { projectId: proj.d.id, contractNo: 'C-7', contractEndDate: '2027-03-20', amount: 9000000000 } });
+    const renew = (await call('/api/reminders', { cookie })).d.items.find(r => r.id === ctr.d.contractRenewalReminderId);
+    check('projectFiles token: contract saved + renewal reminder a week before the end', ctr.status === 201 && !!renew && renew.date === '2027-03-13' && /تمدید قرارداد/.test(renew.title), JSON.stringify({ ctr: ctr.d, renew }));
+    await ext('/api/ext/col/projectContracts/' + ctr.d.id, { method: 'PATCH', token: full, body: { contractEndDate: '2027-04-20' } });
+    check('moving the contract end date moves the same reminder', (await call('/api/reminders', { cookie })).d.items.find(r => r.id === renew.id).date === '2027-04-13');
+    check('projectFiles token reaches financials + supplies', (await ext('/api/ext/col/projectFinancials', { method: 'POST', token: full, body: { projectId: proj.d.id, statementNo: 1, amount: 100 } })).status === 201 && (await ext('/api/ext/col/projectSupplies', { token: full })).status === 200);
+
     // token scope + revoke
     const onlyCourses = (await call('/api/site-tokens', { method: 'POST', cookie, body: { scopes: ['courses'] } })).d.token;
     check('courses-only token cannot read projects', (await ext('/api/ext/col/projects', { token: onlyCourses })).status === 403);

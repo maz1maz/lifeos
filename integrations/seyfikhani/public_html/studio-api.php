@@ -119,8 +119,8 @@ if ($action === 'api') {
     $ID = '[A-Za-z0-9_-]{1,64}';
     $allowed = [
         "#^/api/ext/me$#" => ['GET'],
-        "#^/api/ext/col/(projects|cards|projectProcesses|courses|students)$#" => ['GET', 'POST'],
-        "#^/api/ext/col/(projects|cards|projectProcesses|courses|students)/$ID$#" => ['GET', 'PATCH', 'DELETE'],
+        "#^/api/ext/col/(projects|cards|projectProcesses|projectContracts|projectFinancials|projectSupplies|courses|students)$#" => ['GET', 'POST'],
+        "#^/api/ext/col/(projects|cards|projectProcesses|projectContracts|projectFinancials|projectSupplies|courses|students)/$ID$#" => ['GET', 'PATCH', 'DELETE'],
         "#^/api/ext/students/$ID/payments$#" => ['POST'],
         "#^/api/ext/students/$ID/payments/$ID$#" => ['PATCH', 'DELETE'],
         "#^/api/ext/reminders$#" => ['GET', 'POST'],

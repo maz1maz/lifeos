@@ -1345,6 +1345,13 @@ async function handleApi(request, env) {
      let d={title:'یادآوری پروژهٔ '+(project&&project.name||'')+': '+item.title,date:item.reminderDate,time:item.reminderTime||'09:00',notes:remNotes('مسئول: '+(item.owner||'تعیین نشده'),'توضیحات: '+(item.note||'—')),projectId:item.projectId,source:'site'};
      if(r)putReminder(r,d);else{r={id:id(),userId:user.id,done:false,recurrence:null,taskId:null,leadMinutes:0,createdAt:Date.now(),...d,whenLabel:d.date};db.reminders.push(r);item.reminderId=r.id}
    };
+   // Contract end date → «تمدید قرارداد» reminder a week before (same rule as ProjectsPage in LifeOS).
+   const syncContractReminder=(c,project)=>{
+     let end=String(c.contractEndDate||''),r=c.contractRenewalReminderId&&db.reminders.find(x=>x.id===c.contractRenewalReminderId&&x.userId===user.id);
+     if(!/^\d{4}-\d{2}-\d{2}$/.test(end)){if(r)db.reminders=db.reminders.filter(x=>x!==r);c.contractRenewalReminderId=null;return}
+     let date=end<today()?today():addDaysIso(end,-7),d={title:'تمدید قرارداد پروژهٔ '+(project&&project.name||''),date,time:'09:00',notes:'تاریخ اتمام قرارداد: '+jalaliDateLabel(end),projectId:c.projectId};
+     if(r)putReminder(r,d);else{r={id:id(),userId:user.id,done:false,recurrence:null,taskId:null,leadMinutes:0,createdAt:Date.now(),source:'site',...d,whenLabel:date};db.reminders.push(r);c.contractRenewalReminderId=r.id}
+   };
    if(parts[0]==='me'&&req.method==='GET')return done(200,{name:user.name,scopes:[...scopes],telegram:!!user.telegramUserId,today:today()});
    if(parts[0]==='col'){
      let name=parts[1],iid=parts[2];if(!can(name))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
@@ -1357,21 +1364,23 @@ async function handleApi(request, env) {
        if(mine(name).length>=5000)return json(res,400,{error:'این مجموعه پر است.'});
        let r={id:id(),userId:user.id,...d,createdAt:Date.now(),updatedAt:Date.now()};
        if(name==='projectProcesses'&&r.reminderDate)syncProcessReminder(r,mine('projects').find(x=>x.id===r.projectId));
+       if(name==='projectContracts'&&r.contractEndDate)syncContractReminder(r,mine('projects').find(x=>x.id===r.projectId));
        list.push(r);return done(201,clean(r));
      }
      let ix=list.findIndex(x=>x.id===iid&&x.userId===user.id);if(ix<0)return json(res,404,{error:'مورد پیدا نشد.'});
      if(req.method==='GET')return done(200,clean(list[ix]));
      if(req.method==='PATCH'){
-       let d=cleanItem(await body(req));delete d.projectId;delete d.courseId;delete d.reminderId;   // no moving rows between parents
+       let d=cleanItem(await body(req));delete d.projectId;delete d.courseId;delete d.reminderId;delete d.contractRenewalReminderId;   // no moving rows between parents
        let it=list[ix];Object.assign(it,d,{updatedAt:Date.now()});
        if(name==='projectProcesses'&&['reminderDate','reminderTime','owner','note','title'].some(k=>k in d))syncProcessReminder(it,mine('projects').find(x=>x.id===it.projectId));
+       if(name==='projectContracts'&&'contractEndDate' in d)syncContractReminder(it,mine('projects').find(x=>x.id===it.projectId));
        return done(200,clean(it));
      }
      if(req.method==='DELETE'){
        let it=list[ix];
        if(name==='projects'||name==='courses'){let kids=name==='projects'?['cards','projectProcesses','projectContracts','projectFinancials','projectSupplies']:['students'],key=name==='projects'?'projectId':'courseId';
          if(kids.some(k=>colOf(db,k).some(x=>x.userId===user.id&&x[key]===it.id)))return json(res,409,{error:'اول زیرمجموعه‌ها را حذف کن (یا از داخل LifeOS حذف کن).'})}
-       if(it.reminderId)db.reminders=db.reminders.filter(x=>!(x.id===it.reminderId&&x.userId===user.id));
+       for(const rid of [it.reminderId,it.contractRenewalReminderId])if(rid)db.reminders=db.reminders.filter(x=>!(x.id===rid&&x.userId===user.id));
        list.splice(ix,1);db.attachments=(db.attachments||[]).filter(a=>!(a.ownerType==='col'&&a.ownerId===iid));return done(200,{ok:true});
      }
      return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
