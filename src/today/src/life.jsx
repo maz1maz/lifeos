@@ -9,6 +9,8 @@ import { VocabStats } from './vocab';
 import { printProjectReport, sendProjectReportToTelegram } from './projectReportPrint';
 
 export const api = async (url, options) => {
+  // the personal-site build (studio.jsx) routes these pages through its own proxy
+  if (typeof window !== 'undefined' && window.__lifeosApi) return window.__lifeosApi(url, options);
   const r = await fetch(url, { credentials: 'include', cache: 'no-store', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
   const b = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(b.error || 'دریافت اطلاعات ناموفق بود.');

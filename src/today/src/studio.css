@@ -1,0 +1,12 @@
+/* Personal-site shell around LifeOS's ProjectsPage / CoursesPage (see studio.jsx). */
+.studio-bar{gap:10px}
+.studio-bar .brand{text-decoration:none}
+.studio-tabs{display:flex;gap:4px;margin-inline-start:8px}
+.studio-tabs button{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid transparent;color:var(--g-muted,#9ca3af);border-radius:999px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
+.studio-tabs button.on{background:var(--g-panel-2,rgba(255,255,255,.08));border-color:var(--g-border,rgba(255,255,255,.12));color:var(--g-text,#fff);font-weight:600}
+.studio-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:transparent;border:1px solid var(--g-border,rgba(255,255,255,.12));color:var(--g-text,#fff);cursor:pointer}
+.studio-login{display:grid;place-items:center;min-height:100vh;padding:16px}
+.studio-login form{width:min(380px,100%);display:grid;gap:12px}
+.studio-login h1{margin:0;font-size:22px}
+.studio-login .muted{margin:0;color:var(--g-muted,#9ca3af);font-size:13px}
+@media (max-width:640px){.studio-tabs button span{display:none}.studio-tabs button{padding:8px}}

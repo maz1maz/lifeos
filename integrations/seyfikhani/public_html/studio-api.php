@@ -201,6 +201,8 @@ if ($action === 'api') {
         "#^/api/ext/col/(projects|cards|projectProcesses|projectContracts|projectFinancials|projectSupplies|courses|students)/$ID$#" => ['GET', 'PATCH', 'DELETE'],
         "#^/api/ext/students/$ID/payments$#" => ['POST'],
         "#^/api/ext/students/$ID/payments/$ID$#" => ['PATCH', 'DELETE'],
+        "#^/api/ext/transactions$#" => ['POST'],
+        "#^/api/ext/transactions/$ID$#" => ['PATCH', 'DELETE'],
         "#^/api/ext/reminders$#" => ['GET', 'POST'],
         "#^/api/ext/reminders/$ID$#" => ['PATCH', 'DELETE'],
     ];

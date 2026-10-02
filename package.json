@@ -8,7 +8,8 @@
     "build:today": "vite build --config vite.today.config.mjs && node scripts/prune-stale-bundles.js",
     "test": "node test/smoke.js && node test/worker-smoke.js && node test/verify-script-smoke.js && node test/ui-smoke.js",
     "deploy": "npm run build:today && wrangler deploy",
-    "preview": "npm run build:today && wrangler dev"
+    "preview": "npm run build:today && wrangler dev",
+    "build:studio": "vite build --config vite.studio.config.mjs && node scripts/prune-studio-assets.js"
   },
   "description": "Personal life dashboard MVP",
   "dependencies": {

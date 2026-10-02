@@ -20,7 +20,7 @@
 ## فایل‌ها
 | فایل | مقصد روی هاست |
 |---|---|
-| `public_html/studio.html`, `studio.js`, `studio.css`, `studio-api.php` | `public_html/` |
+| `public_html/studio.html` + پوشهٔ `studio-assets/` (ساخته‌شده با `npm run build:studio` از `src/today/src/studio.jsx` = همان `ProjectsPage` و `CoursesPage` خود LifeOS) و `studio-api.php` | `public_html/` (فایل‌های قدیمی `studio.js` و `studio.css` را پاک کن) |
 | `lifeos-studio-config.sample.php` → با نام `lifeos-studio-config.php` | پوشهٔ home (یک سطح **بالای** `public_html`) |
 | `add-login-link.js` | اجرا روی نسخهٔ محلی `public_html` قبل از آپلود (لینک فوتر + robots) |
 | `make-password-hash.js` | اجرا روی کامپیوتر خودت برای ساخت هش رمز |
@@ -42,3 +42,15 @@ LifeOS → تنظیمات → «اتصال سایت شخصی» → «لغو». �
 - حذف پروژه/دوره‌ای که زیرمجموعه دارد از سایت مجاز نیست (۴۰۹)؛ از LifeOS حذف شود.
 - ویرایش همزمان یک فیلد در دو طرف: آخرین ذخیره برنده است (مثل بقیهٔ LifeOS).
 - `/api/ext/*` فقط در `cloudflare/worker.js` است؛ `server.js` اصلاً `/api/col/*` ندارد (بدهی آشتی Worker/Node).
+
+## ظاهر = خود LifeOS
+پنل همان کامپوننت‌های React صفحه‌های «پروژه‌ها» و «دوره‌ها و دانشجوها»ی LifeOS است (`studio.jsx`).
+`api()` در `life.jsx` اگر `window.__lifeosApi` باشد از آن استفاده می‌کند؛ studio مسیرها را این‌طور می‌فرستد:
+`/api/col/*` → `/api/ext/col/*` · `/api/reminders*` → `/api/ext/reminders*` · `/api/transactions*` (فقط «آموزش») → `/api/ext/transactions*`.
+هر تغییر در این صفحه‌های LifeOS ⇒ `npm run build:studio` و آپلود دوبارهٔ `studio.html` + `studio-assets/`.
+گزارش PDF/تلگرامِ پروژه و پیوست‌ها فقط داخل خود LifeOS کار می‌کنند.
+
+## شبکهٔ هاست ایرانی
+- هاست درخواست‌هایی که هدر `Authorization` دارند را نگه می‌دارد ⇒ توکن با `X-LifeOS-Token` فرستاده می‌شود.
+- جواب‌های بزرگ‌تر از ~۶۴KB وسط راه قطع می‌شوند ⇒ پروکسی فهرست‌ها را ۲۵تایی (`?offset=&limit=`) و با gzip می‌گیرد.
+- عیب‌یابی (بعد از ورود، آدرس را در نوار آدرس بچسبان): `studio-api.php?a=diag` و `studio-api.php?a=diag&lists=1`.
