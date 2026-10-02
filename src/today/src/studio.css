@@ -1,4 +1,6 @@
 /* Personal-site shell around LifeOS's ProjectsPage / CoursesPage (see studio.jsx). */
+/* «·» separators sit next to Persian digits («۱۳ · مهر»); in Vazirmatn the dot looks like «۰», so draw it as a thin bar. */
+@font-face{font-family:'Vazirmatn';font-display:swap;src:url('./fonts/studio-sep.woff2') format('woff2');unicode-range:U+00B7}
 .studio-bar{gap:10px}
 .studio-bar .brand{text-decoration:none}
 .studio-tabs{display:flex;gap:4px;margin-inline-start:8px}
@@ -10,3 +12,47 @@
 .studio-login h1{margin:0;font-size:22px}
 .studio-login .muted{margin:0;color:var(--g-muted,#9ca3af);font-size:13px}
 @media (max-width:640px){.studio-tabs button span{display:none}.studio-tabs button{padding:8px}}
+
+/* ── iPhone / phone layout (≤700px) — studio only, LifeOS itself is unchanged ── */
+@media (max-width:700px){
+  /* top bar: name + 4 compact icons; the two tabs move to an iOS-style bottom bar */
+  .studio-bar{gap:6px;padding-top:max(6px,env(safe-area-inset-top));padding-inline:max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-left))}
+  .studio-bar .brand span{font-size:15px;white-space:nowrap}
+  .studio-icon{width:34px;height:34px}
+  .studio-tabs{position:fixed;z-index:40;inset-inline:0;bottom:0;margin:0;gap:0;justify-content:space-around;background:var(--g-panel,#141416);border-top:1px solid var(--g-border,rgba(255,255,255,.12));padding:6px 8px calc(6px + env(safe-area-inset-bottom));backdrop-filter:blur(12px)}
+  .studio-tabs button{flex:1;flex-direction:column;gap:2px;padding:6px 4px;border-radius:12px;font-size:11.5px}
+  .studio-tabs button span{display:inline}
+  .studio-tabs button.on{background:var(--g-panel-2,rgba(255,255,255,.08))}
+  .lf-page{padding-bottom:calc(84px + env(safe-area-inset-bottom))!important}
+  /* iOS zooms into inputs under 16px */
+  input,select,textarea{font-size:16px!important}
+  /* big amounts wrap instead of «…» */
+  .lf-kpis b{white-space:normal;overflow:visible;text-overflow:clip;font-size:16px;line-height:1.5;word-break:break-word}
+  .lf-hero{gap:10px}
+  .lf-hero-ops{flex-wrap:wrap}
+  /* students: the 9-column table becomes one card per student */
+  .cs-table{overflow:visible!important}
+  .cs-th{display:none!important}
+  .cs-row .cs-tr,.cs-tr.cs-foot{min-width:0!important;grid-template-columns:1fr 1fr!important;gap:8px 12px;padding:12px}
+  .cs-row{border-bottom:1px solid var(--g-border,rgba(255,255,255,.1))}
+  .cs-row .cs-tr>span:nth-child(1){display:none}
+  .cs-row .cs-tr>span:nth-child(2){grid-column:1/-1;font-size:15px}
+  .cs-row .cs-tr>span:nth-child(3){grid-column:1/-1;text-align:start}
+  .cs-row .cs-tr>span:nth-child(n+4):nth-child(-n+7)::before,.cs-tr.cs-foot>span:nth-child(n+4):nth-child(-n+6)::before{display:block;font-size:11px;font-weight:400;color:var(--g-muted,#9ca3af);margin-bottom:2px}
+  .cs-row .cs-tr>span:nth-child(4)::before,.cs-tr.cs-foot>span:nth-child(4)::before{content:'شهریه'}
+  .cs-row .cs-tr>span:nth-child(5)::before,.cs-tr.cs-foot>span:nth-child(5)::before{content:'پرداخت‌شده'}
+  .cs-row .cs-tr>span:nth-child(6)::before,.cs-tr.cs-foot>span:nth-child(6)::before{content:'باقی‌مانده'}
+  .cs-row .cs-tr>span:nth-child(7)::before{content:'سررسید'}
+  .cs-row .cs-tr>span:nth-child(8){grid-column:1/-1;white-space:normal}
+  .cs-row .cs-tr>span:nth-child(9){grid-column:1/-1;justify-content:flex-start;display:flex;gap:8px;flex-wrap:wrap}
+  .cs-tr.cs-foot>span:nth-child(1),.cs-tr.cs-foot>span:nth-child(3),.cs-tr.cs-foot>span:nth-child(n+7){display:none}
+  .cs-tr.cs-foot>span:nth-child(2){grid-column:1/-1}
+  /* chips with name · amount · date: let them wrap */
+  .lf-palerts{flex-direction:column;align-items:stretch}
+  .lf-palerts button{white-space:normal;text-align:start}
+  .lf-drawer{max-height:calc(100dvh - env(safe-area-inset-top));padding-bottom:env(safe-area-inset-bottom)}
+}
+/* Melina's mark instead of the LifeOS logo (the site serves images/logo-mark*.png) */
+.studio-bar .brand-logo{background:none!important;-webkit-mask:none!important;mask:none!important;width:22px;height:38px}
+.studio-bar .brand-logo::before{content:'';display:block;width:100%;height:100%;background:url('../images/logo-mark-white.png?v=7') center/contain no-repeat}
+html[data-mode="light"] .studio-bar .brand-logo::before{background-image:url('../images/logo-mark.png?v=7')}
