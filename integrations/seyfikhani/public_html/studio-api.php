@@ -153,7 +153,7 @@ if ($action === 'diag') {
         $out = [];
         foreach (['me', 'col/projects', 'col/cards', 'col/projectProcesses', 'col/projectContracts', 'col/projectFinancials', 'col/projectSupplies', 'col/courses', 'col/students', 'reminders'] as $p) {
             $ch = curl_init($base . '/api/ext/' . $p);
-            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 8, CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, CURLOPT_HTTPHEADER => ['X-LifeOS-Token: ' . $cfg['lifeos_token'], 'Accept: application/json']]);
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 8, CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, CURLOPT_ENCODING => '', CURLOPT_HTTPHEADER => ['X-LifeOS-Token: ' . $cfg['lifeos_token'], 'Accept: application/json']]);
             $b = curl_exec($ch);
             $out[] = ['path' => $p, 'status' => (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE), 'bytes' => is_string($b) ? strlen($b) : 0, 'ms' => (int)(curl_getinfo($ch, CURLINFO_TOTAL_TIME) * 1000), 'error' => curl_errno($ch) ? curl_errno($ch) . ' ' . curl_error($ch) : ''];
             curl_close($ch);
@@ -213,6 +213,24 @@ if ($action === 'api') {
         if (strlen($payload) > 65536) out(413, ['error' => 'داده بیش از حد بزرگ است.']);
         if (!is_array(json_decode($payload, true))) out(400, ['error' => 'دادهٔ نامعتبر.']);
     }
+    // Long lists are pulled in pages: this host's network cuts replies after ~64 KB.
+    if ($method === 'GET' && preg_match('#^/api/ext/(col/[A-Za-z]+|reminders)$#', $path)) {
+        $items = []; $per = 25; $off = 0;
+        while (true) {
+            $ch = curl_init(rtrim((string)$cfg['lifeos_url'], '/') . $path . '?offset=' . $off . '&limit=' . $per);
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 8, CURLOPT_FOLLOWLOCATION => false, CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, CURLOPT_ENCODING => '',
+                CURLOPT_HTTPHEADER => ['X-LifeOS-Token: ' . $cfg['lifeos_token'], 'Accept: application/json']]);
+            $b = curl_exec($ch); $st = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE); $en = curl_errno($ch); $er = curl_error($ch); curl_close($ch);
+            if ($b === false || $st === 0) out(502, ['error' => 'اتصال به LifeOS برقرار نشد — کد ' . $en . ($er ? ' (' . $er . ')' : '')]);
+            if ($st === 401) out(502, ['error' => 'توکن LifeOS نامعتبر یا لغو شده است؛ در تنظیمات LifeOS توکن تازه بساز.']);
+            $d = json_decode($b, true);
+            if ($st !== 200 || !is_array($d)) { http_response_code($st ?: 502); echo $b; exit; }
+            $items = array_merge($items, $d['items'] ?? []);
+            if (!isset($d['total']) || count($items) >= (int)$d['total'] || empty($d['items']) || $off > 20000) break;   // old Worker without paging returns everything at once
+            $off += $per;
+        }
+        out(200, ['items' => $items]);
+    }
     $ch = curl_init(rtrim((string)$cfg['lifeos_url'], '/') . $path);
     curl_setopt_array($ch, [
         CURLOPT_CUSTOMREQUEST => $method,
@@ -222,7 +240,7 @@ if ($action === 'api') {
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTPS | (!empty($cfg['allow_http']) ? CURLPROTO_HTTP : 0),
         CURLOPT_HTTPHEADER => ['X-LifeOS-Token: ' . $cfg['lifeos_token'], 'Content-Type: application/json', 'Accept: application/json'],
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, CURLOPT_ENCODING => '',
     ]);
     if ($payload !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
     $body = curl_exec($ch);

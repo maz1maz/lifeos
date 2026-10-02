@@ -1357,7 +1357,9 @@ async function handleApi(request, env) {
    if(parts[0]==='col'){
      let name=parts[1],iid=parts[2];if(!can(name))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
      let list=colOf(db,name);
-     if(!iid&&req.method==='GET')return done(200,{items:mine(name).map(clean)});
+     // optional paging (?offset=&limit=): some hosts cut long TLS replies mid-stream, so the proxy pulls small pages
+     const page=all=>{let lim=Math.min(500,Math.max(0,Number(u.searchParams.get('limit'))||0)),off=Math.max(0,Number(u.searchParams.get('offset'))||0);return lim?{items:all.slice(off,off+lim),total:all.length}:{items:all}};
+     if(!iid&&req.method==='GET')return done(200,page(mine(name).map(clean)));
      if(!iid&&req.method==='POST'){
        let d=cleanItem(await body(req));
        if(name!=='projects'&&name!=='courses'){let parent=name==='students'?'courses':'projects',pid=name==='students'?d.courseId:d.projectId;if(!mine(parent).some(x=>x.id===pid))return json(res,400,{error:'والد معتبر نیست.'})}
@@ -1413,7 +1415,7 @@ async function handleApi(request, env) {
      const linked=r=>r.userId===user.id&&((r.projectId&&scopes.has('projects')&&mine('projects').some(x=>x.id===r.projectId))||(r.courseId&&scopes.has('courses')&&mine('courses').some(x=>x.id===r.courseId)));
      const pick=d=>{let o={};if(d.title!==undefined)o.title=String(d.title).trim().slice(0,200);if(d.date!==undefined){if(!/^\d{4}-\d{2}-\d{2}$/.test(d.date))throw 'date';o.date=d.date}if(d.time!==undefined){if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(d.time))throw 'time';o.time=d.time}if(d.notes!==undefined)o.notes=String(d.notes).slice(0,2000);if(d.done!==undefined)o.done=!!d.done;if(d.leadMinutes!==undefined)o.leadMinutes=[10,30,60,180,1440].includes(Number(d.leadMinutes))?Number(d.leadMinutes):0;return o};
      let rid=parts[1];
-     if(!rid&&req.method==='GET')return done(200,{items:db.reminders.filter(linked).map(clean).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time||'').localeCompare(String(b.time||'')))});
+     if(!rid&&req.method==='GET'){let all=db.reminders.filter(linked).map(clean).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time||'').localeCompare(String(b.time||''))),lim=Math.min(500,Math.max(0,Number(u.searchParams.get('limit'))||0)),off=Math.max(0,Number(u.searchParams.get('offset'))||0);return done(200,lim?{items:all.slice(off,off+lim),total:all.length}:{items:all})}
      let d=req.method==='GET'||req.method==='DELETE'?{}:await body(req),o;
      try{o=pick(d)}catch(e){return json(res,400,{error:e==='time'?'ساعت باید به شکل HH:MM باشد (برای ارسال تلگرام لازم است).':'تاریخ نامعتبر است.'})}
      if(!rid&&req.method==='POST'){

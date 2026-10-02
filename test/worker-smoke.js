@@ -696,6 +696,8 @@ async function main() {
     check('site cannot reach normal APIs with the token', (await ext('/api/transactions', { token })).status === 401);
     const card = await ext('/api/ext/col/cards', { method: 'POST', token, body: { projectId: proj.d.id, title: 'نقشه‌های اجرایی', col: 'todo' } });
     check('site adds a kanban card', card.status === 201);
+    const pg = (await ext('/api/ext/col/cards?offset=0&limit=1', { token })).d;
+    check('ext lists page with ?offset=&limit=', pg.items.length === 1 && pg.total >= 1, JSON.stringify(pg));
     check('card under a foreign/unknown project is refused', (await ext('/api/ext/col/cards', { method: 'POST', token, body: { projectId: 'nope', title: 'x' } })).status === 400);
     check('project with children cannot be deleted from the site', (await ext('/api/ext/col/projects/' + proj.d.id, { method: 'DELETE', token })).status === 409);
 
