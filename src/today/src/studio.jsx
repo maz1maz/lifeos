@@ -3,7 +3,7 @@
 // Build: npm run build:studio  →  integrations/seyfikhani/public_html/
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { FolderKanban, GraduationCap, LogOut, Moon, RefreshCw, Sun } from 'lucide-react';
+import { FolderKanban, GraduationCap, KeyRound, LogOut, Moon, RefreshCw, Sun } from 'lucide-react';
 import './today.css';
 import './home.css';
 import './unify.css';
@@ -40,7 +40,33 @@ window.__lifeosApi = async (url, options = {}) => {
 const readLs = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
 const writeLs = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 
+function PasswordDrawer({ onClose }) {
+  const [cur, setCur] = useState(''), [next, setNext] = useState(''), [again, setAgain] = useState(''), [msg, setMsg] = useState(''), [done, setDone] = useState(false), [busy, setBusy] = useState(false);
+  const submit = async e => {
+    e.preventDefault(); setMsg('');
+    if (next.length < 10) { setMsg('رمز تازه باید حداقل ۱۰ کاراکتر باشد.'); return; }
+    if (next !== again) { setMsg('تکرار رمز تازه یکی نیست.'); return; }
+    setBusy(true);
+    try { const r = await call(`${PROXY}?a=password`, { method: 'POST', body: JSON.stringify({ current: cur, next }) }); csrf = r.csrf; setDone(true); setCur(''); setNext(''); setAgain(''); }
+    catch (x) { setMsg(x.message); }
+    setBusy(false);
+  };
+  return <div className="lf-drawer-bg" onClick={onClose}><form className="lf-drawer" onClick={e => e.stopPropagation()} onSubmit={submit}>
+    <header><h2>تغییر رمز ورود</h2><button type="button" onClick={onClose} aria-label="بستن">×</button></header>
+    <div className="lf-drawer-body">
+      {done ? <p className="lf-note">رمز تازه ذخیره شد ✓ از ورود بعدی همین رمز را بزن.</p> : <>
+        <label className="lf-field"><span>رمز فعلی</span><input type="password" dir="ltr" autoComplete="current-password" required value={cur} onChange={e => setCur(e.target.value)} /></label>
+        <label className="lf-field"><span>رمز تازه (حداقل ۱۰ کاراکتر)</span><input type="password" dir="ltr" autoComplete="new-password" required minLength={10} value={next} onChange={e => setNext(e.target.value)} /></label>
+        <label className="lf-field"><span>تکرار رمز تازه</span><input type="password" dir="ltr" autoComplete="new-password" required value={again} onChange={e => setAgain(e.target.value)} /></label>
+      </>}
+      {msg ? <p className="lf-err" role="alert">{msg}</p> : null}
+    </div>
+    <footer>{done ? <button type="button" className="lf-btn" onClick={onClose}>بستن</button> : <><button className="lf-btn" disabled={busy}>{busy ? '…' : 'ذخیرهٔ رمز'}</button><button type="button" className="lf-btn ghost" onClick={onClose}>انصراف</button></>}</footer>
+  </form></div>;
+}
+
 function StudioNav({ tab, setTab, onRefresh, onOut }) {
+  const [pw, setPw] = useState(false);
   const [mode, setMode] = useState(() => document.documentElement.dataset.mode || 'dark');
   const flip = () => { const m = mode === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.mode = m; writeLs('lifeos-mode', m); setMode(m); };
   return <nav className="topbar studio-bar">
@@ -52,7 +78,9 @@ function StudioNav({ tab, setTab, onRefresh, onOut }) {
     <span className="nav-spacer" />
     <button type="button" className="studio-icon" onClick={onRefresh} title="به‌روزرسانی از LifeOS" aria-label="به‌روزرسانی"><RefreshCw size={17} /></button>
     <button type="button" className="studio-icon" onClick={flip} title={mode === 'dark' ? 'حالت روشن' : 'حالت تیره'} aria-label="تغییر تم">{mode === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</button>
+    <button type="button" className="studio-icon" onClick={() => setPw(true)} title="تغییر رمز" aria-label="تغییر رمز"><KeyRound size={17} /></button>
     <button type="button" className="studio-icon" onClick={onOut} title="خروج" aria-label="خروج"><LogOut size={17} /></button>
+    {pw ? <PasswordDrawer onClose={() => setPw(false)} /> : null}
   </nav>;
 }
 

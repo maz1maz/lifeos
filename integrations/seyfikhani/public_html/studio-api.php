@@ -113,6 +113,18 @@ function limiter($dir, $ip, $record) {
     return $wait;
 }
 
+// A password Melina set herself (panel → «تغییر رمز») overrides the config hash.
+// Forgot it? Delete lifeos-studio-data/password-hash.txt and the config password works again.
+$pwFile = $dataDir . '/password-hash.txt';
+function currentHash($cfg, $pwFile) {
+    $h = is_file($pwFile) ? trim((string)@file_get_contents($pwFile)) : '';
+    return $h !== '' ? $h : (string)$cfg['password_hash'];
+}
+function makeHash($pw) {
+    $salt = random_bytes(16); $iter = 310000;
+    return 'pbkdf2_sha256$' . $iter . '$' . base64_encode($salt) . '$' . base64_encode(hash_pbkdf2('sha256', $pw, $salt, $iter, 32, true));
+}
+
 if ($action === 'state') {
     $in = signedIn($IDLE, $ABS);
     if (empty($_SESSION['csrf'])) $_SESSION['csrf'] = bin2hex(random_bytes(32));
@@ -126,11 +138,30 @@ if ($action === 'login' && $method === 'POST') {
     $d = json_decode(file_get_contents('php://input') ?: '{}', true) ?: [];
     $email = strtolower(trim((string)($d['email'] ?? '')));
     $pw = (string)($d['password'] ?? '');
-    $ok = hash_equals(strtolower((string)$cfg['login_email']), $email) & verifyPassword($pw, (string)$cfg['password_hash']);
+    $ok = hash_equals(strtolower((string)$cfg['login_email']), $email) & verifyPassword($pw, currentHash($cfg, $pwFile));
     if (!$ok) { limiter($dataDir, $ip, true); usleep(400000); out(401, ['error' => 'ایمیل یا رمز درست نیست.']); }
     session_regenerate_id(true);
     $_SESSION['uid'] = 'melina';
     $_SESSION['at'] = $_SESSION['last'] = time();
+    $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    out(200, ['ok' => true, 'csrf' => $_SESSION['csrf']]);
+}
+
+if ($action === 'password' && $method === 'POST') {
+    needCsrf();
+    if (!signedIn($IDLE, $ABS)) out(401, ['error' => 'ابتدا وارد شو.']);
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'ip';
+    if (($w = limiter($dataDir, $ip, false)) !== null) out(429, ['error' => 'تلاش زیاد. ' . max(1, (int)ceil($w / 60)) . ' دقیقه دیگر دوباره امتحان کن.']);
+    $d = json_decode(file_get_contents('php://input') ?: '{}', true) ?: [];
+    $cur = (string)($d['current'] ?? ''); $next = (string)($d['next'] ?? '');
+    if (!verifyPassword($cur, currentHash($cfg, $pwFile))) { limiter($dataDir, $ip, true); usleep(400000); out(400, ['error' => 'رمز فعلی درست نیست.']); }
+    if (strlen($next) < 10) out(400, ['error' => 'رمز تازه باید حداقل ۱۰ کاراکتر باشد.']);
+    if ($next === $cur) out(400, ['error' => 'رمز تازه با رمز فعلی یکی است.']);
+    if (!is_dir($dataDir) || !is_writable($dataDir)) out(500, ['error' => 'پوشهٔ lifeos-studio-data قابل نوشتن نیست؛ در cPanel دسترسی آن را 700 بگذار.']);
+    $tmp = $pwFile . '.' . bin2hex(random_bytes(4));
+    if (@file_put_contents($tmp, makeHash($next)) === false || !@rename($tmp, $pwFile)) { @unlink($tmp); out(500, ['error' => 'ذخیرهٔ رمز ناموفق بود.']); }
+    @chmod($pwFile, 0600);
+    session_regenerate_id(true);
     $_SESSION['csrf'] = bin2hex(random_bytes(32));
     out(200, ['ok' => true, 'csrf' => $_SESSION['csrf']]);
 }
