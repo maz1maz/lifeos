@@ -296,6 +296,20 @@ nav.tabs{gap:4px}
 .ratebar .btn{padding:7px 8px!important;font-size:13.5px!important;border-radius:12px;min-height:0;line-height:1.5}
 .ratebar .btn .muted{font-size:11px!important}
 @media(max-width:560px){.ratebar{grid-template-columns:repeat(4,1fr)!important;gap:5px}.ratebar .btn{font-size:12px!important;padding:6px 4px!important}.ratebar .btn .muted,.ratebar .btn br{display:none}}
+
+/* desktop: title + tabs become a vertical sidebar (right, RTL), so the card and rating buttons fit on screen */
+@media(min-width:900px){
+  #appShell:not(.hide){display:grid;grid-template-columns:200px minmax(0,1fr);align-items:start;min-height:100vh}
+  #appShell>header.top{position:sticky;top:0;height:100vh;overflow-y:auto;border-bottom:0;border-inline-end:1px solid var(--line);backdrop-filter:none}
+  #appShell>header.top .topin{flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:14px;padding:16px 12px;max-width:none}
+  #appShell>header.top .brand{align-items:flex-start;gap:10px}
+  #appShell>header.top .brand small{display:block;margin-top:2px;line-height:1.6}
+  #appShell>header.top nav.tabs{flex-direction:column;flex-wrap:nowrap!important;overflow:visible;gap:4px}
+  #appShell>header.top .tab{width:100%;text-align:start;border-radius:10px!important;padding:8px 12px!important;border-color:transparent;background:transparent}
+  #appShell>header.top .tab:hover{background:var(--bg3)}
+  #appShell>header.top .tab.on{border-color:transparent}
+  #appShell>.wrap{width:100%;padding-top:14px}
+}
 </style>
 </head>
 <body>
