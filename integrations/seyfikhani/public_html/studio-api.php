@@ -3,7 +3,15 @@
 // - Melina signs in here with a site-only password (PBKDF2 hash in the config file).
 // - The LifeOS token lives only in the config file OUTSIDE public_html; the browser never sees it.
 // - Only an allowlist of /api/ext/* paths is forwarded.
-declare(strict_types=1);
+// Works on PHP 7.0+ (cPanel hosts often default to an older PHP).
+// A fatal error is reported as JSON (no file paths) instead of a bare HTTP 500.
+register_shutdown_function(function () {
+    $e = error_get_last();
+    if (!$e || !in_array($e['type'], [E_ERROR, E_PARSE, E_COMPILE_ERROR, E_CORE_ERROR], true)) return;
+    if (!headers_sent()) { http_response_code(500); header('Content-Type: application/json; charset=utf-8'); }
+    $file = basename((string)$e['file']);
+    echo json_encode(['error' => 'خطای PHP در ' . $file . ' (خط ' . $e['line'] . '، PHP ' . PHP_VERSION . '): ' . preg_replace('#/[^\s:]+/#', '', (string)$e['message'])], JSON_UNESCAPED_UNICODE);
+});
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -11,7 +19,7 @@ header('X-Content-Type-Options: nosniff');
 header('X-Robots-Tag: noindex, nofollow');
 header('Referrer-Policy: same-origin');
 
-function out(int $status, array $data): void {
+function out($status, $data) {
     http_response_code($status);
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
@@ -29,13 +37,14 @@ if ($cfgFile === '') {
 if ($cfgFile === '' || !is_file($cfgFile)) {
     // never serve secrets from the web root: if it was uploaded there, refuse and say so
     if (is_file(__DIR__ . '/lifeos-studio-config.php')) out(503, ['error' => 'فایل تنظیمات داخل public_html است؛ آن را یک پوشه بالاتر (کنار public_html) ببر.']);
-    $names = array_values(array_filter(scandir(dirname(__DIR__)) ?: [], fn($n) => stripos($n, 'lifeos') !== false));
+    $names = array_values(array_filter(scandir(dirname(__DIR__)) ?: [], function ($n) { return stripos($n, 'lifeos') !== false; }));
     out(503, ['error' => 'فایل lifeos-studio-config.php کنار پوشهٔ public_html پیدا نشد.' . ($names ? ' فایل‌های مشابه آنجا: ' . implode('، ', $names) : '')]);
 }
-$cfg = require $cfgFile;
+try { $cfg = require $cfgFile; }
+catch (\Throwable $e) { out(503, ['error' => 'فایل lifeos-studio-config.php غلط تایپی دارد (خط ' . $e->getLine() . '). علامت‌های \' و , را چک کن.']); }
 if (!is_array($cfg)) out(503, ['error' => 'فایل lifeos-studio-config.php خراب است (باید با return [ شروع شود).']);
 foreach (['lifeos_url', 'lifeos_token', 'login_email', 'password_hash'] as $k) {
-    if (empty($cfg[$k]) || str_contains((string)$cfg[$k], 'CHANGE_ME')) out(503, ['error' => "در lifeos-studio-config.php مقدار «{$k}» هنوز پر نشده است."]);
+    if (empty($cfg[$k]) || strpos((string)$cfg[$k], 'CHANGE_ME') !== false) out(503, ['error' => "در lifeos-studio-config.php مقدار «{$k}» هنوز پر نشده است."]);
 }
 if (!preg_match('/^lfs_[0-9a-f]{64}$/', (string)$cfg['lifeos_token'])) out(503, ['error' => 'توکن در lifeos-studio-config.php کامل نیست (باید lfs_ و ۶۴ حرف باشد، بدون فاصله).']);
 $dataDir = $cfg['data_dir'] ?? dirname(__DIR__) . '/lifeos-studio-data';
@@ -43,7 +52,8 @@ if (!is_dir($dataDir)) @mkdir($dataDir, 0700, true);
 
 $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
 session_name('studio_sid');
-session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $https, 'httponly' => true, 'samesite' => 'Strict']);
+if (PHP_VERSION_ID >= 70300) session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $https, 'httponly' => true, 'samesite' => 'Strict']);
+else session_set_cookie_params(0, '/; samesite=Strict', '', $https, true);
 ini_set('session.use_strict_mode', '1');
 session_start();
 
@@ -60,18 +70,18 @@ if ($method !== 'GET') {
     if ($origin !== '' && $originHost !== strtolower($_SERVER['HTTP_HOST'] ?? '')) out(403, ['error' => 'درخواست از مبدأ نامعتبر.']);
 }
 
-function signedIn(int $idle, int $abs): bool {
+function signedIn($idle, $abs) {
     if (empty($_SESSION['uid'])) return false;
     $now = time();
     if ($now - ($_SESSION['last'] ?? 0) > $idle || $now - ($_SESSION['at'] ?? 0) > $abs) { $_SESSION = []; session_regenerate_id(true); return false; }
     $_SESSION['last'] = $now;
     return true;
 }
-function needCsrf(): void {
+function needCsrf() {
     $h = $_SERVER['HTTP_X_CSRF'] ?? '';
     if (empty($_SESSION['csrf']) || !hash_equals($_SESSION['csrf'], $h)) out(403, ['error' => 'نشست منقضی شده؛ صفحه را دوباره بارگذاری کن.']);
 }
-function verifyPassword(string $pw, string $stored): bool {
+function verifyPassword($pw, $stored) {
     // format: pbkdf2_sha256$<iterations>$<salt b64>$<hash b64>   (see make-password-hash.js)
     $p = explode('$', $stored);
     if (count($p) !== 4 || $p[0] !== 'pbkdf2_sha256') return false;
@@ -80,14 +90,15 @@ function verifyPassword(string $pw, string $stored): bool {
     return hash_equals($want, hash_pbkdf2('sha256', $pw, $salt, $iter, strlen($want), true));
 }
 // File-based limiter: 5 failed sign-ins per IP per 15 minutes, 20 overall per hour.
-function limiter(string $dir, string $ip, bool $record): ?int {
+function limiter($dir, $ip, $record) {
     $f = $dir . '/login-attempts.json';
     $fh = fopen($f, 'c+'); if (!$fh) return null;
     flock($fh, LOCK_EX);
     $all = json_decode(stream_get_contents($fh) ?: '{}', true) ?: [];
     $now = time();
-    $all = array_filter($all, fn($x) => $x['t'] > $now - 3600);
-    $byIp = array_filter($all, fn($x) => $x['ip'] === hash('sha256', $ip) && $x['t'] > $now - 900);
+    $all = array_filter($all, function ($x) use ($now) { return $x['t'] > $now - 3600; });
+    $ipHash = hash('sha256', $ip);
+    $byIp = array_filter($all, function ($x) use ($now, $ipHash) { return $x['ip'] === $ipHash && $x['t'] > $now - 900; });
     $wait = null;
     if (count($byIp) >= 5) $wait = 900 - ($now - min(array_column($byIp, 't')));
     elseif (count($all) >= 20) $wait = 3600 - ($now - min(array_column($all, 't')));
