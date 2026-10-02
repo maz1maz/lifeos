@@ -1,13 +1,18 @@
 .vc-page{min-height:100vh;display:flex;flex-direction:column}
 /* iOS Safari sizes iframes to their content width; width:1px + min-width:100% pins it to the viewport */
 .vc-frame{flex:1;width:1px;min-width:100%;max-width:100%;min-height:calc(100vh - 70px);border:0;display:block;background:#0e1116}
-.vc-today{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:12px 16px;margin-bottom:16px;border-radius:16px;text-decoration:none;color:inherit;background:linear-gradient(90deg,rgba(56,189,248,.14),rgba(167,139,250,.10));border:1px solid rgba(56,189,248,.35)}
-.vc-today b{font-size:14px}.vc-today span{font-size:13px;color:var(--g-muted,#aab)}
-.vc-today em{font-style:normal;font-size:12.5px;font-weight:700;color:#fb923c}
-.vc-today i{font-style:normal;margin-inline-start:auto;font-size:12.5px;font-weight:700;color:#38bdf8}
 .vc-stats{display:grid;gap:12px}.vc-stats h3{margin:0;font-size:14px}
 .vc-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .vc-kpis div{background:var(--g-panel-2,rgba(255,255,255,.04));border-radius:12px;padding:10px;display:grid;gap:2px}
 .vc-kpis b{font-size:20px}.vc-kpis small{font-size:11.5px;color:var(--g-muted,#99a)}
 .vc-bars{display:flex;align-items:flex-end;gap:4px;height:60px}.vc-bars i{flex:1;background:#38bdf8;border-radius:3px 3px 0 0;min-height:2px;opacity:.85}
 @media(max-width:600px){.vc-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* home dashboard card */
+.vc-home .vc-home-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.vc-home .vc-home-kpis a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px;border-radius:12px;background:var(--g-panel-2);border:1px solid var(--g-border);text-decoration:none;color:inherit}
+.vc-home .vc-home-kpis b{font-size:20px;font-weight:800;color:var(--g-accent-strong)}
+.vc-home .vc-home-kpis small{font-size:12px;color:var(--g-muted)}
+.vc-home .vc-home-bar{height:6px;border-radius:99px;background:var(--g-panel-2);overflow:hidden;margin-bottom:6px}
+.vc-home .vc-home-bar i{display:block;height:100%;border-radius:inherit;background:var(--g-accent)}
+.vc-home .vc-home-start{display:block;padding:12px;border-radius:12px;background:var(--g-accent-soft);color:var(--g-accent-strong);text-decoration:none;font-weight:700;text-align:center}

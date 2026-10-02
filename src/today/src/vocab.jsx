@@ -11,19 +11,22 @@ export function VocabPage({ Nav }) {
 let SUM = null;
 export const vocabSummary = () => (SUM ||= api('/api/vocab/summary').then(d => d.summary || null).catch(() => null));
 
-export function VocabTodayCard() {
+// Home dashboard card (inside the draggable grid, styled like the other cards).
+export function VocabHomeCard({ Card, Icon }) {
   const [s, setS] = useState(undefined);
   useEffect(() => { vocabSummary().then(setS); }, []);
-  if (s === undefined) return null;
-  const todo = s ? s.due + s.newLeft : 0, doneToday = s ? s.today.r + s.today.n : 0;
-  return <a className="vc-today" href="/?page=vocab">
-    <b>📘 زبان</b>
-    {!s ? <span>شروع ۷۰۰۰ واژهٔ آیلتس — روزی ۱۵ واژهٔ نو</span>
-      : todo ? <span>{fa(s.due)} کارت برای مرور · {fa(s.newLeft)} واژهٔ نو{doneToday ? ` · امروز ${fa(doneToday)} کارت زدی` : ''}</span>
-      : <span>امروز تمام شد ✓ · {fa(doneToday)} کارت</span>}
-    {s?.streak ? <em>🔥 {fa(s.streak)} روز</em> : null}
-    <i>{todo || !s ? 'شروع ←' : 'باز کن ←'}</i>
-  </a>;
+  const todo = s ? s.due + s.newLeft : 0, done = s ? s.today.r + s.today.n : 0, goal = Math.max(1, done + todo);
+  return <Card className="mini-card vc-home" icon={Icon} title="زبان" action={<a href="/?page=vocab">{s && !todo ? 'باز کن ←' : 'شروع ←'}</a>}>
+    {s === undefined ? <p className="muted">…</p> : !s ? <a className="vc-home-start" href="/?page=vocab">شروع ۷۰۰۰ واژهٔ آیلتس — روزی ۱۵ واژهٔ نو</a> : <>
+      <div className="vc-home-kpis">
+        <a href="/?page=vocab"><b>{fa(s.due)}</b><small>مرور</small></a>
+        <a href="/?page=vocab"><b>{fa(s.newLeft)}</b><small>واژهٔ نو</small></a>
+        <a href="/?page=vocab"><b>{fa(s.streak)}</b><small>روز پیاپی{s.streak ? ' 🔥' : ''}</small></a>
+      </div>
+      <div className="vc-home-bar" title={`امروز ${done} کارت`}><i style={{ width: `${Math.min(100, done / goal * 100)}%` }} /></div>
+      <small className="muted">{todo ? `امروز ${fa(done)} کارت زدی · ${fa(todo)} مانده` : `امروز تمام شد ✓ · ${fa(done)} کارت`}</small>
+    </>}
+  </Card>;
 }
 
 // Stats block for Life stats / weekly review.

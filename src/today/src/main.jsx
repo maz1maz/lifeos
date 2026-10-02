@@ -30,7 +30,7 @@ import { UpcomingPage, DiscoverPage } from './watchx';
 import { CommandPalette } from './palette';
 import { AdminPage, MsgBar } from './admin';
 import { CoursesPage, ClassTodayCard } from './courses';
-import { VocabPage, VocabTodayCard } from './vocab';
+import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import { HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, FocusCard, ShoppingPanel, BillsWeekCard, LifeStatsPage } from './life';
 import './mobile.css'; // phone/iPhone pass — keep last so it overrides page CSS
@@ -381,7 +381,6 @@ function HomePage() {
         ...(modOn(mods, 'market') ? { market: (<Market />) } : modOn(mods, 'finance') ? { goals: (<GoalsMini />) } : { habits: (<HabitsMini />) })
       }} />
       {modOn(mods, 'courses') ? <ClassTodayCard /> : null}
-      {modOn(mods, 'vocab') ? <VocabTodayCard /> : null}
       <Layout id="grid" className="grid home-grid" editing={layoutEdit} cards={{
         agenda: (<Card className="agenda" icon={CheckSquare2} title="کارها و یادآوری‌ها" action={<a href="/?page=planner">برنامه‌ریز ←</a>}>
           <div className={`ag-mit ${mitList.length ? '' : 'empty'}`}>
@@ -407,6 +406,7 @@ function HomePage() {
         ...(modOn(mods, 'football') ? { football: (<Football />) } : (!modOn(mods, 'market') && !modOn(mods, 'finance')) ? {} : { habits: (<HabitsMini />) }),
         ...(modOn(mods, 'watch') ? { series: (<SeriesCard />) } : modOn(mods, 'notes') ? { notes: (<NotesMini />) } : {}),
         focus: (<FocusCard Card={Card} Icon={Timer} />),
+        ...(modOn(mods, 'vocab') ? { vocab: (<VocabHomeCard Card={Card} Icon={Languages} />) } : {}),
         ...(modOn(mods, 'finance') ? { bills: (<BillsWeekCard Card={Card} Icon={Receipt} />) } : {}),
       }} />
       <div className={`home-layout-bar ${layoutEdit ? 'on' : ''}`}>
