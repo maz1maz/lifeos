@@ -1883,7 +1883,7 @@ export default {
     if (url.pathname.startsWith('/s/') || url.pathname.startsWith('/api/s/')) return handleSharedShop(url, request, env);
     if (!url.pathname.startsWith('/api/')) {
       // 🚧 دروازه‌ی لاگین: بدون نشست معتبر، هیچ محتوایی سرو نمی‌شود — فقط صفحه‌ی ورود
-      const isPublic = /^\/design\/login-page(\.html)?$/.test(url.pathname) || url.pathname === '/shared-theme.css' || url.pathname === '/manifest.webmanifest' || /^\/assets\/img\/(icon-\d+|apple-touch-icon|favicon-32|logo-[a-z]+)\.png$/.test(url.pathname) || url.pathname === '/favicon.ico';
+      const isPublic = /^\/design\/login-page(\.html)?$/.test(url.pathname) || url.pathname === '/shared-theme.css' || url.pathname === '/shared-ui.js' || url.pathname === '/shared-shell.css' || /^\/assets\/fonts\/vazirmatn-(arabic|latin)\.woff2$/.test(url.pathname) || url.pathname === '/manifest.webmanifest' || /^\/assets\/img\/(icon-\d+|apple-touch-icon|favicon-32|logo-[a-z]+)\.png$/.test(url.pathname) || url.pathname === '/favicon.ico';
       if (!isPublic) {
         let authed = false;
         try {
