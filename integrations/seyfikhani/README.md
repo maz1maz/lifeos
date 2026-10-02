@@ -22,7 +22,7 @@
 |---|---|
 | `public_html/studio.html` + پوشهٔ `studio-assets/` (ساخته‌شده با `npm run build:studio` از `src/today/src/studio.jsx` = همان `ProjectsPage` و `CoursesPage` خود LifeOS) و `studio-api.php` | `public_html/` (فایل‌های قدیمی `studio.js` و `studio.css` را پاک کن) |
 | `lifeos-studio-config.sample.php` → با نام `lifeos-studio-config.php` | پوشهٔ home (یک سطح **بالای** `public_html`) |
-| `add-login-link.js` | اجرا روی نسخهٔ محلی `public_html` قبل از آپلود (لینک فوتر + robots) |
+| `add-login-link.js` | اجرا روی نسخهٔ محلی `public_html` قبل از آپلود (آیکن قفل در منوی دسکتاپ + لینک «ورود» فوتر + robots) |
 | `make-password-hash.js` | اجرا روی کامپیوتر خودت برای ساخت هش رمز |
 
 ## مراحل انتشار
