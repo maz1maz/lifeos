@@ -1401,6 +1401,26 @@ async function handleApi(request, env) {
      }
      return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
    }
+   // Project report PDF → Telegram, uploaded in pieces (the site's host cuts long transfers).
+   // Pieces live in their own kv rows (outside the state:v2: blob) until «report-send» joins them.
+   if(parts[0]==='report-chunk'||parts[0]==='report-send'){
+     if(!scopes.has('projects'))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
+     if(req.method!=='POST')return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+     let d=await body(req),up=String(d.uploadId||''),total=Number(d.total)||0;
+     if(!/^[0-9a-f]{16,32}$/.test(up)||total<1||total>500)return json(res,400,{error:'شناسهٔ ارسال نامعتبر است.'});
+     const key=n=>'ext-upload:'+user.id+':'+up+':'+n;
+     if(parts[0]==='report-chunk'){let n=Number(d.n),piece=String(d.data||'');if(!(n>=0&&n<total)||!/^[A-Za-z0-9+/=]{1,60000}$/.test(piece))return json(res,400,{error:'تکهٔ فایل نامعتبر است.'});
+       await env.DB.prepare('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at').bind(key(n),piece,Date.now()).run();return json(res,200,{ok:true})}
+     let b64='';for(let n=0;n<total;n++){let row=await env.DB.prepare('SELECT value FROM kv WHERE key=?').bind(key(n)).first();if(!row)return json(res,400,{error:'بخشی از فایل نرسید؛ دوباره بفرست.'});b64+=row.value}
+     const drop=async()=>{for(let n=0;n<total;n++)await env.DB.prepare('DELETE FROM kv WHERE key=?').bind(key(n)).run()};
+     let bytes;try{bytes=bytesFromBase64(b64)}catch(e){await drop();return json(res,400,{error:'فایل PDF معتبر نیست.'})}
+     if(bytes.length<5||String.fromCharCode(...bytes.slice(0,5))!=='%PDF-'){await drop();return json(res,400,{error:'فایل PDF معتبر نیست.'})}
+     if(bytes.length>20*1024*1024){await drop();return json(res,413,{error:'حجم PDF بیش از ۲۰ مگابایت است.'})}
+     if(!TELEGRAM_BOT_TOKEN||!user.telegramUserId){await drop();return json(res,503,{error:'PDF ساخته شد ولی ارسال نشد: اول بات تلگرام را در LifeOS (تنظیمات → اتصال تلگرام) وصل کن.'})}
+     let name=String(d.filename||'report.pdf').replace(/[\\/<>:"|?*\u0000-\u001f]/g,'_').slice(0,150)||'report.pdf';if(!/\.pdf$/i.test(name))name+='.pdf';
+     try{await tgSendDocument(user.telegramUserId,bytes,name,'application/pdf',String(d.caption||'').slice(0,900));await drop();return json(res,200,{ok:true,filename:name})}
+     catch(e){await drop();return json(res,502,{error:'ارسال PDF به تلگرام ناموفق بود.'})}
+   }
    // Course payments mirrored into Finance (CoursesPage): only «آموزش» transactions are reachable.
    if(parts[0]==='transactions'){
      if(!scopes.has('courses'))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
