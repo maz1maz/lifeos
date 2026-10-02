@@ -5,7 +5,7 @@
   const $ = s => document.querySelector(s);
   const API = 'studio-api.php';
   let csrf = '', me = null, tab = 'projects', busy = false;
-  const S = { projects: [], cards: [], processes: [], reminders: [], courses: [], students: [], pid: '', cid: '', openSt: '' };
+  const S = { projects: [], cards: [], processes: [], contracts: [], financials: [], supplies: [], reminders: [], courses: [], students: [], pid: '', cid: '', openSt: '' };
   try { tab = localStorage.getItem('studio-tab') || 'projects'; S.pid = localStorage.getItem('studio-pid') || ''; S.cid = localStorage.getItem('studio-cid') || ''; } catch (e) {}
 
   /* ───────── helpers ───────── */
@@ -128,6 +128,7 @@
           h('div', {}, h('small', {}, 'مراحل انجام‌شده'), h('b', {}, `${fa(stages.filter(s => s.status === 'done').length)} از ${fa(STAGES.length)}`)),
           h('div', {}, h('small', {}, 'کارهای باز'), h('b', {}, fa(cards.filter(c => c.col !== 'done').length))),
           h('div', {}, h('small', {}, 'یادآوری‌های فعال'), h('b', {}, fa(rems.length))))),
+      me.scopes.includes('projectFiles') ? contractSection(cur) : null,
       remindersSection({ projectId: cur.id }, rems, 'یادآوری پروژه'),
       h('section', { class: 'st-card st-sec' }, h('h3', {}, 'کارت‌ها', h('button', { class: 'st-btn small', onclick: () => editCard({ projectId: cur.id, col: 'todo', prio: 'n' }) }, '＋ کار')),
         h('div', { class: 'st-kanban' }, COLS.map(([k, l]) => h('div', { class: 'st-col' }, h('b', {}, `${l} (${fa(cards.filter(c => (c.col || 'todo') === k).length)})`),
@@ -135,7 +136,9 @@
             h('b', {}, c.title), h('small', {}, [c.due ? 'مهلت ' + jShort(c.due) : '', c.owner || '', c.prio === 'h' ? 'اولویت بالا' : ''].filter(Boolean).join(' · ')),
             h('div', { class: 'st-ops' }, h('select', { 'aria-label': 'ستون', onchange: e => act(() => api('/api/ext/col/cards/' + c.id, 'PATCH', { col: e.target.value, doneAt: e.target.value === 'done' ? Date.now() : null })) }, COLS.map(([v, lb]) => h('option', { value: v, selected: v === (c.col || 'todo') }, lb))),
               h('button', { class: 'st-link', onclick: () => editCard(c) }, 'ویرایش')))))))),
-      stagesSection(cur, stages));
+      stagesSection(cur, stages),
+      me.scopes.includes('projectFiles') ? financeSection(cur) : null,
+      me.scopes.includes('projectFiles') ? supplySection(cur) : null);
     return h('div', { class: 'st-layout' }, side, main);
   }
   function stagesSection(cur, stages) {
@@ -170,6 +173,44 @@
   function editStage(s) {
     form(s.title, [{ k: 'status', l: 'وضعیت', t: 'sel', o: [['todo', 'انجام نشده'], ['doing', 'در حال انجام'], ['done', 'انجام شد']] }, { k: 'owner', l: 'مسئول' }, ...(INSTALL.has(s.title) ? [{ k: 'percent', l: 'درصد نصب', t: 'num' }] : []), { k: 'reminderDate', l: 'تاریخ یادآوری', t: 'date' }, { k: 'reminderTime', l: 'ساعت یادآوری', t: 'time', def: '09:00' }, { k: 'note', l: 'توضیحات', t: 'area' }], s,
       b => act(() => api('/api/ext/col/projectProcesses/' + s.id, 'PATCH', b), b.reminderDate ? 'ذخیره شد؛ یادآوری در LifeOS ساخته شد.' : 'ذخیره شد.'));
+  }
+
+  /* ───────── contract / statements / supply (scope projectFiles) ───────── */
+  const SETTLE = [['cash', 'نقدی'], ['check', 'چک'], ['statement', 'صورت‌وضعیتی'], ['barter', 'تهاتری'], ['other', 'سایر']];
+  const CONTRACT_F = [{ k: 'contractNo', l: 'شماره قرارداد' }, { k: 'subject', l: 'آیتم‌های قرارداد' }, { k: 'contractStartDate', l: 'تاریخ شروع قرارداد', t: 'date' }, { k: 'contractEndDate', l: 'تاریخ اتمام قرارداد', t: 'date' }, { k: 'area', l: 'متراژ (مترمربع)', t: 'num' }, { k: 'amount', l: 'مبلغ کل قرارداد (ریال)', t: 'money' }, { k: 'advancePayment', l: 'پیش‌پرداخت (ریال)', t: 'money' }, { k: 'settlementType', l: 'نوع تسویه', t: 'sel', o: SETTLE }, { k: 'note', l: 'توضیح', t: 'area' }];
+  const FIN_F = [{ k: 'statementNo', l: 'شماره صورت‌وضعیت', t: 'num', req: true }, { k: 'amount', l: 'مبلغ صورت‌وضعیت (ریال)', t: 'money' }, { k: 'noticeSent', l: 'اعلام وضعیت به کارفرما ارسال شد', t: 'check' }, { k: 'noticeSentDate', l: 'تاریخ ارسال اعلام وضعیت', t: 'date' }, { k: 'noticeApproved', l: 'اعلام وضعیت تأیید شد', t: 'check' }, { k: 'noticeApprovedDate', l: 'تاریخ تأیید اعلام وضعیت', t: 'date' }, { k: 'statementSent', l: 'صورت‌وضعیت ارسال شد', t: 'check' }, { k: 'statementSentDate', l: 'تاریخ ارسال صورت‌وضعیت', t: 'date' }, { k: 'paidAmount', l: 'واریز کارفرما (ریال)', t: 'money' }, { k: 'paymentDate', l: 'تاریخ واریز', t: 'date' }, { k: 'note', l: 'توضیح', t: 'area' }];
+  const SUP_F = [{ k: 'title', l: 'عنوان تأمین / اجرا', req: true, full: true }, { k: 'category', l: 'دسته‌بندی' }, { k: 'supplier', l: 'تأمین‌کننده' }, { k: 'date', l: 'تاریخ', t: 'date' }, { k: 'quantity', l: 'مقدار', t: 'num' }, { k: 'unit', l: 'واحد' }, { k: 'unitPrice', l: 'قیمت واحد (ریال)', t: 'money' }, { k: 'note', l: 'توضیح', t: 'area' }];
+  const kv = (l, v) => h('div', {}, h('small', {}, l), h('b', {}, v || '—'));
+  function contractSection(cur) {
+    const c = S.contracts.find(x => x.projectId === cur.id), t = todayIso();
+    const save = c => form('اطلاعات قرارداد', CONTRACT_F, c || { settlementType: 'cash' }, b => { b.remainingAmount = Math.max(0, num(b.amount) - num(b.advancePayment)); return act(() => c && c.id ? api('/api/ext/col/projectContracts/' + c.id, 'PATCH', b) : api('/api/ext/col/projectContracts', 'POST', { ...b, projectId: cur.id }), b.contractEndDate ? 'ذخیره شد؛ یادآوری تمدید در LifeOS تنظیم شد.' : 'ذخیره شد.'); });
+    if (!c) return h('section', { class: 'st-card st-sec' }, h('h3', {}, 'قرارداد', h('button', { class: 'st-btn small', onclick: () => save(null) }, 'ثبت قرارداد')), h('p', { class: 'st-muted' }, 'هنوز اطلاعات قرارداد ثبت نشده.'));
+    const left = c.contractEndDate ? Math.round((Date.parse(c.contractEndDate) - Date.parse(t)) / 864e5) : null;
+    return h('section', { class: 'st-card st-sec' }, h('h3', {}, 'قرارداد', h('button', { class: 'st-link', onclick: () => save(c) }, 'ویرایش قرارداد')),
+      h('div', { class: 'st-kpis' }, kv('شماره قرارداد', c.contractNo), kv('آیتم‌ها', c.subject), kv('شروع', jShort(c.contractStartDate)), kv('اتمام', c.contractEndDate ? jShort(c.contractEndDate) + (left < 0 ? ` (${fa(-left)} روز گذشته)` : ` (${fa(left)} روز مانده)`) : ''),
+        kv('متراژ', c.area ? fa(c.area) + ' مترمربع' : ''), kv('مبلغ کل', c.amount ? rial(c.amount) : ''), kv('پیش‌پرداخت', c.advancePayment ? rial(c.advancePayment) : ''), kv('باقی‌مانده', rial(Math.max(0, num(c.amount) - num(c.advancePayment)))), kv('نوع تسویه', (SETTLE.find(x => x[0] === c.settlementType) || [])[1])),
+      c.note ? h('p', { class: 'st-muted', style: 'margin-top:8px' }, c.note) : null);
+  }
+  function financeSection(cur) {
+    const rows = S.financials.filter(x => x.projectId === cur.id).sort((a, b) => num(a.statementNo) - num(b.statementNo));
+    const tot = rows.reduce((a, r) => { a.amount += num(r.amount); a.paid += num(r.paidAmount); return a; }, { amount: 0, paid: 0 });
+    const edit = r => form(r && r.id ? 'ویرایش صورت‌وضعیت' : 'صورت‌وضعیت تازه', FIN_F, r || { statementNo: rows.length + 1 }, b => { b.remainingAmount = Math.max(0, num(b.amount) - num(b.paidAmount)); return act(() => r && r.id ? api('/api/ext/col/projectFinancials/' + r.id, 'PATCH', b) : api('/api/ext/col/projectFinancials', 'POST', { ...b, projectId: cur.id }), 'ذخیره شد.'); },
+      r && r.id ? close => h('button', { type: 'button', class: 'st-link del', onclick: () => { if (confirm('این صورت‌وضعیت حذف شود؟')) { close(); act(() => api('/api/ext/col/projectFinancials/' + r.id, 'DELETE'), 'حذف شد.'); } } }, 'حذف') : null);
+    const step = r => r.paidAmount && num(r.paidAmount) >= num(r.amount) && num(r.amount) ? h('span', { class: 'st-chip ok' }, 'تسویه') : r.statementSent ? h('span', { class: 'st-chip' }, 'صورت‌وضعیت ارسال شد') : r.noticeApproved ? h('span', { class: 'st-chip' }, 'اعلام وضعیت تأیید شد') : r.noticeSent ? h('span', { class: 'st-chip' }, 'اعلام وضعیت ارسال شد') : h('span', { class: 'st-chip bad' }, 'شروع نشده');
+    return h('section', { class: 'st-card st-sec' }, h('h3', {}, 'صورت‌وضعیت‌ها و مالی', h('button', { class: 'st-btn small', onclick: () => edit(null) }, '＋ صورت‌وضعیت')),
+      rows.length ? h('div', { class: 'st-scroll' }, h('table', { class: 'st-table' }, h('thead', {}, h('tr', {}, ['شماره', 'مبلغ', 'وضعیت', 'واریز کارفرما', 'باقی‌مانده', ''].map(x => h('th', {}, x)))),
+        h('tbody', {}, rows.map(r => h('tr', {}, h('td', {}, fa(r.statementNo)), h('td', {}, rial(r.amount)), h('td', {}, step(r)), h('td', { class: 'pos' }, r.paidAmount ? rial(r.paidAmount) + (r.paymentDate ? ' · ' + jShort(r.paymentDate) : '') : '—'), h('td', { class: num(r.amount) - num(r.paidAmount) > 0 ? 'neg' : '' }, rial(Math.max(0, num(r.amount) - num(r.paidAmount)))), h('td', {}, h('button', { class: 'st-link', onclick: () => edit(r) }, 'ویرایش'))))),
+        h('tfoot', {}, h('tr', {}, h('td', {}, h('b', {}, 'جمع')), h('td', {}, rial(tot.amount)), h('td'), h('td', { class: 'pos' }, rial(tot.paid)), h('td', { class: 'neg' }, rial(Math.max(0, tot.amount - tot.paid))), h('td'))))) : h('p', { class: 'st-muted' }, 'هنوز صورت‌وضعیتی ثبت نشده.'));
+  }
+  function supplySection(cur) {
+    const rows = S.supplies.filter(x => x.projectId === cur.id).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+    const edit = r => form(r && r.id ? 'ویرایش تأمین / اجرا' : 'تأمین / اجرای تازه', SUP_F, r || { date: todayIso() }, b => act(() => r && r.id ? api('/api/ext/col/projectSupplies/' + r.id, 'PATCH', b) : api('/api/ext/col/projectSupplies', 'POST', { ...b, projectId: cur.id }), 'ذخیره شد.'),
+      r && r.id ? close => h('button', { type: 'button', class: 'st-link del', onclick: () => { if (confirm(`«${r.title}» حذف شود؟`)) { close(); act(() => api('/api/ext/col/projectSupplies/' + r.id, 'DELETE'), 'حذف شد.'); } } }, 'حذف') : null);
+    const total = rows.reduce((n, r) => n + num(r.quantity) * num(r.unitPrice), 0);
+    return h('section', { class: 'st-card st-sec' }, h('h3', {}, 'تأمین و اجرا', h('button', { class: 'st-btn small', onclick: () => edit(null) }, '＋ ردیف')),
+      rows.length ? h('div', { class: 'st-scroll' }, h('table', { class: 'st-table' }, h('thead', {}, h('tr', {}, ['عنوان', 'تأمین‌کننده', 'تاریخ', 'مقدار', 'قیمت واحد', 'جمع', ''].map(x => h('th', {}, x)))),
+        h('tbody', {}, rows.map(r => h('tr', {}, h('td', {}, h('b', {}, r.title), r.category ? h('div', { class: 'st-muted' }, r.category) : null), h('td', {}, r.supplier || '—'), h('td', {}, r.date ? jShort(r.date) : '—'), h('td', {}, r.quantity ? fa(r.quantity) + ' ' + (r.unit || '') : '—'), h('td', {}, r.unitPrice ? rial(r.unitPrice) : '—'), h('td', {}, r.quantity && r.unitPrice ? rial(num(r.quantity) * num(r.unitPrice)) : '—'), h('td', {}, h('button', { class: 'st-link', onclick: () => edit(r) }, 'ویرایش'))))),
+        total ? h('tfoot', {}, h('tr', {}, h('td', { colspan: 5 }, h('b', {}, 'جمع')), h('td', {}, rial(total)), h('td'))) : null)) : h('p', { class: 'st-muted' }, 'هنوز ردیفی ثبت نشده.'));
   }
 
   /* ───────── reminders (projects and courses) ───────── */
@@ -269,8 +310,9 @@
     try {
       const sc = new Set((me && me.scopes) || []);
       const get = async (p, on) => on ? ((await api(p)).items || []) : [];
-      const [projects, cards, processes, courses, students, reminders] = await Promise.all([get('/api/ext/col/projects', sc.has('projects')), get('/api/ext/col/cards', sc.has('projects')), get('/api/ext/col/projectProcesses', sc.has('projects')), get('/api/ext/col/courses', sc.has('courses')), get('/api/ext/col/students', sc.has('courses')), get('/api/ext/reminders', true)]);
-      Object.assign(S, { projects, cards, processes, courses, students, reminders });
+      const pf = sc.has('projectFiles');
+      const [projects, cards, processes, courses, students, reminders, contracts, financials, supplies] = await Promise.all([get('/api/ext/col/projects', sc.has('projects')), get('/api/ext/col/cards', sc.has('projects')), get('/api/ext/col/projectProcesses', sc.has('projects')), get('/api/ext/col/courses', sc.has('courses')), get('/api/ext/col/students', sc.has('courses')), get('/api/ext/reminders', true), get('/api/ext/col/projectContracts', pf), get('/api/ext/col/projectFinancials', pf), get('/api/ext/col/projectSupplies', pf)]);
+      Object.assign(S, { projects, cards, processes, courses, students, reminders, contracts, financials, supplies });
       $('#syncState').textContent = 'همگام با LifeOS · ' + new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', timeStyle: 'short' }).format(new Date());
       render();
     } catch (e) { $('#syncState').textContent = 'خطا در همگام‌سازی'; toast(e.message); }

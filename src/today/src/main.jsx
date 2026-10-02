@@ -2161,7 +2161,7 @@ function NotifyCard() {
 // The token is shown once; LifeOS stores only its hash. Finance/contract data needs an explicit extra scope.
 const SITE_SCOPES = [['projects', 'پروژه‌ها (کارت‌ها، مراحل، یادآوری‌ها)'], ['courses', 'دوره‌ها و دانشجوها (پرداخت‌ها، حضور و غیاب)'], ['projectFiles', 'قرارداد، مالی و تأمین پروژه']];
 function SiteTokensCard() {
-  const [items, setItems] = useState(null), [label, setLabel] = useState('seyfikhani.ir'), [scopes, setScopes] = useState({ projects: true, courses: true }), [made, setMade] = useState(null), [msg, setMsg] = useState('');
+  const [items, setItems] = useState(null), [label, setLabel] = useState('seyfikhani.ir'), [scopes, setScopes] = useState({ projects: true, courses: true, projectFiles: true }), [made, setMade] = useState(null), [msg, setMsg] = useState('');
   const load = () => api('/api/site-tokens').then(d => setItems(d.items || [])).catch(e => { setItems([]); setMsg(e.message); });
   useEffect(() => { load(); }, []);
   const create = async () => { try { const r = await api('/api/site-tokens', { method: 'POST', body: JSON.stringify({ label, scopes: Object.keys(scopes).filter(k => scopes[k]) }) }); setMade(r.token); setMsg(''); load(); } catch (e) { setMsg(e.message); } };
@@ -2175,7 +2175,7 @@ function SiteTokensCard() {
     <article>
       <div><b>توکن تازه</b>
         <input value={label} onChange={e => setLabel(e.target.value)} placeholder="نام سایت" style={{ margin: '6px 0' }} />
-        {SITE_SCOPES.map(([k, l]) => <label key={k} style={{ display: 'block' }}><input type="checkbox" checked={!!scopes[k]} onChange={e => setScopes(o => ({ ...o, [k]: e.target.checked }))} /> {l}{k === 'projectFiles' ? ' — فقط اگر لازم است' : ''}</label>)}
+        {SITE_SCOPES.map(([k, l]) => <label key={k} style={{ display: 'block' }}><input type="checkbox" checked={!!scopes[k]} onChange={e => setScopes(o => ({ ...o, [k]: e.target.checked }))} /> {l}</label>)}
       </div>
       <button type="button" className="save" onClick={create}>ساخت توکن</button>
     </article>
