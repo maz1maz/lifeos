@@ -678,6 +678,8 @@ async function main() {
     check('ext without token -> 401', (await ext('/api/ext/me')).status === 401);
     check('ext with a cookie but no token -> 401', (await call('/api/ext/me', { cookie })).status === 401);
     check('ext with a wrong token -> 401', (await ext('/api/ext/me', { token: 'lfs_' + '0'.repeat(64) })).status === 401);
+    const viaHeader = await worker.fetch(new Request('https://worker-smoke.local/api/ext/me', { headers: { 'x-lifeos-token': token } }), env, {});
+    check('token also accepted via X-LifeOS-Token (hosts that drop Authorization)', viaHeader.status === 200);
     const meR = await ext('/api/ext/me', { token });
     check('ext /me -> scopes', meR.status === 200 && meR.d.scopes.includes('projects') && meR.d.scopes.includes('courses'), JSON.stringify(meR.d));
 

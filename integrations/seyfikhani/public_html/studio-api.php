@@ -151,15 +151,23 @@ if ($action === 'diag') {
     // optional second token (e.g. a throwaway test account) to tell host-network problems from account-data problems
     $altToken = (isset($_GET['t']) && preg_match('/\Alfs_[0-9a-f]{64}\z/', (string)$_GET['t'])) ? (string)$_GET['t'] : '';
     if ($altToken !== '') $targets['LifeOS (توکن آزمایشی)'] = rtrim((string)$cfg['lifeos_url'], '/') . '/api/ext/me';
+    // header probe with a fake token: if only the Authorization variant hangs, the host filters that header
+    $fake = 'lfs_' . str_repeat('0', 64);
+    $targets['هدر Authorization (توکن ساختگی)'] = rtrim((string)$cfg['lifeos_url'], '/') . '/api/ext/me';
+    $targets['هدر X-LifeOS-Token (توکن ساختگی)'] = rtrim((string)$cfg['lifeos_url'], '/') . '/api/ext/me';
     @set_time_limit(90);
     // test token first so a hanging main token cannot hide its result behind the host's time limit
-    if (isset($targets['LifeOS (توکن آزمایشی)'])) $targets = ['LifeOS (توکن آزمایشی)' => $targets['LifeOS (توکن آزمایشی)']] + $targets;
+    $first = [];
+    foreach (['هدر X-LifeOS-Token (توکن ساختگی)', 'هدر Authorization (توکن ساختگی)', 'LifeOS (توکن آزمایشی)'] as $k) if (isset($targets[$k])) $first[$k] = $targets[$k];
+    $targets = $first + $targets;
     $res = [];
     foreach ($targets as $name => $url) {
         $ch = curl_init($url);
         curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10, CURLOPT_CONNECTTIMEOUT => 6]);
-        if ($name === 'LifeOS (با توکن)') curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $cfg['lifeos_token'], 'Accept: application/json']);
-        if ($name === 'LifeOS (توکن آزمایشی)') curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $altToken, 'Accept: application/json']);
+        if ($name === 'LifeOS (با توکن)') curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-LifeOS-Token: ' . $cfg['lifeos_token'], 'Accept: application/json']);
+        if ($name === 'هدر Authorization (توکن ساختگی)') curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $fake, 'Accept: application/json']);
+        if ($name === 'هدر X-LifeOS-Token (توکن ساختگی)') curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-LifeOS-Token: ' . $fake, 'Accept: application/json']);
+        if ($name === 'LifeOS (توکن آزمایشی)') curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-LifeOS-Token: ' . $altToken, 'Accept: application/json']);
         $b = curl_exec($ch);
         $res[] = ['name' => $name, 'status' => (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE), 'error' => curl_errno($ch) ? curl_errno($ch) . ' ' . curl_error($ch) : '', 'ms' => (int)(curl_getinfo($ch, CURLINFO_TOTAL_TIME) * 1000), 'body' => strpos($url, '/api/ext/') !== false && is_string($b) ? (function_exists('mb_substr') ? mb_substr($b, 0, 160) : preg_replace('/[^\x20-\x7e]/', '', substr($b, 0, 160))) : ''];
         curl_close($ch);
@@ -198,7 +206,7 @@ if ($action === 'api') {
         CURLOPT_CONNECTTIMEOUT => 8,
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTPS | (!empty($cfg['allow_http']) ? CURLPROTO_HTTP : 0),
-        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $cfg['lifeos_token'], 'Content-Type: application/json', 'Accept: application/json'],
+        CURLOPT_HTTPHEADER => ['X-LifeOS-Token: ' . $cfg['lifeos_token'], 'Content-Type: application/json', 'Accept: application/json'],
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
     ]);
     if ($payload !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
