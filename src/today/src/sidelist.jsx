@@ -57,7 +57,12 @@ export function SideLayout({ storageKey, title, items, tabs, selected, onPick, r
       </>}
     </aside>
     <div className="sl-mobile"><button type="button" className="sl-mbtn" style={{ '--c': cur?.color }} onClick={() => setMenu(m => !m)}><i />{cur ? cur.name : title} <span>▾</span></button>
-      {menu ? <div className="sl-mmenu">{items.filter(x => x.group !== 'archived').map(row)}</div> : null}</div>
+      {/* phone dropdown keeps the same «فعال / تمام‌شده» tabs as the side column instead of one mixed list */}
+      {menu ? <div className="sl-mmenu">
+        {items.length > 6 ? <input className="sl-search" value={q} onChange={e => setQ(e.target.value)} placeholder="جستجو…" /> : null}
+        <div className="sl-tabs">{tabs.map(([k, l]) => <button key={k} type="button" className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}<em>{faN(count(k))}</em></button>)}</div>
+        {tab === 'archived' && renderArchived ? shown.map(renderArchived) : shown.map(row)}{!shown.length ? <p className="sl-empty">{q ? 'چیزی پیدا نشد.' : 'خالی است.'}</p> : null}
+      </div> : null}</div>
     <div className="sl-main">{children}</div>
   </div>;
 }
