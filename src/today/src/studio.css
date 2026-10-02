@@ -1,6 +1,4 @@
 /* Personal-site shell around LifeOS's ProjectsPage / CoursesPage (see studio.jsx). */
-/* «·» separators sit next to Persian digits («۱۳ · مهر»); in Vazirmatn the dot looks like «۰», so draw it as a thin bar. */
-@font-face{font-family:'Vazirmatn';font-display:swap;src:url('./fonts/studio-sep.woff2') format('woff2');unicode-range:U+00B7}
 .studio-bar{gap:10px}
 .studio-bar .brand{text-decoration:none}
 .studio-tabs{display:flex;gap:4px;margin-inline-start:8px}
