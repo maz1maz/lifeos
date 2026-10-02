@@ -43,10 +43,15 @@ if ($cfgFile === '' || !is_file($cfgFile)) {
 try { $cfg = require $cfgFile; }
 catch (\Throwable $e) { out(503, ['error' => 'فایل lifeos-studio-config.php غلط تایپی دارد (خط ' . $e->getLine() . '). علامت‌های \' و , را چک کن.']); }
 if (!is_array($cfg)) out(503, ['error' => 'فایل lifeos-studio-config.php خراب است (باید با return [ شروع شود).']);
+// Values pasted in cPanel's editor often carry a trailing newline or invisible RTL marks;
+// a stray newline inside the Authorization header makes the request hang, so strip them.
+foreach (['lifeos_url', 'lifeos_token', 'login_email', 'password_hash'] as $k) {
+    if (isset($cfg[$k])) $cfg[$k] = preg_replace('/[\s\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]+/u', '', (string)$cfg[$k]);
+}
 foreach (['lifeos_url', 'lifeos_token', 'login_email', 'password_hash'] as $k) {
     if (empty($cfg[$k]) || strpos((string)$cfg[$k], 'CHANGE_ME') !== false) out(503, ['error' => "در lifeos-studio-config.php مقدار «{$k}» هنوز پر نشده است."]);
 }
-if (!preg_match('/^lfs_[0-9a-f]{64}$/', (string)$cfg['lifeos_token'])) out(503, ['error' => 'توکن در lifeos-studio-config.php کامل نیست (باید lfs_ و ۶۴ حرف باشد، بدون فاصله).']);
+if (!preg_match('/\Alfs_[0-9a-f]{64}\z/', (string)$cfg['lifeos_token'])) out(503, ['error' => 'توکن در lifeos-studio-config.php کامل نیست (باید lfs_ و ۶۴ حرف باشد، بدون فاصله).']);
 $dataDir = $cfg['data_dir'] ?? dirname(__DIR__) . '/lifeos-studio-data';
 if (!is_dir($dataDir)) @mkdir($dataDir, 0700, true);
 
@@ -187,6 +192,7 @@ if ($action === 'api') {
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTPS | (!empty($cfg['allow_http']) ? CURLPROTO_HTTP : 0),
         CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $cfg['lifeos_token'], 'Content-Type: application/json', 'Accept: application/json'],
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
     ]);
     if ($payload !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
     $body = curl_exec($ch);
