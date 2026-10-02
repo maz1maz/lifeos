@@ -1337,22 +1337,9 @@ async function handleApi(request, env) {
    const done=async(status,obj)=>{if((req.method!=='GET'&&status<300)||db.__touch){delete db.__touch;await write(db)}return json(res,status,obj)};
    const remNotes=(...xs)=>xs.filter(Boolean).join('\n').slice(0,2000);
    const clean=x=>{let o={...x};delete o.userId;return o};
-   // A reminder created here is an ordinary LifeOS reminder (db.reminders) so the
-   // existing cron → Telegram/push path sends it. time is required for that path.
+   // A reminder created here is an ordinary LifeOS reminder (db.reminders), so the
+   // existing cron → Telegram/push path sends it (the cron needs a time).
    const putReminder=(r,d)=>{if((d.date&&d.date!==r.date)||(d.time&&d.time!==r.time)){delete r.notifiedAt;delete r.leadSentAt}Object.assign(r,d,{whenLabel:d.date||r.date})};
-   const syncProcessReminder=(item,project)=>{
-     let r=item.reminderId&&db.reminders.find(x=>x.id===item.reminderId&&x.userId===user.id);
-     if(!item.reminderDate){if(r)db.reminders=db.reminders.filter(x=>x!==r);item.reminderId=null;return}
-     let d={title:'یادآوری پروژهٔ '+(project&&project.name||'')+': '+item.title,date:item.reminderDate,time:item.reminderTime||'09:00',notes:remNotes('مسئول: '+(item.owner||'تعیین نشده'),'توضیحات: '+(item.note||'—')),projectId:item.projectId,source:'site'};
-     if(r)putReminder(r,d);else{r={id:id(),userId:user.id,done:false,recurrence:null,taskId:null,leadMinutes:0,createdAt:Date.now(),...d,whenLabel:d.date};db.reminders.push(r);item.reminderId=r.id}
-   };
-   // Contract end date → «تمدید قرارداد» reminder a week before (same rule as ProjectsPage in LifeOS).
-   const syncContractReminder=(c,project)=>{
-     let end=String(c.contractEndDate||''),r=c.contractRenewalReminderId&&db.reminders.find(x=>x.id===c.contractRenewalReminderId&&x.userId===user.id);
-     if(!/^\d{4}-\d{2}-\d{2}$/.test(end)){if(r)db.reminders=db.reminders.filter(x=>x!==r);c.contractRenewalReminderId=null;return}
-     let date=end<today()?today():addDaysIso(end,-7),d={title:'تمدید قرارداد پروژهٔ '+(project&&project.name||''),date,time:'09:00',notes:'تاریخ اتمام قرارداد: '+jalaliDateLabel(end),projectId:c.projectId};
-     if(r)putReminder(r,d);else{r={id:id(),userId:user.id,done:false,recurrence:null,taskId:null,leadMinutes:0,createdAt:Date.now(),source:'site',...d,whenLabel:date};db.reminders.push(r);c.contractRenewalReminderId=r.id}
-   };
    if(parts[0]==='me'&&req.method==='GET')return done(200,{name:user.name,scopes:[...scopes],telegram:!!user.telegramUserId,today:today()});
    if(parts[0]==='col'){
      let name=parts[1],iid=parts[2];if(!can(name))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
@@ -1361,22 +1348,27 @@ async function handleApi(request, env) {
      const page=all=>{let lim=Math.min(500,Math.max(0,Number(u.searchParams.get('limit'))||0)),off=Math.max(0,Number(u.searchParams.get('offset'))||0);return lim?{items:all.slice(off,off+lim),total:all.length}:{items:all}};
      if(!iid&&req.method==='GET')return done(200,page(mine(name).map(clean)));
      if(!iid&&req.method==='POST'){
-       let d=cleanItem(await body(req));
+       let raw=await body(req);
+       // batch insert (useCol.addMany, e.g. the 35 standard stages): same checks per row
+       if(Array.isArray(raw.items)){
+         let made=[],parentCol=name==='students'?'courses':'projects',parents=new Set(mine(parentCol).map(x=>x.id));
+         for(const x of raw.items.slice(0,200)){let d=cleanItem(x),pid=name==='students'?d.courseId:d.projectId;if(name!=='projects'&&name!=='courses'&&!parents.has(pid))continue;
+           if(name==='projectProcesses'){let ex=list.find(y=>y.userId===user.id&&y.projectId===d.projectId&&y.department===d.department&&y.title===d.title);if(ex){made.push(clean(ex));continue}}
+           let r={id:id(),userId:user.id,...d,createdAt:Date.now(),updatedAt:Date.now()};list.push(r);made.push(clean(r))}
+         return done(201,{items:made});
+       }
+       let d=cleanItem(raw);
        if(name!=='projects'&&name!=='courses'){let parent=name==='students'?'courses':'projects',pid=name==='students'?d.courseId:d.projectId;if(!mine(parent).some(x=>x.id===pid))return json(res,400,{error:'والد معتبر نیست.'})}
        if(name==='projectProcesses'){let ex=list.find(x=>x.userId===user.id&&x.projectId===d.projectId&&x.department===d.department&&x.title===d.title);if(ex)return done(200,clean(ex))}
        if(mine(name).length>=5000)return json(res,400,{error:'این مجموعه پر است.'});
        let r={id:id(),userId:user.id,...d,createdAt:Date.now(),updatedAt:Date.now()};
-       if(name==='projectProcesses'&&r.reminderDate)syncProcessReminder(r,mine('projects').find(x=>x.id===r.projectId));
-       if(name==='projectContracts'&&r.contractEndDate)syncContractReminder(r,mine('projects').find(x=>x.id===r.projectId));
        list.push(r);return done(201,clean(r));
      }
      let ix=list.findIndex(x=>x.id===iid&&x.userId===user.id);if(ix<0)return json(res,404,{error:'مورد پیدا نشد.'});
      if(req.method==='GET')return done(200,clean(list[ix]));
      if(req.method==='PATCH'){
-       let d=cleanItem(await body(req));delete d.projectId;delete d.courseId;delete d.reminderId;delete d.contractRenewalReminderId;   // no moving rows between parents
+       let d=cleanItem(await body(req));delete d.projectId;delete d.courseId;   // no moving rows between parents
        let it=list[ix];Object.assign(it,d,{updatedAt:Date.now()});
-       if(name==='projectProcesses'&&['reminderDate','reminderTime','owner','note','title'].some(k=>k in d))syncProcessReminder(it,mine('projects').find(x=>x.id===it.projectId));
-       if(name==='projectContracts'&&'contractEndDate' in d)syncContractReminder(it,mine('projects').find(x=>x.id===it.projectId));
        return done(200,clean(it));
      }
      if(req.method==='DELETE'){
@@ -1409,20 +1401,34 @@ async function handleApi(request, env) {
      }
      return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
    }
+   // Course payments mirrored into Finance (CoursesPage): only «آموزش» transactions are reachable.
+   if(parts[0]==='transactions'){
+     if(!scopes.has('courses'))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
+     let tid=parts[1],d=req.method==='DELETE'?{}:await body(req),pick=x=>{let o={};if(x.title!==undefined)o.title=String(x.title).trim().slice(0,200);if(x.amount!==undefined){o.amount=Number(x.amount);if(!(o.amount>0))throw 0}if(x.kind!==undefined)o.kind=x.kind==='income'?'income':'expense';if(x.date!==undefined){if(!/^\d{4}-\d{2}-\d{2}$/.test(x.date))throw 0;o.date=x.date}return o};
+     let o;try{o=pick(d)}catch(e){return json(res,400,{error:'مبلغ یا تاریخ نامعتبر است.'})}
+     if(!tid&&req.method==='POST'){if(!o.title||!o.amount)return json(res,400,{error:'شرح و مبلغ الزامی است.'});let t={id:id(),userId:user.id,kind:'expense',date:today(),...o,category:'آموزش',account:'بدون حساب',recurrence:null,recurrenceId:null,receipt:null,tripId:null,tags:[],source:'site',createdAt:Date.now()};db.transactions.push(t);return done(201,clean(t))}
+     let t=tid&&db.transactions.find(x=>x.id===tid&&x.userId===user.id&&x.category==='آموزش');if(!t)return json(res,404,{error:'تراکنش پیدا نشد.'});
+     if(req.method==='DELETE'){db.transactions=db.transactions.filter(x=>x!==t);return done(200,{ok:true})}
+     if(req.method==='PATCH'){Object.assign(t,o);return done(200,clean(t))}
+     return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+   }
    if(parts[0]==='reminders'){
      if(!scopes.has('projects')&&!scopes.has('courses'))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
      // Only reminders tied to a project/course the token can see are reachable.
-     const linked=r=>r.userId===user.id&&((r.projectId&&scopes.has('projects')&&mine('projects').some(x=>x.id===r.projectId))||(r.courseId&&scopes.has('courses')&&mine('courses').some(x=>x.id===r.courseId)));
-     const pick=d=>{let o={};if(d.title!==undefined)o.title=String(d.title).trim().slice(0,200);if(d.date!==undefined){if(!/^\d{4}-\d{2}-\d{2}$/.test(d.date))throw 'date';o.date=d.date}if(d.time!==undefined){if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(d.time))throw 'time';o.time=d.time}if(d.notes!==undefined)o.notes=String(d.notes).slice(0,2000);if(d.done!==undefined)o.done=!!d.done;if(d.leadMinutes!==undefined)o.leadMinutes=[10,30,60,180,1440].includes(Number(d.leadMinutes))?Number(d.leadMinutes):0;return o};
+     // reachable: made through this bridge, tied to a visible project/course, or referenced by a stage/contract row
+     const refIds=new Set(scopes.has('projects')?[...mine('projectProcesses').map(x=>x.reminderId),...mine('projectContracts').map(x=>x.contractRenewalReminderId)].filter(Boolean):[]);
+     const linked=r=>r.userId===user.id&&(r.source==='site'||refIds.has(r.id)||(r.projectId&&scopes.has('projects')&&mine('projects').some(x=>x.id===r.projectId))||(r.courseId&&scopes.has('courses')&&mine('courses').some(x=>x.id===r.courseId)));
+     const pick=d=>{let o={};if(d.title!==undefined)o.title=String(d.title).trim().slice(0,200);if(d.date!==undefined){if(!/^\d{4}-\d{2}-\d{2}$/.test(d.date))throw 'date';o.date=d.date}if(d.time!==undefined){if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(d.time))throw 'time';o.time=d.time}if(d.notes!==undefined)o.notes=String(d.notes).slice(0,2000);if(d.done!==undefined)o.done=!!d.done;if(d.whenLabel!==undefined)o.whenLabel=String(d.whenLabel).slice(0,60);if(d.leadMinutes!==undefined)o.leadMinutes=[10,30,60,180,1440].includes(Number(d.leadMinutes))?Number(d.leadMinutes):0;return o};
      let rid=parts[1];
      if(!rid&&req.method==='GET'){let all=db.reminders.filter(linked).map(clean).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time||'').localeCompare(String(b.time||''))),lim=Math.min(500,Math.max(0,Number(u.searchParams.get('limit'))||0)),off=Math.max(0,Number(u.searchParams.get('offset'))||0);return done(200,lim?{items:all.slice(off,off+lim),total:all.length}:{items:all})}
      let d=req.method==='GET'||req.method==='DELETE'?{}:await body(req),o;
      try{o=pick(d)}catch(e){return json(res,400,{error:e==='time'?'ساعت باید به شکل HH:MM باشد (برای ارسال تلگرام لازم است).':'تاریخ نامعتبر است.'})}
      if(!rid&&req.method==='POST'){
-       if(!o.title||!o.date||!o.time)return json(res,400,{error:'عنوان، تاریخ و ساعت یادآوری لازم است.'});
+       if(!o.title||!o.date)return json(res,400,{error:'عنوان و تاریخ یادآوری لازم است.'});
+       o.time=o.time||'09:00';   // the Telegram cron only sends reminders that have a time
        let r={id:id(),userId:user.id,done:false,recurrence:null,taskId:null,leadMinutes:0,createdAt:Date.now(),source:'site',...o,whenLabel:o.date};
        if(d.projectId)r.projectId=String(d.projectId);else if(d.courseId)r.courseId=String(d.courseId);
-       if(!linked(r))return json(res,400,{error:'یادآوری باید به یک پروژه یا دورهٔ مجاز وصل باشد.'});
+       if((r.projectId&&!mine('projects').some(x=>x.id===r.projectId))||(r.courseId&&!mine('courses').some(x=>x.id===r.courseId)))return json(res,400,{error:'پروژه یا دورهٔ این یادآوری پیدا نشد.'});
        db.reminders.push(r);return done(201,clean(r));
      }
      let r=db.reminders.find(x=>x.id===rid&&linked(x));if(!r)return json(res,404,{error:'یادآوری پیدا نشد.'});

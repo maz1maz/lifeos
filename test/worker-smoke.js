@@ -703,16 +703,20 @@ async function main() {
 
     // process stage reminder → real db.reminders row
     const stage = await ext('/api/ext/col/projectProcesses', { method: 'POST', token, body: { projectId: proj.d.id, department: 'فنی', title: 'ابعادبرداری دقیق', status: 'todo' } });
-    const st2 = await ext('/api/ext/col/projectProcesses/' + stage.d.id, { method: 'PATCH', token, body: { reminderDate: today(), owner: 'ملینا' } });
-    const rems = (await call('/api/reminders', { cookie })).d.items;
-    const sr = rems.find(r => r.id === st2.d.reminderId);
-    check('stage reminderDate creates a real LifeOS reminder', !!sr && sr.date === today() && sr.time === '09:00' && /ابعادبرداری/.test(sr.title), JSON.stringify({ st2: st2.d, sr }));
-    await ext('/api/ext/col/projectProcesses/' + stage.d.id, { method: 'PATCH', token, body: { reminderDate: '' } });
-    check('clearing the date removes that reminder', !(await call('/api/reminders', { cookie })).d.items.some(r => r.id === sr.id));
+    // same calls ProjectsPage makes: POST /api/reminders (no projectId) then PATCH the stage with reminderId
+    const sr0 = await ext('/api/ext/reminders', { method: 'POST', token, body: { title: 'یادآوری پروژهٔ x: ابعادبرداری دقیق', date: today(), whenLabel: today(), notes: 'مسئول: ملینا' } });
+    await ext('/api/ext/col/projectProcesses/' + stage.d.id, { method: 'PATCH', token, body: { reminderDate: today(), reminderId: sr0.d.id } });
+    const sr = (await call('/api/reminders', { cookie })).d.items.find(r => r.id === sr0.d.id);
+    check('stage reminder from the site is a real LifeOS reminder (time defaults to 09:00)', sr0.status === 201 && !!sr && sr.time === '09:00', JSON.stringify(sr0.d));
+    check('ext can PATCH a reminder referenced by a stage', (await ext('/api/ext/reminders/' + sr.id, { method: 'PATCH', token, body: { date: '2027-01-01' } })).status === 200);
+    const appRem = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'private', date: today(), time: '10:00' } })).d;
+    check('ext cannot touch an unrelated LifeOS reminder', (await ext('/api/ext/reminders/' + appRem.id, { method: 'DELETE', token })).status === 404);
+    check('ext reminder list does not leak unrelated reminders', !(await ext('/api/ext/reminders', { token })).d.items.some(r => r.id === appRem.id));
+    const batch = await ext('/api/ext/col/projectProcesses', { method: 'POST', token, body: { items: [{ projectId: proj.d.id, department: 'فنی', title: 'ابعادبرداری دقیق' }, { projectId: proj.d.id, department: 'فنی', title: 'تهیه نقشهٔ شاپ' }, { projectId: 'nope', department: 'فنی', title: 'x' }] } });
+    check('batch insert dedupes stages and skips foreign parents', batch.status === 201 && batch.d.items.length === 2 && batch.d.items[0].id === stage.d.id, JSON.stringify(batch.d));
 
     // free reminder tied to a project, then delivered by the real cron → Telegram path
-    check('reminder without time is refused (cron needs one)', (await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: proj.d.id, title: 'x', date: today() } })).status === 400);
-    check('reminder not tied to an allowed project is refused', (await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: 'nope', title: 'x', date: today(), time: '10:00' } })).status === 400);
+    check('reminder tied to an unknown project is refused', (await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: 'nope', title: 'x', date: today(), time: '10:00' } })).status === 400);
     const tz = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(Date.now() - 2 * 60e3));
     const rr = await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: proj.d.id, title: 'تماس با کارفرما', date: today(), time: tz, notes: 'از سایت' } });
     check('site reminder -> 201 and listed for the site', rr.status === 201 && (await ext('/api/ext/reminders', { token })).d.items.some(r => r.id === rr.d.id), JSON.stringify(rr.d));
@@ -742,6 +746,12 @@ async function main() {
     const txs = (await call('/api/transactions', { cookie })).d.items;
     check('payment with toFinance mirrors an «آموزش» income in LifeOS', pay.status === 201 && txs.some(t => t.id === txId && t.category === 'آموزش' && t.kind === 'income' && t.amount === 10000000), JSON.stringify(pay.d));
     await ext('/api/ext/students/' + stu.d.id + '/payments/' + pay.d.payments[0].id, { method: 'DELETE', token });
+    // CoursesPage path: /api/transactions → only «آموزش» rows are reachable
+    const tx2 = await ext('/api/ext/transactions', { method: 'POST', token, body: { title: 'قسط شهریه', amount: 5000000, kind: 'income', category: 'خوراک', date: today() } });
+    check('ext transaction is forced into «آموزش»', tx2.status === 201 && tx2.d.category === 'آموزش' && tx2.d.amount === 5000000, JSON.stringify(tx2.d));
+    const food = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'نان', amount: 1000, category: 'خوراک' } })).d;
+    check('ext cannot edit a non-education transaction', (await ext('/api/ext/transactions/' + food.id, { method: 'PATCH', token, body: { amount: 1 } })).status === 404);
+    check('ext deletes its education transaction', (await ext('/api/ext/transactions/' + tx2.d.id, { method: 'DELETE', token })).status === 200);
     check('deleting the payment removes its transaction', !(await call('/api/transactions', { cookie })).d.items.some(t => t.id === txId));
     await call('/api/col/students/' + stu.d.id, { method: 'PATCH', cookie, body: { attendance: [1, 2] } });
     check('LifeOS attendance edit shows on the site', ((await ext('/api/ext/col/students', { token })).d.items.find(s => s.id === stu.d.id) || {}).attendance.join() === '1,2');
@@ -749,10 +759,7 @@ async function main() {
     // contract/finance/supply need the projectFiles scope; contract end date → renewal reminder
     const full = (await call('/api/site-tokens', { method: 'POST', cookie, body: { scopes: ['projects', 'projectFiles'] } })).d.token;
     const ctr = await ext('/api/ext/col/projectContracts', { method: 'POST', token: full, body: { projectId: proj.d.id, contractNo: 'C-7', contractEndDate: '2027-03-20', amount: 9000000000 } });
-    const renew = (await call('/api/reminders', { cookie })).d.items.find(r => r.id === ctr.d.contractRenewalReminderId);
-    check('projectFiles token: contract saved + renewal reminder a week before the end', ctr.status === 201 && !!renew && renew.date === '2027-03-13' && /تمدید قرارداد/.test(renew.title), JSON.stringify({ ctr: ctr.d, renew }));
-    await ext('/api/ext/col/projectContracts/' + ctr.d.id, { method: 'PATCH', token: full, body: { contractEndDate: '2027-04-20' } });
-    check('moving the contract end date moves the same reminder', (await call('/api/reminders', { cookie })).d.items.find(r => r.id === renew.id).date === '2027-04-13');
+    check('projectFiles token: contract saved', ctr.status === 201 && ctr.d.contractNo === 'C-7', JSON.stringify(ctr.d));
     check('projectFiles token reaches financials + supplies', (await ext('/api/ext/col/projectFinancials', { method: 'POST', token: full, body: { projectId: proj.d.id, statementNo: 1, amount: 100 } })).status === 201 && (await ext('/api/ext/col/projectSupplies', { token: full })).status === 200);
 
     // token scope + revoke
