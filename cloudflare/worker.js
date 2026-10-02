@@ -1321,7 +1321,8 @@ async function handleApi(request, env) {
    return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
  }
  if(p.startsWith('/api/ext/')){
-   let m=String(req.headers.get('authorization')||'').match(/^Bearer\s+(lfs_[0-9a-f]{64})$/);
+   // X-LifeOS-Token: some hosting networks (e.g. Iranian cPanel hosts) silently drop outbound requests that carry an Authorization header
+   let m=String(req.headers.get('x-lifeos-token')||'').trim().match(/^(lfs_[0-9a-f]{64})$/)||String(req.headers.get('authorization')||'').match(/^Bearer\s+(lfs_[0-9a-f]{64})$/);
    if(!m)return json(res,401,{error:'توکن لازم است.'});
    let rl=checkRateLimit('ext:'+m[1].slice(0,16),240,60e3);if(!rl.ok)return json(res,429,{error:'درخواست زیاد. '+rl.retrySec+' ثانیه صبر کن.'});
    let db=await read(),h=await extSha256(m[1]),tok=(db.siteTokens||[]).find(t=>timingSafeEqualHex(String(t.hash||''),h));
