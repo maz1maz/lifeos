@@ -52,7 +52,10 @@ export function useCol(name) {
     setItems(xs => made.reduce((next, row) => upsertLocal(next, row), xs || []));
     return made;
   };
-  const patch = async (id, body) => { setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) })); setItems(xs => (xs || []).map(x => x.id === id ? r : x)); return r; } catch (e) { setErr(e.message); load(); } };
+  // a server reply only replaces the row when no newer patch for it is in flight; otherwise quick
+  // successive clicks flicker (reply #1 briefly undoes the optimistic state of click #2)
+  const patchSeq = useRef({});
+  const patch = async (id, body) => { const seq = patchSeq.current[id] = (patchSeq.current[id] || 0) + 1; setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) })); if (patchSeq.current[id] === seq) setItems(xs => (xs || []).map(x => x.id === id ? r : x)); return r; } catch (e) { setErr(e.message); load(); } };
   const remove = async id => { setItems(xs => (xs || []).filter(x => x.id !== id)); try { await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'DELETE' })); } catch (e) { setErr(e.message); load(); } };
   return { items, add, addMany, patch, remove, reload: load, err, setErr };
 }
@@ -680,7 +683,7 @@ function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPat
       {input('project', 'projectCode', 'کد پروژه')}{input('project', 'name', 'نام پروژه', { placeholder: 'نام پروژه' })}
       {input('project', 'client', 'کارفرما')}{input('project', 'clientPhone', 'شماره تماس کارفرما')}
       {input('project', 'owner', 'مسئول ارتباط پروژه')}{input('project', 'contactPhone', 'شماره تماس مسئول ارتباط')}
-      {input('contract', 'contractNo', 'شماره قرارداد')}<ContractItemsField contract={contract} knownItems={knownItems} onChange={patch => onPatchContract({ ...(contract || {}), ...patch })} />
+      {input('contract', 'contractNo', 'شماره قرارداد')}<ContractItemsField contract={contract} knownItems={knownItems} onChange={onPatchContract} />
       {date('contractStartDate', 'تاریخ شروع قرارداد')}{date('contractEndDate', 'تاریخ اتمام قرارداد')}
       {input('contract', 'area', 'متراژ قرارداد (مترمربع)', { money: true })}
       <label className="lf-sheet-field"><span>نوع تسویه</span><select value={contract?.settlementType || 'cash'} onChange={e => setContract('settlementType', e.target.value)}><option value="cash">نقدی</option><option value="check">چک</option><option value="statement">صورت‌وضعیتی</option><option value="barter">تهاتری</option><option value="other">سایر</option></select></label>
