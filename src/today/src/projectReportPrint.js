@@ -1,6 +1,6 @@
 // Printable A4 project report. Rendered as a standalone document inside a hidden
 // iframe so the app's dark theme, layout and fixed headers never leak into the PDF.
-import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, stageWeight, contractAreaText, statementLedger } from './life';
+import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, contractAreaText, statementLedger } from './life';
 import { isoToJ } from './jdate';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -50,7 +50,7 @@ thead{display:table-header-group}tr{break-inside:avoid}
 th{background:#f1f5f9;color:#334155;font-weight:700;text-align:right;padding:5px 6px;border-bottom:1.5px solid #cbd5e1}
 td{padding:4.5px 6px;border-bottom:1px solid #e2e8f0;vertical-align:top}
 tfoot td{font-weight:800;background:#f8fafc;border-top:1.5px solid #cbd5e1}
-td.note{font-size:10.5px;line-height:1.6;white-space:pre-wrap}p.note{margin:6px 0;font-size:12px;line-height:1.8}tr.noterow td{font-size:11px;background:#f8fafc}table.kv td{width:25%}table.kv td.k{color:#64748b;width:17%}table.kv td.v{font-weight:600;width:33%}
+table.stages{table-layout:fixed;width:100%}table.stages td,table.stages th{overflow-wrap:anywhere;word-break:break-word}td.note{font-size:10.5px;line-height:1.6;white-space:pre-wrap}p.note{margin:6px 0;font-size:12px;line-height:1.8}tr.noterow td{font-size:11px;background:#f8fafc}table.kv td{width:25%}table.kv td.k{color:#64748b;width:17%}table.kv td.v{font-weight:600;width:33%}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px;break-inside:avoid}
 .dept{display:grid;grid-template-columns:70px 1fr 64px;align-items:center;gap:8px;padding:3px 0}
 .dept b{font-size:9pt}.dept span{font-size:8pt;color:#475569;text-align:left}
@@ -102,7 +102,7 @@ export function projectReportHtml(d) {
 
   const statusBadge = s => s.status === 'done' ? '<span class="badge b-done">انجام شد</span>' : valid(s.date) && s.date < today ? '<span class="badge b-late">عقب‌افتاده</span>' : isInstallStage(s) && Number(s.percent) > 0 ? `<span class="badge b-doing">${fa(Number(s.percent), 0)}٪ نصب</span>` : s.status === 'doing' ? '<span class="badge b-doing">در حال انجام</span>' : '<span class="badge b-todo">در انتظار</span>';
   let n = 0;
-  const stageRows = departments.map(dep => { const rows = stages.filter(s => s.department === dep.department); return `<tr class="grp"><td colspan="7">${esc(dep.department)} <span class="muted">(${fa(dep.done)} از ${fa(dep.total)} انجام‌شده)</span></td></tr>` + rows.map(s => `<tr class="${s.status === 'done' ? 'done' : ''}"><td class="n">${fa(++n)}</td><td>${esc(s.title)}</td><td class="n">${fa(stageWeight(s, stages), 1)}٪</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td><td class="note">${s.note ? esc(s.note) : '<span class="muted">—</span>'}</td></tr>`).join(''); }).join('');
+  const stageRows = departments.map(dep => { const rows = stages.filter(s => s.department === dep.department); return `<tr class="grp"><td colspan="6">${esc(dep.department)} <span class="muted">(${fa(dep.done)} از ${fa(dep.total)} انجام‌شده)</span></td></tr>` + rows.map(s => `<tr class="${s.status === 'done' ? 'done' : ''}"><td class="n">${fa(++n)}</td><td>${esc(s.title)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td><td class="note">${s.note ? esc(s.note) : '<span class="muted">—</span>'}</td></tr>`).join(''); }).join('');
   const next = stages.filter(s => s.status !== 'done').sort((a, b) => (valid(a.date) ? a.date : '9').localeCompare(valid(b.date) ? b.date : '9')).slice(0, 6);
 
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${esc(reportNo)}</title><style>${CSS(brand, reportNo)}</style></head><body>
@@ -128,7 +128,7 @@ export function projectReportHtml(d) {
 </div></section>
 <h2>صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">آخرین صورت‌وضعیت (تجمعی) / جمع واریزی / معوق</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
 ${next.length ? `<h2 class="pb">اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
-<h2 class="pb">وضعیت مراحل اجرایی</h2><table><thead><tr><th style="width:5%">ردیف</th><th style="width:27%">مرحله</th><th style="width:6%">وزن</th><th style="width:12%">وضعیت</th><th style="width:11%">تاریخ انجام</th><th style="width:12%">مسئول</th><th>توضیحات</th></tr></thead><tbody>${stageRows}</tbody></table>
+<h2 class="pb">وضعیت مراحل اجرایی</h2><table class="stages"><thead><tr><th style="width:5%">ردیف</th><th style="width:31%">مرحله</th><th style="width:12%">وضعیت</th><th style="width:11%">تاریخ انجام</th><th style="width:12%">مسئول</th><th style="width:29%">توضیحات</th></tr></thead><tbody>${stageRows}</tbody></table>
 <div class="sign"><div>تهیه‌کننده</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
 </body></html>`;
 }
