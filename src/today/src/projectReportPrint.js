@@ -1,6 +1,6 @@
 // Printable A4 project report. Rendered as a standalone document inside a hidden
 // iframe so the app's dark theme, layout and fixed headers never leak into the PDF.
-import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, stageWeight, contractAreaText } from './life';
+import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, stageWeight, contractAreaText, statementLedger } from './life';
 import { isoToJ } from './jdate';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -70,7 +70,7 @@ export function projectReportHtml(d) {
   const done = stages.filter(s => s.status === 'done').length;
   const progress = weightedProgress(stages);
   const contractTotal = Number(contract?.amount) || 0, advance = Number(contract?.advancePayment) || 0;
-  const stTotal = statements.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  const ledger = statementLedger(statements), stTotal = ledger.billed;
   const paid = statements.reduce((s, x) => s + (Number(x.paidAmount) || 0), 0);
   const received = advance + paid, receivedPct = contractTotal ? Math.min(100, Math.round(received / contractTotal * 100)) : 0;
   const valid = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
@@ -98,7 +98,7 @@ export function projectReportHtml(d) {
   const kv = [['کد پروژه', project.projectCode], ['شماره قرارداد', contract?.contractNo], ['کارفرما', project.client], ['تلفن کارفرما', project.clientPhone], ['مسئول ارتباط', project.owner], ['تلفن مسئول', project.contactPhone], ['موضوع قرارداد', contract?.subject], ['متراژ', contractAreaText(contract)], ['نوع تسویه', SETTLEMENT[contract?.settlementType]], ['مدت قرارداد', totalDays ? `${fa(totalDays)} روز` : ''], ['تاریخ شروع', valid(start) ? jl(start) : ''], ['تاریخ پایان', valid(end) ? jl(end) : '']];
   const kvRows = []; for (let i = 0; i < kv.length; i += 2) kvRows.push(`<tr>${kv.slice(i, i + 2).map(([k, v]) => `<td class="k">${k}</td><td class="v">${v ? esc(v) : '<span class="muted">—</span>'}</td>`).join('')}</tr>`);
 
-  const stRows = statements.map(s => { const a = Number(s.amount) || 0, p = Number(s.paidAmount) || 0; const step = s.statementSent ? `ارسال صورت‌وضعیت${s.statementSentDate ? '، ' + jShort(s.statementSentDate) : ''}` : s.noticeApproved ? `تأیید اعلام وضعیت${s.noticeApprovedDate ? '، ' + jShort(s.noticeApprovedDate) : ''}` : s.noticeSent ? `ارسال اعلام وضعیت${s.noticeSentDate ? '، ' + jShort(s.noticeSentDate) : ''}` : 'ثبت اولیه'; return `<tr><td class="n">${fa(s.statementNo || 0)}${s.item ? `<br><span class="muted">${esc(s.item)}</span>` : ''}</td><td>${step}</td><td class="n">${rial(a)}</td><td class="n">${rial(p)}</td><td class="n">${s.paymentDate ? jShort(s.paymentDate) : '<span class="muted">—</span>'}</td><td class="n">${a - p > 0 ? rial(a - p) : '<span class="badge b-done">تسویه</span>'}</td></tr>`; }).join('');
+  const stRows = ledger.list.map(s => { const a = Number(s.amount) || 0, p = Number(s.paidAmount) || 0, rem = s.remaining; const step = s.statementSent ? `ارسال صورت‌وضعیت${s.statementSentDate ? '، ' + jShort(s.statementSentDate) : ''}` : s.noticeApproved ? `تأیید اعلام وضعیت${s.noticeApprovedDate ? '، ' + jShort(s.noticeApprovedDate) : ''}` : s.noticeSent ? `ارسال اعلام وضعیت${s.noticeSentDate ? '، ' + jShort(s.noticeSentDate) : ''}` : 'ثبت اولیه'; return `<tr><td class="n">${fa(s.statementNo || 0)}</td><td>${step}</td><td class="n">${rial(a)}</td><td class="n">${rial(p)}</td><td class="n">${s.paymentDate ? jShort(s.paymentDate) : '<span class="muted">—</span>'}</td><td class="n">${rem > 0 ? rial(rem) : '<span class="badge b-done">تسویه</span>'}</td></tr>`; }).join('');
 
   const statusBadge = s => s.status === 'done' ? '<span class="badge b-done">انجام شد</span>' : valid(s.date) && s.date < today ? '<span class="badge b-late">عقب‌افتاده</span>' : isInstallStage(s) && Number(s.percent) > 0 ? `<span class="badge b-doing">${fa(Number(s.percent), 0)}٪ نصب</span>` : s.status === 'doing' ? '<span class="badge b-doing">در حال انجام</span>' : '<span class="badge b-todo">در انتظار</span>';
   let n = 0;
@@ -121,7 +121,7 @@ export function projectReportHtml(d) {
 <div><h2>خلاصهٔ مالی</h2><table><tbody>
 <tr><td>مبلغ کل قرارداد</td><td class="n">${rial(contractTotal)}</td></tr>
 <tr><td>پیش‌پرداخت</td><td class="n">${rial(advance)}</td></tr>
-<tr><td>جمع صورت‌وضعیت‌ها</td><td class="n">${rial(stTotal)}</td></tr>
+<tr><td>آخرین صورت‌وضعیت (تجمعی)</td><td class="n">${rial(stTotal)}</td></tr>
 <tr><td>جمع واریزی‌ها</td><td class="n">${rial(paid)}</td></tr>
 <tr><td>مطالبات معوق صورت‌وضعیت</td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr>
 </tbody><tfoot><tr><td>ماندهٔ قرارداد (پس از دریافتی‌ها)</td><td class="n">${rial(Math.max(0, contractTotal - received))}</td></tr></tfoot></table></div></div>
