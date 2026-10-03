@@ -657,7 +657,7 @@ function ContractItemsField({ contract, knownItems = [], onChange }) {
   const [adding, setAdding] = useState(false);
   const menu = orderItems([...CONTRACT_ITEMS, ...knownItems, ...picked]);
   const has = i => picked.some(x => normItem(x) === normItem(i));
-  const commit = items => { const list = orderItems(items); onChange({ items: list, itemsOther: '', subject: list.join('، ') }); };
+  const commit = items => { const list = orderItems(items), areas = contract?.itemAreas; onChange({ items: list, itemsOther: '', subject: list.join('، '), ...(areas ? { area: list.reduce((a, i) => a + num(areas[i]), 0) } : {}) }); };
   const toggle = i => commit(has(i) ? picked.filter(x => normItem(x) !== normItem(i)) : [...picked, i]);
   const add = text => { const news = splitItems(text); if (news.length) commit([...picked, ...news]); setAdding(false); };
   return <div className="lf-sheet-field wide lf-contract-items"><span>آیتم‌های قرارداد</span>
@@ -666,6 +666,18 @@ function ContractItemsField({ contract, knownItems = [], onChange }) {
       {adding ? <input className="lf-item-add" autoFocus placeholder="نام آیتم نما (مثلاً کامپوزیت)" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value; e.currentTarget.value = ''; add(v); } else if (e.key === 'Escape') setAdding(false); }} onBlur={e => add(e.target.value)} />
         : <button type="button" className="add" onClick={() => setAdding(true)}>＋ آیتم جدید</button>}
     </div>
+  </div>;
+}
+// متراژ جدا برای هر آیتم قرارداد؛ area = جمع آن‌ها (برای گزارش و داده‌های قبلی)
+export const contractAreaText = contract => { const per = contractScope(contract).filter(i => num(contract?.itemAreas?.[i]) > 0); return per.length ? per.map(i => `${i}: ${fa(num(contract.itemAreas[i]))}`).join(' · ') + ` (جمع ${fa(num(contract.area))} مترمربع)` : num(contract?.area) ? `${fa(num(contract.area))} مترمربع` : ''; };
+function ContractAreaField({ contract, onChange, fallback }) {
+  const items = contractScope(contract);
+  if (!items.length) return fallback;
+  const areas = contract?.itemAreas || {};
+  const total = items.reduce((a, i) => a + num(areas[i]), 0);
+  const save = (item, value) => { const v = num(value); if (v === num(areas[item])) return; const next = { ...areas, [item]: v }; onChange({ itemAreas: next, area: items.reduce((a, i) => a + num(next[i]), 0) }); };
+  return <div className="lf-sheet-field wide lf-item-areas"><span>متراژ قرارداد (مترمربع)<em>جمع: {fa(total)}</em></span>
+    <div>{items.map(i => <label key={i}><small>{i}</small><input key={`${i}-${num(areas[i])}`} defaultValue={num(areas[i]) || ''} inputMode="numeric" placeholder="۰" onBlur={e => save(i, e.target.value)} /></label>)}</div>
   </div>;
 }
 function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPatchContract }) {
@@ -685,7 +697,7 @@ function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPat
       {input('project', 'owner', 'مسئول ارتباط پروژه')}{input('project', 'contactPhone', 'شماره تماس مسئول ارتباط')}
       {input('contract', 'contractNo', 'شماره قرارداد')}<ContractItemsField contract={contract} knownItems={knownItems} onChange={onPatchContract} />
       {date('contractStartDate', 'تاریخ شروع قرارداد')}{date('contractEndDate', 'تاریخ اتمام قرارداد')}
-      {input('contract', 'area', 'متراژ قرارداد (مترمربع)', { money: true })}
+      <ContractAreaField contract={contract} onChange={onPatchContract} fallback={input('contract', 'area', 'متراژ قرارداد (مترمربع)', { money: true })} />
       <label className="lf-sheet-field"><span>نوع تسویه</span><select value={contract?.settlementType || 'cash'} onChange={e => setContract('settlementType', e.target.value)}><option value="cash">نقدی</option><option value="check">چک</option><option value="statement">صورت‌وضعیتی</option><option value="barter">تهاتری</option><option value="other">سایر</option></select></label>
       <label className="lf-sheet-field wide"><span>توضیحات پروژه</span><textarea defaultValue={project.note || ''} placeholder="توضیحات پروژه" onBlur={e => setProject('note', e.target.value.trim())} /></label>
       <label className="lf-sheet-field wide"><span>توضیحات قرارداد</span><textarea defaultValue={contract?.note || ''} placeholder="توضیحات قرارداد" onBlur={e => setContract('note', e.target.value.trim())} /></label>

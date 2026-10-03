@@ -439,3 +439,8 @@
 .lf-process-group small{color:var(--g-muted);font-weight:400;font-size:11.5px}
 .lf-contract-items .lf-item-chips button.add{border-style:dashed;color:var(--g-muted)}
 .lf-contract-items .lf-item-chips .lf-item-add{width:auto;min-width:180px;flex:0 1 220px;padding:6px 12px;border-radius:999px}
+/* متراژ هر آیتم */
+.lf-item-areas>span{display:flex;justify-content:space-between;gap:8px}.lf-item-areas>span em{font-style:normal;color:#93c5fd;font-weight:600}
+.lf-item-areas>div{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.lf-item-areas label{display:grid;gap:4px;min-width:0}.lf-item-areas label small{color:var(--g-muted);font-size:11.5px}
+.lf-item-areas input{width:100%;min-width:0}
