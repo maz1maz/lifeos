@@ -77,7 +77,9 @@ function JPop({ value, onPick, clearable, min }) {
     if (r.left < box.left + 4) { el.style.insetInlineStart = 'auto'; el.style.insetInlineEnd = '0'; const r2 = el.getBoundingClientRect(); if (r2.right > box.right - 4) { el.style.insetInlineEnd = 'auto'; el.style.insetInlineStart = 'auto'; el.style.left = `${box.left + 4 - el.offsetParent.getBoundingClientRect().left}px`; } }
     else if (r.right > box.right - 4) { el.style.insetInlineStart = 'auto'; el.style.insetInlineEnd = '0'; }
   }, []);
-  return <div className="jdi-pop" ref={pop} role="dialog" aria-label="انتخاب تاریخ">
+  // preventDefault: inside a <label> (FormDrawer fields) a click here would otherwise be re-sent to the
+  // label's trigger button and reopen the calendar right after a day is picked
+  return <div className="jdi-pop" ref={pop} role="dialog" aria-label="انتخاب تاریخ" onClick={e => e.preventDefault()}>
     <div className="jdi-head">
       <button type="button" dir="ltr" onClick={() => setYm(y => ({ ...y, jy: y.jy - 1 }))} aria-label="سال قبل">»</button>
       <button type="button" dir="ltr" onClick={() => shift(-1)} aria-label="ماه قبل">›</button>

@@ -897,7 +897,7 @@ function parseGambleText(t,base){let kind=gambleKind(t);if(!kind)return null;let
 
       if(cmd==='/گزارش_صبح'||cmd==='/صبح'){
         let w=await fetchTehranWeatherBrief(user.weather);
-        return tgSend(chatId,await buildMorningBrief(db,user,d,w),{reply_markup:tgMainKeyboard()});
+        let r=await tgSend(chatId,await buildMorningBrief(db,user,d,w),{reply_markup:tgMainKeyboard()});await tgSendHardWord(user);return r;
       }
       if(cmd==='/گزارش_شب'||cmd==='/شب'){
         return tgSend(chatId,await buildEveningReport(db,user,d),{reply_markup:tgMainKeyboard()});
@@ -1068,7 +1068,7 @@ function parseGambleText(t,base){let kind=gambleKind(t);if(!kind)return null;let
   async function checkCourseSessions(db){let now=Date.now(),changed=false;for(const user of db.users){if(user.disabled||!(user.telegramUserId||(user.pushSubs||[]).length))continue;for(const c of colOf(db,'courses')){if(c.userId!==user.id||c.status==='done'||!c.time)continue;for(const x of courseSessions(c)){if(!x.time)continue;let due=Date.parse(x.date+'T'+x.time+':00+03:30'),key=x.date+'#'+x.n;if(!isFinite(due)||now<due-60*60e3||now>=due||(c.notifiedSessions||[]).includes(key))continue;let n=colOf(db,'students').filter(s=>s.courseId===c.id&&s.status!=='withdrawn').length;c.notifiedSessions=[...(c.notifiedSessions||[]),key].slice(-20);changed=true;await notifyUser(db,user,'🎓 کلاس «'+(c.name||'')+'» — جلسهٔ '+x.n.toLocaleString('fa-IR')+'\n⏰ ساعت '+x.time+' (کمتر از یک ساعت دیگر) · '+n.toLocaleString('fa-IR')+' دانشجو',{title:'🎓 '+(c.name||'کلاس'),body:'جلسهٔ '+x.n.toLocaleString('fa-IR')+' · ساعت '+x.time,url:'/?page=courses'})}}}return changed}
   async function checkReminderNotifications(db){let now=Date.now(),changed=false;for(const user of db.users){if(!(user.telegramUserId&&TELEGRAM_BOT_TOKEN)&&!(user.pushSubs&&user.pushSubs.length))continue;for(const r of db.reminders){if(r.userId!==user.id||r.done||!r.time||!r.date)continue;let due=remDue(r),detail=r.notes||r.note?'\n'+(r.notes||r.note):'';if(!isFinite(due))continue;let lead=Number(r.leadMinutes)||0;if(lead>0&&!r.leadSentAt&&now>=due-lead*60e3&&now<due-60e3){let txt='⏳ '+(LEAD_FA[lead]||(lead+' دقیقه'))+' دیگر: '+r.title+'\n⏰ ساعت '+r.time+(r.date!==today()?' · '+jalaliDateLabel(r.date):'')+detail;if(await notifyUser(db,user,txt,{title:'⏳ '+r.title,body:(LEAD_FA[lead]||lead+' دقیقه')+' دیگر · ساعت '+r.time,rid:r.id,url:'/?page=planner'},r)){r.leadSentAt=now;changed=true}}if(!r.notifiedAt&&now>=due&&now-due<3*3600e3){let txt='🔔 یادآوری: '+r.title+'\n⏰ '+r.time+detail;if(await notifyUser(db,user,txt,{title:'🔔 '+r.title,body:'ساعت '+r.time,rid:r.id,url:'/?page=planner'},r)){r.notifiedAt=now;changed=true}}}}if(await checkCourseSessions(db))changed=true;if(db.__dirty){delete db.__dirty;changed=true}return changed}
   function reminderAct(db,user,r,act){if(act==='d'){r.done=true;r.doneAt=Date.now();if(r.taskId){let t=db.tasks.find(x=>x.id===r.taskId&&x.userId===user.id);if(t)t.done=true}if(r.recurrence){let nx=r.recurrence==='weekly'?addDaysIso(r.date,7):r.recurrence==='monthly'?nextRecurDate(r.date,'monthly'):addDaysIso(r.date,1);if(!db.reminders.some(x=>x.userId===user.id&&x.title===r.title&&x.date===nx))db.reminders.push({id:id(),userId:user.id,title:r.title,date:nx,time:r.time,leadMinutes:r.leadMinutes||0,done:false,whenLabel:jalaliDateLabel(nx),recurrence:r.recurrence,createdAt:Date.now()})}return '✓ انجام شد'}if(act==='s'){let n=tehranHmAfter(15*60e3);r.date=n.date;r.time=n.time;delete r.notifiedAt;delete r.leadSentAt;return '⏰ ساعت '+n.time+' دوباره یادآوری می‌کنم'}if(act==='t'){let base=r.date>=today()?r.date:today();r.date=addDaysIso(base,1);delete r.notifiedAt;delete r.leadSentAt;return '📅 فردا '+(r.time||'')+' یادآوری می‌کنم'}return null}
-  async function handleTelegramCallback(db,cq){let data=String(cq.data||''),m=data.match(/^rem:([dst]):(.+)$/),fromId=String(cq.from&&cq.from.id);let user=db.users.find(u=>String(u.telegramUserId||'')===fromId);if(!m||!user){await tgApi('answerCallbackQuery',{callback_query_id:cq.id,text:'این دکمه دیگر معتبر نیست.'});return false}let r=db.reminders.find(x=>x.id===m[2]&&x.userId===user.id);if(!r){await tgApi('answerCallbackQuery',{callback_query_id:cq.id,text:'یادآوری پیدا نشد.'});return false}let msg=reminderAct(db,user,r,m[1]);await write(db);await tgApi('answerCallbackQuery',{callback_query_id:cq.id,text:msg||'انجام شد'});if(cq.message){await tgApi('editMessageText',{chat_id:cq.message.chat.id,message_id:cq.message.message_id,text:String(cq.message.text||'')+'\n\n'+(msg||'')})}return true}
+  async function handleTelegramCallback(db,cq){let data=String(cq.data||''),m=data.match(/^rem:([dst]):(.+)$/),fromId=String(cq.from&&cq.from.id);let user=db.users.find(u=>String(u.telegramUserId||'')===fromId);let vl=data.match(/^vl:(.+)$/);if(vl&&user){let ok=await vocabLearn(user.id,vl[1]);await tgApi('answerCallbackQuery',{callback_query_id:cq.id,text:ok?'عالی! دیگر جزو واژه‌های سخت نیست.':'این واژه پیدا نشد.'});if(ok&&cq.message)await tgApi('editMessageText',{chat_id:cq.message.chat.id,message_id:cq.message.message_id,text:String(cq.message.text||'')+'\n\n✅ یاد گرفتم'});return ok}if(!m||!user){await tgApi('answerCallbackQuery',{callback_query_id:cq.id,text:'این دکمه دیگر معتبر نیست.'});return false}let r=db.reminders.find(x=>x.id===m[2]&&x.userId===user.id);if(!r){await tgApi('answerCallbackQuery',{callback_query_id:cq.id,text:'یادآوری پیدا نشد.'});return false}let msg=reminderAct(db,user,r,m[1]);await write(db);await tgApi('answerCallbackQuery',{callback_query_id:cq.id,text:msg||'انجام شد'});if(cq.message){await tgApi('editMessageText',{chat_id:cq.message.chat.id,message_id:cq.message.message_id,text:String(cq.message.text||'')+'\n\n'+(msg||'')})}return true}
 
   // ── generic per-user collections for the life / work modules ──
   const COLS=['health','vehicles','carlogs','shopping','projects','cards','projectContracts','projectFinancials','projectSupplies','projectProcesses','customers','deals','learning','focus','ygoals','journal','trips','courses','students'];
@@ -1167,6 +1167,12 @@ function parseGambleText(t,base){let kind=gambleKind(t);if(!kind)return null;let
   function vocabSummary(st,d,now){if(!st||!st.cards)return null;now=now||Date.now();let cards=Object.values(st.cards),days=st.days||{},dn=Number((st.settings||{}).dailyNew)||15,t=days[d]||{r:0,n:0};let streak=0,x=days[d]&&(days[d].r||days[d].n)?d:addDaysIso(d,-1);while(days[x]&&(days[x].r||days[x].n)){streak++;x=addDaysIso(x,-1)}let week={r:0,n:0},last=[];for(let i=13;i>=0;i--){let k=addDaysIso(d,-i),v=days[k]||{r:0,n:0};if(i<7){week.r+=v.r||0;week.n+=v.n||0}last.push({date:k,r:v.r||0,n:v.n||0})}return{due:cards.filter(c=>c.b&&c.due<=now).length,newLeft:Math.max(0,dn-(t.n||0)),dailyNew:dn,learning:cards.filter(c=>c.b>0&&c.b<6).length,mastered:cards.filter(c=>c.b>=6).length,started:cards.length,today:{r:t.r||0,n:t.n||0},streak,week,days:last,quiz:st.quiz||null}}
   let VOCAB_WORDS=null;
   async function vocabWords(){if(VOCAB_WORDS)return VOCAB_WORDS;try{let r=await env.ASSETS.fetch(new Request('https://assets.local/vocab/words.json'));if(!r.ok)return null;VOCAB_WORDS=await r.json();return VOCAB_WORDS}catch(e){return null}}
+  // a random card the user found hard («نمی‌دانستم»/«سخت بود», not yet mastered); null when there is none yet
+  async function hardWord(st){let cards=st&&st.cards?Object.entries(st.cards).filter(([,c])=>c&&c.bad>0&&(c.b||0)<6):[];if(!cards.length)return null;let rows=await vocabWords();if(!rows||!rows.length)return null;let idx=new Map(rows.map(r=>[r[0],r]));cards=cards.filter(([w])=>idx.has(w));if(!cards.length)return null;let [w,c]=cards[Math.floor(Math.random()*cards.length)],r=idx.get(w);return{w,fa:(r[1]||[]).slice(0,2).join('، '),p:r[4]||'',e:r[6]||'',ef:r[9]||'',bad:c.bad||0,total:cards.length}}
+  // morning extra: one random hard word as its own message, with a «یاد گرفتم» button (callback vl:<word>)
+  async function tgSendHardWord(user){if(user.modules&&user.modules.vocab===false)return null;let hw=await hardWord(await vocabRead(user.id));if(!hw)return null;return tgSend(user.telegramUserId,'🧠 واژهٔ سخت: '+hw.w+(hw.p?' '+hw.p:'')+' — '+hw.fa+(hw.e?'\n   «'+hw.e+'»'+(hw.ef?'\n   '+hw.ef:''):''),{reply_markup:{inline_keyboard:[[{text:'✅ یاد گرفتم',callback_data:('vl:'+hw.w).slice(0,64)}]]}})}
+  // mark a word as learned: top box, due far away, no longer «hard»
+  async function vocabLearn(uid,w){let st=await vocabRead(uid);if(!st||!st.cards||!st.cards[w])return false;let c=st.cards[w];c.b=6;c.bad=0;c.good=(c.good||0)+1;c.last=Date.now();c.due=Date.now()+180*864e5;st.savedAt=Date.now();await vocabWrite(uid,st);return true}
   async function wordOfDay(uid,d,st){let rows=await vocabWords();if(!rows||!rows.length)return null;let pool=rows.filter(r=>r[8]<6.4&&['B1','B2','C1'].includes(r[3])&&r[6]&&(r[1]||[]).length&&!(st&&st.cards&&st.cards[r[0]]&&st.cards[r[0]].b>=6));if(!pool.length)return null;let h=0;for(const ch of d+uid)h=(h*31+ch.charCodeAt(0))>>>0;let r=pool[h%pool.length];return{w:r[0],fa:(r[1]||[]).slice(0,2).join('، '),p:r[4]||'',e:r[6]||'',ef:r[9]||''}}
   async function tgCheckReports(db){
     if(!TELEGRAM_BOT_TOKEN)return false;
@@ -1180,7 +1186,7 @@ function parseGambleText(t,base){let kind=gambleKind(t);if(!kind)return null;let
       if(hh===morningH&&user.tgMorningOn!==false&&user.tgLastMorning!==d){
         let text=await buildMorningBrief(db,user,d,await fetchTehranWeatherBrief(user.weather));
         let r=await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
-        if(r&&r.ok){user.tgLastMorning=d; changed=true}
+        if(r&&r.ok){user.tgLastMorning=d; changed=true; await tgSendHardWord(user)}
       }
       let jp=jParts(d);
       if(jp&&jp.jd===1&&hh===morningH&&user.tgMonthlyOn!==false){let pm=jp.jm===1?[jp.jy-1,12]:[jp.jy,jp.jm-1],key=pm[0]+'-'+pm[1];if(user.tgLastMonthly!==key){let r=await tgSend(user.telegramUserId,buildMonthlyReport(db,user,pm[0],pm[1]));if(r&&r.ok){user.tgLastMonthly=key;changed=true}}}
@@ -1204,7 +1210,7 @@ function parseGambleText(t,base){let kind=gambleKind(t);if(!kind)return null;let
     jalaliToGregorianIso, jalaliDateLabel, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel, seasonStatsFromEpisodes, seasonTotAired, fetchTvMazeShowFull, progressFromShow, ensureSeriesTvMazeData, clampEpisodeAgainstSeason,
     parseSleepHours, suggestCategoryKeyword, catKey, learnedCategory, isIncomeTx, stripBalanceNotes, stripRefNumbers, matchBankStatementItems, ensureStatementReminder, betRollup, betAutoStart, betLatest, betDaysOf, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
-    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, checkRateLimit, clearRateLimit, clientIp, hashPin, genLinkCode, tgApi, tgSend, tgSendDocument, redactForBackup, userSnapshot, backupDbToTelegram, buildProjectsWeekly, funCheck, funMonth, isAdmin, adminOverview, studentMoney, courseDues, projectDues, courseSessions, buildCoursesMonthly, feeRemindersDue, sendFeeReminders, vocabRead, vocabWrite, vocabSummary, wordOfDay, handleTelegramMessage, tgCheckReports, COLS, colOf, cleanItem, shopList, shopAdd, lifeDueLines, checkReminderNotifications, handleTelegramCallback, reminderAct, sendWebPush, vapidKeys, notifyUser, fetchTehranWeatherBrief, buildMorningBrief, buildMonthlyReport, buildWeeklyReport, monthStats, recurringList, nextRecurDate, jParts, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
+    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, checkRateLimit, clearRateLimit, clientIp, hashPin, genLinkCode, tgApi, tgSend, tgSendDocument, redactForBackup, userSnapshot, backupDbToTelegram, buildProjectsWeekly, funCheck, funMonth, isAdmin, adminOverview, studentMoney, courseDues, projectDues, courseSessions, buildCoursesMonthly, feeRemindersDue, sendFeeReminders, vocabRead, vocabWrite, vocabSummary, wordOfDay, hardWord, tgSendHardWord, vocabLearn, handleTelegramMessage, tgCheckReports, COLS, colOf, cleanItem, shopList, shopAdd, lifeDueLines, checkReminderNotifications, handleTelegramCallback, reminderAct, sendWebPush, vapidKeys, notifyUser, fetchTehranWeatherBrief, buildMorningBrief, buildMonthlyReport, buildWeeklyReport, monthStats, recurringList, nextRecurDate, jParts, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
     googleCalendarConfigured, googleCalendarStateCookie, googleCalendarErrorMessage, googleCalendarAuthUrl, exchangeGoogleCalendarCode, googleCalendarAccount, syncGoogleCalendar, calendarFeed, syncAllGoogleCalendars, GOOGLE_CALENDAR_SCOPES,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, GOOGLE_CALENDAR_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
     SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI, AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY };
@@ -1216,7 +1222,7 @@ async function handleApi(request, env) {
     jalaliToGregorianIso, jalaliDateLabel, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel, seasonStatsFromEpisodes, seasonTotAired, fetchTvMazeShowFull, progressFromShow, ensureSeriesTvMazeData, clampEpisodeAgainstSeason,
     parseSleepHours, suggestCategoryKeyword, catKey, learnedCategory, isIncomeTx, stripBalanceNotes, stripRefNumbers, matchBankStatementItems, ensureStatementReminder, betRollup, betAutoStart, betLatest, betDaysOf, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
-    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, checkRateLimit, clearRateLimit, clientIp, hashPin, genLinkCode, tgApi, tgSend, tgSendDocument, redactForBackup, userSnapshot, backupDbToTelegram, buildProjectsWeekly, funCheck, funMonth, isAdmin, adminOverview, studentMoney, courseDues, projectDues, courseSessions, buildCoursesMonthly, feeRemindersDue, sendFeeReminders, vocabRead, vocabWrite, vocabSummary, wordOfDay, handleTelegramMessage, tgCheckReports, COLS, colOf, cleanItem, shopList, shopAdd, lifeDueLines, checkReminderNotifications, handleTelegramCallback, reminderAct, sendWebPush, vapidKeys, notifyUser, fetchTehranWeatherBrief, buildMorningBrief, buildMonthlyReport, buildWeeklyReport, monthStats, recurringList, nextRecurDate, jParts, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
+    refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, checkRateLimit, clearRateLimit, clientIp, hashPin, genLinkCode, tgApi, tgSend, tgSendDocument, redactForBackup, userSnapshot, backupDbToTelegram, buildProjectsWeekly, funCheck, funMonth, isAdmin, adminOverview, studentMoney, courseDues, projectDues, courseSessions, buildCoursesMonthly, feeRemindersDue, sendFeeReminders, vocabRead, vocabWrite, vocabSummary, wordOfDay, hardWord, tgSendHardWord, vocabLearn, handleTelegramMessage, tgCheckReports, COLS, colOf, cleanItem, shopList, shopAdd, lifeDueLines, checkReminderNotifications, handleTelegramCallback, reminderAct, sendWebPush, vapidKeys, notifyUser, fetchTehranWeatherBrief, buildMorningBrief, buildMonthlyReport, buildWeeklyReport, monthStats, recurringList, nextRecurDate, jParts, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
     googleCalendarConfigured, googleCalendarStateCookie, googleCalendarErrorMessage, googleCalendarAuthUrl, exchangeGoogleCalendarCode, googleCalendarAccount, syncGoogleCalendar, calendarFeed, syncAllGoogleCalendars, GOOGLE_CALENDAR_SCOPES,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, GOOGLE_CALENDAR_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
     SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, YOUTUBE_REDIRECT_URI, AI_PROVIDER_API_KEY, AI_MODEL, RAPIDAPI_KEY, STOCK_API_KEY } = H;
@@ -1298,6 +1304,166 @@ async function handleApi(request, env) {
  // بتواند کل عملیات را برگرداند (عملیات گروهی روی دادهٔ مالی باید برگشت‌پذیر باشد).
  if(p==='/api/transactions/recategorize'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),d=await body(req);if(d.revert){let n=0;for(const t of db.transactions){if(t.userId===user.id&&t.catPrev){t.category=t.catPrev;delete t.catPrev;delete t.catRule;delete t.catAt;n++}}await write(db);return json(res,200,{reverted:n,message:n?'دستهٔ '+n+' تراکنش به حالت قبل برگشت.':'چیزی برای بازگردانی نیست (عملیات قبلی revert شده یا انجام نشده).'})}let rules=[];if(Array.isArray(d.rules))for(const r of d.rules.slice(0,40)){if(!r)continue;let w=String(r.word||r.keyword||'').trim().slice(0,40),c=String(r.cat||r.category||'').trim().slice(0,24);if(w.length>1&&c)rules.push({word:w,cat:c})}let scope=String(d.scope||'misc'),from=d.from?String(d.from):null,to=d.to?String(d.to):null,expenseOnly=!!d.expenseOnly,minAmount=d.minAmount!=null&&d.minAmount!==''?Number(d.minAmount):null,account=d.account?String(d.account):null,limit=Math.min(Number(d.limit)||400,2000);let mine=db.transactions.filter(t=>t.userId===user.id&&t.kind!=='transfer');if(from)mine=mine.filter(t=>String(t.date||'')>=from);if(to)mine=mine.filter(t=>String(t.date||'')<=to);if(account)mine=mine.filter(t=>String(t.account||'')===account);if(minAmount!=null&&isFinite(minAmount))mine=mine.filter(t=>Number(t.amount)>=minAmount);if(expenseOnly)mine=mine.filter(t=>t.kind!=='income');if(scope==='misc')mine=mine.filter(t=>(normalizeCategoryName(t.category)||'متفرقه')==='متفرقه');else if(scope==='auto')mine=mine.filter(t=>!t.catManual);let changes=[],summary={},skippedSame=0,skippedNoMatch=0,sumAmount=0;for(const t of mine){let r=categorizeTransaction(t,rules);if(!r.category){if(r.reason==='no-match')skippedNoMatch++;else skippedSame++;continue}let cur=normalizeCategoryName(t.category)||'متفرقه',rawCat=String(t.category||'').trim()||'متفرقه';if(normalizeCategoryName(r.category)===cur){skippedSame++;continue}changes.push({id:t.id,date:t.date||null,title:String(t.title||''),amount:Number(t.amount)||0,kind:t.kind||'expense',account:t.account||null,from:rawCat,to:r.category,keyword:r.keyword||null});summary[r.category]=summary[r.category]||{count:0,sum:0};summary[r.category].count++;summary[r.category].sum+=Number(t.amount)||0;sumAmount+=Number(t.amount)||0;if(d.apply){t.catPrev=rawCat;t.catRule=r.keyword||null;t.catAt=Date.now();t.category=r.category}}if(d.apply&&changes.length)await write(db);return json(res,200,{applied:!!d.apply&&changes.length>0,scanned:mine.length,matched:changes.length,changesTotal:changes.length,changes:changes.slice(0,limit),truncated:changes.length>limit,untouched:skippedSame+skippedNoMatch,noMatch:skippedNoMatch,alreadyOk:skippedSame,sumAmount,summary,scope,rulesUsed:rules.length,revertible:!!d.apply&&changes.length>0})}
  if(p==='/api/shop/share'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),d=await body(req);if(d.reset||!user.shopCode)user.shopCode=randHex(8);await write(db);return json(res,200,{code:user.shopCode})}
+ // ── Personal-site bridge (e.g. seyfikhani.ir) ─────────────────────────────
+ // A server-side proxy on the user's own site calls /api/ext/* with a scoped
+ // bearer token (never a session cookie). Only the collections granted by the
+ // token's scopes are reachable; finance, contacts, notes etc. are not.
+ // Tokens are managed by the signed-in user under /api/site-tokens; only a
+ // SHA-256 of each token is stored.
+ const extSha256=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+ if(p==='/api/site-tokens'||p.startsWith('/api/site-tokens/')){
+   let db=await read(),user=auth(req,res,db);db.siteTokens??=[];
+   const SCOPES=['projects','projectFiles','courses'];
+   const view=t=>({id:t.id,label:t.label,scopes:t.scopes,createdAt:t.createdAt,lastUsedAt:t.lastUsedAt||null,prefix:t.prefix});
+   if(p==='/api/site-tokens'&&req.method==='GET')return json(res,200,{items:db.siteTokens.filter(t=>t.userId===user.id).map(view)});
+   if(p==='/api/site-tokens'&&req.method==='POST'){
+     let d=await body(req),scopes=(Array.isArray(d.scopes)?d.scopes:['projects','courses']).filter(s=>SCOPES.includes(s));
+     if(!scopes.length)return json(res,400,{error:'حداقل یک دسترسی را انتخاب کن.'});
+     if(db.siteTokens.filter(t=>t.userId===user.id).length>=5)return json(res,400,{error:'حداکثر ۵ توکن فعال مجاز است؛ یکی را لغو کن.'});
+     let token='lfs_'+randHex(32),t={id:id(),userId:user.id,label:String(d.label||'سایت شخصی').slice(0,60),scopes:[...new Set(scopes)],hash:await extSha256(token),prefix:token.slice(0,10),createdAt:Date.now()};
+     db.siteTokens.push(t);await write(db);return json(res,201,{...view(t),token});
+   }
+   if(req.method==='DELETE'){let tid=p.split('/')[3],n=db.siteTokens.length;db.siteTokens=db.siteTokens.filter(t=>!(t.id===tid&&t.userId===user.id));if(db.siteTokens.length===n)return json(res,404,{error:'توکن پیدا نشد.'});await write(db);return json(res,200,{ok:true})}
+   return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+ }
+ if(p.startsWith('/api/ext/')){
+   // X-LifeOS-Token: some hosting networks (e.g. Iranian cPanel hosts) silently drop outbound requests that carry an Authorization header
+   let m=String(req.headers.get('x-lifeos-token')||'').trim().match(/^(lfs_[0-9a-f]{64})$/)||String(req.headers.get('authorization')||'').match(/^Bearer\s+(lfs_[0-9a-f]{64})$/);
+   if(!m)return json(res,401,{error:'توکن لازم است.'});
+   let rl=checkRateLimit('ext:'+m[1].slice(0,16),240,60e3);if(!rl.ok)return json(res,429,{error:'درخواست زیاد. '+rl.retrySec+' ثانیه صبر کن.'});
+   let db=await read(),h=await extSha256(m[1]),tok=(db.siteTokens||[]).find(t=>timingSafeEqualHex(String(t.hash||''),h));
+   let user=tok&&db.users.find(x=>x.id===tok.userId&&!x.disabled);
+   if(!user)return json(res,401,{error:'توکن نامعتبر یا لغوشده است.'});
+   const scopes=new Set(tok.scopes||[]);
+   const EXT_COLS={projects:'projects',cards:'projects',projectProcesses:'projects',projectContracts:'projectFiles',projectFinancials:'projectFiles',projectSupplies:'projectFiles',courses:'courses',students:'courses'};
+   const can=name=>EXT_COLS[name]&&scopes.has(EXT_COLS[name]);
+   const mine=name=>colOf(db,name).filter(x=>x.userId===user.id);
+   const parts=p.split('/').slice(3);   // e.g. ['col','projects','<id>']
+   if(Date.now()-(tok.lastUsedAt||0)>3600e3){tok.lastUsedAt=Date.now();db.__touch=true}
+   const done=async(status,obj)=>{if((req.method!=='GET'&&status<300)||db.__touch){delete db.__touch;await write(db)}return json(res,status,obj)};
+   const remNotes=(...xs)=>xs.filter(Boolean).join('\n').slice(0,2000);
+   const clean=x=>{let o={...x};delete o.userId;return o};
+   // A reminder created here is an ordinary LifeOS reminder (db.reminders), so the
+   // existing cron → Telegram/push path sends it (the cron needs a time).
+   const putReminder=(r,d)=>{if((d.date&&d.date!==r.date)||(d.time&&d.time!==r.time)){delete r.notifiedAt;delete r.leadSentAt}Object.assign(r,d,{whenLabel:d.date||r.date})};
+   if(parts[0]==='me'&&req.method==='GET')return done(200,{name:user.name,scopes:[...scopes],telegram:!!user.telegramUserId,today:today()});
+   if(parts[0]==='col'){
+     let name=parts[1],iid=parts[2];if(!can(name))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
+     let list=colOf(db,name);
+     // optional paging (?offset=&limit=): some hosts cut long TLS replies mid-stream, so the proxy pulls small pages
+     const page=all=>{let lim=Math.min(500,Math.max(0,Number(u.searchParams.get('limit'))||0)),off=Math.max(0,Number(u.searchParams.get('offset'))||0);return lim?{items:all.slice(off,off+lim),total:all.length}:{items:all}};
+     if(!iid&&req.method==='GET')return done(200,page(mine(name).map(clean)));
+     if(!iid&&req.method==='POST'){
+       let raw=await body(req);
+       // batch insert (useCol.addMany, e.g. the 35 standard stages): same checks per row
+       if(Array.isArray(raw.items)){
+         let made=[],parentCol=name==='students'?'courses':'projects',parents=new Set(mine(parentCol).map(x=>x.id));
+         for(const x of raw.items.slice(0,200)){let d=cleanItem(x),pid=name==='students'?d.courseId:d.projectId;if(name!=='projects'&&name!=='courses'&&!parents.has(pid))continue;
+           if(name==='projectProcesses'){let ex=list.find(y=>y.userId===user.id&&y.projectId===d.projectId&&y.department===d.department&&y.title===d.title);if(ex){made.push(clean(ex));continue}}
+           let r={id:id(),userId:user.id,...d,createdAt:Date.now(),updatedAt:Date.now()};list.push(r);made.push(clean(r))}
+         return done(201,{items:made});
+       }
+       let d=cleanItem(raw);
+       if(name!=='projects'&&name!=='courses'){let parent=name==='students'?'courses':'projects',pid=name==='students'?d.courseId:d.projectId;if(!mine(parent).some(x=>x.id===pid))return json(res,400,{error:'والد معتبر نیست.'})}
+       if(name==='projectProcesses'){let ex=list.find(x=>x.userId===user.id&&x.projectId===d.projectId&&x.department===d.department&&x.title===d.title);if(ex)return done(200,clean(ex))}
+       if(mine(name).length>=5000)return json(res,400,{error:'این مجموعه پر است.'});
+       let r={id:id(),userId:user.id,...d,createdAt:Date.now(),updatedAt:Date.now()};
+       list.push(r);return done(201,clean(r));
+     }
+     let ix=list.findIndex(x=>x.id===iid&&x.userId===user.id);if(ix<0)return json(res,404,{error:'مورد پیدا نشد.'});
+     if(req.method==='GET')return done(200,clean(list[ix]));
+     if(req.method==='PATCH'){
+       let d=cleanItem(await body(req));delete d.projectId;delete d.courseId;   // no moving rows between parents
+       let it=list[ix];Object.assign(it,d,{updatedAt:Date.now()});
+       return done(200,clean(it));
+     }
+     if(req.method==='DELETE'){
+       let it=list[ix];
+       if(name==='projects'||name==='courses'){let kids=name==='projects'?['cards','projectProcesses','projectContracts','projectFinancials','projectSupplies']:['students'],key=name==='projects'?'projectId':'courseId';
+         if(kids.some(k=>colOf(db,k).some(x=>x.userId===user.id&&x[key]===it.id)))return json(res,409,{error:'اول زیرمجموعه‌ها را حذف کن (یا از داخل LifeOS حذف کن).'})}
+       for(const rid of [it.reminderId,it.contractRenewalReminderId])if(rid)db.reminders=db.reminders.filter(x=>!(x.id===rid&&x.userId===user.id));
+       list.splice(ix,1);db.attachments=(db.attachments||[]).filter(a=>!(a.ownerType==='col'&&a.ownerId===iid));return done(200,{ok:true});
+     }
+     return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+   }
+   // Student payments (mirrors CoursesPage): optional mirror into Finance as an «آموزش» transaction.
+   if(parts[0]==='students'&&parts[2]==='payments'){
+     if(!scopes.has('courses'))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
+     let st=mine('students').find(x=>x.id===parts[1]);if(!st)return json(res,404,{error:'دانشجو پیدا نشد.'});
+     let course=mine('courses').find(x=>x.id===st.courseId)||{},KIND={full:'پرداخت کامل',deposit:'بیعانه',installment:'قسط',refund:'بازپرداخت'};
+     st.payments=Array.isArray(st.payments)?st.payments:[];
+     let pay=parts[3]&&st.payments.find(x=>x.id===parts[3]);if(parts[3]&&!pay)return json(res,404,{error:'پرداخت پیدا نشد.'});
+     const txTitle=x=>(x.kind==='refund'?'بازپرداخت':KIND[x.kind])+' شهریه · '+st.name+' · '+(course.name||'');
+     const dropTx=x=>{if(x.txId)db.transactions=db.transactions.filter(t=>!(t.id===x.txId&&t.userId===user.id));x.txId=null};
+     const putTx=x=>{let t=x.txId&&db.transactions.find(t=>t.id===x.txId&&t.userId===user.id),f={title:txTitle(x),amount:x.amount,kind:x.kind==='refund'?'expense':'income',date:x.date};if(t)Object.assign(t,f);else{t={id:id(),userId:user.id,...f,category:'آموزش',account:'بدون حساب',recurrence:null,recurrenceId:null,receipt:null,tripId:null,tags:[],createdAt:Date.now()};db.transactions.push(t);x.txId=t.id}};
+     if(req.method==='DELETE'&&pay){dropTx(pay);st.payments=st.payments.filter(x=>x!==pay);st.updatedAt=Date.now();return done(200,{ok:true})}
+     if(req.method==='POST'||req.method==='PATCH'){
+       let d=await body(req),x=pay||{id:Math.random().toString(36).slice(2,10),txId:null};
+       let kind=d.kind!==undefined?d.kind:x.kind,amount=d.amount!==undefined?Math.round(Number(d.amount)):x.amount;
+       if(!KIND[kind])return json(res,400,{error:'نوع پرداخت نامعتبر است.'});if(!(amount>0))return json(res,400,{error:'مبلغ را بنویس.'});
+       Object.assign(x,{kind,amount,date:/^\d{4}-\d{2}-\d{2}$/.test(d.date||'')?d.date:(x.date||today()),method:String(d.method??x.method??'').slice(0,60),note:String(d.note??x.note??'').slice(0,300)});
+       let toFin=d.toFinance!==undefined?!!d.toFinance:!!x.txId;if(toFin)putTx(x);else dropTx(x);
+       if(!pay)st.payments.push(x);st.updatedAt=Date.now();return done(pay?200:201,clean(st));
+     }
+     return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+   }
+   // Project report PDF → Telegram, uploaded in pieces (the site's host cuts long transfers).
+   // Pieces live in their own kv rows (outside the state:v2: blob) until «report-send» joins them.
+   if(parts[0]==='report-chunk'||parts[0]==='report-send'){
+     if(!scopes.has('projects'))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
+     if(req.method!=='POST')return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+     let d=await body(req),up=String(d.uploadId||''),total=Number(d.total)||0;
+     if(!/^[0-9a-f]{16,32}$/.test(up)||total<1||total>500)return json(res,400,{error:'شناسهٔ ارسال نامعتبر است.'});
+     const key=n=>'ext-upload:'+user.id+':'+up+':'+n;
+     if(parts[0]==='report-chunk'){let n=Number(d.n),piece=String(d.data||'');if(!(n>=0&&n<total)||!/^[A-Za-z0-9+/=]{1,60000}$/.test(piece))return json(res,400,{error:'تکهٔ فایل نامعتبر است.'});
+       await env.DB.prepare('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at').bind(key(n),piece,Date.now()).run();return json(res,200,{ok:true})}
+     let b64='';for(let n=0;n<total;n++){let row=await env.DB.prepare('SELECT value FROM kv WHERE key=?').bind(key(n)).first();if(!row)return json(res,400,{error:'بخشی از فایل نرسید؛ دوباره بفرست.'});b64+=row.value}
+     const drop=async()=>{for(let n=0;n<total;n++)await env.DB.prepare('DELETE FROM kv WHERE key=?').bind(key(n)).run()};
+     let bytes;try{bytes=bytesFromBase64(b64)}catch(e){await drop();return json(res,400,{error:'فایل PDF معتبر نیست.'})}
+     if(bytes.length<5||String.fromCharCode(...bytes.slice(0,5))!=='%PDF-'){await drop();return json(res,400,{error:'فایل PDF معتبر نیست.'})}
+     if(bytes.length>20*1024*1024){await drop();return json(res,413,{error:'حجم PDF بیش از ۲۰ مگابایت است.'})}
+     if(!TELEGRAM_BOT_TOKEN||!user.telegramUserId){await drop();return json(res,503,{error:'PDF ساخته شد ولی ارسال نشد: اول بات تلگرام را در LifeOS (تنظیمات → اتصال تلگرام) وصل کن.'})}
+     let name=String(d.filename||'report.pdf').replace(/[\\/<>:"|?*\u0000-\u001f]/g,'_').slice(0,150)||'report.pdf';if(!/\.pdf$/i.test(name))name+='.pdf';
+     try{await tgSendDocument(user.telegramUserId,bytes,name,'application/pdf',String(d.caption||'').slice(0,900));await drop();return json(res,200,{ok:true,filename:name})}
+     catch(e){await drop();return json(res,502,{error:'ارسال PDF به تلگرام ناموفق بود.'})}
+   }
+   // Course payments mirrored into Finance (CoursesPage): only «آموزش» transactions are reachable.
+   if(parts[0]==='transactions'){
+     if(!scopes.has('courses'))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
+     let tid=parts[1],d=req.method==='DELETE'?{}:await body(req),pick=x=>{let o={};if(x.title!==undefined)o.title=String(x.title).trim().slice(0,200);if(x.amount!==undefined){o.amount=Number(x.amount);if(!(o.amount>0))throw 0}if(x.kind!==undefined)o.kind=x.kind==='income'?'income':'expense';if(x.date!==undefined){if(!/^\d{4}-\d{2}-\d{2}$/.test(x.date))throw 0;o.date=x.date}return o};
+     let o;try{o=pick(d)}catch(e){return json(res,400,{error:'مبلغ یا تاریخ نامعتبر است.'})}
+     if(!tid&&req.method==='POST'){if(!o.title||!o.amount)return json(res,400,{error:'شرح و مبلغ الزامی است.'});let t={id:id(),userId:user.id,kind:'expense',date:today(),...o,category:'آموزش',account:'بدون حساب',recurrence:null,recurrenceId:null,receipt:null,tripId:null,tags:[],source:'site',createdAt:Date.now()};db.transactions.push(t);return done(201,clean(t))}
+     let t=tid&&db.transactions.find(x=>x.id===tid&&x.userId===user.id&&x.category==='آموزش');if(!t)return json(res,404,{error:'تراکنش پیدا نشد.'});
+     if(req.method==='DELETE'){db.transactions=db.transactions.filter(x=>x!==t);return done(200,{ok:true})}
+     if(req.method==='PATCH'){Object.assign(t,o);return done(200,clean(t))}
+     return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+   }
+   if(parts[0]==='reminders'){
+     if(!scopes.has('projects')&&!scopes.has('courses'))return json(res,403,{error:'این بخش برای این توکن مجاز نیست.'});
+     // Only reminders tied to a project/course the token can see are reachable.
+     // reachable: made through this bridge, tied to a visible project/course, or referenced by a stage/contract row
+     const refIds=new Set(scopes.has('projects')?[...mine('projectProcesses').map(x=>x.reminderId),...mine('projectContracts').map(x=>x.contractRenewalReminderId)].filter(Boolean):[]);
+     const linked=r=>r.userId===user.id&&(r.source==='site'||refIds.has(r.id)||(r.projectId&&scopes.has('projects')&&mine('projects').some(x=>x.id===r.projectId))||(r.courseId&&scopes.has('courses')&&mine('courses').some(x=>x.id===r.courseId)));
+     const pick=d=>{let o={};if(d.title!==undefined)o.title=String(d.title).trim().slice(0,200);if(d.date!==undefined){if(!/^\d{4}-\d{2}-\d{2}$/.test(d.date))throw 'date';o.date=d.date}if(d.time!==undefined){if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(d.time))throw 'time';o.time=d.time}if(d.notes!==undefined)o.notes=String(d.notes).slice(0,2000);if(d.done!==undefined)o.done=!!d.done;if(d.whenLabel!==undefined)o.whenLabel=String(d.whenLabel).slice(0,60);if(d.leadMinutes!==undefined)o.leadMinutes=[10,30,60,180,1440].includes(Number(d.leadMinutes))?Number(d.leadMinutes):0;return o};
+     let rid=parts[1];
+     if(!rid&&req.method==='GET'){let all=db.reminders.filter(linked).map(clean).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time||'').localeCompare(String(b.time||''))),lim=Math.min(500,Math.max(0,Number(u.searchParams.get('limit'))||0)),off=Math.max(0,Number(u.searchParams.get('offset'))||0);return done(200,lim?{items:all.slice(off,off+lim),total:all.length}:{items:all})}
+     let d=req.method==='GET'||req.method==='DELETE'?{}:await body(req),o;
+     try{o=pick(d)}catch(e){return json(res,400,{error:e==='time'?'ساعت باید به شکل HH:MM باشد (برای ارسال تلگرام لازم است).':'تاریخ نامعتبر است.'})}
+     if(!rid&&req.method==='POST'){
+       if(!o.title||!o.date)return json(res,400,{error:'عنوان و تاریخ یادآوری لازم است.'});
+       o.time=o.time||'09:00';   // the Telegram cron only sends reminders that have a time
+       let r={id:id(),userId:user.id,done:false,recurrence:null,taskId:null,leadMinutes:0,createdAt:Date.now(),source:'site',...o,whenLabel:o.date};
+       if(d.projectId)r.projectId=String(d.projectId);else if(d.courseId)r.courseId=String(d.courseId);
+       if((r.projectId&&!mine('projects').some(x=>x.id===r.projectId))||(r.courseId&&!mine('courses').some(x=>x.id===r.courseId)))return json(res,400,{error:'پروژه یا دورهٔ این یادآوری پیدا نشد.'});
+       db.reminders.push(r);return done(201,clean(r));
+     }
+     let r=db.reminders.find(x=>x.id===rid&&linked(x));if(!r)return json(res,404,{error:'یادآوری پیدا نشد.'});
+     if(req.method==='DELETE'){db.reminders=db.reminders.filter(x=>x!==r);for(const it of mine('projectProcesses'))if(it.reminderId===r.id){it.reminderId=null;it.reminderDate=''}return done(200,{ok:true})}
+     if(req.method==='PATCH'){putReminder(r,o);return done(200,clean(r))}
+     return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+   }
+   return json(res,404,{error:'مسیر پیدا نشد.'});
+ }
  // Checklist rows are identified by their project, unit, and fixed title. A
  // late template-seed request must never create a second "todo" row that can
  // overwrite a user's just-completed stage.
@@ -1429,8 +1595,9 @@ let items=(Array.isArray(data)?data:[]).slice(0,15).map(x=>{let s=x.show||{};ret
  if(p==='/api/courses/due'&&req.method==='GET'){let db=await read(),user=auth(req,res,db);return json(res,200,{items:courseDues(db,user,today(),Math.min(60,Math.max(0,Number(u.searchParams.get('days'))||7)))})}
  if(p==='/api/admin/overview'&&req.method==='GET'){let db=await read(),user=auth(req,res,db);if(!isAdmin(db,user))return json(res,403,{error:'فقط مدیر سایت به این بخش دسترسی دارد.'});return json(res,200,{...adminOverview(db),sentMsgs:(user.sentMsgs||[]).slice().reverse()})}
  if(p==='/api/vocab'&&req.method==='GET'){let db=await read(),user=auth(req,res,db);return json(res,200,{state:await vocabRead(user.id)})}
+ if(p==='/api/vocab/learned'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),b=await body(req),w=String((b&&b.w)||'').slice(0,80);if(!w)return json(res,400,{error:'واژه لازم است.'});return (await vocabLearn(user.id,w))?json(res,200,{ok:true}):json(res,404,{error:'این واژه در پیشرفت تو نیست.'})}
  if(p==='/api/vocab'&&req.method==='PUT'){let db=await read(),user=auth(req,res,db),t=await req.text();if(t.length>1500000)return json(res,413,{error:'حجم پیشرفت زیاد است.'});let d;try{d=JSON.parse(t)}catch(e){return json(res,400,{error:'دادهٔ نامعتبر'})}let st=d&&d.state;if(!st||typeof st!=='object'||!st.cards||typeof st.cards!=='object'||Array.isArray(st.cards))return json(res,400,{error:'دادهٔ نامعتبر'});await vocabWrite(user.id,{v:1,cards:st.cards,settings:st.settings||{},days:st.days||{},stars:Array.isArray(st.stars)?st.stars:[],quiz:st.quiz||{},savedAt:Date.now()});return json(res,200,{ok:true})}
- if(p==='/api/vocab/summary'&&req.method==='GET'){let db=await read(),user=auth(req,res,db),d=today(),st=await vocabRead(user.id);return json(res,200,{summary:vocabSummary(st,d),word:u.searchParams.get('word')==='1'?await wordOfDay(user.id,d,st):undefined})}
+ if(p==='/api/vocab/summary'&&req.method==='GET'){let db=await read(),user=auth(req,res,db),d=today(),st=await vocabRead(user.id);return json(res,200,{summary:vocabSummary(st,d),word:u.searchParams.get('word')==='1'?await wordOfDay(user.id,d,st):undefined,hard:u.searchParams.get('hard')==='1'?await hardWord(st):undefined})}
  if(p==='/api/courses/report'&&(req.method==='GET'||req.method==='POST')){let db=await read(),user=auth(req,res,db),jp=jParts(today()),pm=u.searchParams.get('prev')==='0'?[jp.jy,jp.jm]:(jp.jm===1?[jp.jy-1,12]:[jp.jy,jp.jm-1]),t=buildCoursesMonthly(db,user,pm[0],pm[1]);if(req.method==='GET')return json(res,200,{text:t,fees:feeRemindersDue(db,user,today()).map(x=>x.s.name)});if(!t)return json(res,400,{error:'دوره‌ای برای گزارش نیست.'});if(!TELEGRAM_BOT_TOKEN||!user.telegramUserId)return json(res,503,{error:'اول بات تلگرام را وصل کن.'});let r=await tgSend(user.telegramUserId,t);return r&&r.ok?json(res,200,{ok:true}):json(res,502,{error:'ارسال به تلگرام ناموفق بود.'})}
  if(p==='/api/projects/report-pdf'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),d=await body(req);if(!TELEGRAM_BOT_TOKEN||!user.telegramUserId)return json(res,503,{error:'PDF ساخته شد ولی ارسال نشد: اول بات تلگرام را از تنظیمات → اتصال‌ها وصل کن.'});let m=String(d.data||'').match(/^data:application\/pdf;base64,([A-Za-z0-9+/=]+)$/);if(!m)return json(res,400,{error:'فایل PDF معتبر نیست.'});let bytes=bytesFromBase64(m[1]);if(bytes.length>20*1024*1024)return json(res,413,{error:'حجم PDF بیش از ۲۰ مگابایت است.'});let name=String(d.filename||'report.pdf').replace(/[\\/<>:"|?*\u0000-\u001f]/g,'_').slice(0,150)||'report.pdf';if(!/\.pdf$/i.test(name))name+='.pdf';try{await tgSendDocument(user.telegramUserId,bytes,name,'application/pdf',String(d.caption||'').slice(0,900));return json(res,200,{ok:true,filename:name})}catch(e){return json(res,502,{error:'ارسال PDF به تلگرام ناموفق بود.'})}}
  if(p==='/api/projects/report'&&(req.method==='GET'||req.method==='POST')){let db=await read(),user=auth(req,res,db),t=buildProjectsWeekly(db,user,today());if(req.method==='GET')return json(res,200,{text:t});if(!t)return json(res,400,{error:'پروژهٔ فعالی نداری.'});if(!TELEGRAM_BOT_TOKEN||!user.telegramUserId)return json(res,503,{error:'اول بات تلگرام را وصل کن.'});let r=await tgSend(user.telegramUserId,t);return r&&r.ok?json(res,200,{ok:true}):json(res,502,{error:'ارسال به تلگرام ناموفق بود.'})}
@@ -1723,7 +1890,7 @@ export default {
     if (url.pathname.startsWith('/s/') || url.pathname.startsWith('/api/s/')) return handleSharedShop(url, request, env);
     if (!url.pathname.startsWith('/api/')) {
       // 🚧 دروازه‌ی لاگین: بدون نشست معتبر، هیچ محتوایی سرو نمی‌شود — فقط صفحه‌ی ورود
-      const isPublic = /^\/design\/login-page(\.html)?$/.test(url.pathname) || url.pathname === '/shared-theme.css' || url.pathname === '/manifest.webmanifest' || /^\/assets\/img\/(icon-\d+|apple-touch-icon|favicon-32|logo-[a-z]+)\.png$/.test(url.pathname) || url.pathname === '/favicon.ico';
+      const isPublic = /^\/design\/login-page(\.html)?$/.test(url.pathname) || url.pathname === '/shared-theme.css' || url.pathname === '/shared-ui.js' || url.pathname === '/shared-shell.css' || /^\/assets\/fonts\/vazirmatn-(arabic|latin)\.woff2$/.test(url.pathname) || url.pathname === '/manifest.webmanifest' || /^\/assets\/img\/(icon-\d+|apple-touch-icon|favicon-32|logo-[a-z]+)\.png$/.test(url.pathname) || url.pathname === '/favicon.ico';
       if (!isPublic) {
         let authed = false;
         try {

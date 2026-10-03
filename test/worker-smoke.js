@@ -341,6 +341,31 @@ async function main() {
       check('vocab: read back', Object.keys((await call('/api/vocab', { cookie })).d.state.cards).length === 3);
       const sm = (await call('/api/vocab/summary', { cookie })).d.summary;
       check('vocab summary: due/new/learning/mastered/streak', sm.due === 1 && sm.newLeft === 7 && sm.learning === 2 && sm.mastered === 1 && sm.streak === 2, JSON.stringify(sm));
+      check('vocab summary: no hard word before any «نمی‌دانستم»', (await call('/api/vocab/summary?hard=1', { cookie })).d.hard === null);
+      check('vocab summary: hard word only when asked', !('hard' in (await call('/api/vocab/summary', { cookie })).d) || (await call('/api/vocab/summary', { cookie })).d.hard === undefined);
+      { // morning brief on Telegram carries one random hard word
+        await call('/api/vocab', { method: 'PUT', cookie, body: { state: { ...st, cards: { ...st.cards, abandon: { b: 1, bad: 2, due: 0 } } } } });
+        await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777002' } });
+        const sent = [], realFetch = globalThis.fetch, realAssets = env.ASSETS;
+        env.TELEGRAM_BOT_TOKEN = 'TEST';
+        env.ASSETS = { fetch: async r => new URL(r.url).pathname === '/vocab/words.json' ? new Response(JSON.stringify([['abandon', ['ترک کردن'], 0, 'A1', 'فعل', 0, 'They abandon the car.', 0, 9, 'ماشین را رها می‌کنند.']])) : new Response('not found', { status: 404 }) };
+        globalThis.fetch = async (url, init) => {
+          if (String(url).includes('api.telegram.org')) { if (typeof init.body === 'string') sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { headers: { 'content-type': 'application/json' } }); }
+          return new Response('{}', { status: 404 });
+        };
+        try { await worker.fetch(new Request('https://worker-smoke.local/api/telegram/webhook', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ update_id: 1, message: { message_id: 1, date: 1, chat: { id: 777002, type: 'private' }, from: { id: 777002 }, text: '/صبح' } }) }), env, { waitUntil() {} }); }
+        finally { globalThis.fetch = realFetch; env.ASSETS = realAssets; delete env.TELEGRAM_BOT_TOKEN; }
+        const hm = sent.find(m => /🧠 واژهٔ سخت/.test(m.text || ''));
+        check('telegram morning brief: random hard word with meaning + example', !!hm && /🧠 واژهٔ سخت: abandon فعل — ترک کردن/.test(hm.text) && /They abandon the car/.test(hm.text), JSON.stringify(sent.map(m => m.text)).slice(-300));
+        check('hard word message has a «یاد گرفتم» button', !!hm && hm.reply_markup.inline_keyboard[0][0].callback_data === 'vl:abandon');
+        globalThis.fetch = async () => new Response(JSON.stringify({ ok: true, result: {} }), { headers: { 'content-type': 'application/json' } }); env.TELEGRAM_BOT_TOKEN = 'TEST';
+        try { await worker.fetch(new Request('https://worker-smoke.local/api/telegram/webhook', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ update_id: 2, callback_query: { id: 'q1', from: { id: 777002 }, data: 'vl:abandon', message: { message_id: 5, chat: { id: 777002 }, text: 'x' } } }) }), env, { waitUntil() {} }); }
+        finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; }
+        const learned = (await call('/api/vocab', { cookie })).d.state.cards.abandon;
+        check('«یاد گرفتم» in Telegram masters the word and drops it from hard words', learned.b === 6 && learned.bad === 0 && (await call('/api/vocab/summary?hard=1', { cookie })).d.hard === null, JSON.stringify(learned));
+        check('POST /api/vocab/learned: unknown word -> 404', (await call('/api/vocab/learned', { method: 'POST', cookie, body: { w: 'nope-xyz' } })).status === 404);
+        check('POST /api/vocab/learned: known word -> 200', (await call('/api/vocab/learned', { method: 'POST', cookie, body: { w: 'apple' } })).status === 200 && (await call('/api/vocab', { cookie })).d.state.cards.apple.b === 6);
+      }
       check('vocab: bad payload refused', (await call('/api/vocab', { method: 'PUT', cookie, body: { state: { cards: [] } } })).status === 400);
       check('vocab: anonymous 401', (await call('/api/vocab')).status === 401);
       check('db row stays small (vocab not inside main db)', !JSON.stringify((await call('/api/me', { cookie })).d).includes('cladding'));
@@ -656,6 +681,136 @@ async function main() {
     check('worker: OAuth connect fails closed with a clear 503 when secrets are absent', wc.status === 503 && /Google Calendar/.test(wc.d.error || ''), JSON.stringify(wc.d));
     const wy = await call('/api/integrations/google-calendar/sync', { method: 'POST', cookie, body: {} });
     check('worker: manual sync requires a connected account', wy.status === 400 && /وصل/.test(wy.d.error || ''), JSON.stringify(wy.d));
+  }
+
+  console.log('\n[W17] personal-site bridge: scoped tokens + /api/ext/*');
+  {
+    const ext = async (p, { method = 'GET', token, body = null } = {}) => {
+      const headers = {};
+      if (token) headers.authorization = 'Bearer ' + token;
+      let b; if (body !== null) { headers['content-type'] = 'application/json'; b = JSON.stringify(body); }
+      const res = await worker.fetch(new Request('https://worker-smoke.local' + p, { method, headers, body: b }), env, {});
+      const text = await res.text(); let d = null; try { d = text ? JSON.parse(text) : null; } catch (e) {}
+      if (res.status === 500) check(`no 500 on ${method} ${p}`, false, String(text).slice(0, 160));
+      return { status: res.status, d };
+    };
+    check('site tokens need a session', (await call('/api/site-tokens')).status === 401);
+    const mk = await call('/api/site-tokens', { method: 'POST', cookie, body: { label: 'seyfikhani.ir', scopes: ['projects', 'courses'] } });
+    const token = mk.d && mk.d.token;
+    check('create site token -> 201 + plaintext token once', mk.status === 201 && /^lfs_[0-9a-f]{64}$/.test(token || ''), JSON.stringify(mk.d));
+    const listed = await call('/api/site-tokens', { cookie });
+    check('token list never returns the token or its hash', listed.status === 200 && listed.d.items.length >= 1 && !JSON.stringify(listed.d).includes(token) && !JSON.stringify(listed.d).includes('"hash"'));
+    check('ext without token -> 401', (await ext('/api/ext/me')).status === 401);
+    check('ext with a cookie but no token -> 401', (await call('/api/ext/me', { cookie })).status === 401);
+    check('ext with a wrong token -> 401', (await ext('/api/ext/me', { token: 'lfs_' + '0'.repeat(64) })).status === 401);
+    const viaHeader = await worker.fetch(new Request('https://worker-smoke.local/api/ext/me', { headers: { 'x-lifeos-token': token } }), env, {});
+    check('token also accepted via X-LifeOS-Token (hosts that drop Authorization)', viaHeader.status === 200);
+    const meR = await ext('/api/ext/me', { token });
+    check('ext /me -> scopes', meR.status === 200 && meR.d.scopes.includes('projects') && meR.d.scopes.includes('courses'), JSON.stringify(meR.d));
+
+    // projects: both directions share one record
+    const proj = await ext('/api/ext/col/projects', { method: 'POST', token, body: { name: 'نمای ویلا لواسان', client: 'آقای الف' } });
+    check('site creates a project -> 201', proj.status === 201 && proj.d.id && !('userId' in proj.d), JSON.stringify(proj.d));
+    const inApp = (await call('/api/col/projects', { cookie })).d.items.find(x => x.id === proj.d.id);
+    check('…and LifeOS sees it', !!inApp && inApp.client === 'آقای الف');
+    await call('/api/col/projects/' + proj.d.id, { method: 'PATCH', cookie, body: { deadline: '2026-12-01' } });
+    const back = (await ext('/api/ext/col/projects', { token })).d.items.find(x => x.id === proj.d.id);
+    check('LifeOS edit shows on the site', back && back.deadline === '2026-12-01');
+    check('site cannot read finance collections without the projectFiles scope', (await ext('/api/ext/col/projectFinancials', { token })).status === 403);
+    check('site cannot reach non-allowlisted collections', (await ext('/api/ext/col/health', { token })).status === 403);
+    check('site cannot reach normal APIs with the token', (await ext('/api/transactions', { token })).status === 401);
+    const card = await ext('/api/ext/col/cards', { method: 'POST', token, body: { projectId: proj.d.id, title: 'نقشه‌های اجرایی', col: 'todo' } });
+    check('site adds a kanban card', card.status === 201);
+    const pg = (await ext('/api/ext/col/cards?offset=0&limit=1', { token })).d;
+    check('ext lists page with ?offset=&limit=', pg.items.length === 1 && pg.total >= 1, JSON.stringify(pg));
+    check('card under a foreign/unknown project is refused', (await ext('/api/ext/col/cards', { method: 'POST', token, body: { projectId: 'nope', title: 'x' } })).status === 400);
+    check('project with children cannot be deleted from the site', (await ext('/api/ext/col/projects/' + proj.d.id, { method: 'DELETE', token })).status === 409);
+
+    // process stage reminder → real db.reminders row
+    const stage = await ext('/api/ext/col/projectProcesses', { method: 'POST', token, body: { projectId: proj.d.id, department: 'فنی', title: 'ابعادبرداری دقیق', status: 'todo' } });
+    // same calls ProjectsPage makes: POST /api/reminders (no projectId) then PATCH the stage with reminderId
+    const sr0 = await ext('/api/ext/reminders', { method: 'POST', token, body: { title: 'یادآوری پروژهٔ x: ابعادبرداری دقیق', date: today(), whenLabel: today(), notes: 'مسئول: ملینا' } });
+    await ext('/api/ext/col/projectProcesses/' + stage.d.id, { method: 'PATCH', token, body: { reminderDate: today(), reminderId: sr0.d.id } });
+    const sr = (await call('/api/reminders', { cookie })).d.items.find(r => r.id === sr0.d.id);
+    check('stage reminder from the site is a real LifeOS reminder (time defaults to 09:00)', sr0.status === 201 && !!sr && sr.time === '09:00', JSON.stringify(sr0.d));
+    check('ext can PATCH a reminder referenced by a stage', (await ext('/api/ext/reminders/' + sr.id, { method: 'PATCH', token, body: { date: '2027-01-01' } })).status === 200);
+    const appRem = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'private', date: today(), time: '10:00' } })).d;
+    check('ext cannot touch an unrelated LifeOS reminder', (await ext('/api/ext/reminders/' + appRem.id, { method: 'DELETE', token })).status === 404);
+    check('ext reminder list does not leak unrelated reminders', !(await ext('/api/ext/reminders', { token })).d.items.some(r => r.id === appRem.id));
+    const batch = await ext('/api/ext/col/projectProcesses', { method: 'POST', token, body: { items: [{ projectId: proj.d.id, department: 'فنی', title: 'ابعادبرداری دقیق' }, { projectId: proj.d.id, department: 'فنی', title: 'تهیه نقشهٔ شاپ' }, { projectId: 'nope', department: 'فنی', title: 'x' }] } });
+    check('batch insert dedupes stages and skips foreign parents', batch.status === 201 && batch.d.items.length === 2 && batch.d.items[0].id === stage.d.id, JSON.stringify(batch.d));
+
+    // free reminder tied to a project, then delivered by the real cron → Telegram path
+    check('reminder tied to an unknown project is refused', (await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: 'nope', title: 'x', date: today(), time: '10:00' } })).status === 400);
+    const tz = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(Date.now() - 2 * 60e3));
+    const rr = await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: proj.d.id, title: 'تماس با کارفرما', date: today(), time: tz, notes: 'از سایت' } });
+    check('site reminder -> 201 and listed for the site', rr.status === 201 && (await ext('/api/ext/reminders', { token })).d.items.some(r => r.id === rr.d.id), JSON.stringify(rr.d));
+    check('site reminder appears in LifeOS reminders', (await call('/api/reminders', { cookie })).d.items.some(r => r.id === rr.d.id));
+    if (tz > '00:05') {
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777001' } });
+      const sent = [], realFetch = globalThis.fetch;
+      env.TELEGRAM_BOT_TOKEN = 'TEST';
+      globalThis.fetch = async (url, init) => {
+        if (String(url).includes('api.telegram.org')) { if (typeof init.body === 'string') sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { headers: { 'content-type': 'application/json' } }); }
+        return new Response('{}', { status: 404 });
+      };
+      try { const waits = []; await worker.scheduled({ cron: '*/5 * * * *', scheduledTime: Date.now() }, env, { waitUntil: p => waits.push(p) }); await Promise.allSettled(waits); }
+      finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; }
+      const msg = sent.find(m => /تماس با کارفرما/.test(m.text || ''));
+      check('cron sends the site-made reminder to Telegram', !!msg && msg.chat_id === '777001' && /از سایت/.test(msg.text), JSON.stringify(sent.map(m => m.text)).slice(0, 300));
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } });
+    }
+    check('site deletes its reminder', (await ext('/api/ext/reminders/' + rr.d.id, { method: 'DELETE', token })).status === 200);
+
+    // project report PDF → Telegram, uploaded in pieces
+    {
+      const pdf = Buffer.from('%PDF-1.4\n' + 'x'.repeat(5000)).toString('base64'), half = Math.ceil(pdf.length / 2), up = 'a1b2c3d4e5f60718';
+      for (const [n, data] of [[0, pdf.slice(0, half)], [1, pdf.slice(half)]]) await ext('/api/ext/report-chunk', { method: 'POST', token, body: { uploadId: up, n, total: 2, data } });
+      const noTg = await ext('/api/ext/report-send', { method: 'POST', token, body: { uploadId: up, total: 2, filename: 'r.pdf' } });
+      check('report-send without Telegram linked -> 503 and pieces are cleaned up', noTg.status === 503 && ![...env.DB._store.keys()].some(k => k.includes(up)), JSON.stringify(noTg.d));
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777002' } });
+      const sentDocs = [], realFetch = globalThis.fetch; env.TELEGRAM_BOT_TOKEN = 'TEST';
+      globalThis.fetch = async (url, init) => { if (String(url).includes('sendDocument')) { sentDocs.push(init.body); return new Response(JSON.stringify({ ok: true, result: {} }), { headers: { 'content-type': 'application/json' } }); } return new Response('{}', { status: 404 }); };
+      try {
+        for (const [n, data] of [[1, pdf.slice(half)], [0, pdf.slice(0, half)]]) await ext('/api/ext/report-chunk', { method: 'POST', token, body: { uploadId: up, n, total: 2, data } });
+        const ok2 = await ext('/api/ext/report-send', { method: 'POST', token, body: { uploadId: up, total: 2, filename: 'گزارش.pdf', caption: 'test' } });
+        check('report pieces (any order) are joined and sent to Telegram as one PDF', ok2.status === 200 && sentDocs.length === 1 && ![...env.DB._store.keys()].some(k => k.includes(up)), JSON.stringify(ok2.d));
+        const bad = await ext('/api/ext/report-send', { method: 'POST', token, body: { uploadId: 'ffffffffffffffff', total: 1 } });
+        check('report-send with missing pieces -> 400', bad.status === 400);
+      } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } }); }
+    }
+
+    // courses + students + payments
+    const course = await ext('/api/ext/col/courses', { method: 'POST', token, body: { name: 'دورهٔ نما ۱', price: 50000000, sessions: 8 } });
+    const stu = await ext('/api/ext/col/students', { method: 'POST', token, body: { courseId: course.d.id, name: 'سارا', phone: '09120000000', fee: 50000000, payments: [], attendance: [] } });
+    check('site adds course + student', course.status === 201 && stu.status === 201);
+    const pay = await ext('/api/ext/students/' + stu.d.id + '/payments', { method: 'POST', token, body: { kind: 'deposit', amount: 10000000, toFinance: true } });
+    const txId = pay.d && pay.d.payments && pay.d.payments[0] && pay.d.payments[0].txId;
+    const txs = (await call('/api/transactions', { cookie })).d.items;
+    check('payment with toFinance mirrors an «آموزش» income in LifeOS', pay.status === 201 && txs.some(t => t.id === txId && t.category === 'آموزش' && t.kind === 'income' && t.amount === 10000000), JSON.stringify(pay.d));
+    await ext('/api/ext/students/' + stu.d.id + '/payments/' + pay.d.payments[0].id, { method: 'DELETE', token });
+    // CoursesPage path: /api/transactions → only «آموزش» rows are reachable
+    const tx2 = await ext('/api/ext/transactions', { method: 'POST', token, body: { title: 'قسط شهریه', amount: 5000000, kind: 'income', category: 'خوراک', date: today() } });
+    check('ext transaction is forced into «آموزش»', tx2.status === 201 && tx2.d.category === 'آموزش' && tx2.d.amount === 5000000, JSON.stringify(tx2.d));
+    const food = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'نان', amount: 1000, category: 'خوراک' } })).d;
+    check('ext cannot edit a non-education transaction', (await ext('/api/ext/transactions/' + food.id, { method: 'PATCH', token, body: { amount: 1 } })).status === 404);
+    check('ext deletes its education transaction', (await ext('/api/ext/transactions/' + tx2.d.id, { method: 'DELETE', token })).status === 200);
+    check('deleting the payment removes its transaction', !(await call('/api/transactions', { cookie })).d.items.some(t => t.id === txId));
+    await call('/api/col/students/' + stu.d.id, { method: 'PATCH', cookie, body: { attendance: [1, 2] } });
+    check('LifeOS attendance edit shows on the site', ((await ext('/api/ext/col/students', { token })).d.items.find(s => s.id === stu.d.id) || {}).attendance.join() === '1,2');
+
+    // contract/finance/supply need the projectFiles scope; contract end date → renewal reminder
+    const full = (await call('/api/site-tokens', { method: 'POST', cookie, body: { scopes: ['projects', 'projectFiles'] } })).d.token;
+    const ctr = await ext('/api/ext/col/projectContracts', { method: 'POST', token: full, body: { projectId: proj.d.id, contractNo: 'C-7', contractEndDate: '2027-03-20', amount: 9000000000 } });
+    check('projectFiles token: contract saved', ctr.status === 201 && ctr.d.contractNo === 'C-7', JSON.stringify(ctr.d));
+    check('projectFiles token reaches financials + supplies', (await ext('/api/ext/col/projectFinancials', { method: 'POST', token: full, body: { projectId: proj.d.id, statementNo: 1, amount: 100 } })).status === 201 && (await ext('/api/ext/col/projectSupplies', { token: full })).status === 200);
+
+    // token scope + revoke
+    const onlyCourses = (await call('/api/site-tokens', { method: 'POST', cookie, body: { scopes: ['courses'] } })).d.token;
+    check('courses-only token cannot read projects', (await ext('/api/ext/col/projects', { token: onlyCourses })).status === 403);
+    const tid = (await call('/api/site-tokens', { cookie })).d.items.find(t => token.startsWith(t.prefix)).id;
+    check('revoke token -> 200', (await call('/api/site-tokens/' + tid, { method: 'DELETE', cookie })).status === 200);
+    check('revoked token -> 401', (await ext('/api/ext/me', { token })).status === 401);
   }
 
   console.log('\n[W16] the login gate vs Cloudflare\'s extensionless asset URLs');

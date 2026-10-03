@@ -25,11 +25,12 @@
 ```bash
 npm ci
 npm run build:today      # حتماً قبل از تست؛ بدون build، ui/verify تست‌ها قرمز می‌شوند
-npm test                 # smoke(490) + worker-smoke(212) + verify-script(26) + ui-smoke(44) — همه باید سبز باشند
+npm test                 # smoke(490) + worker-smoke(262) + verify-script(26) + ui-smoke(45) — همه باید سبز باشند
 npm start                # server.js روی :3000
 npm run dev:today        # vite dev
 node cloudflare/port.js  # ⚠️ فعلاً ممنوع — بالا را ببین
 npm run deploy           # build + wrangler deploy (فقط با اجازهٔ کاربر)
+npm run build:studio     # پنل seyfikhani.ir (ProjectsPage+CoursesPage) → integrations/seyfikhani/public_html
 ```
 
 ## قواعد کار
