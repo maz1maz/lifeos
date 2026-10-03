@@ -372,16 +372,48 @@ export function processTemplate(contract) {
   for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '' });
   return out.map((s, order) => ({ ...s, order }));
 }
-// Weighted progress (agreed 1405-07): control 10%, technical 15%, supply 30%, execution 45%.
-// Inside a department each stage has a base weight (execution: install-finish counts most), normalised over the project's stages.
+// Weighted progress. Each contract item is its own 0–100 (inside it: control 10, technical 15, supply 30,
+// execution 45; execution stages weighted by EXEC_BASE). The project = fixed stages (FIXED_WEIGHT, in %) +
+// the items, each item's share proportional to its contract area (items with no area count as the average;
+// no areas at all → equal shares).
 const DEPT_WEIGHT = { 'کنترل پروژه': 10, 'فنی': 15, 'تأمین': 30, 'اجرا': 45 };
-const EXEC_BASE = { 'ابعادبرداری برآوردی': 1, 'ابعادبرداری دقیق': 2, 'شروع نصب': 3, 'پایان نصب': 12, 'تحویل پروژه': 2 };
+const EXEC_BASE = { 'ابعادبرداری برآوردی': 1, 'ابعادبرداری دقیق': 2, 'شروع نصب': 3, 'پایان نصب': 12 };
+const FIXED_WEIGHT = { 'ابلاغ قرارداد': 1, 'تأیید رنگ از کارفرما': 1, 'سفارش بیلت': 1, 'سفارش یراق‌آلات': 1, 'تحویل پروژه': 2 };
 const baseOf = s => s.base || String(s.title || '').split(ITEM_SEP)[0];
+const itemOfStage = s => s.item ?? (String(s.title || '').split(ITEM_SEP)[1] || '');
+const isFixedStage = s => !itemOfStage(s) && FIXED_WEIGHT[baseOf(s)] != null;
 const baseWeight = s => s.department === 'اجرا' ? (EXEC_BASE[baseOf(s)] || 1) : 1;
-function withWeights(stages) {
-  const sum = {};
-  for (const s of stages) sum[s.department] = (sum[s.department] || 0) + baseWeight(s);
-  return stages.map(s => ({ ...s, weight: (DEPT_WEIGHT[s.department] || 0) * baseWeight(s) / (sum[s.department] || 1) }));
+// shares of the project (0–1) per item, from contract areas
+export function itemShares(items, areas) {
+  const a = items.map(i => (i ? itemArea(areas, i) : 0));
+  const known = a.filter(x => x > 0), avg = known.length ? known.reduce((x, y) => x + y, 0) / known.length : 1;
+  const w = a.map(x => x > 0 ? x : avg), total = w.reduce((x, y) => x + y, 0) || 1;
+  return Object.fromEntries(items.map((i, k) => [i, w[k] / total]));
+}
+function withWeights(stages, areas) {
+  const itemStages = stages.filter(s => !isFixedStage(s));
+  const items = [...new Set(itemStages.map(itemOfStage))];
+  const sum = {}; // per item, per department
+  for (const s of itemStages) { const k = `${itemOfStage(s)}|${s.department}`; sum[k] = (sum[k] || 0) + baseWeight(s); }
+  const inner = s => (DEPT_WEIGHT[s.department] || 0) * baseWeight(s) / (sum[`${itemOfStage(s)}|${s.department}`] || 1);
+  const innerTotal = {}; for (const s of itemStages) innerTotal[itemOfStage(s)] = (innerTotal[itemOfStage(s)] || 0) + inner(s);
+  const shares = itemShares(items, areas);
+  const fixedTotal = stages.filter(isFixedStage).reduce((t, s) => t + FIXED_WEIGHT[baseOf(s)], 0), itemsTotal = items.length ? 100 - fixedTotal : 0;
+  const scale = items.length ? 1 : 100 / (fixedTotal || 1);
+  return stages.map(s => {
+    if (isFixedStage(s)) return { ...s, weight: FIXED_WEIGHT[baseOf(s)] * scale, itemWeight: null };
+    const iw = inner(s) / (innerTotal[itemOfStage(s)] || 1) * 100; // weight inside its item (item sums to 100)
+    return { ...s, itemWeight: iw, weight: shares[itemOfStage(s)] * itemsTotal * iw / 100 };
+  });
+}
+// 0–100 for one contract item on its own
+export function itemProgress(stages, item) {
+  const list = (stages || []).some(s => s.weight == null) ? withWeights(stages || []) : (stages || []);
+  let total = 0, got = 0;
+  for (const s of list) { if (isFixedStage(s) || normItem(itemOfStage(s)) !== normItem(item)) continue; total += s.itemWeight; got += s.itemWeight * stageCredit(s); }
+  if (!total) return 0;
+  const pct = got / total * 100;
+  return pct >= 99.999 ? 100 : Math.min(99, Math.round(pct));
 }
 // Old fixed-checklist rows (before per-item stages) → new stage; `items` limits which contract items inherit it ('' = generic copy).
 const OLD_ITEMS = ['', 'پنجره', 'کرتن‌وال'];
@@ -425,7 +457,7 @@ const stageKey = s => keyOf(s.department, s.title);
 // the project's current checklist with stored rows merged in (old rows outside the template stay stored but hidden)
 export function projectStages(contract, rows) {
   const byKey = new Map((rows || []).map(x => [stageKey(x), x]));
-  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, order: t.order } : { ...t, status: 'todo' }; }));
+  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, order: t.order } : { ...t, status: 'todo' }; }), contract?.itemAreas);
 }
 function ContractTimeline({ contract }) {
   const start = contract?.contractStartDate || '';
@@ -446,6 +478,15 @@ export function weightedProgress(stages, department) {
   if (!total) return 0;
   const pct = got / total * 100;
   return pct >= 99.999 ? 100 : Math.min(99, Math.round(pct));
+}
+// سرتیتر هر آیتم: پیشرفت مستقل آیتم (۰–۱۰۰) + سهمش از کل پروژه (بر اساس متراژ)
+function ItemGroupHead({ item, stages, share }) {
+  const mine = stages.filter(x => x.item === item), pct = itemProgress(stages, item);
+  return <div className={`lf-process-group ${pct === 100 ? 'done' : ''}`}>
+    <b>{item}{pct === 100 ? ' ✓ تمام شد' : ''}</b>
+    <i className="lf-process-group-bar"><em style={{ width: `${pct}%` }} /></i>
+    <small><strong>{fa(pct)}٪</strong> · {fa(mine.filter(x => x.status === 'done').length)} از {fa(mine.length)} مرحله · سهم از پروژه {fa(Math.round((share || 0) * 100))}٪</small>
+  </div>;
 }
 function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd, onSeed, onCompletionChange }) {
   const [localItems, setLocalItems] = useState(items);
@@ -495,6 +536,8 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
   const deptClass = department => `dept-${String(department).replaceAll(' ', '-')}`;
   const depts = PROCESS_DEPARTMENTS.map(department => { const all = visibleItems.filter(x => x.department === department), complete = all.filter(x => x.status === 'done').length; return { department, total: all.length, complete, pct: all.length ? weightedProgress(visibleItems, department) : 0 }; });
   const pct = weightedProgress(visibleItems);
+  const scopeItems = [...new Set(visibleItems.filter(x => x.item).map(x => x.item))];
+  const shares = itemShares(scopeItems, contract?.itemAreas);
   const row = (item, index) => {
     const number = item.order + 1;
     return <article key={item.id} className={`lf-process-row ${deptClass(item.department)} ${item.status === 'done' ? 'done' : ''}`}>
@@ -523,7 +566,7 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
     </div>
     {departmentFilter ? <div className="lf-process-filter-note"><b>فیلتر: {departmentFilter}</b><button type="button" onClick={() => setDepartmentFilter('')}>نمایش همه ×</button></div> : null}
     <div className="lf-process-cols"><span>انجام</span><span>ردیف</span><span>یادآوری</span><span>واحد</span><span>مراحل پروژه</span><span>تاریخ</span><span>مسئول</span><span>توضیحات</span></div>
-    {ordered.map((item, i) => item.item && item.item !== ordered[i - 1]?.item ? [<div key={`g-${item.item}`} className="lf-process-group">{item.item}<small>{fa(visibleItems.filter(x => x.item === item.item && x.status === 'done').length)} از {fa(visibleItems.filter(x => x.item === item.item).length)}</small></div>, row(item, i)] : row(item, i))}
+    {ordered.map((item, i) => item.item && item.item !== ordered[i - 1]?.item ? [<ItemGroupHead key={`g-${item.item}`} item={item.item} stages={visibleItems} share={shares[item.item]} />, row(item, i)] : row(item, i))}
   </section></div>;
 }
 function ContractFinancials({ contract, onPatch, onAddStatement, addLabel = '＋ صورت‌وضعیت' }) {
@@ -625,7 +668,7 @@ function ProjectReport({ project, contract, financials, processes }) {
   const hasReportBrand = !!(reportHeaderText || reportLogo);
   const printedAt = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date());
   const [sendState, setSendState] = useState({ busy: false, msg: '', error: false });
-  const reportData = () => ({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo }, stages, departments, statements: statementRows });
+  const reportData = () => ({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo }, stages, departments, statements: statementRows, items: (() => { const its = [...new Set(stages.filter(x => x.item).map(x => x.item))], sh = itemShares(its, contract?.itemAreas); return its.map(item => ({ item, progress: itemProgress(stages, item), share: Math.round(sh[item] * 100) })); })() });
   const printReport = () => printProjectReport(reportData());
   const sendReport = async () => {
     if (sendState.busy) return;

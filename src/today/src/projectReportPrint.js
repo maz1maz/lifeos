@@ -65,7 +65,7 @@ tr.done td{color:#475569}
 `;
 
 export function projectReportHtml(d) {
-  const { project, contract, brand, stages, departments, statements } = d;
+  const { project, contract, brand, stages, departments, statements, items = [] } = d;
   const today = todayIso();
   const done = stages.filter(s => s.status === 'done').length;
   const progress = weightedProgress(stages);
@@ -117,7 +117,7 @@ export function projectReportHtml(d) {
 <div class="kpi"><small>وصولی از قرارداد</small><b class="num">${pct(receivedPct)}</b>${bar(receivedPct, '#059669')}<span>${money(received)} از ${money(contractTotal)}</span></div>
 </div>
 <h2>مشخصات پروژه و قرارداد</h2><table class="kv"><tbody>${kvRows.join('')}</tbody></table>
-<div class="two"><div><h2>پیشرفت به تفکیک واحد</h2>${departments.map(x => `<div class="dept"><b>${esc(x.department)}</b>${bar(x.progress, DEPT_COLORS[x.department] || '#0f172a')}<span>${pct(x.progress)} (${fa(x.done)} از ${fa(x.total)})</span></div>`).join('')}</div>
+<div class="two"><div><h2>پیشرفت به تفکیک واحد</h2>${departments.map(x => `<div class="dept"><b>${esc(x.department)}</b>${bar(x.progress, DEPT_COLORS[x.department] || '#0f172a')}<span>${pct(x.progress)} (${fa(x.done)} از ${fa(x.total)})</span></div>`).join('')}${items.length ? `<h2>پیشرفت به تفکیک آیتم</h2>${items.map(x => `<div class="dept"><b>${esc(x.item)}</b>${bar(x.progress, '#2563eb')}<span>${pct(x.progress)} · سهم ${pct(x.share)}</span></div>`).join('')}` : ''}</div>
 <div><h2>خلاصهٔ مالی</h2><table><tbody>
 <tr><td>مبلغ کل قرارداد</td><td class="n">${rial(contractTotal)}</td></tr>
 <tr><td>پیش‌پرداخت</td><td class="n">${rial(advance)}</td></tr>
