@@ -287,7 +287,7 @@ async function renderNotes() {
   const box = $("#notesMain");
   if (!NOTES) {
     box.innerHTML = `<p class="muted pad">در حال بارگذاری جزوه…</p>`;
-    try { const r = await fetch("notes.md", { cache: "no-cache" }); if (!r.ok) throw 0; NOTES = ntParse(await r.text()); }
+    try { await loadNotes(); }
     catch (e) { box.innerHTML = `<p class="muted pad">جزوه بارگذاری نشد.</p>`; return; }
     if (VIEW !== "notes") return;
   }
@@ -299,13 +299,72 @@ async function renderNotes() {
   box.onclick = e => { const b = e.target.closest("button[data-say]"); if (b) { e.preventDefault(); speak(b.dataset.say); } };
   ntFilter();
 }
-/* Printable booklet of the notes (cover, contents, one topic per page) → the browser's «Save as PDF». */
+/* Printable booklets (notes / starred words) → the browser's «Save as PDF». Colours follow the current LifeOS theme. */
 const NT_PARTS = [
   [/^واژگان تکمیلی[^:]*:\s*/, "بخش چهارم — واژگان تکمیلی (جلسه ۲۳)"],
   [/^تمرین گفتاری:\s*/, "بخش سوم — تمرین گفتاری"],
   [/^(گرامر:\s*|(?=جمع‌بندی))/, "بخش دوم — گرامر کامل"],
   [/^(واژگان:\s*|(?=تلفظ))/, "بخش اول — واژگان"],
 ];
+function printBook({ title, kicker, heading, sub, toc, body }) {
+  const dark = document.documentElement.dataset.mode !== "light";
+  const C = dark
+    ? { page: "#0a0a0b", paper: "#141416", soft: "#1b1b1d", line: "rgba(255,255,255,.12)", tx: "#f5f5f5", tx2: "#9a9a9f", acc: "#d8a44c", accfg: "#221904", head: "#e6b563" }
+    : { page: "#f4f2ee", paper: "#ffffff", soft: "#f3f0ea", line: "rgba(28,26,23,.14)", tx: "#1c1a17", tx2: "#6b665e", acc: "#c48a2c", accfg: "#ffffff", head: "#8a5d14" };
+  const font = f => new URL("/assets/fonts/vazirmatn-" + f + ".woff2", location.href).href;
+  const logo = new URL("/assets/img/logo-mask.png", location.href).href;
+  const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>
+@font-face{font-family:V;font-weight:100 900;src:url('${font("arabic")}') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+200C-200F,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:V;font-weight:100 900;src:url('${font("latin")}') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02B0-02FF,U+2000-206F,U+2122,U+2212}
+@page{size:A4;margin:0}
+*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+html,body{margin:0;background:${C.page};color:${C.tx};font-family:V,Tahoma,sans-serif;font-size:12.5px;line-height:1.85}
+.bar{position:sticky;top:0;z-index:2;display:flex;gap:10px;align-items:center;justify-content:center;padding:10px;background:${C.acc};color:${C.accfg};font-size:14px}
+.bar button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:8px 18px;background:${C.paper};color:${C.tx};cursor:pointer}
+main{max-width:210mm;margin:0 auto;padding:12mm 12mm}
+.cover{min-height:272mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;page-break-after:always}
+.cover .logo{width:60px;height:60px;margin-bottom:22px;background:${C.acc};-webkit-mask:url('${logo}') center/contain no-repeat;mask:url('${logo}') center/contain no-repeat}
+.cover .k{color:${C.acc};font-weight:700;font-size:13px}
+.cover h1{color:${C.tx};font-size:38px;line-height:1.45;margin:14px 0}
+.cover p{color:${C.tx2};font-size:15px;max-width:120mm;margin:0}
+.cover i{display:block;width:60px;height:4px;border-radius:4px;background:${C.acc};margin:36px auto 0}
+.toc{page-break-after:always}
+h2{color:${C.tx};font-size:22px;margin:0 0 10px;padding-bottom:10px;border-bottom:2px solid ${C.acc}}
+.toc h2{border:0}
+.tp{color:${C.acc};font-weight:700;font-size:11px;margin:16px 0 4px}
+.tr{display:flex;gap:16px;padding:9px 0;border-bottom:1px dotted ${C.line};font-size:13.5px;break-inside:avoid}
+.tr b{color:${C.acc};min-width:20px}
+.pg{page-break-before:always}
+.kick{color:${C.acc};font-weight:700;font-size:11px;margin-bottom:6px}
+h4{color:${C.head};font-size:15px;margin:20px 0 10px;padding-inline-start:10px;border-inline-start:4px solid ${C.acc};break-after:avoid}
+p,li{font-size:13px}
+ul{padding-inline-start:20px}
+table{width:100%;border-collapse:collapse;margin:4px 0 14px;font-size:12px;background:${C.paper};border-radius:10px;overflow:hidden}
+thead{display:table-header-group}
+th{background:${C.acc};color:${C.accfg};text-align:start;padding:9px 10px;font-weight:700}
+td{padding:8px 10px;border-bottom:1px solid ${C.line};vertical-align:top}
+tr{break-inside:avoid}
+tbody tr:nth-child(even){background:${C.soft}}
+td.nt-en,td.en{direction:ltr;text-align:left;font-weight:600}
+td+td{border-inline-start:1px solid ${C.line}}
+td.ex{direction:ltr;text-align:left;color:${C.tx2}}
+button[data-say]{display:none}
+code{direction:ltr;unicode-bidi:isolate;background:${C.soft};border-radius:4px;padding:0 4px}
+strong{color:${C.head}}
+@media print{.bar{display:none}}
+</style></head><body>
+<div class="bar"><span>برای PDF، در پنجرهٔ چاپ «Save as PDF» را بزن · گزینهٔ «Background graphics» روشن باشد</span><button type="button" onclick="print()">چاپ / PDF</button></div>
+<main>
+<div class="cover"><div class="logo"></div><div class="k">${kicker}</div><h1>${heading}</h1><p>${sub}</p><i></i></div>
+${toc ? `<div class="toc"><h2>فهرست مطالب</h2>${toc}</div>` : ""}
+${body}
+</main>
+<script>document.fonts.ready.then(function(){setTimeout(function(){print()},400)})<\/script>
+</body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) { toast("پنجرهٔ تازه باز نشد؛ اجازهٔ پاپ‌آپ را بده."); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
 function ntPdf() {
   if (!NOTES) return;
   const secs = NOTES.sections.map(x => {
@@ -320,57 +379,16 @@ function ntPdf() {
     toc += `<div class="tr"><b>${no}</b><span>${ntInline(x.name)}</span></div>`;
     body += `<section class="pg"><div class="kick">${esc(x.part.replace(" — ", " · "))}</div><h2>${ntInline(x.name)}</h2>${x.html}</section>`;
   }
-  const font = f => new URL("/assets/fonts/vazirmatn-" + f + ".woff2", location.href).href;
-  const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>جزوه زبان — واژگان و گرامر</title><style>
-@font-face{font-family:V;font-weight:100 900;src:url('${font("arabic")}') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+200C-200F,U+FB50-FDFF,U+FE70-FEFC}
-@font-face{font-family:V;font-weight:100 900;src:url('${font("latin")}') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02B0-02FF,U+2000-206F,U+2122,U+2212}
-@page{size:A4;margin:14mm 12mm}
-*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-html,body{margin:0;background:#f8f4ec;color:#2b2b2b;font-family:V,Tahoma,sans-serif;font-size:12.5px;line-height:1.85}
-.bar{position:sticky;top:0;display:flex;gap:10px;align-items:center;justify-content:center;padding:10px;background:#0f6e63;color:#fff;font-size:14px}
-.bar button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:8px 18px;background:#fff;color:#0f6e63;cursor:pointer}
-main{max-width:186mm;margin:0 auto;padding:0 4mm}
-.cover{min-height:265mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;page-break-after:always}
-.cover .k{color:#0f6e63;font-weight:700;font-size:13px}
-.cover h1{color:#0d4f47;font-size:38px;line-height:1.45;margin:14px 0}
-.cover p{color:#555;font-size:15px;max-width:110mm;margin:0}
-.cover i{display:block;width:60px;height:4px;border-radius:4px;background:#c4532b;margin:36px auto 0}
-.toc{page-break-after:always;padding-top:6mm}
-h2{color:#0d4f47;font-size:22px;margin:0 0 10px;padding-bottom:10px;border-bottom:2px solid #0f6e63}
-.toc h2{border:0}
-.tp{color:#c4532b;font-weight:700;font-size:11px;margin:16px 0 4px}
-.tr{display:flex;gap:16px;padding:9px 0;border-bottom:1px dotted #d8d0bf;font-size:13.5px;break-inside:avoid}
-.tr b{color:#0f6e63;font-family:V,sans-serif;min-width:20px}
-.pg{page-break-before:always;padding-top:2mm}
-.pg:first-of-type{page-break-before:auto}
-.kick{color:#c4532b;font-weight:700;font-size:11px;margin-bottom:6px}
-h4{color:#0d4f47;font-size:15px;margin:20px 0 10px;padding-inline-start:10px;border-inline-start:4px solid #c4532b;break-after:avoid}
-p,li{font-size:13px}
-ul{padding-inline-start:20px}
-table{width:100%;border-collapse:collapse;margin:4px 0 14px;font-size:12px}
-thead{display:table-header-group}
-th{background:#0f6e63;color:#fff;text-align:start;padding:9px 10px;font-weight:700}
-td{padding:8px 10px;border-bottom:1px solid #e3dccc;vertical-align:top}
-tr{break-inside:avoid}
-tbody tr:nth-child(even){background:#f1eadc}
-td.nt-en{direction:ltr;text-align:left;font-weight:500}
-td+td{border-inline-start:1px solid #e3dccc}
-button[data-say]{display:none}
-code{direction:ltr;unicode-bidi:isolate;background:#efe7d6;border-radius:4px;padding:0 4px}
-strong{color:#0d4f47}
-@media print{.bar{display:none}main{padding:0}}
-</style></head><body>
-<div class="bar"><span>برای PDF، در پنجرهٔ چاپ «Save as PDF» را بزن</span><button type="button" onclick="print()">چاپ / PDF</button></div>
-<main>
-<div class="cover"><div class="k">جزوه خصوصی زبان انگلیسی · آماده‌سازی آیلتس</div><h1>واژگان و گرامر<br>مرتب‌شده</h1><p>بازنویسی و دسته‌بندی موضوعی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان</p><i></i></div>
-<div class="toc"><h2>فهرست مطالب</h2>${toc}</div>
-${body}
-</main>
-<script>document.fonts.ready.then(function(){setTimeout(function(){print()},400)})<\/script>
-</body></html>`;
-  const w = window.open("", "_blank");
-  if (!w) { toast("پنجرهٔ تازه باز نشد؛ اجازهٔ پاپ‌آپ را بده."); return; }
-  w.document.open(); w.document.write(html); w.document.close();
+  printBook({ title: "جزوه زبان — واژگان و گرامر", kicker: "جزوه خصوصی زبان انگلیسی · آماده‌سازی آیلتس", heading: "واژگان و گرامر<br>مرتب‌شده", sub: "بازنویسی و دسته‌بندی موضوعی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان", toc, body });
+}
+function starsPdf() {
+  const words = DECK.filter(x => S.stars.includes(x.w));
+  if (!words.length) { toast("هنوز واژهٔ ستاره‌داری نداری."); return; }
+  const byLv = {};
+  words.forEach(x => (byLv[x.lv] ||= []).push(x));
+  const body = Object.keys(byLv).sort().map((lv, k) => `<section style="margin-top:${k ? 18 : 0}px"><div class="kick">واژه‌های ستاره‌دار</div><h2>سطح ${esc(lv)} <small style="font-size:13px;font-weight:400">(${fa(byLv[lv].length)} واژه)</small></h2>
+    <table><thead><tr><th>English</th><th>معنی</th><th>مثال</th></tr></thead><tbody>${byLv[lv].sort((a, b) => a.w.localeCompare(b.w)).map(x => `<tr><td class="en">${esc(x.w)}${x.p ? `<br><small style="font-weight:400">${esc(x.p)}</small>` : ""}</td><td>${esc(meaningsOf(x).slice(0, 3).join("، "))}</td><td class="ex">${esc(x.e || "")}${x.ef ? `<div dir="rtl" style="text-align:right">${esc(x.ef)}</div>` : ""}</td></tr>`).join("")}</tbody></table></section>`).join("");
+  printBook({ title: "واژه‌های ستاره‌دار", kicker: "۷۰۰۰ واژهٔ آیلتس", heading: "واژه‌های<br>ستاره‌دار من", sub: `${fa(words.length)} واژه · مرتب بر اساس سطح`, toc: "", body: `<div style="page-break-before:auto">${body}</div>` });
 }
 function ntFilter() {
   const q = notesQ.trim().toLowerCase(), secs = $$("#notesMain .nt-sec");
@@ -454,6 +472,7 @@ function renderStudy() {
     </div>
   </div></div>
 
+  <div class="swhint">کشیدن کارت به راست = بلد بودم · به چپ = نمی‌دانستم</div>
   <div class="ratebar">
     <button class="btn bad" data-r="again">۱ — نمی‌دانستم<br><span class="muted">۱۰ دقیقهٔ دیگر</span></button>
     <button class="btn warn" data-r="hard">۲ — سخت بود<br><span class="muted">کوتاه‌تر</span></button>
@@ -472,6 +491,21 @@ function renderStudy() {
   fc.addEventListener("click", e => {
     if (e.target.closest("button")) return;
     flip();
+  });
+  // phone: swipe the card right = «خوب بود», left = «نمی‌دانستم»
+  let sx = null, sy = 0, dx = 0;
+  fc.addEventListener("touchstart", e => { if (e.touches.length !== 1) return; sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; fc.style.transition = "none"; }, { passive: true });
+  fc.addEventListener("touchmove", e => {
+    if (sx === null) return;
+    dx = e.touches[0].clientX - sx;
+    if (Math.abs(e.touches[0].clientY - sy) > Math.abs(dx)) { dx = 0; fc.style.transform = ""; return; }
+    fc.style.transform = `translateX(${dx}px) rotate(${dx / 30}deg)${flipped ? " rotateY(180deg)" : ""}`;
+    fc.classList.toggle("sw-r", dx > 70); fc.classList.toggle("sw-l", dx < -70);
+  }, { passive: true });
+  fc.addEventListener("touchend", () => {
+    if (sx === null) return; sx = null;
+    fc.style.transition = ""; fc.style.transform = ""; fc.classList.remove("sw-r", "sw-l");
+    if (Math.abs(dx) > 70) { flipped = true; const b = $(`.ratebar [data-r="${dx > 0 ? "good" : "again"}"]`); if (b) b.click(); }
   });
   $("#speakBtn") && $("#speakBtn").addEventListener("click", () => speak(cur.w));
   $("#speakBtn2") && $("#speakBtn2").addEventListener("click", () => speak(cur.w));
@@ -699,6 +733,7 @@ function renderBrowse() {
       ${["all","A1","A2","B1","B2","C1","C2"].map(l => `<span class="chip ${FILTER.lv === l ? "on" : ""}" data-lv="${l}">${l === "all" ? "همهٔ سطوح" : l}</span>`).join("")}
       <span class="chip ${FILTER.starsOnly ? "on" : ""}" data-star="1">★ ستاره‌دار</span>
       <span class="chip" data-clear="1">پاک‌کردن فیلترها</span>
+      ${S.stars.length ? `<span class="chip" data-starpdf="1" title="نسخهٔ چاپی / PDF">🖨 چاپ ستاره‌دارها (${fa(S.stars.length)})</span>` : ""}
     </div>
     <div class="muted" style="margin:10px 0">${fa(list.length)} واژه یافت شد${S.settings.dailyNew ? "" : ""}</div>
     <div style="overflow:auto;max-height:62vh">
@@ -716,6 +751,7 @@ function renderBrowse() {
         </tbody>
       </table>
     </div>
+    <div id="bNotes"></div>
     ${list.length > shown ? `<div class="row" style="justify-content:center;margin-top:12px"><button class="btn" id="more">نمایش ۶۰ واژهٔ بیشتر (${fa(list.length - shown)} باقی‌مانده)</button></div>` : ""}
   </div>`;
   $("#bq").addEventListener("input", e => { query = e.target.value; shown = 60; renderBrowse(); $("#bq").focus(); });
@@ -723,10 +759,32 @@ function renderBrowse() {
   $$("[data-lv]").forEach(c => c.onclick = () => { FILTER.lv = c.dataset.lv; renderFilters(); render(); });
   $$("[data-star]").forEach(c => c.onclick = () => { FILTER.starsOnly = !FILTER.starsOnly; render(); });
   $$("[data-clear]").forEach(c => c.onclick = () => { FILTER = { topic: "all", lv: "all", starsOnly: false }; query = ""; renderFilters(); render(); });
+  $$("[data-starpdf]").forEach(c => c.onclick = starsPdf);
+  if (q) browseNotes(q);
   const m = $("#more"); if (m) m.onclick = () => { shown += 60; renderBrowse(); };
   $$("tbody tr").forEach(tr => tr.onclick = () => wordSheet(tr.dataset.w));
 }
 let sortMode = "freq";
+// the search box of «فهرست واژه‌ها» also looks inside the class notes (جزوه)
+async function loadNotes() {
+  if (!NOTES) { const r = await fetch("notes.md", { cache: "no-cache" }); if (!r.ok) throw 0; NOTES = ntParse(await r.text()); }
+  return NOTES;
+}
+async function browseNotes(q) {
+  let N; try { N = await loadNotes(); } catch (e) { return; }
+  const box = $("#bNotes"); if (!box || query.trim().toLowerCase() !== q) return;
+  const cells = l => l.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+  const hits = [];
+  for (const sec of N.sections) for (const l of sec.lines) {
+    const t = l.trim();
+    if (!/^\|/.test(t) || /^\|[\s:|-]+\|?$/.test(t) || /^\|\s*english\s*\|/i.test(t)) continue;
+    if (t.toLowerCase().includes(q)) hits.push({ sec: sec.title.replace(/^[^:]*:\s*/, ""), c: cells(t) });
+    if (hits.length >= 40) break;
+  }
+  box.innerHTML = hits.length ? `<div class="bn"><div class="bn-h">📒 در جزوه: ${fa(hits.length)}${hits.length >= 40 ? "+" : ""} مورد <button class="btn sm ghost" type="button" id="bnOpen">باز کردن جزوه</button></div>
+    <div class="nt-tw"><table><tbody>${hits.map(h => `<tr><td class="en" style="font-weight:700">${ntInline(h.c[0] || "")}</td><td dir="auto">${h.c.slice(1).map(ntInline).join(" · ")}</td><td class="muted" style="font-size:11.5px">${ntInline(h.sec)}</td></tr>`).join("")}</tbody></table></div></div>` : "";
+  const o = $("#bnOpen"); if (o) o.onclick = () => { notesQ = query; VIEW = "notes"; render(); };
+}
 
 function wordSheet(w) {
   const x = byWord(w), c = S.cards[w];

@@ -43,16 +43,25 @@ export function VocabStats({ compact = false }) {
   const [s, setS] = useState(undefined);
   useEffect(() => { vocabSummary().then(setS); }, []);
   if (!s) return null;
-  const max = Math.max(1, ...s.days.map(d => d.r + d.n));
+  const days = compact ? s.days.slice(-7) : s.days, max = Math.max(1, ...days.map(d => d.r + d.n));
+  const prev = s.days.slice(0, 7).reduce((a, d) => a + d.r + d.n, 0), cur = s.week.r + s.week.n;
+  const wd = d => new Intl.DateTimeFormat('fa-IR', { weekday: compact ? 'short' : 'narrow', timeZone: 'UTC' }).format(new Date(d + 'T12:00:00Z'));
   return <section className="lf-card vc-stats">
     <h3>📘 زبان {compact ? '· این هفته' : ''}</h3>
     <div className="vc-kpis">
       <div><b>{fa(s.streak)}</b><small>روز پیوسته 🔥</small></div>
       <div><b>{fa(s.mastered)}</b><small>واژهٔ مسلط</small></div>
       <div><b>{fa(s.learning)}</b><small>در حال یادگیری</small></div>
-      <div><b>{fa(s.week.r + s.week.n)}</b><small>کارت در ۷ روز · {fa(s.week.n)} نو</small></div>
+      <div><b>{fa(cur)}</b><small>کارت در ۷ روز · {fa(s.week.n)} نو</small></div>
     </div>
-    {compact ? null : <div className="vc-bars" title="کارت‌های ۱۴ روز اخیر">{s.days.map(d => <i key={d.date} style={{ height: `${(d.r + d.n) / max * 100}%` }} title={`${d.date}: ${d.r + d.n}`} />)}</div>}
+    <div className={`vc-chart${compact ? ' wk' : ''}`} role="img" aria-label={`کارت‌های ${fa(days.length)} روز اخیر`}>
+      {days.map(d => <div key={d.date} className="vc-col" title={`${d.date}: ${d.r} مرور · ${d.n} نو`}>
+        <em>{d.r + d.n ? fa(d.r + d.n) : ''}</em>
+        <span className="vc-stack" style={{ height: `${(d.r + d.n) / max * 100}%` }}><i className="n" style={{ flexGrow: d.n }} /><i className="r" style={{ flexGrow: d.r }} /></span>
+        <small>{wd(d.date)}</small>
+      </div>)}
+    </div>
+    <div className="vc-legend"><span><i className="r" />مرور</span><span><i className="n" />واژهٔ نو</span>{prev || cur ? <span className="vc-delta">{cur >= prev ? '▲' : '▼'} {fa(Math.abs(cur - prev))} کارت نسبت به هفتهٔ قبل</span> : null}</div>
     <a className="lf-link" href="/?page=vocab">رفتن به زبان ←</a>
   </section>;
 }
