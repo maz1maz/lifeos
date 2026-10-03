@@ -42,7 +42,11 @@ const queueColMutation = work => {
 export function useCol(name) {
   const [items, setItems] = useState(null);
   const [err, setErr] = useState('');
-  const load = () => api(`/api/col/${name}`).then(d => setItems(d.items || [])).catch(e => { setErr(e.message); setItems([]); });
+  // edits not yet confirmed by the server, re-applied over any reload that lands before them
+  const unsaved = useRef(new Map());
+  // a reload waits for writes already queued (the seyfikhani proxy is slow: a read sent right after an
+  // edit used to return the old row, so the typed value vanished and came back seconds later)
+  const load = () => colMutationQueue.then(() => api(`/api/col/${name}`)).then(d => setItems((d.items || []).map(x => unsaved.current.has(x.id) ? { ...x, ...unsaved.current.get(x.id) } : x))).catch(e => { setErr(e.message); setItems(xs => xs || []); });
   useEffect(() => { load(); }, [name]);
   const upsertLocal = (xs, row) => { const list = xs || [], index = list.findIndex(item => item.id === row.id); return index < 0 ? [...list, row] : list.map((item, i) => i === index ? row : item); };
   const add = async body => { const r = await queueColMutation(() => api(`/api/col/${name}`, { method: 'POST', body: JSON.stringify(body) })); setItems(xs => upsertLocal(xs, r)); return r; };
@@ -56,7 +60,7 @@ export function useCol(name) {
   // a server reply only replaces the row when no newer patch for it is in flight; otherwise quick
   // successive clicks flicker (reply #1 briefly undoes the optimistic state of click #2)
   const patchSeq = useRef({});
-  const patch = async (id, body) => { const seq = patchSeq.current[id] = (patchSeq.current[id] || 0) + 1; setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) })); if (patchSeq.current[id] === seq) setItems(xs => (xs || []).map(x => x.id === id ? r : x)); return r; } catch (e) { setErr(e.message); load(); } };
+  const patch = async (id, body) => { const seq = patchSeq.current[id] = (patchSeq.current[id] || 0) + 1; unsaved.current.set(id, { ...(unsaved.current.get(id) || {}), ...body }); setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) })); if (patchSeq.current[id] === seq) { unsaved.current.delete(id); setItems(xs => (xs || []).map(x => x.id === id ? r : x)); } return r; } catch (e) { if (patchSeq.current[id] === seq) unsaved.current.delete(id); setErr(e.message); load(); } };
   const remove = async id => { setItems(xs => (xs || []).filter(x => x.id !== id)); try { await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'DELETE' })); } catch (e) { setErr(e.message); load(); } };
   return { items, add, addMany, patch, remove, reload: load, err, setErr };
 }
@@ -487,7 +491,8 @@ export function ItemsPanel({ items, stages, shares, onPick }) {
   const data = items.map(it => { const mine = stages.filter(x => x.item === it); return { it, pct: itemProgress(stages, it), share: shares[it] || 0, done: mine.filter(x => x.status === 'done').length, total: mine.length, depts: PROCESS_DEPARTMENTS.map(d => [d, mine.some(x => x.department === d) ? itemProgress(stages, it, d) : null]) }; });
   return <section className="lf-items-panel" aria-label="پیشرفت آیتم‌ها">
     <header><b>پیشرفت آیتم‌ها</b><small>عرض هر بخش = سهم از پروژه (بر اساس متراژ) · پرشدگی = پیشرفت</small></header>
-    <div className="lf-share-bar">{data.map((x, i) => <button type="button" key={x.it} style={{ flex: Math.max(x.share, 0.02), '--c': ITEM_COLORS[i % ITEM_COLORS.length] }} onClick={() => onPick?.(x.it)} title={`${x.it} · سهم ${fa(Math.round(x.share * 100))}٪ · پیشرفت ${fa(x.pct)}٪`}><i style={{ width: `${x.pct}%` }} /><span>{x.it}</span></button>)}</div>
+    <div className="lf-share-bar">{data.map((x, i) => <button type="button" key={x.it} style={{ flex: Math.max(x.share, 0.02), '--c': ITEM_COLORS[i % ITEM_COLORS.length] }} onClick={() => onPick?.(x.it)} title={`${x.it} · سهم ${fa(Math.round(x.share * 100))}٪ · پیشرفت ${fa(x.pct)}٪`}><i style={{ width: `${x.pct}%` }} />{x.share >= 0.09 ? <span>{x.it}</span> : null}</button>)}</div>
+    <div className="lf-share-legend">{data.map((x, i) => <button type="button" key={x.it} style={{ '--c': ITEM_COLORS[i % ITEM_COLORS.length] }} onClick={() => onPick?.(x.it)}><i />{x.it}<em>{fa(Math.round(x.share * 100))}٪</em></button>)}</div>
     <div className="lf-item-cards">{data.map((x, i) => <button type="button" key={x.it} className={`lf-item-card ${x.pct === 100 ? 'complete' : ''}`} style={{ '--c': x.pct === 100 ? '#34d399' : ITEM_COLORS[i % ITEM_COLORS.length], '--p': x.pct }} onClick={() => onPick?.(x.it)}>
       <span className="lf-ring"><strong>{fa(x.pct)}٪</strong></span>
       <span className="lf-item-card-body"><b>{x.it}{x.pct === 100 ? <em>تمام شد</em> : null}</b><small>سهم {fa(Math.round(x.share * 100))}٪ · {fa(x.done)} از {fa(x.total)} مرحله</small>
@@ -834,14 +839,16 @@ export function ProjectsPage({ Nav }) {
   const deleteProject = async p => {
     if (!isArchived(p)) return;
     if (!await askMath({ title: `پروژهٔ «${p.name}» برای همیشه حذف شود؟`, detail: 'قرارداد، صورت‌وضعیت‌ها، مراحل، کارت‌ها و یادآوری‌های این پروژه هم پاک می‌شوند. این کار برگشت ندارد.', confirmLabel: 'حذف برای همیشه' })) return;
-    // snapshot the child rows, drop the project first (so no effect re-seeds a contract/checklist for it), then the rest
-    // (the seyfikhani panel's API already cascades a project delete, so a missing child row is not an error)
+    // snapshot the child rows
     const kids = [[processes, 'projectProcesses'], [financials, 'projectFinancials'], [contracts, 'projectContracts'], [supplies, 'projectSupplies'], [cards, 'cards']].map(([col, name]) => [col, name, (col.items || []).filter(x => x.projectId === p.id)]);
+    // children first: the seyfikhani API refuses to delete a project that still has rows. Re-seeding is blocked
+    // meanwhile (contract seed flag; the checklist seed already ran for this template).
     contractSeeds.current.add(p.id);
+    for (const r of kids[0][2]) if (r.reminderId) await api(`/api/reminders/${r.reminderId}`, { method: 'DELETE' }).catch(() => {});
+    for (const [, name, rows] of kids) for (const r of rows) await api(`/api/col/${name}/${r.id}`, { method: 'DELETE' }).catch(() => {});
     setPidRaw('');
     await projects.remove(p.id);
-    for (const r of kids[0][2]) if (r.reminderId) await api(`/api/reminders/${r.reminderId}`, { method: 'DELETE' }).catch(() => {});
-    for (const [col, name, rows] of kids) { for (const r of rows) await api(`/api/col/${name}/${r.id}`, { method: 'DELETE' }).catch(() => {}); if (rows.length) col.reload(); }
+    for (const [col, , rows] of kids) if (rows.length) col.reload();
   };
   const cur = (() => { const p = list.find(x => x.id === pid); if (p && (picked || !isFinished(p))) return p; return ordered.find(x => !isFinished(x)) || p || ordered.find(x => !isArchived(x)) || ordered[0] || null; })();
   useEffect(() => { if (cur) try { localStorage.setItem('lifeos-project', cur.id); } catch {} }, [cur?.id]);

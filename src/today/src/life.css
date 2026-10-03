@@ -504,3 +504,8 @@
 .mq-wrong{color:#f87171;font-size:12px}
 .mq-actions{display:flex;gap:8px;justify-content:flex-start}.mq-actions button{padding:9px 16px;border-radius:10px;font:inherit;font-size:13px;cursor:pointer}
 .mq-ok{border:0;background:#ef4444;color:#fff;font-weight:600}.mq-cancel{border:1px solid var(--g-border,#334155);background:transparent;color:inherit}
+.lf-share-bar{margin-bottom:8px}
+.lf-share-legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:12px}
+.lf-share-legend button{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:var(--g-text);font:inherit;font-size:12px;cursor:pointer}
+.lf-share-legend i{width:10px;height:10px;border-radius:3px;background:var(--c)}
+.lf-share-legend em{font-style:normal;color:var(--g-muted);font-size:11px}
