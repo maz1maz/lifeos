@@ -598,6 +598,26 @@ function ProjectReport({ project, contract, financials, processes }) {
     {reportFooterText ? <footer className="lf-report-print-footer"><span>{reportFooterText}</span></footer> : null}
   </article>;
 }
+const CONTRACT_ITEMS = ['پنجره', 'کرتین‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
+const OTHER_ITEMS = 'سایر اقلام نما';
+const normItem = x => String(x || '').replace(/[\s\u200c]+/g, '').replace(/کرتن/g, 'کرتین');
+// چند-انتخابی؛ subject (متنی) هم برای گزارش و داده‌های قبلی هم‌گام نگه داشته می‌شود
+function ContractItemsField({ contract, onChange }) {
+  const legacy = String(contract?.subject || '').split(/[،,\n]+/).map(x => x.trim()).filter(Boolean);
+  const picked = Array.isArray(contract?.items) ? contract.items : CONTRACT_ITEMS.filter(i => legacy.some(l => normItem(l) === normItem(i)));
+  const legacyOther = legacy.filter(l => !CONTRACT_ITEMS.some(i => normItem(i) === normItem(l))).join('، ').replace(/^سایر( اقلام نما)?\s*:\s*/, '');
+  const other = contract?.itemsOther ?? legacyOther;
+  const [otherOn, setOtherOn] = useState(!!other);
+  const commit = (items, otherText, on) => { const t = on ? String(otherText || '').trim() : ''; onChange({ items, itemsOther: t, subject: [...items, ...(t ? [`${OTHER_ITEMS}: ${t}`] : [])].join('، ') }); };
+  const toggle = i => commit(picked.includes(i) ? picked.filter(x => x !== i) : CONTRACT_ITEMS.filter(x => x === i || picked.includes(x)), other, otherOn);
+  return <div className="lf-sheet-field wide lf-contract-items"><span>آیتم‌های قرارداد</span>
+    <div className="lf-item-chips" role="group" aria-label="آیتم‌های قرارداد">
+      {CONTRACT_ITEMS.map(i => <button type="button" key={i} className={picked.includes(i) ? 'on' : ''} aria-pressed={picked.includes(i)} onClick={() => toggle(i)}>{picked.includes(i) ? '✓ ' : ''}{i}</button>)}
+      <button type="button" className={otherOn ? 'on' : ''} aria-pressed={otherOn} onClick={() => { const on = !otherOn; setOtherOn(on); commit(picked, other, on); }}>{otherOn ? '✓ ' : ''}{OTHER_ITEMS}</button>
+    </div>
+    {otherOn ? <input defaultValue={other} placeholder="سایر اقلام نما را بنویسید (مثلاً کامپوزیت، سنگ…)" onBlur={e => commit(picked, e.target.value, true)} autoFocus={!other} /> : null}
+  </div>;
+}
 function ProjectInfoSheet({ project, contract, onPatchProject, onPatchContract }) {
   const setProject = (key, value) => onPatchProject({ [key]: value });
   const setContract = (key, value) => {
@@ -613,7 +633,7 @@ function ProjectInfoSheet({ project, contract, onPatchProject, onPatchContract }
       {input('project', 'projectCode', 'کد پروژه')}{input('project', 'name', 'نام پروژه', { placeholder: 'نام پروژه' })}
       {input('project', 'client', 'کارفرما')}{input('project', 'clientPhone', 'شماره تماس کارفرما')}
       {input('project', 'owner', 'مسئول ارتباط پروژه')}{input('project', 'contactPhone', 'شماره تماس مسئول ارتباط')}
-      {input('contract', 'contractNo', 'شماره قرارداد')}{input('contract', 'subject', 'آیتم‌های قرارداد', { placeholder: 'پنجره، کرتن‌وال، لوور' })}
+      {input('contract', 'contractNo', 'شماره قرارداد')}<ContractItemsField contract={contract} onChange={patch => onPatchContract({ ...(contract || {}), ...patch })} />
       {date('contractStartDate', 'تاریخ شروع قرارداد')}{date('contractEndDate', 'تاریخ اتمام قرارداد')}
       {input('contract', 'area', 'متراژ قرارداد (مترمربع)', { money: true })}
       <label className="lf-sheet-field"><span>نوع تسویه</span><select value={contract?.settlementType || 'cash'} onChange={e => setContract('settlementType', e.target.value)}><option value="cash">نقدی</option><option value="check">چک</option><option value="statement">صورت‌وضعیتی</option><option value="barter">تهاتری</option><option value="other">سایر</option></select></label>
