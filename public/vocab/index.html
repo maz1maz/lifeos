@@ -310,6 +310,24 @@ nav.tabs{gap:4px}
   #appShell>header.top .tab.on{border-color:transparent}
   #appShell>.wrap{width:100%;padding-top:14px}
 }
+/* phone: slim header that scrolls away, compact stats, rating bar pinned to the bottom of the screen */
+@media(max-width:700px){
+  header.top{position:static;backdrop-filter:none}
+  .topin{padding:8px 10px 6px;gap:6px}
+  .brand{font-size:14px;gap:7px}
+  .brand small{display:none}
+  .logo{width:28px;height:28px;border-radius:9px;font-size:11px}
+  .tab{padding:5px 11px!important;font-size:12.5px!important}
+  .wrap{padding-bottom:16px}
+  .stat{padding:6px 3px}
+  .stat b{font-size:15px!important}
+  .stat span{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .fc{height:clamp(240px,40vh,360px)}
+  .ratebar{position:sticky;bottom:0;z-index:20;margin:8px -10px 0;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
+  .ratebar .btn{min-height:44px}
+  .nt-top{gap:6px}
+  .nt-top .btn{flex:0 0 auto;white-space:nowrap}
+}
 </style>
 </head>
 <body>
@@ -335,7 +353,7 @@ nav.tabs{gap:4px}
       <button class="tab" data-v="notes">جزوه</button>
       <button class="tab" data-v="stats">پیشرفت</button>
       <button class="tab" data-v="settings">تنظیمات</button>
-      <button class="tab" id="helpBtn" title="راهنما">؟</button>
+      <button class="tab" id="helpBtn" title="راهنما و میان‌برها">راهنما</button>
       <button class="tab" id="userBtn" title="حساب من">کاربر</button>
       <button class="tab" id="logoutBtn" title="خروج از حساب">خروج</button>
     </nav>

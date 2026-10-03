@@ -13,8 +13,10 @@ export const vocabSummary = () => (SUM ||= api('/api/vocab/summary').then(d => d
 
 // Home dashboard card (inside the draggable grid, styled like the other cards).
 export function VocabHomeCard({ Card, Icon }) {
-  const [s, setS] = useState(undefined);
-  useEffect(() => { vocabSummary().then(setS); }, []);
+  const [s, setS] = useState(undefined), [wd, setWd] = useState(null);
+  const pick = () => api('/api/vocab/summary?hard=1&word=1').then(d => { setWd(d.hard ? { ...d.hard, hard: true } : d.word || null); return d.summary || null; }).catch(() => null);
+  useEffect(() => { pick().then(setS); }, []);
+  const say = w => { try { const u = new SpeechSynthesisUtterance(w); u.lang = 'en-US'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {} };
   const todo = s ? s.due + s.newLeft : 0, done = s ? s.today.r + s.today.n : 0, goal = Math.max(1, done + todo);
   return <Card className="mini-card vc-home" icon={Icon} title="زبان" action={<a href="/?page=vocab">{s && !todo ? 'باز کن ←' : 'شروع ←'}</a>}>
     {s === undefined ? <p className="muted">…</p> : !s ? <a className="vc-home-start" href="/?page=vocab">شروع ۷۰۰۰ واژهٔ آیلتس — روزی ۱۵ واژهٔ نو</a> : <>
@@ -25,6 +27,13 @@ export function VocabHomeCard({ Card, Icon }) {
       </div>
       <div className="vc-home-bar" title={`امروز ${done} کارت`}><i style={{ width: `${Math.min(100, done / goal * 100)}%` }} /></div>
       <small className="muted">{todo ? `امروز ${fa(done)} کارت زدی · ${fa(todo)} مانده` : `امروز تمام شد ✓ · ${fa(done)} کارت`}</small>
+      {wd ? <div className="vc-home-word">
+        <div className="vc-hw-top"><span className="vc-hw-tag">{wd.hard ? 'واژهٔ سخت' : 'واژهٔ روز'}</span>{wd.hard ? <button type="button" onClick={pick} title="یک واژهٔ سخت دیگر" aria-label="واژهٔ دیگر">↻</button> : null}</div>
+        <button type="button" className="vc-hw-w" dir="ltr" onClick={() => say(wd.w)} title="تلفظ">{wd.w} <span>🔊</span>{wd.p ? <small>{wd.p}</small> : null}</button>
+        <p className="vc-hw-fa">{wd.fa}</p>
+        {wd.e ? <p className="vc-hw-e" dir="ltr">{wd.e}</p> : null}
+        {wd.ef ? <p className="vc-hw-ef">{wd.ef}</p> : null}
+      </div> : null}
     </>}
   </Card>;
 }

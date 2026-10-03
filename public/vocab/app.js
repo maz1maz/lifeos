@@ -291,12 +291,86 @@ async function renderNotes() {
     catch (e) { box.innerHTML = `<p class="muted pad">جزوه بارگذاری نشد.</p>`; return; }
     if (VIEW !== "notes") return;
   }
-  box.innerHTML = `<div class="nt-top"><input id="ntQ" type="search" placeholder="جستجو در جزوه (انگلیسی یا فارسی)…" value="${esc(notesQ)}" autocomplete="off"><span class="muted" id="ntN"></span></div>` +
+  box.innerHTML = `<div class="nt-top"><input id="ntQ" type="search" placeholder="جستجو در جزوه (انگلیسی یا فارسی)…" value="${esc(notesQ)}" autocomplete="off"><span class="muted" id="ntN"></span><button type="button" class="btn sm" id="ntPdf" title="نسخهٔ چاپی / PDF">PDF ⬇</button></div>` +
     NOTES.sections.map((x, k) => `<details class="nt-sec"${k === 0 ? " open" : ""}><summary>${ntInline(x.title)}${x.words > 2 ? `<em>${x.words.toLocaleString("fa-IR")} ردیف</em>` : ""}</summary><div class="nt-body">${x.html}</div></details>`).join("");
   const q = $("#ntQ");
   q.oninput = () => { notesQ = q.value; ntFilter(); };
+  $("#ntPdf").onclick = ntPdf;
   box.onclick = e => { const b = e.target.closest("button[data-say]"); if (b) { e.preventDefault(); speak(b.dataset.say); } };
   ntFilter();
+}
+/* Printable booklet of the notes (cover, contents, one topic per page) → the browser's «Save as PDF». */
+const NT_PARTS = [
+  [/^واژگان تکمیلی[^:]*:\s*/, "بخش چهارم — واژگان تکمیلی (جلسه ۲۳)"],
+  [/^تمرین گفتاری:\s*/, "بخش سوم — تمرین گفتاری"],
+  [/^(گرامر:\s*|(?=جمع‌بندی))/, "بخش دوم — گرامر کامل"],
+  [/^(واژگان:\s*|(?=تلفظ))/, "بخش اول — واژگان"],
+];
+function ntPdf() {
+  if (!NOTES) return;
+  const secs = NOTES.sections.map(x => {
+    for (const [re, part] of NT_PARTS) if (re.test(x.title)) return { ...x, part, name: x.title.replace(re, "") };
+    return { ...x, part: "", name: x.title };
+  });
+  let n = 0, lastPart = "", toc = "", body = "";
+  for (const x of secs) {
+    if (!x.part) { body += `<section class="pg"><h2>${ntInline(x.name)}</h2>${x.html}</section>`; continue; }
+    const no = String(++n).padStart(2, "0");
+    if (x.part !== lastPart) { toc += `<div class="tp">${esc(x.part)}</div>`; lastPart = x.part; }
+    toc += `<div class="tr"><b>${no}</b><span>${ntInline(x.name)}</span></div>`;
+    body += `<section class="pg"><div class="kick">${esc(x.part.replace(" — ", " · "))}</div><h2>${ntInline(x.name)}</h2>${x.html}</section>`;
+  }
+  const font = f => new URL("/assets/fonts/vazirmatn-" + f + ".woff2", location.href).href;
+  const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>جزوه زبان — واژگان و گرامر</title><style>
+@font-face{font-family:V;font-weight:100 900;src:url('${font("arabic")}') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+200C-200F,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:V;font-weight:100 900;src:url('${font("latin")}') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02B0-02FF,U+2000-206F,U+2122,U+2212}
+@page{size:A4;margin:14mm 12mm}
+*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+html,body{margin:0;background:#f8f4ec;color:#2b2b2b;font-family:V,Tahoma,sans-serif;font-size:12.5px;line-height:1.85}
+.bar{position:sticky;top:0;display:flex;gap:10px;align-items:center;justify-content:center;padding:10px;background:#0f6e63;color:#fff;font-size:14px}
+.bar button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:8px 18px;background:#fff;color:#0f6e63;cursor:pointer}
+main{max-width:186mm;margin:0 auto;padding:0 4mm}
+.cover{min-height:265mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;page-break-after:always}
+.cover .k{color:#0f6e63;font-weight:700;font-size:13px}
+.cover h1{color:#0d4f47;font-size:38px;line-height:1.45;margin:14px 0}
+.cover p{color:#555;font-size:15px;max-width:110mm;margin:0}
+.cover i{display:block;width:60px;height:4px;border-radius:4px;background:#c4532b;margin:36px auto 0}
+.toc{page-break-after:always;padding-top:6mm}
+h2{color:#0d4f47;font-size:22px;margin:0 0 10px;padding-bottom:10px;border-bottom:2px solid #0f6e63}
+.toc h2{border:0}
+.tp{color:#c4532b;font-weight:700;font-size:11px;margin:16px 0 4px}
+.tr{display:flex;gap:16px;padding:9px 0;border-bottom:1px dotted #d8d0bf;font-size:13.5px;break-inside:avoid}
+.tr b{color:#0f6e63;font-family:V,sans-serif;min-width:20px}
+.pg{page-break-before:always;padding-top:2mm}
+.pg:first-of-type{page-break-before:auto}
+.kick{color:#c4532b;font-weight:700;font-size:11px;margin-bottom:6px}
+h4{color:#0d4f47;font-size:15px;margin:20px 0 10px;padding-inline-start:10px;border-inline-start:4px solid #c4532b;break-after:avoid}
+p,li{font-size:13px}
+ul{padding-inline-start:20px}
+table{width:100%;border-collapse:collapse;margin:4px 0 14px;font-size:12px}
+thead{display:table-header-group}
+th{background:#0f6e63;color:#fff;text-align:start;padding:9px 10px;font-weight:700}
+td{padding:8px 10px;border-bottom:1px solid #e3dccc;vertical-align:top}
+tr{break-inside:avoid}
+tbody tr:nth-child(even){background:#f1eadc}
+td.nt-en{direction:ltr;text-align:left;font-weight:500}
+td+td{border-inline-start:1px solid #e3dccc}
+button[data-say]{display:none}
+code{direction:ltr;unicode-bidi:isolate;background:#efe7d6;border-radius:4px;padding:0 4px}
+strong{color:#0d4f47}
+@media print{.bar{display:none}main{padding:0}}
+</style></head><body>
+<div class="bar"><span>برای PDF، در پنجرهٔ چاپ «Save as PDF» را بزن</span><button type="button" onclick="print()">چاپ / PDF</button></div>
+<main>
+<div class="cover"><div class="k">جزوه خصوصی زبان انگلیسی · آماده‌سازی آیلتس</div><h1>واژگان و گرامر<br>مرتب‌شده</h1><p>بازنویسی و دسته‌بندی موضوعی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان</p><i></i></div>
+<div class="toc"><h2>فهرست مطالب</h2>${toc}</div>
+${body}
+</main>
+<script>document.fonts.ready.then(function(){setTimeout(function(){print()},400)})<\/script>
+</body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) { toast("پنجرهٔ تازه باز نشد؛ اجازهٔ پاپ‌آپ را بده."); return; }
+  w.document.open(); w.document.write(html); w.document.close();
 }
 function ntFilter() {
   const q = notesQ.trim().toLowerCase(), secs = $$("#notesMain .nt-sec");

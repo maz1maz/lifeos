@@ -341,6 +341,8 @@ async function main() {
       check('vocab: read back', Object.keys((await call('/api/vocab', { cookie })).d.state.cards).length === 3);
       const sm = (await call('/api/vocab/summary', { cookie })).d.summary;
       check('vocab summary: due/new/learning/mastered/streak', sm.due === 1 && sm.newLeft === 7 && sm.learning === 2 && sm.mastered === 1 && sm.streak === 2, JSON.stringify(sm));
+      check('vocab summary: no hard word before any «نمی‌دانستم»', (await call('/api/vocab/summary?hard=1', { cookie })).d.hard === null);
+      check('vocab summary: hard word only when asked', !('hard' in (await call('/api/vocab/summary', { cookie })).d) || (await call('/api/vocab/summary', { cookie })).d.hard === undefined);
       check('vocab: bad payload refused', (await call('/api/vocab', { method: 'PUT', cookie, body: { state: { cards: [] } } })).status === 400);
       check('vocab: anonymous 401', (await call('/api/vocab')).status === 401);
       check('db row stays small (vocab not inside main db)', !JSON.stringify((await call('/api/me', { cookie })).d).includes('cladding'));

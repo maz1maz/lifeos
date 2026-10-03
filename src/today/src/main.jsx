@@ -362,7 +362,7 @@ function HomePage() {
         <DigitalClock compact />
         <form className="quick" onSubmit={submitQuick}>
           <button type="submit" className="save">＋ ثبت</button>
-          <input className="quick-title" value={quick.title} onChange={e => setQuick({ ...quick, title: e.target.value })} placeholder={quick.type === 'transaction' ? 'برای چی خرج کردی؟' : quick.type === 'reminder' ? 'چی رو یادت بندازم؟ (مثلاً: فردا تماس با علی)' : 'چه کاری باید انجام بدی؟ (مثلاً: فردا خرید نان)'} />
+          <input className="quick-title" value={quick.title} onChange={e => setQuick({ ...quick, title: e.target.value })} placeholder={quick.type === 'transaction' ? 'برای چی خرج کردی؟' : quick.type === 'reminder' ? 'چی رو یادت بندازم؟' : 'چه کاری باید انجام بدی؟'} />
           {quick.type === 'transaction' && <label className="amount-wrap"><input className="amount" value={quick.amount ? Number(String(quick.amount).replace(/[^\d]/g, '') || 0).toLocaleString('fa-IR') : ''} onChange={e => setQuick({ ...quick, amount: e.target.value.replace(/[۰-۹]/g, x => '۰۱۲۳۴۵۶۷۸۹'.indexOf(x)).replace(/[^\d]/g, '') })} inputMode="numeric" placeholder="مبلغ" aria-label="مبلغ به ریال" /><span>ریال</span></label>}
           {quick.type !== 'transaction' && <TimePicker value={quick.time} onChange={t => setQuick(q => ({ ...q, time: t }))} />}
           <div className="quick-when" ref={whenRef}>
