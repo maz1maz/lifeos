@@ -1407,6 +1407,17 @@ async function handleApi(request, env) {
      }
      return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
    }
+   // Instant site → Telegram notice (form summaries) to the token's own owner; any scope, own 60/hour limit.
+   if(parts[0]==='notify'&&!parts[1]){
+     if(req.method!=='POST')return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+     let nl=checkRateLimit('extnotify:'+m[1].slice(0,16),60,3600e3);if(!nl.ok)return json(res,429,{error:'پیام زیاد. '+nl.retrySec+' ثانیه صبر کن.'});
+     let d=await body(req),text=String(d.text??'').replace(/\r\n?/g,'\n').trim().slice(0,3900);
+     if(!text)return json(res,400,{error:'متن پیام خالی است.'});
+     if(!TELEGRAM_BOT_TOKEN||!user.telegramUserId)return json(res,503,{error:'تلگرام در LifeOS وصل نیست.'});
+     let r;try{r=await tgSend(user.telegramUserId,text,{disable_web_page_preview:true})}catch(e){r=null}
+     if(!r||!r.ok)return json(res,502,{error:'ارسال پیام به تلگرام ناموفق بود.'});
+     return db.__touch?done(200,{ok:true}):json(res,200,{ok:true});   // no blob write unless lastUsedAt changed
+   }
    // Project report PDF → Telegram, uploaded in pieces (the site's host cuts long transfers).
    // Pieces live in their own kv rows (outside the state:v2: blob) until «report-send» joins them.
    if(parts[0]==='report-chunk'||parts[0]==='report-send'){

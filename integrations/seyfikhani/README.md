@@ -49,6 +49,7 @@ LifeOS → تنظیمات → «اتصال سایت شخصی» → «لغو». �
 `/api/col/*` → `/api/ext/col/*` · `/api/reminders*` → `/api/ext/reminders*` · `/api/transactions*` (فقط «آموزش») → `/api/ext/transactions*`.
 هر تغییر در این صفحه‌های LifeOS ⇒ `npm run build:studio` و آپلود دوبارهٔ `studio.html` + `studio-assets/`.
 «ارسال گزارش به تلگرام» از سایت هم کار می‌کند (PDF تکه‌تکه از پروکسی به `/api/ext/report-chunk` و `report-send` می‌رود). پیوست‌ها فقط داخل خود LifeOS.
+خلاصهٔ فرم‌ها (مشاوره، طراحی نما، ثبت‌نام دوره، تماس) بی‌درنگ با `POST /api/ext/notify` بدنه `{ "text": "…" }` به تلگرام صاحب توکن می‌رود (هر scope، سقف ۶۰ پیام در ساعت برای هر توکن، حداکثر ۳۹۰۰ نویسه؛ ۵۰۳ = تلگرام وصل نیست).
 
 ## شبکهٔ هاست ایرانی
 - هاست درخواست‌هایی که هدر `Authorization` دارند را نگه می‌دارد ⇒ توکن با `X-LifeOS-Token` فرستاده می‌شود.

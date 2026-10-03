@@ -780,6 +780,24 @@ async function main() {
       } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } }); }
     }
 
+    // instant form notice → Telegram
+    {
+      const noTg = await ext('/api/ext/notify', { method: 'POST', token, body: { text: 'فرم تماس' } });
+      check('notify without Telegram linked -> 503', noTg.status === 503 && /تلگرام در LifeOS وصل نیست/.test(noTg.d.error), JSON.stringify(noTg.d));
+      check('notify with empty text -> 400', (await ext('/api/ext/notify', { method: 'POST', token, body: { text: ' \r\n ' } })).status === 400);
+      check('notify GET -> 405', (await ext('/api/ext/notify', { token })).status === 405);
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777003' } });
+      const sentMsgs = [], realFetch = globalThis.fetch; env.TELEGRAM_BOT_TOKEN = 'TEST';
+      globalThis.fetch = async (url, init) => { if (String(url).includes('sendMessage')) { sentMsgs.push(JSON.parse(init.body)); return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { headers: { 'content-type': 'application/json' } }); } return new Response('{}', { status: 404 }); };
+      try {
+        const ok3 = await ext('/api/ext/notify', { method: 'POST', token, body: { text: '  درخواست مشاوره\r\nنام: سارا  ' } });
+        const m = sentMsgs[0] || {};
+        check('notify sends the text instantly to the token owner on Telegram', ok3.status === 200 && ok3.d.ok === true && sentMsgs.length === 1 && m.chat_id === '777003' && m.text === 'درخواست مشاوره\nنام: سارا' && m.disable_web_page_preview === true, JSON.stringify([ok3.d, m]));
+        await ext('/api/ext/notify', { method: 'POST', token, body: { text: 'x'.repeat(5000) } });
+        check('notify caps text at 3900 chars', (sentMsgs[1] || {}).text?.length === 3900);
+      } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } }); }
+    }
+
     // courses + students + payments
     const course = await ext('/api/ext/col/courses', { method: 'POST', token, body: { name: 'دورهٔ نما ۱', price: 50000000, sessions: 8 } });
     const stu = await ext('/api/ext/col/students', { method: 'POST', token, body: { courseId: course.d.id, name: 'سارا', phone: '09120000000', fee: 50000000, payments: [], attendance: [] } });
