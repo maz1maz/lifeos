@@ -348,6 +348,7 @@ const ITEM_STAGES = [
   ['اجرا', 'شروع نصب'],
   ['اجرا', 'پایان نصب']
 ];
+const FINAL_STAGES = [['اجرا', 'تحویل پروژه']];
 export const PROCESS_DEPARTMENTS = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'];
 const CONTRACT_ITEMS = ['پنجره', 'کرتین‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
 const OTHER_ITEMS = 'سایر اقلام نما';
@@ -369,12 +370,13 @@ export function processTemplate(contract) {
   const items = contractScope(contract);
   const out = FIXED_STAGES.map(([department, title]) => ({ department, title, base: title, item: '' }));
   for (const item of items.length ? items : ['']) for (const [department, base] of ITEM_STAGES) out.push({ department, base, item, title: item ? `${base}${ITEM_SEP}${item}` : base });
+  for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '' });
   return out.map((s, order) => ({ ...s, order }));
 }
 // Weighted progress (agreed 1405-07): control 10%, technical 15%, supply 30%, execution 45%.
 // Inside a department each stage has a base weight (execution: install-finish counts most), normalised over the project's stages.
 const DEPT_WEIGHT = { 'کنترل پروژه': 10, 'فنی': 15, 'تأمین': 30, 'اجرا': 45 };
-const EXEC_BASE = { 'ابعادبرداری برآوردی': 1, 'ابعادبرداری دقیق': 2, 'شروع نصب': 3, 'پایان نصب': 12 };
+const EXEC_BASE = { 'ابعادبرداری برآوردی': 1, 'ابعادبرداری دقیق': 2, 'شروع نصب': 3, 'پایان نصب': 12, 'تحویل پروژه': 2 };
 const baseOf = s => s.base || String(s.title || '').split(ITEM_SEP)[0];
 const baseWeight = s => s.department === 'اجرا' ? (EXEC_BASE[baseOf(s)] || 1) : 1;
 function withWeights(stages) {
@@ -417,6 +419,8 @@ function legacyCarry(stage, byKey) {
   }
   return {};
 }
+// Ticking «تحویل پروژه» finishes the project even if earlier rows were skipped.
+export const isDelivered = stages => (stages || []).some(x => x.department === 'اجرا' && x.title === 'تحویل پروژه' && x.status === 'done');
 const stageKey = s => `${s.department}|${s.title}`;
 // the project's current checklist with stored rows merged in (old rows outside the template stay stored but hidden)
 export function projectStages(contract, rows) {
@@ -480,7 +484,7 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
       const nextDone = after.filter(item => item.status === 'done').length;
       try {
         const result = saved ? await saved : undefined;
-        if (result !== undefined) await onCompletionChange?.(nextDone === tpl.length);
+        if (result !== undefined) await onCompletionChange?.(nextDone === tpl.length || isDelivered(after));
       } catch { /* useCol reloads the row after a failed optimistic write */ }
     }
     return saved;
@@ -545,7 +549,7 @@ function projectMetrics(project, contract, financials, processes) {
   const amount = num(contract?.amount), advance = num(contract?.advancePayment);
   const stTotal = (financials || []).reduce((a, x) => a + num(x.amount), 0), paid = (financials || []).reduce((a, x) => a + num(x.paidAmount), 0);
   const received = advance + paid, variance = timePct == null ? null : progress - timePct;
-  const state = progress === 100 ? 'done' : (variance != null && variance < -15) || late ? 'bad' : variance != null && variance < 0 ? 'warn' : !contract || (!days && !amount) ? 'none' : 'ok';
+  const state = progress === 100 || isDelivered(stages) ? 'done' : (variance != null && variance < -15) || late ? 'bad' : variance != null && variance < 0 ? 'warn' : !contract || (!days && !amount) ? 'none' : 'ok';
   return { done, total: stages.length, progress, late, timePct, variance, daysLeft, end, amount, received, receivedPct: amount ? Math.min(100, Math.round(received / amount * 100)) : null, outstanding: Math.max(0, stTotal - paid), state };
 }
 const STATE_LABEL = { ok: 'مطابق برنامه', warn: 'اندکی عقب', bad: 'نیازمند پیگیری', done: 'تکمیل‌شده', none: 'قرارداد ناقص' };
@@ -714,7 +718,7 @@ export function ProjectsPage({ Nav }) {
   const reorderProjects = ids => { const pos = new Map(ordered.map((p, i) => [p.id, i])), group = ids.map(id => pos.get(id)).sort((a, b) => a - b); ids.forEach((id, i) => { const p = list.find(x => x.id === id); if (p && p.order !== group[i]) projects.patch(id, { order: group[i] }); }); ordered.forEach((p, i) => { if (!ids.includes(p.id) && p.order !== i) projects.patch(p.id, { order: i }); }); };
   const contractOf = id => (contracts.items || []).find(x => x.projectId === id);
   const stagesOf = p => projectStages(contractOf(p.id), (processes.items || []).filter(x => x.projectId === p.id));
-  const isFinished = p => p.status === 'done' || stagesOf(p).every(x => x.status === 'done');
+  const isFinished = p => { if (p.status === 'done') return true; const st = stagesOf(p); return isDelivered(st) || st.every(x => x.status === 'done'); };
   const cur = (() => { const p = list.find(x => x.id === pid); if (p && (picked || !isFinished(p))) return p; return ordered.find(x => !isFinished(x)) || p || ordered[0] || null; })();
   useEffect(() => { if (cur) try { localStorage.setItem('lifeos-project', cur.id); } catch {} }, [cur?.id]);
   const mine = (cards.items || []).filter(c => cur && c.projectId === cur.id);
@@ -814,7 +818,7 @@ export function ProjectsPage({ Nav }) {
       {compare && list.length > 1 ? <ProjectsCompare projects={ordered} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده']]}
         onReorder={reorderProjects}
         items={ordered.map(p => { const stages = stagesOf(p), total = stages.length, done = stages.filter(x => x.status === 'done').length, pct = weightedProgress(stages);
-          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: (p.status === 'done' || done === total) ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>
+          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: (p.status === 'done' || done === total || isDelivered(stages)) ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>
       {cur ? <section className="lf-card sl-top" style={{ '--c': cur.color || PCOLORS[0] }}>
         {(() => { const today = todayIso(), late = mine.filter(c => c.col !== 'done' && c.due && c.due < today).sort((a, b) => a.due.localeCompare(b.due)), soon = mine.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((a, b) => a.due.localeCompare(b.due));
           return <>
