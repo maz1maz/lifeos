@@ -456,24 +456,18 @@
 .lf-process-items>button{--dept-color:#60a5fa}.lf-process-items>button i em{background:#60a5fa}
 .lf-process-items>button.done{--dept-color:#34d399}.lf-process-items>button.done i em{background:#34d399}
 .lf-process-group{scroll-margin-top:90px}
-/* توضیحات مرحله: یک خط کامل زیر هر ردیف (دسکتاپ) */
+/* مراحل: توضیحات در ستون آخر همان ردیف؛ یادآوری/تاریخ/مسئول جمع‌وجورتر تا توضیحات جای بیشتری بگیرد */
 @media(min-width:701px){
-  .lf-processes section{--process-columns:42px 30px 112px 100px minmax(240px,1fr) 120px 160px 40px}
-  .lf-processes .lf-process-row{grid-template-areas:'check number reminder department title date owner notebtn' '. . note note note note note note';row-gap:0}
-  .lf-processes .lf-process-cols span:nth-child(8){font-size:0}.lf-processes .lf-process-cols span:nth-child(8)::after{content:'📝';font-size:11px}
-  .lf-processes .lf-process-row.note-closed textarea.lf-process-note{display:none}
-  .lf-processes .lf-process-row.note-open textarea.lf-process-note{margin-top:6px}
-  .lf-process-note-btn{grid-area:notebtn;justify-self:center;width:32px;height:32px;border-radius:9px;border:1px dashed var(--g-border);background:transparent;color:var(--g-muted);font:inherit;font-size:15px;line-height:1;cursor:pointer}
-  .lf-process-note-btn.has{border-style:solid;border-color:rgba(96,165,250,.45);background:rgba(96,165,250,.1)}
-  .lf-process-note-btn:hover{border-color:#60a5fa;color:#93c5fd}
-  .lf-processes .lf-process-row textarea.lf-process-note{grid-area:note;grid-column:3/-1;grid-row:2;min-height:34px;max-height:260px}
+  .lf-processes section{--process-columns:42px 28px 100px 92px minmax(200px,1.1fr) 104px 112px minmax(240px,1.4fr)}
+  .lf-process-row .jdi-btn{font-size:11.5px;padding-inline:6px;gap:4px}
+  .lf-process-row .lf-process-owner{font-size:12px;padding-inline:8px}
+  .lf-process-row textarea.lf-process-note{min-height:34px;max-height:200px}
 }
 .lf-statement-dup{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:10px 0;padding:9px 12px;border:1px solid rgba(245,195,106,.4);border-radius:12px;background:rgba(245,195,106,.08);color:#f5c36a;font-size:12.5px}
 .lf-report-notes{margin-top:10px;display:grid;gap:6px;font-size:13px;line-height:1.8}.lf-report-notes b{color:var(--g-muted);font-weight:600}
 .lf-report-stage-note{grid-column:1/-1;margin:4px 0 0;font-size:12px;color:var(--g-muted);line-height:1.7;white-space:pre-wrap}
 .lf-report-note-row td{font-size:12px;color:var(--g-muted)}
 .lf-report-subhead{margin-top:14px}
-@media(max-width:700px){.lf-process-note-btn{display:none}}
 /* پنل پیشرفت آیتم‌ها */
 .lf-items-panel{margin:12px 0 6px;padding:12px;border:1px solid var(--g-border);border-radius:14px;background:var(--g-panel-2)}
 .lf-items-panel>header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}.lf-items-panel>header b{font-size:13.5px}.lf-items-panel>header small{color:var(--g-muted);font-size:11px}
@@ -494,3 +488,5 @@
 .lf-item-depts small{font-size:9.5px;color:var(--g-muted);text-align:center}
 .lf-item-depts .dept-کنترل-پروژه{--dept-color:#a78bfa}.lf-item-depts .dept-فنی{--dept-color:#60a5fa}.lf-item-depts .dept-تأمین{--dept-color:#f5c36a}.lf-item-depts .dept-اجرا{--dept-color:#34d399}
 .lf-item-card.complete{border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.05)}
+.lf-report-stage-table td.note{white-space:pre-wrap;min-width:200px;color:var(--g-muted);font-size:12px;line-height:1.7}
+.lf-report-stage-table tr.done td:nth-child(4){color:#34d399}
