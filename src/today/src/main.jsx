@@ -30,9 +30,10 @@ import { UpcomingPage, DiscoverPage } from './watchx';
 import { CommandPalette } from './palette';
 import { AdminPage, MsgBar } from './admin';
 import { CoursesPage, ClassTodayCard } from './courses';
-import { VocabPage, VocabTodayCard } from './vocab';
+import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import { HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, FocusCard, ShoppingPanel, BillsWeekCard, LifeStatsPage } from './life';
+import './mobile.css'; // phone/iPhone pass — keep last so it overrides page CSS
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -372,7 +373,7 @@ function HomePage() {
         <DigitalClock compact />
         <form className="quick" onSubmit={submitQuick}>
           <button type="submit" className="save">＋ ثبت</button>
-          <input className="quick-title" value={quick.title} onChange={e => setQuick({ ...quick, title: e.target.value })} placeholder={quick.type === 'transaction' ? 'برای چی خرج کردی؟' : quick.type === 'reminder' ? 'چی رو یادت بندازم؟ (مثلاً: فردا تماس با علی)' : 'چه کاری باید انجام بدی؟ (مثلاً: فردا خرید نان)'} />
+          <input className="quick-title" value={quick.title} onChange={e => setQuick({ ...quick, title: e.target.value })} placeholder={quick.type === 'transaction' ? 'برای چی خرج کردی؟' : quick.type === 'reminder' ? 'چی رو یادت بندازم؟' : 'چه کاری باید انجام بدی؟'} />
           {quick.type === 'transaction' && <label className="amount-wrap"><input className="amount" value={quick.amount ? Number(String(quick.amount).replace(/[^\d]/g, '') || 0).toLocaleString('fa-IR') : ''} onChange={e => setQuick({ ...quick, amount: e.target.value.replace(/[۰-۹]/g, x => '۰۱۲۳۴۵۶۷۸۹'.indexOf(x)).replace(/[^\d]/g, '') })} inputMode="numeric" placeholder="مبلغ" aria-label="مبلغ به ریال" /><span>ریال</span></label>}
           {quick.type !== 'transaction' && <TimePicker value={quick.time} onChange={t => setQuick(q => ({ ...q, time: t }))} />}
           <div className="quick-when" ref={whenRef}>
@@ -391,7 +392,6 @@ function HomePage() {
         ...(modOn(mods, 'market') ? { market: (<Market />) } : modOn(mods, 'finance') ? { goals: (<GoalsMini />) } : { habits: (<HabitsMini />) })
       }} />
       {modOn(mods, 'courses') ? <ClassTodayCard /> : null}
-      {modOn(mods, 'vocab') ? <VocabTodayCard /> : null}
       <Layout id="grid" className="grid home-grid" editing={layoutEdit} cards={{
         agenda: (<Card className="agenda" icon={CheckSquare2} title="کارها و یادآوری‌ها" action={<a href="/?page=planner">برنامه‌ریز ←</a>}>
           <div className={`ag-mit ${mitList.length ? '' : 'empty'}`}>
@@ -417,6 +417,7 @@ function HomePage() {
         ...(modOn(mods, 'football') ? { football: (<Football />) } : (!modOn(mods, 'market') && !modOn(mods, 'finance')) ? {} : { habits: (<HabitsMini />) }),
         ...(modOn(mods, 'watch') ? { series: (<SeriesCard />) } : modOn(mods, 'notes') ? { notes: (<NotesMini />) } : {}),
         focus: (<FocusCard Card={Card} Icon={Timer} />),
+        ...(modOn(mods, 'vocab') ? { vocab: (<VocabHomeCard Card={Card} Icon={Languages} />) } : {}),
         ...(modOn(mods, 'finance') ? { bills: (<BillsWeekCard Card={Card} Icon={Receipt} />) } : {}),
       }} />
       <div className={`home-layout-bar ${layoutEdit ? 'on' : ''}`}>
@@ -1370,6 +1371,8 @@ function SettingsReact() {
           </article>
         </section>
 
+        <SiteTokensCard />
+
         <form className="planner-form" id="pinCard" onSubmit={savePin}>
           <h2>PIN امنیتی</h2>
           <p>بعد از ورود، برای دیدن داشبورد PIN می‌خواهد — مناسب موبایل مشترک. برای خاموش‌کردن، فیلد PIN جدید را خالی بگذار و روی «خاموش‌کردن قفل» بزن.</p>
@@ -2162,6 +2165,33 @@ function NotifyCard() {
       <div><b>اعلان روی همین دستگاه</b><small>{!supported ? (ios && !standalone ? 'در آیفون اول سایت را «Add to Home Screen» کن و از همان آیکن باز کن.' : 'این مرورگر اعلان وب را پشتیبانی نمی‌کند.') : perm === 'denied' ? 'اجازهٔ اعلان در مرورگر بسته است؛ از تنظیمات سایت در مرورگر بازش کن.' : subscribed ? 'فعال است ✓ — یادآوری‌ها مثل پیام برنامه‌ها روی صفحه می‌آیند، حتی وقتی سایت بسته است.' : 'یادآوری‌ها مثل پیام برنامه‌ها روی گوشی یا کامپیوتر می‌آیند، حتی بدون تلگرام.'}</small></div>
       {supported && perm !== 'denied' ? <div className="digest-controls">{subscribed ? <><button type="button" className="finance-action" onClick={test}>آزمایش</button><button type="button" className="finance-action" onClick={disable} disabled={busy}>خاموش</button></> : <button type="button" className="save" onClick={enable} disabled={busy}>{busy ? '…' : 'فعال‌سازی'}</button>}</div> : null}
     </article>
+    {msg ? <p className="muted">{msg}</p> : null}
+  </section>;
+}
+
+// Scoped tokens for a personal website's server-side proxy (e.g. seyfikhani.ir/studio.html).
+// The token is shown once; LifeOS stores only its hash. Finance/contract data needs an explicit extra scope.
+const SITE_SCOPES = [['projects', 'پروژه‌ها (کارت‌ها، مراحل، یادآوری‌ها)'], ['courses', 'دوره‌ها و دانشجوها (پرداخت‌ها، حضور و غیاب)'], ['projectFiles', 'قرارداد، مالی و تأمین پروژه']];
+function SiteTokensCard() {
+  const [items, setItems] = useState(null), [label, setLabel] = useState('seyfikhani.ir'), [scopes, setScopes] = useState({ projects: true, courses: true, projectFiles: true }), [made, setMade] = useState(null), [msg, setMsg] = useState('');
+  const load = () => api('/api/site-tokens').then(d => setItems(d.items || [])).catch(e => { setItems([]); setMsg(e.message); });
+  useEffect(() => { load(); }, []);
+  const create = async () => { try { const r = await api('/api/site-tokens', { method: 'POST', body: JSON.stringify({ label, scopes: Object.keys(scopes).filter(k => scopes[k]) }) }); setMade(r.token); setMsg(''); load(); } catch (e) { setMsg(e.message); } };
+  const revoke = async t => { if (!window.confirm(`اتصال «${t.label}» لغو شود؟ سایت دیگر به LifeOS دسترسی نخواهد داشت.`)) return; try { await api(`/api/site-tokens/${t.id}`, { method: 'DELETE' }); load(); } catch (e) { setMsg(e.message); } };
+  const copy = async () => { try { await navigator.clipboard.writeText(made); setMsg('توکن کپی شد ✓'); } catch { setMsg('کپی نشد؛ دستی انتخاب و کپی کن.'); } };
+  const label0 = k => (SITE_SCOPES.find(x => x[0] === k) || [k, k])[1];
+  return <section className="planner-list digest-card" id="siteTokens">
+    <h2>🌐 اتصال سایت شخصی</h2>
+    <p className="muted" style={{ margin: '0 0 10px' }}>برای صفحهٔ خصوصی روی سایت خودت (مثلاً seyfikhani.ir). توکن فقط در فایل تنظیمات سرور سایت گذاشته می‌شود، نه در مرورگر؛ هر تغییری آن‌جا همین‌جا ذخیره می‌شود و برعکس.</p>
+    {(items || []).map(t => <article key={t.id}><div><b>{t.label}</b><small>{t.scopes.map(label0).join(' · ')} · <span dir="ltr">{t.prefix}…</span>{t.lastUsedAt ? ` · آخرین استفاده ${new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'short', timeStyle: 'short' }).format(new Date(t.lastUsedAt))}` : ' · هنوز استفاده نشده'}</small></div><button type="button" className="finance-action" onClick={() => revoke(t)}>لغو</button></article>)}
+    <article style={{ flexWrap: 'wrap' }}>
+      <div style={{ flex: '1 1 220px', minWidth: 0 }}><b>توکن تازه</b>
+        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="نام سایت" style={{ margin: '6px 0', width: '100%', boxSizing: 'border-box' }} />
+        {SITE_SCOPES.map(([k, l]) => <label key={k} style={{ display: 'block', overflowWrap: 'anywhere' }}><input type="checkbox" checked={!!scopes[k]} onChange={e => setScopes(o => ({ ...o, [k]: e.target.checked }))} /> {l}</label>)}
+      </div>
+      <button type="button" className="save" onClick={create}>ساخت توکن</button>
+    </article>
+    {made ? <p className="muted">فقط همین یک بار نشان داده می‌شود: <code dir="ltr" style={{ wordBreak: 'break-all' }}>{made}</code> <button type="button" className="finance-action" onClick={copy}>کپی</button></p> : null}
     {msg ? <p className="muted">{msg}</p> : null}
   </section>;
 }

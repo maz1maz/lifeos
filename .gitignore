@@ -19,3 +19,7 @@ public/index.html
 public/today-manifest.json
 public/assets/index-*.js
 public/assets/index-*.css
+
+# personal-site bridge secrets (see integrations/seyfikhani/README.md)
+lifeos-studio-config.php
+lifeos-studio-data/

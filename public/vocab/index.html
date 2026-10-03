@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0e1116">
+<meta name="theme-color" content="#0a0a0b">
 <title>زبان — LifeOS</title>
 <meta name="description" content="اپ فلش‌کارت آفلاین برای واژگان انگلیسی آیلتس و نما و ساختمان با معنی فارسی، تلفظ، آزمون و مرور فاصله‌دار (SRS)">
+<script>(function(){function m(){try{document.documentElement.dataset.mode=localStorage.getItem('lifeos-mode')||'dark'}catch(e){}}m();addEventListener('storage',function(e){if(!e.key||e.key==='lifeos-mode')m()})})()</script>
 <style>
 @font-face{font-family:'Vazirmatn';font-style:normal;font-weight:100 900;font-display:swap;src:url('/assets/fonts/vazirmatn-arabic.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
 @font-face{font-family:'Vazirmatn';font-style:normal;font-weight:100 900;font-display:swap;src:url('/assets/fonts/vazirmatn-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
@@ -205,6 +206,135 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 /* LifeOS v69: level filter above topics */
 #levelBar .chip small{opacity:.7;font-size:11px}
 @media(max-width:700px){#levelBar{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}#levelBar .chip{flex:0 0 auto}}
+
+/* «جزوه» tab: class notes (notes.md) by topic */
+.nt-top{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0 10px;display:flex;gap:8px;align-items:center}
+.nt-top input{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px}
+.nt-top .muted{white-space:nowrap;font-size:12px}
+.nt-intro{color:var(--tx2);font-size:13.5px;line-height:1.9;margin:0 0 10px}
+.nt-sec{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);margin:0 0 10px;overflow:hidden}
+.nt-sec>summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:700;display:flex;gap:8px;align-items:center}
+.nt-sec>summary::-webkit-details-marker{display:none}
+.nt-sec>summary::after{content:'▾';margin-inline-start:auto;color:var(--tx3);transition:transform .2s}
+.nt-sec[open]>summary::after{transform:rotate(180deg)}
+.nt-sec>summary em{font-style:normal;font-weight:400;font-size:12px;color:var(--tx3)}
+.nt-body{padding:0 14px 14px}
+.nt-body h4{margin:16px 0 8px;font-size:14.5px;color:var(--acc)}
+.nt-body p,.nt-body li{line-height:1.95;font-size:14px;color:var(--tx)}
+.nt-body ul{padding-inline-start:20px;margin:6px 0}
+.nt-body em{color:var(--tx2)}
+.nt-tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;margin:6px 0 10px}
+.nt-body table{width:100%;border-collapse:collapse;font-size:13.5px}
+.nt-body th{background:var(--bg3);color:var(--tx2);font-weight:600;text-align:start;padding:8px 10px;white-space:nowrap}
+.nt-body td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}
+.nt-body td.nt-en{direction:ltr;text-align:left;font-family:var(--fe);white-space:nowrap}
+.nt-body td.nt-en button{background:none;border:0;color:var(--acc);cursor:pointer;padding:0 6px 0 0;font-size:14px;vertical-align:middle}
+.nt-body code{direction:ltr;unicode-bidi:isolate;font-family:var(--fe);background:var(--bg3);border-radius:6px;padding:1px 5px}
+.nt-body mark{background:rgba(240,178,50,.28);color:inherit;border-radius:3px}
+@media(max-width:560px){.nt-body table{font-size:13px}.nt-body td,.nt-body th{padding:7px 8px}}
+
+/* ── LifeOS palette (gold on near-black, light mode like LifeOS) — this app used to have its own blue theme ── */
+:root{--bg:#0a0a0b;--bg2:#141416;--bg3:#1b1b1d;--line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.18);
+  --tx:#f5f5f5;--tx2:#9a9a9f;--tx3:#6b6b70;--acc:#d8a44c;--acc2:#b8862f;--accfg:#221904;--pur:#e6b563;
+  --ok:#34d399;--warn:#eab308;--bad:#f87171;--soft:rgba(216,164,76,.14);--face1:#18181a;--face2:#121214;--en:#ece9e2;--fa2:#a8a39a}
+html[data-mode="light"]{color-scheme:light;--bg:#f4f2ee;--bg2:#ffffff;--bg3:#f3f0ea;--line:rgba(28,26,23,.12);--line2:rgba(28,26,23,.22);
+  --tx:#1c1a17;--tx2:#6b665e;--tx3:#9a948a;--acc:#c48a2c;--acc2:#a8741e;--accfg:#ffffff;--pur:#d39a3c;
+  --ok:#059669;--warn:#b45309;--bad:#dc2626;--soft:rgba(196,138,44,.13);--face1:#ffffff;--face2:#f7f4ee;--en:#2a2620;--fa2:#6b665e;
+  --sh:0 1px 2px rgba(0,0,0,.04),0 8px 24px -14px rgba(0,0,0,.18)}
+body{background:var(--bg);color:var(--tx)}
+header,.top{background:color-mix(in srgb,var(--bg) 88%,transparent)!important}
+.tab:hover,.btn:hover{border-color:var(--line2)}
+.tab.on,.btn.pri,.chip.on{background:var(--acc)!important;color:var(--accfg)!important}
+.card{background:var(--bg2)!important}
+.face{background:linear-gradient(170deg,var(--face1),var(--face2))!important}
+.face.back{background:linear-gradient(170deg,var(--face2),var(--face1))!important}
+.defen,.ex{color:var(--en)!important}
+.exfa,.deffa{color:var(--fa2)!important}
+.exfa{border-left-color:var(--soft)!important}
+input:focus,select:focus,textarea:focus,input[type=password]:focus{outline-color:var(--soft)!important}
+.mask{background:rgba(0,0,0,.6)!important}
+.logo{background:var(--acc)!important;color:var(--accfg)!important}
+html[data-mode="light"] .nt-body mark{background:rgba(196,138,44,.25)}
+
+/* ── compact layout: one scrolling row per filter, slimmer stats and card ── */
+.wrap{max-width:940px;padding-top:10px}
+nav.tabs{gap:4px}
+.tab{padding:6px 12px!important;font-size:13px!important;border-radius:999px}
+#filterCard{padding:10px 12px!important;margin:8px 0 10px!important;border-radius:14px}
+#filterCard>.between{margin-bottom:6px!important}
+#filterCard>.between .muted{font-size:12px}
+#levelBar,#topicBar{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:5px!important;
+  -webkit-mask-image:linear-gradient(to left,#000 92%,transparent);mask-image:linear-gradient(to left,#000 92%,transparent);padding-inline-end:24px}
+#levelBar::-webkit-scrollbar,#topicBar::-webkit-scrollbar{display:none}
+#levelBar{margin-bottom:6px!important}
+#filterCard .chip{flex:0 0 auto;padding:4px 10px;font-size:12.5px;white-space:nowrap}
+.grid.g4{gap:8px}
+.stat{padding:8px 12px;border-radius:12px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.stat b{font-size:19px!important;letter-spacing:0}
+.stat span{font-size:11.5px}
+.fc{height:380px}
+.word{font-size:clamp(30px,6vw,46px)}
+@media(max-width:700px){
+  .wrap{padding:8px 10px 90px}
+  .grid.g4{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .stat{flex-direction:column;align-items:center;text-align:center;gap:2px;padding:7px 4px}
+  .stat b{font-size:17px!important}
+  .stat span{font-size:10.5px;line-height:1.5}
+  nav.tabs{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;max-width:100%}
+  nav.tabs::-webkit-scrollbar{display:none}
+  nav.tabs .tab{flex:0 0 auto}
+  .fc{height:clamp(280px,44vh,380px)}
+  #filterCard>.between .muted{display:none}
+  #filterCard>.between{justify-content:flex-end}
+}
+
+/* tabs under the title; smaller rating buttons; topics can open fully */
+.topin>nav.tabs{flex-basis:100%;margin-inline-start:0;order:2}
+#topicBar.exp{flex-wrap:wrap!important;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-inline-end:0}
+#topicToggle{cursor:pointer;font-size:12px;padding:3px 10px}
+.ratebar{gap:6px;margin-top:10px}
+.ratebar .btn{padding:7px 8px!important;font-size:13.5px!important;border-radius:12px;min-height:0;line-height:1.5}
+.ratebar .btn .muted{font-size:11px!important}
+@media(max-width:560px){.ratebar{grid-template-columns:repeat(4,1fr)!important;gap:5px}.ratebar .btn{font-size:12px!important;padding:6px 4px!important}.ratebar .btn .muted,.ratebar .btn br{display:none}}
+
+/* desktop: title + tabs become a vertical sidebar (right, RTL), so the card and rating buttons fit on screen */
+@media(min-width:900px){
+  #appShell:not(.hide){display:grid;grid-template-columns:200px minmax(0,1fr);align-items:start;min-height:100vh}
+  #appShell>header.top{position:sticky;top:0;height:100vh;overflow-y:auto;border-bottom:0;border-inline-end:1px solid var(--line);backdrop-filter:none}
+  #appShell>header.top .topin{flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:14px;padding:16px 12px;max-width:none}
+  #appShell>header.top .brand{align-items:flex-start;gap:10px}
+  #appShell>header.top .brand small{display:block;margin-top:2px;line-height:1.6}
+  #appShell>header.top nav.tabs{flex-direction:column;flex-wrap:nowrap!important;overflow:visible;gap:4px}
+  #appShell>header.top .tab{width:100%;text-align:start;border-radius:10px!important;padding:8px 12px!important;border-color:transparent;background:transparent}
+  #appShell>header.top .tab:hover{background:var(--bg3)}
+  #appShell>header.top .tab.on{border-color:transparent}
+  #appShell>.wrap{width:100%;padding-top:14px}
+}
+/* phone: slim header that scrolls away, compact stats, rating bar pinned to the bottom of the screen */
+@media(max-width:700px){
+  header.top{position:static;backdrop-filter:none}
+  .topin{padding:8px 10px 6px;gap:6px}
+  .brand{font-size:14px;gap:7px}
+  .brand small{display:none}
+  .logo{width:28px;height:28px;border-radius:9px;font-size:11px}
+  .tab{padding:5px 11px!important;font-size:12.5px!important}
+  .wrap{padding-bottom:16px}
+  .stat{padding:6px 3px}
+  .stat b{font-size:15px!important}
+  .stat span{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .fc{height:clamp(240px,40vh,360px)}
+  .ratebar{position:sticky;bottom:0;z-index:20;margin:8px -10px 0;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
+  .ratebar .btn{min-height:44px}
+  .nt-top{gap:6px}
+  .nt-top .btn{flex:0 0 auto;white-space:nowrap}
+}
+.bn{margin-top:14px}
+.bn-h{display:flex;align-items:center;gap:10px;font-weight:700;font-size:13.5px;margin-bottom:6px}
+.bn-h .btn{margin-inline-start:auto}
+.bn table{width:100%;border-collapse:collapse;font-size:13px}.bn td{padding:7px 10px;border-top:1px solid var(--line);vertical-align:top}.bn tr:first-child td{border-top:0}
+.fc.sw-r{box-shadow:0 0 0 2px var(--ok)}.fc.sw-l{box-shadow:0 0 0 2px var(--bad)}
+.swhint{display:none;text-align:center;font-size:11.5px;color:var(--tx3);margin-top:6px}
+@media(hover:none) and (pointer:coarse){.swhint{display:block}}
 </style>
 </head>
 <body>
@@ -227,6 +357,7 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
       <button class="tab on" data-v="study">کارت‌ها</button>
       <button class="tab" data-v="quiz">آزمون</button>
       <button class="tab" data-v="browse">فهرست واژه‌ها</button>
+      <button class="tab" data-v="notes">جزوه</button>
       <button class="tab" data-v="stats">پیشرفت</button>
       <button class="tab" data-v="settings">تنظیمات</button>
       <button class="tab" id="userBtn" title="حساب من">کاربر</button>
@@ -237,7 +368,7 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 
 <div class="wrap">
 
-  <div class="card pad" style="margin:12px 0">
+  <div class="card pad" id="filterCard" style="margin:12px 0">
     <div class="between" style="margin-bottom:8px">
       <span class="muted">فیلتر سطح و موضوع<span class="onlywide"> — اول سطح، بعد موضوع را انتخاب کن</span>:</span>
       <span class="chip" id="topicToggle" style="display:none">نمایش همه</span>
@@ -249,6 +380,7 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
   <section class="view" id="v-study"><div id="studyMain"></div></section>
   <section class="view hide" id="v-quiz"><div id="quizMain"></div></section>
   <section class="view hide" id="v-browse"><div id="browseMain"></div></section>
+  <section class="view hide" id="v-notes"><div id="notesMain"></div></section>
   <section class="view hide" id="v-stats"><div id="statsMain"></div></section>
   <section class="view hide" id="v-settings"><div id="setMain"></div></section>
 

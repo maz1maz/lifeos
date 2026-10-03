@@ -31,6 +31,9 @@
 .jdi-btn:hover,.jdi-btn:focus-visible{border-color:var(--g-accent)}
 .jdi-btn svg{color:var(--g-accent-strong);flex:none}
 .jdi-pop{position:absolute;top:calc(100% + 6px);inset-inline-start:0;z-index:80;width:292px;padding:12px;border-radius:16px;background:var(--g-panel);border:1px solid var(--g-border-2);box-shadow:0 18px 50px rgba(0,0,0,.5)}
+/* phones: a bottom sheet. This must come after the rule above — home.css's sheet rule loads earlier, and mixing
+   its bottom:10px with this file's top:… collapsed the calendar to ~26px with the days spilling over the form. */
+@media(max-width:700px){.jdi-pop{position:fixed;top:auto;inset-inline:10px!important;bottom:calc(10px + env(safe-area-inset-bottom));width:auto;max-height:80dvh;overflow:auto;z-index:200}}
 .jdi-head{display:flex;align-items:center;gap:4px;margin-bottom:8px}
 .jdi-head b{flex:1;text-align:center;font-size:15px}
 .jdi-head button{width:30px;height:30px;border-radius:8px;border:1px solid var(--g-border);background:transparent;color:var(--g-text);cursor:pointer;font-size:15px}
@@ -201,3 +204,6 @@ html[data-mode="light"] select option,html[data-mode="light"] select optgroup{ba
 .wcp-results small{color:var(--g-muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wcp-results em{font-style:normal;color:var(--g-accent-strong);font-weight:800}
 .hs-choices button small{opacity:.75;margin-inline-start:4px}
+/* «·» separators sit next to Persian digits («۱۳ · مهر»); in Vazirmatn the dot looks just like «۰», so draw it as a thin bar.
+   Declared after home.css's Vazirmatn faces, so it wins for U+00B7 only. */
+@font-face{font-family:'Vazirmatn';font-display:swap;src:url('./fonts/sep-bar.woff2') format('woff2');unicode-range:U+00B7}
