@@ -40,3 +40,14 @@ npm run build:studio     # پنل seyfikhani.ir (ProjectsPage+CoursesPage) → i
 - تاریخ‌ها ISO با منطقهٔ `Asia/Tehran`؛ نمایش جلالی با `Intl` (`fa-IR-u-ca-persian`).
 - کلیدهای API در `.env` (نمونه: `.env.example`) / `wrangler secret`. هرگز commit نکن.
 - بستهٔ IELTS (zip، از ریپو حذف شد — در تاریخچهٔ git پیش از این کامیت هست) = دادهٔ واژگان IELTS (۴۵ فایل JSON، ۴۴۹۴ واژه) واردشده با `node scripts/import-ielts.js <dir>` (بعد از unzip). ستون ۱۱ اختیاری `words.json` = معنی‌های اضافه `[[pos,fa,d,df,e,ef],…]`.
+
+## پنل ملینا (seyfikhani.ir) — هم‌گام با «پروژه‌ها»/«دوره‌ها»
+هر تغییر در `src/today/src/life.jsx`، `life.css`، `home.css`، `projectReportPrint.js`، `sidelist.jsx`، `studio.jsx` یا فایل‌های دوره‌ها/دانشجوها (`courses.*`):
+1. `npm run build:today && npm test` — همه سبز.
+2. `npm run build:studio` → `integrations/seyfikhani/public_html/studio.html` + `studio-assets/`.
+3. `git add -A integrations/seyfikhani/public_html` (حذف assetهای قدیمی هم commit شود).
+4. push + PR بساز؛ قبل از مرج به کاربر خبر بده.
+5. در پیام بگو روی هاست ملینا آپلود شود: `studio.html` و کل `studio-assets/` (بعد از پاک‌کردن فایل‌های قدیمی آن پوشه).
+- deploy فقط با اجازهٔ کاربر. `port.js` ممنوع.
+- endpoint تازه برای پنل: `/api/ext/*` فقط در `cloudflare/worker.js` (با بررسی scope توکن) + مسیر در `$allowed` فایل `integrations/seyfikhani/public_html/studio-api.php` + تست در `test/worker-smoke.js`.
+- اگر ساخت پنل شکست خورد یا تغییر در پنل کار نکرد، صریح گزارش بده.
