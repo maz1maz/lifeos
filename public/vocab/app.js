@@ -306,54 +306,56 @@ const NT_PARTS = [
   [/^(گرامر:\s*|(?=جمع‌بندی))/, "بخش دوم — گرامر کامل"],
   [/^(واژگان:\s*|(?=تلفظ))/, "بخش اول — واژگان"],
 ];
-function printBook({ title, kicker, heading, sub, toc, body }) {
-  // Always a white, ink-friendly palette: booklets are for printing on paper (black text, light-grey accents).
-  const C = { page: "#ffffff", paper: "#ffffff", soft: "#f3f3f3", line: "#bdbdbd", tx: "#000000", tx2: "#444444", acc: "#333333", accfg: "#ffffff", head: "#000000" };
+function printBook({ title, kicker, heading, sub, owner, toc, body }) {
+  // Booklet palette taken from the reference handout: cream paper, dark-teal headings, teal table heads, orange accents.
+  const C = { page: "#faf6ee", paper: "#ffffff", soft: "#f4eee0", line: "#e7ddc7", tx: "#26221c", tx2: "#6e6455", acc: "#0e6f64", head: "#0a4f47", hot: "#c0552c" };
   const font = f => new URL("/assets/fonts/vazirmatn-" + f + ".woff2", location.href).href;
-  const logo = new URL("/assets/img/logo-mask.png", location.href).href;
+  const made = new Intl.DateTimeFormat("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", month: "long", year: "numeric" }).format(new Date());
   const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>
 @font-face{font-family:V;font-weight:100 900;src:url('${font("arabic")}') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+200C-200F,U+FB50-FDFF,U+FE70-FEFC}
 @font-face{font-family:V;font-weight:100 900;src:url('${font("latin")}') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02B0-02FF,U+2000-206F,U+2122,U+2212}
-@page{size:A4;margin:0}
+@page{size:A4;margin:22mm 16mm 20mm}
 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-html,body{margin:0;background:${C.page};color:${C.tx};font-family:V,Tahoma,sans-serif;font-size:12.5px;line-height:1.85}
-.bar{position:sticky;top:0;z-index:2;display:flex;gap:10px;align-items:center;justify-content:center;padding:10px;background:${C.acc};color:${C.accfg};font-size:14px}
-.bar button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:8px 18px;background:${C.paper};color:${C.tx};cursor:pointer}
-main{max-width:210mm;margin:0 auto;padding:12mm 12mm}
-.cover{min-height:272mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;page-break-after:always}
-.cover .logo{width:60px;height:60px;margin-bottom:22px;background:${C.acc};-webkit-mask:url('${logo}') center/contain no-repeat;mask:url('${logo}') center/contain no-repeat}
-.cover .k{color:${C.acc};font-weight:700;font-size:13px}
-.cover h1{color:${C.tx};font-size:38px;line-height:1.45;margin:14px 0}
-.cover p{color:${C.tx2};font-size:15px;max-width:120mm;margin:0}
-.cover i{display:block;width:60px;height:4px;border-radius:4px;background:${C.acc};margin:36px auto 0}
+html,body{margin:0;background:${C.page};color:${C.tx};font-family:V,Tahoma,sans-serif;font-size:13.5px;line-height:1.8}
+.bar{position:sticky;top:0;z-index:2;display:flex;gap:10px;align-items:center;justify-content:center;padding:10px;background:${C.acc};color:#fff;font-size:14px}
+.bar button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:8px 18px;background:#fff;color:${C.head};cursor:pointer}
+main{max-width:178mm;margin:0 auto;padding:8mm 0}
+.cover{min-height:250mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;page-break-after:always}
+.cover .k{color:${C.acc};font-weight:700;font-size:14px}
+.cover h1{color:${C.head};font-size:39px;font-weight:900;line-height:1.5;margin:12px 0 10px}
+.cover p{color:${C.tx2};font-size:16.5px;line-height:1.9;max-width:92mm;margin:0}
+.cover i{display:block;width:62px;height:4px;background:${C.hot};margin:72px auto 26px}
+.cover .card{background:${C.paper};border:1px solid ${C.acc};border-radius:12px;padding:18px 34px;min-width:66mm;box-shadow:0 6px 22px rgba(14,111,100,.16)}
+.cover .card small{display:block;color:${C.tx2};font-size:11.5px}
+.cover .card b{display:block;color:${C.head};font-size:25px;margin-top:4px}
+.cover .d{color:${C.tx2};font-size:11.5px;margin-top:30px}
 .toc{page-break-after:always}
-h2{color:${C.tx};font-size:22px;margin:0 0 10px;padding-bottom:10px;border-bottom:2px solid ${C.acc}}
-.toc h2{border:0}
-.tp{color:${C.acc};font-weight:700;font-size:11px;margin:16px 0 4px}
-.tr{display:flex;gap:16px;padding:9px 0;border-bottom:1px dotted ${C.line};font-size:13.5px;break-inside:avoid}
-.tr b{color:${C.acc};min-width:20px}
+h2{color:${C.head};font-size:22.5px;line-height:1.5;margin:0 0 18px;padding-bottom:12px;border-bottom:2px solid ${C.acc}}
+.toc h2{border:0;font-size:21.5px;margin-bottom:10px}
+.tp{color:${C.hot};font-weight:700;font-size:10.7px;margin:22px 0 4px}
+.tr{display:flex;gap:18px;padding:13px 0 12px;border-bottom:1px dotted ${C.line};font-size:13.7px;break-inside:avoid}
+.tr b{color:${C.acc};min-width:16px;font-size:12.7px}
 .pg{page-break-before:always}
-.kick{color:${C.acc};font-weight:700;font-size:11px;margin-bottom:6px}
-h4{color:${C.head};font-size:15px;margin:20px 0 10px;padding-inline-start:10px;border-inline-start:4px solid ${C.acc};break-after:avoid}
-p,li{font-size:13px}
+.kick{color:${C.hot};font-weight:700;font-size:10.7px;margin-bottom:4px}
+h4{color:${C.head};font-size:15.6px;margin:22px 0 12px;padding-inline-start:10px;border-inline-start:4px solid ${C.hot};line-height:1.6;break-after:avoid}
+p,li{font-size:13.5px}
 ul{padding-inline-start:20px}
-table{width:100%;border-collapse:collapse;margin:4px 0 14px;font-size:12px;background:${C.paper};border-radius:10px;overflow:hidden}
+table{width:100%;border-collapse:collapse;margin:4px 0 18px;font-size:12.2px}
 thead{display:table-header-group}
-th{background:#e6e6e6;color:#000;text-align:start;padding:9px 10px;font-weight:700;border-bottom:1.5px solid #000}
-td{padding:8px 10px;border-bottom:1px solid ${C.line};vertical-align:top}
+th{background:${C.acc};color:#fff;text-align:start;padding:10px 12px;font-weight:700;border:1px solid ${C.acc}}
+td{padding:9px 12px;border:1px solid ${C.line};vertical-align:top}
 tr{break-inside:avoid}
 tbody tr:nth-child(even){background:${C.soft}}
-td.nt-en,td.en{direction:ltr;text-align:left;font-weight:600}
-td+td{border-inline-start:1px solid ${C.line}}
-td.ex{direction:ltr;text-align:left;color:${C.tx2}}
+td.nt-en,td.en{direction:ltr;text-align:left}
+td.ex{direction:ltr;text-align:left;color:${C.tx2};font-size:11.2px}
 button[data-say]{display:none}
 code{direction:ltr;unicode-bidi:isolate;background:${C.soft};border-radius:4px;padding:0 4px}
 strong{color:${C.head}}
-@media print{.bar{display:none}}
+@media print{.bar{display:none}main{padding:0}}
 </style></head><body>
 <div class="bar"><span>برای PDF، در پنجرهٔ چاپ «Save as PDF» را بزن</span><button type="button" onclick="print()">چاپ / PDF</button></div>
 <main>
-<div class="cover"><div class="logo"></div><div class="k">${kicker}</div><h1>${heading}</h1><p>${sub}</p><i></i></div>
+<div class="cover"><div class="k">${kicker}</div><h1>${heading}</h1><p>${sub}</p><i></i>${owner ? `<div class="card"><small>دفترچه یادداشت متعلق به</small><b>${esc(owner)}</b></div>` : ""}<div class="d">تهیه‌شده در ${made}</div></div>
 ${toc ? `<div class="toc"><h2>فهرست مطالب</h2>${toc}</div>` : ""}
 ${body}
 </main>
@@ -377,14 +379,14 @@ function ntPdf() {
     toc += `<div class="tr"><b>${no}</b><span>${ntInline(x.name)}</span></div>`;
     body += `<section class="pg"><div class="kick">${esc(x.part.replace(" — ", " · "))}</div><h2>${ntInline(x.name)}</h2>${x.html}</section>`;
   }
-  printBook({ title: "جزوه زبان — واژگان و گرامر", kicker: "جزوه خصوصی زبان انگلیسی · آماده‌سازی آیلتس", heading: "واژگان و گرامر<br>مرتب‌شده", sub: "بازنویسی و دسته‌بندی موضوعی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان", toc, body });
+  printBook({ title: "جزوه زبان — واژگان و گرامر", kicker: "جزوه خصوصی زبان انگلیسی · آماده‌سازی آیلتس", heading: "واژگان و گرامر<br>مرتب‌شده", sub: "بازنویسی و دسته‌بندی موضوعی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان", owner: "ملینا صیفی‌خانی", toc, body });
 }
 function starsPdf() {
   const words = DECK.filter(x => S.stars.includes(x.w));
   if (!words.length) { toast("هنوز واژهٔ ستاره‌داری نداری."); return; }
   const byLv = {};
   words.forEach(x => (byLv[x.lv] ||= []).push(x));
-  const body = Object.keys(byLv).sort().map((lv, k) => `<section style="margin-top:${k ? 18 : 0}px"><div class="kick">واژه‌های ستاره‌دار</div><h2>سطح ${esc(lv)} <small style="font-size:13px;font-weight:400">(${fa(byLv[lv].length)} واژه)</small></h2>
+  const body = Object.keys(byLv).sort().map((lv, k) => `<section style="margin-top:${k ? 18 : 0}px"><div class="kick">واژه‌های ستاره‌دار</div><h2>سطح ${esc(lv)} <small style="font-size:13px;font-weight:400;color:#6e6455">(${fa(byLv[lv].length)} واژه)</small></h2>
     <table><thead><tr><th>English</th><th>معنی</th><th>مثال</th></tr></thead><tbody>${byLv[lv].sort((a, b) => a.w.localeCompare(b.w)).map(x => `<tr><td class="en">${esc(x.w)}${x.p ? `<br><small style="font-weight:400">${esc(x.p)}</small>` : ""}</td><td>${esc(meaningsOf(x).slice(0, 3).join("، "))}</td><td class="ex">${esc(x.e || "")}${x.ef ? `<div dir="rtl" style="text-align:right">${esc(x.ef)}</div>` : ""}</td></tr>`).join("")}</tbody></table></section>`).join("");
   printBook({ title: "واژه‌های ستاره‌دار", kicker: "۷۰۰۰ واژهٔ آیلتس", heading: "واژه‌های<br>ستاره‌دار من", sub: `${fa(words.length)} واژه · مرتب بر اساس سطح`, toc: "", body: `<div style="page-break-before:auto">${body}</div>` });
 }
