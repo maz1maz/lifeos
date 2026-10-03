@@ -367,9 +367,9 @@ export function contractScope(contract) {
 }
 export function processTemplate(contract) {
   const items = contractScope(contract);
-  const out = FIXED_STAGES.map(([department, title]) => ({ department, title, base: title, item: '' }));
-  for (const item of items.length ? items : ['']) for (const [department, base] of ITEM_STAGES) out.push({ department, base, item, title: item ? `${base}${ITEM_SEP}${item}` : base });
-  for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '' });
+  const out = FIXED_STAGES.map(([department, title]) => ({ department, title, base: title, item: '', group: 'start' }));
+  for (const item of items.length ? items : ['']) for (const [department, base] of ITEM_STAGES) out.push({ department, base, item, group: `item:${item}`, title: item ? `${base}${ITEM_SEP}${item}` : base });
+  for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '', group: 'end' });
   return out.map((s, order) => ({ ...s, order }));
 }
 // Weighted progress. Each contract item is its own 0–100 (inside it: control 10, technical 15, supply 30,
@@ -457,7 +457,7 @@ const stageKey = s => keyOf(s.department, s.title);
 // the project's current checklist with stored rows merged in (old rows outside the template stay stored but hidden)
 export function projectStages(contract, rows) {
   const byKey = new Map((rows || []).map(x => [stageKey(x), x]));
-  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, order: t.order } : { ...t, status: 'todo' }; }), contract?.itemAreas);
+  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, group: t.group, order: t.order } : { ...t, status: 'todo' }; }), contract?.itemAreas);
 }
 function ContractTimeline({ contract }) {
   const start = contract?.contractStartDate || '';
@@ -479,6 +479,11 @@ export function weightedProgress(stages, department) {
   const pct = got / total * 100;
   return pct >= 99.999 ? 100 : Math.min(99, Math.round(pct));
 }
+const GROUP_TITLES = { start: 'مراحل عمومی پروژه', 'item:': 'مراحل اجرایی', end: 'تحویل پروژه' };
+function StageGroupHead({ title, rows }) {
+  const done = rows.filter(x => x.status === 'done').length, all = rows.length;
+  return <div className={`lf-process-group fixed ${all && done === all ? 'done' : ''}`}><b>{title}{all && done === all ? ' ✓' : ''}</b><small>{fa(done)} از {fa(all)} مرحله</small></div>;
+}
 // سرتیتر هر آیتم: پیشرفت مستقل آیتم (۰–۱۰۰) + سهمش از کل پروژه (بر اساس متراژ)
 function ItemGroupHead({ item, stages, share }) {
   const mine = stages.filter(x => x.item === item), pct = itemProgress(stages, item);
@@ -489,40 +494,45 @@ function ItemGroupHead({ item, stages, share }) {
   </div>;
 }
 function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd, onSeed, onCompletionChange }) {
-  const [localItems, setLocalItems] = useState(items);
   const [departmentFilter, setDepartmentFilter] = useState('');
-  const pendingCreates = useRef(new Set());
-  useEffect(() => { setLocalItems(items || []); }, [projectId, items]);
+  // Rows that exist are shown straight from useCol (its optimistic patch is the single source of truth).
+  // Stages not stored yet (virtual `template-N` rows) keep their in-flight edits here, keyed by stage, so a
+  // re-render or a concurrent seeding reply can never flash the tick off and on again.
+  const [pending, setPending] = useState({});
+  const creating = useRef({});
+  useEffect(() => { setPending({}); creating.current = {}; }, [projectId]);
   const tpl = useMemo(() => processTemplate(contract), [contract]);
-  const tplOrder = useMemo(() => Object.fromEntries(tpl.map(t => [stageKey(t), t.order])), [tpl]);
+  // once a stored row carries every pending field (and no create for it is still in flight — a seeding
+  // reply can match by accident before the create's own reply lands), the overlay is no longer needed
   useEffect(() => {
-    (items || []).forEach(item => {
-      const order = tplOrder[stageKey(item)];
-      if (order !== undefined) pendingCreates.current.delete(`template-${order}`);
-    });
-  }, [items, tplOrder]);
-  useEffect(() => { pendingCreates.current.clear(); }, [projectId]);
+    if (!Object.keys(pending).length) return;
+    const byKey = new Map((items || []).map(x => [stageKey(x), x]));
+    const left = Object.fromEntries(Object.entries(pending).filter(([k, p]) => { const row = byKey.get(k); return creating.current[k] || !row || Object.entries(p).some(([f, v]) => row[f] !== v); }));
+    if (Object.keys(left).length !== Object.keys(pending).length) setPending(left);
+  }, [items, pending]);
   // Older checklist rows (and rows of items removed from the contract) stay stored but are not shown.
-  const visibleItems = projectStages(contract, localItems).map(x => x.id ? x : { ...x, id: `template-${x.order}`, projectId });
+  const visibleItems = projectStages(contract, items).map(x => { const p = pending[stageKey(x)]; const y = p ? { ...x, ...p } : x; return y.id ? y : { ...y, id: `template-${y.order}`, projectId }; });
+  const createStage = (item, body) => {
+    const k = stageKey(item);
+    setPending(ps => ({ ...ps, [k]: { ...(ps[k] || {}), ...body } }));
+    if (creating.current[k]) return creating.current[k].then(r => r && onPatch(r.id, body).then(() => r));
+    const job = Promise.resolve(onAdd({ projectId: item.projectId, department: item.department, title: item.title, order: item.order, status: item.status || 'todo', ...body }))
+      .then(r => r, error => { setPending(ps => { const { [k]: _, ...rest } = ps; return rest; }); throw error; })
+      .finally(() => { delete creating.current[k]; setPending(ps => ({ ...ps })); });
+    creating.current[k] = job.catch(() => null);
+    return job;
+  };
   const patch = async (id, body) => {
-    setLocalItems(xs => { const list = xs || []; if (String(id).startsWith('template-') && !list.some(x => x.id === id)) { const item = visibleItems.find(x => x.id === id); return item ? [...list, { ...item, ...body }] : list; } return list.map(x => x.id === id ? { ...x, ...body } : x); });
-    let saved;
-    if (String(id).startsWith('template-')) {
-      const item = visibleItems.find(x => x.id === id);
-      if (item && !pendingCreates.current.has(id)) {
-        pendingCreates.current.add(id);
-        saved = Promise.resolve(onAdd({ projectId: item.projectId, department: item.department, title: item.title, order: item.order, status: item.status || 'todo', ...body })).catch(error => {
-          setLocalItems(xs => (xs || []).filter(x => x.id !== id));
-          throw error;
-        }).finally(() => pendingCreates.current.delete(id));
-      }
-    } else saved = Promise.resolve(onPatch(id, body));
+    const item = visibleItems.find(x => x.id === id);
+    const isNew = String(id).startsWith('template-');
+    if (!isNew && item) { const k = stageKey(item); setPending(ps => ps[k] ? { ...ps, [k]: { ...ps[k], ...body } } : ps); }
+    const saved = isNew ? (item ? createStage(item, body) : undefined) : Promise.resolve(onPatch(id, body));
     // The fixed checklist is the source of truth for project completion.
     // Wait for the stage write before changing the project's status; otherwise
     // the two old JSON snapshots can race and restore the unchecked stage.
     if (Object.prototype.hasOwnProperty.call(body, 'status')) {
-      const after = visibleItems.map(item => item.id === id ? { ...item, ...body } : item);
-      const nextDone = after.filter(item => item.status === 'done').length;
+      const after = visibleItems.map(x => x.id === id ? { ...x, ...body } : x);
+      const nextDone = after.filter(x => x.status === 'done').length;
       try {
         const result = saved ? await saved : undefined;
         if (result !== undefined) await onCompletionChange?.(nextDone === tpl.length || isDelivered(after));
@@ -565,28 +575,32 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
       </div></div>
     </div>
     {departmentFilter ? <div className="lf-process-filter-note"><b>فیلتر: {departmentFilter}</b><button type="button" onClick={() => setDepartmentFilter('')}>نمایش همه ×</button></div> : null}
-    <div className="lf-process-cols"><span>انجام</span><span>ردیف</span><span>یادآوری</span><span>واحد</span><span>مراحل پروژه</span><span>تاریخ</span><span>مسئول</span><span>توضیحات</span></div>
-    {ordered.map((item, i) => item.item && item.item !== ordered[i - 1]?.item ? [<ItemGroupHead key={`g-${item.item}`} item={item.item} stages={visibleItems} share={shares[item.item]} />, row(item, i)] : row(item, i))}
+    {ordered.map((item, i) => item.group && item.group !== ordered[i - 1]?.group ? [
+      item.item ? <ItemGroupHead key={`g-${item.group}`} item={item.item} stages={visibleItems} share={shares[item.item]} /> : <StageGroupHead key={`g-${item.group}`} title={GROUP_TITLES[item.group] || GROUP_TITLES['item:']} rows={visibleItems.filter(x => x.group === item.group)} />,
+      <div key={`c-${item.group}`} className="lf-process-cols"><span>انجام</span><span>ردیف</span><span>یادآوری</span><span>واحد</span><span>مراحل پروژه</span><span>تاریخ</span><span>مسئول</span><span>توضیحات</span></div>,
+      row(item, i)] : row(item, i))}
   </section></div>;
 }
-function ContractFinancials({ contract, onPatch, onAddStatement, addLabel = '＋ صورت‌وضعیت' }) {
+function ContractFinancials({ contract, onPatch, onAddStatement }) {
   const save = (key, value) => { const next = { ...(contract || {}), [key]: num(value) }; next.remainingAmount = Math.max(0, num(next.amount) - num(next.advancePayment)); onPatch(next); };
-  return <section className="lf-contract-financials"><header className="lf-contract-financials-head"><h4>اطلاعات مالی قرارداد</h4><button type="button" className="lf-btn ghost" onClick={onAddStatement}>{addLabel}</button></header><div><label><span>مبلغ کل قرارداد</span><input defaultValue={contract?.amount || ''} inputMode="numeric" onBlur={e => save('amount', e.target.value)} /></label><label><span>مبلغ پیش‌پرداخت</span><input defaultValue={contract?.advancePayment || ''} inputMode="numeric" onBlur={e => save('advancePayment', e.target.value)} /></label><label><span>مبلغ باقی‌مانده (خودکار)</span><output>{money(contract?.remainingAmount ?? Math.max(0, num(contract?.amount) - num(contract?.advancePayment)))}</output></label></div></section>;
+  return <section className="lf-contract-financials"><header className="lf-contract-financials-head"><h4>اطلاعات مالی قرارداد</h4><button type="button" className="lf-btn ghost" onClick={onAddStatement}>＋ صورت‌وضعیت</button></header><div><label><span>مبلغ کل قرارداد</span><input defaultValue={contract?.amount || ''} inputMode="numeric" onBlur={e => save('amount', e.target.value)} /></label><label><span>مبلغ پیش‌پرداخت</span><input defaultValue={contract?.advancePayment || ''} inputMode="numeric" onBlur={e => save('advancePayment', e.target.value)} /></label><label><span>مبلغ باقی‌مانده (خودکار)</span><output>{money(contract?.remainingAmount ?? Math.max(0, num(contract?.amount) - num(contract?.advancePayment)))}</output></label></div></section>;
 }
-// صورت‌وضعیت جدا برای هر آیتم نما (شماره‌گذاری هم برای هر آیتم جداست)؛ تب «همه» همه را نشان می‌دهد
-export const nextStatementNo = (rows, item) => Math.max(0, ...(rows || []).filter(r => !item || normItem(r.item) === normItem(item)).map(r => Number(r.statementNo) || 0)) + 1;
-function StatementCards({ items: allItems, contract, onPatchContract, onPatch, onRemove, onAddStatement }) {
-  const scope = contractScope(contract);
-  const [itemTab, setItemTab] = useState('');
-  const tab = scope.some(i => i === itemTab) ? itemTab : '';
-  const items = tab ? allItems.filter(x => normItem(x.item) === normItem(tab)) : allItems;
-  const total = items.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-  const paid = items.reduce((s, x) => s + (Number(x.paidAmount) || 0), 0);
+export const nextStatementNo = rows => Math.max(0, ...(rows || []).map(r => Number(r.statementNo) || 0)) + 1;
+// Statement amounts are entered cumulatively (each one = total work to date), payments are individual deposits.
+// So: total billed = the latest statement's amount; remaining = that − all payments; per statement,
+// remaining = its amount − payments up to and including it.
+export function statementLedger(rows) {
+  const sorted = (rows || []).slice().sort((a, b) => (Number(a.statementNo) || 0) - (Number(b.statementNo) || 0));
+  let paidSoFar = 0;
+  const list = sorted.map(r => { paidSoFar += num(r.paidAmount); return { ...r, paidToDate: paidSoFar, remaining: Math.max(0, num(r.amount) - paidSoFar) }; });
+  const billed = num([...sorted].reverse().find(r => num(r.amount) > 0)?.amount);
+  return { list, billed, paid: paidSoFar, remaining: Math.max(0, billed - paidSoFar) };
+}
+function StatementCards({ items, contract, onPatchContract, onPatch, onRemove, onAddStatement }) {
+  const ledger = statementLedger(items);
   const save = (item, key, value) => { if (value !== (item[key] || '')) onPatch(item.id, { [key]: value }); };
   const stage = (item, check, date, label) => <div className="lf-statement-stage"><label><input type="checkbox" checked={!!item[check]} onChange={e => onPatch(item.id, { [check]: e.target.checked })} />{label}</label><JalaliDateInput value={item[date] || ''} onChange={value => onPatch(item.id, { [date]: value })} /></div>;
-  const itemOf = x => scope.find(i => normItem(i) === normItem(x.item)) || x.item || '';
-  const tabs = scope.length ? <div className="lf-item-chips lf-statement-tabs" role="tablist" aria-label="صورت‌وضعیت بر اساس آیتم">{[['', 'همه'], ...scope.map(i => [i, i])].map(([k, l]) => <button type="button" role="tab" key={k || 'all'} aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setItemTab(k)}>{l}<em>{fa(k ? allItems.filter(x => normItem(x.item) === normItem(k)).length : allItems.length)}</em></button>)}</div> : null;
-  return <><ContractFinancials contract={contract} onPatch={onPatchContract} onAddStatement={() => onAddStatement(tab)} addLabel={tab ? `＋ صورت‌وضعیت ${tab}` : undefined} />{tabs}<div className="lf-finance-summary"><div><small>جمع صورت‌وضعیت‌ها</small><b>{money(total)}</b></div><div><small>جمع واریزی کارفرما</small><b>{money(paid)}</b></div><div><small>جمع باقی‌مانده</small><b>{money(Math.max(0, total - paid))}</b></div></div><div className="lf-statement-cards">{items.slice().sort((a, b) => Number(a.statementNo || 0) - Number(b.statementNo || 0)).map(item => <article className="lf-statement-card" key={item.id}><header><b>صورت‌وضعیت شماره {item.statementNo ? fa(item.statementNo) : '—'}{itemOf(item) ? ` — ${itemOf(item)}` : ''}</b>{scope.length ? <select className="lf-statement-item" value={itemOf(item)} aria-label="آیتم صورت‌وضعیت" onChange={e => onPatch(item.id, { item: e.target.value })}><option value="">— آیتم —</option>{scope.map(i => <option key={i} value={i}>{i}</option>)}{itemOf(item) && !scope.includes(itemOf(item)) ? <option value={itemOf(item)}>{itemOf(item)}</option> : null}</select> : null}<button type="button" className="lf-link del" onClick={() => window.confirm('این صورت‌وضعیت حذف شود؟') && onRemove(item.id)}>حذف</button></header><div className="lf-statement-stages">{stage(item, 'noticeSent', 'noticeSentDate', 'ارسال اعلام وضعیت')}{stage(item, 'noticeApproved', 'noticeApprovedDate', 'تأیید اعلام وضعیت')}{stage(item, 'statementSent', 'statementSentDate', 'ارسال صورت‌وضعیت')}</div><div className="lf-statement-money"><label>مبلغ صورت‌وضعیت<input defaultValue={item.amount || ''} inputMode="numeric" placeholder="مبلغ" onBlur={e => save(item, 'amount', num(e.target.value))} /></label><label>تاریخ واریز<JalaliDateInput value={item.paymentDate || ''} onChange={value => onPatch(item.id, { paymentDate: value })} /></label><label>واریزی کارفرما<input defaultValue={item.paidAmount || ''} inputMode="numeric" placeholder="مبلغ واریزی" onBlur={e => save(item, 'paidAmount', num(e.target.value))} /></label><div><small>باقی‌مانده</small><b>{money(Math.max(0, (Number(item.amount) || 0) - (Number(item.paidAmount) || 0)))}</b></div></div><input className="lf-statement-note" defaultValue={item.note || ''} placeholder="توضیحات صورت‌وضعیت" onBlur={e => save(item, 'note', e.target.value.trim())} /></article>)}</div></>;
+  return <><ContractFinancials contract={contract} onPatch={onPatchContract} onAddStatement={onAddStatement} /><div className="lf-finance-summary"><div><small>آخرین صورت‌وضعیت (تجمعی)</small><b>{money(ledger.billed)}</b></div><div><small>جمع واریزی کارفرما</small><b>{money(ledger.paid)}</b></div><div><small>باقی‌مانده</small><b>{money(ledger.remaining)}</b></div></div><div className="lf-statement-cards">{ledger.list.map(item => <article className="lf-statement-card" key={item.id}><header><b>صورت‌وضعیت شماره {item.statementNo ? fa(item.statementNo) : '—'}</b><button type="button" className="lf-link del" onClick={() => window.confirm('این صورت‌وضعیت حذف شود؟') && onRemove(item.id)}>حذف</button></header><div className="lf-statement-stages">{stage(item, 'noticeSent', 'noticeSentDate', 'ارسال اعلام وضعیت')}{stage(item, 'noticeApproved', 'noticeApprovedDate', 'تأیید اعلام وضعیت')}{stage(item, 'statementSent', 'statementSentDate', 'ارسال صورت‌وضعیت')}</div><div className="lf-statement-money"><label>مبلغ صورت‌وضعیت<input defaultValue={item.amount || ''} inputMode="numeric" placeholder="مبلغ" onBlur={e => save(item, 'amount', num(e.target.value))} /></label><label>تاریخ واریز<JalaliDateInput value={item.paymentDate || ''} onChange={value => onPatch(item.id, { paymentDate: value })} /></label><label>واریزی کارفرما<input defaultValue={item.paidAmount || ''} inputMode="numeric" placeholder="مبلغ واریزی" onBlur={e => save(item, 'paidAmount', num(e.target.value))} /></label><div><small>باقی‌مانده تا این صورت‌وضعیت</small><b>{money(item.remaining)}</b></div></div><input className="lf-statement-note" defaultValue={item.note || ''} placeholder="توضیحات صورت‌وضعیت" onBlur={e => save(item, 'note', e.target.value.trim())} /></article>)}</div></>;
 }
 function projectMetrics(project, contract, financials, processes) {
   const stages = projectStages(contract, processes);
@@ -598,7 +612,7 @@ function projectMetrics(project, contract, financials, processes) {
   const timePct = days ? Math.round(Math.max(0, Math.min(days, Math.round((Date.parse(today) - Date.parse(start)) / 864e5))) / days * 100) : null;
   const daysLeft = valid(end) ? Math.round((Date.parse(end) - Date.parse(today)) / 864e5) : null;
   const amount = num(contract?.amount), advance = num(contract?.advancePayment);
-  const stTotal = (financials || []).reduce((a, x) => a + num(x.amount), 0), paid = (financials || []).reduce((a, x) => a + num(x.paidAmount), 0);
+  const ledger = statementLedger(financials), stTotal = ledger.billed, paid = ledger.paid;
   const received = advance + paid, variance = timePct == null ? null : progress - timePct;
   const state = progress === 100 || isDelivered(stages) ? 'done' : (variance != null && variance < -15) || late ? 'bad' : variance != null && variance < 0 ? 'warn' : !contract || (!days && !amount) ? 'none' : 'ok';
   return { done, total: stages.length, progress, late, timePct, variance, daysLeft, end, amount, received, receivedPct: amount ? Math.min(100, Math.round(received / amount * 100)) : null, outstanding: Math.max(0, stTotal - paid), state };
@@ -647,9 +661,8 @@ function ProjectReport({ project, contract, financials, processes }) {
     const rows = stages.filter(item => item.department === department), done = rows.filter(item => item.status === 'done').length;
     return { department, done, total: rows.length, progress: weightedProgress(stages, department) };
   });
-  const statementRows = (financials || []).slice().sort((a, b) => Number(a.statementNo || 0) - Number(b.statementNo || 0));
-  const statementTotal = statementRows.reduce((sum, item) => sum + num(item.amount), 0);
-  const paidTotal = statementRows.reduce((sum, item) => sum + num(item.paidAmount), 0);
+  const ledger = statementLedger(financials);
+  const statementRows = ledger.list, statementTotal = ledger.billed, paidTotal = ledger.paid;
   const contractTotal = num(contract?.amount), advance = num(contract?.advancePayment);
   const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
   const start = contract?.contractStartDate || '', end = contract?.contractEndDate || '';
@@ -695,8 +708,8 @@ function ProjectReport({ project, contract, financials, processes }) {
       <div><dt>کد پروژه</dt><dd>{value(project.projectCode)}</dd></div><div><dt>کارفرما</dt><dd>{value(project.client)}</dd></div><div><dt>شماره تماس کارفرما</dt><dd dir="ltr">{value(project.clientPhone)}</dd></div><div><dt>مسئول ارتباط پروژه</dt><dd>{value(project.owner)}</dd></div><div><dt>شماره تماس مسئول</dt><dd dir="ltr">{value(project.contactPhone)}</dd></div><div><dt>شماره قرارداد</dt><dd>{value(contract?.contractNo)}</dd></div><div><dt>آیتم‌های قرارداد</dt><dd>{value(contract?.subject)}</dd></div><div><dt>متراژ قرارداد</dt><dd>{contract?.area ? `${fa(contract.area)} مترمربع` : '—'}</dd></div><div><dt>نوع تسویه</dt><dd>{{ cash: 'نقدی', check: 'چک', statement: 'صورت‌وضعیتی', barter: 'تهاتری', other: 'سایر' }[contract?.settlementType] || '—'}</dd></div><div><dt>شروع قرارداد</dt><dd>{validDate(start) ? jl(start) : '—'}</dd></div><div><dt>اتمام قرارداد</dt><dd>{validDate(end) ? jl(end) : '—'}</dd></div>
     </dl></section>
     <section className="lf-report-section"><h3>نمودار پیشرفت واحدها</h3><div className="lf-report-departments">{departments.map(item => <div key={item.department} className={`dept-${item.department.replaceAll(' ', '-')}`}><div><b>{item.department}</b><span>{fa(item.done)} از {fa(item.total)}</span></div><i><em style={{ width: `${item.progress}%` }} /></i><small>{fa(item.progress)}٪ تکمیل</small></div>)}</div></section>
-    <section className="lf-report-section"><h3>خلاصهٔ مالی و صورت‌وضعیت‌ها</h3><div className="lf-report-finance"><div><small>جمع صورت‌وضعیت‌ها</small><b>{money(statementTotal)}</b></div><div><small>جمع واریزی‌ها</small><b>{money(paidTotal)}</b></div><div><small>ماندهٔ صورت‌وضعیت‌ها</small><b>{money(Math.max(0, statementTotal - paidTotal))}</b></div></div>
-      {statementRows.length ? <div className="lf-report-table-wrap"><table><thead><tr><th>شماره</th><th>اعلام وضعیت</th><th>تأیید</th><th>ارسال صورت‌وضعیت</th><th>مبلغ</th><th>واریزی</th><th>مانده</th></tr></thead><tbody>{statementRows.map(item => <tr key={item.id}><td>{fa(item.statementNo)}</td><td>{item.noticeSent ? '✓' : '—'} {item.noticeSentDate ? jShort(item.noticeSentDate) : ''}</td><td>{item.noticeApproved ? '✓' : '—'} {item.noticeApprovedDate ? jShort(item.noticeApprovedDate) : ''}</td><td>{item.statementSent ? '✓' : '—'} {item.statementSentDate ? jShort(item.statementSentDate) : ''}</td><td>{money(item.amount)}</td><td>{money(item.paidAmount)}</td><td>{money(Math.max(0, num(item.amount) - num(item.paidAmount)))}</td></tr>)}</tbody></table></div> : <p className="lf-empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>}
+    <section className="lf-report-section"><h3>خلاصهٔ مالی و صورت‌وضعیت‌ها</h3><div className="lf-report-finance"><div><small>آخرین صورت‌وضعیت (تجمعی)</small><b>{money(statementTotal)}</b></div><div><small>جمع واریزی‌ها</small><b>{money(paidTotal)}</b></div><div><small>ماندهٔ صورت‌وضعیت‌ها</small><b>{money(Math.max(0, statementTotal - paidTotal))}</b></div></div>
+      {statementRows.length ? <div className="lf-report-table-wrap"><table><thead><tr><th>شماره</th><th>اعلام وضعیت</th><th>تأیید</th><th>ارسال صورت‌وضعیت</th><th>مبلغ</th><th>واریزی</th><th>مانده</th></tr></thead><tbody>{statementRows.map(item => <tr key={item.id}><td>{fa(item.statementNo)}</td><td>{item.noticeSent ? '✓' : '—'} {item.noticeSentDate ? jShort(item.noticeSentDate) : ''}</td><td>{item.noticeApproved ? '✓' : '—'} {item.noticeApprovedDate ? jShort(item.noticeApprovedDate) : ''}</td><td>{item.statementSent ? '✓' : '—'} {item.statementSentDate ? jShort(item.statementSentDate) : ''}</td><td>{money(item.amount)}</td><td>{money(item.paidAmount)}</td><td>{money(item.remaining)}</td></tr>)}</tbody></table></div> : <p className="lf-empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>}
     </section>
     <section className="lf-report-section lf-report-stages"><h3>وضعیت مراحل اجرایی</h3><ol>{stages.map((item, index) => <li key={`${item.department}|${item.title}`} className={item.status === 'done' ? 'done' : ''}><span>{fa(index + 1)}</span><b>{item.title}</b><em>{item.department}</em><small>{item.status === 'done' ? `انجام شد${item.date ? ` · ${jShort(item.date)}` : ''}` : item.date ? jShort(item.date) : 'در انتظار انجام'}{item.owner ? ` · مسئول: ${item.owner}` : ''}</small></li>)}</ol></section>
     {reportFooterText ? <footer className="lf-report-print-footer"><span>{reportFooterText}</span></footer> : null}
@@ -766,7 +779,7 @@ function ProjectFile({ project, contracts, knownItems, financials, supplies, pro
   const contract = contracts[0] || null;
   return <section className="lf-card lf-project-file">
     <div className="lf-tabs">{PROJECT_FILE_TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'finance' ? <em>{fa(financials.length)}</em> : null}</button>)}</div>
-    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} knownItems={knownItems} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={item => onAddFinance(nextStatementNo(financials, item), item)} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
+    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} knownItems={knownItems} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={() => onAddFinance(nextStatementNo(financials))} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
   </section>;
 }
 export function ProjectsPage({ Nav }) {
@@ -899,7 +912,7 @@ export function ProjectsPage({ Nav }) {
               <div className="lf-pops"><div className="lf-dots" role="radiogroup" aria-label="رنگ پروژه">{PCOLORS.map((c, i) => <button key={c} role="radio" aria-checked={(cur.color || PCOLORS[0]) === c} title={PNAMES[i]} className={(cur.color || PCOLORS[0]) === c ? 'on' : ''} style={{ background: c }} onClick={() => projects.patch(cur.id, { color: c })} />)}</div></div></div>
             {late.length || soon.length ? <div className="lf-palerts">{late.slice(0, 4).map(c => <button key={c.id} className="late" onClick={() => setCardEdit(c)}>⛔ {c.title} · {jShort(c.due)}</button>)}{soon.slice(0, 4).map(c => <button key={c.id} className="soon" onClick={() => setCardEdit(c)}>⏳ {c.title} · {jShort(c.due)}</button>)}</div> : null}
           </>; })()}
-        <ProjectFile key={cur.id} project={cur} knownItems={knownItems} contracts={(contracts.items || []).filter(x => x.projectId === cur.id)} financials={(financials.items || []).filter(x => x.projectId === cur.id)} supplies={(supplies.items || []).filter(x => x.projectId === cur.id)} processes={(processes.items || []).filter(x => x.projectId === cur.id)} onEdit={(kind, row) => setFileEdit({ kind, row })} onPatchProject={body => projects.patch(cur.id, body)} onPatchContract={body => { const existing = (contracts.items || []).find(x => x.projectId === cur.id); return existing ? contracts.patch(existing.id, body) : contracts.add({ ...body, projectId: cur.id }); }} onToggleProcess={toggleProcess} onPatchProcess={patchProcess} onAddProcess={body => processes.add({ ...body, projectId: cur.id })} onCompletionChange={complete => { const status = complete ? 'done' : 'active', completedAt = complete ? (cur.completedAt || todayIso()) : null; if ((cur.status || 'active') === status && (!complete || cur.completedAt)) return Promise.resolve(); return projects.patch(cur.id, { status, completedAt }); }} onAddFinance={(next, item) => financials.add({ projectId: cur.id, statementNo: next, ...(item ? { item } : {}) })} onPatchFinance={(id, body) => financials.patch(id, body)} onRemoveFinance={id => financials.remove(id)} onSeedProcesses={async () => { if ((processes.items || []).some(x => x.projectId === cur.id)) return; for (const t of processTemplate(contractOf(cur.id))) await processes.add({ projectId: cur.id, department: t.department, title: t.title, order: t.order, status: 'todo' }); }} />
+        <ProjectFile key={cur.id} project={cur} knownItems={knownItems} contracts={(contracts.items || []).filter(x => x.projectId === cur.id)} financials={(financials.items || []).filter(x => x.projectId === cur.id)} supplies={(supplies.items || []).filter(x => x.projectId === cur.id)} processes={(processes.items || []).filter(x => x.projectId === cur.id)} onEdit={(kind, row) => setFileEdit({ kind, row })} onPatchProject={body => projects.patch(cur.id, body)} onPatchContract={body => { const existing = (contracts.items || []).find(x => x.projectId === cur.id); return existing ? contracts.patch(existing.id, body) : contracts.add({ ...body, projectId: cur.id }); }} onToggleProcess={toggleProcess} onPatchProcess={patchProcess} onAddProcess={body => processes.add({ ...body, projectId: cur.id })} onCompletionChange={complete => { const status = complete ? 'done' : 'active', completedAt = complete ? (cur.completedAt || todayIso()) : null; if ((cur.status || 'active') === status && (!complete || cur.completedAt)) return Promise.resolve(); return projects.patch(cur.id, { status, completedAt }); }} onAddFinance={next => financials.add({ projectId: cur.id, statementNo: next })} onPatchFinance={(id, body) => financials.patch(id, body)} onRemoveFinance={id => financials.remove(id)} onSeedProcesses={async () => { if ((processes.items || []).some(x => x.projectId === cur.id)) return; for (const t of processTemplate(contractOf(cur.id))) await processes.add({ projectId: cur.id, department: t.department, title: t.title, order: t.order, status: 'todo' }); }} />
       </section> : <p className="lf-empty">پروژه‌ای نیست — با «＋ پروژه» یک پروژه بساز.</p>}
       </SideLayout>}
     </>}
