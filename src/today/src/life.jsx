@@ -499,6 +499,7 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
   // Stages not stored yet (virtual `template-N` rows) keep their in-flight edits here, keyed by stage, so a
   // re-render or a concurrent seeding reply can never flash the tick off and on again.
   const [pending, setPending] = useState({});
+  const [openNotes, setOpenNotes] = useState({});
   const creating = useRef({});
   useEffect(() => { setPending({}); creating.current = {}; }, [projectId]);
   const tpl = useMemo(() => processTemplate(contract), [contract]);
@@ -550,7 +551,9 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
   const shares = itemShares(scopeItems, contract?.itemAreas);
   const row = (item, index) => {
     const number = item.order + 1;
-    return <article key={item.id} className={`lf-process-row ${deptClass(item.department)} ${item.status === 'done' ? 'done' : ''}`}>
+    // desktop: a note line only when there is a note or it was opened with the ＋ button (empty rows stay one line)
+    const noteOpen = openNotes[item.id] ?? !!item.note;
+    return <article key={item.id} className={`lf-process-row ${deptClass(item.department)} ${item.status === 'done' ? 'done' : ''} ${noteOpen ? 'note-open' : 'note-closed'}`}>
       <div className="lf-process-row-head">
         <button type="button" className="lf-process-check" onClick={() => patch(item.id, { status: item.status === 'done' ? 'todo' : 'done' })} aria-label={item.status === 'done' ? `برگرداندن ${item.title}` : `انجام ${item.title}`}>{item.status === 'done' ? '✓' : ''}</button>
         <span className="lf-process-no">{fa(number)}</span>
@@ -561,7 +564,8 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
         <label className="lf-process-field lf-process-reminder-field"><span className="lf-process-field-label">یادآوری</span><JalaliDateInput className="lf-process-reminder" value={item.reminderDate || ''} onChange={value => save(item, 'reminderDate', value)} placeholder="یادآوری" /></label>
         <label className="lf-process-field lf-process-date-field"><span className="lf-process-field-label">تاریخ انجام</span><JalaliDateInput className="lf-process-date" value={item.date || ''} onChange={value => save(item, 'date', value)} placeholder="تاریخ انجام" /></label>
         <label className="lf-process-field lf-process-owner-field"><span className="lf-process-field-label">مسئول</span><input className="lf-process-owner" defaultValue={item.owner || ''} placeholder="نام مسئول" onBlur={e => save(item, 'owner', e.target.value.trim())} /></label>
-        <label className="lf-process-field lf-process-note-field"><span className="lf-process-field-label">توضیحات</span><textarea className="lf-process-note" rows={2} defaultValue={item.note || ''} placeholder="توضیحات مرحله" onBlur={e => save(item, 'note', e.target.value.trim())} /></label>
+        <button type="button" className={`lf-process-note-btn ${item.note ? 'has' : ''}`} onClick={() => { setOpenNotes(o => ({ ...o, [item.id]: !noteOpen })); if (!noteOpen) setTimeout(() => document.getElementById(`note-${item.id}`)?.focus(), 0); }} aria-expanded={noteOpen} title={item.note ? 'نمایش/پنهان توضیحات' : 'افزودن توضیحات'}>{item.note ? '📝' : '＋'}</button>
+        <label className="lf-process-field lf-process-note-field"><span className="lf-process-field-label">توضیحات</span><textarea id={`note-${item.id}`} className="lf-process-note" rows={1} defaultValue={item.note || ''} placeholder="توضیحات مرحله" onBlur={e => save(item, 'note', e.target.value.trim())} /></label>
       </div>
     </article>;
   };
