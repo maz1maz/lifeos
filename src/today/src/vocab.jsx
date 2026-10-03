@@ -28,7 +28,7 @@ export function VocabHomeCard({ Card, Icon }) {
       <div className="vc-home-bar" title={`امروز ${done} کارت`}><i style={{ width: `${Math.min(100, done / goal * 100)}%` }} /></div>
       <small className="muted">{todo ? `امروز ${fa(done)} کارت زدی · ${fa(todo)} مانده` : `امروز تمام شد ✓ · ${fa(done)} کارت`}</small>
       {wd ? <div className="vc-home-word">
-        <div className="vc-hw-top"><span className="vc-hw-tag">{wd.hard ? 'واژهٔ سخت' : 'واژهٔ روز'}</span>{wd.hard ? <button type="button" onClick={pick} title="یک واژهٔ سخت دیگر" aria-label="واژهٔ دیگر">↻</button> : null}</div>
+        <div className="vc-hw-top"><span className="vc-hw-tag">{wd.hard ? 'واژهٔ سخت' : 'واژهٔ روز'}</span>{wd.hard ? <span className="vc-hw-acts"><button type="button" className="vc-hw-ok" onClick={() => api('/api/vocab/learned', { method: 'POST', body: JSON.stringify({ w: wd.w }) }).then(pick).catch(() => {})} title="دیگر جزو واژه‌های سخت نباشد">✓ یاد گرفتم</button><button type="button" onClick={pick} title="یک واژهٔ سخت دیگر" aria-label="واژهٔ دیگر">↻</button></span> : null}</div>
         <button type="button" className="vc-hw-w" dir="ltr" onClick={() => say(wd.w)} title="تلفظ">{wd.w} <span>🔊</span>{wd.p ? <small>{wd.p}</small> : null}</button>
         <p className="vc-hw-fa">{wd.fa}</p>
         {wd.e ? <p className="vc-hw-e" dir="ltr">{wd.e}</p> : null}

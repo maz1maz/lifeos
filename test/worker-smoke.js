@@ -355,8 +355,16 @@ async function main() {
         };
         try { await worker.fetch(new Request('https://worker-smoke.local/api/telegram/webhook', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ update_id: 1, message: { message_id: 1, date: 1, chat: { id: 777002, type: 'private' }, from: { id: 777002 }, text: '/صبح' } }) }), env, { waitUntil() {} }); }
         finally { globalThis.fetch = realFetch; env.ASSETS = realAssets; delete env.TELEGRAM_BOT_TOKEN; }
-        const brief = sent.map(m => m.text || '').join('\n');
-        check('telegram morning brief: random hard word with meaning + example', /🧠 واژهٔ سخت: abandon فعل — ترک کردن/.test(brief) && /They abandon the car/.test(brief), brief.slice(-300));
+        const hm = sent.find(m => /🧠 واژهٔ سخت/.test(m.text || ''));
+        check('telegram morning brief: random hard word with meaning + example', !!hm && /🧠 واژهٔ سخت: abandon فعل — ترک کردن/.test(hm.text) && /They abandon the car/.test(hm.text), JSON.stringify(sent.map(m => m.text)).slice(-300));
+        check('hard word message has a «یاد گرفتم» button', !!hm && hm.reply_markup.inline_keyboard[0][0].callback_data === 'vl:abandon');
+        globalThis.fetch = async () => new Response(JSON.stringify({ ok: true, result: {} }), { headers: { 'content-type': 'application/json' } }); env.TELEGRAM_BOT_TOKEN = 'TEST';
+        try { await worker.fetch(new Request('https://worker-smoke.local/api/telegram/webhook', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ update_id: 2, callback_query: { id: 'q1', from: { id: 777002 }, data: 'vl:abandon', message: { message_id: 5, chat: { id: 777002 }, text: 'x' } } }) }), env, { waitUntil() {} }); }
+        finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; }
+        const learned = (await call('/api/vocab', { cookie })).d.state.cards.abandon;
+        check('«یاد گرفتم» in Telegram masters the word and drops it from hard words', learned.b === 6 && learned.bad === 0 && (await call('/api/vocab/summary?hard=1', { cookie })).d.hard === null, JSON.stringify(learned));
+        check('POST /api/vocab/learned: unknown word -> 404', (await call('/api/vocab/learned', { method: 'POST', cookie, body: { w: 'nope-xyz' } })).status === 404);
+        check('POST /api/vocab/learned: known word -> 200', (await call('/api/vocab/learned', { method: 'POST', cookie, body: { w: 'apple' } })).status === 200 && (await call('/api/vocab', { cookie })).d.state.cards.apple.b === 6);
       }
       check('vocab: bad payload refused', (await call('/api/vocab', { method: 'PUT', cookie, body: { state: { cards: [] } } })).status === 400);
       check('vocab: anonymous 401', (await call('/api/vocab')).status === 401);
