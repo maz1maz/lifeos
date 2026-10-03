@@ -434,3 +434,6 @@
 .lf-contract-items .lf-item-chips button{padding:6px 12px;border-radius:999px;border:1px solid var(--g-border);background:transparent;color:inherit;font:inherit;font-size:12.5px;cursor:pointer;touch-action:manipulation}
 .lf-contract-items .lf-item-chips button.on{background:rgba(96,165,250,.16);border-color:#60a5fa;color:#93c5fd;font-weight:600}
 .lf-contract-items>input{margin-top:6px}
+/* سرتیتر هر آیتم قرارداد در مراحل اجرایی */
+.lf-process-group{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;padding:8px 12px;border-radius:12px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.28);color:#93c5fd;font-weight:700;font-size:13.5px}
+.lf-process-group small{color:var(--g-muted);font-weight:400;font-size:11.5px}
