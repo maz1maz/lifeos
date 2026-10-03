@@ -407,10 +407,10 @@ function withWeights(stages, areas) {
   });
 }
 // 0–100 for one contract item on its own
-export function itemProgress(stages, item) {
+export function itemProgress(stages, item, department) {
   const list = (stages || []).some(s => s.weight == null) ? withWeights(stages || []) : (stages || []);
   let total = 0, got = 0;
-  for (const s of list) { if (isFixedStage(s) || normItem(itemOfStage(s)) !== normItem(item)) continue; total += s.itemWeight; got += s.itemWeight * stageCredit(s); }
+  for (const s of list) { if (isFixedStage(s) || normItem(itemOfStage(s)) !== normItem(item) || (department && s.department !== department)) continue; total += s.itemWeight; got += s.itemWeight * stageCredit(s); }
   if (!total) return 0;
   const pct = got / total * 100;
   return pct >= 99.999 ? 100 : Math.min(99, Math.round(pct));
@@ -479,6 +479,23 @@ export function weightedProgress(stages, department) {
   const pct = got / total * 100;
   return pct >= 99.999 ? 100 : Math.min(99, Math.round(pct));
 }
+// پنل پیشرفت آیتم‌ها: نوار سهم (عرض هر بخش = سهم آیتم از پروژه، پرشدگی = پیشرفت آن آیتم) + کارت حلقه‌ای
+// برای هر آیتم با ریز پیشرفت چهار واحد
+const DEPT_SHORT = { 'کنترل پروژه': 'کنترل', 'فنی': 'فنی', 'تأمین': 'تأمین', 'اجرا': 'اجرا' };
+export function ItemsPanel({ items, stages, shares, onPick }) {
+  const data = items.map(it => { const mine = stages.filter(x => x.item === it); return { it, pct: itemProgress(stages, it), share: shares[it] || 0, done: mine.filter(x => x.status === 'done').length, total: mine.length, depts: PROCESS_DEPARTMENTS.map(d => [d, mine.some(x => x.department === d) ? itemProgress(stages, it, d) : null]) }; });
+  return <section className="lf-items-panel" aria-label="پیشرفت آیتم‌ها">
+    <header><b>پیشرفت آیتم‌ها</b><small>عرض هر بخش = سهم از پروژه (بر اساس متراژ) · پرشدگی = پیشرفت</small></header>
+    <div className="lf-share-bar">{data.map((x, i) => <button type="button" key={x.it} style={{ flex: Math.max(x.share, 0.02), '--c': ITEM_COLORS[i % ITEM_COLORS.length] }} onClick={() => onPick?.(x.it)} title={`${x.it} · سهم ${fa(Math.round(x.share * 100))}٪ · پیشرفت ${fa(x.pct)}٪`}><i style={{ width: `${x.pct}%` }} /><span>{x.it}</span></button>)}</div>
+    <div className="lf-item-cards">{data.map((x, i) => <button type="button" key={x.it} className={`lf-item-card ${x.pct === 100 ? 'complete' : ''}`} style={{ '--c': x.pct === 100 ? '#34d399' : ITEM_COLORS[i % ITEM_COLORS.length], '--p': x.pct }} onClick={() => onPick?.(x.it)}>
+      <span className="lf-ring"><strong>{fa(x.pct)}٪</strong></span>
+      <span className="lf-item-card-body"><b>{x.it}{x.pct === 100 ? <em>تمام شد</em> : null}</b><small>سهم {fa(Math.round(x.share * 100))}٪ · {fa(x.done)} از {fa(x.total)} مرحله</small>
+        <span className="lf-item-depts">{x.depts.filter(([, v]) => v != null).map(([d, v]) => <span key={d} className={`dept-${d.replaceAll(' ', '-')}`} title={`${d}: ${fa(v)}٪`}><i><em style={{ width: `${v}%` }} /></i><small>{DEPT_SHORT[d]}</small></span>)}</span>
+      </span>
+    </button>)}</div>
+  </section>;
+}
+const ITEM_COLORS = ['#60a5fa', '#f472b6', '#f5c36a', '#a78bfa', '#2dd4bf', '#fb923c', '#a3e635', '#38bdf8'];
 const GROUP_TITLES = { start: 'مراحل عمومی پروژه', 'item:': 'مراحل اجرایی', end: 'تحویل پروژه' };
 function StageGroupHead({ title, rows }) {
   const done = rows.filter(x => x.status === 'done').length, all = rows.length;
@@ -561,7 +578,7 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
         <label className="lf-process-field lf-process-reminder-field"><span className="lf-process-field-label">یادآوری</span><JalaliDateInput className="lf-process-reminder" value={item.reminderDate || ''} onChange={value => save(item, 'reminderDate', value)} placeholder="یادآوری" /></label>
         <label className="lf-process-field lf-process-date-field"><span className="lf-process-field-label">تاریخ انجام</span><JalaliDateInput className="lf-process-date" value={item.date || ''} onChange={value => save(item, 'date', value)} placeholder="تاریخ انجام" /></label>
         <label className="lf-process-field lf-process-owner-field"><span className="lf-process-field-label">مسئول</span><input className="lf-process-owner" defaultValue={item.owner || ''} placeholder="نام مسئول" onBlur={e => save(item, 'owner', e.target.value.trim())} /></label>
-        <label className="lf-process-field lf-process-note-field"><span className="lf-process-field-label">توضیحات</span><textarea className="lf-process-note" rows={2} defaultValue={item.note || ''} placeholder="توضیحات مرحله" onBlur={e => save(item, 'note', e.target.value.trim())} /></label>
+        <label className="lf-process-field lf-process-note-field"><span className="lf-process-field-label">توضیحات</span><textarea id={`note-${item.id}`} className="lf-process-note" rows={1} defaultValue={item.note || ''} placeholder="توضیحات مرحله" onBlur={e => save(item, 'note', e.target.value.trim())} /></label>
       </div>
     </article>;
   };
@@ -574,7 +591,7 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
         <div className="lf-process-progress-bar"><i style={{ width: `${pct}%` }} /></div>
       </div></div>
     </div>
-    {scopeItems.length ? <div className="lf-process-dept-stats lf-process-items" aria-label="پیشرفت هر آیتم">{scopeItems.map(it => { const p = itemProgress(visibleItems, it), mine = visibleItems.filter(x => x.item === it); return <button type="button" key={it} className={p === 100 ? 'done' : ''} onClick={() => document.getElementById(`pg-${projectId}-${it}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} title={`رفتن به مراحل ${it}`}><span><b>{it}{p === 100 ? ' ✓' : ''}</b><small>{fa(mine.filter(x => x.status === 'done').length)} از {fa(mine.length)} · سهم {fa(Math.round((shares[it] || 0) * 100))}٪</small></span><i><em style={{ width: `${p}%` }} /></i><small>{fa(p)}٪ تکمیل</small></button>; })}</div> : null}
+    {scopeItems.length ? <ItemsPanel items={scopeItems} stages={visibleItems} shares={shares} onPick={it => document.getElementById(`pg-${projectId}-${it}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} /> : null}
     {departmentFilter ? <div className="lf-process-filter-note"><b>فیلتر: {departmentFilter}</b><button type="button" onClick={() => setDepartmentFilter('')}>نمایش همه ×</button></div> : null}
     {ordered.map((item, i) => item.group && item.group !== ordered[i - 1]?.group ? [
       item.item ? <ItemGroupHead key={`g-${item.group}`} anchor={`pg-${projectId}-${item.item}`} item={item.item} stages={visibleItems} share={shares[item.item]} /> : <StageGroupHead key={`g-${item.group}`} title={GROUP_TITLES[item.group] || GROUP_TITLES['item:']} rows={visibleItems.filter(x => x.group === item.group)} />,
@@ -712,11 +729,11 @@ function ProjectReport({ project, contract, financials, processes }) {
     <section className="lf-report-section lf-report-info"><h3>اطلاعات پروژه و قرارداد</h3><dl>
       <div><dt>کد پروژه</dt><dd>{value(project.projectCode)}</dd></div><div><dt>کارفرما</dt><dd>{value(project.client)}</dd></div><div><dt>شماره تماس کارفرما</dt><dd dir="ltr">{value(project.clientPhone)}</dd></div><div><dt>مسئول ارتباط پروژه</dt><dd>{value(project.owner)}</dd></div><div><dt>شماره تماس مسئول</dt><dd dir="ltr">{value(project.contactPhone)}</dd></div><div><dt>شماره قرارداد</dt><dd>{value(contract?.contractNo)}</dd></div><div><dt>آیتم‌های قرارداد</dt><dd>{value(contract?.subject)}</dd></div><div><dt>متراژ قرارداد</dt><dd>{contractAreaText(contract) || '—'}</dd></div><div><dt>نوع تسویه</dt><dd>{{ cash: 'نقدی', check: 'چک', statement: 'صورت‌وضعیتی', barter: 'تهاتری', other: 'سایر' }[contract?.settlementType] || '—'}</dd></div><div><dt>شروع قرارداد</dt><dd>{validDate(start) ? jl(start) : '—'}</dd></div><div><dt>اتمام قرارداد</dt><dd>{validDate(end) ? jl(end) : '—'}</dd></div>
     </dl>{project.note || contract?.note ? <div className="lf-report-notes">{project.note ? <p><b>توضیحات پروژه:</b> {project.note}</p> : null}{contract?.note ? <p><b>توضیحات قرارداد:</b> {contract.note}</p> : null}</div> : null}</section>
-    <section className="lf-report-section"><h3>نمودار پیشرفت واحدها</h3><div className="lf-report-departments">{departments.map(item => <div key={item.department} className={`dept-${item.department.replaceAll(' ', '-')}`}><div><b>{item.department}</b><span>{fa(item.done)} از {fa(item.total)}</span></div><i><em style={{ width: `${item.progress}%` }} /></i><small>{fa(item.progress)}٪ تکمیل</small></div>)}</div>{reportItems.length ? <><h3 className="lf-report-subhead">پیشرفت هر آیتم</h3><div className="lf-report-departments lf-report-items">{reportItems.map(x => <div key={x.item}><div><b>{x.item}</b><span>سهم {fa(x.share)}٪</span></div><i><em style={{ width: `${x.progress}%` }} /></i><small>{fa(x.progress)}٪ تکمیل</small></div>)}</div></> : null}</section>
+    <section className="lf-report-section"><h3>نمودار پیشرفت واحدها</h3><div className="lf-report-departments">{departments.map(item => <div key={item.department} className={`dept-${item.department.replaceAll(' ', '-')}`}><div><b>{item.department}</b><span>{fa(item.done)} از {fa(item.total)}</span></div><i><em style={{ width: `${item.progress}%` }} /></i><small>{fa(item.progress)}٪ تکمیل</small></div>)}</div>{reportItems.length ? <ItemsPanel items={reportItems.map(x => x.item)} stages={stages} shares={Object.fromEntries(reportItems.map(x => [x.item, x.share / 100]))} /> : null}</section>
     <section className="lf-report-section"><h3>خلاصهٔ مالی و صورت‌وضعیت‌ها</h3><div className="lf-report-finance"><div><small>آخرین صورت‌وضعیت (تجمعی)</small><b>{money(statementTotal)}</b></div><div><small>جمع واریزی‌ها</small><b>{money(paidTotal)}</b></div><div><small>مطالبات معوق</small><b>{money(Math.max(0, statementTotal - paidTotal))}</b></div></div>
       {statementRows.length ? <div className="lf-report-table-wrap"><table><thead><tr><th>شماره</th><th>اعلام وضعیت</th><th>تأیید</th><th>ارسال صورت‌وضعیت</th><th>مبلغ</th><th>واریزی</th><th>مانده</th></tr></thead><tbody>{statementRows.map(item => <tr key={item.id}><td>{fa(item.statementNo)}</td><td>{item.noticeSent ? '✓' : '—'} {item.noticeSentDate ? jShort(item.noticeSentDate) : ''}</td><td>{item.noticeApproved ? '✓' : '—'} {item.noticeApprovedDate ? jShort(item.noticeApprovedDate) : ''}</td><td>{item.statementSent ? '✓' : '—'} {item.statementSentDate ? jShort(item.statementSentDate) : ''}</td><td>{money(item.amount)}</td><td>{money(item.paidAmount)}</td><td>{money(item.remaining)}</td></tr>)}{statementRows.filter(x => x.note).map(item => <tr key={`n-${item.id}`} className="lf-report-note-row"><td colSpan={7}>توضیحات صورت‌وضعیت {fa(item.statementNo)}: {item.note}</td></tr>)}</tbody></table></div> : <p className="lf-empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>}
     </section>
-    <section className="lf-report-section lf-report-stages"><h3>وضعیت مراحل اجرایی</h3><ol>{stages.map((item, index) => <li key={`${item.department}|${item.title}`} className={item.status === 'done' ? 'done' : ''}><span>{fa(index + 1)}</span><b>{item.title}</b><em>{item.department}</em><small>{item.status === 'done' ? `انجام شد${item.date ? ` · ${jShort(item.date)}` : ''}` : item.date ? jShort(item.date) : 'در انتظار انجام'}{item.owner ? ` · مسئول: ${item.owner}` : ''}</small>{item.note ? <p className="lf-report-stage-note">{item.note}</p> : null}</li>)}</ol></section>
+    <section className="lf-report-section lf-report-stages"><h3>وضعیت مراحل اجرایی</h3><div className="lf-report-table-wrap"><table className="lf-report-stage-table"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th>توضیحات</th></tr></thead><tbody>{stages.map((item, index) => <tr key={`${item.department}|${item.title}`} className={item.status === 'done' ? 'done' : ''}><td>{fa(index + 1)}</td><td>{item.title}</td><td>{item.department}</td><td>{item.status === 'done' ? '✓ انجام شد' : isInstallStage(item) && Number(item.percent) ? `${fa(Number(item.percent))}٪ نصب` : 'در انتظار'}</td><td>{item.date ? jShort(item.date) : '—'}</td><td>{item.owner || '—'}</td><td className="note">{item.note || '—'}</td></tr>)}</tbody></table></div></section>
     {reportFooterText ? <footer className="lf-report-print-footer"><span>{reportFooterText}</span></footer> : null}
   </article>;
 }
