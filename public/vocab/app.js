@@ -550,7 +550,7 @@ function renderBrowse() {
       <span class="chip ${FILTER.starsOnly ? "on" : ""}" data-star="1">★ ستاره‌دار</span>
       <span class="chip" data-clear="1">پاک‌کردن فیلترها</span>
     </div>
-    <div class="muted" style="margin:10px 0">${fa(list.length)} واژه یافت شد${S.settings.dailyNew ? "" : ""}</div>
+    <div class="between" style="margin:10px 0"><span class="muted">${fa(list.length)} واژه یافت شد</span><button class="btn sm" id="handoutBtn" title="فهرست فعلی (با همین فیلترها) را به‌صورت جزوهٔ سفید A4 چاپ یا PDF کن">🖨 جزوهٔ چاپی / PDF</button></div>
     <div style="overflow:auto;max-height:62vh">
       <table>
         <thead><tr><th>واژه</th><th>معنی</th><th>سطح</th><th>موضوع</th><th>وضعیت</th><th></th></tr></thead>
@@ -568,6 +568,7 @@ function renderBrowse() {
     </div>
     ${list.length > shown ? `<div class="row" style="justify-content:center;margin-top:12px"><button class="btn" id="more">نمایش ۶۰ واژهٔ بیشتر (${fa(list.length - shown)} باقی‌مانده)</button></div>` : ""}
   </div>`;
+  $("#handoutBtn") && ($("#handoutBtn").onclick = () => printHandout(list));
   $("#bq").addEventListener("input", e => { query = e.target.value; shown = 60; renderBrowse(); $("#bq").focus(); });
   $("#bsort").addEventListener("change", e => { shown = 60; sortMode = e.target.value; renderBrowse(); });
   $$("[data-lv]").forEach(c => c.onclick = () => { FILTER.lv = c.dataset.lv; renderFilters(); render(); });
@@ -1057,6 +1058,36 @@ function profileSheet() {
   };
 }
 
+/* ------------------------------------------------- printable handout (white A4) */
+function printHandout(list) {
+  if (!list.length) return;
+  if (list.length > 1500 && !confirm(`${fa(list.length)} واژه است و جزوه طولانی می‌شود. با فیلتر سطح یا موضوع کوتاهش کن، یا برای ادامه «تأیید» بزن.`)) return;
+  const title = ["جزوهٔ واژگان", FILTER.lv !== "all" ? `سطح ${FILTER.lv}` : "", FILTER.topic !== "all" ? FILTER.topic : "", FILTER.starsOnly ? "ستاره‌دارها" : ""].filter(Boolean).join(" · ");
+  const date = new Intl.DateTimeFormat("fa-IR", { dateStyle: "long", timeZone: "Asia/Tehran" }).format(new Date());
+  const rows = list.map((x, i) => `<tr><td class="n">${fa(i + 1)}</td><td class="w"><b>${esc(x.w)}</b>${x.lv ? `<small>${esc(x.lv)}</small>` : ""}</td><td class="p">${esc(x.p || "")}</td><td class="m">${esc(meaningsOf(x).join("، "))}${x.df ? `<div class="df">${esc(x.df)}</div>` : ""}</td><td class="e">${x.e ? `<div class="en">${esc(x.e)}</div>` : ""}${x.ef ? `<div class="ef">${esc(x.ef)}</div>` : ""}</td></tr>`).join("");
+  const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+@font-face{font-family:Vazirmatn;font-weight:100 900;src:url('/assets/fonts/vazirmatn-arabic.woff2') format('woff2');unicode-range:U+0600-06FF,U+200C-200E,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:Vazirmatn;font-weight:100 900;src:url('/assets/fonts/vazirmatn-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+2000-206F}
+@page{size:A4 portrait;margin:14mm 11mm 15mm;@bottom-left{content:"صفحهٔ " counter(page, persian) " از " counter(pages, persian);font:9pt Vazirmatn,Tahoma,sans-serif;color:#555}@bottom-right{content:"${title.replace(/"/g, "")}";font:9pt Vazirmatn,Tahoma,sans-serif;color:#555}}
+*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#000;font:10pt/1.6 Vazirmatn,Tahoma,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+h1{font-size:15pt;margin:0 0 2px}.meta{color:#444;font-size:9pt;margin-bottom:8px}
+table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{break-inside:avoid}
+th{text-align:right;font-weight:700;border-bottom:1.5pt solid #000;padding:4px 5px;font-size:9pt}
+td{border-bottom:.5pt solid #999;padding:4px 5px;vertical-align:top}
+td.n{width:6%;color:#555;font-size:8.5pt}td.w{width:15%;direction:ltr;text-align:left}td.w b{font-size:11pt}td.w small{display:block;color:#555;font-size:8pt}
+td.p{width:8%;font-size:8.5pt;color:#333}td.m{width:30%}td.e{width:41%}
+.df{color:#444;font-size:8.5pt;margin-top:2px}.en{direction:ltr;text-align:left;font-size:9pt}.ef{color:#333;font-size:8.5pt}
+</style></head><body><h1>${esc(title)}</h1><div class="meta">${fa(list.length)} واژه · ${esc(date)} · LifeOS</div>
+<table><thead><tr><th>ردیف</th><th style="text-align:left">واژه</th><th>نقش</th><th>معنی</th><th>مثال</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  document.getElementById("handoutFrame")?.remove();
+  const f = document.createElement("iframe");
+  f.id = "handoutFrame"; f.setAttribute("aria-hidden", "true");
+  f.style.cssText = "position:fixed;left:-10000px;top:0;width:800px;height:10px;border:0";
+  document.body.appendChild(f);
+  const d = f.contentDocument; d.open(); d.write(html); d.close();
+  (d.fonts?.ready || Promise.resolve()).then(() => setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); }, 50));
+}
+
 /* ------------------------------------------------------------ filter chips */
 function renderFilters() {
   const lvCount = l => DECK.filter(x => x.lv === l).length;
@@ -1088,7 +1119,6 @@ function renderFilters() {
 function boot() {
   $("#deckSize").textContent = fa(DECK.length);
   $$(".tab").forEach(t => t.onclick = () => { if (VIEW !== t.dataset.v) stopSpeaking(); VIEW = t.dataset.v; render(); });
-  $("#helpBtn").onclick = () => { VIEW = "settings"; render(); };
   $("#userBtn").onclick = () => { if (USER) profileSheet(); };
   $("#logoutBtn").onclick = () => { if (USER) profileSheet(); };
   document.addEventListener("keydown", e => {
