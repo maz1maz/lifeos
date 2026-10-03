@@ -326,7 +326,7 @@ function parseQuick(text) {
 const PNAMES = ['طلایی', 'آبی', 'سبز', 'صورتی', 'بنفش', 'نارنجی'];
 
 const PROJECT_FILE_TABS = [['overview', 'اطلاعات پروژه و قرارداد'], ['finance', 'اطلاعات مالی'], ['supply', 'مراحل اجرایی'], ['report', 'گزارش']];
-// Checklist = fixed project stages + the per-item stages repeated for every contract item (پنجره، کرتین‌وال، …).
+// Checklist = fixed project stages + the per-item stages repeated for every contract item (پنجره، کرتن‌وال، …).
 // A per-item stage's title is `${base} — ${item}`; with no item chosen yet one generic copy (no suffix) is shown.
 const FIXED_STAGES = [
   ['کنترل پروژه', 'ابلاغ قرارداد'],
@@ -353,7 +353,7 @@ const ITEM_STAGES = [
 ];
 const FINAL_STAGES = [['اجرا', 'تحویل پروژه']];
 export const PROCESS_DEPARTMENTS = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'];
-const CONTRACT_ITEMS = ['پنجره', 'کرتین‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
+const CONTRACT_ITEMS = ['پنجره', 'کرتن‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
 const normItem = x => String(x || '').replace(/[\s‌]+/g, '').replace(/کرتن/g, 'کرتین');
 const ITEM_SEP = ' — ';
 // contract → { picked: chosen standard items, other: free text } (falls back to parsing the old free-text subject)
@@ -372,19 +372,51 @@ export function processTemplate(contract) {
   for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '' });
   return out.map((s, order) => ({ ...s, order }));
 }
-// Weighted progress (agreed 1405-07): control 10%, technical 15%, supply 30%, execution 45%.
-// Inside a department each stage has a base weight (execution: install-finish counts most), normalised over the project's stages.
+// Weighted progress. Each contract item is its own 0–100 (inside it: control 10, technical 15, supply 30,
+// execution 45; execution stages weighted by EXEC_BASE). The project = fixed stages (FIXED_WEIGHT, in %) +
+// the items, each item's share proportional to its contract area (items with no area count as the average;
+// no areas at all → equal shares).
 const DEPT_WEIGHT = { 'کنترل پروژه': 10, 'فنی': 15, 'تأمین': 30, 'اجرا': 45 };
-const EXEC_BASE = { 'ابعادبرداری برآوردی': 1, 'ابعادبرداری دقیق': 2, 'شروع نصب': 3, 'پایان نصب': 12, 'تحویل پروژه': 2 };
+const EXEC_BASE = { 'ابعادبرداری برآوردی': 1, 'ابعادبرداری دقیق': 2, 'شروع نصب': 3, 'پایان نصب': 12 };
+const FIXED_WEIGHT = { 'ابلاغ قرارداد': 1, 'تأیید رنگ از کارفرما': 1, 'سفارش بیلت': 1, 'سفارش یراق‌آلات': 1, 'تحویل پروژه': 2 };
 const baseOf = s => s.base || String(s.title || '').split(ITEM_SEP)[0];
+const itemOfStage = s => s.item ?? (String(s.title || '').split(ITEM_SEP)[1] || '');
+const isFixedStage = s => !itemOfStage(s) && FIXED_WEIGHT[baseOf(s)] != null;
 const baseWeight = s => s.department === 'اجرا' ? (EXEC_BASE[baseOf(s)] || 1) : 1;
-function withWeights(stages) {
-  const sum = {};
-  for (const s of stages) sum[s.department] = (sum[s.department] || 0) + baseWeight(s);
-  return stages.map(s => ({ ...s, weight: (DEPT_WEIGHT[s.department] || 0) * baseWeight(s) / (sum[s.department] || 1) }));
+// shares of the project (0–1) per item, from contract areas
+export function itemShares(items, areas) {
+  const a = items.map(i => (i ? itemArea(areas, i) : 0));
+  const known = a.filter(x => x > 0), avg = known.length ? known.reduce((x, y) => x + y, 0) / known.length : 1;
+  const w = a.map(x => x > 0 ? x : avg), total = w.reduce((x, y) => x + y, 0) || 1;
+  return Object.fromEntries(items.map((i, k) => [i, w[k] / total]));
+}
+function withWeights(stages, areas) {
+  const itemStages = stages.filter(s => !isFixedStage(s));
+  const items = [...new Set(itemStages.map(itemOfStage))];
+  const sum = {}; // per item, per department
+  for (const s of itemStages) { const k = `${itemOfStage(s)}|${s.department}`; sum[k] = (sum[k] || 0) + baseWeight(s); }
+  const inner = s => (DEPT_WEIGHT[s.department] || 0) * baseWeight(s) / (sum[`${itemOfStage(s)}|${s.department}`] || 1);
+  const innerTotal = {}; for (const s of itemStages) innerTotal[itemOfStage(s)] = (innerTotal[itemOfStage(s)] || 0) + inner(s);
+  const shares = itemShares(items, areas);
+  const fixedTotal = stages.filter(isFixedStage).reduce((t, s) => t + FIXED_WEIGHT[baseOf(s)], 0), itemsTotal = items.length ? 100 - fixedTotal : 0;
+  const scale = items.length ? 1 : 100 / (fixedTotal || 1);
+  return stages.map(s => {
+    if (isFixedStage(s)) return { ...s, weight: FIXED_WEIGHT[baseOf(s)] * scale, itemWeight: null };
+    const iw = inner(s) / (innerTotal[itemOfStage(s)] || 1) * 100; // weight inside its item (item sums to 100)
+    return { ...s, itemWeight: iw, weight: shares[itemOfStage(s)] * itemsTotal * iw / 100 };
+  });
+}
+// 0–100 for one contract item on its own
+export function itemProgress(stages, item) {
+  const list = (stages || []).some(s => s.weight == null) ? withWeights(stages || []) : (stages || []);
+  let total = 0, got = 0;
+  for (const s of list) { if (isFixedStage(s) || normItem(itemOfStage(s)) !== normItem(item)) continue; total += s.itemWeight; got += s.itemWeight * stageCredit(s); }
+  if (!total) return 0;
+  const pct = got / total * 100;
+  return pct >= 99.999 ? 100 : Math.min(99, Math.round(pct));
 }
 // Old fixed-checklist rows (before per-item stages) → new stage; `items` limits which contract items inherit it ('' = generic copy).
-const OLD_ITEMS = ['', 'پنجره', 'کرتین‌وال'];
+const OLD_ITEMS = ['', 'پنجره', 'کرتن‌وال'];
 const LEGACY_STAGES = [
   ['تأمین|سفارش بیلت بر اساس قرارداد', 'سفارش بیلت'], ['کنترل پروژه|سفارش بیلت بر اساس قرارداد', 'سفارش بیلت'],
   ['تأمین|سفارش یراق‌آلات بر اساس قرارداد', 'سفارش یراق‌آلات'], ['کنترل پروژه|سفارش یراق‌آلات بر اساس قرارداد', 'سفارش یراق‌آلات'],
@@ -394,37 +426,38 @@ const LEGACY_STAGES = [
   ['کنترل پروژه|ارسال تیپ‌بندی پنجره بر اساس قرارداد به کارفرما جهت تأیید', 'تهیه جزئیات برآورد جهت تأیید به کارفرما', ['پنجره']],
   ['کنترل پروژه|دریافت تأیید برآورد پنجره از کارفرما', 'دریافت تأیید جزئیات برآورد از کارفرما', ['پنجره']],
   ['فنی|ارسال جزئیات برآورد پنجره جهت تأمین به کارخانه', 'ارسال جزئیات برآورد به کارخانه', ['پنجره']],
-  ['کنترل پروژه|ارسال تیپ‌بندی کرتین‌وال بر اساس قرارداد به کارفرما جهت تأیید', 'تهیه جزئیات برآورد جهت تأیید به کارفرما', ['کرتین‌وال']],
-  ['کنترل پروژه|دریافت تأیید برآورد کرتین‌وال از کارفرما', 'دریافت تأیید جزئیات برآورد از کارفرما', ['کرتین‌وال']],
-  ['فنی|ارسال جزئیات برآورد کرتین‌وال جهت تأمین به کارخانه', 'ارسال جزئیات برآورد به کارخانه', ['کرتین‌وال']],
+  ['کنترل پروژه|ارسال تیپ‌بندی کرتین‌وال بر اساس قرارداد به کارفرما جهت تأیید', 'تهیه جزئیات برآورد جهت تأیید به کارفرما', ['کرتن‌وال']],
+  ['کنترل پروژه|دریافت تأیید برآورد کرتین‌وال از کارفرما', 'دریافت تأیید جزئیات برآورد از کارفرما', ['کرتن‌وال']],
+  ['فنی|ارسال جزئیات برآورد کرتین‌وال جهت تأمین به کارخانه', 'ارسال جزئیات برآورد به کارخانه', ['کرتن‌وال']],
   ['فنی|تهیه نقشهٔ جزئیات ساخت دقیق', 'تهیه نقشهٔ جزئیات ساخت', OLD_ITEMS],
   ['کنترل پروژه|دریافت تأیید نقشهٔ جزئیات ساخت از کارفرما', 'دریافت تأیید نقشهٔ جزئیات ساخت از کارفرما', OLD_ITEMS],
   ['فنی|ارسال جزئیات ساخت دقیق به کارخانه', 'ارسال جزئیات ساخت به کارخانه', OLD_ITEMS],
   ['فنی|تهیه لیست ابعاد شیشه', 'تهیه لیست شیشه', OLD_ITEMS],
   ['تأمین|عقد قرارداد شیشه', 'سفارش شیشه', OLD_ITEMS],
-  ['تأمین|ارسال پنجره به پروژه', 'ارسال به پروژه', ['پنجره']], ['تأمین|ارسال کرتین‌وال به پروژه', 'ارسال به پروژه', ['کرتین‌وال']],
-  ['اجرا|شروع نصب پنجره', 'شروع نصب', ['پنجره']], ['اجرا|شروع نصب کرتین‌وال', 'شروع نصب', ['کرتین‌وال']],
-  ['اجرا|اتمام نصب پنجره', 'پایان نصب', ['پنجره']], ['اجرا|اتمام نصب کرتین‌وال', 'پایان نصب', ['کرتین‌وال']]
+  ['تأمین|ارسال پنجره به پروژه', 'ارسال به پروژه', ['پنجره']], ['تأمین|ارسال کرتین‌وال به پروژه', 'ارسال به پروژه', ['کرتن‌وال']],
+  ['اجرا|شروع نصب پنجره', 'شروع نصب', ['پنجره']], ['اجرا|شروع نصب کرتین‌وال', 'شروع نصب', ['کرتن‌وال']],
+  ['اجرا|اتمام نصب پنجره', 'پایان نصب', ['پنجره']], ['اجرا|اتمام نصب کرتین‌وال', 'پایان نصب', ['کرتن‌وال']]
 ];
 const LEGACY_FIELDS = ['status', 'date', 'owner', 'note', 'percent', 'reminderDate'];
 // fields a new stage row inherits from an older row (only fields with data), or {}:
 // first the generic copy shown before any item was chosen, then the old fixed-checklist row it replaced
 const carryOf = old => { const c = {}; if (old) for (const f of LEGACY_FIELDS) if (old[f] != null && old[f] !== '') c[f] = old[f]; return Object.keys(c).length ? c : null; };
 function legacyCarry(stage, byKey) {
-  if (stage.item) { const c = carryOf(byKey.get(`${stage.department}|${stage.base}`)); if (c) return c; }
+  if (stage.item) { const c = carryOf(byKey.get(keyOf(stage.department, stage.base))); if (c) return c; }
   for (const [oldKey, base, items] of LEGACY_STAGES) {
     if (base !== stage.base || (items ? !items.includes(stage.item) : stage.item)) continue;
-    const c = carryOf(byKey.get(oldKey)); if (c) return c;
+    const c = carryOf(byKey.get(keyOf(...oldKey.split('|')))); if (c) return c;
   }
   return {};
 }
 // Ticking «تحویل پروژه» finishes the project even if earlier rows were skipped.
 export const isDelivered = stages => (stages || []).some(x => x.department === 'اجرا' && x.title === 'تحویل پروژه' && x.status === 'done');
-const stageKey = s => `${s.department}|${s.title}`;
+const keyOf = (department, title) => `${department}|${normItem(title)}`;
+const stageKey = s => keyOf(s.department, s.title);
 // the project's current checklist with stored rows merged in (old rows outside the template stay stored but hidden)
 export function projectStages(contract, rows) {
   const byKey = new Map((rows || []).map(x => [stageKey(x), x]));
-  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, order: t.order } : { ...t, status: 'todo' }; }));
+  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, order: t.order } : { ...t, status: 'todo' }; }), contract?.itemAreas);
 }
 function ContractTimeline({ contract }) {
   const start = contract?.contractStartDate || '';
@@ -445,6 +478,15 @@ export function weightedProgress(stages, department) {
   if (!total) return 0;
   const pct = got / total * 100;
   return pct >= 99.999 ? 100 : Math.min(99, Math.round(pct));
+}
+// سرتیتر هر آیتم: پیشرفت مستقل آیتم (۰–۱۰۰) + سهمش از کل پروژه (بر اساس متراژ)
+function ItemGroupHead({ item, stages, share }) {
+  const mine = stages.filter(x => x.item === item), pct = itemProgress(stages, item);
+  return <div className={`lf-process-group ${pct === 100 ? 'done' : ''}`}>
+    <b>{item}{pct === 100 ? ' ✓ تمام شد' : ''}</b>
+    <i className="lf-process-group-bar"><em style={{ width: `${pct}%` }} /></i>
+    <small><strong>{fa(pct)}٪</strong> · {fa(mine.filter(x => x.status === 'done').length)} از {fa(mine.length)} مرحله · سهم از پروژه {fa(Math.round((share || 0) * 100))}٪</small>
+  </div>;
 }
 function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd, onSeed, onCompletionChange }) {
   const [localItems, setLocalItems] = useState(items);
@@ -494,6 +536,8 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
   const deptClass = department => `dept-${String(department).replaceAll(' ', '-')}`;
   const depts = PROCESS_DEPARTMENTS.map(department => { const all = visibleItems.filter(x => x.department === department), complete = all.filter(x => x.status === 'done').length; return { department, total: all.length, complete, pct: all.length ? weightedProgress(visibleItems, department) : 0 }; });
   const pct = weightedProgress(visibleItems);
+  const scopeItems = [...new Set(visibleItems.filter(x => x.item).map(x => x.item))];
+  const shares = itemShares(scopeItems, contract?.itemAreas);
   const row = (item, index) => {
     const number = item.order + 1;
     return <article key={item.id} className={`lf-process-row ${deptClass(item.department)} ${item.status === 'done' ? 'done' : ''}`}>
@@ -522,19 +566,27 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
     </div>
     {departmentFilter ? <div className="lf-process-filter-note"><b>فیلتر: {departmentFilter}</b><button type="button" onClick={() => setDepartmentFilter('')}>نمایش همه ×</button></div> : null}
     <div className="lf-process-cols"><span>انجام</span><span>ردیف</span><span>یادآوری</span><span>واحد</span><span>مراحل پروژه</span><span>تاریخ</span><span>مسئول</span><span>توضیحات</span></div>
-    {ordered.map((item, i) => item.item && item.item !== ordered[i - 1]?.item ? [<div key={`g-${item.item}`} className="lf-process-group">{item.item}<small>{fa(visibleItems.filter(x => x.item === item.item && x.status === 'done').length)} از {fa(visibleItems.filter(x => x.item === item.item).length)}</small></div>, row(item, i)] : row(item, i))}
+    {ordered.map((item, i) => item.item && item.item !== ordered[i - 1]?.item ? [<ItemGroupHead key={`g-${item.item}`} item={item.item} stages={visibleItems} share={shares[item.item]} />, row(item, i)] : row(item, i))}
   </section></div>;
 }
-function ContractFinancials({ contract, onPatch, onAddStatement }) {
+function ContractFinancials({ contract, onPatch, onAddStatement, addLabel = '＋ صورت‌وضعیت' }) {
   const save = (key, value) => { const next = { ...(contract || {}), [key]: num(value) }; next.remainingAmount = Math.max(0, num(next.amount) - num(next.advancePayment)); onPatch(next); };
-  return <section className="lf-contract-financials"><header className="lf-contract-financials-head"><h4>اطلاعات مالی قرارداد</h4><button type="button" className="lf-btn ghost" onClick={onAddStatement}>＋ صورت‌وضعیت</button></header><div><label><span>مبلغ کل قرارداد</span><input defaultValue={contract?.amount || ''} inputMode="numeric" onBlur={e => save('amount', e.target.value)} /></label><label><span>مبلغ پیش‌پرداخت</span><input defaultValue={contract?.advancePayment || ''} inputMode="numeric" onBlur={e => save('advancePayment', e.target.value)} /></label><label><span>مبلغ باقی‌مانده (خودکار)</span><output>{money(contract?.remainingAmount ?? Math.max(0, num(contract?.amount) - num(contract?.advancePayment)))}</output></label></div></section>;
+  return <section className="lf-contract-financials"><header className="lf-contract-financials-head"><h4>اطلاعات مالی قرارداد</h4><button type="button" className="lf-btn ghost" onClick={onAddStatement}>{addLabel}</button></header><div><label><span>مبلغ کل قرارداد</span><input defaultValue={contract?.amount || ''} inputMode="numeric" onBlur={e => save('amount', e.target.value)} /></label><label><span>مبلغ پیش‌پرداخت</span><input defaultValue={contract?.advancePayment || ''} inputMode="numeric" onBlur={e => save('advancePayment', e.target.value)} /></label><label><span>مبلغ باقی‌مانده (خودکار)</span><output>{money(contract?.remainingAmount ?? Math.max(0, num(contract?.amount) - num(contract?.advancePayment)))}</output></label></div></section>;
 }
-function StatementCards({ items, contract, onPatchContract, onPatch, onRemove, onAddStatement }) {
+// صورت‌وضعیت جدا برای هر آیتم نما (شماره‌گذاری هم برای هر آیتم جداست)؛ تب «همه» همه را نشان می‌دهد
+export const nextStatementNo = (rows, item) => Math.max(0, ...(rows || []).filter(r => !item || normItem(r.item) === normItem(item)).map(r => Number(r.statementNo) || 0)) + 1;
+function StatementCards({ items: allItems, contract, onPatchContract, onPatch, onRemove, onAddStatement }) {
+  const scope = contractScope(contract);
+  const [itemTab, setItemTab] = useState('');
+  const tab = scope.some(i => i === itemTab) ? itemTab : '';
+  const items = tab ? allItems.filter(x => normItem(x.item) === normItem(tab)) : allItems;
   const total = items.reduce((s, x) => s + (Number(x.amount) || 0), 0);
   const paid = items.reduce((s, x) => s + (Number(x.paidAmount) || 0), 0);
   const save = (item, key, value) => { if (value !== (item[key] || '')) onPatch(item.id, { [key]: value }); };
   const stage = (item, check, date, label) => <div className="lf-statement-stage"><label><input type="checkbox" checked={!!item[check]} onChange={e => onPatch(item.id, { [check]: e.target.checked })} />{label}</label><JalaliDateInput value={item[date] || ''} onChange={value => onPatch(item.id, { [date]: value })} /></div>;
-  return <><ContractFinancials contract={contract} onPatch={onPatchContract} onAddStatement={onAddStatement} /><div className="lf-finance-summary"><div><small>جمع صورت‌وضعیت‌ها</small><b>{money(total)}</b></div><div><small>جمع واریزی کارفرما</small><b>{money(paid)}</b></div><div><small>جمع باقی‌مانده</small><b>{money(Math.max(0, total - paid))}</b></div></div><div className="lf-statement-cards">{items.slice().sort((a, b) => Number(a.statementNo || 0) - Number(b.statementNo || 0)).map(item => <article className="lf-statement-card" key={item.id}><header><b>صورت‌وضعیت شماره {item.statementNo ? fa(item.statementNo) : '—'}</b><button type="button" className="lf-link del" onClick={() => window.confirm('این صورت‌وضعیت حذف شود؟') && onRemove(item.id)}>حذف</button></header><div className="lf-statement-stages">{stage(item, 'noticeSent', 'noticeSentDate', 'ارسال اعلام وضعیت')}{stage(item, 'noticeApproved', 'noticeApprovedDate', 'تأیید اعلام وضعیت')}{stage(item, 'statementSent', 'statementSentDate', 'ارسال صورت‌وضعیت')}</div><div className="lf-statement-money"><label>مبلغ صورت‌وضعیت<input defaultValue={item.amount || ''} inputMode="numeric" placeholder="مبلغ" onBlur={e => save(item, 'amount', num(e.target.value))} /></label><label>تاریخ واریز<JalaliDateInput value={item.paymentDate || ''} onChange={value => onPatch(item.id, { paymentDate: value })} /></label><label>واریزی کارفرما<input defaultValue={item.paidAmount || ''} inputMode="numeric" placeholder="مبلغ واریزی" onBlur={e => save(item, 'paidAmount', num(e.target.value))} /></label><div><small>باقی‌مانده</small><b>{money(Math.max(0, (Number(item.amount) || 0) - (Number(item.paidAmount) || 0)))}</b></div></div><input className="lf-statement-note" defaultValue={item.note || ''} placeholder="توضیحات صورت‌وضعیت" onBlur={e => save(item, 'note', e.target.value.trim())} /></article>)}</div></>;
+  const itemOf = x => scope.find(i => normItem(i) === normItem(x.item)) || x.item || '';
+  const tabs = scope.length ? <div className="lf-item-chips lf-statement-tabs" role="tablist" aria-label="صورت‌وضعیت بر اساس آیتم">{[['', 'همه'], ...scope.map(i => [i, i])].map(([k, l]) => <button type="button" role="tab" key={k || 'all'} aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setItemTab(k)}>{l}<em>{fa(k ? allItems.filter(x => normItem(x.item) === normItem(k)).length : allItems.length)}</em></button>)}</div> : null;
+  return <><ContractFinancials contract={contract} onPatch={onPatchContract} onAddStatement={() => onAddStatement(tab)} addLabel={tab ? `＋ صورت‌وضعیت ${tab}` : undefined} />{tabs}<div className="lf-finance-summary"><div><small>جمع صورت‌وضعیت‌ها</small><b>{money(total)}</b></div><div><small>جمع واریزی کارفرما</small><b>{money(paid)}</b></div><div><small>جمع باقی‌مانده</small><b>{money(Math.max(0, total - paid))}</b></div></div><div className="lf-statement-cards">{items.slice().sort((a, b) => Number(a.statementNo || 0) - Number(b.statementNo || 0)).map(item => <article className="lf-statement-card" key={item.id}><header><b>صورت‌وضعیت شماره {item.statementNo ? fa(item.statementNo) : '—'}{itemOf(item) ? ` — ${itemOf(item)}` : ''}</b>{scope.length ? <select className="lf-statement-item" value={itemOf(item)} aria-label="آیتم صورت‌وضعیت" onChange={e => onPatch(item.id, { item: e.target.value })}><option value="">— آیتم —</option>{scope.map(i => <option key={i} value={i}>{i}</option>)}{itemOf(item) && !scope.includes(itemOf(item)) ? <option value={itemOf(item)}>{itemOf(item)}</option> : null}</select> : null}<button type="button" className="lf-link del" onClick={() => window.confirm('این صورت‌وضعیت حذف شود؟') && onRemove(item.id)}>حذف</button></header><div className="lf-statement-stages">{stage(item, 'noticeSent', 'noticeSentDate', 'ارسال اعلام وضعیت')}{stage(item, 'noticeApproved', 'noticeApprovedDate', 'تأیید اعلام وضعیت')}{stage(item, 'statementSent', 'statementSentDate', 'ارسال صورت‌وضعیت')}</div><div className="lf-statement-money"><label>مبلغ صورت‌وضعیت<input defaultValue={item.amount || ''} inputMode="numeric" placeholder="مبلغ" onBlur={e => save(item, 'amount', num(e.target.value))} /></label><label>تاریخ واریز<JalaliDateInput value={item.paymentDate || ''} onChange={value => onPatch(item.id, { paymentDate: value })} /></label><label>واریزی کارفرما<input defaultValue={item.paidAmount || ''} inputMode="numeric" placeholder="مبلغ واریزی" onBlur={e => save(item, 'paidAmount', num(e.target.value))} /></label><div><small>باقی‌مانده</small><b>{money(Math.max(0, (Number(item.amount) || 0) - (Number(item.paidAmount) || 0)))}</b></div></div><input className="lf-statement-note" defaultValue={item.note || ''} placeholder="توضیحات صورت‌وضعیت" onBlur={e => save(item, 'note', e.target.value.trim())} /></article>)}</div></>;
 }
 function projectMetrics(project, contract, financials, processes) {
   const stages = projectStages(contract, processes);
@@ -616,7 +668,7 @@ function ProjectReport({ project, contract, financials, processes }) {
   const hasReportBrand = !!(reportHeaderText || reportLogo);
   const printedAt = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date());
   const [sendState, setSendState] = useState({ busy: false, msg: '', error: false });
-  const reportData = () => ({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo }, stages, departments, statements: statementRows });
+  const reportData = () => ({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo }, stages, departments, statements: statementRows, items: (() => { const its = [...new Set(stages.filter(x => x.item).map(x => x.item))], sh = itemShares(its, contract?.itemAreas); return its.map(item => ({ item, progress: itemProgress(stages, item), share: Math.round(sh[item] * 100) })); })() });
   const printReport = () => printProjectReport(reportData());
   const sendReport = async () => {
     if (sendState.busy) return;
@@ -657,7 +709,7 @@ function ContractItemsField({ contract, knownItems = [], onChange }) {
   const [adding, setAdding] = useState(false);
   const menu = orderItems([...CONTRACT_ITEMS, ...knownItems, ...picked]);
   const has = i => picked.some(x => normItem(x) === normItem(i));
-  const commit = items => { const list = orderItems(items), areas = contract?.itemAreas; onChange({ items: list, itemsOther: '', subject: list.join('، '), ...(areas ? { area: list.reduce((a, i) => a + num(areas[i]), 0) } : {}) }); };
+  const commit = items => { const list = orderItems(items), areas = contract?.itemAreas; onChange({ items: list, itemsOther: '', subject: list.join('، '), ...(areas ? { area: sumAreas(areas, list) } : {}) }); };
   const toggle = i => commit(has(i) ? picked.filter(x => normItem(x) !== normItem(i)) : [...picked, i]);
   const add = text => { const news = splitItems(text); if (news.length) commit([...picked, ...news]); setAdding(false); };
   return <div className="lf-sheet-field wide lf-contract-items"><span>آیتم‌های قرارداد</span>
@@ -669,15 +721,20 @@ function ContractItemsField({ contract, knownItems = [], onChange }) {
   </div>;
 }
 // متراژ جدا برای هر آیتم قرارداد؛ area = جمع آن‌ها (برای گزارش و داده‌های قبلی)
-export const contractAreaText = contract => { const per = contractScope(contract).filter(i => num(contract?.itemAreas?.[i]) > 0); return per.length ? per.map(i => `${i}: ${fa(num(contract.itemAreas[i]))}`).join(' · ') + ` (جمع ${fa(num(contract.area))} مترمربع)` : num(contract?.area) ? `${fa(num(contract.area))} مترمربع` : ''; };
+// متراژ: اعشاری (۱۲٫۵)، بدون جداکنندهٔ هزارگان
+const dec = v => num(String(v ?? '').replace(/[٫/]/g, '.'));
+const faArea = v => Number(v || 0).toLocaleString('fa-IR', { useGrouping: false, maximumFractionDigits: 2 });
+// itemAreas keys may use an older spelling (کرتین‌وال) — match like the item chips do
+export const itemArea = (areas, item) => dec(areas?.[item] ?? Object.entries(areas || {}).find(([k]) => normItem(k) === normItem(item))?.[1]);
+const sumAreas = (areas, items) => Math.round(items.reduce((a, i) => a + itemArea(areas, i), 0) * 100) / 100;
+export const contractAreaText = contract => { const per = contractScope(contract).filter(i => itemArea(contract?.itemAreas, i) > 0); return per.length ? per.map(i => `${i}: ${faArea(itemArea(contract.itemAreas, i))}`).join(' · ') + ` (جمع ${faArea(dec(contract.area))} مترمربع)` : dec(contract?.area) ? `${faArea(dec(contract.area))} مترمربع` : ''; };
 function ContractAreaField({ contract, onChange, fallback }) {
   const items = contractScope(contract);
   if (!items.length) return fallback;
   const areas = contract?.itemAreas || {};
-  const total = items.reduce((a, i) => a + num(areas[i]), 0);
-  const save = (item, value) => { const v = num(value); if (v === num(areas[item])) return; const next = { ...areas, [item]: v }; onChange({ itemAreas: next, area: items.reduce((a, i) => a + num(next[i]), 0) }); };
-  return <div className="lf-sheet-field wide lf-item-areas"><span>متراژ قرارداد (مترمربع)<em>جمع: {fa(total)}</em></span>
-    <div>{items.map(i => <label key={i}><small>{i}</small><input key={`${i}-${num(areas[i])}`} defaultValue={num(areas[i]) || ''} inputMode="numeric" placeholder="۰" onBlur={e => save(i, e.target.value)} /></label>)}</div>
+  const save = (item, value) => { const v = dec(value); if (v === itemArea(areas, item)) return; const next = Object.fromEntries(Object.entries(areas).filter(([k]) => normItem(k) !== normItem(item))); next[item] = v; onChange({ itemAreas: next, area: sumAreas(next, items) }); };
+  return <div className="lf-sheet-field wide lf-item-areas"><span>متراژ قرارداد (مترمربع)<em>جمع: {faArea(sumAreas(areas, items))}</em></span>
+    <div>{items.map(i => <label key={i}><small>{i}</small><input key={`${i}-${itemArea(areas, i)}`} defaultValue={itemArea(areas, i) || ''} inputMode="decimal" data-raw dir="ltr" placeholder="0" onBlur={e => save(i, e.target.value)} /></label>)}</div>
   </div>;
 }
 function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPatchContract }) {
@@ -697,7 +754,7 @@ function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPat
       {input('project', 'owner', 'مسئول ارتباط پروژه')}{input('project', 'contactPhone', 'شماره تماس مسئول ارتباط')}
       {input('contract', 'contractNo', 'شماره قرارداد')}<ContractItemsField contract={contract} knownItems={knownItems} onChange={onPatchContract} />
       {date('contractStartDate', 'تاریخ شروع قرارداد')}{date('contractEndDate', 'تاریخ اتمام قرارداد')}
-      <ContractAreaField contract={contract} onChange={onPatchContract} fallback={input('contract', 'area', 'متراژ قرارداد (مترمربع)', { money: true })} />
+      <ContractAreaField contract={contract} onChange={onPatchContract} fallback={<label className="lf-sheet-field"><span>متراژ قرارداد (مترمربع)</span><input defaultValue={contract?.area || ''} inputMode="decimal" data-raw dir="ltr" onBlur={e => onPatchContract({ area: dec(e.target.value) })} /></label>} />
       <label className="lf-sheet-field"><span>نوع تسویه</span><select value={contract?.settlementType || 'cash'} onChange={e => setContract('settlementType', e.target.value)}><option value="cash">نقدی</option><option value="check">چک</option><option value="statement">صورت‌وضعیتی</option><option value="barter">تهاتری</option><option value="other">سایر</option></select></label>
       <label className="lf-sheet-field wide"><span>توضیحات پروژه</span><textarea defaultValue={project.note || ''} placeholder="توضیحات پروژه" onBlur={e => setProject('note', e.target.value.trim())} /></label>
       <label className="lf-sheet-field wide"><span>توضیحات قرارداد</span><textarea defaultValue={contract?.note || ''} placeholder="توضیحات قرارداد" onBlur={e => setContract('note', e.target.value.trim())} /></label>
@@ -707,10 +764,9 @@ function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPat
 function ProjectFile({ project, contracts, knownItems, financials, supplies, processes, onEdit, onPatchProject, onPatchContract, onToggleProcess, onPatchProcess, onAddProcess, onSeedProcesses, onCompletionChange, onAddFinance, onPatchFinance, onRemoveFinance }) {
   const [tab, setTab] = useState('overview');
   const contract = contracts[0] || null;
-  const nextStatementNo = Math.max(0, ...financials.map(row => Number(row.statementNo) || 0)) + 1;
   return <section className="lf-card lf-project-file">
     <div className="lf-tabs">{PROJECT_FILE_TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'finance' ? <em>{fa(financials.length)}</em> : null}</button>)}</div>
-    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} knownItems={knownItems} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={() => onAddFinance(nextStatementNo)} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
+    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} knownItems={knownItems} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={item => onAddFinance(nextStatementNo(financials, item), item)} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
   </section>;
 }
 export function ProjectsPage({ Nav }) {
@@ -843,7 +899,7 @@ export function ProjectsPage({ Nav }) {
               <div className="lf-pops"><div className="lf-dots" role="radiogroup" aria-label="رنگ پروژه">{PCOLORS.map((c, i) => <button key={c} role="radio" aria-checked={(cur.color || PCOLORS[0]) === c} title={PNAMES[i]} className={(cur.color || PCOLORS[0]) === c ? 'on' : ''} style={{ background: c }} onClick={() => projects.patch(cur.id, { color: c })} />)}</div></div></div>
             {late.length || soon.length ? <div className="lf-palerts">{late.slice(0, 4).map(c => <button key={c.id} className="late" onClick={() => setCardEdit(c)}>⛔ {c.title} · {jShort(c.due)}</button>)}{soon.slice(0, 4).map(c => <button key={c.id} className="soon" onClick={() => setCardEdit(c)}>⏳ {c.title} · {jShort(c.due)}</button>)}</div> : null}
           </>; })()}
-        <ProjectFile key={cur.id} project={cur} knownItems={knownItems} contracts={(contracts.items || []).filter(x => x.projectId === cur.id)} financials={(financials.items || []).filter(x => x.projectId === cur.id)} supplies={(supplies.items || []).filter(x => x.projectId === cur.id)} processes={(processes.items || []).filter(x => x.projectId === cur.id)} onEdit={(kind, row) => setFileEdit({ kind, row })} onPatchProject={body => projects.patch(cur.id, body)} onPatchContract={body => { const existing = (contracts.items || []).find(x => x.projectId === cur.id); return existing ? contracts.patch(existing.id, body) : contracts.add({ ...body, projectId: cur.id }); }} onToggleProcess={toggleProcess} onPatchProcess={patchProcess} onAddProcess={body => processes.add({ ...body, projectId: cur.id })} onCompletionChange={complete => { const status = complete ? 'done' : 'active', completedAt = complete ? (cur.completedAt || todayIso()) : null; if ((cur.status || 'active') === status && (!complete || cur.completedAt)) return Promise.resolve(); return projects.patch(cur.id, { status, completedAt }); }} onAddFinance={next => financials.add({ projectId: cur.id, statementNo: next })} onPatchFinance={(id, body) => financials.patch(id, body)} onRemoveFinance={id => financials.remove(id)} onSeedProcesses={async () => { if ((processes.items || []).some(x => x.projectId === cur.id)) return; for (const t of processTemplate(contractOf(cur.id))) await processes.add({ projectId: cur.id, department: t.department, title: t.title, order: t.order, status: 'todo' }); }} />
+        <ProjectFile key={cur.id} project={cur} knownItems={knownItems} contracts={(contracts.items || []).filter(x => x.projectId === cur.id)} financials={(financials.items || []).filter(x => x.projectId === cur.id)} supplies={(supplies.items || []).filter(x => x.projectId === cur.id)} processes={(processes.items || []).filter(x => x.projectId === cur.id)} onEdit={(kind, row) => setFileEdit({ kind, row })} onPatchProject={body => projects.patch(cur.id, body)} onPatchContract={body => { const existing = (contracts.items || []).find(x => x.projectId === cur.id); return existing ? contracts.patch(existing.id, body) : contracts.add({ ...body, projectId: cur.id }); }} onToggleProcess={toggleProcess} onPatchProcess={patchProcess} onAddProcess={body => processes.add({ ...body, projectId: cur.id })} onCompletionChange={complete => { const status = complete ? 'done' : 'active', completedAt = complete ? (cur.completedAt || todayIso()) : null; if ((cur.status || 'active') === status && (!complete || cur.completedAt)) return Promise.resolve(); return projects.patch(cur.id, { status, completedAt }); }} onAddFinance={(next, item) => financials.add({ projectId: cur.id, statementNo: next, ...(item ? { item } : {}) })} onPatchFinance={(id, body) => financials.patch(id, body)} onRemoveFinance={id => financials.remove(id)} onSeedProcesses={async () => { if ((processes.items || []).some(x => x.projectId === cur.id)) return; for (const t of processTemplate(contractOf(cur.id))) await processes.add({ projectId: cur.id, department: t.department, title: t.title, order: t.order, status: 'todo' }); }} />
       </section> : <p className="lf-empty">پروژه‌ای نیست — با «＋ پروژه» یک پروژه بساز.</p>}
       </SideLayout>}
     </>}
