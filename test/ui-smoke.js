@@ -136,7 +136,7 @@ check('React settings exposes a real Google Calendar OAuth/sync/disconnect card'
 check('Projects provides a dossier for project, contract, repeatable statements, and procurement records',
   read('src/today/src/life.jsx').includes('PROJECT_FILE_TABS') && read('src/today/src/life.jsx').includes("useCol('projectContracts')") &&
   read('src/today/src/life.jsx').includes("useCol('projectFinancials')") && read('src/today/src/life.jsx').includes("useCol('projectSupplies')") &&
-  read('src/today/src/life.jsx').includes('PROJECT_PROCESS_TEMPLATE') && read('src/today/src/life.jsx').includes("useCol('projectProcesses')") &&
+  read('src/today/src/life.jsx').includes('processTemplate(') && read('src/today/src/life.jsx').includes("useCol('projectProcesses')") &&
   read('src/today/src/life.jsx').includes('noticeApprovedDate') && read('src/today/src/life.jsx').includes('statementSentDate') &&
   read('src/today/src/life.jsx').includes('nextStatementNo'));
 check('Project checklist has accessible unit filters and matching unit chart colours',

@@ -122,7 +122,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const SPK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-2px"><path d="M4 9v6h3.5L12 19V5L7.5 9H4zm11.5-.9v7.8a4 4 0 0 0 0-7.8zm0-3.6v2.1a6 6 0 0 1 0 10.8v2.1a8 8 0 0 0 0-15z"/></svg>';
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const fa = n => String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
+const fa = n => typeof n === "number" && Number.isFinite(n) ? n.toLocaleString("fa-IR", { maximumFractionDigits: 2 }) : String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
 function toast(msg) {
   const t = $("#toast"); t.textContent = msg; t.classList.add("on");
   clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("on"), 2200);

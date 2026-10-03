@@ -52,7 +52,10 @@ export function useCol(name) {
     setItems(xs => made.reduce((next, row) => upsertLocal(next, row), xs || []));
     return made;
   };
-  const patch = async (id, body) => { setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) })); setItems(xs => (xs || []).map(x => x.id === id ? r : x)); return r; } catch (e) { setErr(e.message); load(); } };
+  // a server reply only replaces the row when no newer patch for it is in flight; otherwise quick
+  // successive clicks flicker (reply #1 briefly undoes the optimistic state of click #2)
+  const patchSeq = useRef({});
+  const patch = async (id, body) => { const seq = patchSeq.current[id] = (patchSeq.current[id] || 0) + 1; setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) })); if (patchSeq.current[id] === seq) setItems(xs => (xs || []).map(x => x.id === id ? r : x)); return r; } catch (e) { setErr(e.message); load(); } };
   const remove = async id => { setItems(xs => (xs || []).filter(x => x.id !== id)); try { await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'DELETE' })); } catch (e) { setErr(e.message); load(); } };
   return { items, add, addMany, patch, remove, reload: load, err, setErr };
 }
@@ -323,44 +326,106 @@ function parseQuick(text) {
 const PNAMES = ['طلایی', 'آبی', 'سبز', 'صورتی', 'بنفش', 'نارنجی'];
 
 const PROJECT_FILE_TABS = [['overview', 'اطلاعات پروژه و قرارداد'], ['finance', 'اطلاعات مالی'], ['supply', 'مراحل اجرایی'], ['report', 'گزارش']];
-const PROJECT_PROCESS_TEMPLATE = [
+// Checklist = fixed project stages + the per-item stages repeated for every contract item (پنجره، کرتین‌وال، …).
+// A per-item stage's title is `${base} — ${item}`; with no item chosen yet one generic copy (no suffix) is shown.
+const FIXED_STAGES = [
+  ['کنترل پروژه', 'ابلاغ قرارداد'],
   ['کنترل پروژه', 'تأیید رنگ از کارفرما'],
+  ['کنترل پروژه', 'سفارش بیلت'],
+  ['کنترل پروژه', 'سفارش یراق‌آلات']
+];
+const ITEM_STAGES = [
   ['کنترل پروژه', 'فرم ابعادبرداری برآوردی'],
+  ['اجرا', 'ابعادبرداری برآوردی'],
+  ['فنی', 'تهیه جزئیات برآورد جهت تأیید به کارفرما'],
+  ['کنترل پروژه', 'دریافت تأیید جزئیات برآورد از کارفرما'],
+  ['فنی', 'ارسال جزئیات برآورد به کارخانه'],
   ['کنترل پروژه', 'فرم ابعادبرداری دقیق'],
   ['اجرا', 'ابعادبرداری دقیق'],
-  ['تأمین', 'سفارش بیلت بر اساس قرارداد'],
-  ['تأمین', 'سفارش یراق‌آلات بر اساس قرارداد'],
-  ['تأمین', 'عقد قرارداد شیشه'],
-  ['کنترل پروژه', 'ارسال تیپ‌بندی پنجره بر اساس قرارداد به کارفرما جهت تأیید'],
-  ['کنترل پروژه', 'دریافت تأیید برآورد پنجره از کارفرما'],
-  ['فنی', 'ارسال جزئیات برآورد پنجره جهت تأمین به کارخانه'],
-  ['کنترل پروژه', 'ارسال تیپ‌بندی کرتین‌وال بر اساس قرارداد به کارفرما جهت تأیید'],
-  ['کنترل پروژه', 'دریافت تأیید برآورد کرتین‌وال از کارفرما'],
-  ['فنی', 'ارسال جزئیات برآورد کرتین‌وال جهت تأمین به کارخانه'],
-  ['فنی', 'تهیه نقشهٔ جزئیات ساخت دقیق'],
+  ['فنی', 'تهیه نقشهٔ جزئیات ساخت'],
   ['کنترل پروژه', 'دریافت تأیید نقشهٔ جزئیات ساخت از کارفرما'],
-  ['فنی', 'ارسال جزئیات ساخت دقیق به کارخانه'],
-  ['فنی', 'تهیه لیست ابعاد شیشه'],
-  ['کنترل پروژه', 'ارسال لیست شیشه به کارفرما / کارخانه شیشه'],
-  ['فنی', 'تهیه نقشهٔ شاپ'],
-  ['کنترل پروژه', 'دریافت تأیید نقشهٔ شاپ از کارفرما'],
-  ['فنی', 'ارسال نقشهٔ شاپ به کارخانه'],
-  ['تأمین', 'وضعیت تأمین پروفیل‌ها'],
-  ['تأمین', 'وضعیت تأمین شیشه'],
-  ['تأمین', 'وضعیت تأمین اقلام نما'],
-  ['تأمین', 'ارسال پنجره به پروژه'],
-  ['تأمین', 'ارسال کرتین‌وال به پروژه'],
-  ['تأمین', 'ارسال اقلام نما به پروژه'],
-  ['اجرا', 'شروع نصب پنجره'],
-  ['اجرا', 'شروع نصب کرتین‌وال'],
-  ['اجرا', 'شروع نصب نما'],
-  ['اجرا', 'شروع زیرسازی'],
-  ['اجرا', 'اتمام نصب پنجره'],
-  ['اجرا', 'اتمام نصب کرتین‌وال'],
-  ['اجرا', 'اتمام نصب نما'],
-  ['اجرا', 'تحویل پروژه']
+  ['فنی', 'ارسال جزئیات ساخت به کارخانه'],
+  ['فنی', 'تهیه لیست شیشه'],
+  ['تأمین', 'سفارش شیشه'],
+  ['تأمین', 'ارسال به پروژه'],
+  ['اجرا', 'شروع نصب'],
+  ['اجرا', 'پایان نصب']
 ];
-const PROJECT_PROCESS_ORDER = Object.fromEntries(PROJECT_PROCESS_TEMPLATE.map(([department, title], order) => [`${department}|${title}`, order]));
+const FINAL_STAGES = [['اجرا', 'تحویل پروژه']];
+export const PROCESS_DEPARTMENTS = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'];
+const CONTRACT_ITEMS = ['پنجره', 'کرتین‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
+const normItem = x => String(x || '').replace(/[\s‌]+/g, '').replace(/کرتن/g, 'کرتین');
+const ITEM_SEP = ' — ';
+// contract → { picked: chosen standard items, other: free text } (falls back to parsing the old free-text subject)
+const splitItems = v => String(v || '').split(/[،,\n]+/).map(x => x.trim()).filter(Boolean);
+// standard items first (menu order), then custom ones in the order they were added; duplicates dropped
+const orderItems = list => { const std = CONTRACT_ITEMS.filter(i => list.some(x => normItem(x) === normItem(i))), out = [...std]; for (const x of list) if (!out.some(y => normItem(y) === normItem(x))) out.push(x); return out; };
+// contract → its facade items: `items` (standard + custom) plus the older free-text `itemsOther`, or the old free-text subject
+export function contractScope(contract) {
+  if (Array.isArray(contract?.items)) return orderItems([...contract.items, ...splitItems(contract.itemsOther)]);
+  return orderItems(splitItems(contract?.subject).map(x => x.replace(/^سایر( اقلام نما)?\s*:\s*/, '')));
+}
+export function processTemplate(contract) {
+  const items = contractScope(contract);
+  const out = FIXED_STAGES.map(([department, title]) => ({ department, title, base: title, item: '' }));
+  for (const item of items.length ? items : ['']) for (const [department, base] of ITEM_STAGES) out.push({ department, base, item, title: item ? `${base}${ITEM_SEP}${item}` : base });
+  for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '' });
+  return out.map((s, order) => ({ ...s, order }));
+}
+// Weighted progress (agreed 1405-07): control 10%, technical 15%, supply 30%, execution 45%.
+// Inside a department each stage has a base weight (execution: install-finish counts most), normalised over the project's stages.
+const DEPT_WEIGHT = { 'کنترل پروژه': 10, 'فنی': 15, 'تأمین': 30, 'اجرا': 45 };
+const EXEC_BASE = { 'ابعادبرداری برآوردی': 1, 'ابعادبرداری دقیق': 2, 'شروع نصب': 3, 'پایان نصب': 12, 'تحویل پروژه': 2 };
+const baseOf = s => s.base || String(s.title || '').split(ITEM_SEP)[0];
+const baseWeight = s => s.department === 'اجرا' ? (EXEC_BASE[baseOf(s)] || 1) : 1;
+function withWeights(stages) {
+  const sum = {};
+  for (const s of stages) sum[s.department] = (sum[s.department] || 0) + baseWeight(s);
+  return stages.map(s => ({ ...s, weight: (DEPT_WEIGHT[s.department] || 0) * baseWeight(s) / (sum[s.department] || 1) }));
+}
+// Old fixed-checklist rows (before per-item stages) → new stage; `items` limits which contract items inherit it ('' = generic copy).
+const OLD_ITEMS = ['', 'پنجره', 'کرتین‌وال'];
+const LEGACY_STAGES = [
+  ['تأمین|سفارش بیلت بر اساس قرارداد', 'سفارش بیلت'], ['کنترل پروژه|سفارش بیلت بر اساس قرارداد', 'سفارش بیلت'],
+  ['تأمین|سفارش یراق‌آلات بر اساس قرارداد', 'سفارش یراق‌آلات'], ['کنترل پروژه|سفارش یراق‌آلات بر اساس قرارداد', 'سفارش یراق‌آلات'],
+  ['کنترل پروژه|فرم ابعادبرداری برآوردی', 'فرم ابعادبرداری برآوردی', OLD_ITEMS],
+  ['کنترل پروژه|فرم ابعادبرداری دقیق', 'فرم ابعادبرداری دقیق', OLD_ITEMS],
+  ['اجرا|ابعادبرداری دقیق', 'ابعادبرداری دقیق', OLD_ITEMS],
+  ['کنترل پروژه|ارسال تیپ‌بندی پنجره بر اساس قرارداد به کارفرما جهت تأیید', 'تهیه جزئیات برآورد جهت تأیید به کارفرما', ['پنجره']],
+  ['کنترل پروژه|دریافت تأیید برآورد پنجره از کارفرما', 'دریافت تأیید جزئیات برآورد از کارفرما', ['پنجره']],
+  ['فنی|ارسال جزئیات برآورد پنجره جهت تأمین به کارخانه', 'ارسال جزئیات برآورد به کارخانه', ['پنجره']],
+  ['کنترل پروژه|ارسال تیپ‌بندی کرتین‌وال بر اساس قرارداد به کارفرما جهت تأیید', 'تهیه جزئیات برآورد جهت تأیید به کارفرما', ['کرتین‌وال']],
+  ['کنترل پروژه|دریافت تأیید برآورد کرتین‌وال از کارفرما', 'دریافت تأیید جزئیات برآورد از کارفرما', ['کرتین‌وال']],
+  ['فنی|ارسال جزئیات برآورد کرتین‌وال جهت تأمین به کارخانه', 'ارسال جزئیات برآورد به کارخانه', ['کرتین‌وال']],
+  ['فنی|تهیه نقشهٔ جزئیات ساخت دقیق', 'تهیه نقشهٔ جزئیات ساخت', OLD_ITEMS],
+  ['کنترل پروژه|دریافت تأیید نقشهٔ جزئیات ساخت از کارفرما', 'دریافت تأیید نقشهٔ جزئیات ساخت از کارفرما', OLD_ITEMS],
+  ['فنی|ارسال جزئیات ساخت دقیق به کارخانه', 'ارسال جزئیات ساخت به کارخانه', OLD_ITEMS],
+  ['فنی|تهیه لیست ابعاد شیشه', 'تهیه لیست شیشه', OLD_ITEMS],
+  ['تأمین|عقد قرارداد شیشه', 'سفارش شیشه', OLD_ITEMS],
+  ['تأمین|ارسال پنجره به پروژه', 'ارسال به پروژه', ['پنجره']], ['تأمین|ارسال کرتین‌وال به پروژه', 'ارسال به پروژه', ['کرتین‌وال']],
+  ['اجرا|شروع نصب پنجره', 'شروع نصب', ['پنجره']], ['اجرا|شروع نصب کرتین‌وال', 'شروع نصب', ['کرتین‌وال']],
+  ['اجرا|اتمام نصب پنجره', 'پایان نصب', ['پنجره']], ['اجرا|اتمام نصب کرتین‌وال', 'پایان نصب', ['کرتین‌وال']]
+];
+const LEGACY_FIELDS = ['status', 'date', 'owner', 'note', 'percent', 'reminderDate'];
+// fields a new stage row inherits from an older row (only fields with data), or {}:
+// first the generic copy shown before any item was chosen, then the old fixed-checklist row it replaced
+const carryOf = old => { const c = {}; if (old) for (const f of LEGACY_FIELDS) if (old[f] != null && old[f] !== '') c[f] = old[f]; return Object.keys(c).length ? c : null; };
+function legacyCarry(stage, byKey) {
+  if (stage.item) { const c = carryOf(byKey.get(`${stage.department}|${stage.base}`)); if (c) return c; }
+  for (const [oldKey, base, items] of LEGACY_STAGES) {
+    if (base !== stage.base || (items ? !items.includes(stage.item) : stage.item)) continue;
+    const c = carryOf(byKey.get(oldKey)); if (c) return c;
+  }
+  return {};
+}
+// Ticking «تحویل پروژه» finishes the project even if earlier rows were skipped.
+export const isDelivered = stages => (stages || []).some(x => x.department === 'اجرا' && x.title === 'تحویل پروژه' && x.status === 'done');
+const stageKey = s => `${s.department}|${s.title}`;
+// the project's current checklist with stored rows merged in (old rows outside the template stay stored but hidden)
+export function projectStages(contract, rows) {
+  const byKey = new Map((rows || []).map(x => [stageKey(x), x]));
+  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, order: t.order } : { ...t, status: 'todo' }; }));
+}
 function ContractTimeline({ contract }) {
   const start = contract?.contractStartDate || '';
   const end = contract?.contractEndDate || '';
@@ -368,23 +433,15 @@ function ContractTimeline({ contract }) {
   const today = todayIso(), total = Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 864e5)), elapsed = Math.round((Date.parse(today) - Date.parse(start)) / 864e5), remaining = Math.round((Date.parse(end) - Date.parse(today)) / 864e5), overdue = remaining < 0, pct = Math.max(0, Math.min(100, Math.round(elapsed / total * 100)));
   return <div className={`lf-contract-timeline ${overdue ? 'overdue' : ''}`}><div><b>زمان قرارداد</b><strong>{fa(pct)}٪</strong><span>{overdue ? `${fa(-remaining)} روز از اتمام گذشته` : remaining === 0 ? 'امروز آخرین روز قرارداد است' : `${fa(remaining)} روز تا اتمام قرارداد`}</span></div><div className="lf-contract-timeline-bar"><i style={{ width: `${pct}%` }} /></div><small>{jShort(start)} تا {jShort(end)}</small></div>;
 }
-// Ticking the last stage (اجرا → تحویل پروژه) finishes the project even if earlier rows were skipped.
-const DELIVERY_STAGE = PROJECT_PROCESS_TEMPLATE[PROJECT_PROCESS_TEMPLATE.length - 1];
-const isDelivered = items => (items || []).some(x => x.department === DELIVERY_STAGE[0] && x.title === DELIVERY_STAGE[1] && x.status === 'done');
-// Weighted progress (agreed 1405-07): control 10%, technical 15%, supply 30% (spread evenly over their stages),
-// execution 45% with explicit per-stage weights. The three "install finished" stages also take a partial percent.
-const DEPT_WEIGHT = { 'کنترل پروژه': 10, 'فنی': 15, 'تأمین': 30 };
-const EXEC_WEIGHT = { 'ابعادبرداری دقیق': 2, 'شروع زیرسازی': 3, 'شروع نصب پنجره': 3, 'شروع نصب کرتین‌وال': 3, 'شروع نصب نما': 3, 'اتمام نصب پنجره': 9, 'اتمام نصب کرتین‌وال': 11, 'اتمام نصب نما': 9, 'تحویل پروژه': 2 };
-export const INSTALL_STAGES = new Set(['اتمام نصب پنجره', 'اتمام نصب کرتین‌وال', 'اتمام نصب نما'].map(t => `اجرا|${t}`));
-const DEPT_STAGES = PROJECT_PROCESS_TEMPLATE.reduce((m, [d]) => ({ ...m, [d]: (m[d] || 0) + 1 }), {});
-export const stageWeight = (department, title) => department === 'اجرا' ? (EXEC_WEIGHT[title] || 0) : (DEPT_WEIGHT[department] || 0) / (DEPT_STAGES[department] || 1);
-export const isInstallStage = s => INSTALL_STAGES.has(`${s.department}|${s.title}`);
+export const isInstallStage = s => s?.department === 'اجرا' && baseOf(s) === 'پایان نصب';
+export const stageWeight = (s, stages) => s?.weight ?? (withWeights(stages || [s]).find(x => stageKey(x) === stageKey(s))?.weight || 0);
 export const stageCredit = s => s?.status === 'done' ? 1 : s && isInstallStage(s) ? Math.max(0, Math.min(100, Number(s.percent) || 0)) / 100 : 0;
-// 0–100 for the whole project, or for one department; only a fully finished scope reads 100
+// 0–100 for the whole project, or for one department; only a fully finished scope reads 100.
+// `stages` is a full checklist from projectStages().
 export function weightedProgress(stages, department) {
-  const by = new Map((stages || []).map(s => [`${s.department}|${s.title}`, s]));
+  const list = (stages || []).some(s => s.weight == null) ? withWeights(stages || []) : (stages || []);
   let total = 0, got = 0;
-  for (const [d, t] of PROJECT_PROCESS_TEMPLATE) { if (department && d !== department) continue; const w = stageWeight(d, t); total += w; got += w * stageCredit(by.get(`${d}|${t}`)); }
+  for (const s of list) { if (department && s.department !== department) continue; total += s.weight; got += s.weight * stageCredit(s); }
   if (!total) return 0;
   const pct = got / total * 100;
   return pct >= 99.999 ? 100 : Math.min(99, Math.round(pct));
@@ -394,18 +451,17 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
   const [departmentFilter, setDepartmentFilter] = useState('');
   const pendingCreates = useRef(new Set());
   useEffect(() => { setLocalItems(items || []); }, [projectId, items]);
+  const tpl = useMemo(() => processTemplate(contract), [contract]);
+  const tplOrder = useMemo(() => Object.fromEntries(tpl.map(t => [stageKey(t), t.order])), [tpl]);
   useEffect(() => {
     (items || []).forEach(item => {
-      const order = PROJECT_PROCESS_ORDER[`${item.department}|${item.title}`];
+      const order = tplOrder[stageKey(item)];
       if (order !== undefined) pendingCreates.current.delete(`template-${order}`);
     });
-  }, [items]);
+  }, [items, tplOrder]);
   useEffect(() => { pendingCreates.current.clear(); }, [projectId]);
-  const existing = new Map((localItems || []).map(x => [`${x.department}|${x.title}`, x]));
-  const fixed = PROJECT_PROCESS_TEMPLATE.map(([department, title], order) => existing.get(`${department}|${title}`) || { id: `template-${order}`, projectId, department, title, order, status: 'todo' });
-  // Older checklist rows are retained in storage but intentionally not shown:
-  // each project always uses this one fixed, current checklist.
-  const visibleItems = fixed;
+  // Older checklist rows (and rows of items removed from the contract) stay stored but are not shown.
+  const visibleItems = projectStages(contract, localItems).map(x => x.id ? x : { ...x, id: `template-${x.order}`, projectId });
   const patch = async (id, body) => {
     setLocalItems(xs => { const list = xs || []; if (String(id).startsWith('template-') && !list.some(x => x.id === id)) { const item = visibleItems.find(x => x.id === id); return item ? [...list, { ...item, ...body }] : list; } return list.map(x => x.id === id ? { ...x, ...body } : x); });
     let saved;
@@ -427,46 +483,46 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
       const nextDone = after.filter(item => item.status === 'done').length;
       try {
         const result = saved ? await saved : undefined;
-        if (result !== undefined) await onCompletionChange?.(nextDone === PROJECT_PROCESS_TEMPLATE.length || isDelivered(after));
+        if (result !== undefined) await onCompletionChange?.(nextDone === tpl.length || isDelivered(after));
       } catch { /* useCol reloads the row after a failed optimistic write */ }
     }
     return saved;
   };
   const save = (item, key, value) => { if (value !== (item[key] || '')) patch(item.id, { [key]: value }); };
   const done = visibleItems.filter(x => x.status === 'done').length;
-  const ordered = visibleItems.slice().sort((a, b) => (PROJECT_PROCESS_ORDER[`${a.department}|${a.title}`] ?? Number(a.order || 999)) - (PROJECT_PROCESS_ORDER[`${b.department}|${b.title}`] ?? Number(b.order || 999))).filter(item => !departmentFilter || item.department === departmentFilter);
+  const ordered = visibleItems.slice().sort((a, b) => a.order - b.order).filter(item => !departmentFilter || item.department === departmentFilter);
   const deptClass = department => `dept-${String(department).replaceAll(' ', '-')}`;
-  const depts = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'].map(department => { const all = visibleItems.filter(x => x.department === department), complete = all.filter(x => x.status === 'done').length; return { department, total: all.length, complete, pct: all.length ? weightedProgress(visibleItems, department) : 0 }; });
+  const depts = PROCESS_DEPARTMENTS.map(department => { const all = visibleItems.filter(x => x.department === department), complete = all.filter(x => x.status === 'done').length; return { department, total: all.length, complete, pct: all.length ? weightedProgress(visibleItems, department) : 0 }; });
   const pct = weightedProgress(visibleItems);
   const row = (item, index) => {
-    const number = (PROJECT_PROCESS_ORDER[`${item.department}|${item.title}`] ?? index) + 1;
+    const number = item.order + 1;
     return <article key={item.id} className={`lf-process-row ${deptClass(item.department)} ${item.status === 'done' ? 'done' : ''}`}>
       <div className="lf-process-row-head">
         <button type="button" className="lf-process-check" onClick={() => patch(item.id, { status: item.status === 'done' ? 'todo' : 'done' })} aria-label={item.status === 'done' ? `برگرداندن ${item.title}` : `انجام ${item.title}`}>{item.status === 'done' ? '✓' : ''}</button>
         <span className="lf-process-no">{fa(number)}</span>
         <b className="lf-process-title" title={item.title}>{isInstallStage(item) && item.status !== 'done' ? <label className="lf-process-pct" title="درصد نصب انجام‌شده"><input type="number" min="0" max="100" inputMode="numeric" defaultValue={item.percent || ''} placeholder="۰" onBlur={e => { const v = Math.max(0, Math.min(100, Math.round(num(e.target.value)))); if (v >= 100) patch(item.id, { percent: 100, status: 'done' }); else if (v !== (Number(item.percent) || 0)) patch(item.id, { percent: v }); }} /><span>٪ نصب</span></label> : null}{item.title}</b>
-        <span className={`lf-process-dept ${deptClass(item.department)}`} title="وزن این مرحله در پیشرفت کل">{item.department} <em className="lf-process-w">{fa(stageWeight(item.department, item.title), 1)}٪</em></span>
+        <span className={`lf-process-dept ${deptClass(item.department)}`} title="وزن این مرحله در پیشرفت کل">{item.department} <em className="lf-process-w">{fa(stageWeight(item), 1)}٪</em></span>
       </div>
       <div className="lf-process-row-fields">
         <label className="lf-process-field lf-process-reminder-field"><span className="lf-process-field-label">یادآوری</span><JalaliDateInput className="lf-process-reminder" value={item.reminderDate || ''} onChange={value => save(item, 'reminderDate', value)} placeholder="یادآوری" /></label>
         <label className="lf-process-field lf-process-date-field"><span className="lf-process-field-label">تاریخ انجام</span><JalaliDateInput className="lf-process-date" value={item.date || ''} onChange={value => save(item, 'date', value)} placeholder="تاریخ انجام" /></label>
         <label className="lf-process-field lf-process-owner-field"><span className="lf-process-field-label">مسئول</span><input className="lf-process-owner" defaultValue={item.owner || ''} placeholder="نام مسئول" onBlur={e => save(item, 'owner', e.target.value.trim())} /></label>
-        <label className="lf-process-field lf-process-note-field"><span className="lf-process-field-label">توضیحات</span><input className="lf-process-note" defaultValue={item.note || ''} placeholder="توضیحات مرحله" onBlur={e => save(item, 'note', e.target.value.trim())} /></label>
+        <label className="lf-process-field lf-process-note-field"><span className="lf-process-field-label">توضیحات</span><textarea className="lf-process-note" rows={1} defaultValue={item.note || ''} placeholder="توضیحات مرحله" onBlur={e => save(item, 'note', e.target.value.trim())} /></label>
       </div>
     </article>;
   };
   return <div className="lf-processes"><section>
-    <h4>مراحل پروژه<em>{fa(done)} از {fa(PROJECT_PROCESS_TEMPLATE.length)} انجام</em></h4>
+    <h4>مراحل پروژه<em>{fa(done)} از {fa(visibleItems.length)} انجام</em></h4>
     <div className="lf-process-metrics">
       <div className="lf-process-dept-stats lf-process-departments" aria-label="فیلتر مراحل بر اساس واحد">{depts.map(x => <button type="button" key={x.department} className={`${deptClass(x.department)} ${departmentFilter === x.department ? 'on' : ''}`} onClick={() => setDepartmentFilter(current => current === x.department ? '' : x.department)} aria-pressed={departmentFilter === x.department} title={departmentFilter === x.department ? 'نمایش همهٔ مراحل' : `فقط مراحل ${x.department}`}><span><b>{x.department}</b><small>{fa(x.complete)} از {fa(x.total)}</small></span><i><em style={{ width: `${x.pct}%` }} /></i><small>{fa(x.pct)}٪ تکمیل</small></button>)}</div>
       <div className="lf-process-summary"><ContractTimeline contract={contract} /><div className="lf-process-progress">
-        <div className="lf-process-progress-top"><b>پیشرفت کل پروژه</b><strong>{fa(pct)}٪</strong><span>{fa(done)} از {fa(PROJECT_PROCESS_TEMPLATE.length)} مرحله</span></div>
+        <div className="lf-process-progress-top"><b>پیشرفت کل پروژه</b><strong>{fa(pct)}٪</strong><span>{fa(done)} از {fa(visibleItems.length)} مرحله</span></div>
         <div className="lf-process-progress-bar"><i style={{ width: `${pct}%` }} /></div>
       </div></div>
     </div>
     {departmentFilter ? <div className="lf-process-filter-note"><b>فیلتر: {departmentFilter}</b><button type="button" onClick={() => setDepartmentFilter('')}>نمایش همه ×</button></div> : null}
     <div className="lf-process-cols"><span>انجام</span><span>ردیف</span><span>یادآوری</span><span>واحد</span><span>مراحل پروژه</span><span>تاریخ</span><span>مسئول</span><span>توضیحات</span></div>
-    {ordered.map(row)}
+    {ordered.map((item, i) => item.item && item.item !== ordered[i - 1]?.item ? [<div key={`g-${item.item}`} className="lf-process-group">{item.item}<small>{fa(visibleItems.filter(x => x.item === item.item && x.status === 'done').length)} از {fa(visibleItems.filter(x => x.item === item.item).length)}</small></div>, row(item, i)] : row(item, i))}
   </section></div>;
 }
 function ContractFinancials({ contract, onPatch, onAddStatement }) {
@@ -481,8 +537,7 @@ function StatementCards({ items, contract, onPatchContract, onPatch, onRemove, o
   return <><ContractFinancials contract={contract} onPatch={onPatchContract} onAddStatement={onAddStatement} /><div className="lf-finance-summary"><div><small>جمع صورت‌وضعیت‌ها</small><b>{money(total)}</b></div><div><small>جمع واریزی کارفرما</small><b>{money(paid)}</b></div><div><small>جمع باقی‌مانده</small><b>{money(Math.max(0, total - paid))}</b></div></div><div className="lf-statement-cards">{items.slice().sort((a, b) => Number(a.statementNo || 0) - Number(b.statementNo || 0)).map(item => <article className="lf-statement-card" key={item.id}><header><b>صورت‌وضعیت شماره {item.statementNo ? fa(item.statementNo) : '—'}</b><button type="button" className="lf-link del" onClick={() => window.confirm('این صورت‌وضعیت حذف شود؟') && onRemove(item.id)}>حذف</button></header><div className="lf-statement-stages">{stage(item, 'noticeSent', 'noticeSentDate', 'ارسال اعلام وضعیت')}{stage(item, 'noticeApproved', 'noticeApprovedDate', 'تأیید اعلام وضعیت')}{stage(item, 'statementSent', 'statementSentDate', 'ارسال صورت‌وضعیت')}</div><div className="lf-statement-money"><label>مبلغ صورت‌وضعیت<input defaultValue={item.amount || ''} inputMode="numeric" placeholder="مبلغ" onBlur={e => save(item, 'amount', num(e.target.value))} /></label><label>تاریخ واریز<JalaliDateInput value={item.paymentDate || ''} onChange={value => onPatch(item.id, { paymentDate: value })} /></label><label>واریزی کارفرما<input defaultValue={item.paidAmount || ''} inputMode="numeric" placeholder="مبلغ واریزی" onBlur={e => save(item, 'paidAmount', num(e.target.value))} /></label><div><small>باقی‌مانده</small><b>{money(Math.max(0, (Number(item.amount) || 0) - (Number(item.paidAmount) || 0)))}</b></div></div><input className="lf-statement-note" defaultValue={item.note || ''} placeholder="توضیحات صورت‌وضعیت" onBlur={e => save(item, 'note', e.target.value.trim())} /></article>)}</div></>;
 }
 function projectMetrics(project, contract, financials, processes) {
-  const byStage = new Map((processes || []).map(x => [`${x.department}|${x.title}`, x]));
-  const stages = PROJECT_PROCESS_TEMPLATE.map(([department, title]) => ({ department, title, ...(byStage.get(`${department}|${title}`) || { status: 'todo' }) }));
+  const stages = projectStages(contract, processes);
   const today = todayIso(), valid = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
   const done = stages.filter(x => x.status === 'done').length, progress = weightedProgress(stages);
   const late = stages.filter(x => x.status !== 'done' && valid(x.date) && x.date < today).length;
@@ -533,8 +588,7 @@ function ProjectReport({ project, contract, financials, processes }) {
     api('/api/report-brand').then(data => { if (active) setReportBrand(data || {}); }).catch(() => {});
     return () => { active = false; };
   }, []);
-  const byStage = new Map((processes || []).map(item => [`${item.department}|${item.title}`, item]));
-  const stages = PROJECT_PROCESS_TEMPLATE.map(([department, title], order) => ({ department, title, order, ...(byStage.get(`${department}|${title}`) || { status: 'todo' }) }));
+  const stages = projectStages(contract, processes);
   const completed = stages.filter(item => item.status === 'done').length;
   const progress = weightedProgress(stages);
   const departments = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'].map(department => {
@@ -596,7 +650,37 @@ function ProjectReport({ project, contract, financials, processes }) {
     {reportFooterText ? <footer className="lf-report-print-footer"><span>{reportFooterText}</span></footer> : null}
   </article>;
 }
-function ProjectInfoSheet({ project, contract, onPatchProject, onPatchContract }) {
+// چند-انتخابی؛ آیتم جدید به منو اضافه می‌شود و در همهٔ پروژه‌ها قابل انتخاب است.
+// subject (متنی) برای گزارش و داده‌های قبلی هم‌گام می‌ماند.
+function ContractItemsField({ contract, knownItems = [], onChange }) {
+  const picked = contractScope(contract);
+  const [adding, setAdding] = useState(false);
+  const menu = orderItems([...CONTRACT_ITEMS, ...knownItems, ...picked]);
+  const has = i => picked.some(x => normItem(x) === normItem(i));
+  const commit = items => { const list = orderItems(items), areas = contract?.itemAreas; onChange({ items: list, itemsOther: '', subject: list.join('، '), ...(areas ? { area: list.reduce((a, i) => a + num(areas[i]), 0) } : {}) }); };
+  const toggle = i => commit(has(i) ? picked.filter(x => normItem(x) !== normItem(i)) : [...picked, i]);
+  const add = text => { const news = splitItems(text); if (news.length) commit([...picked, ...news]); setAdding(false); };
+  return <div className="lf-sheet-field wide lf-contract-items"><span>آیتم‌های قرارداد</span>
+    <div className="lf-item-chips" role="group" aria-label="آیتم‌های قرارداد">
+      {menu.map(i => <button type="button" key={i} className={has(i) ? 'on' : ''} aria-pressed={has(i)} onClick={() => toggle(i)}>{has(i) ? '✓ ' : ''}{i}</button>)}
+      {adding ? <input className="lf-item-add" autoFocus placeholder="نام آیتم نما (مثلاً کامپوزیت)" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value; e.currentTarget.value = ''; add(v); } else if (e.key === 'Escape') setAdding(false); }} onBlur={e => add(e.target.value)} />
+        : <button type="button" className="add" onClick={() => setAdding(true)}>＋ آیتم جدید</button>}
+    </div>
+  </div>;
+}
+// متراژ جدا برای هر آیتم قرارداد؛ area = جمع آن‌ها (برای گزارش و داده‌های قبلی)
+export const contractAreaText = contract => { const per = contractScope(contract).filter(i => num(contract?.itemAreas?.[i]) > 0); return per.length ? per.map(i => `${i}: ${fa(num(contract.itemAreas[i]))}`).join(' · ') + ` (جمع ${fa(num(contract.area))} مترمربع)` : num(contract?.area) ? `${fa(num(contract.area))} مترمربع` : ''; };
+function ContractAreaField({ contract, onChange, fallback }) {
+  const items = contractScope(contract);
+  if (!items.length) return fallback;
+  const areas = contract?.itemAreas || {};
+  const total = items.reduce((a, i) => a + num(areas[i]), 0);
+  const save = (item, value) => { const v = num(value); if (v === num(areas[item])) return; const next = { ...areas, [item]: v }; onChange({ itemAreas: next, area: items.reduce((a, i) => a + num(next[i]), 0) }); };
+  return <div className="lf-sheet-field wide lf-item-areas"><span>متراژ قرارداد (مترمربع)<em>جمع: {fa(total)}</em></span>
+    <div>{items.map(i => <label key={i}><small>{i}</small><input key={`${i}-${num(areas[i])}`} defaultValue={num(areas[i]) || ''} inputMode="numeric" placeholder="۰" onBlur={e => save(i, e.target.value)} /></label>)}</div>
+  </div>;
+}
+function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPatchContract }) {
   const setProject = (key, value) => onPatchProject({ [key]: value });
   const setContract = (key, value) => {
     const next = { ...(contract || {}), [key]: value };
@@ -611,22 +695,22 @@ function ProjectInfoSheet({ project, contract, onPatchProject, onPatchContract }
       {input('project', 'projectCode', 'کد پروژه')}{input('project', 'name', 'نام پروژه', { placeholder: 'نام پروژه' })}
       {input('project', 'client', 'کارفرما')}{input('project', 'clientPhone', 'شماره تماس کارفرما')}
       {input('project', 'owner', 'مسئول ارتباط پروژه')}{input('project', 'contactPhone', 'شماره تماس مسئول ارتباط')}
-      {input('contract', 'contractNo', 'شماره قرارداد')}{input('contract', 'subject', 'آیتم‌های قرارداد', { placeholder: 'پنجره، کرتن‌وال، لوور' })}
+      {input('contract', 'contractNo', 'شماره قرارداد')}<ContractItemsField contract={contract} knownItems={knownItems} onChange={onPatchContract} />
       {date('contractStartDate', 'تاریخ شروع قرارداد')}{date('contractEndDate', 'تاریخ اتمام قرارداد')}
-      {input('contract', 'area', 'متراژ قرارداد (مترمربع)', { money: true })}
+      <ContractAreaField contract={contract} onChange={onPatchContract} fallback={input('contract', 'area', 'متراژ قرارداد (مترمربع)', { money: true })} />
       <label className="lf-sheet-field"><span>نوع تسویه</span><select value={contract?.settlementType || 'cash'} onChange={e => setContract('settlementType', e.target.value)}><option value="cash">نقدی</option><option value="check">چک</option><option value="statement">صورت‌وضعیتی</option><option value="barter">تهاتری</option><option value="other">سایر</option></select></label>
       <label className="lf-sheet-field wide"><span>توضیحات پروژه</span><textarea defaultValue={project.note || ''} placeholder="توضیحات پروژه" onBlur={e => setProject('note', e.target.value.trim())} /></label>
       <label className="lf-sheet-field wide"><span>توضیحات قرارداد</span><textarea defaultValue={contract?.note || ''} placeholder="توضیحات قرارداد" onBlur={e => setContract('note', e.target.value.trim())} /></label>
     </div>
   </div>;
 }
-function ProjectFile({ project, contracts, financials, supplies, processes, onEdit, onPatchProject, onPatchContract, onToggleProcess, onPatchProcess, onAddProcess, onSeedProcesses, onCompletionChange, onAddFinance, onPatchFinance, onRemoveFinance }) {
+function ProjectFile({ project, contracts, knownItems, financials, supplies, processes, onEdit, onPatchProject, onPatchContract, onToggleProcess, onPatchProcess, onAddProcess, onSeedProcesses, onCompletionChange, onAddFinance, onPatchFinance, onRemoveFinance }) {
   const [tab, setTab] = useState('overview');
   const contract = contracts[0] || null;
   const nextStatementNo = Math.max(0, ...financials.map(row => Number(row.statementNo) || 0)) + 1;
   return <section className="lf-card lf-project-file">
     <div className="lf-tabs">{PROJECT_FILE_TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'finance' ? <em>{fa(financials.length)}</em> : null}</button>)}</div>
-    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={() => onAddFinance(nextStatementNo)} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
+    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} knownItems={knownItems} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={() => onAddFinance(nextStatementNo)} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
   </section>;
 }
 export function ProjectsPage({ Nav }) {
@@ -647,7 +731,11 @@ export function ProjectsPage({ Nav }) {
   // manual order from drag-and-drop in the side list; projects without `order` keep creation order at the end
   const ordered = list.map((p, i) => [p, Number.isFinite(p.order) ? p.order : 1e6 + i]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
   const reorderProjects = ids => { const pos = new Map(ordered.map((p, i) => [p.id, i])), group = ids.map(id => pos.get(id)).sort((a, b) => a - b); ids.forEach((id, i) => { const p = list.find(x => x.id === id); if (p && p.order !== group[i]) projects.patch(id, { order: group[i] }); }); ordered.forEach((p, i) => { if (!ids.includes(p.id) && p.order !== i) projects.patch(p.id, { order: i }); }); };
-  const isFinished = p => { if (p.status === 'done') return true; const mine = (processes.items || []).filter(x => x.projectId === p.id && x.status === 'done'), keys = new Set(mine.map(x => `${x.department}|${x.title}`)); return keys.has(`${DELIVERY_STAGE[0]}|${DELIVERY_STAGE[1]}`) || PROJECT_PROCESS_TEMPLATE.every(([d, t]) => keys.has(`${d}|${t}`)); };
+  // custom facade items used in any contract show up in every project's item menu
+  const knownItems = useMemo(() => orderItems((contracts.items || []).flatMap(contractScope)), [contracts.items]);
+  const contractOf = id => (contracts.items || []).find(x => x.projectId === id);
+  const stagesOf = p => projectStages(contractOf(p.id), (processes.items || []).filter(x => x.projectId === p.id));
+  const isFinished = p => { if (p.status === 'done') return true; const st = stagesOf(p); return isDelivered(st) || st.every(x => x.status === 'done'); };
   const cur = (() => { const p = list.find(x => x.id === pid); if (p && (picked || !isFinished(p))) return p; return ordered.find(x => !isFinished(x)) || p || ordered[0] || null; })();
   useEffect(() => { if (cur) try { localStorage.setItem('lifeos-project', cur.id); } catch {} }, [cur?.id]);
   const mine = (cards.items || []).filter(c => cur && c.projectId === cur.id);
@@ -690,19 +778,24 @@ export function ProjectsPage({ Nav }) {
     // Upgrade every existing project, not just the one currently open, to the
     // current fixed checklist. Legacy rows remain stored for safety but are
     // not displayed by the checklist.
+    if (!contracts.items) return;
     (projects.items || []).forEach(project => {
-      if (processSeeds.current.has(project.id)) return;
-      processSeeds.current.add(project.id);
-      const existing = new Set((processes.items || []).filter(x => x.projectId === project.id).map(x => `${x.department}|${x.title}`));
-      const missing = PROJECT_PROCESS_TEMPLATE.filter(([department, title]) => !existing.has(`${department}|${title}`));
+      const contract = contracts.items.find(x => x.projectId === project.id);
+      if (!contract) return; // the checklist still shows virtual rows; seed once the contract (and its items) exists
+      const tpl = processTemplate(contract), seedKey = `${project.id}|${tpl.map(stageKey).join(',')}`;
+      if (processSeeds.current.has(seedKey)) return;
+      processSeeds.current.add(seedKey);
+      const rows = (processes.items || []).filter(x => x.projectId === project.id);
+      const byKey = new Map(rows.map(x => [stageKey(x), x]));
+      const missing = tpl.filter(t => !byKey.has(stageKey(t)));
       if (!missing.length) return;
       (async () => {
         try {
-          await processes.addMany(missing.map(([department, title]) => ({ projectId: project.id, department, title, order: PROJECT_PROCESS_ORDER[`${department}|${title}`] ?? 0, status: 'todo' })));
-        } catch { processSeeds.current.delete(project.id); }
+          await processes.addMany(missing.map(t => ({ projectId: project.id, department: t.department, title: t.title, order: t.order, status: 'todo', ...legacyCarry(t, byKey) })));
+        } catch { processSeeds.current.delete(seedKey); }
       })();
     });
-  }, [projects.items, processes.items]);
+  }, [projects.items, processes.items, contracts.items]);
   useEffect(() => {
     if (!cur || !contracts.items || contracts.items.some(x => x.projectId === cur.id) || contractSeeds.current.has(cur.id)) return;
     contractSeeds.current.add(cur.id);
@@ -741,8 +834,8 @@ export function ProjectsPage({ Nav }) {
     {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !(projects.items || []).length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. با «＋ پروژه» فقط نامش را وارد کن؛ سپس اطلاعات پروژه و قرارداد را کامل می‌کنی.</p> : <>
       {compare && list.length > 1 ? <ProjectsCompare projects={ordered} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده']]}
         onReorder={reorderProjects}
-        items={ordered.map(p => { const stageByKey = new Map((processes.items || []).filter(x => x.projectId === p.id).map(x => [`${x.department}|${x.title}`, x])), total = PROJECT_PROCESS_TEMPLATE.length, done = PROJECT_PROCESS_TEMPLATE.filter(([department, title]) => stageByKey.get(`${department}|${title}`)?.status === 'done').length, pct = weightedProgress([...stageByKey.values()]);
-          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: (p.status === 'done' || done === total || stageByKey.get(`${DELIVERY_STAGE[0]}|${DELIVERY_STAGE[1]}`)?.status === 'done') ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>
+        items={ordered.map(p => { const stages = stagesOf(p), total = stages.length, done = stages.filter(x => x.status === 'done').length, pct = weightedProgress(stages);
+          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: (p.status === 'done' || done === total || isDelivered(stages)) ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>
       {cur ? <section className="lf-card sl-top" style={{ '--c': cur.color || PCOLORS[0] }}>
         {(() => { const today = todayIso(), late = mine.filter(c => c.col !== 'done' && c.due && c.due < today).sort((a, b) => a.due.localeCompare(b.due)), soon = mine.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((a, b) => a.due.localeCompare(b.due));
           return <>
@@ -750,7 +843,7 @@ export function ProjectsPage({ Nav }) {
               <div className="lf-pops"><div className="lf-dots" role="radiogroup" aria-label="رنگ پروژه">{PCOLORS.map((c, i) => <button key={c} role="radio" aria-checked={(cur.color || PCOLORS[0]) === c} title={PNAMES[i]} className={(cur.color || PCOLORS[0]) === c ? 'on' : ''} style={{ background: c }} onClick={() => projects.patch(cur.id, { color: c })} />)}</div></div></div>
             {late.length || soon.length ? <div className="lf-palerts">{late.slice(0, 4).map(c => <button key={c.id} className="late" onClick={() => setCardEdit(c)}>⛔ {c.title} · {jShort(c.due)}</button>)}{soon.slice(0, 4).map(c => <button key={c.id} className="soon" onClick={() => setCardEdit(c)}>⏳ {c.title} · {jShort(c.due)}</button>)}</div> : null}
           </>; })()}
-        <ProjectFile key={cur.id} project={cur} contracts={(contracts.items || []).filter(x => x.projectId === cur.id)} financials={(financials.items || []).filter(x => x.projectId === cur.id)} supplies={(supplies.items || []).filter(x => x.projectId === cur.id)} processes={(processes.items || []).filter(x => x.projectId === cur.id)} onEdit={(kind, row) => setFileEdit({ kind, row })} onPatchProject={body => projects.patch(cur.id, body)} onPatchContract={body => { const existing = (contracts.items || []).find(x => x.projectId === cur.id); return existing ? contracts.patch(existing.id, body) : contracts.add({ ...body, projectId: cur.id }); }} onToggleProcess={toggleProcess} onPatchProcess={patchProcess} onAddProcess={body => processes.add({ ...body, projectId: cur.id })} onCompletionChange={complete => { const status = complete ? 'done' : 'active', completedAt = complete ? (cur.completedAt || todayIso()) : null; if ((cur.status || 'active') === status && (!complete || cur.completedAt)) return Promise.resolve(); return projects.patch(cur.id, { status, completedAt }); }} onAddFinance={next => financials.add({ projectId: cur.id, statementNo: next })} onPatchFinance={(id, body) => financials.patch(id, body)} onRemoveFinance={id => financials.remove(id)} onSeedProcesses={async () => { if ((processes.items || []).some(x => x.projectId === cur.id)) return; for (const [department, title] of PROJECT_PROCESS_TEMPLATE) await processes.add({ projectId: cur.id, department, title, order: PROJECT_PROCESS_ORDER[`${department}|${title}`], status: 'todo' }); }} />
+        <ProjectFile key={cur.id} project={cur} knownItems={knownItems} contracts={(contracts.items || []).filter(x => x.projectId === cur.id)} financials={(financials.items || []).filter(x => x.projectId === cur.id)} supplies={(supplies.items || []).filter(x => x.projectId === cur.id)} processes={(processes.items || []).filter(x => x.projectId === cur.id)} onEdit={(kind, row) => setFileEdit({ kind, row })} onPatchProject={body => projects.patch(cur.id, body)} onPatchContract={body => { const existing = (contracts.items || []).find(x => x.projectId === cur.id); return existing ? contracts.patch(existing.id, body) : contracts.add({ ...body, projectId: cur.id }); }} onToggleProcess={toggleProcess} onPatchProcess={patchProcess} onAddProcess={body => processes.add({ ...body, projectId: cur.id })} onCompletionChange={complete => { const status = complete ? 'done' : 'active', completedAt = complete ? (cur.completedAt || todayIso()) : null; if ((cur.status || 'active') === status && (!complete || cur.completedAt)) return Promise.resolve(); return projects.patch(cur.id, { status, completedAt }); }} onAddFinance={next => financials.add({ projectId: cur.id, statementNo: next })} onPatchFinance={(id, body) => financials.patch(id, body)} onRemoveFinance={id => financials.remove(id)} onSeedProcesses={async () => { if ((processes.items || []).some(x => x.projectId === cur.id)) return; for (const t of processTemplate(contractOf(cur.id))) await processes.add({ projectId: cur.id, department: t.department, title: t.title, order: t.order, status: 'todo' }); }} />
       </section> : <p className="lf-empty">پروژه‌ای نیست — با «＋ پروژه» یک پروژه بساز.</p>}
       </SideLayout>}
     </>}
