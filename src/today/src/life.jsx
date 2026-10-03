@@ -351,20 +351,16 @@ const ITEM_STAGES = [
 const FINAL_STAGES = [['اجرا', 'تحویل پروژه']];
 export const PROCESS_DEPARTMENTS = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'];
 const CONTRACT_ITEMS = ['پنجره', 'کرتین‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
-const OTHER_ITEMS = 'سایر اقلام نما';
 const normItem = x => String(x || '').replace(/[\s‌]+/g, '').replace(/کرتن/g, 'کرتین');
 const ITEM_SEP = ' — ';
 // contract → { picked: chosen standard items, other: free text } (falls back to parsing the old free-text subject)
-function contractItemsOf(contract) {
-  const legacy = String(contract?.subject || '').split(/[،,\n]+/).map(x => x.trim()).filter(Boolean);
-  const picked = Array.isArray(contract?.items) ? CONTRACT_ITEMS.filter(i => contract.items.includes(i)) : CONTRACT_ITEMS.filter(i => legacy.some(l => normItem(l) === normItem(i)));
-  const other = contract?.itemsOther ?? legacy.filter(l => !CONTRACT_ITEMS.some(i => normItem(i) === normItem(l))).join('، ').replace(/^سایر( اقلام نما)?\s*:\s*/, '');
-  return { picked, other };
-}
+const splitItems = v => String(v || '').split(/[،,\n]+/).map(x => x.trim()).filter(Boolean);
+// standard items first (menu order), then custom ones in the order they were added; duplicates dropped
+const orderItems = list => { const std = CONTRACT_ITEMS.filter(i => list.some(x => normItem(x) === normItem(i))), out = [...std]; for (const x of list) if (!out.some(y => normItem(y) === normItem(x))) out.push(x); return out; };
+// contract → its facade items: `items` (standard + custom) plus the older free-text `itemsOther`, or the old free-text subject
 export function contractScope(contract) {
-  const { picked, other } = contractItemsOf(contract);
-  const extra = String(other || '').split(/[،,\n]+/).map(x => x.trim()).filter(Boolean);
-  return [...new Set([...picked, ...extra])];
+  if (Array.isArray(contract?.items)) return orderItems([...contract.items, ...splitItems(contract.itemsOther)]);
+  return orderItems(splitItems(contract?.subject).map(x => x.replace(/^سایر( اقلام نما)?\s*:\s*/, '')));
 }
 export function processTemplate(contract) {
   const items = contractScope(contract);
@@ -651,21 +647,25 @@ function ProjectReport({ project, contract, financials, processes }) {
     {reportFooterText ? <footer className="lf-report-print-footer"><span>{reportFooterText}</span></footer> : null}
   </article>;
 }
-// چند-انتخابی؛ subject (متنی) هم برای گزارش و داده‌های قبلی هم‌گام نگه داشته می‌شود
-function ContractItemsField({ contract, onChange }) {
-  const { picked, other } = contractItemsOf(contract);
-  const [otherOn, setOtherOn] = useState(!!other);
-  const commit = (items, otherText, on) => { const t = on ? String(otherText || '').trim() : ''; onChange({ items, itemsOther: t, subject: [...items, ...(t ? [`${OTHER_ITEMS}: ${t}`] : [])].join('، ') }); };
-  const toggle = i => commit(picked.includes(i) ? picked.filter(x => x !== i) : CONTRACT_ITEMS.filter(x => x === i || picked.includes(x)), other, otherOn);
+// چند-انتخابی؛ آیتم جدید به منو اضافه می‌شود و در همهٔ پروژه‌ها قابل انتخاب است.
+// subject (متنی) برای گزارش و داده‌های قبلی هم‌گام می‌ماند.
+function ContractItemsField({ contract, knownItems = [], onChange }) {
+  const picked = contractScope(contract);
+  const [adding, setAdding] = useState(false);
+  const menu = orderItems([...CONTRACT_ITEMS, ...knownItems, ...picked]);
+  const has = i => picked.some(x => normItem(x) === normItem(i));
+  const commit = items => { const list = orderItems(items); onChange({ items: list, itemsOther: '', subject: list.join('، ') }); };
+  const toggle = i => commit(has(i) ? picked.filter(x => normItem(x) !== normItem(i)) : [...picked, i]);
+  const add = text => { const news = splitItems(text); if (news.length) commit([...picked, ...news]); setAdding(false); };
   return <div className="lf-sheet-field wide lf-contract-items"><span>آیتم‌های قرارداد</span>
     <div className="lf-item-chips" role="group" aria-label="آیتم‌های قرارداد">
-      {CONTRACT_ITEMS.map(i => <button type="button" key={i} className={picked.includes(i) ? 'on' : ''} aria-pressed={picked.includes(i)} onClick={() => toggle(i)}>{picked.includes(i) ? '✓ ' : ''}{i}</button>)}
-      <button type="button" className={otherOn ? 'on' : ''} aria-pressed={otherOn} onClick={() => { const on = !otherOn; setOtherOn(on); commit(picked, other, on); }}>{otherOn ? '✓ ' : ''}{OTHER_ITEMS}</button>
+      {menu.map(i => <button type="button" key={i} className={has(i) ? 'on' : ''} aria-pressed={has(i)} onClick={() => toggle(i)}>{has(i) ? '✓ ' : ''}{i}</button>)}
+      {adding ? <input className="lf-item-add" autoFocus placeholder="نام آیتم نما (مثلاً کامپوزیت)" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value; e.currentTarget.value = ''; add(v); } else if (e.key === 'Escape') setAdding(false); }} onBlur={e => add(e.target.value)} />
+        : <button type="button" className="add" onClick={() => setAdding(true)}>＋ آیتم جدید</button>}
     </div>
-    {otherOn ? <input defaultValue={other} placeholder="سایر اقلام نما — با ویرگول جدا کنید (مثلاً کامپوزیت، سنگ)" onBlur={e => commit(picked, e.target.value, true)} autoFocus={!other} /> : null}
   </div>;
 }
-function ProjectInfoSheet({ project, contract, onPatchProject, onPatchContract }) {
+function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPatchContract }) {
   const setProject = (key, value) => onPatchProject({ [key]: value });
   const setContract = (key, value) => {
     const next = { ...(contract || {}), [key]: value };
@@ -680,7 +680,7 @@ function ProjectInfoSheet({ project, contract, onPatchProject, onPatchContract }
       {input('project', 'projectCode', 'کد پروژه')}{input('project', 'name', 'نام پروژه', { placeholder: 'نام پروژه' })}
       {input('project', 'client', 'کارفرما')}{input('project', 'clientPhone', 'شماره تماس کارفرما')}
       {input('project', 'owner', 'مسئول ارتباط پروژه')}{input('project', 'contactPhone', 'شماره تماس مسئول ارتباط')}
-      {input('contract', 'contractNo', 'شماره قرارداد')}<ContractItemsField contract={contract} onChange={patch => onPatchContract({ ...(contract || {}), ...patch })} />
+      {input('contract', 'contractNo', 'شماره قرارداد')}<ContractItemsField contract={contract} knownItems={knownItems} onChange={patch => onPatchContract({ ...(contract || {}), ...patch })} />
       {date('contractStartDate', 'تاریخ شروع قرارداد')}{date('contractEndDate', 'تاریخ اتمام قرارداد')}
       {input('contract', 'area', 'متراژ قرارداد (مترمربع)', { money: true })}
       <label className="lf-sheet-field"><span>نوع تسویه</span><select value={contract?.settlementType || 'cash'} onChange={e => setContract('settlementType', e.target.value)}><option value="cash">نقدی</option><option value="check">چک</option><option value="statement">صورت‌وضعیتی</option><option value="barter">تهاتری</option><option value="other">سایر</option></select></label>
@@ -689,13 +689,13 @@ function ProjectInfoSheet({ project, contract, onPatchProject, onPatchContract }
     </div>
   </div>;
 }
-function ProjectFile({ project, contracts, financials, supplies, processes, onEdit, onPatchProject, onPatchContract, onToggleProcess, onPatchProcess, onAddProcess, onSeedProcesses, onCompletionChange, onAddFinance, onPatchFinance, onRemoveFinance }) {
+function ProjectFile({ project, contracts, knownItems, financials, supplies, processes, onEdit, onPatchProject, onPatchContract, onToggleProcess, onPatchProcess, onAddProcess, onSeedProcesses, onCompletionChange, onAddFinance, onPatchFinance, onRemoveFinance }) {
   const [tab, setTab] = useState('overview');
   const contract = contracts[0] || null;
   const nextStatementNo = Math.max(0, ...financials.map(row => Number(row.statementNo) || 0)) + 1;
   return <section className="lf-card lf-project-file">
     <div className="lf-tabs">{PROJECT_FILE_TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'finance' ? <em>{fa(financials.length)}</em> : null}</button>)}</div>
-    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={() => onAddFinance(nextStatementNo)} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
+    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} knownItems={knownItems} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={() => onAddFinance(nextStatementNo)} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
   </section>;
 }
 export function ProjectsPage({ Nav }) {
@@ -716,6 +716,8 @@ export function ProjectsPage({ Nav }) {
   // manual order from drag-and-drop in the side list; projects without `order` keep creation order at the end
   const ordered = list.map((p, i) => [p, Number.isFinite(p.order) ? p.order : 1e6 + i]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
   const reorderProjects = ids => { const pos = new Map(ordered.map((p, i) => [p.id, i])), group = ids.map(id => pos.get(id)).sort((a, b) => a - b); ids.forEach((id, i) => { const p = list.find(x => x.id === id); if (p && p.order !== group[i]) projects.patch(id, { order: group[i] }); }); ordered.forEach((p, i) => { if (!ids.includes(p.id) && p.order !== i) projects.patch(p.id, { order: i }); }); };
+  // custom facade items used in any contract show up in every project's item menu
+  const knownItems = useMemo(() => orderItems((contracts.items || []).flatMap(contractScope)), [contracts.items]);
   const contractOf = id => (contracts.items || []).find(x => x.projectId === id);
   const stagesOf = p => projectStages(contractOf(p.id), (processes.items || []).filter(x => x.projectId === p.id));
   const isFinished = p => { if (p.status === 'done') return true; const st = stagesOf(p); return isDelivered(st) || st.every(x => x.status === 'done'); };
@@ -826,7 +828,7 @@ export function ProjectsPage({ Nav }) {
               <div className="lf-pops"><div className="lf-dots" role="radiogroup" aria-label="رنگ پروژه">{PCOLORS.map((c, i) => <button key={c} role="radio" aria-checked={(cur.color || PCOLORS[0]) === c} title={PNAMES[i]} className={(cur.color || PCOLORS[0]) === c ? 'on' : ''} style={{ background: c }} onClick={() => projects.patch(cur.id, { color: c })} />)}</div></div></div>
             {late.length || soon.length ? <div className="lf-palerts">{late.slice(0, 4).map(c => <button key={c.id} className="late" onClick={() => setCardEdit(c)}>⛔ {c.title} · {jShort(c.due)}</button>)}{soon.slice(0, 4).map(c => <button key={c.id} className="soon" onClick={() => setCardEdit(c)}>⏳ {c.title} · {jShort(c.due)}</button>)}</div> : null}
           </>; })()}
-        <ProjectFile key={cur.id} project={cur} contracts={(contracts.items || []).filter(x => x.projectId === cur.id)} financials={(financials.items || []).filter(x => x.projectId === cur.id)} supplies={(supplies.items || []).filter(x => x.projectId === cur.id)} processes={(processes.items || []).filter(x => x.projectId === cur.id)} onEdit={(kind, row) => setFileEdit({ kind, row })} onPatchProject={body => projects.patch(cur.id, body)} onPatchContract={body => { const existing = (contracts.items || []).find(x => x.projectId === cur.id); return existing ? contracts.patch(existing.id, body) : contracts.add({ ...body, projectId: cur.id }); }} onToggleProcess={toggleProcess} onPatchProcess={patchProcess} onAddProcess={body => processes.add({ ...body, projectId: cur.id })} onCompletionChange={complete => { const status = complete ? 'done' : 'active', completedAt = complete ? (cur.completedAt || todayIso()) : null; if ((cur.status || 'active') === status && (!complete || cur.completedAt)) return Promise.resolve(); return projects.patch(cur.id, { status, completedAt }); }} onAddFinance={next => financials.add({ projectId: cur.id, statementNo: next })} onPatchFinance={(id, body) => financials.patch(id, body)} onRemoveFinance={id => financials.remove(id)} onSeedProcesses={async () => { if ((processes.items || []).some(x => x.projectId === cur.id)) return; for (const t of processTemplate(contractOf(cur.id))) await processes.add({ projectId: cur.id, department: t.department, title: t.title, order: t.order, status: 'todo' }); }} />
+        <ProjectFile key={cur.id} project={cur} knownItems={knownItems} contracts={(contracts.items || []).filter(x => x.projectId === cur.id)} financials={(financials.items || []).filter(x => x.projectId === cur.id)} supplies={(supplies.items || []).filter(x => x.projectId === cur.id)} processes={(processes.items || []).filter(x => x.projectId === cur.id)} onEdit={(kind, row) => setFileEdit({ kind, row })} onPatchProject={body => projects.patch(cur.id, body)} onPatchContract={body => { const existing = (contracts.items || []).find(x => x.projectId === cur.id); return existing ? contracts.patch(existing.id, body) : contracts.add({ ...body, projectId: cur.id }); }} onToggleProcess={toggleProcess} onPatchProcess={patchProcess} onAddProcess={body => processes.add({ ...body, projectId: cur.id })} onCompletionChange={complete => { const status = complete ? 'done' : 'active', completedAt = complete ? (cur.completedAt || todayIso()) : null; if ((cur.status || 'active') === status && (!complete || cur.completedAt)) return Promise.resolve(); return projects.patch(cur.id, { status, completedAt }); }} onAddFinance={next => financials.add({ projectId: cur.id, statementNo: next })} onPatchFinance={(id, body) => financials.patch(id, body)} onRemoveFinance={id => financials.remove(id)} onSeedProcesses={async () => { if ((processes.items || []).some(x => x.projectId === cur.id)) return; for (const t of processTemplate(contractOf(cur.id))) await processes.add({ projectId: cur.id, department: t.department, title: t.title, order: t.order, status: 'todo' }); }} />
       </section> : <p className="lf-empty">پروژه‌ای نیست — با «＋ پروژه» یک پروژه بساز.</p>}
       </SideLayout>}
     </>}
