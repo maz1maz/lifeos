@@ -1161,7 +1161,8 @@ async function main() {
       const control = await say('خرید نان ۵۰۰ هزار');
       const after = await txs4();
       check('normal text still creates a transaction (the guard is not a blanket mute)', (control.actions || []).length === 1 && after.length === 1 && after[0].amount === 500_000, JSON.stringify(control.actions));
-      const fin = await fetch(`${BASE}/api/finance?month=2026-09`, { headers: auth4 }).then(r => r.json());
+      const thisMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit' }).format(new Date()).slice(0, 7);
+      const fin = await fetch(`${BASE}/api/finance?month=${thisMonth}`, { headers: auth4 }).then(r => r.json());
       check('poker/bet money never leaks into the finance totals', fin.expense === 500_000 && fin.income === 0, JSON.stringify({ income: fin.income, expense: fin.expense }));
     }
 
