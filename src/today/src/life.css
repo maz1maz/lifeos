@@ -415,7 +415,7 @@
 .lf-process-pct{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--g-muted);white-space:nowrap;margin-inline-end:8px;vertical-align:middle}
 .lf-process-pct input{width:52px;padding:3px 6px;border-radius:8px;border:1px solid var(--g-border-2);background:transparent;color:var(--g-text);font:inherit;text-align:center}
 /* compact stage rows: every stage stays on one line (full title in the tooltip) */
-.lf-processes section{--process-columns:42px 30px 112px 100px minmax(300px,380px) 120px 108px minmax(160px,1fr)}
+.lf-processes section{--process-columns:42px 30px 112px 100px minmax(240px,320px) 120px 108px minmax(300px,2fr)}
 @media(max-width:900px){.lf-processes section{--process-columns:42px 28px 110px 98px minmax(170px,1.4fr) 118px 104px minmax(140px,1.2fr)}}
 @media(max-width:700px){.lf-processes section{--process-columns:42px minmax(0,1fr)}}
 @media(min-width:701px){
@@ -426,3 +426,7 @@
 }
 @media(min-width:701px){.lf-process-row .jdi-btn{white-space:nowrap;font-size:12.5px;padding-inline:8px;gap:6px}.lf-process-row .jdi-btn *{white-space:nowrap}}
 @media(min-width:701px) and (max-width:1500px){.lf-process-row .lf-process-title{font-size:12px}}
+
+/* توضیحات مرحله: چندخطی و خودکار-بلند */
+.lf-process-row textarea.lf-process-note{width:100%;min-width:0;min-height:34px;max-height:160px;padding:6px 9px;font:inherit;font-size:12.5px;line-height:1.6;color:inherit;background:var(--g-panel-2,transparent);border:1px solid var(--g-border);border-radius:10px;resize:vertical;field-sizing:content;box-sizing:border-box}
+.lf-process-row textarea.lf-process-note:focus{outline:none;border-color:var(--g-accent,#60a5fa)}

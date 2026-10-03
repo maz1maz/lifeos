@@ -328,8 +328,8 @@ const PROJECT_PROCESS_TEMPLATE = [
   ['کنترل پروژه', 'فرم ابعادبرداری برآوردی'],
   ['کنترل پروژه', 'فرم ابعادبرداری دقیق'],
   ['اجرا', 'ابعادبرداری دقیق'],
-  ['تأمین', 'سفارش بیلت بر اساس قرارداد'],
-  ['تأمین', 'سفارش یراق‌آلات بر اساس قرارداد'],
+  ['کنترل پروژه', 'سفارش بیلت بر اساس قرارداد'],
+  ['کنترل پروژه', 'سفارش یراق‌آلات بر اساس قرارداد'],
   ['تأمین', 'عقد قرارداد شیشه'],
   ['کنترل پروژه', 'ارسال تیپ‌بندی پنجره بر اساس قرارداد به کارفرما جهت تأیید'],
   ['کنترل پروژه', 'دریافت تأیید برآورد پنجره از کارفرما'],
@@ -360,6 +360,8 @@ const PROJECT_PROCESS_TEMPLATE = [
   ['اجرا', 'اتمام نصب نما'],
   ['اجرا', 'تحویل پروژه']
 ];
+// stages moved between departments: old key → new department (stored rows are migrated, keeping their status)
+const MOVED_STAGES = { 'تأمین|سفارش بیلت بر اساس قرارداد': 'کنترل پروژه', 'تأمین|سفارش یراق‌آلات بر اساس قرارداد': 'کنترل پروژه' };
 const PROJECT_PROCESS_ORDER = Object.fromEntries(PROJECT_PROCESS_TEMPLATE.map(([department, title], order) => [`${department}|${title}`, order]));
 function ContractTimeline({ contract }) {
   const start = contract?.contractStartDate || '';
@@ -451,7 +453,7 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
         <label className="lf-process-field lf-process-reminder-field"><span className="lf-process-field-label">یادآوری</span><JalaliDateInput className="lf-process-reminder" value={item.reminderDate || ''} onChange={value => save(item, 'reminderDate', value)} placeholder="یادآوری" /></label>
         <label className="lf-process-field lf-process-date-field"><span className="lf-process-field-label">تاریخ انجام</span><JalaliDateInput className="lf-process-date" value={item.date || ''} onChange={value => save(item, 'date', value)} placeholder="تاریخ انجام" /></label>
         <label className="lf-process-field lf-process-owner-field"><span className="lf-process-field-label">مسئول</span><input className="lf-process-owner" defaultValue={item.owner || ''} placeholder="نام مسئول" onBlur={e => save(item, 'owner', e.target.value.trim())} /></label>
-        <label className="lf-process-field lf-process-note-field"><span className="lf-process-field-label">توضیحات</span><input className="lf-process-note" defaultValue={item.note || ''} placeholder="توضیحات مرحله" onBlur={e => save(item, 'note', e.target.value.trim())} /></label>
+        <label className="lf-process-field lf-process-note-field"><span className="lf-process-field-label">توضیحات</span><textarea className="lf-process-note" rows={1} defaultValue={item.note || ''} placeholder="توضیحات مرحله" onBlur={e => save(item, 'note', e.target.value.trim())} /></label>
       </div>
     </article>;
   };
@@ -693,7 +695,11 @@ export function ProjectsPage({ Nav }) {
     (projects.items || []).forEach(project => {
       if (processSeeds.current.has(project.id)) return;
       processSeeds.current.add(project.id);
-      const existing = new Set((processes.items || []).filter(x => x.projectId === project.id).map(x => `${x.department}|${x.title}`));
+      const rows = (processes.items || []).filter(x => x.projectId === project.id);
+      const existing = new Set(rows.map(x => `${x.department}|${x.title}`));
+      const moves = rows.filter(x => MOVED_STAGES[`${x.department}|${x.title}`] && !existing.has(`${MOVED_STAGES[`${x.department}|${x.title}`]}|${x.title}`));
+      moves.forEach(x => existing.add(`${MOVED_STAGES[`${x.department}|${x.title}`]}|${x.title}`));
+      moves.forEach(x => processes.patch(x.id, { department: MOVED_STAGES[`${x.department}|${x.title}`], order: PROJECT_PROCESS_ORDER[`${MOVED_STAGES[`${x.department}|${x.title}`]}|${x.title}`] ?? x.order }).catch(() => processSeeds.current.delete(project.id)));
       const missing = PROJECT_PROCESS_TEMPLATE.filter(([department, title]) => !existing.has(`${department}|${title}`));
       if (!missing.length) return;
       (async () => {

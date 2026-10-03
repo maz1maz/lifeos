@@ -6,6 +6,7 @@ import './market.css'
 import { MarketLogo } from './market-logos'
 import { PriceChart } from './pricechart'
 import { jalaliShort } from './jalali'
+import { ungroup } from './numgroup'
 
 const FAV_KEY = 'lifeos-market-favs'
 const ALERT_KEY = 'lifeos-market-alerts'
@@ -146,7 +147,8 @@ export function MarketReact({ Nav }) {
   const [showAdd, setShowAdd] = useState(false)
   const [addQuery, setAddQuery] = useState('')
   const [showAlert, setShowAlert] = useState(null)
-  const [convAmt, setConvAmt] = useState(1)
+  const [convIn, setConvIn] = useState('1')
+  const convAmt = Math.max(0, Number(ungroup(convIn)) || 0)
   const [convFrom, setConvFrom] = useState('USDT')
   const [alertTarget, setAlertTarget] = useState('')
 
@@ -398,7 +400,7 @@ export function MarketReact({ Nav }) {
               <button type="button" onClick={() => setShowConv(false)}>✕</button>
             </header>
             <label>مقدار</label>
-            <input type="number" min="0" step="any" value={convAmt} onChange={(e) => setConvAmt(Math.max(0, Number(e.target.value) || 0))} />
+            <input inputMode="decimal" dir="ltr" value={convIn} onChange={(e) => setConvIn(e.target.value)} />
             <label>از</label>
             <select value={convFrom} onChange={(e) => setConvFrom(e.target.value)}>
               <option value="USDT">تتر / دلار</option>
