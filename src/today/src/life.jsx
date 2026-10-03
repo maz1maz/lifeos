@@ -367,9 +367,9 @@ export function contractScope(contract) {
 }
 export function processTemplate(contract) {
   const items = contractScope(contract);
-  const out = FIXED_STAGES.map(([department, title]) => ({ department, title, base: title, item: '' }));
-  for (const item of items.length ? items : ['']) for (const [department, base] of ITEM_STAGES) out.push({ department, base, item, title: item ? `${base}${ITEM_SEP}${item}` : base });
-  for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '' });
+  const out = FIXED_STAGES.map(([department, title]) => ({ department, title, base: title, item: '', group: 'start' }));
+  for (const item of items.length ? items : ['']) for (const [department, base] of ITEM_STAGES) out.push({ department, base, item, group: `item:${item}`, title: item ? `${base}${ITEM_SEP}${item}` : base });
+  for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '', group: 'end' });
   return out.map((s, order) => ({ ...s, order }));
 }
 // Weighted progress. Each contract item is its own 0–100 (inside it: control 10, technical 15, supply 30,
@@ -457,7 +457,7 @@ const stageKey = s => keyOf(s.department, s.title);
 // the project's current checklist with stored rows merged in (old rows outside the template stay stored but hidden)
 export function projectStages(contract, rows) {
   const byKey = new Map((rows || []).map(x => [stageKey(x), x]));
-  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, order: t.order } : { ...t, status: 'todo' }; }), contract?.itemAreas);
+  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, group: t.group, order: t.order } : { ...t, status: 'todo' }; }), contract?.itemAreas);
 }
 function ContractTimeline({ contract }) {
   const start = contract?.contractStartDate || '';
@@ -479,6 +479,11 @@ export function weightedProgress(stages, department) {
   const pct = got / total * 100;
   return pct >= 99.999 ? 100 : Math.min(99, Math.round(pct));
 }
+const GROUP_TITLES = { start: 'مراحل عمومی پروژه', 'item:': 'مراحل اجرایی', end: 'تحویل پروژه' };
+function StageGroupHead({ title, rows }) {
+  const done = rows.filter(x => x.status === 'done').length, all = rows.length;
+  return <div className={`lf-process-group fixed ${all && done === all ? 'done' : ''}`}><b>{title}{all && done === all ? ' ✓' : ''}</b><small>{fa(done)} از {fa(all)} مرحله</small></div>;
+}
 // سرتیتر هر آیتم: پیشرفت مستقل آیتم (۰–۱۰۰) + سهمش از کل پروژه (بر اساس متراژ)
 function ItemGroupHead({ item, stages, share }) {
   const mine = stages.filter(x => x.item === item), pct = itemProgress(stages, item);
@@ -489,40 +494,45 @@ function ItemGroupHead({ item, stages, share }) {
   </div>;
 }
 function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd, onSeed, onCompletionChange }) {
-  const [localItems, setLocalItems] = useState(items);
   const [departmentFilter, setDepartmentFilter] = useState('');
-  const pendingCreates = useRef(new Set());
-  useEffect(() => { setLocalItems(items || []); }, [projectId, items]);
+  // Rows that exist are shown straight from useCol (its optimistic patch is the single source of truth).
+  // Stages not stored yet (virtual `template-N` rows) keep their in-flight edits here, keyed by stage, so a
+  // re-render or a concurrent seeding reply can never flash the tick off and on again.
+  const [pending, setPending] = useState({});
+  const creating = useRef({});
+  useEffect(() => { setPending({}); creating.current = {}; }, [projectId]);
   const tpl = useMemo(() => processTemplate(contract), [contract]);
-  const tplOrder = useMemo(() => Object.fromEntries(tpl.map(t => [stageKey(t), t.order])), [tpl]);
+  // once a stored row carries every pending field (and no create for it is still in flight — a seeding
+  // reply can match by accident before the create's own reply lands), the overlay is no longer needed
   useEffect(() => {
-    (items || []).forEach(item => {
-      const order = tplOrder[stageKey(item)];
-      if (order !== undefined) pendingCreates.current.delete(`template-${order}`);
-    });
-  }, [items, tplOrder]);
-  useEffect(() => { pendingCreates.current.clear(); }, [projectId]);
+    if (!Object.keys(pending).length) return;
+    const byKey = new Map((items || []).map(x => [stageKey(x), x]));
+    const left = Object.fromEntries(Object.entries(pending).filter(([k, p]) => { const row = byKey.get(k); return creating.current[k] || !row || Object.entries(p).some(([f, v]) => row[f] !== v); }));
+    if (Object.keys(left).length !== Object.keys(pending).length) setPending(left);
+  }, [items, pending]);
   // Older checklist rows (and rows of items removed from the contract) stay stored but are not shown.
-  const visibleItems = projectStages(contract, localItems).map(x => x.id ? x : { ...x, id: `template-${x.order}`, projectId });
+  const visibleItems = projectStages(contract, items).map(x => { const p = pending[stageKey(x)]; const y = p ? { ...x, ...p } : x; return y.id ? y : { ...y, id: `template-${y.order}`, projectId }; });
+  const createStage = (item, body) => {
+    const k = stageKey(item);
+    setPending(ps => ({ ...ps, [k]: { ...(ps[k] || {}), ...body } }));
+    if (creating.current[k]) return creating.current[k].then(r => r && onPatch(r.id, body).then(() => r));
+    const job = Promise.resolve(onAdd({ projectId: item.projectId, department: item.department, title: item.title, order: item.order, status: item.status || 'todo', ...body }))
+      .then(r => r, error => { setPending(ps => { const { [k]: _, ...rest } = ps; return rest; }); throw error; })
+      .finally(() => { delete creating.current[k]; setPending(ps => ({ ...ps })); });
+    creating.current[k] = job.catch(() => null);
+    return job;
+  };
   const patch = async (id, body) => {
-    setLocalItems(xs => { const list = xs || []; if (String(id).startsWith('template-') && !list.some(x => x.id === id)) { const item = visibleItems.find(x => x.id === id); return item ? [...list, { ...item, ...body }] : list; } return list.map(x => x.id === id ? { ...x, ...body } : x); });
-    let saved;
-    if (String(id).startsWith('template-')) {
-      const item = visibleItems.find(x => x.id === id);
-      if (item && !pendingCreates.current.has(id)) {
-        pendingCreates.current.add(id);
-        saved = Promise.resolve(onAdd({ projectId: item.projectId, department: item.department, title: item.title, order: item.order, status: item.status || 'todo', ...body })).catch(error => {
-          setLocalItems(xs => (xs || []).filter(x => x.id !== id));
-          throw error;
-        }).finally(() => pendingCreates.current.delete(id));
-      }
-    } else saved = Promise.resolve(onPatch(id, body));
+    const item = visibleItems.find(x => x.id === id);
+    const isNew = String(id).startsWith('template-');
+    if (!isNew && item) { const k = stageKey(item); setPending(ps => ps[k] ? { ...ps, [k]: { ...ps[k], ...body } } : ps); }
+    const saved = isNew ? (item ? createStage(item, body) : undefined) : Promise.resolve(onPatch(id, body));
     // The fixed checklist is the source of truth for project completion.
     // Wait for the stage write before changing the project's status; otherwise
     // the two old JSON snapshots can race and restore the unchecked stage.
     if (Object.prototype.hasOwnProperty.call(body, 'status')) {
-      const after = visibleItems.map(item => item.id === id ? { ...item, ...body } : item);
-      const nextDone = after.filter(item => item.status === 'done').length;
+      const after = visibleItems.map(x => x.id === id ? { ...x, ...body } : x);
+      const nextDone = after.filter(x => x.status === 'done').length;
       try {
         const result = saved ? await saved : undefined;
         if (result !== undefined) await onCompletionChange?.(nextDone === tpl.length || isDelivered(after));
@@ -565,8 +575,10 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
       </div></div>
     </div>
     {departmentFilter ? <div className="lf-process-filter-note"><b>فیلتر: {departmentFilter}</b><button type="button" onClick={() => setDepartmentFilter('')}>نمایش همه ×</button></div> : null}
-    <div className="lf-process-cols"><span>انجام</span><span>ردیف</span><span>یادآوری</span><span>واحد</span><span>مراحل پروژه</span><span>تاریخ</span><span>مسئول</span><span>توضیحات</span></div>
-    {ordered.map((item, i) => item.item && item.item !== ordered[i - 1]?.item ? [<ItemGroupHead key={`g-${item.item}`} item={item.item} stages={visibleItems} share={shares[item.item]} />, row(item, i)] : row(item, i))}
+    {ordered.map((item, i) => item.group && item.group !== ordered[i - 1]?.group ? [
+      item.item ? <ItemGroupHead key={`g-${item.group}`} item={item.item} stages={visibleItems} share={shares[item.item]} /> : <StageGroupHead key={`g-${item.group}`} title={GROUP_TITLES[item.group] || GROUP_TITLES['item:']} rows={visibleItems.filter(x => x.group === item.group)} />,
+      <div key={`c-${item.group}`} className="lf-process-cols"><span>انجام</span><span>ردیف</span><span>یادآوری</span><span>واحد</span><span>مراحل پروژه</span><span>تاریخ</span><span>مسئول</span><span>توضیحات</span></div>,
+      row(item, i)] : row(item, i))}
   </section></div>;
 }
 function ContractFinancials({ contract, onPatch, onAddStatement, addLabel = '＋ صورت‌وضعیت' }) {
