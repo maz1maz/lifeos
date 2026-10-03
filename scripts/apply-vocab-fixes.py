@@ -12,7 +12,7 @@ Replaces meaning/pos/definition/example/synonym columns; keeps topic, level and 
 Drops the extra-senses column (11) for rewritten words.
 Usage: python3 scripts/apply-vocab-fixes.py FILE...
 """
-import json, os, sys
+import re, json, os, sys
 
 path = os.path.join(os.path.dirname(__file__), '..', 'public', 'vocab', 'words.json')
 rows = json.load(open(path, encoding='utf-8'))
@@ -35,7 +35,7 @@ for f in sys.argv[1:]:
         if not r:
             missing.append(p[0])
             continue
-        fa = [m.strip() for m in p[2].split('،') if m.strip()]
+        fa = [m.strip() for m in re.split(r'،(?![^()]*\))', p[2]) if m.strip()]  # keep «(آب، برق)» whole
         if extra:
             if len(r) < 12:
                 r.append([[r[4], '، '.join(r[1]), r[5], r[10], r[6], r[9]]])
