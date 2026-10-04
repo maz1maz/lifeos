@@ -335,6 +335,10 @@ async function main() {
       const repeatProcess = await call('/api/col/projectProcesses', { method: 'POST', cookie, body: { projectId: p.id, department: 'فنی', title: 'ابعادبرداری دقیق', status: 'done' } });
       const projectProcesses = (await call('/api/col/projectProcesses', { cookie })).d.items.filter(x => x.projectId === p.id && x.department === 'فنی' && x.title === 'ابعادبرداری دقیق');
       check('project process seed cannot undo an already ticked stage', repeatProcess.status === 200 && repeatProcess.d.id === pp.d.id && repeatProcess.d.status === 'done' && projectProcesses.length === 1, JSON.stringify({ repeatProcess, projectProcesses }));
+      // batch seed from the app (useCol.addMany): real rows, deduped, never a junk {items:[…]} row, never undoes a tick
+      const seeded = await call('/api/col/projectProcesses', { method: 'POST', cookie, body: { items: [{ projectId: p.id, department: 'فنی', title: 'ابعادبرداری دقیق', status: 'todo' }, { projectId: p.id, department: 'اجرا', title: 'شروع نصب — پنجره', status: 'done', note: 'از ردیف قدیمی' }] } });
+      const afterSeed = (await call('/api/col/projectProcesses', { cookie })).d.items.filter(x => x.projectId === p.id);
+      check('process batch seed creates real rows and keeps existing ticks', seeded.status === 201 && seeded.d.items.length === 2 && seeded.d.items[0].id === pp.d.id && afterSeed.find(x => x.id === pp.d.id).status === 'done' && afterSeed.some(x => x.title === 'شروع نصب — پنجره' && x.note === 'از ردیف قدیمی') && !afterSeed.some(x => Array.isArray(x.items)), JSON.stringify(seeded.d));
       const rem = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'یادآوری مرحله', date: '2030-01-01', time: '09:00' } })).d;
       await call(`/api/col/projectProcesses/${pp.d.id}`, { method: 'PATCH', cookie, body: { reminderId: rem.id } });
       const delP = await call(`/api/col/projects/${p.id}`, { method: 'DELETE', cookie });

@@ -480,7 +480,7 @@ const stageKey = s => keyOf(s.department, s.title);
 // the project's current checklist with stored rows merged in (old rows outside the template stay stored but hidden)
 export function projectStages(contract, rows) {
   const byKey = new Map((rows || []).map(x => [stageKey(x), x]));
-  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, group: t.group, order: t.order } : { ...t, status: 'todo' }; }), contract?.itemAreas);
+  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, group: t.group, order: t.order } : { ...t, status: 'todo', ...legacyCarry(t, byKey), carried: true }; }), contract?.itemAreas);
 }
 function ContractTimeline({ contract }) {
   const start = contract?.contractStartDate || '';
@@ -558,7 +558,8 @@ function ProcessChecklist({ projectId, items, contract, onPatchContract, onToggl
     const k = stageKey(item);
     setPending(ps => ({ ...ps, [k]: { ...(ps[k] || {}), ...body } }));
     if (creating.current[k]) return creating.current[k].then(r => r && onPatch(r.id, body).then(() => r));
-    const job = Promise.resolve(onAdd({ projectId: item.projectId, department: item.department, title: item.title, order: item.order, status: item.status || 'todo', ...body }))
+    // a virtual row may show data carried over from an older/generic row: store it with the first edit
+    const job = Promise.resolve(onAdd({ projectId: item.projectId, department: item.department, title: item.title, order: item.order, status: item.status || 'todo', ...(item.carried ? carryOf(item) : null), ...body }))
       .then(r => r, error => { setPending(ps => { const { [k]: _, ...rest } = ps; return rest; }); throw error; })
       .finally(() => { delete creating.current[k]; setPending(ps => ({ ...ps })); });
     creating.current[k] = job.catch(() => null);
