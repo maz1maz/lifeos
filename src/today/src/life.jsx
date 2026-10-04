@@ -357,6 +357,9 @@ const ITEM_STAGES = [
   ['اجرا', 'پایان نصب']
 ];
 const FINAL_STAGES = [['اجرا', 'تحویل پروژه']];
+// extra stages only some items have, inserted after the given base stage
+const ITEM_EXTRA_STAGES = { 'پنجره': { after: 'شروع نصب', stages: [['اجرا', 'وضعیت روکوب'], ['اجرا', 'وضعیت رین‌فورس']] } };
+const stagesForItem = item => { const x = Object.entries(ITEM_EXTRA_STAGES).find(([k]) => normItem(k) === normItem(item))?.[1]; if (!x) return ITEM_STAGES; const i = ITEM_STAGES.findIndex(([, b]) => b === x.after) + 1; return [...ITEM_STAGES.slice(0, i), ...x.stages, ...ITEM_STAGES.slice(i)]; };
 export const PROCESS_DEPARTMENTS = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'];
 const CONTRACT_ITEMS = ['پنجره', 'کرتن‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
 const normItem = x => String(x || '').replace(/[\s‌]+/g, '').replace(/کرتن/g, 'کرتین');
@@ -373,7 +376,7 @@ export function contractScope(contract) {
 export function processTemplate(contract) {
   const items = contractScope(contract);
   const out = FIXED_STAGES.map(([department, title]) => ({ department, title, base: title, item: '', group: 'start' }));
-  for (const item of items.length ? items : ['']) for (const [department, base] of ITEM_STAGES) out.push({ department, base, item, group: `item:${item}`, title: item ? `${base}${ITEM_SEP}${item}` : base });
+  for (const item of items.length ? items : ['']) for (const [department, base] of stagesForItem(item)) out.push({ department, base, item, group: `item:${item}`, title: item ? `${base}${ITEM_SEP}${item}` : base });
   for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '', group: 'end' });
   return out.map((s, order) => ({ ...s, order }));
 }
