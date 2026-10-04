@@ -6,7 +6,7 @@ on:
       ref:
         description: 'شاخه/کامیت برای deploy'
         required: true
-        default: main
+        default: master
 
 concurrency:
   group: deploy-pdmaz
