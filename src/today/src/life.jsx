@@ -480,7 +480,7 @@ const stageKey = s => keyOf(s.department, s.title);
 // the project's current checklist with stored rows merged in (old rows outside the template stay stored but hidden)
 export function projectStages(contract, rows) {
   const byKey = new Map((rows || []).map(x => [stageKey(x), x]));
-  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, group: t.group, order: t.order } : { ...t, status: 'todo' }; }), contract?.itemAreas);
+  return withWeights(processTemplate(contract).map(t => { const row = byKey.get(stageKey(t)); return row ? { ...row, department: t.department, title: t.title, base: t.base, item: t.item, group: t.group, order: t.order } : { ...t, status: 'todo', ...legacyCarry(t, byKey), carried: true }; }), contract?.itemAreas);
 }
 function ContractTimeline({ contract }) {
   const start = contract?.contractStartDate || '';
@@ -558,7 +558,8 @@ function ProcessChecklist({ projectId, items, contract, onPatchContract, onToggl
     const k = stageKey(item);
     setPending(ps => ({ ...ps, [k]: { ...(ps[k] || {}), ...body } }));
     if (creating.current[k]) return creating.current[k].then(r => r && onPatch(r.id, body).then(() => r));
-    const job = Promise.resolve(onAdd({ projectId: item.projectId, department: item.department, title: item.title, order: item.order, status: item.status || 'todo', ...body }))
+    // a virtual row may show data carried over from an older/generic row: store it with the first edit
+    const job = Promise.resolve(onAdd({ projectId: item.projectId, department: item.department, title: item.title, order: item.order, status: item.status || 'todo', ...(item.carried ? carryOf(item) : null), ...body }))
       .then(r => r, error => { setPending(ps => { const { [k]: _, ...rest } = ps; return rest; }); throw error; })
       .finally(() => { delete creating.current[k]; setPending(ps => ({ ...ps })); });
     creating.current[k] = job.catch(() => null);
@@ -583,10 +584,16 @@ function ProcessChecklist({ projectId, items, contract, onPatchContract, onToggl
     return saved;
   };
   const save = (item, key, value) => { if (value !== (item[key] || '')) patch(item.id, { [key]: value }); };
-  const done = visibleItems.filter(x => x.status === 'done').length;
-  const ordered = visibleItems.slice().sort((a, b) => a.order - b.order).filter(item => !departmentFilter || item.department === departmentFilter);
+  // no contract item picked yet: the generic per-item stages would be renamed (and hidden) as soon as one is
+  // picked, so they are not offered at all — unless older data already sits on them
+  const generic = visibleItems.filter(x => x.group === 'item:');
+  const needItems = generic.length > 0 && !generic.some(x => x.status === 'done' || x.date || x.owner || x.note || x.reminderDate || Number(x.percent) > 0);
+  // counters follow what is on screen (hidden generic stages are not counted)
+  const shown = needItems ? visibleItems.filter(x => x.group !== 'item:') : visibleItems;
+  const done = shown.filter(x => x.status === 'done').length;
+  const ordered = visibleItems.slice().sort((a, b) => a.order - b.order).filter(item => (!departmentFilter || item.department === departmentFilter) && !(needItems && item.group === 'item:'));
   const deptClass = department => `dept-${String(department).replaceAll(' ', '-')}`;
-  const depts = PROCESS_DEPARTMENTS.map(department => { const all = visibleItems.filter(x => x.department === department), complete = all.filter(x => x.status === 'done').length; return { department, total: all.length, complete, pct: all.length ? weightedProgress(visibleItems, department) : 0 }; });
+  const depts = PROCESS_DEPARTMENTS.map(department => { const all = shown.filter(x => x.department === department), complete = all.filter(x => x.status === 'done').length; return { department, total: all.length, complete, pct: all.length ? weightedProgress(visibleItems, department) : 0 }; });
   const pct = weightedProgress(visibleItems);
   const scopeItems = [...new Set(visibleItems.filter(x => x.item).map(x => x.item))];
   const shares = itemShares(scopeItems, contract?.itemAreas);
@@ -608,15 +615,16 @@ function ProcessChecklist({ projectId, items, contract, onPatchContract, onToggl
     </article>;
   };
   return <div className="lf-processes"><section>
-    <h4>مراحل پروژه<em>{fa(done)} از {fa(visibleItems.length)} انجام</em></h4>
+    <h4>مراحل پروژه<em>{fa(done)} از {fa(shown.length)} انجام</em></h4>
     <div className="lf-process-metrics">
       <div className="lf-process-dept-stats lf-process-departments" aria-label="فیلتر مراحل بر اساس واحد">{depts.map(x => <button type="button" key={x.department} className={`${deptClass(x.department)} ${departmentFilter === x.department ? 'on' : ''}`} onClick={() => setDepartmentFilter(current => current === x.department ? '' : x.department)} aria-pressed={departmentFilter === x.department} title={departmentFilter === x.department ? 'نمایش همهٔ مراحل' : `فقط مراحل ${x.department}`}><span><b>{x.department}</b><small>{fa(x.complete)} از {fa(x.total)}</small></span><i><em style={{ width: `${x.pct}%` }} /></i><small>{fa(x.pct)}٪ تکمیل</small></button>)}</div>
       <div className="lf-process-summary"><ContractTimeline contract={contract} /><div className="lf-process-progress">
-        <div className="lf-process-progress-top"><b>پیشرفت کل پروژه</b><strong>{fa(pct)}٪</strong><span>{fa(done)} از {fa(visibleItems.length)} مرحله</span></div>
+        <div className="lf-process-progress-top"><b>پیشرفت کل پروژه</b><strong>{fa(pct)}٪</strong><span>{fa(done)} از {fa(shown.length)} مرحله</span></div>
         <div className="lf-process-progress-bar"><i style={{ width: `${pct}%` }} /></div>
       </div></div>
     </div>
     {scopeItems.length ? <ItemsPanel items={scopeItems} stages={visibleItems} shares={shares} onPick={it => document.getElementById(`pg-${projectId}-${it}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} /> : null}
+    {needItems ? <div className="lf-process-need-items" role="note"><b>اول آیتم‌های قرارداد را انتخاب کن</b><span>مراحل اجرایی برای هر آیتم (پنجره، کرتن‌وال، …) جدا ساخته می‌شوند. آیتم‌ها را در تب «اطلاعات پروژه و قرارداد» انتخاب کن.</span></div> : null}
     {departmentFilter ? <div className="lf-process-filter-note"><b>فیلتر: {departmentFilter}</b><button type="button" onClick={() => setDepartmentFilter('')}>نمایش همه ×</button></div> : null}
     {ordered.map((item, i) => item.group && item.group !== ordered[i - 1]?.group ? [
       item.item ? <ItemGroupHead key={`g-${item.group}`} anchor={`pg-${projectId}-${item.item}`} contract={contract} onPatchContract={onPatchContract} item={item.item} stages={visibleItems} share={shares[item.item]} /> : <StageGroupHead key={`g-${item.group}`} title={GROUP_TITLES[item.group] || GROUP_TITLES['item:']} rows={visibleItems.filter(x => x.group === item.group)} />,

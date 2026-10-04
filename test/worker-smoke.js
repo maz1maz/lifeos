@@ -56,6 +56,15 @@ function makeEnv(legacy = null) {
       store.set(params[0], params[1]);
       return { success: true };
     }
+    // write guards: fail (UNIQUE on the existing meta key) when a shard changed since it was read
+    if (sql.startsWith("INSERT INTO kv (key,value,updated_at) SELECT ?,'',0 WHERE NOT EXISTS")) {
+      if (store.get(params[1]) !== params[2]) throw new Error('UNIQUE constraint failed: kv.key');
+      return { success: true };
+    }
+    if (sql.startsWith("INSERT INTO kv (key,value,updated_at) SELECT ?,'',0 WHERE EXISTS")) {
+      if (store.has(params[1])) throw new Error('UNIQUE constraint failed: kv.key');
+      return { success: true };
+    }
     if (sql.startsWith('DELETE FROM kv WHERE key=?')) {
       store.delete(params[0]);
       return { success: true };
@@ -86,8 +95,11 @@ function makeEnv(legacy = null) {
         };
         return st;
       },
+      // D1 batches are transactions: a failing statement rolls back the whole batch
       async batch(statements) {
-        for (const statement of statements) await statement.run();
+        const snapshot = new Map(store);
+        try { for (const statement of statements) await statement.run(); }
+        catch (e) { store.clear(); for (const [k, v] of snapshot) store.set(k, v); throw e; }
         return statements.map(() => ({ success: true }));
       },
     },
@@ -323,6 +335,10 @@ async function main() {
       const repeatProcess = await call('/api/col/projectProcesses', { method: 'POST', cookie, body: { projectId: p.id, department: 'فنی', title: 'ابعادبرداری دقیق', status: 'done' } });
       const projectProcesses = (await call('/api/col/projectProcesses', { cookie })).d.items.filter(x => x.projectId === p.id && x.department === 'فنی' && x.title === 'ابعادبرداری دقیق');
       check('project process seed cannot undo an already ticked stage', repeatProcess.status === 200 && repeatProcess.d.id === pp.d.id && repeatProcess.d.status === 'done' && projectProcesses.length === 1, JSON.stringify({ repeatProcess, projectProcesses }));
+      // batch seed from the app (useCol.addMany): real rows, deduped, never a junk {items:[…]} row, never undoes a tick
+      const seeded = await call('/api/col/projectProcesses', { method: 'POST', cookie, body: { items: [{ projectId: p.id, department: 'فنی', title: 'ابعادبرداری دقیق', status: 'todo' }, { projectId: p.id, department: 'اجرا', title: 'شروع نصب — پنجره', status: 'done', note: 'از ردیف قدیمی' }] } });
+      const afterSeed = (await call('/api/col/projectProcesses', { cookie })).d.items.filter(x => x.projectId === p.id);
+      check('process batch seed creates real rows and keeps existing ticks', seeded.status === 201 && seeded.d.items.length === 2 && seeded.d.items[0].id === pp.d.id && afterSeed.find(x => x.id === pp.d.id).status === 'done' && afterSeed.some(x => x.title === 'شروع نصب — پنجره' && x.note === 'از ردیف قدیمی') && !afterSeed.some(x => Array.isArray(x.items)), JSON.stringify(seeded.d));
       const rem = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'یادآوری مرحله', date: '2030-01-01', time: '09:00' } })).d;
       await call(`/api/col/projectProcesses/${pp.d.id}`, { method: 'PATCH', cookie, body: { reminderId: rem.id } });
       const delP = await call(`/api/col/projects/${p.id}`, { method: 'DELETE', cookie });
@@ -745,6 +761,13 @@ async function main() {
     check('ext reminder list does not leak unrelated reminders', !(await ext('/api/ext/reminders', { token })).d.items.some(r => r.id === appRem.id));
     const batch = await ext('/api/ext/col/projectProcesses', { method: 'POST', token, body: { items: [{ projectId: proj.d.id, department: 'فنی', title: 'ابعادبرداری دقیق' }, { projectId: proj.d.id, department: 'فنی', title: 'تهیه نقشهٔ شاپ' }, { projectId: 'nope', department: 'فنی', title: 'x' }] } });
     check('batch insert dedupes stages and skips foreign parents', batch.status === 201 && batch.d.items.length === 2 && batch.d.items[0].id === stage.d.id, JSON.stringify(batch.d));
+    // concurrent saves on one collection (slow panel proxy + retries) must not overwrite each other
+    const many = (await ext('/api/ext/col/projectProcesses', { method: 'POST', token, body: { items: [1, 2, 3, 4, 5].map(n => ({ projectId: proj.d.id, department: 'اجرا', title: 'race ' + n, status: 'todo' })) } })).d.items;
+    await Promise.all([...many.map(x => ext('/api/ext/col/projectProcesses/' + x.id, { method: 'PATCH', token, body: { status: 'done' } })),
+      call('/api/col/projectProcesses/' + many[0].id, { method: 'PATCH', cookie, body: { note: 'هم‌زمان' } }),
+      ext('/api/ext/col/projectProcesses', { method: 'POST', token, body: { projectId: proj.d.id, department: 'اجرا', title: 'race new' } })]);
+    const raced = (await ext('/api/ext/col/projectProcesses', { token })).d.items;
+    check('concurrent stage saves all survive (rows + fields merged)', many.every(x => raced.find(y => y.id === x.id)?.status === 'done') && raced.find(y => y.id === many[0].id)?.note === 'هم‌زمان' && raced.some(y => y.title === 'race new'), JSON.stringify(raced.filter(y => String(y.title).startsWith('race')).map(y => [y.title, y.status, y.note])));
 
     // free reminder tied to a project, then delivered by the real cron → Telegram path
     check('reminder tied to an unknown project is refused', (await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: 'nope', title: 'x', date: today(), time: '10:00' } })).status === 400);

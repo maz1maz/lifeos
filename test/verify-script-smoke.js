@@ -43,6 +43,9 @@ function makeEnv(assetMode) {
       store.set(params[0], params[1]);
       return { success: true };
     }
+    // worker write guards (shard changed since read → UNIQUE on the meta key)
+    if (sql.startsWith("INSERT INTO kv (key,value,updated_at) SELECT ?,'',0 WHERE NOT EXISTS")) { if (store.get(params[1]) !== params[2]) throw new Error('UNIQUE constraint failed: kv.key'); return { success: true }; }
+    if (sql.startsWith("INSERT INTO kv (key,value,updated_at) SELECT ?,'',0 WHERE EXISTS")) { if (store.has(params[1])) throw new Error('UNIQUE constraint failed: kv.key'); return { success: true }; }
     if (sql.startsWith('DELETE FROM kv WHERE key=?')) {
       store.delete(params[0]);
       return { success: true };

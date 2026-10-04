@@ -112,16 +112,51 @@ function makeHelpers(env) {
       throw error;
     }
   }
+  // Optimistic concurrency. Two requests that read the same snapshot used to
+  // overwrite each other's shard: e.g. a slow proxied save (seyfikhani panel)
+  // landing after the next edits wiped a whole project checklist except a tick
+  // or two. Every shard a write touches is now checked, inside the same D1
+  // batch, against the value it was read with; on a mismatch the batch rolls
+  // back, the fresh state is re-read and this request's own changes are
+  // replayed onto it (3-way merge: rows by id, then field by field).
+  const GUARD_SAME="INSERT INTO kv (key,value,updated_at) SELECT ?,'',0 WHERE NOT EXISTS (SELECT 1 FROM kv WHERE key=? AND value=?)";
+  const GUARD_ABSENT="INSERT INTO kv (key,value,updated_at) SELECT ?,'',0 WHERE EXISTS (SELECT 1 FROM kv WHERE key=?)";
+  function mergeState(base,ours,theirs){
+    let o=JSON.stringify(ours),b=JSON.stringify(base);
+    if(o===b)return theirs;
+    let t=JSON.stringify(theirs);
+    if(t===b||t===o)return ours;
+    const isObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v),hasIds=v=>Array.isArray(v)&&v.every(r=>isObj(r)&&r.id!=null);
+    if(hasIds(base)&&hasIds(ours)&&hasIds(theirs)){
+      let bm=new Map(base.map(r=>[String(r.id),r])),om=new Map(ours.map(r=>[String(r.id),r])),seen=new Set(),out=[];
+      for(const r of theirs){let k=String(r.id),br=bm.get(k),or=om.get(k);seen.add(k);if(br&&!or)continue;out.push(!or?r:br?mergeState(br,or,r):or)}
+      for(const r of ours){let k=String(r.id);if(!seen.has(k)&&!bm.has(k))out.push(r)}
+      return out;
+    }
+    if(isObj(base)&&isObj(ours)&&isObj(theirs)){
+      let out={};for(const k of new Set([...Object.keys(theirs),...Object.keys(ours),...Object.keys(base)])){let v=mergeState(base[k],ours[k],theirs[k]);if(v!==undefined)out[k]=v}
+      return out;
+    }
+    return ours;
+  }
   async function write(db){
     if(db.__storageMode!=='v2'){
       await stateUpsert(LEGACY_DB_KEY,JSON.stringify(db),Date.now()).run();
       return;
     }
-    let next=serializeState(db),before=db.__storageChunks||new Map(),at=Date.now(),statements=[];
-    for(const [key,value]of next)if(before.get(key)!==value)statements.push(stateUpsert(key,value,at));
-    for(const key of before.keys())if(!next.has(key))statements.push(env.DB.prepare('DELETE FROM kv WHERE key=?').bind(key));
-    await runStateBatch(statements);
-    attachStorageState(db,'v2',next);
+    for(let attempt=0;;attempt++){
+      let next=serializeState(db),before=db.__storageChunks||new Map(),at=Date.now(),guards=[],statements=[];
+      const guard=key=>{let old=before.get(key);guards.push(old===undefined?env.DB.prepare(GUARD_ABSENT).bind(STATE_V2_META,key):env.DB.prepare(GUARD_SAME).bind(STATE_V2_META,key,old))};
+      for(const [key,value]of next)if(before.get(key)!==value){guard(key);statements.push(stateUpsert(key,value,at))}
+      for(const key of before.keys())if(!next.has(key)){guard(key);statements.push(env.DB.prepare('DELETE FROM kv WHERE key=?').bind(key))}
+      try{await runStateBatch([...guards,...statements]);attachStorageState(db,'v2',next);return}
+      catch(error){
+        if(attempt>=5||!/UNIQUE/i.test(String(error&&error.message||error)))throw error;
+        let fresh=await read(),base=rebuildState([...before].map(([key,value])=>({key,value}))),merged=mergeState(base,db,fresh);
+        for(const k of Object.keys(db))if(!(k in merged))delete db[k];
+        Object.assign(db,merged);attachStorageState(db,'v2',fresh.__storageChunks);
+      }
+    }
   }
   function json(res, status, data) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store, max-age=0' }); res.end(JSON.stringify(data)) }
   async function body(req) { try { let t = await req.text(); return t ? JSON.parse(t) : {} } catch (e) { throw e } }
@@ -1513,7 +1548,14 @@ async function handleApi(request, env) {
  // Checklist rows are identified by their project, unit, and fixed title. A
  // late template-seed request must never create a second "todo" row that can
  // overwrite a user's just-completed stage.
- if(p==='/api/col/projectProcesses'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),d=cleanItem(await body(req)),list=colOf(db,'projectProcesses'),projectId=String(d.projectId||''),department=String(d.department||''),title=String(d.title||'');if(projectId&&department&&title){let existing=list.find(x=>x.userId===user.id&&String(x.projectId||'')===projectId&&String(x.department||'')===department&&String(x.title||'')===title);if(existing){Object.assign(existing,d,{updatedAt:Date.now()});await write(db);return json(res,200,existing)}}let r={id:id(),userId:user.id,...d,createdAt:Date.now(),updatedAt:Date.now()};if(list.filter(x=>x.userId===user.id).length>=5000)return json(res,400,{error:'این مجموعه پر است.'});list.push(r);await write(db);return json(res,201,r)}
+ if(p==='/api/col/projectProcesses'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),raw=await body(req),list=colOf(db,'projectProcesses');
+   // batch seed (useCol.addMany: missing template stages + data carried over from renamed/generic rows). This route used to
+   // store the whole {items:[…]} body as one junk row, so stages were never created and old data stayed hidden.
+   if(Array.isArray(raw.items)){for(let i=list.length-1;i>=0;i--){let x=list[i];if(x.userId===user.id&&!x.title&&Array.isArray(x.items))list.splice(i,1)}
+     let made=[];for(const x of raw.items.slice(0,200)){let d=cleanItem(x);if(!d.projectId||!d.department||!d.title)continue;let ex=list.find(y=>y.userId===user.id&&String(y.projectId||'')===String(d.projectId)&&String(y.department||'')===String(d.department)&&String(y.title||'')===String(d.title));if(ex){made.push(ex);continue}
+       if(list.filter(y=>y.userId===user.id).length>=5000)break;let r={id:id(),userId:user.id,...d,createdAt:Date.now(),updatedAt:Date.now()};list.push(r);made.push(r)}
+     await write(db);return json(res,201,{items:made})}
+   let d=cleanItem(raw),projectId=String(d.projectId||''),department=String(d.department||''),title=String(d.title||'');if(projectId&&department&&title){let existing=list.find(x=>x.userId===user.id&&String(x.projectId||'')===projectId&&String(x.department||'')===department&&String(x.title||'')===title);if(existing){Object.assign(existing,d,{updatedAt:Date.now()});await write(db);return json(res,200,existing)}}let r={id:id(),userId:user.id,...d,createdAt:Date.now(),updatedAt:Date.now()};if(list.filter(x=>x.userId===user.id).length>=5000)return json(res,400,{error:'این مجموعه پر است.'});list.push(r);await write(db);return json(res,201,r)}
  if(p.startsWith('/api/col/')){let db=await read(),user=auth(req,res,db),parts=p.split('/'),name=parts[3],iid=parts[4];if(!COLS.includes(name))return json(res,404,{error:'مجموعه ناشناخته.'});let list=colOf(db,name);if(!iid&&req.method==='GET'){let items=list.filter(x=>x.userId===user.id);let lim=Math.min(Number(u.searchParams.get('limit'))||2000,5000);return json(res,200,{items:items.slice(-lim)})}if(!iid&&req.method==='POST'){let d=await body(req);if(Array.isArray(d.items)){let made=d.items.slice(0,200).map(x=>({id:id(),userId:user.id,...cleanItem(x),createdAt:Date.now(),updatedAt:Date.now()}));list.push(...made);await write(db);return json(res,201,{items:made})}let r={id:id(),userId:user.id,...cleanItem(d),createdAt:Date.now(),updatedAt:Date.now()};if(list.filter(x=>x.userId===user.id).length>=5000)return json(res,400,{error:'این مجموعه پر است.'});list.push(r);await write(db);return json(res,201,r)}let ix=list.findIndex(x=>x.id===iid&&x.userId===user.id);if(ix<0)return json(res,404,{error:'مورد پیدا نشد.'});if(req.method==='DELETE'){if(name==='projects'){/* one request deletes the whole project: its rows and their reminders */let rem=new Set();for(const k of ['cards','projectProcesses','projectContracts','projectFinancials','projectSupplies']){let L=colOf(db,k),keep=[];for(const x of L){if(x.userId===user.id&&x.projectId===iid){if(x.reminderId)rem.add(x.reminderId);if(x.contractRenewalReminderId)rem.add(x.contractRenewalReminderId)}else keep.push(x)}db.col[k]=keep}if(rem.size)db.reminders=(db.reminders||[]).filter(r=>!(r.userId===user.id&&rem.has(r.id)))}list.splice(ix,1);db.attachments=(db.attachments||[]).filter(a=>!(a.ownerType==='col'&&a.ownerId===iid));await write(db);return json(res,200,{ok:true})}if(req.method==='PATCH'||req.method==='PUT'){let d=await body(req);Object.assign(list[ix],cleanItem(d),{updatedAt:Date.now()});await write(db);return json(res,200,list[ix])}return json(res,405,{error:'روش پشتیبانی نمی‌شود.'})}
  if(p.startsWith('/api/subscriptions/')&&(req.method==='PATCH'||req.method==='DELETE')&&!p.endsWith('/pay')){let db=await read(),user=auth(req,res,db),r=db.subscriptions.find(x=>x.id===p.split('/').pop()&&x.userId===user.id);if(!r)return json(res,404,{error:'پیدا نشد.'});if(req.method==='DELETE'){r.archived=true;await write(db);return json(res,200,{ok:true})}let d=await body(req);for(const k of ['name','cycle','nextDate','account','kind','note'])if(d[k]!==undefined)r[k]=d[k];if(d.amount!==undefined)r.amount=Number(d.amount)||r.amount;await write(db);return json(res,200,r)}
  if(p==='/api/attachments'&&req.method==='GET'){let db=await read(),user=auth(req,res,db),ot=u.searchParams.get('ownerType'),oi=u.searchParams.get('ownerId');return json(res,200,{items:(db.attachments||[]).filter(a=>a.userId===user.id&&(!ot||a.ownerType===ot)&&(!oi||a.ownerId===oi)).map(a=>({id:a.id,ownerType:a.ownerType,ownerId:a.ownerId,name:a.name,mime:a.mime,size:a.size,url:a.url,createdAt:a.createdAt}))})}
