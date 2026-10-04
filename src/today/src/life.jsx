@@ -825,6 +825,7 @@ export function ProjectsPage({ Nav }) {
   // Projects no longer have an archive view; older archived records remain
   // visible instead of becoming inaccessible.
   const [compare, setCompare] = useState(false);
+  const [deleting, setDeleting] = useState('');
   const list = projects.items || [];
   // manual order from drag-and-drop in the side list; projects without `order` keep creation order at the end
   const ordered = list.map((p, i) => [p, Number.isFinite(p.order) ? p.order : 1e6 + i]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
@@ -839,16 +840,21 @@ export function ProjectsPage({ Nav }) {
   const deleteProject = async p => {
     if (!isArchived(p)) return;
     if (!await askMath({ title: `پروژهٔ «${p.name}» برای همیشه حذف شود؟`, detail: 'قرارداد، صورت‌وضعیت‌ها، مراحل، کارت‌ها و یادآوری‌های این پروژه هم پاک می‌شوند. این کار برگشت ندارد.', confirmLabel: 'حذف برای همیشه' })) return;
-    // snapshot the child rows
-    const kids = [[processes, 'projectProcesses'], [financials, 'projectFinancials'], [contracts, 'projectContracts'], [supplies, 'projectSupplies'], [cards, 'cards']].map(([col, name]) => [col, name, (col.items || []).filter(x => x.projectId === p.id)]);
-    // children first: the seyfikhani API refuses to delete a project that still has rows. Re-seeding is blocked
-    // meanwhile (contract seed flag; the checklist seed already ran for this template).
-    contractSeeds.current.add(p.id);
-    for (const r of kids[0][2]) if (r.reminderId) await api(`/api/reminders/${r.reminderId}`, { method: 'DELETE' }).catch(() => {});
-    for (const [, name, rows] of kids) for (const r of rows) await api(`/api/col/${name}/${r.id}`, { method: 'DELETE' }).catch(() => {});
-    setPidRaw('');
-    await projects.remove(p.id);
-    for (const [col, , rows] of kids) if (rows.length) col.reload();
+    setDeleting(p.name);
+    try {
+      contractSeeds.current.add(p.id); // no contract re-seed for it while it goes
+      // LifeOS deletes the project with all its rows and reminders in one request; the seyfikhani panel's API
+      // refuses while rows exist, so there the rows go first, one by one
+      try { await api(`/api/col/projects/${p.id}`, { method: 'DELETE' }); }
+      catch {
+        for (const r of (processes.items || []).filter(x => x.projectId === p.id)) if (r.reminderId) await api(`/api/reminders/${r.reminderId}`, { method: 'DELETE' }).catch(() => {});
+        for (const [col, name] of [[processes, 'projectProcesses'], [financials, 'projectFinancials'], [contracts, 'projectContracts'], [supplies, 'projectSupplies'], [cards, 'cards']]) for (const r of (col.items || []).filter(x => x.projectId === p.id)) await api(`/api/col/${name}/${r.id}`, { method: 'DELETE' }).catch(() => {});
+        await api(`/api/col/projects/${p.id}`, { method: 'DELETE' });
+      }
+      setPidRaw('');
+      await Promise.all([projects, processes, financials, contracts, supplies, cards].map(col => col.reload()));
+    } catch (e) { window.alert(`حذف پروژه انجام نشد: ${e.message}`); }
+    finally { setDeleting(''); }
   };
   const cur = (() => { const p = list.find(x => x.id === pid); if (p && (picked || !isFinished(p))) return p; return ordered.find(x => !isFinished(x)) || p || ordered.find(x => !isArchived(x)) || ordered[0] || null; })();
   useEffect(() => { if (cur) try { localStorage.setItem('lifeos-project', cur.id); } catch {} }, [cur?.id]);
@@ -955,9 +961,10 @@ export function ProjectsPage({ Nav }) {
           return <>
             <div className="lf-row-head lf-phead"><div><h2 style={{ color: cur.color || PCOLORS[0] }}>{cur.name}</h2><small>{[cur.client, cur.deadline ? `مهلت ${jShort(cur.deadline)}` : ''].filter(Boolean).join(' · ')} {cur.deadline ? dueChip(cur.deadline) : null}</small></div>
               <div className="lf-pops"><div className="lf-dots" role="radiogroup" aria-label="رنگ پروژه">{PCOLORS.map((c, i) => <button key={c} role="radio" aria-checked={(cur.color || PCOLORS[0]) === c} title={PNAMES[i]} className={(cur.color || PCOLORS[0]) === c ? 'on' : ''} style={{ background: c }} onClick={() => projects.patch(cur.id, { color: c })} />)}</div>
-                {isArchived(cur) ? <><button type="button" className="lf-btn ghost" onClick={() => projects.patch(cur.id, { archivedAt: null, ...(cur.status === 'archived' ? { status: 'active' } : {}) })}>↩ بازگردانی</button><button type="button" className="lf-btn ghost danger" onClick={() => deleteProject(cur)}>🗑 حذف پروژه</button></>
+                {isArchived(cur) ? <><button type="button" className="lf-btn ghost" onClick={() => projects.patch(cur.id, { archivedAt: null, ...(cur.status === 'archived' ? { status: 'active' } : {}) })}>↩ بازگردانی</button><button type="button" className="lf-btn ghost danger" disabled={!!deleting} onClick={() => deleteProject(cur)}>🗑 حذف پروژه</button></>
                   : <button type="button" className="lf-btn ghost" onClick={() => window.confirm(`پروژهٔ «${cur.name}» آرشیو شود؟`) && projects.patch(cur.id, { archivedAt: todayIso() })} title="انتقال به آرشیو">🗄 آرشیو</button>}
               </div></div>
+            {deleting ? <div className="lf-deleting" role="status">⏳ در حال حذف پروژهٔ «{deleting}»…</div> : null}
             {isArchived(cur) ? <div className="lf-archived-note">این پروژه در آرشیو است. می‌توانی بازگردانی‌اش کنی یا برای همیشه حذفش کنی.</div> : null}
             {late.length || soon.length ? <div className="lf-palerts">{late.slice(0, 4).map(c => <button key={c.id} className="late" onClick={() => setCardEdit(c)}>⛔ {c.title} · {jShort(c.due)}</button>)}{soon.slice(0, 4).map(c => <button key={c.id} className="soon" onClick={() => setCardEdit(c)}>⏳ {c.title} · {jShort(c.due)}</button>)}</div> : null}
           </>; })()}
