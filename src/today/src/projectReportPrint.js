@@ -280,6 +280,7 @@ export async function printProjectReport(data) {
 }
 
 // ── Projects comparison report (portfolio): KPIs, progress-vs-time chart, status mix and the full table ──
+const CMP_W = 1000; // landscape A4 content width at the report's 695px-per-184mm scale
 const STATE_FA = { bad: 'نیازمند پیگیری', warn: 'اندکی عقب', ok: 'مطابق برنامه', done: 'تکمیل‌شده', none: 'قرارداد ناقص' };
 const STATE_CLR = { bad: '#f43f5e', warn: '#f59e0b', ok: '#3b82f6', done: '#10b981', none: '#cbd5e1' };
 const STATE_TXT = { bad: '#be123c', warn: '#b45309', ok: '#1d4ed8', done: '#047857', none: '#64748b' };
@@ -299,9 +300,12 @@ export function compareReportHtml({ rows, brand = {} }) {
   const varTxt = v => v == null ? '—' : v === 0 ? 'منطبق' : `${pct(Math.abs(v))} ${v < 0 ? 'عقب' : 'جلو'}`;
   const tr = rows.map(({ p, m }, i) => `<tr><td class="n">${fa(i + 1)}</td><td><span class="dot" style="background:${pc(p)}"></span><b>${esc(p.name)}</b>${p.client ? `<div class="muted">${esc(p.client)}</div>` : ''}</td><td><div class="pg"><b class="num">${pct(m.progress)}</b>${bar(m.progress, pc(p))}</div><span class="sm">${fa(m.done)} از ${fa(m.total)} مرحله</span></td><td class="n">${m.timePct == null ? '—' : pct(m.timePct)}</td><td class="n ${m.variance < 0 ? 'neg' : m.variance > 0 ? 'pos' : ''}">${varTxt(m.variance)}</td><td class="n">${m.end ? jShort(m.end) : '—'}${m.daysLeft != null ? `<div class="muted">${m.daysLeft >= 0 ? `${fa(m.daysLeft)} روز مانده` : `${fa(-m.daysLeft)} روز گذشته`}</div>` : ''}</td><td class="n">${m.amount ? money(m.amount) : '—'}</td><td class="n">${m.amount ? money(m.received) : '—'}${m.receivedPct != null ? `<div class="muted">${pct(m.receivedPct)}</div>` : ''}</td><td class="n ${m.outstanding ? 'neg' : ''}">${m.outstanding ? money(m.outstanding) : '—'}</td><td class="n ${m.late ? 'neg' : ''}">${m.late ? fa(m.late) : '—'}</td><td><span class="st" style="color:${STATE_TXT[m.state]};background:${STATE_CLR[m.state]}22;border-color:${STATE_CLR[m.state]}">${STATE_FA[m.state] || '—'}</span></td></tr>`).join('');
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${CSS(brand, title)}
+@page{size:A4 landscape;margin:12mm 12mm 14mm}
+html.capture body{width:${CMP_W}px}
+.cmp-top{display:grid;grid-template-columns:2.2fr 1fr;gap:16px;align-items:start;break-inside:avoid}
 .cmp-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:10px}.cmp-kpis .kpi b{font-size:12.5pt}
 .mix{display:flex;gap:2px;height:9px;border-radius:5px;overflow:hidden;margin:4px 0 6px}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:7.5pt;color:#475569}.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-inline-end:4px;vertical-align:middle}
-.cr{display:grid;grid-template-columns:150px 1fr 74px;align-items:center;gap:10px;padding:4px 0;break-inside:avoid}.cr>b{font-size:8.5pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cr .vals{display:flex;flex-direction:column;align-items:flex-end;line-height:1.3}.cr .vals b{font-size:9pt;font-weight:800;color:#0f172a}.cr .vals small{font-size:6.8pt;color:#64748b}
+.cr{display:grid;grid-template-columns:170px 1fr 80px;align-items:center;gap:10px;padding:4px 0;break-inside:avoid}.cr>b{font-size:8.5pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cr .vals{display:flex;flex-direction:column;align-items:flex-end;line-height:1.3}.cr .vals b{font-size:9pt;font-weight:800;color:#0f172a}.cr .vals small{font-size:6.8pt;color:#64748b}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline-end:5px;vertical-align:middle}
 .track{position:relative;height:9px;background:#eef2f7;border-radius:5px}.track i{position:absolute;inset-block:0;right:0;border-radius:5px}.track u{position:absolute;top:-4px;bottom:-4px;width:2px;border-radius:1px;background:#334155;transform:translateX(50%)}
 table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th{padding:5px 4px;vertical-align:middle}table.cmp .pg{display:flex;align-items:center;gap:6px}table.cmp .pg b{font-size:8.5pt;font-weight:800;min-width:26px}table.cmp .pg .bar{flex:1;height:5px;margin:0}.sm{font-size:6.8pt;color:#64748b}table.cmp .dot{margin-inline-end:4px}.num{font-weight:700}
@@ -316,24 +320,19 @@ table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th
 <div class="kpi ${outstanding ? 'bad' : ''}"><small>جمع مطالبات معوق</small><b class="num">${money(outstanding)}</b></div>
 <div class="kpi ${late ? 'bad' : ''}"><small>مراحل عقب‌افتاده</small><b class="num">${fa(late)}</b><span>در همهٔ پروژه‌ها</span></div>
 </div>
-<h2>وضعیت پروژه‌ها</h2><div class="mix">${mix}</div><div class="legend">${counts.map(([k, n]) => `<span><i style="background:${STATE_CLR[k]}"></i>${STATE_FA[k]}: ${fa(n)}</span>`).join('')}</div>
-<h2>پیشرفت در برابر زمان</h2><p class="muted" style="font-size:7.5pt;margin-bottom:4px">نوار رنگی = پیشرفت اجرایی · خط عمودی = زمان سپری‌شدهٔ قرارداد؛ اگر نوار به خط نرسیده، پروژه عقب است.</p>${chart || '<p class="empty">پروژه‌ای نیست.</p>'}
+<div class="cmp-top"><div>
+<h2>پیشرفت در برابر زمان</h2><p class="muted" style="font-size:7.5pt;margin-bottom:4px">نوار رنگی = پیشرفت اجرایی · خط عمودی = زمان سپری‌شدهٔ قرارداد؛ اگر نوار به خط نرسیده، پروژه عقب است.</p>${chart || '<p class="empty">پروژه‌ای نیست.</p>'}</div>
+<div><h2>وضعیت پروژه‌ها</h2><div class="mix">${mix}</div><div class="legend" style="flex-direction:column">${counts.map(([k, n]) => `<span><i style="background:${STATE_CLR[k]}"></i>${STATE_FA[k]}: ${fa(n)} پروژه</span>`).join('')}</div></div></div>
 <h2>جدول مقایسه</h2><table class="cmp"><thead><tr><th style="width:3%">#</th><th style="width:15%">پروژه</th><th style="width:13%">پیشرفت</th><th>زمان</th><th>انحراف</th><th>پایان قرارداد</th><th>مبلغ قرارداد</th><th>وصولی</th><th>معوق</th><th>عقب</th><th>وضعیت</th></tr></thead><tbody>${tr}</tbody>
 <tfoot><tr><td colspan="2">جمع ${fa(rows.length)} پروژه</td><td>${pct(avg)} میانگین</td><td></td><td></td><td></td><td class="n">${money(amount)}</td><td class="n">${money(received)}</td><td class="n">${money(outstanding)}</td><td class="n">${fa(late)}</td><td></td></tr></tfoot></table>
 </body></html>`;
 }
 const compareFileName = () => { const j = isoToJ(todayIso()); return `${j.jy}-${pad2(j.jm)}-${pad2(j.jd)}_مقایسه-پروژه‌ها.pdf`; };
-export async function downloadCompareReport(data) {
-  const name = compareFileName();
-  const blob = await renderPdf(compareReportHtml(data), { running: `مقایسهٔ پروژه‌ها – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: name.replace(/\.pdf$/, ''), subject: 'مقایسهٔ پروژه‌ها' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  return name;
-}
 
 // Print dialog (Save as PDF): the browser's own text engine shapes Persian correctly, unlike the canvas path
 export async function printCompareReport(data) {
   const title = compareFileName().replace(/\.pdf$/, '');
-  const frame = mountFrame('lf-compare-print-frame', 695, compareReportHtml(data), false);
+  const frame = mountFrame('lf-compare-print-frame', CMP_W, compareReportHtml(data), false);
   const doc = frame.contentDocument;
   doc.title = title;
   doc.documentElement.classList.add('capture');
