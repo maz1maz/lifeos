@@ -323,6 +323,12 @@ async function main() {
       const repeatProcess = await call('/api/col/projectProcesses', { method: 'POST', cookie, body: { projectId: p.id, department: 'فنی', title: 'ابعادبرداری دقیق', status: 'done' } });
       const projectProcesses = (await call('/api/col/projectProcesses', { cookie })).d.items.filter(x => x.projectId === p.id && x.department === 'فنی' && x.title === 'ابعادبرداری دقیق');
       check('project process seed cannot undo an already ticked stage', repeatProcess.status === 200 && repeatProcess.d.id === pp.d.id && repeatProcess.d.status === 'done' && projectProcesses.length === 1, JSON.stringify({ repeatProcess, projectProcesses }));
+      const rem = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'یادآوری مرحله', date: '2030-01-01', time: '09:00' } })).d;
+      await call(`/api/col/projectProcesses/${pp.d.id}`, { method: 'PATCH', cookie, body: { reminderId: rem.id } });
+      const delP = await call(`/api/col/projects/${p.id}`, { method: 'DELETE', cookie });
+      const left = {}; for (const k of ['projects', 'projectContracts', 'projectFinancials', 'projectSupplies', 'projectProcesses']) left[k] = (await call(`/api/col/${k}`, { cookie })).d.items.filter(x => (x.projectId || x.id) === p.id).length;
+      const remLeft = ((await call('/api/reminders?from=2029-12-01&to=2030-02-01', { cookie })).d.items || []).filter(x => x.id === rem.id).length;
+      check('deleting a project removes its contract, statements, supplies, stages and stage reminders in one request', delP.status === 200 && !!rem.id && Object.values(left).every(n => n === 0) && remLeft === 0, JSON.stringify({ delP: delP.status, left, remLeft, rem: rem.id }));
     }
     { // v63: course sessions from start date + weekdays, cancel pushes later, move changes date
       const cs = (await call('/api/col/courses', { method: 'POST', cookie, body: { name: 'کلاس', startDate: '2030-01-05', sessions: 4, days: [6, 2], time: '18:00' } })).d; // 2030-01-05 is Saturday
