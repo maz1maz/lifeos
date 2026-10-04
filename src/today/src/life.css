@@ -521,3 +521,4 @@
 .lf-yn button{padding:5px 12px;border:1px solid var(--g-border);background:transparent;color:inherit;font:inherit;font-size:12px;cursor:pointer}
 .lf-yn button:first-of-type{border-radius:0 999px 999px 0}.lf-yn button:last-of-type{border-radius:999px 0 0 999px}
 .lf-yn button.on.yes{background:rgba(52,211,153,.15);border-color:#34d399;color:#6ee7b7}.lf-yn button.on.no{background:rgba(248,113,113,.12);border-color:#f87171;color:#fca5a5}
+.lf-report-gopts{font-style:normal;font-size:11.5px;margin-inline-start:10px;padding:2px 8px;border:1px solid rgba(96,165,250,.35);border-radius:99px;color:var(--g-text)}
