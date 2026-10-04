@@ -44,7 +44,7 @@ h2{font-size:11pt;font-weight:800;margin:16px 0 7px;padding-inline-start:8px;bor
 .kpi small{display:block;font-size:7.5pt;color:#64748b}
 .kpi b{display:block;font-size:15pt;font-weight:800;line-height:1.4}
 .kpi span{font-size:7.5pt;color:#475569}
-.kpi .bar,.dept .bar{height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin-top:4px}
+.bar{height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden}.kpi .bar,.dept .bar{margin-top:4px}
 .bar i{display:block;height:100%;border-radius:3px}
 .kpi.bad b{color:#be123c}.kpi.good b{color:#047857}
 table{width:100%;border-collapse:collapse;font-size:8.5pt}
@@ -52,7 +52,7 @@ thead{display:table-header-group}tr{break-inside:avoid}
 th{background:#f1f5f9;color:#334155;font-weight:700;text-align:right;padding:5px 6px;border-bottom:1.5px solid #cbd5e1}
 td{padding:4.5px 6px;border-bottom:1px solid #e2e8f0;vertical-align:top}
 tfoot td{font-weight:800;background:#f8fafc;border-top:1.5px solid #cbd5e1}
-table.stages{table-layout:fixed;width:100%}table.stages td,table.stages th{overflow-wrap:anywhere;word-break:break-word}td.note{font-size:10.5px;line-height:1.6;white-space:pre-wrap}p.note{margin:6px 0;font-size:12px;line-height:1.8}tr.noterow td{font-size:11px;background:#f8fafc}table.kv td{width:25%}table.kv td.k{color:#64748b;width:17%}table.kv td.v{font-weight:600;width:33%}
+table.stages{table-layout:auto;width:100%;font-size:7.6pt}table.stages tr:not(.igrp) td:not(.note){white-space:nowrap}table.stages .note{width:100%}table.stages th{font-size:7.2pt;white-space:nowrap;padding:5px 4px}table.stages td{padding:4px;vertical-align:middle}table.stages tr:not(.igrp) td:first-child,table.stages th:first-child{padding-inline-end:0;text-align:center}table.stages td:nth-child(2),table.stages th:nth-child(2){padding-inline-start:2px}table.stages td:nth-child(3){font-size:6.6pt;color:#475569;white-space:nowrap}table.stages tr.igrp td{font-size:7.6pt;white-space:normal;color:#0f172a}table.stages td,table.stages th{overflow-wrap:anywhere;word-break:break-word}td.note{font-size:10.5px;line-height:1.6;white-space:pre-wrap}p.note{margin:6px 0;font-size:12px;line-height:1.8}tr.noterow td{font-size:11px;background:#f8fafc}table.kv td{width:25%}table.kv td.k{color:#64748b;width:17%}table.kv td.v{font-weight:600;width:33%}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px;break-inside:avoid}
 .dept{display:grid;grid-template-columns:70px 1fr 64px;align-items:center;gap:8px;padding:3px 0}
 .dept b{font-size:9pt}.dept span{font-size:8pt;color:#475569;text-align:left}
@@ -66,7 +66,7 @@ tr.done td{color:#475569}
 .empty{color:#94a3b8;font-size:8.5pt;padding:6px 0}
 .ring{display:block}
 .sharebar{display:flex;gap:2px;height:22px;margin:4px 0 6px;break-inside:avoid}
-.sharebar span{position:relative;display:block;min-width:2px;border-radius:4px;overflow:hidden;background:#e2e8f0}
+.sharebar span{position:relative;display:block;min-width:2px;border-radius:4px;overflow:hidden;background:#e2e8f0}.slegend{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:7.5pt;color:#334155;margin-bottom:4px}.slegend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-inline-end:4px;vertical-align:middle}.slegend em{font-style:normal;color:#64748b}
 .sharebar span i{position:absolute;inset-block:0;right:0;display:block}
 .sharebar span b{position:relative;display:block;padding:0 5px;font-size:7.5pt;line-height:22px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 table.items td{vertical-align:middle}table.items .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-inline-end:5px;vertical-align:middle}
@@ -101,7 +101,8 @@ export function projectReportHtml(d) {
   const ring = (v, c, size = 46) => { const r = size / 2 - 5, L = 2 * Math.PI * r, p = Math.max(0, Math.min(100, v)); return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="#e2e8f0" stroke-width="6"/><circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${c}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(L * p / 100).toFixed(2)} ${L.toFixed(2)}" transform="rotate(-90 ${size / 2} ${size / 2})"/><text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-size="${size / 4.2}" font-weight="800" fill="#0f172a" font-family="Vazirmatn,Tahoma">${fa(p, 0)}٪</text></svg>`; };
   const itemRows = items.map((x, i) => ({ ...x, color: ITEM_COLORS[i % ITEM_COLORS.length], depts: DEPTS.map(dp => [dp, stages.some(st => st.item === x.item && st.department === dp) ? itemProgress(stages, x.item, dp) : null]), done: stages.filter(st => st.item === x.item && st.status === 'done').length, total: stages.filter(st => st.item === x.item).length }));
   const itemsSection = itemRows.length ? `<h2>پیشرفت آیتم‌های قرارداد</h2>
-<div class="sharebar">${itemRows.map(x => `<span style="flex:${Math.max(x.share, 2)}"><i style="width:${x.progress}%;background:${x.color}"></i>${x.share >= 9 ? `<b>${esc(x.item)}</b>` : ''}</span>`).join('')}</div>
+<div class="sharebar">${itemRows.map(x => `<span style="flex:${Math.max(x.share, 2)};background:${x.color}2e;border:1px solid ${x.color}"><i style="width:${x.progress}%;background:${x.color}"></i>${x.share >= 9 ? `<b>${esc(x.item)}</b>` : ''}</span>`).join('')}</div>
+<div class="slegend">${itemRows.map(x => `<span><i style="background:${x.color}"></i>${esc(x.item)} <em>${pct(x.share)}</em></span>`).join('')}</div>
 <p class="muted" style="font-size:7.5pt;margin-bottom:6px">عرض هر بخش = سهم آیتم از پروژه (بر اساس متراژ) · پرشدگی = پیشرفت همان آیتم</p>
 <table class="items"><thead><tr><th style="width:22%">آیتم</th><th style="width:9%">سهم</th><th style="width:12%">پیشرفت</th><th style="width:11%">مراحل</th><th>پیشرفت واحدها (کنترل · فنی · تأمین · اجرا)</th></tr></thead><tbody>${itemRows.map(x => `<tr><td><span class="sw" style="background:${x.color}"></span><b>${esc(x.item)}</b>${x.progress === 100 ? ' <span class="badge b-done">تمام شد</span>' : ''}</td><td class="n">${pct(x.share)}</td><td>${ring(x.progress, x.progress === 100 ? '#059669' : x.color, 40)}</td><td class="n">${fa(x.done)} از ${fa(x.total)}</td><td><div class="mini">${x.depts.map(([dp, v]) => `<div>${v == null ? '—' : `${dp === 'کنترل پروژه' ? 'کنترل' : dp} ${pct(v)}${bar(v, DEPT_COLORS[dp])}`}</div>`).join('')}</div></td></tr>`).join('')}</tbody></table>` : '';
 
@@ -154,7 +155,7 @@ export function projectReportHtml(d) {
 ${itemsSection}
 <h2>صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">آخرین صورت‌وضعیت (تجمعی) / جمع واریزی / معوق</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
 ${next.length ? `<h2 class="pb">اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
-<h2 class="pb">وضعیت مراحل اجرایی</h2><table class="stages"><thead><tr><th style="width:5%">ردیف</th><th style="width:25%">مرحله</th><th style="width:10%">واحد</th><th style="width:11%">وضعیت</th><th style="width:10%">تاریخ انجام</th><th style="width:11%">مسئول</th><th style="width:28%">توضیحات</th></tr></thead><tbody>${stageRows}</tbody></table>
+<h2 class="pb">وضعیت مراحل اجرایی</h2><table class="stages"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th class="note">توضیحات</th></tr></thead><tbody>${stageRows}</tbody></table>
 <div class="sign"><div>تهیه‌کننده</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
 </body></html>`;
 }
