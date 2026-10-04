@@ -22,7 +22,7 @@ const CSS = (brand, reportNo) => `
   @bottom-right{content:"${cssStr(brand.footerText || '')}";font:400 8pt Vazirmatn,Tahoma,sans-serif;color:#64748b}
   @top-left{content:"${cssStr(reportNo)}";font:400 7.5pt Vazirmatn,Tahoma,sans-serif;color:#94a3b8}}
 @page:first{@top-left{content:none}}
-html.capture body{width:695px;padding:0 4px}header.top .meta{white-space:nowrap}.status,.slegend span,.legend span,.badge,.st{white-space:nowrap}
+html.capture body{width:695px;padding:0 4px 24px}header.top .meta{white-space:nowrap}.status,.slegend span,.legend span,.badge,.st{white-space:nowrap}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#fff;color:#0f172a;font:400 9.5pt/1.7 Vazirmatn,Tahoma,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{direction:rtl}
@@ -156,8 +156,8 @@ export function projectReportHtml(d) {
 </div></section>
 ${itemsSection}
 <h2>صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">آخرین صورت‌وضعیت (تجمعی) / جمع واریزی / معوق</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
-${next.length ? `<h2 class="pb">اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
-<h2 class="pb">وضعیت مراحل اجرایی</h2><table class="stages"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th class="note">توضیحات</th></tr></thead><tbody>${stageRows}</tbody></table>
+${next.length ? `<h2>اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
+<h2>وضعیت مراحل اجرایی</h2><table class="stages"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th class="note">توضیحات</th></tr></thead><tbody>${stageRows}</tbody></table>
 <div class="sign"><div>تهیه‌کننده</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
 </body></html>`;
 }
@@ -229,6 +229,10 @@ async function renderPdf(html, { running, footer, title, subject }) {
     const doc = frame.contentDocument;
     doc.documentElement.classList.add('capture');
     await (doc.fonts?.ready || Promise.resolve());
+    // foreignObject rendering lets the browser lay the text out itself: html2canvas's own text path drops the
+    // spaces between Persian words and misplaces «٪». Fonts are inlined first (an SVG image can't fetch them),
+    // and before measuring, so the layout we measure is the one that gets drawn.
+    await inlineFonts(doc);
     fitFirstPage(doc, W);
     await (doc.fonts?.ready || Promise.resolve());
     const body = doc.body, total = Math.ceil(body.scrollHeight);
@@ -240,16 +244,19 @@ async function renderPdf(html, { running, footer, title, subject }) {
       ...(p1 ? [Math.round(p1.getBoundingClientRect().bottom - top0)] : []),
       ...[...doc.querySelectorAll('h2.pb')].map(el => Math.round(el.getBoundingClientRect().top - top0) - 8)
     ].filter(y => y > 0).sort((a, b) => a - b);
-    // foreignObject rendering lets the browser lay the text out itself: html2canvas's own text path drops the
-    // spaces between Persian words and misplaces «٪». Fonts are inlined first (an SVG image can't fetch them).
-    await inlineFonts(doc);
     const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: W, height: total, windowWidth: W, windowHeight: total, logging: false, foreignObjectRendering: true });
     const k = canvas.width / W, pages = [];
+    // the drawn image can sit a few px off the measured layout, so every cut is snapped up to the nearest
+    // pixel row of the image that is one flat colour (a gap between rows), never through a line of text
+    const cx = canvas.getContext('2d', { willReadFrequently: true });
+    const flat = py => { const d = cx.getImageData(0, py, canvas.width, 1).data; if (d[0] < 245 || d[1] < 245 || d[2] < 245) return false; for (let i = 8; i < d.length; i += 8) if (Math.abs(d[i] - d[0]) + Math.abs(d[i + 1] - d[1]) + Math.abs(d[i + 2] - d[2]) > 30) return false; return true; };
+    const snap = (y, min) => { try { for (let py = Math.floor(y * k); py > min * k; py--) if (flat(py) && flat(py - 1)) return py / k; } catch { /* unreadable canvas: keep the measured cut */ } return y; };
     for (let start = 0; start < total - 4;) {
       let end = Math.min(total, start + pageH);
       const f = forced.find(y => y > start + 4 && y <= end);
       if (f) end = f;
       else if (end < total) { const b = breaks.filter(y => y > start + 120 && y <= end).pop(); if (b) end = b; }
+      if (end < total) end = snap(end, Math.max(start + 60, end - 90));
       pages.push([start, end]); start = end;
     }
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
