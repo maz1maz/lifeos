@@ -186,6 +186,14 @@ function AssetMore({ row }) {
   </>
 }
 
+function EmptyTx({ hint, onJump }) {
+  return <div className="fn-empty">
+    <p>تراکنشی در این ماه نیست.</p>
+    {hint?.latest ? <p>آخرین تراکنش ثبت‌شده: {jalaliShort(hint.latest)} <button type="button" className="fn-link" onClick={() => onJump(hint.latest)}>برو به آن ماه ←</button></p> : null}
+    {hint?.bad ? <p>⚠️ {fa(hint.bad)} تراکنش تاریخ نامعتبر دارند و در هیچ ماهی دیده نمی‌شوند.</p> : null}
+  </div>
+}
+
 export function FinanceReact({ Nav }) {
   const [month, setMonth] = useState(() => jKeyOf(isoToday()))
   const [unit, setUnit] = useState(() => { try { return localStorage.getItem('lifeos-fin-unit') || 'rial' } catch { return 'rial' } })
@@ -227,6 +235,7 @@ export function FinanceReact({ Nav }) {
   const [draft, setDraft] = useState({ key: 0 })
   const [scanning, setScanning] = useState(false)
   const [goalDep, setGoalDep] = useState(null)
+  const [emptyHint, setEmptyHint] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -248,6 +257,11 @@ export function FinanceReact({ Nav }) {
       ])
       setSummary(sum)
       setTxs(list.items || [])
+      setEmptyHint(null)
+      if (!(list.items || []).length) api('/api/transactions?from=0000-01-01&to=9999-12-31').then((all) => {
+        const items = all.items || [], iso = items.filter((t) => /^\d{4}-\d{2}-\d{2}/.test(t.date || '') && t.date >= '1900')
+        setEmptyHint({ total: items.length, latest: iso.length ? iso.reduce((a, t) => (t.date > a ? t.date : a), '') : null, bad: items.length - iso.length })
+      }).catch(() => {})
       setAccounts(acc.accounts || [])
       setBudgets(bud || { budgets: [] })
       setDebts(debt.items || [])
@@ -528,7 +542,7 @@ export function FinanceReact({ Nav }) {
                   <div><b>{t.title}</b><small>{jalaliShort(t.date)} · {t.category}{t.account ? ` · ${t.account}` : ''}</small></div>
                   <span className={`amt ${t.kind === 'income' ? 'pos' : 'neg'}`}>{t.kind === 'income' ? '+' : t.kind === 'transfer' ? '↔' : '−'}{amt(t.amount)}</span>
                 </article>
-              )) : <p className="fn-empty">تراکنشی در این ماه نیست.</p>}
+              )) : <EmptyTx hint={emptyHint} onJump={(d) => setMonth(jKeyOf(d))} />}
             </section>
           </div>
         ) : null}
@@ -615,7 +629,7 @@ export function FinanceReact({ Nav }) {
                     <button type="button" className="del" onClick={() => { if (window.confirm(`«${item.title}» حذف شود؟`)) send(`/api/transactions/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
                   </div>
                 </article>
-              )) : <p className="fn-empty">تراکنشی در این ماه نیست.</p>}
+              )) : <EmptyTx hint={emptyHint} onJump={(d) => setMonth(jKeyOf(d))} />}
             </section>
           </div>
         ) : null}
