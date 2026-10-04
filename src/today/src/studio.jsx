@@ -17,10 +17,23 @@ const PROXY = 'studio-api.php';
 let csrf = '';
 const onSignedOut = new Set();
 
-async function call(url, opt = {}) {
-  const r = await fetch(url, { credentials: 'same-origin', cache: 'no-store', ...opt, headers: { 'Content-Type': 'application/json', 'X-CSRF': csrf, ...(opt.headers || {}) } });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// A save that fails on the way (this host sometimes drops the connection to LifeOS, or the PHP session's CSRF
+// token was renewed) is retried instead of silently losing what was typed: 403 → fresh token + one retry;
+// network error / 5xx on an edit → up to two retries.
+async function call(url, opt = {}, attempt = 0) {
+  // only edits/deletes are retried on a dropped connection: re-sending them is harmless, a repeated POST could duplicate a row
+  const write = ['PATCH', 'PUT', 'DELETE'].includes((opt.method || 'GET').toUpperCase());
+  let r;
+  try { r = await fetch(url, { credentials: 'same-origin', cache: 'no-store', ...opt, headers: { 'Content-Type': 'application/json', 'X-CSRF': csrf, ...(opt.headers || {}) } }); }
+  catch (e) { if (write && attempt < 2) { await sleep(1200 * (attempt + 1)); return call(url, opt, attempt + 1); } throw new Error('اتصال برقرار نشد؛ اینترنت را چک کن.'); }
   const d = await r.json().catch(() => ({}));
   if (r.status === 401 && url.includes('a=api')) onSignedOut.forEach(f => f());
+  if (r.status === 403 && url.includes('a=api') && attempt < 1) {
+    try { const s = await fetch(`${PROXY}?a=state`, { credentials: 'same-origin', cache: 'no-store' }).then(x => x.json()); if (s.csrf) csrf = s.csrf; if (!s.signedIn) { onSignedOut.forEach(f => f()); throw new Error('نشست تمام شد؛ دوباره وارد شو.'); } } catch (e) { if (e.message.includes('نشست')) throw e; }
+    return call(url, opt, attempt + 1);
+  }
+  if (write && r.status >= 500 && attempt < 2) { await sleep(1200 * (attempt + 1)); return call(url, opt, attempt + 1); }
   if (!r.ok) throw new Error(d.error || 'دریافت اطلاعات ناموفق بود.');
   return d;
 }
