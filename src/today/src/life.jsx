@@ -515,15 +515,16 @@ function StageGroupHead({ title, rows }) {
   return <div className={`lf-process-group fixed ${all && done === all ? 'done' : ''}`}><b>{title}{all && done === all ? ' ✓' : ''}</b><small>{fa(done)} از {fa(all)} مرحله</small></div>;
 }
 // سرتیتر هر آیتم: پیشرفت مستقل آیتم (۰–۱۰۰) + سهمش از کل پروژه (بر اساس متراژ)
-function ItemGroupHead({ item, stages, share, anchor }) {
+function ItemGroupHead({ item, stages, share, anchor, contract, onPatchContract }) {
   const mine = stages.filter(x => x.item === item), pct = itemProgress(stages, item);
   return <div id={anchor} className={`lf-process-group ${pct === 100 ? 'done' : ''}`}>
     <b>{item}{pct === 100 ? ' ✓ تمام شد' : ''}</b>
+    <ItemOptionToggles contract={contract} item={item} onChange={onPatchContract} />
     <i className="lf-process-group-bar"><em style={{ width: `${pct}%` }} /></i>
     <small><strong>{fa(pct)}٪</strong> · {fa(mine.filter(x => x.status === 'done').length)} از {fa(mine.length)} مرحله · سهم از پروژه {fa(Math.round((share || 0) * 100))}٪</small>
   </div>;
 }
-function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd, onSeed, onCompletionChange }) {
+function ProcessChecklist({ projectId, items, contract, onPatchContract, onToggle, onPatch, onAdd, onSeed, onCompletionChange }) {
   const [departmentFilter, setDepartmentFilter] = useState('');
   // Rows that exist are shown straight from useCol (its optimistic patch is the single source of truth).
   // Stages not stored yet (virtual `template-N` rows) keep their in-flight edits here, keyed by stage, so a
@@ -607,7 +608,7 @@ function ProcessChecklist({ projectId, items, contract, onToggle, onPatch, onAdd
     {scopeItems.length ? <ItemsPanel items={scopeItems} stages={visibleItems} shares={shares} onPick={it => document.getElementById(`pg-${projectId}-${it}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} /> : null}
     {departmentFilter ? <div className="lf-process-filter-note"><b>فیلتر: {departmentFilter}</b><button type="button" onClick={() => setDepartmentFilter('')}>نمایش همه ×</button></div> : null}
     {ordered.map((item, i) => item.group && item.group !== ordered[i - 1]?.group ? [
-      item.item ? <ItemGroupHead key={`g-${item.group}`} anchor={`pg-${projectId}-${item.item}`} item={item.item} stages={visibleItems} share={shares[item.item]} /> : <StageGroupHead key={`g-${item.group}`} title={GROUP_TITLES[item.group] || GROUP_TITLES['item:']} rows={visibleItems.filter(x => x.group === item.group)} />,
+      item.item ? <ItemGroupHead key={`g-${item.group}`} anchor={`pg-${projectId}-${item.item}`} contract={contract} onPatchContract={onPatchContract} item={item.item} stages={visibleItems} share={shares[item.item]} /> : <StageGroupHead key={`g-${item.group}`} title={GROUP_TITLES[item.group] || GROUP_TITLES['item:']} rows={visibleItems.filter(x => x.group === item.group)} />,
       <div key={`c-${item.group}`} className="lf-process-cols"><span>انجام</span><span>ردیف</span><span>یادآوری</span><span>واحد</span><span>مراحل پروژه</span><span>تاریخ</span><span>مسئول</span><span>توضیحات</span></div>,
       row(item, i)] : row(item, i))}
   </section></div>;
@@ -792,11 +793,11 @@ function ContractAreaField({ contract, onChange, fallback }) {
   </div>;
 }
 // دارد/ندارد برای گزینه‌های هر آیتم (مثلاً روکوب و رین‌فورس پنجره)؛ «ندارد» مرحلهٔ اجرای آن را پنهان می‌کند
-function ItemOptionsField({ contract, onChange }) {
-  const items = contractScope(contract).filter(optionsKey);
-  if (!items.length) return null;
-  const set = (item, key, v) => { const all = { ...(contract?.itemOptions || {}) }; all[item] = { ...(all[item] || {}), [key]: v }; onChange({ itemOptions: all }); };
-  return <div className="lf-sheet-field wide lf-item-options">{items.map(item => <div key={item}><span>{item}</span>{ITEM_OPTIONS[optionsKey(item)].map(([key, label]) => { const v = itemOption(contract, item, key); return <div key={key} className="lf-yn" role="radiogroup" aria-label={`${label} ${item}`}><b>{label}</b><button type="button" role="radio" aria-checked={v === true} className={v === true ? 'on yes' : ''} onClick={() => set(item, key, true)}>دارد</button><button type="button" role="radio" aria-checked={v === false} className={v === false ? 'on no' : ''} onClick={() => set(item, key, false)}>ندارد</button></div>; })}</div>)}</div>;
+function ItemOptionToggles({ contract, item, onChange }) {
+  const k = optionsKey(item);
+  if (!k || !onChange) return null;
+  const set = (key, v) => { const all = { ...(contract?.itemOptions || {}) }; all[item] = { ...(all[item] || {}), [key]: v }; onChange({ itemOptions: all }); };
+  return <span className="lf-item-options">{ITEM_OPTIONS[k].map(([key, label]) => { const v = itemOption(contract, item, key); return <span key={key} className="lf-yn" role="radiogroup" aria-label={`${label} ${item}`}><b>{label}</b><button type="button" role="radio" aria-checked={v === true} className={v === true ? 'on yes' : ''} onClick={e => { e.stopPropagation(); set(key, true); }}>دارد</button><button type="button" role="radio" aria-checked={v === false} className={v === false ? 'on no' : ''} onClick={e => { e.stopPropagation(); set(key, false); }}>ندارد</button></span>; })}</span>;
 }
 function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPatchContract }) {
   const setProject = (key, value) => onPatchProject({ [key]: value });
@@ -815,7 +816,7 @@ function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPat
       {input('project', 'owner', 'مسئول ارتباط پروژه')}{input('project', 'contactPhone', 'شماره تماس مسئول ارتباط')}
       {input('contract', 'contractNo', 'شماره قرارداد')}<ContractItemsField contract={contract} knownItems={knownItems} onChange={onPatchContract} />
       {date('contractStartDate', 'تاریخ شروع قرارداد')}{date('contractEndDate', 'تاریخ اتمام قرارداد')}
-      <ItemOptionsField contract={contract} onChange={onPatchContract} /><ContractAreaField contract={contract} onChange={onPatchContract} fallback={<label className="lf-sheet-field"><span>متراژ قرارداد (مترمربع)</span><input defaultValue={contract?.area || ''} inputMode="decimal" data-raw dir="ltr" onBlur={e => onPatchContract({ area: dec(e.target.value) })} /></label>} />
+      <ContractAreaField contract={contract} onChange={onPatchContract} fallback={<label className="lf-sheet-field"><span>متراژ قرارداد (مترمربع)</span><input defaultValue={contract?.area || ''} inputMode="decimal" data-raw dir="ltr" onBlur={e => onPatchContract({ area: dec(e.target.value) })} /></label>} />
       <label className="lf-sheet-field"><span>نوع تسویه</span><select value={contract?.settlementType || 'cash'} onChange={e => setContract('settlementType', e.target.value)}><option value="cash">نقدی</option><option value="check">چک</option><option value="statement">صورت‌وضعیتی</option><option value="barter">تهاتری</option><option value="other">سایر</option></select></label>
       <label className="lf-sheet-field wide"><span>توضیحات پروژه</span><textarea defaultValue={project.note || ''} placeholder="توضیحات پروژه" onBlur={e => setProject('note', e.target.value.trim())} /></label>
       <label className="lf-sheet-field wide"><span>توضیحات قرارداد</span><textarea defaultValue={contract?.note || ''} placeholder="توضیحات قرارداد" onBlur={e => setContract('note', e.target.value.trim())} /></label>
@@ -827,7 +828,7 @@ function ProjectFile({ project, contracts, knownItems, financials, supplies, pro
   const contract = contracts[0] || null;
   return <section className="lf-card lf-project-file">
     <div className="lf-tabs">{PROJECT_FILE_TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'finance' ? <em>{fa(financials.length)}</em> : null}</button>)}</div>
-    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} knownItems={knownItems} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={() => onAddFinance(nextStatementNo(financials))} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
+    {tab === 'overview' ? <ProjectInfoSheet project={project} contract={contract} knownItems={knownItems} onPatchProject={onPatchProject} onPatchContract={onPatchContract} /> : tab === 'finance' ? <StatementCards items={financials} contract={contract} onPatchContract={onPatchContract} onPatch={onPatchFinance} onRemove={onRemoveFinance} onAddStatement={() => onAddFinance(nextStatementNo(financials))} /> : tab === 'supply' ? <ProcessChecklist projectId={project.id} items={processes} contract={contract} onPatchContract={onPatchContract} onToggle={onToggleProcess} onPatch={onPatchProcess} onAdd={onAddProcess} onSeed={onSeedProcesses} onCompletionChange={onCompletionChange} /> : <ProjectReport project={project} contract={contract} financials={financials} processes={processes} />}
   </section>;
 }
 export function ProjectsPage({ Nav }) {

@@ -516,7 +516,7 @@
 .lf-report-gbar{display:inline-block;width:120px;height:6px;margin:0 10px;border-radius:99px;background:rgba(148,163,184,.25);overflow:hidden}.lf-report-gbar em{display:block;height:100%;background:#60a5fa}
 .lf-report-stage-group.complete td{background:rgba(52,211,153,.1);border-top-color:rgba(52,211,153,.35)}.lf-report-stage-group.complete b{color:#6ee7b7}.lf-report-stage-group.complete .lf-report-gbar em{background:#34d399}
 /* گزینه‌های دارد/ندارد آیتم */
-.lf-item-options{display:grid;gap:8px}.lf-item-options>div{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}.lf-item-options>div>span{font-weight:600;min-width:60px}
+.lf-item-options{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 14px}.lf-process-group .lf-yn b{color:var(--g-text)}
 .lf-yn{display:inline-flex;align-items:center;gap:4px}.lf-yn b{font-weight:500;font-size:12.5px;margin-inline-end:4px;color:var(--g-muted)}
 .lf-yn button{padding:5px 12px;border:1px solid var(--g-border);background:transparent;color:inherit;font:inherit;font-size:12px;cursor:pointer}
 .lf-yn button:first-of-type{border-radius:0 999px 999px 0}.lf-yn button:last-of-type{border-radius:999px 0 0 999px}
