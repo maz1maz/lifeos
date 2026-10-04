@@ -2173,7 +2173,7 @@ function NotifyCard() {
 // The token is shown once; LifeOS stores only its hash. Finance/contract data needs an explicit extra scope.
 const SITE_SCOPES = [['projects', 'پروژه‌ها (کارت‌ها، مراحل، یادآوری‌ها)'], ['courses', 'دوره‌ها و دانشجوها (پرداخت‌ها، حضور و غیاب)'], ['projectFiles', 'قرارداد، مالی و تأمین پروژه'], ['bankSms', 'پیامک بانک → تراکنش (Shortcut آیفون، فقط POST /api/ext/bank-sms)']];
 function SiteTokensCard() {
-  const [items, setItems] = useState(null), [label, setLabel] = useState('seyfikhani.ir'), [scopes, setScopes] = useState({ projects: true, courses: true, projectFiles: true }), [made, setMade] = useState(null), [msg, setMsg] = useState('');
+  const [items, setItems] = useState(null), [label, setLabel] = useState(''), [scopes, setScopes] = useState({ projects: true, courses: true, projectFiles: true }), [made, setMade] = useState(null), [msg, setMsg] = useState('');
   const load = () => api('/api/site-tokens').then(d => setItems(d.items || [])).catch(e => { setItems([]); setMsg(e.message); });
   useEffect(() => { load(); }, []);
   const create = async () => { try { const r = await api('/api/site-tokens', { method: 'POST', body: JSON.stringify({ label, scopes: Object.keys(scopes).filter(k => scopes[k]) }) }); setMade(r.token); setMsg(''); load(); } catch (e) { setMsg(e.message); } };
@@ -2182,11 +2182,11 @@ function SiteTokensCard() {
   const label0 = k => (SITE_SCOPES.find(x => x[0] === k) || [k, k])[1];
   return <section className="planner-list digest-card" id="siteTokens">
     <h2>🌐 اتصال سایت شخصی</h2>
-    <p className="muted" style={{ margin: '0 0 10px' }}>برای صفحهٔ خصوصی روی سایت خودت (مثلاً seyfikhani.ir). توکن فقط در فایل تنظیمات سرور سایت گذاشته می‌شود، نه در مرورگر؛ هر تغییری آن‌جا همین‌جا ذخیره می‌شود و برعکس.</p>
+    <p className="muted" style={{ margin: '0 0 10px' }}>برای سایت شخصی یا Shortcut آیفون. توکن فقط در فایل تنظیمات سرور سایت گذاشته می‌شود، نه در مرورگر؛ هر تغییری آن‌جا همین‌جا ذخیره می‌شود و برعکس.</p>
     {(items || []).map(t => <article key={t.id}><div><b>{t.label}</b><small>{t.scopes.map(label0).join(' · ')} · <span dir="ltr">{t.prefix}…</span>{t.lastUsedAt ? ` · آخرین استفاده ${new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'short', timeStyle: 'short' }).format(new Date(t.lastUsedAt))}` : ' · هنوز استفاده نشده'}</small></div><button type="button" className="finance-action" onClick={() => revoke(t)}>لغو</button></article>)}
     <article style={{ flexWrap: 'wrap' }}>
       <div style={{ flex: '1 1 220px', minWidth: 0 }}><b>توکن تازه</b>
-        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="نام سایت" style={{ margin: '6px 0', width: '100%', boxSizing: 'border-box' }} />
+        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="نام (مثلاً آیفون)" style={{ margin: '6px 0', width: '100%', boxSizing: 'border-box' }} />
         {SITE_SCOPES.map(([k, l]) => <label key={k} style={{ display: 'block', overflowWrap: 'anywhere' }}><input type="checkbox" checked={!!scopes[k]} onChange={e => setScopes(o => ({ ...o, [k]: e.target.checked }))} /> {l}</label>)}
       </div>
       <button type="button" className="save" onClick={create}>ساخت توکن</button>
