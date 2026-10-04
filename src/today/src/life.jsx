@@ -585,7 +585,11 @@ function ProcessChecklist({ projectId, items, contract, onPatchContract, onToggl
   };
   const save = (item, key, value) => { if (value !== (item[key] || '')) patch(item.id, { [key]: value }); };
   const done = visibleItems.filter(x => x.status === 'done').length;
-  const ordered = visibleItems.slice().sort((a, b) => a.order - b.order).filter(item => !departmentFilter || item.department === departmentFilter);
+  // no contract item picked yet: the generic per-item stages would be renamed (and hidden) as soon as one is
+  // picked, so they are not offered at all — unless older data already sits on them
+  const generic = visibleItems.filter(x => x.group === 'item:');
+  const needItems = generic.length > 0 && !generic.some(x => x.status === 'done' || x.date || x.owner || x.note || x.reminderDate || Number(x.percent) > 0);
+  const ordered = visibleItems.slice().sort((a, b) => a.order - b.order).filter(item => (!departmentFilter || item.department === departmentFilter) && !(needItems && item.group === 'item:'));
   const deptClass = department => `dept-${String(department).replaceAll(' ', '-')}`;
   const depts = PROCESS_DEPARTMENTS.map(department => { const all = visibleItems.filter(x => x.department === department), complete = all.filter(x => x.status === 'done').length; return { department, total: all.length, complete, pct: all.length ? weightedProgress(visibleItems, department) : 0 }; });
   const pct = weightedProgress(visibleItems);
@@ -618,6 +622,7 @@ function ProcessChecklist({ projectId, items, contract, onPatchContract, onToggl
       </div></div>
     </div>
     {scopeItems.length ? <ItemsPanel items={scopeItems} stages={visibleItems} shares={shares} onPick={it => document.getElementById(`pg-${projectId}-${it}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} /> : null}
+    {needItems ? <div className="lf-process-need-items" role="note"><b>اول آیتم‌های قرارداد را انتخاب کن</b><span>مراحل اجرایی برای هر آیتم (پنجره، کرتن‌وال، …) جدا ساخته می‌شوند. آیتم‌ها را در تب «اطلاعات پروژه و قرارداد» انتخاب کن.</span></div> : null}
     {departmentFilter ? <div className="lf-process-filter-note"><b>فیلتر: {departmentFilter}</b><button type="button" onClick={() => setDepartmentFilter('')}>نمایش همه ×</button></div> : null}
     {ordered.map((item, i) => item.group && item.group !== ordered[i - 1]?.group ? [
       item.item ? <ItemGroupHead key={`g-${item.group}`} anchor={`pg-${projectId}-${item.item}`} contract={contract} onPatchContract={onPatchContract} item={item.item} stages={visibleItems} share={shares[item.item]} /> : <StageGroupHead key={`g-${item.group}`} title={GROUP_TITLES[item.group] || GROUP_TITLES['item:']} rows={visibleItems.filter(x => x.group === item.group)} />,
