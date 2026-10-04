@@ -1428,8 +1428,9 @@ async function handleApi(request, env) {
      let did=await applyParsedActions(db,user,actions,today());
      if(did.length){db.bankSmsSeen.push(sh);if(db.bankSmsSeen.length>300)db.bankSmsSeen=db.bankSmsSeen.slice(-300)}
      if(did.length||db.__touch){delete db.__touch;await write(db)}
-     if(TELEGRAM_BOT_TOKEN&&user.telegramUserId){try{await tgSend(user.telegramUserId,did.length?('📩 پیامک بانک ثبت شد:\n• '+did.join('\n• ')):'📩 پیامک بانک رسید ولی مبلغی در آن پیدا نشد:\n'+text.slice(0,300),{disable_web_page_preview:true})}catch(e){}}
-     return json(res,did.length?201:422,did.length?{ok:true,done:did}:{error:'مبلغ یا تراکنشی در متن پیدا نشد.',done:[]});
+     let moneyish=/ریال|ريال|تومان|پرید|برداشت|واریز|خرید|انتقال/.test(text);   // login/OTP SMS etc. are dropped silently
+     if(TELEGRAM_BOT_TOKEN&&user.telegramUserId&&(did.length||moneyish)){try{await tgSend(user.telegramUserId,did.length?('📩 پیامک بانک ثبت شد:\n• '+did.join('\n• ')):'📩 پیامک بانک رسید ولی مبلغی در آن پیدا نشد:\n'+text.slice(0,300),{disable_web_page_preview:true})}catch(e){}}
+     return json(res,did.length?201:moneyish?422:200,did.length?{ok:true,done:did}:moneyish?{error:'مبلغ یا تراکنشی در متن پیدا نشد.',done:[]}:{ok:true,ignored:true,done:[]});
    }
    // Instant site → Telegram notice (form summaries) to the token's own owner; any scope, own 60/hour limit.
    if(parts[0]==='notify'&&!parts[1]){

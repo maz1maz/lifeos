@@ -818,6 +818,8 @@ async function main() {
       const r2 = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms } });
       check('same SMS twice is ignored', r2.status === 200 && r2.d.duplicate === true && (await call('/api/transactions', { cookie })).d.items.filter(t => t.id === (tx[0] || {}).id || (t.amount === (tx[0] || {}).amount && t.date === '2026-10-01')).length === 1, JSON.stringify(r2.d));
       check('non-transaction text -> 422, nothing else applied', (await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'کار خرید نان' } })).status === 422 && !(await call('/api/tasks', { cookie })).d.items?.some?.(t => t.title === 'خرید نان'));
+      const login = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nحمیدرضا عزیز خوش آمدید.\n13:35:57\n1405.07.12' } });
+      check('login/welcome SMS is ignored quietly (200, nothing recorded)', login.status === 200 && login.d.ignored === true, JSON.stringify(login.d));
       if (tx[0]) await call('/api/transactions/' + tx[0].id, { method: 'DELETE', cookie });
     }
 
