@@ -39,6 +39,17 @@ const queueColMutation = work => {
   return next;
 };
 
+// Edits the server refused or never got (after the connection-level retries): kept on screen and listed in
+// <SaveErrorBar> with a retry button, instead of silently reverting to the old value.
+const saveFailures = new Map(), saveListeners = new Set();
+const notifySave = () => saveListeners.forEach(f => f());
+export function SaveErrorBar() {
+  const [, force] = useState(0);
+  useEffect(() => { const f = () => force(x => x + 1); saveListeners.add(f); return () => { saveListeners.delete(f); }; }, []);
+  const list = [...saveFailures.values()];
+  if (!list.length) return null;
+  return <div className="lf-save-error" role="alert"><span>⚠ {fa(list.length)} تغییر ذخیره نشد{list[list.length - 1].message ? `: ${list[list.length - 1].message}` : ''}</span><button type="button" onClick={() => list.forEach(x => x.retry())}>تلاش دوباره</button></div>;
+}
 export function useCol(name) {
   const [items, setItems] = useState(null);
   const [err, setErr] = useState('');
@@ -60,7 +71,7 @@ export function useCol(name) {
   // a server reply only replaces the row when no newer patch for it is in flight; otherwise quick
   // successive clicks flicker (reply #1 briefly undoes the optimistic state of click #2)
   const patchSeq = useRef({});
-  const patch = async (id, body) => { const seq = patchSeq.current[id] = (patchSeq.current[id] || 0) + 1; unsaved.current.set(id, { ...(unsaved.current.get(id) || {}), ...body }); setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) })); if (patchSeq.current[id] === seq) { unsaved.current.delete(id); setItems(xs => (xs || []).map(x => x.id === id ? r : x)); } return r; } catch (e) { if (patchSeq.current[id] === seq) unsaved.current.delete(id); setErr(e.message); load(); } };
+  const patch = async (id, body) => { const seq = patchSeq.current[id] = (patchSeq.current[id] || 0) + 1; unsaved.current.set(id, { ...(unsaved.current.get(id) || {}), ...body }); setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) })); if (patchSeq.current[id] === seq) { unsaved.current.delete(id); setItems(xs => (xs || []).map(x => x.id === id ? r : x)); if (saveFailures.delete(`${name}|${id}`)) notifySave(); } return r; } catch (e) { setErr(e.message); if (patchSeq.current[id] === seq) { const key = `${name}|${id}`; saveFailures.set(key, { message: e.message, retry: () => { saveFailures.delete(key); notifySave(); return patch(id, unsaved.current.get(id) || body); } }); notifySave(); } } };
   const remove = async id => { setItems(xs => (xs || []).filter(x => x.id !== id)); try { await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'DELETE' })); } catch (e) { setErr(e.message); load(); } };
   return { items, add, addMany, patch, remove, reload: load, err, setErr };
 }
@@ -972,6 +983,7 @@ export function ProjectsPage({ Nav }) {
     same.slice(1).forEach((p, i) => projects.patch(p.id, { color: PCOLORS[(i + 1) % PCOLORS.length] }));
   }, [projects.items === null]);
   return <Page Nav={Nav} className="wide" kicker="کار" title="پروژه‌ها" actions={<>{list.length > 1 ? <button className={`lf-btn ${compare ? '' : 'ghost'}`} onClick={() => setCompare(c => !c)}>{compare ? 'بازگشت به پروژه' : '⚖ مقایسهٔ پروژه‌ها'}</button> : null}{compare && list.length > 1 ? <button className="lf-btn ghost" disabled={printBusy} onClick={async () => { setPrintBusy(true); try { await comparePrint.current?.(); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPrintBusy(false); } }}>{printBusy ? '⏳ در حال آماده‌سازی…' : '🖨 چاپ / PDF'}</button> : null}<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button></>}>
+    <SaveErrorBar />
     {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !(projects.items || []).length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. با «＋ پروژه» فقط نامش را وارد کن؛ سپس اطلاعات پروژه و قرارداد را کامل می‌کنی.</p> : <>
       {compare && list.length > 1 ? <ProjectsCompare printRef={comparePrint} projects={ordered} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'آرشیو']]}
         onReorder={reorderProjects}

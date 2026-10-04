@@ -60,6 +60,13 @@ session_name('studio_sid');
 if (PHP_VERSION_ID >= 70300) session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $https, 'httponly' => true, 'samesite' => 'Strict']);
 else session_set_cookie_params(0, '/; samesite=Strict', '', $https, true);
 ini_set('session.use_strict_mode', '1');
+// Sessions live in our own folder with a long lifetime: on shared hosting the default /tmp store is cleaned
+// after ~24 min (often by other sites' settings), which silently expired the CSRF token mid-session and made
+// saves fail with «نشست منقضی شده».
+$sessDir = $dataDir . '/sessions';
+if (!is_dir($sessDir)) @mkdir($sessDir, 0700, true);
+if (is_dir($sessDir) && is_writable($sessDir)) session_save_path($sessDir);
+ini_set('session.gc_maxlifetime', '43200');
 session_start();
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
