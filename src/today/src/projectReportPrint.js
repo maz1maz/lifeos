@@ -20,7 +20,7 @@ const CSS = (brand, reportNo) => `
   @bottom-right{content:"${cssStr(brand.footerText || '')}";font:400 8pt Vazirmatn,Tahoma,sans-serif;color:#64748b}
   @top-left{content:"${cssStr(reportNo)}";font:400 7.5pt Vazirmatn,Tahoma,sans-serif;color:#94a3b8}}
 @page:first{@top-left{content:none}}
-html.capture body{width:695px}
+html.capture body{width:695px;padding:0 4px}header.top .meta{white-space:nowrap}.status,.slegend span,.legend span,.badge,.st{white-space:nowrap}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#fff;color:#0f172a;font:400 9.5pt/1.7 Vazirmatn,Tahoma,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{direction:rtl}
@@ -207,6 +207,14 @@ function stripImage(doc, right, left, W) {
   return c.toDataURL('image/png');
 }
 
+async function inlineFonts(doc) {
+  const toData = async url => { const r = await fetch(url); if (!r.ok) throw new Error(); return blobToDataUrl(await r.blob()); };
+  for (const st of doc.querySelectorAll('style')) {
+    const urls = [...new Set([...st.textContent.matchAll(/url\('([^']+\.woff2)'\)/g)].map(m => m[1]))];
+    for (const u of urls) { try { st.textContent = st.textContent.split(`url('${u}')`).join(`url('${await toData(u)}')`); } catch { /* keep the URL; text still renders with a fallback font */ } }
+  }
+  await (doc.fonts?.ready || Promise.resolve());
+}
 // Builds the same report as a real PDF file (A4, rasterised at 2x) for sending to Telegram.
 export function projectReportPdf(data) {
   return renderPdf(projectReportHtml(data), { running: `${data.project.name} – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: reportFileName(data.project).replace(/\.pdf$/, ''), subject: 'گزارش وضعیت پروژه' });
@@ -230,7 +238,10 @@ async function renderPdf(html, { running, footer, title, subject }) {
       ...(p1 ? [Math.round(p1.getBoundingClientRect().bottom - top0)] : []),
       ...[...doc.querySelectorAll('h2.pb')].map(el => Math.round(el.getBoundingClientRect().top - top0) - 8)
     ].filter(y => y > 0).sort((a, b) => a - b);
-    const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: W, height: total, windowWidth: W, windowHeight: total, logging: false });
+    // foreignObject rendering lets the browser lay the text out itself: html2canvas's own text path drops the
+    // spaces between Persian words and misplaces «٪». Fonts are inlined first (an SVG image can't fetch them).
+    await inlineFonts(doc);
+    const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: W, height: total, windowWidth: W, windowHeight: total, logging: false, foreignObjectRendering: true });
     const k = canvas.width / W, pages = [];
     for (let start = 0; start < total - 4;) {
       let end = Math.min(total, start + pageH);
