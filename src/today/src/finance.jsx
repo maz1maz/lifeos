@@ -189,6 +189,7 @@ function AssetMore({ row }) {
 function EmptyTx({ hint, onJump }) {
   return <div className="fn-empty">
     <p>تراکنشی در این ماه نیست.</p>
+    {hint ? <p>کل تراکنش‌های حساب: {fa(hint.total)}</p> : null}
     {hint?.latest ? <p>آخرین تراکنش ثبت‌شده: {jalaliShort(hint.latest)} <button type="button" className="fn-link" onClick={() => onJump(hint.latest)}>برو به آن ماه ←</button></p> : null}
     {hint?.bad ? <p>⚠️ {fa(hint.bad)} تراکنش تاریخ نامعتبر دارند و در هیچ ماهی دیده نمی‌شوند.</p> : null}
   </div>
