@@ -112,16 +112,51 @@ function makeHelpers(env) {
       throw error;
     }
   }
+  // Optimistic concurrency. Two requests that read the same snapshot used to
+  // overwrite each other's shard: e.g. a slow proxied save (seyfikhani panel)
+  // landing after the next edits wiped a whole project checklist except a tick
+  // or two. Every shard a write touches is now checked, inside the same D1
+  // batch, against the value it was read with; on a mismatch the batch rolls
+  // back, the fresh state is re-read and this request's own changes are
+  // replayed onto it (3-way merge: rows by id, then field by field).
+  const GUARD_SAME="INSERT INTO kv (key,value,updated_at) SELECT ?,'',0 WHERE NOT EXISTS (SELECT 1 FROM kv WHERE key=? AND value=?)";
+  const GUARD_ABSENT="INSERT INTO kv (key,value,updated_at) SELECT ?,'',0 WHERE EXISTS (SELECT 1 FROM kv WHERE key=?)";
+  function mergeState(base,ours,theirs){
+    let o=JSON.stringify(ours),b=JSON.stringify(base);
+    if(o===b)return theirs;
+    let t=JSON.stringify(theirs);
+    if(t===b||t===o)return ours;
+    const isObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v),hasIds=v=>Array.isArray(v)&&v.every(r=>isObj(r)&&r.id!=null);
+    if(hasIds(base)&&hasIds(ours)&&hasIds(theirs)){
+      let bm=new Map(base.map(r=>[String(r.id),r])),om=new Map(ours.map(r=>[String(r.id),r])),seen=new Set(),out=[];
+      for(const r of theirs){let k=String(r.id),br=bm.get(k),or=om.get(k);seen.add(k);if(br&&!or)continue;out.push(!or?r:br?mergeState(br,or,r):or)}
+      for(const r of ours){let k=String(r.id);if(!seen.has(k)&&!bm.has(k))out.push(r)}
+      return out;
+    }
+    if(isObj(base)&&isObj(ours)&&isObj(theirs)){
+      let out={};for(const k of new Set([...Object.keys(theirs),...Object.keys(ours),...Object.keys(base)])){let v=mergeState(base[k],ours[k],theirs[k]);if(v!==undefined)out[k]=v}
+      return out;
+    }
+    return ours;
+  }
   async function write(db){
     if(db.__storageMode!=='v2'){
       await stateUpsert(LEGACY_DB_KEY,JSON.stringify(db),Date.now()).run();
       return;
     }
-    let next=serializeState(db),before=db.__storageChunks||new Map(),at=Date.now(),statements=[];
-    for(const [key,value]of next)if(before.get(key)!==value)statements.push(stateUpsert(key,value,at));
-    for(const key of before.keys())if(!next.has(key))statements.push(env.DB.prepare('DELETE FROM kv WHERE key=?').bind(key));
-    await runStateBatch(statements);
-    attachStorageState(db,'v2',next);
+    for(let attempt=0;;attempt++){
+      let next=serializeState(db),before=db.__storageChunks||new Map(),at=Date.now(),guards=[],statements=[];
+      const guard=key=>{let old=before.get(key);guards.push(old===undefined?env.DB.prepare(GUARD_ABSENT).bind(STATE_V2_META,key):env.DB.prepare(GUARD_SAME).bind(STATE_V2_META,key,old))};
+      for(const [key,value]of next)if(before.get(key)!==value){guard(key);statements.push(stateUpsert(key,value,at))}
+      for(const key of before.keys())if(!next.has(key)){guard(key);statements.push(env.DB.prepare('DELETE FROM kv WHERE key=?').bind(key))}
+      try{await runStateBatch([...guards,...statements]);attachStorageState(db,'v2',next);return}
+      catch(error){
+        if(attempt>=5||!/UNIQUE/i.test(String(error&&error.message||error)))throw error;
+        let fresh=await read(),base=rebuildState([...before].map(([key,value])=>({key,value}))),merged=mergeState(base,db,fresh);
+        for(const k of Object.keys(db))if(!(k in merged))delete db[k];
+        Object.assign(db,merged);attachStorageState(db,'v2',fresh.__storageChunks);
+      }
+    }
   }
   function json(res, status, data) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store, max-age=0' }); res.end(JSON.stringify(data)) }
   async function body(req) { try { let t = await req.text(); return t ? JSON.parse(t) : {} } catch (e) { throw e } }
