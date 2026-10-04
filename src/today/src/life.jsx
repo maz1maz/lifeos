@@ -7,7 +7,7 @@ import { JalaliDateInput, isoToJ, jToIso, MONTHS } from './jdate';
 import { SideLayout } from './sidelist';
 import './life.css';
 import { VocabStats } from './vocab';
-import { printProjectReport, sendProjectReportToTelegram, downloadCompareReport } from './projectReportPrint';
+import { printProjectReport, sendProjectReportToTelegram, printCompareReport } from './projectReportPrint';
 
 export const api = async (url, options) => {
   // the personal-site build (studio.jsx) routes these pages through its own proxy
@@ -656,7 +656,7 @@ const STATE_LABEL = { ok: 'مطابق برنامه', warn: 'اندکی عقب', 
 function ProjectsCompare({ projects, contracts, financials, processes, onOpen }) {
   const [sort, setSort] = useState('order');
   const [pdfBusy, setPdfBusy] = useState(false);
-  const pdf = async () => { setPdfBusy(true); try { const brand = await api('/api/report-brand').catch(() => ({})); await downloadCompareReport({ rows, brand: brand || {} }); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPdfBusy(false); } };
+  const pdf = async () => { setPdfBusy(true); try { const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: brand || {} }); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPdfBusy(false); } };
   const rows = projects.map((p, i) => ({ p, i, m: projectMetrics(p, contracts.find(x => x.projectId === p.id), financials.filter(x => x.projectId === p.id), processes.filter(x => x.projectId === p.id)) }));
   const key = { order: r => r.i, progress: r => -r.m.progress, variance: r => r.m.variance ?? 999, end: r => r.m.daysLeft ?? 1e9, outstanding: r => -r.m.outstanding }[sort];
   rows.sort((a, b) => key(a) - key(b));
@@ -664,7 +664,7 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen })
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">
-    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><button type="button" className="lf-btn ghost" disabled={pdfBusy || !rows.length} onClick={pdf}>{pdfBusy ? '⏳ در حال ساخت…' : '📄 دانلود PDF'}</button><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
+    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><button type="button" className="lf-btn ghost" disabled={pdfBusy || !rows.length} onClick={pdf}>{pdfBusy ? '⏳ در حال آماده‌سازی…' : '🖨 چاپ / PDF'}</button><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
     <div className="lf-compare-wrap"><table>
       <thead><tr>{th('order', 'پروژه')}{th('progress', 'پیشرفت')}<th>زمان</th>{th('variance', 'انحراف')}{th('end', 'پایان قرارداد')}<th>مبلغ قرارداد</th><th>وصولی</th>{th('outstanding', 'معوق')}<th>مراحل عقب</th><th>وضعیت</th></tr></thead>
       <tbody>{rows.map(({ p, m }) => <tr key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}>
