@@ -358,8 +358,12 @@ const ITEM_STAGES = [
 ];
 const FINAL_STAGES = [['اجرا', 'تحویل پروژه']];
 // extra stages only some items have, inserted after the given base stage
-const ITEM_EXTRA_STAGES = { 'پنجره': { after: 'شروع نصب', stages: [['اجرا', 'اجرای روکوب'], ['اجرا', 'اجرای رین‌فورس']] } };
-const stagesForItem = item => { const x = Object.entries(ITEM_EXTRA_STAGES).find(([k]) => normItem(k) === normItem(item))?.[1]; if (!x) return ITEM_STAGES; const i = ITEM_STAGES.findIndex(([, b]) => b === x.after) + 1; return [...ITEM_STAGES.slice(0, i), ...x.stages, ...ITEM_STAGES.slice(i)]; };
+// each extra stage depends on a yes/no option of the item (set in the contract sheet; «ندارد» hides the stage)
+const ITEM_EXTRA_STAGES = { 'پنجره': { after: 'شروع نصب', stages: [['اجرا', 'اجرای روکوب', 'rokoob'], ['اجرا', 'اجرای رین‌فورس', 'reinforce']] } };
+export const ITEM_OPTIONS = { 'پنجره': [['rokoob', 'روکوب'], ['reinforce', 'رین‌فورس']] };
+const optionsKey = item => Object.keys(ITEM_OPTIONS).find(k => normItem(k) === normItem(item));
+export const itemOption = (contract, item, key) => { const k = optionsKey(item), o = contract?.itemOptions || {}; const v = (o[item] ?? (k ? o[k] : undefined))?.[key]; return v === false ? false : v === true ? true : null; };
+const stagesForItem = (item, contract) => { const x = Object.entries(ITEM_EXTRA_STAGES).find(([k]) => normItem(k) === normItem(item))?.[1]; if (!x) return ITEM_STAGES; const i = ITEM_STAGES.findIndex(([, b]) => b === x.after) + 1; return [...ITEM_STAGES.slice(0, i), ...x.stages.filter(([, , key]) => itemOption(contract, item, key) !== false).map(([d, b]) => [d, b]), ...ITEM_STAGES.slice(i)]; };
 export const PROCESS_DEPARTMENTS = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'];
 const CONTRACT_ITEMS = ['پنجره', 'کرتن‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
 const normItem = x => String(x || '').replace(/[\s‌]+/g, '').replace(/کرتن/g, 'کرتین');
@@ -376,7 +380,7 @@ export function contractScope(contract) {
 export function processTemplate(contract) {
   const items = contractScope(contract);
   const out = FIXED_STAGES.map(([department, title]) => ({ department, title, base: title, item: '', group: 'start' }));
-  for (const item of items.length ? items : ['']) for (const [department, base] of stagesForItem(item)) out.push({ department, base, item, group: `item:${item}`, title: item ? `${base}${ITEM_SEP}${item}` : base });
+  for (const item of items.length ? items : ['']) for (const [department, base] of stagesForItem(item, contract)) out.push({ department, base, item, group: `item:${item}`, title: item ? `${base}${ITEM_SEP}${item}` : base });
   for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '', group: 'end' });
   return out.map((s, order) => ({ ...s, order }));
 }
@@ -787,6 +791,13 @@ function ContractAreaField({ contract, onChange, fallback }) {
     <div>{items.map(i => <label key={i}><small>{i}</small><input key={`${i}-${itemArea(areas, i)}`} defaultValue={itemArea(areas, i) || ''} inputMode="decimal" data-raw dir="ltr" placeholder="0" onBlur={e => save(i, e.target.value)} /></label>)}</div>
   </div>;
 }
+// دارد/ندارد برای گزینه‌های هر آیتم (مثلاً روکوب و رین‌فورس پنجره)؛ «ندارد» مرحلهٔ اجرای آن را پنهان می‌کند
+function ItemOptionsField({ contract, onChange }) {
+  const items = contractScope(contract).filter(optionsKey);
+  if (!items.length) return null;
+  const set = (item, key, v) => { const all = { ...(contract?.itemOptions || {}) }; all[item] = { ...(all[item] || {}), [key]: v }; onChange({ itemOptions: all }); };
+  return <div className="lf-sheet-field wide lf-item-options">{items.map(item => <div key={item}><span>{item}</span>{ITEM_OPTIONS[optionsKey(item)].map(([key, label]) => { const v = itemOption(contract, item, key); return <div key={key} className="lf-yn" role="radiogroup" aria-label={`${label} ${item}`}><b>{label}</b><button type="button" role="radio" aria-checked={v === true} className={v === true ? 'on yes' : ''} onClick={() => set(item, key, true)}>دارد</button><button type="button" role="radio" aria-checked={v === false} className={v === false ? 'on no' : ''} onClick={() => set(item, key, false)}>ندارد</button></div>; })}</div>)}</div>;
+}
 function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPatchContract }) {
   const setProject = (key, value) => onPatchProject({ [key]: value });
   const setContract = (key, value) => {
@@ -804,7 +815,7 @@ function ProjectInfoSheet({ project, contract, knownItems, onPatchProject, onPat
       {input('project', 'owner', 'مسئول ارتباط پروژه')}{input('project', 'contactPhone', 'شماره تماس مسئول ارتباط')}
       {input('contract', 'contractNo', 'شماره قرارداد')}<ContractItemsField contract={contract} knownItems={knownItems} onChange={onPatchContract} />
       {date('contractStartDate', 'تاریخ شروع قرارداد')}{date('contractEndDate', 'تاریخ اتمام قرارداد')}
-      <ContractAreaField contract={contract} onChange={onPatchContract} fallback={<label className="lf-sheet-field"><span>متراژ قرارداد (مترمربع)</span><input defaultValue={contract?.area || ''} inputMode="decimal" data-raw dir="ltr" onBlur={e => onPatchContract({ area: dec(e.target.value) })} /></label>} />
+      <ItemOptionsField contract={contract} onChange={onPatchContract} /><ContractAreaField contract={contract} onChange={onPatchContract} fallback={<label className="lf-sheet-field"><span>متراژ قرارداد (مترمربع)</span><input defaultValue={contract?.area || ''} inputMode="decimal" data-raw dir="ltr" onBlur={e => onPatchContract({ area: dec(e.target.value) })} /></label>} />
       <label className="lf-sheet-field"><span>نوع تسویه</span><select value={contract?.settlementType || 'cash'} onChange={e => setContract('settlementType', e.target.value)}><option value="cash">نقدی</option><option value="check">چک</option><option value="statement">صورت‌وضعیتی</option><option value="barter">تهاتری</option><option value="other">سایر</option></select></label>
       <label className="lf-sheet-field wide"><span>توضیحات پروژه</span><textarea defaultValue={project.note || ''} placeholder="توضیحات پروژه" onBlur={e => setProject('note', e.target.value.trim())} /></label>
       <label className="lf-sheet-field wide"><span>توضیحات قرارداد</span><textarea defaultValue={contract?.note || ''} placeholder="توضیحات قرارداد" onBlur={e => setContract('note', e.target.value.trim())} /></label>

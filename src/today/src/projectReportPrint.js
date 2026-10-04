@@ -1,6 +1,6 @@
 // Printable A4 project report. Rendered as a standalone document inside a hidden
 // iframe so the app's dark theme, layout and fixed headers never leak into the PDF.
-import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, contractAreaText, statementLedger, itemProgress } from './life';
+import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, contractAreaText, statementLedger, itemProgress, ITEM_OPTIONS, itemOption } from './life';
 import { isoToJ } from './jdate';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -113,7 +113,7 @@ export function projectReportHtml(d) {
     late.length ? `<b>${fa(late.length)} مرحله</b> از تاریخ برنامه‌ریزی‌شده عقب افتاده است` : ''
   ].filter(Boolean).join('؛ ') + '.';
 
-  const kv = [['کد پروژه', project.projectCode], ['شماره قرارداد', contract?.contractNo], ['کارفرما', project.client], ['تلفن کارفرما', project.clientPhone], ['مسئول ارتباط', project.owner], ['تلفن مسئول', project.contactPhone], ['موضوع قرارداد', contract?.subject], ['متراژ', contractAreaText(contract)], ['نوع تسویه', SETTLEMENT[contract?.settlementType]], ['مدت قرارداد', totalDays ? `${fa(totalDays)} روز` : ''], ['تاریخ شروع', valid(start) ? jl(start) : ''], ['تاریخ پایان', valid(end) ? jl(end) : '']];
+  const kv = [['کد پروژه', project.projectCode], ['شماره قرارداد', contract?.contractNo], ['کارفرما', project.client], ['تلفن کارفرما', project.clientPhone], ['مسئول ارتباط', project.owner], ['تلفن مسئول', project.contactPhone], ['موضوع قرارداد', contract?.subject], ['متراژ', contractAreaText(contract)], ...Object.entries(ITEM_OPTIONS).filter(([it]) => (contract?.items || []).includes(it)).map(([it, opts]) => [`گزینه‌های ${it}`, opts.map(([k, l]) => `${l}: ${itemOption(contract, it, k) === true ? 'دارد' : itemOption(contract, it, k) === false ? 'ندارد' : 'نامشخص'}`).join(' · ')]), ['نوع تسویه', SETTLEMENT[contract?.settlementType]], ['مدت قرارداد', totalDays ? `${fa(totalDays)} روز` : ''], ['تاریخ شروع', valid(start) ? jl(start) : ''], ['تاریخ پایان', valid(end) ? jl(end) : '']];
   const kvRows = []; for (let i = 0; i < kv.length; i += 2) kvRows.push(`<tr>${kv.slice(i, i + 2).map(([k, v]) => `<td class="k">${k}</td><td class="v">${v ? esc(v) : '<span class="muted">—</span>'}</td>`).join('')}</tr>`);
 
   const stRows = ledger.list.map(s => { const a = Number(s.amount) || 0, p = Number(s.paidAmount) || 0, rem = s.remaining; const step = s.statementSent ? `ارسال صورت‌وضعیت${s.statementSentDate ? '، ' + jShort(s.statementSentDate) : ''}` : s.noticeApproved ? `تأیید اعلام وضعیت${s.noticeApprovedDate ? '، ' + jShort(s.noticeApprovedDate) : ''}` : s.noticeSent ? `ارسال اعلام وضعیت${s.noticeSentDate ? '، ' + jShort(s.noticeSentDate) : ''}` : 'ثبت اولیه'; return `<tr><td class="n">${fa(s.statementNo || 0)}</td><td>${step}</td><td class="n">${rial(a)}</td><td class="n">${rial(p)}</td><td class="n">${s.paymentDate ? jShort(s.paymentDate) : '<span class="muted">—</span>'}</td><td class="n">${rem > 0 ? rial(rem) : '<span class="badge b-done">تسویه</span>'}</td></tr>` + (s.note ? `<tr class="noterow"><td colspan="6"><span class="muted">توضیحات:</span> ${esc(s.note)}</td></tr>` : ''); }).join('');
