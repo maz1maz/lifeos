@@ -7,7 +7,7 @@ import { JalaliDateInput, isoToJ, jToIso, MONTHS } from './jdate';
 import { SideLayout } from './sidelist';
 import './life.css';
 import { VocabStats } from './vocab';
-import { printProjectReport, sendProjectReportToTelegram, downloadCompareReport } from './projectReportPrint';
+import { printProjectReport, sendProjectReportToTelegram, printCompareReport } from './projectReportPrint';
 
 export const api = async (url, options) => {
   // the personal-site build (studio.jsx) routes these pages through its own proxy
@@ -361,6 +361,8 @@ const FINAL_STAGES = [['اجرا', 'تحویل پروژه']];
 // yes/no options some items carry (shown in the item's header in the checklist and in the PDF)
 export const ITEM_OPTIONS = { 'پنجره': [['rokoob', 'روکوب'], ['reinforce', 'رین‌فورس']] };
 const optionsKey = item => Object.keys(ITEM_OPTIONS).find(k => normItem(k) === normItem(item));
+// «روکوب: دارد · رین‌فورس: ندارد» for items that have options, '' otherwise (used by both reports)
+export const itemOptionsText = (contract, item) => { const k = optionsKey(item); return k ? ITEM_OPTIONS[k].map(([key, label]) => { const v = itemOption(contract, item, key); return `${label}: ${v === true ? 'دارد' : v === false ? 'ندارد' : 'نامشخص'}`; }).join(' · ') : ''; };
 export const itemOption = (contract, item, key) => { const k = optionsKey(item), o = contract?.itemOptions || {}; const v = (o[item] ?? (k ? o[k] : undefined))?.[key]; return v === false ? false : v === true ? true : null; };
 export const PROCESS_DEPARTMENTS = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'];
 const CONTRACT_ITEMS = ['پنجره', 'کرتن‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
@@ -651,18 +653,18 @@ function projectMetrics(project, contract, financials, processes) {
   return { done, total: stages.length, progress, late, timePct, variance, daysLeft, end, amount, received, receivedPct: amount ? Math.min(100, Math.round(received / amount * 100)) : null, outstanding: Math.max(0, stTotal - paid), state };
 }
 const STATE_LABEL = { ok: 'مطابق برنامه', warn: 'اندکی عقب', bad: 'نیازمند پیگیری', done: 'تکمیل‌شده', none: 'قرارداد ناقص' };
-function ProjectsCompare({ projects, contracts, financials, processes, onOpen }) {
+function ProjectsCompare({ projects, contracts, financials, processes, onOpen, printRef }) {
   const [sort, setSort] = useState('order');
-  const [pdfBusy, setPdfBusy] = useState(false);
-  const pdf = async () => { setPdfBusy(true); try { const brand = await api('/api/report-brand').catch(() => ({})); await downloadCompareReport({ rows, brand: brand || {} }); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPdfBusy(false); } };
   const rows = projects.map((p, i) => ({ p, i, m: projectMetrics(p, contracts.find(x => x.projectId === p.id), financials.filter(x => x.projectId === p.id), processes.filter(x => x.projectId === p.id)) }));
   const key = { order: r => r.i, progress: r => -r.m.progress, variance: r => r.m.variance ?? 999, end: r => r.m.daysLeft ?? 1e9, outstanding: r => -r.m.outstanding }[sort];
   rows.sort((a, b) => key(a) - key(b));
   const sum = f => rows.reduce((a, r) => a + f(r.m), 0);
+  // the «چاپ / PDF» button lives in the page actions, next to «بازگشت به پروژه»; it prints the rows in their current order
+  if (printRef) printRef.current = async () => { const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: brand || {} }); };
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">
-    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><button type="button" className="lf-btn ghost" disabled={pdfBusy || !rows.length} onClick={pdf}>{pdfBusy ? '⏳ در حال ساخت…' : '📄 دانلود PDF'}</button><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
+    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
     <div className="lf-compare-wrap"><table>
       <thead><tr>{th('order', 'پروژه')}{th('progress', 'پیشرفت')}<th>زمان</th>{th('variance', 'انحراف')}{th('end', 'پایان قرارداد')}<th>مبلغ قرارداد</th><th>وصولی</th>{th('outstanding', 'معوق')}<th>مراحل عقب</th><th>وضعیت</th></tr></thead>
       <tbody>{rows.map(({ p, m }) => <tr key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}>
@@ -741,7 +743,7 @@ function ProjectReport({ project, contract, financials, processes }) {
       <div className="lf-report-money report-received"><small>دریافتی از کارفرما</small><b>{money(received)}</b><i className="lf-report-inline-meter"><em style={{ width: `${receivedProgress}%` }} /></i><span>{fa(receivedProgress)}٪ از مبلغ قرارداد · مانده: {money(contractRemaining)}</span></div>
     </section>
     <section className="lf-report-section lf-report-info"><h3>اطلاعات پروژه و قرارداد</h3><dl>
-      <div><dt>کد پروژه</dt><dd>{value(project.projectCode)}</dd></div><div><dt>کارفرما</dt><dd>{value(project.client)}</dd></div><div><dt>شماره تماس کارفرما</dt><dd dir="ltr">{value(project.clientPhone)}</dd></div><div><dt>مسئول ارتباط پروژه</dt><dd>{value(project.owner)}</dd></div><div><dt>شماره تماس مسئول</dt><dd dir="ltr">{value(project.contactPhone)}</dd></div><div><dt>شماره قرارداد</dt><dd>{value(contract?.contractNo)}</dd></div><div><dt>آیتم‌های قرارداد</dt><dd>{value(contract?.subject)}</dd></div><div><dt>متراژ قرارداد</dt><dd>{contractAreaText(contract) || '—'}</dd></div><div><dt>نوع تسویه</dt><dd>{{ cash: 'نقدی', check: 'چک', statement: 'صورت‌وضعیتی', barter: 'تهاتری', other: 'سایر' }[contract?.settlementType] || '—'}</dd></div><div><dt>شروع قرارداد</dt><dd>{validDate(start) ? jl(start) : '—'}</dd></div><div><dt>اتمام قرارداد</dt><dd>{validDate(end) ? jl(end) : '—'}</dd></div>
+      <div><dt>کد پروژه</dt><dd>{value(project.projectCode)}</dd></div><div><dt>کارفرما</dt><dd>{value(project.client)}</dd></div><div><dt>شماره تماس کارفرما</dt><dd dir="ltr">{value(project.clientPhone)}</dd></div><div><dt>مسئول ارتباط پروژه</dt><dd>{value(project.owner)}</dd></div><div><dt>شماره تماس مسئول</dt><dd dir="ltr">{value(project.contactPhone)}</dd></div><div><dt>شماره قرارداد</dt><dd>{value(contract?.contractNo)}</dd></div><div><dt>آیتم‌های قرارداد</dt><dd>{value(contract?.subject)}</dd></div><div><dt>متراژ قرارداد</dt><dd>{contractAreaText(contract) || '—'}</dd></div>{contractScope(contract).filter(optionsKey).map(it => <div key={`opt-${it}`}><dt>گزینه‌های {it}</dt><dd>{itemOptionsText(contract, it)}</dd></div>)}<div><dt>نوع تسویه</dt><dd>{{ cash: 'نقدی', check: 'چک', statement: 'صورت‌وضعیتی', barter: 'تهاتری', other: 'سایر' }[contract?.settlementType] || '—'}</dd></div><div><dt>شروع قرارداد</dt><dd>{validDate(start) ? jl(start) : '—'}</dd></div><div><dt>اتمام قرارداد</dt><dd>{validDate(end) ? jl(end) : '—'}</dd></div>
     </dl>{project.note || contract?.note ? <div className="lf-report-notes">{project.note ? <p><b>توضیحات پروژه:</b> {project.note}</p> : null}{contract?.note ? <p><b>توضیحات قرارداد:</b> {contract.note}</p> : null}</div> : null}</section>
     <section className="lf-report-section"><h3>نمودار پیشرفت واحدها</h3><div className="lf-report-departments">{departments.map(item => <div key={item.department} className={`dept-${item.department.replaceAll(' ', '-')}`}><div><b>{item.department}</b><span>{fa(item.done)} از {fa(item.total)}</span></div><i><em style={{ width: `${item.progress}%` }} /></i><small>{fa(item.progress)}٪ تکمیل</small></div>)}</div>{reportItems.length ? <ItemsPanel items={reportItems.map(x => x.item)} stages={stages} shares={Object.fromEntries(reportItems.map(x => [x.item, x.share / 100]))} /> : null}</section>
     <section className="lf-report-section"><h3>خلاصهٔ مالی و صورت‌وضعیت‌ها</h3><div className="lf-report-finance"><div><small>آخرین صورت‌وضعیت (تجمعی)</small><b>{money(statementTotal)}</b></div><div><small>جمع واریزی‌ها</small><b>{money(paidTotal)}</b></div><div><small>مطالبات معوق</small><b>{money(Math.max(0, statementTotal - paidTotal))}</b></div></div>
@@ -749,7 +751,7 @@ function ProjectReport({ project, contract, financials, processes }) {
     </section>
     <section className="lf-report-section lf-report-stages"><h3>وضعیت مراحل اجرایی</h3><div className="lf-report-table-wrap"><table className="lf-report-stage-table"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th>توضیحات</th></tr></thead><tbody>{(() => { let n = 0; const groups = []; for (const st of stages) { const g = st.group || (st.item ? `item:${st.item}` : 'start'); let G = groups.find(x => x.key === g); if (!G) groups.push(G = { key: g, item: st.item || '', rows: [] }); G.rows.push(st); }
           return groups.map(G => { const dn = G.rows.filter(x => x.status === 'done').length, ri = reportItems.find(x => x.item === G.item);
-            return [<tr key={`g-${G.key}`} className={`lf-report-stage-group ${(ri ? ri.progress === 100 : dn === G.rows.length) ? 'complete' : ''}`}><td colSpan={7}><b>{G.item || GROUP_TITLES[G.key] || GROUP_TITLES['item:']}</b>{ri ? <><i className="lf-report-gbar"><em style={{ width: `${ri.progress}%` }} /></i><span>{fa(ri.progress)}٪ · سهم {fa(ri.share)}٪</span></> : null}<small>{fa(dn)} از {fa(G.rows.length)} انجام‌شده</small></td></tr>,
+            return [<tr key={`g-${G.key}`} className={`lf-report-stage-group ${(ri ? ri.progress === 100 : dn === G.rows.length) ? 'complete' : ''}`}><td colSpan={7}><b>{G.item || GROUP_TITLES[G.key] || GROUP_TITLES['item:']}</b>{ri ? <><i className="lf-report-gbar"><em style={{ width: `${ri.progress}%` }} /></i><span>{fa(ri.progress)}٪ · سهم {fa(ri.share)}٪</span></> : null}<small>{fa(dn)} از {fa(G.rows.length)} انجام‌شده</small>{G.item && itemOptionsText(contract, G.item) ? <em className="lf-report-gopts">{itemOptionsText(contract, G.item)}</em> : null}</td></tr>,
               ...G.rows.map(item => <tr key={`${item.department}|${item.title}`} className={item.status === 'done' ? 'done' : ''}><td>{fa(++n)}</td><td>{item.base || item.title}</td><td>{item.department}</td><td>{item.status === 'done' ? '✓ انجام شد' : isInstallStage(item) && Number(item.percent) ? `${fa(Number(item.percent))}٪ نصب` : 'در انتظار'}</td><td>{item.date ? jShort(item.date) : '—'}</td><td>{item.owner || '—'}</td><td className="note">{item.note || '—'}</td></tr>)]; }); })()}</tbody></table></div></section>
     {reportFooterText ? <footer className="lf-report-print-footer"><span>{reportFooterText}</span></footer> : null}
   </article>;
@@ -844,6 +846,7 @@ export function ProjectsPage({ Nav }) {
   // visible instead of becoming inaccessible.
   const [compare, setCompare] = useState(false);
   const [deleting, setDeleting] = useState('');
+  const comparePrint = useRef(null), [printBusy, setPrintBusy] = useState(false);
   const list = projects.items || [];
   // manual order from drag-and-drop in the side list; projects without `order` keep creation order at the end
   const ordered = list.map((p, i) => [p, Number.isFinite(p.order) ? p.order : 1e6 + i]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
@@ -968,9 +971,9 @@ export function ProjectsPage({ Nav }) {
     const same = items.filter(p => !p.color || p.color === PCOLORS[0]); if (same.length < 2) return;
     same.slice(1).forEach((p, i) => projects.patch(p.id, { color: PCOLORS[(i + 1) % PCOLORS.length] }));
   }, [projects.items === null]);
-  return <Page Nav={Nav} className="wide" kicker="کار" title="پروژه‌ها" actions={<>{list.length > 1 ? <button className={`lf-btn ${compare ? '' : 'ghost'}`} onClick={() => setCompare(c => !c)}>{compare ? 'بازگشت به پروژه' : '⚖ مقایسهٔ پروژه‌ها'}</button> : null}<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button></>}>
+  return <Page Nav={Nav} className="wide" kicker="کار" title="پروژه‌ها" actions={<>{list.length > 1 ? <button className={`lf-btn ${compare ? '' : 'ghost'}`} onClick={() => setCompare(c => !c)}>{compare ? 'بازگشت به پروژه' : '⚖ مقایسهٔ پروژه‌ها'}</button> : null}{compare && list.length > 1 ? <button className="lf-btn ghost" disabled={printBusy} onClick={async () => { setPrintBusy(true); try { await comparePrint.current?.(); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPrintBusy(false); } }}>{printBusy ? '⏳ در حال آماده‌سازی…' : '🖨 چاپ / PDF'}</button> : null}<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button></>}>
     {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !(projects.items || []).length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. با «＋ پروژه» فقط نامش را وارد کن؛ سپس اطلاعات پروژه و قرارداد را کامل می‌کنی.</p> : <>
-      {compare && list.length > 1 ? <ProjectsCompare projects={ordered} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'آرشیو']]}
+      {compare && list.length > 1 ? <ProjectsCompare printRef={comparePrint} projects={ordered} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'آرشیو']]}
         onReorder={reorderProjects}
         items={ordered.map(p => { const stages = stagesOf(p), total = stages.length, done = stages.filter(x => x.status === 'done').length, pct = weightedProgress(stages);
           return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: isArchived(p) ? 'archived' : (p.status === 'done' || done === total || isDelivered(stages)) ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>

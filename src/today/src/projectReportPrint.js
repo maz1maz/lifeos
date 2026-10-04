@@ -1,6 +1,6 @@
 // Printable A4 project report. Rendered as a standalone document inside a hidden
 // iframe so the app's dark theme, layout and fixed headers never leak into the PDF.
-import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, contractAreaText, statementLedger, itemProgress, ITEM_OPTIONS, itemOption } from './life';
+import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, contractAreaText, statementLedger, itemProgress, itemOptionsText, contractScope } from './life';
 import { isoToJ } from './jdate';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -52,7 +52,7 @@ thead{display:table-header-group}tr{break-inside:avoid}
 th{background:#f1f5f9;color:#334155;font-weight:700;text-align:right;padding:5px 6px;border-bottom:1.5px solid #cbd5e1}
 td{padding:4.5px 6px;border-bottom:1px solid #e2e8f0;vertical-align:top}
 tfoot td{font-weight:800;background:#f8fafc;border-top:1.5px solid #cbd5e1}
-table.stages{table-layout:auto;width:100%;font-size:7.6pt}table.stages tr:not(.igrp) td:not(.note){white-space:nowrap}table.stages .note{width:100%}table.stages th{font-size:7.2pt;white-space:nowrap;padding:5px 4px}table.stages td{padding:4px;vertical-align:middle}table.stages tr:not(.igrp) td:first-child,table.stages th:first-child{padding-inline-end:0;text-align:center}table.stages td:nth-child(2),table.stages th:nth-child(2){padding-inline-start:2px}table.stages td:nth-child(3){font-size:6.6pt;color:#475569;white-space:nowrap}table.stages tr.igrp td{font-size:7.6pt;white-space:normal;color:#0f172a}table.stages td,table.stages th{overflow-wrap:anywhere;word-break:break-word}td.note{font-size:10.5px;line-height:1.6;white-space:pre-wrap}p.note{margin:6px 0;font-size:12px;line-height:1.8}tr.noterow td{font-size:11px;background:#f8fafc}table.kv td{width:25%}table.kv td.k{color:#64748b;width:17%}table.kv td.v{font-weight:600;width:33%}
+table.stages{table-layout:auto;width:100%;font-size:7.6pt}table.stages tr:not(.igrp) td:not(.note){white-space:nowrap}table.stages .note{width:100%}table.stages th{font-size:7.2pt;white-space:nowrap;padding:5px 4px}table.stages td{padding:4px;vertical-align:middle}table.stages tr:not(.igrp) td:first-child,table.stages th:first-child{padding-inline-end:0;text-align:center}table.stages td:nth-child(2),table.stages th:nth-child(2){padding-inline-start:2px}table.stages td:nth-child(3){font-size:6.6pt;color:#475569;white-space:nowrap}table.stages tr.igrp .gopts{font-weight:600;font-size:7pt;color:#334155;margin-inline-start:8px;padding:0 6px;border:1px solid #c7d2fe;border-radius:99px;background:#fff}tr.igrp td{font-size:7.6pt;white-space:normal;color:#0f172a}table.stages td,table.stages th{overflow-wrap:anywhere;word-break:break-word}td.note{font-size:10.5px;line-height:1.6;white-space:pre-wrap}p.note{margin:6px 0;font-size:12px;line-height:1.8}tr.noterow td{font-size:11px;background:#f8fafc}table.kv td{width:25%}table.kv td.k{color:#64748b;width:17%}table.kv td.v{font-weight:600;width:33%}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px;break-inside:avoid}
 .dept{display:grid;grid-template-columns:70px 1fr 64px;align-items:center;gap:8px;padding:3px 0}
 .dept b{font-size:9pt}.dept span{font-size:8pt;color:#475569;text-align:left}
@@ -114,7 +114,7 @@ export function projectReportHtml(d) {
     late.length ? `<b>${fa(late.length)} مرحله</b> از تاریخ برنامه‌ریزی‌شده عقب افتاده است` : ''
   ].filter(Boolean).join('؛ ') + '.';
 
-  const kv = [['کد پروژه', project.projectCode], ['شماره قرارداد', contract?.contractNo], ['کارفرما', project.client], ['تلفن کارفرما', project.clientPhone], ['مسئول ارتباط', project.owner], ['تلفن مسئول', project.contactPhone], ['موضوع قرارداد', contract?.subject], ['متراژ', contractAreaText(contract)], ...Object.entries(ITEM_OPTIONS).filter(([it]) => (contract?.items || []).includes(it)).map(([it, opts]) => [`گزینه‌های ${it}`, opts.map(([k, l]) => `${l}: ${itemOption(contract, it, k) === true ? 'دارد' : itemOption(contract, it, k) === false ? 'ندارد' : 'نامشخص'}`).join(' · ')]), ['نوع تسویه', SETTLEMENT[contract?.settlementType]], ['مدت قرارداد', totalDays ? `${fa(totalDays)} روز` : ''], ['تاریخ شروع', valid(start) ? jl(start) : ''], ['تاریخ پایان', valid(end) ? jl(end) : '']];
+  const kv = [['کد پروژه', project.projectCode], ['شماره قرارداد', contract?.contractNo], ['کارفرما', project.client], ['تلفن کارفرما', project.clientPhone], ['مسئول ارتباط', project.owner], ['تلفن مسئول', project.contactPhone], ['موضوع قرارداد', contract?.subject], ['متراژ', contractAreaText(contract)], ...contractScope(contract).filter(it => itemOptionsText(contract, it)).map(it => [`گزینه‌های ${it}`, itemOptionsText(contract, it)]), ['نوع تسویه', SETTLEMENT[contract?.settlementType]], ['مدت قرارداد', totalDays ? `${fa(totalDays)} روز` : ''], ['تاریخ شروع', valid(start) ? jl(start) : ''], ['تاریخ پایان', valid(end) ? jl(end) : '']];
   const kvRows = []; for (let i = 0; i < kv.length; i += 2) kvRows.push(`<tr>${kv.slice(i, i + 2).map(([k, v]) => `<td class="k">${k}</td><td class="v">${v ? esc(v) : '<span class="muted">—</span>'}</td>`).join('')}</tr>`);
 
   const stRows = ledger.list.map(s => { const a = Number(s.amount) || 0, p = Number(s.paidAmount) || 0, rem = s.remaining; const step = s.statementSent ? `ارسال صورت‌وضعیت${s.statementSentDate ? '، ' + jShort(s.statementSentDate) : ''}` : s.noticeApproved ? `تأیید اعلام وضعیت${s.noticeApprovedDate ? '، ' + jShort(s.noticeApprovedDate) : ''}` : s.noticeSent ? `ارسال اعلام وضعیت${s.noticeSentDate ? '، ' + jShort(s.noticeSentDate) : ''}` : 'ثبت اولیه'; return `<tr><td class="n">${fa(s.statementNo || 0)}</td><td>${step}</td><td class="n">${rial(a)}</td><td class="n">${rial(p)}</td><td class="n">${s.paymentDate ? jShort(s.paymentDate) : '<span class="muted">—</span>'}</td><td class="n">${rem > 0 ? rial(rem) : '<span class="badge b-done">تسویه</span>'}</td></tr>` + (s.note ? `<tr class="noterow"><td colspan="6"><span class="muted">توضیحات:</span> ${esc(s.note)}</td></tr>` : ''); }).join('');
@@ -125,7 +125,7 @@ export function projectReportHtml(d) {
   const groups = []; for (const st of stages) { const g = groupOf(st); let G = groups.find(x => x.key === g); if (!G) groups.push(G = { key: g, item: st.item || '', rows: [] }); G.rows.push(st); }
   const stageRows = groups.map(G => {
     const dn = G.rows.filter(x => x.status === 'done').length, all = G.rows.length, ir = itemRows.find(x => x.item === G.item);
-    const head = G.item ? `<tr class="igrp ${ir?.progress === 100 ? 'complete' : ''}"><td colspan="7">${esc(G.item)}${ir ? `${bar(ir.progress, ir.progress === 100 ? '#059669' : ir.color)}${pct(ir.progress)} · سهم ${pct(ir.share)}` : ''} <span class="muted">(${fa(dn)} از ${fa(all)} انجام‌شده)</span></td></tr>`
+    const head = G.item ? `<tr class="igrp ${ir?.progress === 100 ? 'complete' : ''}"><td colspan="7">${esc(G.item)}${ir ? `${bar(ir.progress, ir.progress === 100 ? '#059669' : ir.color)}${pct(ir.progress)} · سهم ${pct(ir.share)}` : ''} <span class="muted">(${fa(dn)} از ${fa(all)} انجام‌شده)</span>${itemOptionsText(contract, G.item) ? ` <span class="gopts">${esc(itemOptionsText(contract, G.item))}</span>` : ''}</td></tr>`
       : `<tr class="igrp fixed ${dn === all ? 'complete' : ''}"><td colspan="7">${G.key === 'end' ? 'تحویل پروژه' : G.key === 'start' ? 'مراحل عمومی پروژه' : 'مراحل اجرایی'} <span class="muted">(${fa(dn)} از ${fa(all)} انجام‌شده)</span></td></tr>`;
     return head + G.rows.map(st => `<tr class="${st.status === 'done' ? 'done' : ''}"><td class="n">${fa(++n)}</td><td>${esc(st.base || st.title)}</td><td>${esc(st.department)}</td><td>${statusBadge(st)}</td><td class="n">${valid(st.date) ? jShort(st.date) : '<span class="muted">—</span>'}</td><td>${st.owner ? esc(st.owner) : '<span class="muted">—</span>'}</td><td class="note">${st.note ? esc(st.note) : '<span class="muted">—</span>'}</td></tr>`).join('');
   }).join('');
@@ -280,8 +280,10 @@ export async function printProjectReport(data) {
 }
 
 // ── Projects comparison report (portfolio): KPIs, progress-vs-time chart, status mix and the full table ──
+const CMP_W = 1000; // landscape A4 content width at the report's 695px-per-184mm scale
 const STATE_FA = { bad: 'نیازمند پیگیری', warn: 'اندکی عقب', ok: 'مطابق برنامه', done: 'تکمیل‌شده', none: 'قرارداد ناقص' };
-const STATE_CLR = { bad: '#e11d48', warn: '#d97706', ok: '#2563eb', done: '#059669', none: '#94a3b8' };
+const STATE_CLR = { bad: '#f43f5e', warn: '#f59e0b', ok: '#3b82f6', done: '#10b981', none: '#cbd5e1' };
+const STATE_TXT = { bad: '#be123c', warn: '#b45309', ok: '#1d4ed8', done: '#047857', none: '#64748b' };
 export function compareReportHtml({ rows, brand = {} }) {
   const today = todayIso(), printedAt = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date());
   const title = `مقایسهٔ پروژه‌ها – ${jl(today)}`;
@@ -292,17 +294,21 @@ export function compareReportHtml({ rows, brand = {} }) {
   const logo = /^data:image\/(?:png|jpeg|webp);base64,/i.test(String(brand.logo || '')) ? brand.logo : '';
   const bar = (v, c) => `<div class="bar"><i style="width:${Math.max(0, Math.min(100, v || 0))}%;background:${c}"></i></div>`;
   // progress (filled bar) against elapsed contract time (dark tick): a bar left of its tick is behind schedule
-  const chart = rows.map(({ p, m }) => `<div class="cr"><b><span class="dot" style="background:${esc(p.color || '#64748b')}"></span>${esc(p.name)}</b><div class="track"><i style="width:${m.progress}%;background:${STATE_CLR[m.state] || '#2563eb'}"></i>${m.timePct != null ? `<u style="right:${Math.min(100, m.timePct)}%"></u>` : ''}</div><span>${pct(m.progress)}${m.timePct != null ? ` / ${pct(m.timePct)}` : ''}</span></div>`).join('');
+  const pc = p => /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1';
+  const chart = rows.map(({ p, m }) => `<div class="cr"><b><span class="dot" style="background:${pc(p)}"></span>${esc(p.name)}</b><div class="track" style="background:${pc(p)}1f"><i style="width:${Math.max(m.progress, m.progress ? 2 : 0)}%;background:${pc(p)}"></i>${m.timePct != null ? `<u style="right:${Math.min(100, m.timePct)}%"></u>` : ''}</div><span class="vals"><b class="num">${pct(m.progress)}</b>${m.timePct != null ? `<small>زمان ${pct(m.timePct)}</small>` : '<small>بدون تاریخ</small>'}</span></div>`).join('');
   const mix = counts.map(([k, n]) => `<span style="flex:${n};background:${STATE_CLR[k]}"></span>`).join('');
   const varTxt = v => v == null ? '—' : v === 0 ? 'منطبق' : `${pct(Math.abs(v))} ${v < 0 ? 'عقب' : 'جلو'}`;
-  const tr = rows.map(({ p, m }, i) => `<tr><td class="n">${fa(i + 1)}</td><td><b>${esc(p.name)}</b>${p.client ? `<div class="muted">${esc(p.client)}</div>` : ''}</td><td>${bar(m.progress, STATE_CLR[m.state])}<span class="sm">${pct(m.progress)} · ${fa(m.done)}/${fa(m.total)}</span></td><td class="n">${m.timePct == null ? '—' : pct(m.timePct)}</td><td class="n ${m.variance < 0 ? 'neg' : m.variance > 0 ? 'pos' : ''}">${varTxt(m.variance)}</td><td class="n">${m.end ? jShort(m.end) : '—'}${m.daysLeft != null ? `<div class="muted">${m.daysLeft >= 0 ? `${fa(m.daysLeft)} روز مانده` : `${fa(-m.daysLeft)} روز گذشته`}</div>` : ''}</td><td class="n">${m.amount ? money(m.amount) : '—'}</td><td class="n">${m.amount ? money(m.received) : '—'}${m.receivedPct != null ? `<div class="muted">${pct(m.receivedPct)}</div>` : ''}</td><td class="n ${m.outstanding ? 'neg' : ''}">${m.outstanding ? money(m.outstanding) : '—'}</td><td class="n ${m.late ? 'neg' : ''}">${m.late ? fa(m.late) : '—'}</td><td><span class="st" style="color:${STATE_CLR[m.state]};border-color:${STATE_CLR[m.state]}">${STATE_FA[m.state] || '—'}</span></td></tr>`).join('');
+  const tr = rows.map(({ p, m }, i) => `<tr><td class="n">${fa(i + 1)}</td><td><span class="dot" style="background:${pc(p)}"></span><b>${esc(p.name)}</b>${p.client ? `<div class="muted">${esc(p.client)}</div>` : ''}</td><td><div class="pg"><b class="num">${pct(m.progress)}</b>${bar(m.progress, pc(p))}</div><span class="sm">${fa(m.done)} از ${fa(m.total)} مرحله</span></td><td class="n">${m.timePct == null ? '—' : pct(m.timePct)}</td><td class="n ${m.variance < 0 ? 'neg' : m.variance > 0 ? 'pos' : ''}">${varTxt(m.variance)}</td><td class="n">${m.end ? jShort(m.end) : '—'}${m.daysLeft != null ? `<div class="muted">${m.daysLeft >= 0 ? `${fa(m.daysLeft)} روز مانده` : `${fa(-m.daysLeft)} روز گذشته`}</div>` : ''}</td><td class="n">${m.amount ? money(m.amount) : '—'}</td><td class="n">${m.amount ? money(m.received) : '—'}${m.receivedPct != null ? `<div class="muted">${pct(m.receivedPct)}</div>` : ''}</td><td class="n ${m.outstanding ? 'neg' : ''}">${m.outstanding ? money(m.outstanding) : '—'}</td><td class="n ${m.late ? 'neg' : ''}">${m.late ? fa(m.late) : '—'}</td><td><span class="st" style="color:${STATE_TXT[m.state]};background:${STATE_CLR[m.state]}22;border-color:${STATE_CLR[m.state]}">${STATE_FA[m.state] || '—'}</span></td></tr>`).join('');
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${CSS(brand, title)}
+@page{size:A4 landscape;margin:12mm 12mm 14mm}
+html.capture body{width:${CMP_W}px}
+.cmp-top{display:grid;grid-template-columns:2.2fr 1fr;gap:16px;align-items:start;break-inside:avoid}
 .cmp-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:10px}.cmp-kpis .kpi b{font-size:12.5pt}
-.mix{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:4px 0 4px}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:7.5pt;color:#475569}.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-inline-end:4px;vertical-align:middle}
-.cr{display:grid;grid-template-columns:150px 1fr 70px;align-items:center;gap:8px;padding:3px 0;break-inside:avoid}.cr b{font-size:8.5pt;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cr span{font-size:7.5pt;color:#475569;text-align:left}
+.mix{display:flex;gap:2px;height:9px;border-radius:5px;overflow:hidden;margin:4px 0 6px}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:7.5pt;color:#475569}.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-inline-end:4px;vertical-align:middle}
+.cr{display:grid;grid-template-columns:170px 1fr 80px;align-items:center;gap:10px;padding:4px 0;break-inside:avoid}.cr>b{font-size:8.5pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cr .vals{display:flex;flex-direction:column;align-items:flex-end;line-height:1.3}.cr .vals b{font-size:9pt;font-weight:800;color:#0f172a}.cr .vals small{font-size:6.8pt;color:#64748b}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline-end:5px;vertical-align:middle}
-.track{position:relative;height:10px;background:#eef2f7;border-radius:5px}.track i{position:absolute;inset-block:0;right:0;border-radius:5px}.track u{position:absolute;top:-3px;bottom:-3px;width:2px;background:#0f172a;transform:translateX(50%)}
-table.cmp{font-size:7.6pt}table.cmp td,table.cmp th{padding:4px 4px}table.cmp .bar{height:4px;margin:2px 0}.sm{font-size:7pt;color:#475569}
+.track{position:relative;height:9px;background:#eef2f7;border-radius:5px}.track i{position:absolute;inset-block:0;right:0;border-radius:5px}.track u{position:absolute;top:-4px;bottom:-4px;width:2px;border-radius:1px;background:#334155;transform:translateX(50%)}
+table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th{padding:5px 4px;vertical-align:middle}table.cmp .pg{display:flex;align-items:center;gap:6px}table.cmp .pg b{font-size:8.5pt;font-weight:800;min-width:26px}table.cmp .pg .bar{flex:1;height:5px;margin:0}.sm{font-size:6.8pt;color:#64748b}table.cmp .dot{margin-inline-end:4px}.num{font-weight:700}
 .neg{color:#be123c}.pos{color:#047857}.st{display:inline-block;padding:0 6px;border:1px solid;border-radius:99px;font-size:7pt;font-weight:700;white-space:nowrap}
 </style></head><body>
 <header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه</div></div>
@@ -314,16 +320,24 @@ table.cmp{font-size:7.6pt}table.cmp td,table.cmp th{padding:4px 4px}table.cmp .b
 <div class="kpi ${outstanding ? 'bad' : ''}"><small>جمع مطالبات معوق</small><b class="num">${money(outstanding)}</b></div>
 <div class="kpi ${late ? 'bad' : ''}"><small>مراحل عقب‌افتاده</small><b class="num">${fa(late)}</b><span>در همهٔ پروژه‌ها</span></div>
 </div>
-<h2>وضعیت پروژه‌ها</h2><div class="mix">${mix}</div><div class="legend">${counts.map(([k, n]) => `<span><i style="background:${STATE_CLR[k]}"></i>${STATE_FA[k]}: ${fa(n)}</span>`).join('')}</div>
-<h2>پیشرفت در برابر زمان</h2><p class="muted" style="font-size:7.5pt;margin-bottom:4px">نوار = پیشرفت اجرایی · خط تیره = زمان سپری‌شدهٔ قرارداد (نوارِ کوتاه‌تر از خط یعنی عقب از برنامه)</p>${chart || '<p class="empty">پروژه‌ای نیست.</p>'}
+<div class="cmp-top"><div>
+<h2>پیشرفت در برابر زمان</h2><p class="muted" style="font-size:7.5pt;margin-bottom:4px">نوار رنگی = پیشرفت اجرایی · خط عمودی = زمان سپری‌شدهٔ قرارداد؛ اگر نوار به خط نرسیده، پروژه عقب است.</p>${chart || '<p class="empty">پروژه‌ای نیست.</p>'}</div>
+<div><h2>وضعیت پروژه‌ها</h2><div class="mix">${mix}</div><div class="legend" style="flex-direction:column">${counts.map(([k, n]) => `<span><i style="background:${STATE_CLR[k]}"></i>${STATE_FA[k]}: ${fa(n)} پروژه</span>`).join('')}</div></div></div>
 <h2>جدول مقایسه</h2><table class="cmp"><thead><tr><th style="width:3%">#</th><th style="width:15%">پروژه</th><th style="width:13%">پیشرفت</th><th>زمان</th><th>انحراف</th><th>پایان قرارداد</th><th>مبلغ قرارداد</th><th>وصولی</th><th>معوق</th><th>عقب</th><th>وضعیت</th></tr></thead><tbody>${tr}</tbody>
 <tfoot><tr><td colspan="2">جمع ${fa(rows.length)} پروژه</td><td>${pct(avg)} میانگین</td><td></td><td></td><td></td><td class="n">${money(amount)}</td><td class="n">${money(received)}</td><td class="n">${money(outstanding)}</td><td class="n">${fa(late)}</td><td></td></tr></tfoot></table>
 </body></html>`;
 }
 const compareFileName = () => { const j = isoToJ(todayIso()); return `${j.jy}-${pad2(j.jm)}-${pad2(j.jd)}_مقایسه-پروژه‌ها.pdf`; };
-export async function downloadCompareReport(data) {
-  const name = compareFileName();
-  const blob = await renderPdf(compareReportHtml(data), { running: `مقایسهٔ پروژه‌ها – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: name.replace(/\.pdf$/, ''), subject: 'مقایسهٔ پروژه‌ها' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  return name;
+
+// Print dialog (Save as PDF): the browser's own text engine shapes Persian correctly, unlike the canvas path
+export async function printCompareReport(data) {
+  const title = compareFileName().replace(/\.pdf$/, '');
+  const frame = mountFrame('lf-compare-print-frame', CMP_W, compareReportHtml(data), false);
+  const doc = frame.contentDocument;
+  doc.title = title;
+  doc.documentElement.classList.add('capture');
+  await (doc.fonts?.ready || Promise.resolve());
+  const prevTitle = document.title;
+  document.title = title;
+  try { frame.contentWindow.focus(); frame.contentWindow.print(); } finally { document.title = prevTitle; }
 }
