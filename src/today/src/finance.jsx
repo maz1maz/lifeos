@@ -235,10 +235,10 @@ export function FinanceReact({ Nav }) {
       const [sum, list, acc, bud, debt, pf, pk, pkSum, bt, al, pkAll, ...hist] = await Promise.all([
         api(`/api/finance?${rq}`),
         api(`/api/transactions?${rq}`),
-        api('/api/accounts'),
-        api(`/api/budgets?month=${month}&legacy=${legacyKey(month)}&${rq}`),
-        api('/api/debts'),
-        api('/api/portfolio'),
+        api('/api/accounts').catch(() => ({ accounts: [] })),
+        api(`/api/budgets?month=${month}&legacy=${legacyKey(month)}&${rq}`).catch(() => ({ budgets: [] })),
+        api('/api/debts').catch(() => ({ items: [] })),
+        api('/api/portfolio').catch(() => ({ items: [], totals: {} })),
         api(`/api/poker?${rq}`).catch(() => ({ items: [] })),
         api(`/api/poker/summary?${rq}`).catch(() => ({})),
         api(`/api/bet?${rq}`).catch(() => ({ items: [], stats: {} })),
@@ -486,7 +486,7 @@ export function FinanceReact({ Nav }) {
             <div className="fn-kpi cyan">
               <small>نرخ پس‌انداز {fa(savings)}٪</small>
               <div className="fn-gauge" style={{ marginTop: 10 }}><i style={{ width: `${Math.max(0, Math.min(100, savings))}%` }} /></div>
-              <small style={{ marginTop: 8 }}>{fa(txs.length)} تراکنش</small>
+              <button type="button" className="fn-link" style={{ marginTop: 8 }} onClick={() => setTab('ledger')}>{fa(txs.length)} تراکنش ←</button>
             </div>
           </div>
           <div className="fn-cats">
@@ -520,6 +520,15 @@ export function FinanceReact({ Nav }) {
               <h2>ترکیب هزینه‌ها</h2>
               <p className="sub">سهم دسته از هزینهٔ ماه</p>
               {cats.length ? <Donut slices={cats.slice(0, 7).map(([name, value]) => ({ name, value }))} /> : <p className="fn-empty">داده‌ای نیست.</p>}
+            </section>
+            <section className="fn-glass fn-card fn-recent">
+              <div className="fn-head"><h2>تراکنش‌های {monthFa(month)}</h2><button type="button" className="fn-add" onClick={() => setTab('ledger')}>همه ({fa(txs.length)}) ←</button></div>
+              {txs.length ? txs.slice(0, 8).map((t) => (
+                <article key={t.id} className="fn-row">
+                  <div><b>{t.title}</b><small>{jalaliShort(t.date)} · {t.category}{t.account ? ` · ${t.account}` : ''}</small></div>
+                  <span className={`amt ${t.kind === 'income' ? 'pos' : 'neg'}`}>{t.kind === 'income' ? '+' : t.kind === 'transfer' ? '↔' : '−'}{amt(t.amount)}</span>
+                </article>
+              )) : <p className="fn-empty">تراکنشی در این ماه نیست.</p>}
             </section>
           </div>
         ) : null}
