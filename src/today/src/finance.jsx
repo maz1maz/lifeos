@@ -212,6 +212,7 @@ export function FinanceReact({ Nav }) {
   const [filter, setFilter] = useState('all')
   const [q, setQ] = useState('')
   const [notice, setNotice] = useState('')
+  const [undoBatch, setUndoBatch] = useState(null)
   const [editing, setEditing] = useState(null)
   const [holdAssetType, setHoldAssetType] = useState('crypto')
   const [importPreview, setImportPreview] = useState(null)
@@ -309,7 +310,7 @@ export function FinanceReact({ Nav }) {
   const miscPct = expense ? Math.round((miscSum / expense) * 100) : 0
   const setCat = async (item, category) => {
     if (!category) return
-    try { const r = await api(`/api/transactions/${item.id}`, { method: 'PATCH', body: JSON.stringify({ category, learn: true }) }); setNotice(`«${item.title}» ← ${category}${r.learned ? ` · ${fa(r.learned)} تراکنش مشابه هم دسته‌بندی شد` : ''}`); await load() } catch (e) { setNotice(e.message) }
+    try { const r = await api(`/api/transactions/${item.id}`, { method: 'PATCH', body: JSON.stringify({ category, learn: true }) }); setNotice(`«${item.title}» ← ${category}${r.learned ? ` · ${fa(r.learned)} تراکنش مشابه هم دسته‌بندی شد` : r.learnSkipped ? ' · عنوان عمومی است؛ فقط همین یکی عوض شد' : ''}`); setUndoBatch(r.learnBatch || null); await load() } catch (e) { setNotice(e.message) }
   }
   const betMax = Math.max(1, ...betMonthItems.map((d) => Math.abs(d.result || 0)))
 
@@ -463,6 +464,7 @@ export function FinanceReact({ Nav }) {
   const previewRecat = () => recategorize({}, () => '')
   const applyRecat = () => recategorize({ apply: true }, (r) => `دستهٔ ${fa(r.matched)} تراکنش به‌روزرسانی شد.`)
   const revertRecat = () => recategorize({ revert: true }, (r) => r.message || 'بازگردانی شد.')
+  const undoLearn = async () => { const b = undoBatch; setUndoBatch(null); try { const r = await api('/api/transactions/recategorize', { method: 'POST', body: JSON.stringify({ revert: true, learnBatch: b }) }); setNotice(r.message || 'برگشت.'); await load() } catch (e) { setNotice(e.message) } }
 
   return (
     <div className="fn finance-react" dir="rtl">
@@ -481,7 +483,7 @@ export function FinanceReact({ Nav }) {
           </nav>
         </header>
 
-        {notice ? <div className="notice">{notice}<button type="button" onClick={() => setNotice('')}>×</button></div> : null}
+        {notice ? <div className="notice">{notice}{undoBatch ? <button type="button" className="fn-link" onClick={undoLearn}>↩ برگردان مشابه‌ها</button> : null}<button type="button" onClick={() => { setNotice(''); setUndoBatch(null) }}>×</button></div> : null}
 
         <section className="fn-glass" style={{ padding: 16 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
@@ -599,6 +601,7 @@ export function FinanceReact({ Nav }) {
               <div className="fn-recat">
                 <button type="button" className="fn-action" onClick={previewRecat} disabled={recatBusy}>🧹 دسته‌بندی متفرقه‌ها</button>
                 <button type="button" className="fn-action" onClick={revertRecat} disabled={recatBusy}>↩ بازگردانی آخرین اعمال</button>
+                <button type="button" className="fn-action" onClick={() => recategorize({ revert: true, genericLearned: true }, (r) => r.message || 'برگشت.')} disabled={recatBusy} title="دسته‌هایی که از روی عنوان‌های عمومی مثل «خرید از فروشگاه» روی همه پخش شده بود">↩ برگرداندن دسته‌بندی گروهی اشتباه</button>
               </div>
               {recatPreview ? (
                 <div className="fn-soft fn-recat-box">
