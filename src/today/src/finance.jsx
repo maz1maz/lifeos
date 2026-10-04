@@ -186,6 +186,15 @@ function AssetMore({ row }) {
   </>
 }
 
+function EmptyTx({ hint, onJump }) {
+  return <div className="fn-empty">
+    <p>تراکنشی در این ماه نیست.</p>
+    {hint ? <p>کل تراکنش‌های حساب: {fa(hint.total)}</p> : null}
+    {hint?.latest ? <p>آخرین تراکنش ثبت‌شده: {jalaliShort(hint.latest)} <button type="button" className="fn-link" onClick={() => onJump(hint.latest)}>برو به آن ماه ←</button></p> : null}
+    {hint?.bad ? <p>⚠️ {fa(hint.bad)} تراکنش تاریخ نامعتبر دارند و در هیچ ماهی دیده نمی‌شوند.</p> : null}
+  </div>
+}
+
 export function FinanceReact({ Nav }) {
   const [month, setMonth] = useState(() => jKeyOf(isoToday()))
   const [unit, setUnit] = useState(() => { try { return localStorage.getItem('lifeos-fin-unit') || 'rial' } catch { return 'rial' } })
@@ -227,6 +236,7 @@ export function FinanceReact({ Nav }) {
   const [draft, setDraft] = useState({ key: 0 })
   const [scanning, setScanning] = useState(false)
   const [goalDep, setGoalDep] = useState(null)
+  const [emptyHint, setEmptyHint] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -235,10 +245,10 @@ export function FinanceReact({ Nav }) {
       const [sum, list, acc, bud, debt, pf, pk, pkSum, bt, al, pkAll, ...hist] = await Promise.all([
         api(`/api/finance?${rq}`),
         api(`/api/transactions?${rq}`),
-        api('/api/accounts'),
-        api(`/api/budgets?month=${month}&legacy=${legacyKey(month)}&${rq}`),
-        api('/api/debts'),
-        api('/api/portfolio'),
+        api('/api/accounts').catch(() => ({ accounts: [] })),
+        api(`/api/budgets?month=${month}&legacy=${legacyKey(month)}&${rq}`).catch(() => ({ budgets: [] })),
+        api('/api/debts').catch(() => ({ items: [] })),
+        api('/api/portfolio').catch(() => ({ items: [], totals: {} })),
         api(`/api/poker?${rq}`).catch(() => ({ items: [] })),
         api(`/api/poker/summary?${rq}`).catch(() => ({})),
         api(`/api/bet?${rq}`).catch(() => ({ items: [], stats: {} })),
@@ -248,6 +258,11 @@ export function FinanceReact({ Nav }) {
       ])
       setSummary(sum)
       setTxs(list.items || [])
+      setEmptyHint(null)
+      if (!(list.items || []).length) api('/api/transactions?from=0000-01-01&to=9999-12-31').then((all) => {
+        const items = all.items || [], iso = items.filter((t) => /^\d{4}-\d{2}-\d{2}/.test(t.date || '') && t.date >= '1900')
+        setEmptyHint({ total: items.length, latest: iso.length ? iso.reduce((a, t) => (t.date > a ? t.date : a), '') : null, bad: items.length - iso.length })
+      }).catch(() => {})
       setAccounts(acc.accounts || [])
       setBudgets(bud || { budgets: [] })
       setDebts(debt.items || [])
@@ -486,7 +501,7 @@ export function FinanceReact({ Nav }) {
             <div className="fn-kpi cyan">
               <small>نرخ پس‌انداز {fa(savings)}٪</small>
               <div className="fn-gauge" style={{ marginTop: 10 }}><i style={{ width: `${Math.max(0, Math.min(100, savings))}%` }} /></div>
-              <small style={{ marginTop: 8 }}>{fa(txs.length)} تراکنش</small>
+              <button type="button" className="fn-link" style={{ marginTop: 8 }} onClick={() => setTab('ledger')}>{fa(txs.length)} تراکنش ←</button>
             </div>
           </div>
           <div className="fn-cats">
@@ -520,6 +535,15 @@ export function FinanceReact({ Nav }) {
               <h2>ترکیب هزینه‌ها</h2>
               <p className="sub">سهم دسته از هزینهٔ ماه</p>
               {cats.length ? <Donut slices={cats.slice(0, 7).map(([name, value]) => ({ name, value }))} /> : <p className="fn-empty">داده‌ای نیست.</p>}
+            </section>
+            <section className="fn-glass fn-card fn-recent">
+              <div className="fn-head"><h2>تراکنش‌های {monthFa(month)}</h2><button type="button" className="fn-add" onClick={() => setTab('ledger')}>همه ({fa(txs.length)}) ←</button></div>
+              {txs.length ? txs.slice(0, 8).map((t) => (
+                <article key={t.id} className="fn-row">
+                  <div><b>{t.title}</b><small>{jalaliShort(t.date)} · {t.category}{t.account ? ` · ${t.account}` : ''}</small></div>
+                  <span className={`amt ${t.kind === 'income' ? 'pos' : 'neg'}`}>{t.kind === 'income' ? '+' : t.kind === 'transfer' ? '↔' : '−'}{amt(t.amount)}</span>
+                </article>
+              )) : <EmptyTx hint={emptyHint} onJump={(d) => setMonth(jKeyOf(d))} />}
             </section>
           </div>
         ) : null}
@@ -606,7 +630,7 @@ export function FinanceReact({ Nav }) {
                     <button type="button" className="del" onClick={() => { if (window.confirm(`«${item.title}» حذف شود؟`)) send(`/api/transactions/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
                   </div>
                 </article>
-              )) : <p className="fn-empty">تراکنشی در این ماه نیست.</p>}
+              )) : <EmptyTx hint={emptyHint} onJump={(d) => setMonth(jKeyOf(d))} />}
             </section>
           </div>
         ) : null}

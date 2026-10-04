@@ -53,6 +53,8 @@
 .fn-bar { height: 6px; background: var(--g-panel-2); border-radius: 99px; overflow: hidden; margin-top: 8px; }
 .fn-bar i { display: block; height: 100%; border-radius: 99px; }
 .fn-grid { display: grid; grid-template-columns: 1.4fr .8fr; gap: 12px; margin-top: 12px; }
+.fn-recent { grid-column: 1 / -1; }
+.fn-recent .fn-row { grid-template-columns: 1fr auto; }
 .fn-card { padding: 16px; }
 .fn-card h2 { margin: 0 0 4px; font-size: 16px; }
 .fn-card .sub { margin: 0 0 12px; font-size: 11px; color: var(--g-accent-strong); opacity: .75; }
