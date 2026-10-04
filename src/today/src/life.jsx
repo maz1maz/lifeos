@@ -7,7 +7,7 @@ import { JalaliDateInput, isoToJ, jToIso, MONTHS } from './jdate';
 import { SideLayout } from './sidelist';
 import './life.css';
 import { VocabStats } from './vocab';
-import { printProjectReport, sendProjectReportToTelegram } from './projectReportPrint';
+import { printProjectReport, sendProjectReportToTelegram, downloadCompareReport } from './projectReportPrint';
 
 export const api = async (url, options) => {
   // the personal-site build (studio.jsx) routes these pages through its own proxy
@@ -647,6 +647,8 @@ function projectMetrics(project, contract, financials, processes) {
 const STATE_LABEL = { ok: 'مطابق برنامه', warn: 'اندکی عقب', bad: 'نیازمند پیگیری', done: 'تکمیل‌شده', none: 'قرارداد ناقص' };
 function ProjectsCompare({ projects, contracts, financials, processes, onOpen }) {
   const [sort, setSort] = useState('order');
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const pdf = async () => { setPdfBusy(true); try { const brand = await api('/api/report-brand').catch(() => ({})); await downloadCompareReport({ rows, brand: brand || {} }); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPdfBusy(false); } };
   const rows = projects.map((p, i) => ({ p, i, m: projectMetrics(p, contracts.find(x => x.projectId === p.id), financials.filter(x => x.projectId === p.id), processes.filter(x => x.projectId === p.id)) }));
   const key = { order: r => r.i, progress: r => -r.m.progress, variance: r => r.m.variance ?? 999, end: r => r.m.daysLeft ?? 1e9, outstanding: r => -r.m.outstanding }[sort];
   rows.sort((a, b) => key(a) - key(b));
@@ -654,7 +656,7 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen })
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">
-    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
+    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><button type="button" className="lf-btn ghost" disabled={pdfBusy || !rows.length} onClick={pdf}>{pdfBusy ? '⏳ در حال ساخت…' : '📄 دانلود PDF'}</button><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
     <div className="lf-compare-wrap"><table>
       <thead><tr>{th('order', 'پروژه')}{th('progress', 'پیشرفت')}<th>زمان</th>{th('variance', 'انحراف')}{th('end', 'پایان قرارداد')}<th>مبلغ قرارداد</th><th>وصولی</th>{th('outstanding', 'معوق')}<th>مراحل عقب</th><th>وضعیت</th></tr></thead>
       <tbody>{rows.map(({ p, m }) => <tr key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}>
@@ -739,7 +741,10 @@ function ProjectReport({ project, contract, financials, processes }) {
     <section className="lf-report-section"><h3>خلاصهٔ مالی و صورت‌وضعیت‌ها</h3><div className="lf-report-finance"><div><small>آخرین صورت‌وضعیت (تجمعی)</small><b>{money(statementTotal)}</b></div><div><small>جمع واریزی‌ها</small><b>{money(paidTotal)}</b></div><div><small>مطالبات معوق</small><b>{money(Math.max(0, statementTotal - paidTotal))}</b></div></div>
       {statementRows.length ? <div className="lf-report-table-wrap"><table><thead><tr><th>شماره</th><th>اعلام وضعیت</th><th>تأیید</th><th>ارسال صورت‌وضعیت</th><th>مبلغ</th><th>واریزی</th><th>مانده</th></tr></thead><tbody>{statementRows.map(item => <tr key={item.id}><td>{fa(item.statementNo)}</td><td>{item.noticeSent ? '✓' : '—'} {item.noticeSentDate ? jShort(item.noticeSentDate) : ''}</td><td>{item.noticeApproved ? '✓' : '—'} {item.noticeApprovedDate ? jShort(item.noticeApprovedDate) : ''}</td><td>{item.statementSent ? '✓' : '—'} {item.statementSentDate ? jShort(item.statementSentDate) : ''}</td><td>{money(item.amount)}</td><td>{money(item.paidAmount)}</td><td>{money(item.remaining)}</td></tr>)}{statementRows.filter(x => x.note).map(item => <tr key={`n-${item.id}`} className="lf-report-note-row"><td colSpan={7}>توضیحات صورت‌وضعیت {fa(item.statementNo)}: {item.note}</td></tr>)}</tbody></table></div> : <p className="lf-empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>}
     </section>
-    <section className="lf-report-section lf-report-stages"><h3>وضعیت مراحل اجرایی</h3><div className="lf-report-table-wrap"><table className="lf-report-stage-table"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th>توضیحات</th></tr></thead><tbody>{stages.map((item, index) => <tr key={`${item.department}|${item.title}`} className={item.status === 'done' ? 'done' : ''}><td>{fa(index + 1)}</td><td>{item.title}</td><td>{item.department}</td><td>{item.status === 'done' ? '✓ انجام شد' : isInstallStage(item) && Number(item.percent) ? `${fa(Number(item.percent))}٪ نصب` : 'در انتظار'}</td><td>{item.date ? jShort(item.date) : '—'}</td><td>{item.owner || '—'}</td><td className="note">{item.note || '—'}</td></tr>)}</tbody></table></div></section>
+    <section className="lf-report-section lf-report-stages"><h3>وضعیت مراحل اجرایی</h3><div className="lf-report-table-wrap"><table className="lf-report-stage-table"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th>توضیحات</th></tr></thead><tbody>{(() => { let n = 0; const groups = []; for (const st of stages) { const g = st.group || (st.item ? `item:${st.item}` : 'start'); let G = groups.find(x => x.key === g); if (!G) groups.push(G = { key: g, item: st.item || '', rows: [] }); G.rows.push(st); }
+          return groups.map(G => { const dn = G.rows.filter(x => x.status === 'done').length, ri = reportItems.find(x => x.item === G.item);
+            return [<tr key={`g-${G.key}`} className={`lf-report-stage-group ${(ri ? ri.progress === 100 : dn === G.rows.length) ? 'complete' : ''}`}><td colSpan={7}><b>{G.item || GROUP_TITLES[G.key] || GROUP_TITLES['item:']}</b>{ri ? <><i className="lf-report-gbar"><em style={{ width: `${ri.progress}%` }} /></i><span>{fa(ri.progress)}٪ · سهم {fa(ri.share)}٪</span></> : null}<small>{fa(dn)} از {fa(G.rows.length)} انجام‌شده</small></td></tr>,
+              ...G.rows.map(item => <tr key={`${item.department}|${item.title}`} className={item.status === 'done' ? 'done' : ''}><td>{fa(++n)}</td><td>{item.base || item.title}</td><td>{item.department}</td><td>{item.status === 'done' ? '✓ انجام شد' : isInstallStage(item) && Number(item.percent) ? `${fa(Number(item.percent))}٪ نصب` : 'در انتظار'}</td><td>{item.date ? jShort(item.date) : '—'}</td><td>{item.owner || '—'}</td><td className="note">{item.note || '—'}</td></tr>)]; }); })()}</tbody></table></div></section>
     {reportFooterText ? <footer className="lf-report-print-footer"><span>{reportFooterText}</span></footer> : null}
   </article>;
 }

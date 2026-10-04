@@ -510,3 +510,8 @@
 .lf-share-legend i{width:10px;height:10px;border-radius:3px;background:var(--c)}
 .lf-share-legend em{font-style:normal;color:var(--g-muted);font-size:11px}
 .lf-deleting{margin:8px 0 0;padding:9px 12px;border-radius:10px;border:1px solid rgba(248,113,113,.4);background:rgba(248,113,113,.08);color:#fca5a5;font-size:12.5px}
+.lf-report-stage-group td{background:rgba(96,165,250,.1);border-top:1px solid rgba(96,165,250,.3)}
+.lf-report-stage-group td>*{vertical-align:middle}.lf-report-stage-group b{font-size:13px;color:#93c5fd}
+.lf-report-stage-group small{color:var(--g-muted);margin-inline-start:10px;font-size:11.5px}.lf-report-stage-group span{font-size:12px;margin-inline-start:6px}
+.lf-report-gbar{display:inline-block;width:120px;height:6px;margin:0 10px;border-radius:99px;background:rgba(148,163,184,.25);overflow:hidden}.lf-report-gbar em{display:block;height:100%;background:#60a5fa}
+.lf-report-stage-group.complete td{background:rgba(52,211,153,.1);border-top-color:rgba(52,211,153,.35)}.lf-report-stage-group.complete b{color:#6ee7b7}.lf-report-stage-group.complete .lf-report-gbar em{background:#34d399}
