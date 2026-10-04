@@ -358,12 +358,10 @@ const ITEM_STAGES = [
 ];
 const FINAL_STAGES = [['اجرا', 'تحویل پروژه']];
 // extra stages only some items have, inserted after the given base stage
-// each extra stage depends on a yes/no option of the item (set in the contract sheet; «ندارد» hides the stage)
-const ITEM_EXTRA_STAGES = { 'پنجره': { after: 'شروع نصب', stages: [['اجرا', 'اجرای روکوب', 'rokoob'], ['اجرا', 'اجرای رین‌فورس', 'reinforce']] } };
+// yes/no options some items carry (shown in the item's header in the checklist and in the PDF)
 export const ITEM_OPTIONS = { 'پنجره': [['rokoob', 'روکوب'], ['reinforce', 'رین‌فورس']] };
 const optionsKey = item => Object.keys(ITEM_OPTIONS).find(k => normItem(k) === normItem(item));
 export const itemOption = (contract, item, key) => { const k = optionsKey(item), o = contract?.itemOptions || {}; const v = (o[item] ?? (k ? o[k] : undefined))?.[key]; return v === false ? false : v === true ? true : null; };
-const stagesForItem = (item, contract) => { const x = Object.entries(ITEM_EXTRA_STAGES).find(([k]) => normItem(k) === normItem(item))?.[1]; if (!x) return ITEM_STAGES; const i = ITEM_STAGES.findIndex(([, b]) => b === x.after) + 1; return [...ITEM_STAGES.slice(0, i), ...x.stages.filter(([, , key]) => itemOption(contract, item, key) !== false).map(([d, b]) => [d, b]), ...ITEM_STAGES.slice(i)]; };
 export const PROCESS_DEPARTMENTS = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'];
 const CONTRACT_ITEMS = ['پنجره', 'کرتن‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
 const normItem = x => String(x || '').replace(/[\s‌]+/g, '').replace(/کرتن/g, 'کرتین');
@@ -380,7 +378,7 @@ export function contractScope(contract) {
 export function processTemplate(contract) {
   const items = contractScope(contract);
   const out = FIXED_STAGES.map(([department, title]) => ({ department, title, base: title, item: '', group: 'start' }));
-  for (const item of items.length ? items : ['']) for (const [department, base] of stagesForItem(item, contract)) out.push({ department, base, item, group: `item:${item}`, title: item ? `${base}${ITEM_SEP}${item}` : base });
+  for (const item of items.length ? items : ['']) for (const [department, base] of ITEM_STAGES) out.push({ department, base, item, group: `item:${item}`, title: item ? `${base}${ITEM_SEP}${item}` : base });
   for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '', group: 'end' });
   return out.map((s, order) => ({ ...s, order }));
 }
@@ -792,7 +790,7 @@ function ContractAreaField({ contract, onChange, fallback }) {
     <div>{items.map(i => <label key={i}><small>{i}</small><input key={`${i}-${itemArea(areas, i)}`} defaultValue={itemArea(areas, i) || ''} inputMode="decimal" data-raw dir="ltr" placeholder="0" onBlur={e => save(i, e.target.value)} /></label>)}</div>
   </div>;
 }
-// دارد/ندارد برای گزینه‌های هر آیتم (مثلاً روکوب و رین‌فورس پنجره)؛ «ندارد» مرحلهٔ اجرای آن را پنهان می‌کند
+// دارد/ندارد برای گزینه‌های هر آیتم (مثلاً روکوب و رین‌فورس پنجره)
 function ItemOptionToggles({ contract, item, onChange }) {
   const k = optionsKey(item);
   if (!k || !onChange) return null;
