@@ -2171,7 +2171,7 @@ function NotifyCard() {
 
 // Scoped tokens for a personal website's server-side proxy (e.g. seyfikhani.ir/studio.html).
 // The token is shown once; LifeOS stores only its hash. Finance/contract data needs an explicit extra scope.
-const SITE_SCOPES = [['projects', 'پروژه‌ها (کارت‌ها، مراحل، یادآوری‌ها)'], ['courses', 'دوره‌ها و دانشجوها (پرداخت‌ها، حضور و غیاب)'], ['projectFiles', 'قرارداد، مالی و تأمین پروژه']];
+const SITE_SCOPES = [['projects', 'پروژه‌ها (کارت‌ها، مراحل، یادآوری‌ها)'], ['courses', 'دوره‌ها و دانشجوها (پرداخت‌ها، حضور و غیاب)'], ['projectFiles', 'قرارداد، مالی و تأمین پروژه'], ['bankSms', 'پیامک بانک → تراکنش (Shortcut آیفون، فقط POST /api/ext/bank-sms)']];
 function SiteTokensCard() {
   const [items, setItems] = useState(null), [label, setLabel] = useState('seyfikhani.ir'), [scopes, setScopes] = useState({ projects: true, courses: true, projectFiles: true }), [made, setMade] = useState(null), [msg, setMsg] = useState('');
   const load = () => api('/api/site-tokens').then(d => setItems(d.items || [])).catch(e => { setItems([]); setMsg(e.message); });

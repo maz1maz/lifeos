@@ -1313,7 +1313,7 @@ async function handleApi(request, env) {
  const extSha256=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
  if(p==='/api/site-tokens'||p.startsWith('/api/site-tokens/')){
    let db=await read(),user=auth(req,res,db);db.siteTokens??=[];
-   const SCOPES=['projects','projectFiles','courses'];
+   const SCOPES=['projects','projectFiles','courses','bankSms'];
    const view=t=>({id:t.id,label:t.label,scopes:t.scopes,createdAt:t.createdAt,lastUsedAt:t.lastUsedAt||null,prefix:t.prefix});
    if(p==='/api/site-tokens'&&req.method==='GET')return json(res,200,{items:db.siteTokens.filter(t=>t.userId===user.id).map(view)});
    if(p==='/api/site-tokens'&&req.method==='POST'){
@@ -1406,6 +1406,26 @@ async function handleApi(request, env) {
        if(!pay)st.payments.push(x);st.updatedAt=Date.now();return done(pay?200:201,clean(st));
      }
      return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+   }
+   // Bank SMS → transaction (iPhone Shortcut). Messages a bot sends itself never reach its webhook,
+   // so the Shortcut posts the raw SMS here instead. Only transaction actions are applied; the same
+   // text twice (Shortcut retry) is ignored. Needs the bankSms scope; Telegram echo is best-effort.
+   if(parts[0]==='bank-sms'&&!parts[1]){
+     if(!scopes.has('bankSms'))return json(res,403,{error:'این توکن دسترسی پیامک بانکی ندارد.'});
+     if(req.method!=='POST')return json(res,405,{error:'روش پشتیبانی نمی‌شود.'});
+     let bl=checkRateLimit('extsms:'+m[1].slice(0,16),120,3600e3);if(!bl.ok)return json(res,429,{error:'پیام زیاد. '+bl.retrySec+' ثانیه صبر کن.'});
+     let d=await body(req),text=String(d.text??'').replace(/\r\n?/g,'\n').trim().slice(0,2000);
+     if(!text)return json(res,400,{error:'متن پیامک خالی است.'});
+     db.bankSmsSeen??=[];let sh=(await extSha256(user.id+'\n'+text)).slice(0,24);
+     if(db.bankSmsSeen.includes(sh))return db.__touch?done(200,{ok:true,duplicate:true,done:[]}):json(res,200,{ok:true,duplicate:true,done:[]});
+     let actions=parseLifeText(text);
+     if(!actions.length&&AI_PROVIDER_API_KEY){try{actions=await aiExtractActions(text)}catch(e){}}
+     actions=actions.filter(a=>a&&a.type==='transaction');
+     let did=await applyParsedActions(db,user,actions,today());
+     if(did.length){db.bankSmsSeen.push(sh);if(db.bankSmsSeen.length>300)db.bankSmsSeen=db.bankSmsSeen.slice(-300)}
+     if(did.length||db.__touch){delete db.__touch;await write(db)}
+     if(TELEGRAM_BOT_TOKEN&&user.telegramUserId){try{await tgSend(user.telegramUserId,did.length?('📩 پیامک بانک ثبت شد:\n• '+did.join('\n• ')):'📩 پیامک بانک رسید ولی مبلغی در آن پیدا نشد:\n'+text.slice(0,300),{disable_web_page_preview:true})}catch(e){}}
+     return json(res,did.length?201:422,did.length?{ok:true,done:did}:{error:'مبلغ یا تراکنشی در متن پیدا نشد.',done:[]});
    }
    // Instant site → Telegram notice (form summaries) to the token's own owner; any scope, own 60/hour limit.
    if(parts[0]==='notify'&&!parts[1]){

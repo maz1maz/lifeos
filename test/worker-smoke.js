@@ -804,6 +804,23 @@ async function main() {
       } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } }); }
     }
 
+    // bank SMS (iPhone Shortcut) → transaction; bankSms scope only
+    {
+      const sms = 'بلو\nبرداشت پول\nحمیدرضا عزیز، 10,560,000 ریال از حساب شما پرید.\nموجودی: 2,406,466,090 ریال\n۱۹:۵۴\n۱۴۰۵.۰۷.۰۹';
+      check('bank-sms without bankSms scope -> 403', (await ext('/api/ext/bank-sms', { method: 'POST', token, body: { text: sms } })).status === 403);
+      const smsTok = (await call('/api/site-tokens', { method: 'POST', cookie, body: { label: 'iPhone', scopes: ['bankSms'] } })).d.token;
+      check('bankSms-only token cannot read projects', (await ext('/api/ext/col/projects', { token: smsTok })).status === 403);
+      check('bank-sms GET -> 405', (await ext('/api/ext/bank-sms', { token: smsTok })).status === 405);
+      check('bank-sms empty -> 400', (await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: '  ' } })).status === 400);
+      const r1 = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms } });
+      const tx = (await call('/api/transactions', { cookie })).d.items.filter(t => /پرید|برداشت|بلو/.test(t.title || '') || t.amount === 1056000 || t.amount === 10560000);
+      check('bank-sms records one expense (balance ignored, date from SMS)', r1.status === 201 && tx.length === 1 && tx[0].kind === 'expense' && tx[0].date === '2026-10-01', JSON.stringify([r1.d, tx]));
+      const r2 = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms } });
+      check('same SMS twice is ignored', r2.status === 200 && r2.d.duplicate === true && (await call('/api/transactions', { cookie })).d.items.filter(t => t.id === (tx[0] || {}).id || (t.amount === (tx[0] || {}).amount && t.date === '2026-10-01')).length === 1, JSON.stringify(r2.d));
+      check('non-transaction text -> 422, nothing else applied', (await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'کار خرید نان' } })).status === 422 && !(await call('/api/tasks', { cookie })).d.items?.some?.(t => t.title === 'خرید نان'));
+      if (tx[0]) await call('/api/transactions/' + tx[0].id, { method: 'DELETE', cookie });
+    }
+
     // courses + students + payments
     const course = await ext('/api/ext/col/courses', { method: 'POST', token, body: { name: 'دورهٔ نما ۱', price: 50000000, sessions: 8 } });
     const stu = await ext('/api/ext/col/students', { method: 'POST', token, body: { courseId: course.d.id, name: 'سارا', phone: '09120000000', fee: 50000000, payments: [], attendance: [] } });
