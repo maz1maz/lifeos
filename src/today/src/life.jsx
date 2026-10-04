@@ -358,7 +358,7 @@ const ITEM_STAGES = [
 ];
 const FINAL_STAGES = [['اجرا', 'تحویل پروژه']];
 // extra stages only some items have, inserted after the given base stage
-const ITEM_EXTRA_STAGES = { 'پنجره': { after: 'شروع نصب', stages: [['اجرا', 'وضعیت روکوب'], ['اجرا', 'وضعیت رین‌فورس']] } };
+const ITEM_EXTRA_STAGES = { 'پنجره': { after: 'شروع نصب', stages: [['اجرا', 'اجرای روکوب'], ['اجرا', 'اجرای رین‌فورس']] } };
 const stagesForItem = item => { const x = Object.entries(ITEM_EXTRA_STAGES).find(([k]) => normItem(k) === normItem(item))?.[1]; if (!x) return ITEM_STAGES; const i = ITEM_STAGES.findIndex(([, b]) => b === x.after) + 1; return [...ITEM_STAGES.slice(0, i), ...x.stages, ...ITEM_STAGES.slice(i)]; };
 export const PROCESS_DEPARTMENTS = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'];
 const CONTRACT_ITEMS = ['پنجره', 'کرتن‌وال', 'هندریل', 'اسکای‌فورس', 'توری', 'درب پیووت', 'لوور'];
