@@ -818,7 +818,13 @@ async function main() {
       const r2 = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms } });
       check('same SMS twice is ignored', r2.status === 200 && r2.d.duplicate === true && (await call('/api/transactions', { cookie })).d.items.filter(t => t.id === (tx[0] || {}).id || (t.amount === (tx[0] || {}).amount && t.date === '2026-10-01')).length === 1, JSON.stringify(r2.d));
       check('non-transaction text -> 422, nothing else applied', (await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'کار خرید نان' } })).status === 422 && !(await call('/api/tasks', { cookie })).d.items?.some?.(t => t.title === 'خرید نان'));
-      if (tx[0]) await call('/api/transactions/' + tx[0].id, { method: 'DELETE', cookie });
+      const login = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nحمیدرضا عزیز خوش آمدید.\n13:35:57\n1405.07.12' } });
+      check('login/welcome SMS is ignored quietly (200, nothing recorded)', login.status === 200 && login.d.ignored === true, JSON.stringify(login.d));
+      const sms2 = 'بلو\nبرداشت پول\nحمیدرضا عزیز، 313,131 ریال از حساب شما پرید.\nموجودی: 2,440,911,747 ریال\n۱۳:۴۴\n۱۴۰۵.۰۷.۱۲';
+      const q = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms + '\n###\n' + sms2 + '\n###\nبلو\nحمیدرضا عزیز خوش آمدید.\n###\n' } });
+      const qtx = (await call('/api/transactions', { cookie })).d.items.filter(t => t.date === '2026-10-04' && t.kind === 'expense' && /برداشت/.test(t.title || ''));
+      check('queue file: new SMS recorded, old one skipped as duplicate, welcome ignored', q.status === 200 && q.d.ok && q.d.recorded === 1 && q.d.duplicates === 1 && q.d.ignored === 1 && qtx.length === 1, JSON.stringify([q.d, qtx]));
+      for (const t of [...qtx, tx[0]].filter(Boolean)) await call('/api/transactions/' + t.id, { method: 'DELETE', cookie });
     }
 
     // learn-by-title: generic bank titles must not spread one category to every store
