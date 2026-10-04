@@ -12,9 +12,11 @@ const DEPTS = ['کنترل پروژه', 'فنی', 'تأمین', 'اجرا'];
 const DEPT_COLORS = { 'کنترل پروژه': '#7c3aed', 'فنی': '#2563eb', 'تأمین': '#d97706', 'اجرا': '#059669' };
 const SETTLEMENT = { cash: 'نقدی', check: 'چک', statement: 'صورت‌وضعیتی', barter: 'تهاتری', other: 'سایر' };
 
+// the seyfikhani panel ships the fonts next to studio.html (studio-assets/), LifeOS serves them from /assets/fonts/
+const fontBase = () => (typeof window !== 'undefined' && window.__lifeosApi) ? new URL('studio-assets/', location.href).href : '/assets/fonts/';
 const CSS = (brand, reportNo) => `
-@font-face{font-family:'Vazirmatn';font-weight:100 900;font-display:block;src:url('/assets/fonts/vazirmatn-arabic.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+200C-200E,U+FB50-FDFF,U+FE70-FEFC}
-@font-face{font-family:'Vazirmatn';font-weight:100 900;font-display:block;src:url('/assets/fonts/vazirmatn-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+2212}
+@font-face{font-family:'Vazirmatn';font-weight:100 900;font-display:block;src:url('${fontBase()}vazirmatn-arabic.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+200C-200E,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Vazirmatn';font-weight:100 900;font-display:block;src:url('${fontBase()}vazirmatn-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+2212}
 @page{size:A4 portrait;margin:16mm 13mm 18mm;
   @bottom-left{content:"صفحهٔ " counter(page, persian) " از " counter(pages, persian);font:500 8pt Vazirmatn,Tahoma,sans-serif;color:#64748b}
   @bottom-right{content:"${cssStr(brand.footerText || '')}";font:400 8pt Vazirmatn,Tahoma,sans-serif;color:#64748b}
