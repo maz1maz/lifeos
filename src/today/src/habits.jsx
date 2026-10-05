@@ -41,7 +41,7 @@ export function HabitsPage({ Nav }) {
     const k = h.id + '|' + date, was = doneSet.has(k);
     setLogs(ls => was ? ls.filter(l => !(l.habitId === h.id && l.date === date)) : [...ls, { habitId: h.id, date, done: true }]);
     if (date === today) setHabits(hs => hs.map(x => x.id === h.id ? { ...x, done: !was, streak: Math.max(0, (x.streak || 0) + (was ? -1 : 1)) } : x));
-    try { await api(`/api/habits/${h.id}/toggle`, { method: 'POST', body: JSON.stringify({ date }) }); if (date !== today) load(); } catch (e) { setMsg(e.message); load(); }
+    try { await api(`/api/habits/${h.id}/toggle`, { method: 'POST', body: JSON.stringify({ date, done: !was }) }); if (date !== today) load(); } catch (e) { setMsg(e.message); load(); }
   };
   const add = async e => {
     e.preventDefault(); if (!name.trim()) return;
@@ -81,8 +81,10 @@ export function HabitsPage({ Nav }) {
               <span className="hb-ops"><button type="button" onClick={() => rename(h)}>ویرایش</button><button type="button" className="del" onClick={() => remove(h)}>حذف</button></span>
             </div>
             <div className="hb-heat" style={{ gridTemplateColumns: `18px repeat(${Math.ceil(days.length / 7)}, 1fr)` }}>
-              {WD.map((w, r) => <span key={'w' + r} className="hb-wd" style={{ gridRow: r + 1, gridColumn: 1 }}>{r % 2 === 0 ? w : ''}</span>)}
-              {days.map((d, i) => { const k = doneSet.has(h.id + '|' + d), col = Math.floor(i / 7) + 2, row = (i % 7) + 1; return <button type="button" key={d} className={`hb-cell ${k ? 'on' : ''} ${d === today ? 'today' : ''}`} style={{ gridColumn: col, gridRow: row }} title={`${jLabel(d)}${k ? ' ✓' : ''}`} onClick={() => toggle(h, d)} />; })}
+              {/* row 1: month name over the week a Jalali month starts in; rows 2–8: days (Jalali day number in each cell) */}
+              {days.map((d, i) => { const j = isoToJ(d); return j.jd === 1 || i === 0 ? <span key={'m' + d} className="hb-month" style={{ gridRow: 1, gridColumn: `${Math.floor(i / 7) + 2} / span 3` }}>{MONTHS[j.jm - 1]}</span> : null; })}
+              {WD.map((w, r) => <span key={'w' + r} className="hb-wd" style={{ gridRow: r + 2, gridColumn: 1 }}>{r % 2 === 0 ? w : ''}</span>)}
+              {days.map((d, i) => { const k = doneSet.has(h.id + '|' + d), col = Math.floor(i / 7) + 2, row = (i % 7) + 2; return <button type="button" key={d} className={`hb-cell ${k ? 'on' : ''} ${d === today ? 'today' : ''}`} style={{ gridColumn: col, gridRow: row }} title={`${jLabel(d)}${k ? ' ✓' : ''}`} aria-label={`${jLabel(d)}${k ? ' انجام شد' : ''}`} aria-pressed={k} onClick={() => toggle(h, d)}>{faD(isoToJ(d).jd)}</button>; })}
             </div>
           </article>;
         })}</div>}

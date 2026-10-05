@@ -1572,7 +1572,7 @@ function HabitsMini() {
   const [items, setItems] = useState(null);
   const load = () => api(`/api/habits?date=${isoToday()}`).then(d => setItems(d.items || [])).catch(() => setItems([]));
   useEffect(() => { load(); }, []);
-  const toggle = async h => { setItems(xs => xs.map(x => x.id === h.id ? { ...x, done: !x.done, streak: Math.max(0, (x.streak || 0) + (x.done ? -1 : 1)) } : x)); try { await api(`/api/habits/${h.id}/toggle`, { method: 'POST', body: JSON.stringify({ date: isoToday() }) }); } catch { load(); } };
+  const toggle = async h => { setItems(xs => xs.map(x => x.id === h.id ? { ...x, done: !x.done, streak: Math.max(0, (x.streak || 0) + (x.done ? -1 : 1)) } : x)); try { await api(`/api/habits/${h.id}/toggle`, { method: 'POST', body: JSON.stringify({ date: isoToday(), done: !h.done }) }); } catch { load(); } };
   const done = (items || []).filter(x => x.done).length;
   return <Card className="mini-card" icon={Flame} title="عادت‌های امروز" action={<a href="/?page=habits">همه ←</a>}>
     {items === null ? <p className="empty">در حال دریافت…</p> : !items.length ? <p className="empty">هنوز عادتی نساختی. <a href="/?page=habits">یکی بساز</a></p> : <>
