@@ -145,3 +145,20 @@
 @media (max-width: 480px) {
   .mk-summaries { grid-template-columns: 1fr; }
 }
+
+/* پیشنهادهای مالی */
+.mk-insights{margin-bottom:14px}
+.mk-insights .mk-list-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mk-insights .mk-list-head .mk-btn{margin-inline-start:auto}
+.mk-ins-wrap{overflow-x:auto}
+.mk-ins-table{width:100%;border-collapse:collapse;font-size:13px;font-feature-settings:'tnum'}
+.mk-ins-table th{font-size:11.5px;font-weight:500;color:var(--g-muted,#9ca3af);padding:6px 8px;text-align:right;white-space:nowrap}
+.mk-ins-table td{padding:7px 8px;border-top:1px solid rgba(255,255,255,.06);white-space:nowrap}
+.mk-ins-table td small{display:block;font-size:11px;color:var(--g-muted,#9ca3af)}
+.mk-up{color:#34d399}.mk-down{color:#f87171}
+.mk-trend{font-size:11.5px;font-weight:700;border-radius:99px;padding:2px 9px;border:1px solid}
+.mk-trend.up{color:#34d399;border-color:rgba(52,211,153,.4)}.mk-trend.down{color:#f87171;border-color:rgba(248,113,113,.4)}.mk-trend.flat{color:#9ca3af;border-color:rgba(156,163,175,.4)}
+.mk-ins-ai{margin-top:12px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);line-height:1.9;font-size:13.5px}
+.mk-ins-ai p{margin:0 0 4px}
+.mk-ins-news{margin-top:8px;font-size:12.5px;color:var(--g-muted,#9ca3af)}.mk-ins-news ul{margin:6px 0 0;padding-inline-start:18px;line-height:1.8}
+.mk-ins-note{display:block;margin-top:8px;font-size:11.5px;color:var(--g-muted,#9ca3af)}
