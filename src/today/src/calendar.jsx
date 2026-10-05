@@ -361,11 +361,11 @@ export function CalendarReact({ Nav }) {
 
       <div className="cal-wrap">
         <div className="cal-bar">
-          {/* RTL: the right button (first) goes forward ›, the left one back ‹ */}
-          <button type="button" onClick={() => shiftYear(1)} aria-label="سال بعد"><ChevronsRight size={16} /></button>
-          <button type="button" onClick={() => shift(1)} aria-label="بعد"><ChevronRight size={16} /></button>
-          <button type="button" onClick={() => shift(-1)} aria-label="قبل"><ChevronLeft size={16} /></button>
-          <button type="button" onClick={() => shiftYear(-1)} aria-label="سال قبل"><ChevronsLeft size={16} /></button>
+          {/* RTL, same everywhere: the right button goes back (›), the left one forward (‹) */}
+          <button type="button" onClick={() => shiftYear(-1)} aria-label="سال قبل"><ChevronsRight size={16} /></button>
+          <button type="button" onClick={() => shift(-1)} aria-label="قبل"><ChevronRight size={16} /></button>
+          <button type="button" onClick={() => shift(1)} aria-label="بعد"><ChevronLeft size={16} /></button>
+          <button type="button" onClick={() => shiftYear(1)} aria-label="سال بعد"><ChevronsLeft size={16} /></button>
           <button type="button" className="today-btn" onClick={gotoToday}>امروز</button>
           <select value={jcur.jm} onChange={(e) => setCursor(jalaliToIso(jcur.jy, Number(e.target.value), Math.min(jcur.jd, monthLen(jcur.jy, Number(e.target.value)))))} aria-label="ماه">
             {J_MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
