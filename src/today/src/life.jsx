@@ -669,8 +669,24 @@ function projectMetrics(project, contract, financials, processes) {
   const ledger = statementLedger(financials), stTotal = ledger.billed, paid = ledger.paid;
   const received = advance + paid, variance = timePct == null ? null : progress - timePct;
   const state = progress === 100 || isDelivered(stages) ? 'done' : (variance != null && variance < -15) || late ? 'bad' : variance != null && variance < 0 ? 'warn' : !contract || (!days && !amount) ? 'none' : 'ok';
-  return { done, total: stages.length, progress, late, timePct, variance, daysLeft, end, amount, received, receivedPct: amount ? Math.min(100, Math.round(received / amount * 100)) : null, outstanding: Math.max(0, stTotal - paid), state };
+  return { done, total: stages.length, progress, late, timePct, variance, daysLeft, end, amount, received, receivedPct: amount ? Math.min(100, Math.round(received / amount * 100)) : null, outstanding: Math.max(0, stTotal - paid), state, nextSteps: nextStepsOf(stages) };
 }
+// per contract item: its next action = the first stage not done after the item's last done stage (stages skipped
+// earlier don't count) → [{ item, base }]
+export function nextStepsOf(stages) {
+  const byItem = new Map();
+  for (const s of stages || []) { if (isFixedStage(s)) continue; const k = itemOfStage(s); if (!byItem.has(k)) byItem.set(k, []); byItem.get(k).push(s); }
+  const out = [];
+  for (const [item, list] of byItem) {
+    list.sort((a, b) => a.order - b.order);
+    let last = -1; list.forEach((s, i) => { if (s.status === 'done') last = i; });
+    const next = list.slice(last + 1).find(s => s.status !== 'done');
+    if (next) out.push({ item, base: baseOf(next) });
+  }
+  return out;
+}
+// stages the comparison lists separately (who is ready for shipping / for installation)
+export const NEXT_WATCH = [['ارسال به پروژه', 'آمادهٔ ارسال به پروژه'], ['شروع نصب', 'آمادهٔ شروع نصب']];
 const STATE_LABEL = { ok: 'مطابق برنامه', warn: 'اندکی عقب', bad: 'نیازمند پیگیری', done: 'تکمیل‌شده', none: 'قرارداد ناقص' };
 function ProjectsCompare({ projects, contracts, financials, processes, onOpen, printRef }) {
   const [sort, setSort] = useState('order');
@@ -700,6 +716,10 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
       </tr>)}</tbody>
       <tfoot><tr><td>جمع {fa(rows.length)} پروژه</td><td>{rows.length ? `${fa(Math.round(sum(m => m.progress) / rows.length))}٪ میانگین` : ''}</td><td /><td /><td /><td>{money(sum(m => m.amount))}</td><td>{money(sum(m => m.received))}</td><td>{money(sum(m => m.outstanding))}</td><td>{fa(sum(m => m.late))}</td><td /></tr></tfoot>
     </table></div>
+    <div className="lf-compare-next">{NEXT_WATCH.map(([base, label]) => { const list = rows.map(r => ({ ...r, items: r.m.nextSteps.filter(x => x.base === base).map(x => x.item) })).filter(r => r.items.length);
+      return <div key={base}><h3>{label}<em>{fa(list.length)} پروژه</em></h3><small>اقدام بعدی این پروژه‌ها «{base}» است</small>
+        {list.length ? <ul>{list.map(({ p, items }) => <li key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}><i /><b>{p.name}</b>{items.filter(Boolean).map(it => <span key={it}>{it}</span>)}</li>)}</ul> : <p>پروژه‌ای در این مرحله نیست.</p>}
+      </div>; })}</div>
     <p className="lf-compare-hint">روی هر ردیف بزن تا پروژه باز شود. سرستون‌های پررنگ قابل مرتب‌سازی‌اند.</p>
   </section>;
 }

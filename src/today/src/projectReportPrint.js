@@ -304,6 +304,7 @@ const CMP_W = 1000; // landscape A4 content width at the report's 695px-per-184m
 const STATE_FA = { bad: 'نیازمند پیگیری', warn: 'اندکی عقب', ok: 'مطابق برنامه', done: 'تکمیل‌شده', none: 'قرارداد ناقص' };
 const STATE_CLR = { bad: '#f43f5e', warn: '#f59e0b', ok: '#3b82f6', done: '#10b981', none: '#cbd5e1' };
 const STATE_TXT = { bad: '#be123c', warn: '#b45309', ok: '#1d4ed8', done: '#047857', none: '#64748b' };
+const NEXT_WATCH_PRINT = [['ارسال به پروژه', 'آمادهٔ ارسال به پروژه'], ['شروع نصب', 'آمادهٔ شروع نصب']];
 export function compareReportHtml({ rows, brand = {} }) {
   const today = todayIso(), printedAt = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date());
   const title = `مقایسهٔ پروژه‌ها – ${jl(today)}`;
@@ -329,6 +330,7 @@ html.capture body{width:${CMP_W}px}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline-end:5px;vertical-align:middle}
 .track{position:relative;height:9px;background:#eef2f7;border-radius:5px}.track i{position:absolute;inset-block:0;right:0;border-radius:5px}.track u{position:absolute;top:-4px;bottom:-4px;width:2px;border-radius:1px;background:#334155;transform:translateX(50%)}
 table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th{padding:5px 4px;vertical-align:middle}table.cmp .pg{display:flex;align-items:center;gap:6px}table.cmp .pg b{font-size:8.5pt;font-weight:800;min-width:26px}table.cmp .pg .bar{flex:1;height:5px;margin:0}.sm{font-size:6.8pt;color:#64748b}table.cmp .dot{margin-inline-end:4px}.num{font-weight:700}
+.nx{display:grid;grid-template-columns:1fr 1fr;gap:16px;break-inside:avoid}.nx ul{margin:4px 0 0;padding:0;list-style:none;font-size:8.5pt}.nx li{padding:3px 0;border-bottom:1px dashed #e2e8f0}
 .neg{color:#be123c}.pos{color:#047857}.st{display:inline-block;padding:0 6px;border:1px solid;border-radius:99px;font-size:7pt;font-weight:700;white-space:nowrap}
 </style></head><body>
 <header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه</div></div>
@@ -345,6 +347,8 @@ table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th
 <div><h2>وضعیت پروژه‌ها</h2><div class="mix">${mix}</div><div class="legend" style="flex-direction:column">${counts.map(([k, n]) => `<span><i style="background:${STATE_CLR[k]}"></i>${STATE_FA[k]}: ${fa(n)} پروژه</span>`).join('')}</div></div></div>
 <h2>جدول مقایسه</h2><table class="cmp"><thead><tr><th style="width:3%">#</th><th style="width:15%">پروژه</th><th style="width:13%">پیشرفت</th><th>زمان</th><th>انحراف</th><th>پایان قرارداد</th><th>مبلغ قرارداد</th><th>وصولی</th><th>معوق</th><th>عقب</th><th>وضعیت</th></tr></thead><tbody>${tr}</tbody>
 <tfoot><tr><td colspan="2">جمع ${fa(rows.length)} پروژه</td><td>${pct(avg)} میانگین</td><td></td><td></td><td></td><td class="n">${money(amount)}</td><td class="n">${money(received)}</td><td class="n">${money(outstanding)}</td><td class="n">${fa(late)}</td><td></td></tr></tfoot></table>
+<div class="nx">${NEXT_WATCH_PRINT.map(([base, label]) => { const list = rows.map(r => { const hit = (r.m.nextSteps || []).filter(x => x.base === base); return { p: r.p, hit: hit.length, items: hit.map(x => x.item).filter(Boolean) }; }).filter(r => r.hit);
+  return `<div><h2>${esc(label)} <span class="sm">(${fa(list.length)} پروژه · اقدام بعدی «${esc(base)}»)</span></h2>${list.length ? `<ul>${list.map(({ p, items }) => `<li><span class="dot" style="background:${pc(p)}"></span><b>${esc(p.name)}</b>${items.length ? ` <span class="sm">— ${items.map(esc).join('، ')}</span>` : ''}</li>`).join('')}</ul>` : '<p class="muted">پروژه‌ای در این مرحله نیست.</p>'}</div>`; }).join('')}</div>
 </body></html>`;
 }
 const compareFileName = () => { const j = isoToJ(todayIso()); return `${j.jy}-${pad2(j.jm)}-${pad2(j.jd)}_مقایسه-پروژه‌ها.pdf`; };
