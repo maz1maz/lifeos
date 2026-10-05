@@ -68,6 +68,39 @@ function loadJson(key, fallback) {
   } catch { return fallback }
 }
 
+// «پیشنهادهای مالی»: 2-year trend numbers per asset + an AI overview built from them and recent news (server: /api/finance/insights)
+const pctTxt = (v) => v == null ? '—' : `${v > 0 ? '+' : ''}${Number(v).toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪`
+function MarketInsights() {
+  const [d, setD] = useState(null), [busy, setBusy] = useState(false), [err, setErr] = useState('')
+  const load = async (fresh = false) => {
+    setBusy(true); setErr('')
+    try { const r = await fetch(`/api/finance/insights${fresh ? '?fresh=1' : ''}`, { credentials: 'include', cache: 'no-store' }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'دریافت نشد'); setD(j) } catch (e) { setErr(e.message) } finally { setBusy(false) }
+  }
+  useEffect(() => { load() }, [])
+  const trend = (a) => a.vsMa200 > 5 && a.ch3m > 0 ? ['صعودی', 'up'] : a.vsMa200 < -5 && a.ch3m < 0 ? ['نزولی', 'down'] : ['خنثی', 'flat']
+  return (
+    <section className="mk-card mk-insights">
+      <div className="mk-list-head"><b>پیشنهادهای مالی</b><span>بر اساس روند دو سال اخیر و اخبار · آموزشی، نه توصیهٔ خرید و فروش</span>
+        <button type="button" className="mk-btn" onClick={() => load(true)} disabled={busy}><RefreshCw size={14} /> {busy ? 'در حال تحلیل…' : 'تحلیل تازه'}</button></div>
+      {err ? <div className="mk-empty">{err}</div> : !d ? <div className="mk-empty">در حال بررسی روند دو سال اخیر…</div> : <>
+        <div className="mk-ins-wrap"><table className="mk-ins-table">
+          <thead><tr><th>دارایی</th><th>روند ۲ سال</th><th>۱ ماه</th><th>۳ ماه</th><th>۱ سال</th><th>۲ سال</th><th>نوسان سالانه</th><th>بیشترین افت</th><th>وضعیت</th></tr></thead>
+          <tbody>{d.assets.map((a) => { const [tl, tc] = trend(a); return <tr key={a.key}>
+            <td><b>{a.name}</b><small>{a.unit === 'دلار' ? `$${Math.round(a.last).toLocaleString('en-US')}` : `${Math.round(a.last).toLocaleString('fa-IR')} ریال`}</small></td>
+            <td><Sparkline data={a.spark} up={(a.ch2y ?? 0) >= 0} uid={'ins-' + a.key} /></td>
+            {[a.ch1m, a.ch3m, a.ch1y, a.ch2y].map((v, i) => <td key={i} className={v > 0 ? 'mk-up' : v < 0 ? 'mk-down' : ''}><bdi dir="ltr">{pctTxt(v)}</bdi></td>)}
+            <td><bdi dir="ltr">{pctTxt(a.vol).replace('+', '')}</bdi></td><td className="mk-down"><bdi dir="ltr">{pctTxt(a.maxDD)}</bdi></td>
+            <td><span className={`mk-trend ${tc}`}>{tl}</span></td>
+          </tr> })}</tbody>
+        </table></div>
+        {d.ai ? <div className="mk-ins-ai">{String(d.ai).split('\n').filter((x) => x.trim()).map((line, i) => <p key={i}>{line}</p>)}</div> : d.aiError ? <div className="mk-empty">{d.aiError}</div> : null}
+        {d.headlines?.length ? <details className="mk-ins-news"><summary>اخبار استفاده‌شده ({d.headlines.length.toLocaleString('fa-IR')})</summary><ul>{d.headlines.map((h, i) => <li key={i}>{h}</li>)}</ul></details> : null}
+        <small className="mk-ins-note">«وضعیت» از قیمت نسبت به میانگین ۲۰۰ روزه و روند ۳ ماه حساب می‌شود. این بخش آموزشی است و مشاورهٔ مالی شخصی نیست.</small>
+      </>}
+    </section>
+  )
+}
+
 function Sparkline({ data, up, uid = 's' }) {
   if (!data || data.length < 2) return <svg className="mk-spark" width="80" height="28" />
   const w = 80, h = 28
@@ -335,6 +368,8 @@ export function MarketReact({ Nav }) {
         </header>
 
         {notice ? <div className="notice mk-soft-notice">{notice} <button type="button" onClick={() => setNotice('')}>بستن</button></div> : null}
+
+        <MarketInsights />
 
         <div className="mk-secs">
         {sections.filter((sec) => sec.loading || sec.shown.length || !sec.hideEmpty).map((sec) => (

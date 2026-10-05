@@ -1453,41 +1453,54 @@ function SettingsReact() {
 
 const HOME_MARKET_DEFAULT = ['price_dollar_rl', 'price_eur', 'price_gbp', 'price_aed', 'sekee', 'nim', 'rob', 'geram18'];
 // Items shown on Today = the ones starred (★) on the Market page; falls back to a default set.
-const homeMarketKeys = () => { const f = readLs('lifeos-market-favs', null); const keys = Array.isArray(f) ? f.filter(x => String(x).startsWith('t:')).map(x => x.slice(2)) : []; return keys.length ? keys : HOME_MARKET_DEFAULT; };
+// Tehran items are kept as bare TGJU keys, crypto as «c:<coingecko id>» (same ids as the Market page's crypto list)
+const homeMarketKeys = () => { const f = readLs('lifeos-market-favs', null); const keys = Array.isArray(f) ? f.filter(x => /^[tc]:/.test(String(x))).map(x => String(x).startsWith('t:') ? x.slice(2) : x) : []; return keys.length ? keys : HOME_MARKET_DEFAULT; };
+const HOME_CRYPTO_IDS = 'bitcoin,ethereum,solana,binancecoin,ripple,dogecoin,the-open-network,tron,tether';
+const HOME_CRYPTO_FA = { bitcoin: 'بیت‌کوین', ethereum: 'اتریوم', solana: 'سولانا', binancecoin: 'بایننس کوین', ripple: 'ریپل', dogecoin: 'دوج‌کوین', 'the-open-network': 'تون‌کوین', tron: 'ترون', tether: 'تتر' };
+let HOME_CRYPTO = null;
+const loadHomeCrypto = () => (HOME_CRYPTO ||= fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${HOME_CRYPTO_IDS}&sparkline=true`).then(r => r.ok ? r.json() : []).then(d => (d || []).map(c => ({ key: 'c:' + c.id, name: HOME_CRYPTO_FA[c.id] || c.name, p: c.current_price, dp: c.price_change_percentage_24h || 0, spark: (c.sparkline_in_7d?.price || []).filter((_, i, a) => i % 6 === 0 || i === a.length - 1), image: c.image, crypto: true }))).catch(() => { HOME_CRYPTO = null; return []; }));
 function Market() {
   const [all, setAll] = useState([]), [keys, setKeys] = useState(homeMarketKeys), [hist, setHist] = useState({}), [notice, setNotice] = useState(''), [chart, setChart] = useState(null);
   const [pick, setPick] = useState(false), [q, setQ] = useState('');
-  useEffect(() => { api('/api/tgju').then(data => setAll(tgjuRows(data))).catch(error => setNotice(error.message)); }, []);
-  const rows = useMemo(() => keys.map(k => all.find(r => r.key === k)).filter(Boolean).slice(0, 12), [all, keys]);
+  const [coins, setCoins] = useState([]);
+  useEffect(() => { api('/api/tgju').then(data => setAll(tgjuRows(data))).catch(error => setNotice(error.message)); loadHomeCrypto().then(setCoins); }, []);
+  const pool = useMemo(() => [...all, ...coins], [all, coins]);
+  const rows = useMemo(() => keys.map(k => pool.find(r => r.key === k)).filter(Boolean).slice(0, 12), [pool, keys]);
+  // sparklines: two requests at a time (TGJU refuses bursts), and a failed one is retried twice instead of
+  // leaving that item without a chart for the whole visit
   useEffect(() => {
-    const need = rows.filter(r => !(r.key in hist)); if (!need.length) return;
-    Promise.all(need.map(item => api(`/api/tgju/history?key=${encodeURIComponent(item.key)}&days=30`).then(d => [item.key, (d.items || []).map(x => x.price)]).catch(() => [item.key, null])))
-      .then(pairs => setHist(h => ({ ...h, ...Object.fromEntries(pairs) })));
+    const need = rows.filter(r => !r.crypto && !(r.key in hist)); if (!need.length) return;
+    let live = true;
+    const one = async (key, tries = 0) => { try { const d = await api(`/api/tgju/history?key=${encodeURIComponent(key)}&days=30`); return (d.items || []).map(x => x.price); } catch { if (tries >= 2 || !live) return null; await new Promise(r => setTimeout(r, 2500 * (tries + 1))); return one(key, tries + 1); } };
+    (async () => { const queue = need.map(r => r.key); await Promise.all([0, 1].map(async () => { while (queue.length && live) { const key = queue.shift(); const prices = await one(key); if (live && prices) setHist(h => ({ ...h, [key]: prices })); } })); })();
+    return () => { live = false; };
   }, [rows]);
   // Home items are the market page's starred "t:" favourites (same storage), so both stay in sync.
-  const save = next => { setKeys(next); const f = readLs('lifeos-market-favs', []); writeLs('lifeos-market-favs', [...(Array.isArray(f) ? f.filter(x => !String(x).startsWith('t:')) : []), ...next.map(k => 't:' + k)]); };
+  const save = next => { setKeys(next); const f = readLs('lifeos-market-favs', []); writeLs('lifeos-market-favs', [...(Array.isArray(f) ? f.filter(x => !/^[tc]:/.test(String(x))) : []), ...next.map(k => k.startsWith('c:') ? k : 't:' + k)]); };
   const toggle = k => save(keys.includes(k) ? keys.filter(x => x !== k) : [...keys, k].slice(0, 12));
   const move = (k, d) => { const i = keys.indexOf(k), j = i + d; if (j < 0 || j >= keys.length) return; const n = [...keys]; [n[i], n[j]] = [n[j], n[i]]; save(n); };
-  const found = useMemo(() => { const t = q.trim().toLowerCase(); return all.filter(r => !t || `${r.name} ${r.key}`.toLowerCase().includes(t)).slice(0, 40); }, [all, q]);
+  const found = useMemo(() => { const t = q.trim().toLowerCase(); return pool.filter(r => !t || `${r.name} ${r.key} ${r.crypto ? 'رمزارز کریپتو crypto' : ''}`.toLowerCase().includes(t)).slice(0, 50); }, [pool, q]);
+  const priceTxt = r => r.crypto ? `$${Number(r.p || 0).toLocaleString('en-US', { maximumFractionDigits: r.p < 10 ? 4 : 2 })}` : fa(r.p);
+  const logo = r => r.crypto ? <img className="mkh-coin" src={r.image} alt="" loading="lazy" /> : <MarketLogo k={r.key} fallback={marketIcon(r.key)} />;
   const isGlobal = k => ['oil_brent', 'oil', 'nickel', 'platinum', 'copper', 'silver', 'aluminium', 'aluminum'].includes(k);
   return <Card className="market" icon={LineChart} title="بازارها" action={<span className="mkh-acts"><button type="button" className={`mkh-add ${pick ? 'on' : ''}`} onClick={() => setPick(p => !p)} title="افزودن یا حذف آیتم">{pick ? 'تمام' : '＋ آیتم'}</button><a href="/?page=market">همه ←</a></span>}>
     {pick ? <div className="mkh-pick">
       <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="جستجو: دلار، سکه، بیت‌کوین، طلا…" />
       <small>{keys.length} از ۱۲ · برای افزودن یا حذف روی هر مورد بزن</small>
       <div className="mkh-pick-list">{found.map(r => <button type="button" key={r.key} className={keys.includes(r.key) ? 'on' : ''} onClick={() => toggle(r.key)}>
-        <MarketLogo k={r.key} fallback={marketIcon(r.key)} /><span>{r.name}</span><b>{fa(r.p)}</b><i>{keys.includes(r.key) ? '✓' : '＋'}</i>
+        {logo(r)}<span>{r.name}</span><b>{priceTxt(r)}</b><i>{keys.includes(r.key) ? '✓' : '＋'}</i>
       </button>)}{!found.length ? <p className="empty">{all.length ? 'چیزی پیدا نشد.' : 'در حال دریافت…'}</p> : null}</div>
     </div> : null}
-    <small className="unit-note">قیمت‌ها به ریال · روی هر ردیف بزن تا نمودارش باز بشه</small>
+    <small className="unit-note">قیمت‌ها به ریال (رمزارز به دلار) · روی هر ردیف بزن تا نمودارش باز بشه</small>
     {rows.length ? <div className="mkh-list">{rows.map((item, i) => {
-      const h = hist[item.key] || [], prev = h.length > 1 ? h[h.length - 2] : 0; let dp = item.dp;
+      const h = item.crypto ? item.spark : hist[item.key] || [], prev = !item.crypto && h.length > 1 ? h[h.length - 2] : 0; let dp = item.dp;
       if (!dp && prev && item.p) { dp = (item.p - prev) / prev * 100; if (Math.abs(dp) > 25) dp = 0; }
       const change = dp ? `${dp > 0 ? '▲' : '▼'}${Math.abs(dp).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪` : '۰٪'; const up = !change.includes('▼');
-      return <div className="mkh-wrap" key={item.key}><button type="button" className="market-row mkh-row" onClick={() => setChart(item)}>
-        <MarketLogo k={item.key} fallback={marketIcon(item.key)} />
+      return <div className="mkh-wrap" key={item.key}><button type="button" className="market-row mkh-row" onClick={() => item.crypto ? (location.href = '/?page=market') : setChart(item)}>
+        {logo(item)}
         <span className="mkh-name">{item.name}</span>
         <span className="mkh-spark">{h.length > 1 ? <Sparkline data={h} up={up} uid={item.key} width={64} height={24} /> : null}</span>
-        <b className="mkh-price">{fa(item.p)}</b>
+        <b className="mkh-price">{priceTxt(item)}</b>
         <small className={`mkh-chg ${change.includes('▼') ? 'negative' : dp ? 'positive' : ''}`}>{change}</small>
       </button>{pick ? <span className="mkh-edit"><button type="button" onClick={() => move(item.key, -1)} disabled={!i} aria-label="بالاتر">▲</button><button type="button" onClick={() => move(item.key, 1)} disabled={i === rows.length - 1} aria-label="پایین‌تر">▼</button><button type="button" className="x" onClick={() => toggle(item.key)} aria-label="حذف">×</button></span> : null}</div>;
     })}</div> : <p className="empty">{notice || (all.length ? 'آیتمی انتخاب نشده — «＋ آیتم» را بزن.' : 'در حال دریافت بازار…')}</p>}

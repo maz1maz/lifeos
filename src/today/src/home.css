@@ -1033,3 +1033,4 @@ html[data-mode="light"] .brand-logo{background:#105040}
 .score-row .team button{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:inline-block}
 .score-row .team.long{font-size:.9em}
 .score-row .team.xlong{font-size:.8em;letter-spacing:-.2px}
+.mkh-coin{width:24px;height:24px;border-radius:50%;object-fit:cover}
