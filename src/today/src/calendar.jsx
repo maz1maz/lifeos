@@ -98,7 +98,10 @@ function eventOnDay(event, day) {
   if (event.recurrence === 'daily' && day >= start) return true
   if (event.recurrence === 'weekly' && day >= start) return weekdayIndex(day) === weekdayIndex(start)
   if (event.recurrence === 'monthly' && day >= start) return toJ(day).jd === toJ(start).jd
-  return day === start || (end > start && day <= end)
+  // timed: LifeOS items are single-day (the feed's endDate is just start+1); a Google event spans start…end.
+  // (this used to be `day <= end` without `day >= start`, so an event also showed on every earlier day)
+  if (event.source === 'lifeos') return day === start
+  return day >= start && day <= end
 }
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6)

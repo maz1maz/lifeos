@@ -452,7 +452,7 @@ const jalaliMonthLength = (year, month) => month <= 6 ? 31 : month < 12 ? 30 : j
 const addDays = (date, amount) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
 const sameDate = (a, b) => iso(a) === iso(b);
 const weekdayIndex = date => (date.getDay() + 1) % 7;
-const eventOnDate = (event, day) => { const dayIso = iso(day), start = String(event.startDate || event.date || '').slice(0, 10), end = String(event.endDate || start).slice(0, 10); if (!start) return false; if (event.allDay) return dayIso >= start && dayIso < end; return dayIso === start || (end > start && dayIso <= end); };
+const eventOnDate = (event, day) => { const dayIso = iso(day), start = String(event.startDate || event.date || '').slice(0, 10), end = String(event.endDate || start).slice(0, 10); if (!start) return false; if (event.allDay) return dayIso >= start && dayIso < end; if (event.source === 'lifeos') return dayIso === start; return dayIso >= start && dayIso <= end; };
 const eventLabel = event => `${event.time ? `${event.time} · ` : ''}${event.title || 'رویداد'}`;
 
 function seasonAiredCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.aired) || 0 : 0; }
