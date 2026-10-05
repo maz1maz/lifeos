@@ -1600,14 +1600,15 @@ function GoalsMini() {
 const dayTitle = isoD => { const t = isoToday(); const rel = isoD === t ? 'امروز · ' : isoD === addDaysIso(t, 1) ? 'فردا · ' : isoD === addDaysIso(t, -1) ? 'دیروز · ' : ''; return `${rel}${new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(fromIso(isoD))} ${jalaliDayLabel(isoD)}`; };
 // `only` = 'fixtures' | 'results' shows just that list (the football page has one column each); `league` given = the
 // parent owns the league (both columns follow one picker)
-function Football({ full = false, onLeague, only, league: ownerLeague }) {
+function Football({ full = false, onLeague, only, league: ownerLeague, favOnly }) {
   const controlled = ownerLeague !== undefined;
   const [ownLeague, setOwnLeague] = useState(null);
   const league = controlled ? ownerLeague : ownLeague, setLeague = controlled ? (v => onLeague?.(v)) : setOwnLeague;
   useEffect(() => { if (!controlled) pickNearestLeague().then(setOwnLeague); }, []);
   useEffect(() => { if (!controlled && league && onLeague) onLeague(league); }, [league]);
   const [favs, setFavs] = useState(() => readLs('lifeos-fav-teams', []));
-  const [onlyFav, setOnlyFav] = useState(false);
+  const [onlyFavState, setOnlyFav] = useState(false);
+  const onlyFav = favOnly !== undefined ? favOnly : onlyFavState;
   const [tabState, setTab] = useState('fixtures');
   const tab = only || tabState;
   const [matches, setMatches] = useState([]), [notice, setNotice] = useState(''), [loading, setLoading] = useState(true);
@@ -1618,22 +1619,23 @@ function Football({ full = false, onLeague, only, league: ownerLeague }) {
   const toggleFav = name => setFavs(f => { const n = f.includes(name) ? f.filter(x => x !== name) : [...f, name]; writeLs('lifeos-fav-teams', n); return n; });
   const isFav = m => favs.includes(m.home) || favs.includes(m.away);
   const ts = m => Date.parse(m.date) || 0;
-  const weekAgo = Date.now() - (full ? 14 : 7) * 86400000;
+  // the football page's columns show every match the server returns (≈60 days back, ≈3 weeks ahead)
+  const weekAgo = only ? -Infinity : Date.now() - (full ? 14 : 7) * 86400000;
   const pool = matches.filter(m => !onlyFav || isFav(m));
   const span = (full ? 14 : 7) * 86400000;
-  const weekAhead = Date.now() + span;
+  const weekAhead = only ? Infinity : Date.now() + span;
   const fixtures = [...pool.filter(m => m.status === 'live'), ...pool.filter(m => m.status === 'upcoming' && ts(m) <= weekAhead).sort((a, b) => ts(a) - ts(b))];
   const results = pool.filter(m => m.status === 'finished' && ts(m) >= weekAgo).sort((a, b) => ts(b) - ts(a));
   const list = tab === 'fixtures' ? fixtures : results;
   const when = m => { const d = new Date(m.date); if (isNaN(d)) return ''; const isoT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); const t = isoToday(); const hmT = new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hour12: false }).format(d); const dayL = isoT === t ? 'امروز' : isoT === addDaysIso(t, 1) ? 'فردا' : isoT === addDaysIso(t, -1) ? 'دیروز' : `${new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(fromIso(isoT))} ${jalaliDayLabel(isoT)}`; return m.status === 'finished' ? dayL : `${dayL} · ${hmT}`; };
   const team = (name, logo, side) => <span className={`team ${favs.includes(name) ? 'fav' : ''}`}>{side === 'home' && <TeamBadge logo={logo} name={name} />}<button type="button" onClick={() => toggleFav(name)} title={favs.includes(name) ? 'حذف از تیم‌های من' : 'افزودن به تیم‌های من'}>{name}{favs.includes(name) && <Star size={11} fill="currentColor" />}</button>{side === 'away' && <TeamBadge logo={logo} name={name} />}</span>;
-  return <Card className={`football ${full ? 'football-full' : ''} ${only ? 'fb-only-' + only : ''}`} icon={only === 'results' ? CheckCircle2 : Trophy} title={only === 'fixtures' ? 'برنامهٔ بازی‌ها' : only === 'results' ? 'نتایج' : full ? 'مسابقات' : 'فوتبال'} action={only ? <small className="muted">{only === 'fixtures' ? '۱۴ روز پیش رو' : '۱۴ روز اخیر'}</small> : full ? <small className="muted">۱۴ روز اخیر و پیش رو</small> : <a href="/?page=football">همه مسابقات ←</a>}>
-    {only ? (favs.length > 0 ? <div className="fb-tabs"><button type="button" className={`fav-toggle ${onlyFav ? 'on' : ''}`} onClick={() => setOnlyFav(v => !v)}><Star size={12} fill={onlyFav ? 'currentColor' : 'none'} />تیم‌های من</button></div> : null) : <div className="fb-tabs">
+  return <Card className={`football ${full ? 'football-full' : ''} ${only ? 'fb-only-' + only : ''}`} icon={only === 'results' ? CheckCircle2 : Trophy} title={only === 'fixtures' ? 'برنامهٔ بازی‌ها' : only === 'results' ? 'نتایج' : full ? 'مسابقات' : 'فوتبال'} action={only ? null : full ? <small className="muted">۱۴ روز اخیر و پیش رو</small> : <a href="/?page=football">همه مسابقات ←</a>}>
+    {only ? null : <div className="fb-tabs">
       <button type="button" className={tab === 'fixtures' ? 'on' : ''} onClick={() => setTab('fixtures')}>برنامهٔ بازی‌ها{hasLive && <i className="live-dot" title="بازی زنده" />}</button>
       <button type="button" className={tab === 'results' ? 'on' : ''} onClick={() => setTab('results')}>{full ? 'نتایج' : 'نتایج هفتهٔ قبل'}</button>
       {favs.length > 0 && <button type="button" className={`fav-toggle ${onlyFav ? 'on' : ''}`} onClick={() => setOnlyFav(v => !v)}><Star size={12} fill={onlyFav ? 'currentColor' : 'none'} />تیم‌های من</button>}
     </div>}
-    {only !== 'results' && <LeaguePicker value={league} onChange={setLeague} />}
+    {!only && <LeaguePicker value={league} onChange={setLeague} />}
     <div className="fb-list">{list.length ? (() => { let lastDay = null, lastGrp = null; return list.map((m, index) => {
       const dayKey = m.status === 'live' ? 'live' : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(m.date));
       const newDay = dayKey !== lastDay, head = newDay ? <div className="fb-day">{dayKey === 'live' ? '● در حال بازی' : dayTitle(dayKey)}</div> : null; lastDay = dayKey;
@@ -1645,7 +1647,7 @@ function Football({ full = false, onLeague, only, league: ownerLeague }) {
         <b>{m.status === 'upcoming' || !/\d/.test(m.score || '') ? '—' : faDigits(m.score)}</b>
         {team(m.away, m.awayLogo, 'away')}
       </div></React.Fragment>;
-    }); })() : <p className="empty">{loading ? 'در حال دریافت…' : notice || (onlyFav ? (tab === 'fixtures' ? 'تیم‌هات این هفته بازی ندارن.' : 'تیم‌هات هفتهٔ قبل بازی نداشتن.') : tab === 'fixtures' ? 'این هفته بازی‌ای نیست.' : 'نتیجه‌ای برای هفتهٔ قبل نیست.')}</p>}</div>
+    }); })() : <p className="empty">{loading ? 'در حال دریافت…' : notice || (only ? (onlyFav ? (tab === 'fixtures' ? 'تیم‌هات بازی پیش رو ندارن.' : 'از تیم‌هات نتیجه‌ای نیست.') : tab === 'fixtures' ? 'بازی پیش رویی در دسترس نیست.' : 'نتیجه‌ای در دسترس نیست.') : onlyFav ? (tab === 'fixtures' ? 'تیم‌هات این هفته بازی ندارن.' : 'تیم‌هات هفتهٔ قبل بازی نداشتن.') : tab === 'fixtures' ? 'این هفته بازی‌ای نیست.' : 'نتیجه‌ای برای هفتهٔ قبل نیست.')}</p>}</div>
     {!favs.length && list.length > 0 && <small className="hint">روی اسم هر تیم بزن تا به «تیم‌های من» اضافه بشه.</small>}
   </Card>;
 }
@@ -2048,16 +2050,21 @@ function Standings({ league }) {
   </Card>;
 }
 function FootballPage() {
-  const [league, setLeague] = useState(null);
+  const [league, setLeague] = useState(null), [favOnly, setFavOnly] = useState(false);
+  const [favCount, setFavCount] = useState(() => readLs('lifeos-fav-teams', []).length);
   useEffect(() => { pickNearestLeague().then(setLeague); }, []);
+  useEffect(() => { const t = setInterval(() => setFavCount(readLs('lifeos-fav-teams', []).length), 1500); return () => clearInterval(t); }, []);
   return <main>
     <TopNav active="football" />
     <div className="page fb-page">
-      <header className="page-head"><div><h1>فوتبال</h1><p>برنامه، نتایج و جدول لیگ‌ها. روی اسم هر تیم بزن تا به «تیم‌های من» اضافه بشه.</p></div></header>
+      {/* league picker + «تیم‌های من» live in the page header and drive all three columns */}
+      <header className="page-head fb-head"><div><h1>فوتبال</h1><p>برنامه، نتایج و جدول لیگ‌ها. روی اسم هر تیم بزن تا به «تیم‌های من» اضافه بشه.</p></div>
+        <div className="fb-head-tools"><LeaguePicker value={league} onChange={setLeague} />{favCount > 0 && <button type="button" className={`fav-toggle ${favOnly ? 'on' : ''}`} onClick={() => setFavOnly(v => !v)}><Star size={12} fill={favOnly ? 'currentColor' : 'none'} />تیم‌های من</button>}</div>
+      </header>
       {/* three columns: fixtures (with the league picker) · results · table */}
       <div className="fb-page-grid fb-three">
-        <div className="fb-side"><Football full only="fixtures" league={league} onLeague={setLeague} /><MyTeams league={league} /></div>
-        <div className="fb-side"><Football full only="results" league={league} /></div>
+        <div className="fb-side"><Football full only="fixtures" league={league} onLeague={setLeague} favOnly={favOnly} /><MyTeams league={league} /></div>
+        <div className="fb-side"><Football full only="results" league={league} favOnly={favOnly} /></div>
         <Standings league={league} />
       </div>
     </div>
