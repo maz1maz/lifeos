@@ -57,9 +57,9 @@ function MonthPicker({ value, onChange }) {
   const cur = jKeyOf(isoToday())
   return (
     <div className="fn-mp">
-      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, -1))} aria-label="ماه قبل">›</button>
+      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, 1))} aria-label="ماه بعد">›</button>
       <button type="button" className="fn-mp-btn" onClick={() => setOpen((v) => !v)}>{JMONTHS[m - 1]} {faD(y)} <span>▾</span></button>
-      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, 1))} aria-label="ماه بعد">‹</button>
+      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, -1))} aria-label="ماه قبل">‹</button>
       {value !== cur ? <button type="button" className="fn-mp-today" onClick={() => onChange(cur)}>این ماه</button> : null}
       {open ? (
         <div className="fn-mp-pop">
@@ -998,9 +998,9 @@ export function FinanceReact({ Nav }) {
         <div className="fn-modal" onClick={() => setReport(null)}>
           <div className="fn-glass fn-report" onClick={(e) => e.stopPropagation()}>
             <div className="fn-head"><h2>گزارش ماهانه</h2>
-              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, -1))} aria-label="ماه قبل">›</button>
+              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, 1))} aria-label="ماه بعد">›</button>
               <b>{monthFa(report.k)}</b>
-              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, 1))} aria-label="ماه بعد">‹</button>
+              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, -1))} aria-label="ماه قبل">‹</button>
             </div>
             <pre>{report.text || 'در حال ساخت…'}</pre>
             <div className="fn-report-ops">

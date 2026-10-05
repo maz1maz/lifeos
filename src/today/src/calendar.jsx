@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Bell, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Grid3x3, LayoutGrid, List, Plus, Search, Trash2
+  Bell, CalendarDays, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Grid3x3, LayoutGrid, List, Plus, Search, Trash2
 } from 'lucide-react'
 import './calendar.css'
 import { jalaliLabel } from './jalali.js'
@@ -98,7 +98,10 @@ function eventOnDay(event, day) {
   if (event.recurrence === 'daily' && day >= start) return true
   if (event.recurrence === 'weekly' && day >= start) return weekdayIndex(day) === weekdayIndex(start)
   if (event.recurrence === 'monthly' && day >= start) return toJ(day).jd === toJ(start).jd
-  return day === start || (end > start && day <= end)
+  // timed: LifeOS items are single-day (the feed's endDate is just start+1); a Google event spans start…end.
+  // (this used to be `day <= end` without `day >= start`, so an event also showed on every earlier day)
+  if (event.source === 'lifeos') return day === start
+  return day >= start && day <= end
 }
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6)
@@ -196,6 +199,13 @@ export function CalendarReact({ Nav }) {
     }
     return { jm, len, holidays }
   }), [jcur.jy])
+
+  // jump a whole year (same month/day, clamped to the month's length)
+  function shiftYear(step) {
+    if (mode === 'gregorian') { const [y, m, d] = cursor.split('-').map(Number); const last = new Date(Date.UTC(y + step, m, 0)).getUTCDate(); setCursor(`${y + step}-${pad(m)}-${pad(Math.min(d, last))}`); return }
+    const jy = jcur.jy + step
+    setCursor(jalaliToIso(jy, jcur.jm, Math.min(jcur.jd, monthLen(jy, jcur.jm))))
+  }
 
   function shift(step) {
     if (view === 'year') {
@@ -351,8 +361,11 @@ export function CalendarReact({ Nav }) {
 
       <div className="cal-wrap">
         <div className="cal-bar">
-          <button type="button" onClick={() => shift(1)} aria-label="بعد"><ChevronLeft size={16} /></button>
-          <button type="button" onClick={() => shift(-1)} aria-label="قبل"><ChevronRight size={16} /></button>
+          {/* RTL: the right button (first) goes forward ›, the left one back ‹ */}
+          <button type="button" onClick={() => shiftYear(1)} aria-label="سال بعد"><ChevronsRight size={16} /></button>
+          <button type="button" onClick={() => shift(1)} aria-label="بعد"><ChevronRight size={16} /></button>
+          <button type="button" onClick={() => shift(-1)} aria-label="قبل"><ChevronLeft size={16} /></button>
+          <button type="button" onClick={() => shiftYear(-1)} aria-label="سال قبل"><ChevronsLeft size={16} /></button>
           <button type="button" className="today-btn" onClick={gotoToday}>امروز</button>
           <select value={jcur.jm} onChange={(e) => setCursor(jalaliToIso(jcur.jy, Number(e.target.value), Math.min(jcur.jd, monthLen(jcur.jy, Number(e.target.value)))))} aria-label="ماه">
             {J_MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}

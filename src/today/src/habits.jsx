@@ -109,9 +109,9 @@ export function WeeklyPage({ Nav }) {
       <header className="hb-hero">
         <div><p>مرور هفتگی</p><h1>{jLabel(ws)} تا {jLabel(we)}</h1></div>
         <div className="hb-weeknav">
-          <button type="button" onClick={() => setWs(addDays(ws, -7))} aria-label="هفتهٔ قبل">›</button>
+          <button type="button" onClick={() => setWs(addDays(ws, 7))} disabled={isCur} aria-label="هفتهٔ بعد">›</button>
           {!isCur && <button type="button" className="txt" onClick={() => setWs(weekStart(today))}>این هفته</button>}
-          <button type="button" onClick={() => setWs(addDays(ws, 7))} disabled={isCur} aria-label="هفتهٔ بعد">‹</button>
+          <button type="button" onClick={() => setWs(addDays(ws, -7))} aria-label="هفتهٔ قبل">‹</button>
         </div>
       </header>
       {!data ? <p className="hb-empty">در حال دریافت…</p> : data.error ? <p className="hb-empty">{data.error}</p> : <>

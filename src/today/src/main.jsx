@@ -20,7 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
-  Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, Trash2, Plus, Menu,
+  Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Trash2, Plus, Menu,
   Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Target, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
@@ -452,7 +452,7 @@ const jalaliMonthLength = (year, month) => month <= 6 ? 31 : month < 12 ? 30 : j
 const addDays = (date, amount) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
 const sameDate = (a, b) => iso(a) === iso(b);
 const weekdayIndex = date => (date.getDay() + 1) % 7;
-const eventOnDate = (event, day) => { const dayIso = iso(day), start = String(event.startDate || event.date || '').slice(0, 10), end = String(event.endDate || start).slice(0, 10); if (!start) return false; if (event.allDay) return dayIso >= start && dayIso < end; return dayIso === start || (end > start && dayIso <= end); };
+const eventOnDate = (event, day) => { const dayIso = iso(day), start = String(event.startDate || event.date || '').slice(0, 10), end = String(event.endDate || start).slice(0, 10); if (!start) return false; if (event.allDay) return dayIso >= start && dayIso < end; if (event.source === 'lifeos') return dayIso === start; return dayIso >= start && dayIso <= end; };
 const eventLabel = event => `${event.time ? `${event.time} · ` : ''}${event.title || 'رویداد'}`;
 
 function seasonAiredCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.aired) || 0 : 0; }
@@ -1682,7 +1682,7 @@ function JalaliPicker({ value, today, onPick, onClose, anchor }) {
   const { lead, days } = monthCells(ym.jy, ym.jm);
   const shift = n => setYm(({ jy, jm }) => { const m = jm + n; return m < 1 ? { jy: jy - 1, jm: 12 } : m > 12 ? { jy: jy + 1, jm: 1 } : { jy, jm: m }; });
   return <div className="jpicker" role="dialog" aria-label="انتخاب تاریخ" ref={ref}>
-    <div className="jp-head"><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={16} /></button><b>{JALALI_MONTHS[ym.jm - 1]} {faDigits(ym.jy)}</b><button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={16} /></button></div>
+    <div className="jp-head"><button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronRight size={16} /></button><b>{JALALI_MONTHS[ym.jm - 1]} {faDigits(ym.jy)}</b><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronLeft size={16} /></button></div>
     <div className="jp-grid">{WEEKDAYS.map((w, i) => <small key={w} className={i === 6 ? 'is-fri' : ''}>{w}</small>)}{[...Array(lead)].map((_, i) => <span key={'b' + i} />)}{days.map((d, i) => {
       const v = iso(d), occ = events[jKey(ym.jy, ym.jm, i + 1)] || [], off = weekdayIndex(d) === 6 || occ.some(e => e.h);
       return <button type="button" key={v} disabled={v < today} title={occ.map(e => e.t.replace(/\[.*?\]/g, '').trim()).join('\n')} className={`jp-day ${v === today ? 'is-today' : ''} ${v === value ? 'is-sel' : ''} ${off ? 'is-off' : ''}`} onClick={() => onPick(v)}>{faDigits(i + 1)}</button>;
@@ -1792,7 +1792,7 @@ function LiveCalendar({ today }) {
   const dayItems = d => items.filter(ev => (ev.source !== 'lifeos' || ev.time) && eventOnDate(ev, d));
   const todayCount = dayItems(fromIso(today)).length;
   const nowHm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
-  return <Card className="calendar live-cal" icon={CalendarDays} title={`${JALALI_MONTHS[ym.jm - 1]} ${faDigits(ym.jy)}`} action={<div className="lc-nav"><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={15} /></button>{(ym.jy !== t.jy || ym.jm !== t.jm) && <button type="button" className="lc-today" onClick={goToday}>امروز</button>}<button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={15} /></button></div>}>
+  return <Card className="calendar live-cal" icon={CalendarDays} title={`${JALALI_MONTHS[ym.jm - 1]} ${faDigits(ym.jy)}`} action={<div className="lc-nav"><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy + 1, jm }))} aria-label="سال بعد"><ChevronsRight size={15} /></button><button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronRight size={15} /></button>{(ym.jy !== t.jy || ym.jm !== t.jm) && <button type="button" className="lc-today" onClick={goToday}>امروز</button>}<button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronLeft size={15} /></button><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy - 1, jm }))} aria-label="سال قبل"><ChevronsLeft size={15} /></button></div>}>
     <div className="weekdays">{WEEKDAYS.map(x => <span key={x}>{x}</span>)}</div>
     <div className="calendar-days">{[...Array(lead)].map((_, i) => <span key={`blank${i}`} />)}{days.map((day, i) => {
       const v = iso(day), evs = events[jKey(ym.jy, ym.jm, i + 1)] || [], holiday = weekdayIndex(day) === 6 || evs.some(e => e.h), n = dayItems(day).length;
