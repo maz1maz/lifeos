@@ -254,10 +254,13 @@ export function PlannerReact({ Nav }) {
     open: source.filter(x => !x.done).length,
     today: source.filter(x => !x.done && x.date === today).length + (kind === 'task' ? pOpen.length : 0),
     upcoming: source.filter(x => !x.done && x.date > today && x.date <= weekAhead).length,
-    reminders: kind === 'reminder' ? source.filter(x => !x.done).length : tasks.filter(x => !x.done && reminderByTask[x.id]).length,
+    // the «یادآوری‌ها» chip opens the reminders view, so it counts those (it used to read 0 in the tasks view while
+    // the home page listed several); the stat card counts every active reminder, task ones included
+    reminders: standaloneReminders.filter(x => !x.done).length,
+    activeReminders: standaloneReminders.filter(x => !x.done).length + tasks.filter(x => !x.done && reminderByTask[x.id]).length,
     done: source.filter(x => x.done).length,
     all: source.length
-  }), [source, reminderByTask, kind, pOpen.length]);
+  }), [source, tasks, standaloneReminders, reminderByTask, kind, pOpen.length]);
 
   const visible = useMemo(() => {
     let list = source;
@@ -321,7 +324,7 @@ export function PlannerReact({ Nav }) {
   const stats = [
     { t: 'کار باز', v: counts.open, Icon: CircleDot, tone: 'teal' },
     { t: 'سررسید امروز', v: counts.today, Icon: Sun, tone: 'amber' },
-    { t: 'یادآوری فعال', v: counts.reminders, Icon: Bell, tone: 'sky' },
+    { t: 'یادآوری فعال', v: counts.activeReminders, Icon: Bell, tone: 'sky' },
     { t: 'انجام‌شده', v: counts.done, Icon: Check, tone: 'fog' }
   ];
 
@@ -378,7 +381,7 @@ export function PlannerReact({ Nav }) {
 
         <nav className="plnr-tabs" aria-label="فیلترها">
           {FILTERS.map(([key, label]) => (
-            <button key={key} type="button" className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>
+            <button key={key} type="button" className={filter === key ? 'active' : ''} onClick={() => { if (key === 'reminders' && kind === 'task') { setKind('reminder'); setFilter('open'); } else setFilter(key); }}>
               {label}
               <span>{fa(counts[key])}</span>
             </button>
