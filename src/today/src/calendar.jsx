@@ -87,6 +87,9 @@ function weekDays(cursor) {
   return Array.from({ length: 7 }, (_, i) => isoAdd(start, i))
 }
 
+// the feed prefixes LifeOS ids with their kind ('reminder:<id>', 'task:<id>'); the APIs want the bare id
+const rawId = (id) => String(id || '').replace(/^(task|reminder):/, '')
+
 function eventOnDay(event, day) {
   const start = String(event.startDate || event.date || '').slice(0, 10)
   const end = String(event.endDate || start).slice(0, 10)
@@ -228,7 +231,7 @@ export function CalendarReact({ Nav }) {
     if (ev.kind === 'session') { location.href = '/?page=courses'; return }
     if (ev.kind === 'card') { try { await api(`/api/col/cards/${ev.id}`, { method: 'PATCH', body: JSON.stringify({ col: 'done', doneAt: Date.now() }) }); load() } catch (e) { setStatus(e.message) } return }
     try {
-      const path = ev.kind === 'reminder' ? `/api/reminders/${ev.id}` : `/api/tasks/${ev.id}`
+      const path = ev.kind === 'reminder' ? `/api/reminders/${rawId(ev.id)}` : `/api/tasks/${rawId(ev.id)}`
       await api(path, { method: 'PATCH', body: JSON.stringify({ done: !ev.done }) })
       load()
     } catch (e) { setStatus(e.message) }
@@ -239,11 +242,11 @@ export function CalendarReact({ Nav }) {
     try {
       if (draft.kind === 'reminder') {
         const payload = { title: draft.title.trim(), date: draft.date, time: draft.time || null, whenLabel: draft.date, recurrence: draft.recurrence || null }
-        if (draft.id && !String(draft.id).startsWith('new')) await api(`/api/reminders/${draft.id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+        if (draft.id && !String(draft.id).startsWith('new')) await api(`/api/reminders/${rawId(draft.id)}`, { method: 'PATCH', body: JSON.stringify(payload) })
         else await api('/api/reminders', { method: 'POST', body: JSON.stringify(payload) })
       } else {
         const payload = { title: draft.title.trim(), date: draft.date, startTime: draft.time || null, priority: draft.priority || 'medium', notes: draft.notes || '', recurrence: draft.recurrence || null }
-        if (draft.id && !String(draft.id).startsWith('new')) await api(`/api/tasks/${draft.id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+        if (draft.id && !String(draft.id).startsWith('new')) await api(`/api/tasks/${rawId(draft.id)}`, { method: 'PATCH', body: JSON.stringify(payload) })
         else await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) })
       }
       setDialog(null)
@@ -254,7 +257,7 @@ export function CalendarReact({ Nav }) {
   async function deleteDialog(draft) {
     if (!draft?.id || draft.kind === 'google') return
     try {
-      const path = draft.kind === 'reminder' ? `/api/reminders/${draft.id}` : `/api/tasks/${draft.id}`
+      const path = draft.kind === 'reminder' ? `/api/reminders/${rawId(draft.id)}` : `/api/tasks/${rawId(draft.id)}`
       await api(path, { method: 'DELETE' })
       setDialog(null)
       load()
