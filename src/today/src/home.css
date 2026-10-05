@@ -1023,3 +1023,8 @@ html[data-mode="light"] .brand-logo{background:#105040}
 /* football page: three columns — fixtures · results · table */
 .fb-page-grid.fb-three{grid-template-columns:minmax(0,.8fr) minmax(0,.8fr) minmax(0,1fr)}
 @media(max-width:1100px){.fb-page-grid.fb-three{grid-template-columns:1fr}}
+.fb-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.fb-head-tools{display:flex;align-items:center;gap:10px;flex:0 1 460px;min-width:260px}
+.fb-head-tools>:first-child{flex:1;min-width:0;margin:0}
+.fb-head .fav-toggle{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:9px 14px;border-radius:var(--g-radius-control);border:1px solid var(--g-border-2);background:transparent;color:var(--g-muted);font:inherit;cursor:pointer}
+.fb-head .fav-toggle.on{color:var(--g-accent-strong);border-color:var(--g-accent);background:var(--g-accent-soft)}
