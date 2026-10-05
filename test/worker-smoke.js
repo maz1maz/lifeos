@@ -507,6 +507,14 @@ async function main() {
     const hd = '2026-01-10', set = done => call(`/api/habits/${habit.id}/toggle`, { method: 'POST', cookie, body: { date: hd, done } });
     const a1 = (await set(true)).d, a2 = (await set(true)).d, a3 = (await set(false)).d;
     check('habit toggle with done:true twice stays done, done:false clears', a1.done === true && a2.done === true && a3.done === false, JSON.stringify([a1, a2, a3]));
+    {
+      // hidden reminder copies (tasks with isReminder, made by quick capture) never show as overdue
+      const probe = (await call('/api/tasks', { method: 'POST', cookie, body: { title: 'probe' } })).d;
+      const key = [...env.DB._store.keys()].find(k => k.includes(':tasks:') && env.DB._store.get(k).includes(probe.id));
+      const rows = JSON.parse(env.DB._store.get(key)); rows.push({ id: 'shadow-rem', userId: probe.userId || rows.find(r => r.id === probe.id).userId, title: '🔔 تولد', date: '2020-01-01', deadline: '2020-01-01', done: false, isReminder: true }); env.DB._store.set(key, JSON.stringify(rows));
+      const wr = (await call('/api/weekly-review?from=' + today() + '&to=' + today(), { cookie })).d;
+      check('weekly review overdue skips hidden reminder copies', !JSON.stringify(wr).includes('shadow-rem'), JSON.stringify(wr).slice(0, 200));
+    }
     const timed = (await call('/api/habits', { method: 'POST', cookie, body: { name: 'آب ۳۰ روزه', days: 30, startDate: '2026-10-01' } })).d;
     const cleared = (await call(`/api/habits/${timed.id}`, { method: 'PATCH', cookie, body: { days: 0 } })).d;
     check('habit with a length keeps days + startDate; days:0 makes it open-ended', timed.days === 30 && timed.startDate === '2026-10-01' && cleared.days === undefined, JSON.stringify([timed, cleared]));

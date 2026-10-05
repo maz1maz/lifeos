@@ -1142,7 +1142,7 @@ export function JournalPage({ Nav }) {
   const onThisDay = [...(col.items || []).filter(x => x.date !== date && x.text), ...daily.filter(x => x.note || x.bestMoment).map(x => ({ id: 'd' + x.date, date: x.date, text: [x.note, x.bestMoment && `بهترین لحظه: ${x.bestMoment}`].filter(Boolean).join(' · '), daily: true }))]
     .filter(x => { const k = isoToJ(x.date); return k.jm === j.jm && k.jd === j.jd && k.jy < j.jy; }).sort((a, b) => b.date.localeCompare(a.date));
   const list = (col.items || []).filter(x => x.date !== date && (!q || String(x.text || '').includes(q))).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
-  return <Page Nav={Nav} kicker="روزنگار" title={jl(date)} sub={date === today ? 'امروز' : ''} actions={<><button className="lf-btn ghost" onClick={() => setDate(addDays(date, -1))}>› دیروز</button>{date !== today ? <button className="lf-btn ghost" onClick={() => setDate(addDays(date, 1))}>فردا ‹</button> : null}</>}>
+  return <Page Nav={Nav} kicker="روزنگار" title={jl(date)} sub={date === today ? 'امروز' : ''} actions={<><button className="lf-btn ghost" onClick={() => setDate(addDays(date, -1))}>‹ دیروز</button>{date !== today ? <button className="lf-btn ghost" onClick={() => setDate(addDays(date, 1))}>فردا ›</button> : null}</>}>
     <section className="lf-card lf-journal">
       <div className="lf-moods">{MOODS.map((m, i) => <button key={i} className={mood === i + 1 ? 'on' : ''} onClick={() => setMood(i + 1)}>{m}</button>)}</div>
       <textarea rows={8} value={text} onChange={e => setText(e.target.value)} placeholder="امروز چه گذشت؟ چی یاد گرفتی؟ بابت چی ممنونی؟" />
@@ -1166,7 +1166,7 @@ export function GoalsPage({ Nav }) {
   const pct = g => g.target ? Math.min(100, Math.round((g.current || 0) / g.target * 100)) : (g.milestones || []).length ? Math.round((g.milestones.filter(m => m.done).length / g.milestones.length) * 100) : (g.done ? 100 : 0);
   const avg = items.length ? Math.round(items.reduce((a, g) => a + pct(g), 0) / items.length) : 0;
   const AREA = { work: '💼', money: '💰', health: '💪', learn: '📚', family: '❤️', personal: '✨' };
-  return <Page Nav={Nav} kicker="اهداف سالانه" title={`سال ${faD(year)}`} sub={items.length ? `پیشرفت کلی ${fa(avg)}٪` : ''} actions={<><button className="lf-btn ghost" onClick={() => setYear(year - 1)}>›</button><button className="lf-btn ghost" onClick={() => setYear(year + 1)}>‹</button><button className="lf-btn" onClick={() => setEdit({ year })}>＋ هدف</button></>}>
+  return <Page Nav={Nav} kicker="اهداف سالانه" title={`سال ${faD(year)}`} sub={items.length ? `پیشرفت کلی ${fa(avg)}٪` : ''} actions={<><button className="lf-btn ghost" onClick={() => setYear(year - 1)} aria-label="سال قبل">‹</button><button className="lf-btn ghost" onClick={() => setYear(year + 1)} aria-label="سال بعد">›</button><button className="lf-btn" onClick={() => setEdit({ year })}>＋ هدف</button></>}>
     {col.items === null ? <p className="lf-empty">در حال دریافت…</p> : !items.length ? <p className="lf-empty">برای {faD(year)} هدفی تعریف نشده. هدف‌های بزرگ را بنویس و به گام‌های کوچک بشکن.</p> :
       <div className="lf-cards">{items.map(g => <article key={g.id} className={`lf-card lf-goal ${pct(g) >= 100 ? 'done' : ''}`}>
         <div className="lf-row-head"><div><b>{AREA[g.area] || '✨'} {g.title}</b>{g.why ? <small>{g.why}</small> : null}</div><strong>{fa(pct(g))}٪</strong></div>

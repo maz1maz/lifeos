@@ -20,7 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
-  Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Trash2, Plus, Menu,
+  Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, ChevronsLeft, ChevronsRight, Trash2, Plus, Menu,
   Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Target, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
@@ -1598,13 +1598,18 @@ function GoalsMini() {
   </Card>;
 }
 const dayTitle = isoD => { const t = isoToday(); const rel = isoD === t ? 'امروز · ' : isoD === addDaysIso(t, 1) ? 'فردا · ' : isoD === addDaysIso(t, -1) ? 'دیروز · ' : ''; return `${rel}${new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(fromIso(isoD))} ${jalaliDayLabel(isoD)}`; };
-function Football({ full = false, onLeague }) {
-  const [league, setLeague] = useState(null);
-  useEffect(() => { pickNearestLeague().then(setLeague); }, []);
-  useEffect(() => { if (league && onLeague) onLeague(league); }, [league]);
+// `only` = 'fixtures' | 'results' shows just that list (the football page has one column each); `league` given = the
+// parent owns the league (both columns follow one picker)
+function Football({ full = false, onLeague, only, league: ownerLeague }) {
+  const controlled = ownerLeague !== undefined;
+  const [ownLeague, setOwnLeague] = useState(null);
+  const league = controlled ? ownerLeague : ownLeague, setLeague = controlled ? (v => onLeague?.(v)) : setOwnLeague;
+  useEffect(() => { if (!controlled) pickNearestLeague().then(setOwnLeague); }, []);
+  useEffect(() => { if (!controlled && league && onLeague) onLeague(league); }, [league]);
   const [favs, setFavs] = useState(() => readLs('lifeos-fav-teams', []));
   const [onlyFav, setOnlyFav] = useState(false);
-  const [tab, setTab] = useState('fixtures');
+  const [tabState, setTab] = useState('fixtures');
+  const tab = only || tabState;
   const [matches, setMatches] = useState([]), [notice, setNotice] = useState(''), [loading, setLoading] = useState(true);
   const fetchMatches = (fresh = false) => { if (!league) return; if (fresh) delete LEAGUE_CACHE[league]; return fetchLeague(league).then(items => { setMatches(items); setNotice(items.length ? '' : 'مسابقه‌ای دریافت نشد.'); }).catch(error => setNotice(error.message)).finally(() => setLoading(false)); };
   useEffect(() => { if (!league) return; setMatches([]); setLoading(true); fetchMatches(); }, [league]);
@@ -1622,13 +1627,13 @@ function Football({ full = false, onLeague }) {
   const list = tab === 'fixtures' ? fixtures : results;
   const when = m => { const d = new Date(m.date); if (isNaN(d)) return ''; const isoT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); const t = isoToday(); const hmT = new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hour12: false }).format(d); const dayL = isoT === t ? 'امروز' : isoT === addDaysIso(t, 1) ? 'فردا' : isoT === addDaysIso(t, -1) ? 'دیروز' : `${new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(fromIso(isoT))} ${jalaliDayLabel(isoT)}`; return m.status === 'finished' ? dayL : `${dayL} · ${hmT}`; };
   const team = (name, logo, side) => <span className={`team ${favs.includes(name) ? 'fav' : ''}`}>{side === 'home' && <TeamBadge logo={logo} name={name} />}<button type="button" onClick={() => toggleFav(name)} title={favs.includes(name) ? 'حذف از تیم‌های من' : 'افزودن به تیم‌های من'}>{name}{favs.includes(name) && <Star size={11} fill="currentColor" />}</button>{side === 'away' && <TeamBadge logo={logo} name={name} />}</span>;
-  return <Card className={`football ${full ? 'football-full' : ''}`} icon={Trophy} title={full ? 'مسابقات' : 'فوتبال'} action={full ? <small className="muted">{full ? '۱۴ روز اخیر و پیش رو' : ''}</small> : <a href="/?page=football">همه مسابقات ←</a>}>
-    <div className="fb-tabs">
+  return <Card className={`football ${full ? 'football-full' : ''} ${only ? 'fb-only-' + only : ''}`} icon={only === 'results' ? CheckCircle2 : Trophy} title={only === 'fixtures' ? 'برنامهٔ بازی‌ها' : only === 'results' ? 'نتایج' : full ? 'مسابقات' : 'فوتبال'} action={only ? <small className="muted">{only === 'fixtures' ? '۱۴ روز پیش رو' : '۱۴ روز اخیر'}</small> : full ? <small className="muted">۱۴ روز اخیر و پیش رو</small> : <a href="/?page=football">همه مسابقات ←</a>}>
+    {only ? (favs.length > 0 ? <div className="fb-tabs"><button type="button" className={`fav-toggle ${onlyFav ? 'on' : ''}`} onClick={() => setOnlyFav(v => !v)}><Star size={12} fill={onlyFav ? 'currentColor' : 'none'} />تیم‌های من</button></div> : null) : <div className="fb-tabs">
       <button type="button" className={tab === 'fixtures' ? 'on' : ''} onClick={() => setTab('fixtures')}>برنامهٔ بازی‌ها{hasLive && <i className="live-dot" title="بازی زنده" />}</button>
       <button type="button" className={tab === 'results' ? 'on' : ''} onClick={() => setTab('results')}>{full ? 'نتایج' : 'نتایج هفتهٔ قبل'}</button>
       {favs.length > 0 && <button type="button" className={`fav-toggle ${onlyFav ? 'on' : ''}`} onClick={() => setOnlyFav(v => !v)}><Star size={12} fill={onlyFav ? 'currentColor' : 'none'} />تیم‌های من</button>}
-    </div>
-    <LeaguePicker value={league} onChange={setLeague} />
+    </div>}
+    {only !== 'results' && <LeaguePicker value={league} onChange={setLeague} />}
     <div className="fb-list">{list.length ? (() => { let lastDay = null, lastGrp = null; return list.map((m, index) => {
       const dayKey = m.status === 'live' ? 'live' : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(m.date));
       const newDay = dayKey !== lastDay, head = newDay ? <div className="fb-day">{dayKey === 'live' ? '● در حال بازی' : dayTitle(dayKey)}</div> : null; lastDay = dayKey;
@@ -1682,7 +1687,7 @@ function JalaliPicker({ value, today, onPick, onClose, anchor }) {
   const { lead, days } = monthCells(ym.jy, ym.jm);
   const shift = n => setYm(({ jy, jm }) => { const m = jm + n; return m < 1 ? { jy: jy - 1, jm: 12 } : m > 12 ? { jy: jy + 1, jm: 1 } : { jy, jm: m }; });
   return <div className="jpicker" role="dialog" aria-label="انتخاب تاریخ" ref={ref}>
-    <div className="jp-head"><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={16} /></button><b>{JALALI_MONTHS[ym.jm - 1]} {faDigits(ym.jy)}</b><button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={16} /></button></div>
+    <div className="jp-head"><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronLeft size={16} /></button><b>{JALALI_MONTHS[ym.jm - 1]} {faDigits(ym.jy)}</b><button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronRight size={16} /></button></div>
     <div className="jp-grid">{WEEKDAYS.map((w, i) => <small key={w} className={i === 6 ? 'is-fri' : ''}>{w}</small>)}{[...Array(lead)].map((_, i) => <span key={'b' + i} />)}{days.map((d, i) => {
       const v = iso(d), occ = events[jKey(ym.jy, ym.jm, i + 1)] || [], off = weekdayIndex(d) === 6 || occ.some(e => e.h);
       return <button type="button" key={v} disabled={v < today} title={occ.map(e => e.t.replace(/\[.*?\]/g, '').trim()).join('\n')} className={`jp-day ${v === today ? 'is-today' : ''} ${v === value ? 'is-sel' : ''} ${off ? 'is-off' : ''}`} onClick={() => onPick(v)}>{faDigits(i + 1)}</button>;
@@ -1792,7 +1797,7 @@ function LiveCalendar({ today }) {
   const dayItems = d => items.filter(ev => (ev.source !== 'lifeos' || ev.time) && eventOnDate(ev, d));
   const todayCount = dayItems(fromIso(today)).length;
   const nowHm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
-  return <Card className="calendar live-cal" icon={CalendarDays} title={`${JALALI_MONTHS[ym.jm - 1]} ${faDigits(ym.jy)}`} action={<div className="lc-nav"><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy - 1, jm }))} aria-label="سال قبل"><ChevronsRight size={15} /></button><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={15} /></button>{(ym.jy !== t.jy || ym.jm !== t.jm) && <button type="button" className="lc-today" onClick={goToday}>امروز</button>}<button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={15} /></button><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy + 1, jm }))} aria-label="سال بعد"><ChevronsLeft size={15} /></button></div>}>
+  return <Card className="calendar live-cal" icon={CalendarDays} title={`${JALALI_MONTHS[ym.jm - 1]} ${faDigits(ym.jy)}`} action={<div className="lc-nav"><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy - 1, jm }))} aria-label="سال قبل"><ChevronsLeft size={15} /></button><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronLeft size={15} /></button>{(ym.jy !== t.jy || ym.jm !== t.jm) && <button type="button" className="lc-today" onClick={goToday}>امروز</button>}<button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronRight size={15} /></button><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy + 1, jm }))} aria-label="سال بعد"><ChevronsRight size={15} /></button></div>}>
     <div className="weekdays">{WEEKDAYS.map(x => <span key={x}>{x}</span>)}</div>
     <div className="calendar-days">{[...Array(lead)].map((_, i) => <span key={`blank${i}`} />)}{days.map((day, i) => {
       const v = iso(day), evs = events[jKey(ym.jy, ym.jm, i + 1)] || [], holiday = weekdayIndex(day) === 6 || evs.some(e => e.h), n = dayItems(day).length;
@@ -1963,10 +1968,23 @@ function WeatherCard({ weather, aqi, city, onCity }) {
   </Card>;
 }
 
+// Team names come from different sources per league (e.g. UNL: matches from Varzesh3 in Persian, the table in
+// English), so names are compared through a key: English country names → Persian via the browser's region names
+// (plus the UK nations), then spacing / Arabic letters normalized.
+const TEAM_EN_FA = (() => {
+  const out = { 'england': 'انگلیس', 'scotland': 'اسکاتلند', 'wales': 'ولز', 'northern ireland': 'ایرلند شمالی', 'turkey': 'ترکیه', 'bosnia and herzegovina': 'بوسنی و هرزگوین', 'czech republic': 'جمهوری چک', 'republic of ireland': 'ایرلند', 'kosovo': 'کوزوو' };
+  try {
+    const en = new Intl.DisplayNames(['en'], { type: 'region' }), faN = new Intl.DisplayNames(['fa'], { type: 'region' }), A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (const x of A) for (const y of A) { const c = x + y, e = en.of(c), f = faN.of(c); if (e && f && e !== c && !out[e.toLowerCase()]) out[e.toLowerCase().replace(/&/g, 'and')] = f; }
+  } catch { /* old browsers: only the manual names */ }
+  return out;
+})();
+const teamKey = name => { const n = String(name || '').trim(), fa = TEAM_EN_FA[n.toLowerCase().replace(/&/g, 'and')] || n; return fa.replace(/[\s\u200c\-.]+/g, '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').toLowerCase(); };
+const sameTeam = (a, b) => teamKey(a) === teamKey(b);
 // Result of a finished match from one team's point of view: 'W' | 'D' | 'L' | null
-const resultFor = (m, team) => { const sc = String(m.score || '').match(/(\d+)\s*-\s*(\d+)/); if (!sc) return null; const h = +sc[1], a = +sc[2]; const mine = m.home === team ? h : a, theirs = m.home === team ? a : h; return mine > theirs ? 'W' : mine < theirs ? 'L' : 'D'; };
-const formOf = (matches, team, n = 5) => matches.filter(m => m.status === 'finished' && (m.home === team || m.away === team)).sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, n).map(m => ({ r: resultFor(m, team), m })).filter(x => x.r).reverse();
-const FORM_FA = { W: 'ب', D: 'م', L: 'ش' };
+const resultFor = (m, team) => { const sc = String(m.score || '').match(/(\d+)\s*-\s*(\d+)/); if (!sc) return null; const h = +sc[1], a = +sc[2], home = sameTeam(m.home, team); const mine = home ? h : a, theirs = home ? a : h; return mine > theirs ? 'W' : mine < theirs ? 'L' : 'D'; };
+const formOf = (matches, team, n = 5) => matches.filter(m => m.status === 'finished' && (sameTeam(m.home, team) || sameTeam(m.away, team))).sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, n).map(m => ({ r: resultFor(m, team), m })).filter(x => x.r).reverse();
+const FORM_FA = { W: 'W', D: 'D', L: 'L' };
 // prefer the source's own last-5 form (standings.form) when it is at least as complete as what our match window gives
 const formFor = (row, matches, team) => {
   const mine = formOf(matches, team);
@@ -2031,12 +2049,15 @@ function Standings({ league }) {
 }
 function FootballPage() {
   const [league, setLeague] = useState(null);
+  useEffect(() => { pickNearestLeague().then(setLeague); }, []);
   return <main>
     <TopNav active="football" />
     <div className="page fb-page">
       <header className="page-head"><div><h1>فوتبال</h1><p>برنامه، نتایج و جدول لیگ‌ها. روی اسم هر تیم بزن تا به «تیم‌های من» اضافه بشه.</p></div></header>
-      <div className="fb-page-grid">
-        <div className="fb-side"><Football full onLeague={setLeague} /><MyTeams league={league} /></div>
+      {/* three columns: fixtures (with the league picker) · results · table */}
+      <div className="fb-page-grid fb-three">
+        <div className="fb-side"><Football full only="fixtures" league={league} onLeague={setLeague} /><MyTeams league={league} /></div>
+        <div className="fb-side"><Football full only="results" league={league} /></div>
         <Standings league={league} />
       </div>
     </div>
