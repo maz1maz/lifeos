@@ -1963,10 +1963,23 @@ function WeatherCard({ weather, aqi, city, onCity }) {
   </Card>;
 }
 
+// Team names come from different sources per league (e.g. UNL: matches from Varzesh3 in Persian, the table in
+// English), so names are compared through a key: English country names → Persian via the browser's region names
+// (plus the UK nations), then spacing / Arabic letters normalized.
+const TEAM_EN_FA = (() => {
+  const out = { 'england': 'انگلیس', 'scotland': 'اسکاتلند', 'wales': 'ولز', 'northern ireland': 'ایرلند شمالی', 'turkey': 'ترکیه', 'bosnia and herzegovina': 'بوسنی و هرزگوین', 'czech republic': 'جمهوری چک', 'republic of ireland': 'ایرلند', 'kosovo': 'کوزوو' };
+  try {
+    const en = new Intl.DisplayNames(['en'], { type: 'region' }), faN = new Intl.DisplayNames(['fa'], { type: 'region' }), A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (const x of A) for (const y of A) { const c = x + y, e = en.of(c), f = faN.of(c); if (e && f && e !== c && !out[e.toLowerCase()]) out[e.toLowerCase().replace(/&/g, 'and')] = f; }
+  } catch { /* old browsers: only the manual names */ }
+  return out;
+})();
+const teamKey = name => { const n = String(name || '').trim(), fa = TEAM_EN_FA[n.toLowerCase().replace(/&/g, 'and')] || n; return fa.replace(/[\s\u200c\-.]+/g, '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').toLowerCase(); };
+const sameTeam = (a, b) => teamKey(a) === teamKey(b);
 // Result of a finished match from one team's point of view: 'W' | 'D' | 'L' | null
-const resultFor = (m, team) => { const sc = String(m.score || '').match(/(\d+)\s*-\s*(\d+)/); if (!sc) return null; const h = +sc[1], a = +sc[2]; const mine = m.home === team ? h : a, theirs = m.home === team ? a : h; return mine > theirs ? 'W' : mine < theirs ? 'L' : 'D'; };
-const formOf = (matches, team, n = 5) => matches.filter(m => m.status === 'finished' && (m.home === team || m.away === team)).sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, n).map(m => ({ r: resultFor(m, team), m })).filter(x => x.r).reverse();
-const FORM_FA = { W: 'ب', D: 'م', L: 'ش' };
+const resultFor = (m, team) => { const sc = String(m.score || '').match(/(\d+)\s*-\s*(\d+)/); if (!sc) return null; const h = +sc[1], a = +sc[2], home = sameTeam(m.home, team); const mine = home ? h : a, theirs = home ? a : h; return mine > theirs ? 'W' : mine < theirs ? 'L' : 'D'; };
+const formOf = (matches, team, n = 5) => matches.filter(m => m.status === 'finished' && (sameTeam(m.home, team) || sameTeam(m.away, team))).sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, n).map(m => ({ r: resultFor(m, team), m })).filter(x => x.r).reverse();
+const FORM_FA = { W: 'W', D: 'D', L: 'L' };
 // prefer the source's own last-5 form (standings.form) when it is at least as complete as what our match window gives
 const formFor = (row, matches, team) => {
   const mine = formOf(matches, team);
