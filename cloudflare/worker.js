@@ -675,7 +675,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     let r=await fetch('https://web-api.varzesh3.com/v2.0/football/leagues/'+v3id+'/seasons/'+m[1]+'/standing',{headers:Object.assign({},BROWSER_UA,{Accept:'application/json',Referer:'https://www.varzesh3.com/',Origin:'https://www.varzesh3.com'})});
     if(!r.ok)return;let data=await r.json(),map={1:'W',2:'L',3:'D'},byName={};
     (data.teams||[]).forEach(t=>{byName[t.name]=t});
-    items.forEach(it=>{let t=byName[it.team];if(!t||!Array.isArray(t.recentMatches))return;let rm=t.recentMatches.filter(x=>map[x.resultType]).slice(-5);it.form=rm.map(x=>map[x.resultType]).join('');it.formTips=rm.map(x=>String(x.tooltip||'').trim())});
+    items.forEach(it=>{let t=byName[it.team];if(!t||!Array.isArray(t.recentMatches))return;let rm=t.recentMatches.filter(x=>map[x.resultType]).slice(-5);it.form=rm.map(x=>map[x.resultType]).join('');it.formTips=rm.map(x=>String(x.tooltip||'').trim());it.formDates=rm.map(x=>{let v=x.date||x.matchDate||x.startDate||x.dateTime||x.startTime||null,t=v?Date.parse(v):NaN;return isFinite(t)?new Date(t).toISOString():null})});
   }
   // every captioned table on the page (group stages have one per group: «جدول گروه ۱»…); with more than one
   // table each row gets group = its caption without «جدول»
@@ -764,6 +764,16 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
   async function fetchFootba11Range(league,fromDate,toDate){if(!F11_LEAGUES[league.id])return[];let t=today(),days=[];/* footba11 is one request per day: ±21 days = 43 requests (kept under the Workers 50-subrequest cap; days are cached per isolate) */for(let d=addDaysIso(t,-21);d<=addDaysIso(t,21);d=addDaysIso(d,1))if(d>=fromDate&&d<=toDate)days.push(d);let all=[];await mapConcurrent(days,5,async d=>{try{all.push(...f11Pick(league.id,await f11Day(d)))}catch(e){}});let seen=new Set();return all.filter(m=>!seen.has(m.fixtureId)&&seen.add(m.fixtureId)).map(m=>Object.assign(m,{league:league.name+(m.group?' · '+m.group:'')}))}
   function parseFootba11Standings(html,tierLabel){let out=[],names={};for(const m of html.matchAll(/<option value="standings_(\d+)"[^>]*>\s*([^<]+?)\s*<\/option>/g))names[m[1]]=m[2];let ids=[...html.matchAll(/id="standings_(\d+)_overall"/g)].map(m=>m[1]);for(const sid of ids){let a=html.indexOf('id="standings_'+sid+'_overall"'),b=html.indexOf('id="standings_'+sid+'_home"',a);let block=html.slice(a,b>a?b:a+200000);let grp=[tierLabel,names[sid]||''].filter(Boolean).join(' · ')||null;for(const part of block.split('standings-row" data-teamid="').slice(1)){let num=cls=>{let m=part.match(new RegExp('standings-value '+cls+'">\\s*(-?\\d+)'));return m?Number(m[1]):0};let team=(part.match(/standings-team[\s\S]*?<a [^>]*>\s*([^<]+?)\s*<\/a>/)||[])[1];if(!team)continue;let logo=(part.match(/data-lazy="([^"]+)"/)||part.match(/<img[^>]*src="(https?:[^"]+)"/)||[])[1]||null;let g=(part.match(/standings-value goals">\s*(\d+):(\d+)/)||[]);let form=[...part.matchAll(/<a [^>]*title="([^"]*)"[^>]*>\s*<span class="form ([wdl])"/g)].map(x=>({d:x[1].split(',')[0],r:x[2].toUpperCase(),tip:x[1].replace(/^[^,]*,[^ ]* /,'')}));form.sort((x,y)=>x.d.localeCompare(y.d));let gf=Number(g[1]||0),ga=Number(g[2]||0);out.push({rank:Number((part.match(/standings-rank[^>]*>\s*<span>(\d+)/)||[])[1]||0),team,logo,played:num('played'),win:num('wins'),draw:num('draws'),loss:num('losses'),gf,ga,gd:gf-ga,pts:num('points'),group:grp,form:form.slice(-5).map(x=>x.r).join(''),formTips:form.slice(-5).map(x=>x.tip)})}}return out}
   async function fetchFootba11Standings(league){let cfg=F11_LEAGUES[league.id];if(!cfg)return[];let tids=cfg.ids||[...(F11_TIDS[league.id]||[])];if(!tids.length){try{await fetchFootba11Range(league,addDaysIso(today(),-4),addDaysIso(today(),10));tids=[...(F11_TIDS[league.id]||[])]}catch(e){}}let rows=[];for(const tid of tids.slice(0,4)){try{let r=await fetch('https://footba11.co/tournament/'+tid,{headers:BROWSER_UA});if(!r.ok)continue;let html=await r.text(),tier=cfg.tiers?('سطح '+['A','B','C','D'][cfg.ids.indexOf(tid)]):'';rows.push(...parseFootba11Standings(html,tier))}catch(e){}}return rows}
+  // Finished matches rebuilt from standings rows' formTips (oldest→newest per team). Each match shows up in both
+  // teams' lists: kept once (unordered pair + score). Without a real date they carry approx:true, a «round» label
+  // («آخرین بازی», «بازی قبلی», …) and a stand-in date one week per step back, used only for ordering.
+  function resultsFromForm(rows,leagueName){
+    let seen=new Set(),out=[],logo=n=>((rows||[]).find(x=>x.team===n)||{}).logo||null,t0=Date.parse(today()+'T12:00:00Z');
+    for(const r of rows||[]){let tips=r.formTips||[],dates=r.formDates||[],n=tips.length;
+      tips.forEach((tip,i)=>{let m=String(tip).match(/\((\d+)\s*-\s*(\d+)\)\s*(.+)/);if(!m)return;let a=Number(m[1]),b=Number(m[2]),opp=m[3].trim(),back=n-1-i,key=r.team<opp?r.team+'|'+opp+'|'+a+'-'+b:opp+'|'+r.team+'|'+b+'-'+a;if(seen.has(key))return;seen.add(key);
+        let real=dates[i]||null;out.push({fixtureId:'v3f-'+key,home:r.team,away:opp,homeLogo:r.logo||null,awayLogo:logo(opp),league:leagueName||'',date:real||new Date(t0-back*7*864e5).toISOString(),status:'finished',score:a+' - '+b,approx:!real,round:back===0?'آخرین بازی':back===1?'بازی قبلی':(back).toLocaleString('fa-IR')+' بازی قبل‌تر'})})}
+    return out;
+  }
   async function fetchFreeLeagueRange(league,fromDate,toDate){
     let out=[],v3id=VARZESH3_LEAGUE_IDS[league.id];
     if(v3id){try{let items=await fetchVarzesh3LeagueMatches(v3id,league.name);if(items.length)out=items}catch(e){}}
@@ -771,6 +781,9 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     // Varzesh3's matches page lists only the current and coming weeks: past results come from footba11 (also
     // Persian names; one request per day, so only the last 21 days up to today)
     if(out.length&&league.id!=='uefa.nations'&&F11_LEAGUES[league.id]&&out.filter(m=>m.status==='finished').length<2){try{let key=m=>String(m.date).slice(0,10)+'|'+m.home+'|'+m.away,seen=new Set(out.map(key)),past=(await fetchFootba11Range(league,fromDate,today())).filter(m=>m.status==='finished'&&!seen.has(key(m)));out=out.concat(past);fromF11=true}catch(e){}}
+    // still no results (footba11 doesn't cover e.g. the Iranian/Saudi leagues or the Champions League): rebuild
+    // them from the Varzesh3 table's last-5 per team («(1-0) پرسپولیس» = this team 1, opponent 0)
+    if(out.length&&v3id&&league.id!=='uefa.nations'&&out.filter(m=>m.status==='finished').length<2){try{out=out.concat(resultsFromForm(await fetchFreeLeagueStandings(league),league.name))}catch(e){}}
     // UEFA Nations League: Varzesh3 (318) only has tier A; tiers B–D still come from footba11
     if(out.length&&league.id==='uefa.nations'){out.forEach(m=>{m.group=m.group||'سطح A'});try{let rest=(await fetchFootba11Range(league,fromDate,toDate)).filter(m=>!/^سطح A/.test(m.group||''));out=out.concat(rest);fromF11=true}catch(e){}}
     if(!out.length){try{let items=await fetchFootba11Range(league,fromDate,toDate);if(items.length){out=items;fromF11=true}}catch(e){}}
