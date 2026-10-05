@@ -541,3 +541,17 @@
 .lf-compare-next li b{font-size:13px}
 .lf-compare-next li span{font-size:11px;border:1px solid var(--g-border-2);border-radius:99px;padding:0 7px;color:var(--g-muted)}
 .lf-compare-next p{margin:0;color:var(--g-muted);font-size:12px}
+.lf-pipeline{margin-top:14px;border:1px solid var(--g-border);border-radius:12px;padding:12px 14px}
+.lf-pipeline h3{margin:0 0 8px;font-size:14px}.lf-pipeline h3 small{display:block;font-weight:400;color:var(--g-muted);font-size:11.5px;margin-top:2px}
+.lf-pipe-row>button{width:100%;display:grid;grid-template-columns:76px minmax(0,1.3fr) minmax(60px,1fr) 32px;align-items:center;gap:10px;background:none;border:0;color:inherit;font:inherit;padding:6px 4px;border-radius:8px;cursor:pointer;text-align:start}
+.lf-pipe-row>button:hover,.lf-pipe-row.open>button{background:var(--g-accent-soft)}
+.lf-pipe-row .dept{font-size:10.5px;color:var(--g-muted);border:1px solid var(--g-border-2);border-radius:99px;padding:0 6px;text-align:center;white-space:nowrap}
+.lf-pipe-row b{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lf-pipe-row i{height:7px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden}.lf-pipe-row i em{display:block;height:100%;background:var(--g-accent)}
+.lf-pipe-row strong{text-align:center;font-size:14px}
+.lf-pipe-row.hot b{color:var(--g-accent-strong)}.lf-pipe-row.hot i em{background:#34d399}
+.lf-pipe-row ul{list-style:none;margin:2px 0 8px;padding:0 88px 0 0;display:grid;gap:2px}
+.lf-pipe-row li{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:4px 8px;border-radius:8px;cursor:pointer;font-size:12.5px}
+.lf-pipe-row li:hover{background:var(--g-accent-soft)}.lf-pipe-row li i{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.lf-pipe-row li span{font-size:11px;border:1px solid var(--g-border-2);border-radius:99px;padding:0 7px;color:var(--g-muted)}
+@media(max-width:700px){.lf-pipe-row>button{grid-template-columns:minmax(0,1fr) 70px 28px}.lf-pipe-row .dept{display:none}.lf-pipe-row ul{padding:0}}

@@ -304,6 +304,14 @@ const CMP_W = 1000; // landscape A4 content width at the report's 695px-per-184m
 const STATE_FA = { bad: 'نیازمند پیگیری', warn: 'اندکی عقب', ok: 'مطابق برنامه', done: 'تکمیل‌شده', none: 'قرارداد ناقص' };
 const STATE_CLR = { bad: '#f43f5e', warn: '#f59e0b', ok: '#3b82f6', done: '#10b981', none: '#cbd5e1' };
 const STATE_TXT = { bad: '#be123c', warn: '#b45309', ok: '#1d4ed8', done: '#047857', none: '#64748b' };
+// «خط تولید»: projects grouped by their items' next stage (same rule as the screen), in checklist order
+const PIPE_ORDER = ['فرم ابعادبرداری برآوردی', 'ابعادبرداری برآوردی', 'تهیه جزئیات برآورد جهت تأیید به کارفرما', 'دریافت تأیید جزئیات برآورد از کارفرما', 'ارسال جزئیات برآورد به کارخانه', 'فرم ابعادبرداری دقیق', 'ابعادبرداری دقیق', 'تهیه نقشهٔ جزئیات ساخت', 'دریافت تأیید نقشهٔ جزئیات ساخت از کارفرما', 'ارسال جزئیات ساخت به کارخانه', 'تهیه لیست شیشه', 'سفارش شیشه', 'ارسال به پروژه', 'شروع نصب', 'پایان نصب'];
+const PIPE_DEPT = { 'فرم ابعادبرداری برآوردی': 'کنترل پروژه', 'ابعادبرداری برآوردی': 'اجرا', 'تهیه جزئیات برآورد جهت تأیید به کارفرما': 'فنی', 'دریافت تأیید جزئیات برآورد از کارفرما': 'کنترل پروژه', 'ارسال جزئیات برآورد به کارخانه': 'فنی', 'فرم ابعادبرداری دقیق': 'کنترل پروژه', 'ابعادبرداری دقیق': 'اجرا', 'تهیه نقشهٔ جزئیات ساخت': 'فنی', 'دریافت تأیید نقشهٔ جزئیات ساخت از کارفرما': 'کنترل پروژه', 'ارسال جزئیات ساخت به کارخانه': 'فنی', 'تهیه لیست شیشه': 'فنی', 'سفارش شیشه': 'تأمین', 'ارسال به پروژه': 'تأمین', 'شروع نصب': 'اجرا', 'پایان نصب': 'اجرا' };
+function pipelineOf(rows) {
+  const map = new Map();
+  for (const r of rows) for (const s of r.m.nextSteps || []) { if (!map.has(s.base)) map.set(s.base, new Map()); const pm = map.get(s.base); if (!pm.has(r.p.id)) pm.set(r.p.id, { p: r.p, items: [] }); if (s.item) pm.get(r.p.id).items.push(s.item); }
+  return [...map].sort((a, b) => (PIPE_ORDER.indexOf(a[0]) + 1 || 99) - (PIPE_ORDER.indexOf(b[0]) + 1 || 99)).map(([base, pm]) => ({ base, department: PIPE_DEPT[base] || '', projects: [...pm.values()] }));
+}
 const NEXT_WATCH_PRINT = [['ارسال به پروژه', 'آمادهٔ ارسال به پروژه'], ['شروع نصب', 'آمادهٔ شروع نصب']];
 export function compareReportHtml({ rows, brand = {} }) {
   const today = todayIso(), printedAt = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date());
@@ -349,6 +357,8 @@ table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th
 <tfoot><tr><td colspan="2">جمع ${fa(rows.length)} پروژه</td><td>${pct(avg)} میانگین</td><td></td><td></td><td></td><td class="n">${money(amount)}</td><td class="n">${money(received)}</td><td class="n">${money(outstanding)}</td><td class="n">${fa(late)}</td><td></td></tr></tfoot></table>
 <div class="nx">${NEXT_WATCH_PRINT.map(([base, label]) => { const list = rows.map(r => { const hit = (r.m.nextSteps || []).filter(x => x.base === base); return { p: r.p, hit: hit.length, items: hit.map(x => x.item).filter(Boolean) }; }).filter(r => r.hit);
   return `<div><h2>${esc(label)} <span class="sm">(${fa(list.length)} پروژه · اقدام بعدی «${esc(base)}»)</span></h2>${list.length ? `<ul>${list.map(({ p, items }) => `<li><span class="dot" style="background:${pc(p)}"></span><b>${esc(p.name)}</b>${items.length ? ` <span class="sm">— ${items.map(esc).join('، ')}</span>` : ''}</li>`).join('')}</ul>` : '<p class="muted">پروژه‌ای در این مرحله نیست.</p>'}</div>`; }).join('')}</div>
+${(() => { const pipe = pipelineOf(rows); if (!pipe.length) return ''; const max = Math.max(1, ...pipe.map(x => x.projects.length));
+  return `<h2>خط تولید · اقدام بعدی پروژه‌ها</h2><table class="cmp"><thead><tr><th style="width:9%">واحد</th><th style="width:22%">مرحلهٔ بعدی</th><th style="width:6%">تعداد</th><th style="width:14%"></th><th>پروژه‌ها (آیتم‌ها)</th></tr></thead><tbody>${pipe.map(x => `<tr><td class="sm">${esc(x.department)}</td><td><b>${esc(x.base)}</b></td><td class="n"><b>${fa(x.projects.length)}</b></td><td>${bar(x.projects.length / max * 100, '#0f172a')}</td><td>${x.projects.map(({ p, items }) => `<span class="dot" style="background:${pc(p)}"></span>${esc(p.name)}${items.length ? ` <span class="sm">(${items.map(esc).join('، ')})</span>` : ''}`).join(' &nbsp;·&nbsp; ')}</td></tr>`).join('')}</tbody></table>`; })()}
 </body></html>`;
 }
 const compareFileName = () => { const j = isoToJ(todayIso()); return `${j.jy}-${pad2(j.jm)}-${pad2(j.jd)}_مقایسه-پروژه‌ها.pdf`; };

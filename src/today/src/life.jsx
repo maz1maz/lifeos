@@ -685,9 +685,27 @@ export function nextStepsOf(stages) {
   }
   return out;
 }
+// «خط تولید»: every item's next action grouped by stage, in checklist order → [{ base, department, projects: [{ p, items }] }]
+export function nextStepPipeline(rows) {
+  const order = ITEM_STAGES.map(([, b]) => b), dept = Object.fromEntries(ITEM_STAGES.map(([d, b]) => [b, d])), map = new Map();
+  for (const r of rows) for (const s of r.m.nextSteps || []) { if (!map.has(s.base)) map.set(s.base, new Map()); const pm = map.get(s.base); if (!pm.has(r.p.id)) pm.set(r.p.id, { p: r.p, items: [] }); if (s.item) pm.get(r.p.id).items.push(s.item); }
+  return [...map].sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99)).map(([base, pm]) => ({ base, department: dept[base] || '', projects: [...pm.values()] }));
+}
 // stages the comparison lists separately (who is ready for shipping / for installation)
 export const NEXT_WATCH = [['ارسال به پروژه', 'آمادهٔ ارسال به پروژه'], ['شروع نصب', 'آمادهٔ شروع نصب']];
 const STATE_LABEL = { ok: 'مطابق برنامه', warn: 'اندکی عقب', bad: 'نیازمند پیگیری', done: 'تکمیل‌شده', none: 'قرارداد ناقص' };
+// every stage that is some item's next action: how many projects wait on it (bar = share of projects), click → the projects
+function PipelineReport({ rows, onOpen }) {
+  const [open, setOpen] = useState('');
+  const pipe = nextStepPipeline(rows), max = Math.max(1, ...pipe.map(x => x.projects.length));
+  if (!pipe.length) return null;
+  return <div className="lf-pipeline"><h3>خط تولید · اقدام بعدی پروژه‌ها<small>هر ردیف: چند پروژه اقدام بعدی‌شان این مرحله است (روی ردیف بزن تا پروژه‌ها را ببینی)</small></h3>
+    {pipe.map(x => <div key={x.base} className={`lf-pipe-row ${NEXT_WATCH.some(([b]) => b === x.base) ? 'hot' : ''} ${open === x.base ? 'open' : ''}`}>
+      <button type="button" onClick={() => setOpen(o => o === x.base ? '' : x.base)}><span className={`dept dept-${String(x.department).replaceAll(' ', '-')}`}>{x.department}</span><b>{x.base}</b><i><em style={{ width: `${x.projects.length / max * 100}%` }} /></i><strong>{fa(x.projects.length)}</strong></button>
+      {open === x.base ? <ul>{x.projects.map(({ p, items }) => <li key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}><i /><b>{p.name}</b>{items.map(it => <span key={it}>{it}</span>)}</li>)}</ul> : null}
+    </div>)}
+  </div>;
+}
 function ProjectsCompare({ projects, contracts, financials, processes, onOpen, printRef }) {
   const [sort, setSort] = useState('order');
   const rows = projects.map((p, i) => ({ p, i, m: projectMetrics(p, contracts.find(x => x.projectId === p.id), financials.filter(x => x.projectId === p.id), processes.filter(x => x.projectId === p.id)) }));
@@ -720,6 +738,7 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
       return <div key={base}><h3>{label}<em>{fa(list.length)} پروژه</em></h3><small>اقدام بعدی این پروژه‌ها «{base}» است</small>
         {list.length ? <ul>{list.map(({ p, items }) => <li key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}><i /><b>{p.name}</b>{items.filter(Boolean).map(it => <span key={it}>{it}</span>)}</li>)}</ul> : <p>پروژه‌ای در این مرحله نیست.</p>}
       </div>; })}</div>
+    <PipelineReport rows={rows} onOpen={onOpen} />
     <p className="lf-compare-hint">روی هر ردیف بزن تا پروژه باز شود. سرستون‌های پررنگ قابل مرتب‌سازی‌اند.</p>
   </section>;
 }
