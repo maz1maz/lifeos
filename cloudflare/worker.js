@@ -264,13 +264,14 @@ function betRollup(all,month){let items=[],prev=null,st={month:month||null,days:
   function googleCalendarNormalizedEvent(event,cal){let start=event&&event.start||{},end=event&&event.end||{},allDay=!!start.date,date='',time=null,endDate=null;if(allDay){date=String(start.date||'').slice(0,10);endDate=String(end.date||addDaysIso(date,1)).slice(0,10)}else if(start.dateTime){let p=tehranParts(new Date(start.dateTime));date=p.year+'-'+p.month+'-'+p.day;time=(p.hour==='24'?'00':p.hour)+':'+p.minute;if(end.dateTime){let ep=tehranParts(new Date(end.dateTime));endDate=ep.year+'-'+ep.month+'-'+ep.day}else endDate=date}if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return null;return{id:'google:'+String(cal.id||'')+':'+String(event.id||''),source:'google',kind:'google',title:event.summary||'رویداد بدون عنوان',date,startDate:date,endDate:endDate||date,time,allDay,done:false,calendarName:cal.summaryOverride||cal.summary||'Google Calendar',color:event.colorId||cal.backgroundColor||'#4285f4',url:event.htmlLink||null}}
   async function listGoogleCalendarEvents(user,accessToken,from,to){
     let cals=await googleCalendarApi(accessToken,'/users/me/calendarList?maxResults=250&showDeleted=false');
-    let allVisible=(cals.items||[]).filter(x=>x&&!x.deleted&&(x.primary||x.selected!==false)&&x.accessRole!=='none').sort((a,b)=>(b.primary?1:0)-(a.primary?1:0));
+    // older LifeOS calendars (left from a previous connection) only hold stale copies of LifeOS items: never list them
+    let allVisible=(cals.items||[]).filter(x=>x&&!x.deleted&&(x.primary||x.selected!==false)&&x.accessRole!=='none'&&(x.id===user.googleCalendarId||!String(x.description||'').includes('[LifeOS managed]'))).sort((a,b)=>(b.primary?1:0)-(a.primary?1:0));
     let visible=allVisible.slice(0,12),items=[],failed=0,truncated=allVisible.length>visible.length;
     let timeMin=new Date(from+'T00:00:00+03:30').toISOString(),timeMax=new Date(addDaysIso(to,1)+'T00:00:00+03:30').toISOString();
     await mapConcurrent(visible,4,async cal=>{try{
       let q='/calendars/'+encodeURIComponent(cal.id)+'/events?showDeleted=false&singleEvents=true&orderBy=startTime&maxResults=500&timeZone='+encodeURIComponent('Asia/Tehran')+'&timeMin='+encodeURIComponent(timeMin)+'&timeMax='+encodeURIComponent(timeMax),d=await googleCalendarApi(accessToken,q);
       if(d.nextPageToken)truncated=true;
-      for(const event of(d.items||[])){let priv=event.extendedProperties&&event.extendedProperties.private||{};if(cal.id===user.googleCalendarId&&priv.lifeosManaged==='1')continue;let n=googleCalendarNormalizedEvent(event,cal);if(n)items.push(n)}
+      for(const event of(d.items||[])){let priv=event.extendedProperties&&event.extendedProperties.private||{};if(priv.lifeosManaged==='1')continue;/* a LifeOS copy, wherever it ended up */let n=googleCalendarNormalizedEvent(event,cal);if(n)items.push(n)}
     }catch(e){failed++}});
     items.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time||'').localeCompare(String(b.time||'')));
     return{items:items.slice(0,1000),calendars:visible.length,partial:failed>0||truncated}
