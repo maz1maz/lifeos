@@ -768,6 +768,9 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     let out=[],v3id=VARZESH3_LEAGUE_IDS[league.id];
     if(v3id){try{let items=await fetchVarzesh3LeagueMatches(v3id,league.name);if(items.length)out=items}catch(e){}}
     let fromF11=false;
+    // Varzesh3's matches page lists only the current and coming weeks: past results come from footba11 (also
+    // Persian names; one request per day, so only the last 21 days up to today)
+    if(out.length&&league.id!=='uefa.nations'&&F11_LEAGUES[league.id]&&out.filter(m=>m.status==='finished').length<2){try{let key=m=>String(m.date).slice(0,10)+'|'+m.home+'|'+m.away,seen=new Set(out.map(key)),past=(await fetchFootba11Range(league,fromDate,today())).filter(m=>m.status==='finished'&&!seen.has(key(m)));out=out.concat(past);fromF11=true}catch(e){}}
     // UEFA Nations League: Varzesh3 (318) only has tier A; tiers B–D still come from footba11
     if(out.length&&league.id==='uefa.nations'){out.forEach(m=>{m.group=m.group||'سطح A'});try{let rest=(await fetchFootba11Range(league,fromDate,toDate)).filter(m=>!/^سطح A/.test(m.group||''));out=out.concat(rest);fromF11=true}catch(e){}}
     if(!out.length){try{let items=await fetchFootba11Range(league,fromDate,toDate);if(items.length){out=items;fromF11=true}}catch(e){}}
