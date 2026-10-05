@@ -1967,7 +1967,8 @@ async function handleTgjuHistory(request, env) {
   if (!authed) return new Response(JSON.stringify({ error: 'ابتدا وارد حساب شوید.' }), { status: 401, headers: J });
   const url = new URL(request.url);
   const key = String(url.searchParams.get('key') || '');
-  if (!TGJU_HIST_KEYS.has(key)) return new Response(JSON.stringify({ error: 'نماد نامعتبر است.' }), { status: 400, headers: J });
+  // any TGJU indicator key (the Today card can show any item of the feed), not only the old fixed list
+  if (!TGJU_HIST_KEYS.has(key) && !/^[a-z][a-z0-9_-]{1,40}$/.test(key)) return new Response(JSON.stringify({ error: 'نماد نامعتبر است.' }), { status: 400, headers: J });
   const days = Math.min(730, Math.max(30, parseInt(url.searchParams.get('days') || '365', 10) || 365));
   const cached = TGJU_HIST_CACHE.get(key);
   const slice = body => { const o = JSON.parse(body); o.items = (o.items || []).slice(-days); return JSON.stringify(o); };
@@ -1984,9 +1985,15 @@ async function handleTgjuHistory(request, env) {
       const date = g.length === 3 ? g[0] + '-' + g[1].padStart(2, '0') + '-' + g[2].padStart(2, '0') : null;
       return date && isFinite(price) ? { date, price } : null;
     }).filter(Boolean).reverse(); // قدیم به جدید
-  } catch (e) { return new Response(JSON.stringify({ error: 'دریافت تاریخچه از TGJU ناموفق بود.' }), { status: 502, headers: J }); }
+  } catch (e) {
+    // TGJU refused / timed out: an older copy is better than no chart
+    if (cached) return new Response(slice(cached.body), { headers: Object.assign({}, J, { 'Cache-Control': 'no-store' }) });
+    return new Response(JSON.stringify({ error: 'دریافت تاریخچه از TGJU ناموفق بود.' }), { status: 502, headers: J });
+  }
+  if (!items.length && cached) return new Response(slice(cached.body), { headers: Object.assign({}, J, { 'Cache-Control': 'no-store' }) });
   const body = JSON.stringify({ key, items });
   TGJU_HIST_CACHE.set(key, { at: Date.now(), body });
+  if (TGJU_HIST_CACHE.size > 150) TGJU_HIST_CACHE.delete(TGJU_HIST_CACHE.keys().next().value);
   return new Response(slice(body), { headers: Object.assign({}, J, { 'Cache-Control': 'public,max-age=3600' }) });
 }
 

@@ -1466,10 +1466,14 @@ function Market() {
   useEffect(() => { api('/api/tgju').then(data => setAll(tgjuRows(data))).catch(error => setNotice(error.message)); loadHomeCrypto().then(setCoins); }, []);
   const pool = useMemo(() => [...all, ...coins], [all, coins]);
   const rows = useMemo(() => keys.map(k => pool.find(r => r.key === k)).filter(Boolean).slice(0, 12), [pool, keys]);
+  // sparklines: two requests at a time (TGJU refuses bursts), and a failed one is retried twice instead of
+  // leaving that item without a chart for the whole visit
   useEffect(() => {
     const need = rows.filter(r => !r.crypto && !(r.key in hist)); if (!need.length) return;
-    Promise.all(need.map(item => api(`/api/tgju/history?key=${encodeURIComponent(item.key)}&days=30`).then(d => [item.key, (d.items || []).map(x => x.price)]).catch(() => [item.key, null])))
-      .then(pairs => setHist(h => ({ ...h, ...Object.fromEntries(pairs) })));
+    let live = true;
+    const one = async (key, tries = 0) => { try { const d = await api(`/api/tgju/history?key=${encodeURIComponent(key)}&days=30`); return (d.items || []).map(x => x.price); } catch { if (tries >= 2 || !live) return null; await new Promise(r => setTimeout(r, 2500 * (tries + 1))); return one(key, tries + 1); } };
+    (async () => { const queue = need.map(r => r.key); await Promise.all([0, 1].map(async () => { while (queue.length && live) { const key = queue.shift(); const prices = await one(key); if (live && prices) setHist(h => ({ ...h, [key]: prices })); } })); })();
+    return () => { live = false; };
   }, [rows]);
   // Home items are the market page's starred "t:" favourites (same storage), so both stay in sync.
   const save = next => { setKeys(next); const f = readLs('lifeos-market-favs', []); writeLs('lifeos-market-favs', [...(Array.isArray(f) ? f.filter(x => !/^[tc]:/.test(String(x))) : []), ...next.map(k => k.startsWith('c:') ? k : 't:' + k)]); };
