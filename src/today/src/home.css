@@ -1028,3 +1028,8 @@ html[data-mode="light"] .brand-logo{background:#105040}
 .fb-head-tools>:first-child{flex:1;min-width:0;margin:0}
 .fb-head .fav-toggle{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:9px 14px;border-radius:var(--g-radius-control);border:1px solid var(--g-border-2);background:transparent;color:var(--g-muted);font:inherit;cursor:pointer}
 .fb-head .fav-toggle.on{color:var(--g-accent-strong);border-color:var(--g-accent);background:var(--g-accent-soft)}
+/* match rows: team names on one line (smaller when long, … when still too long) */
+.score-row .team{min-width:0;overflow:hidden}
+.score-row .team button{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:inline-block}
+.score-row .team.long{font-size:.9em}
+.score-row .team.xlong{font-size:.8em;letter-spacing:-.2px}
