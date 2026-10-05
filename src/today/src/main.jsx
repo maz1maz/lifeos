@@ -1638,8 +1638,9 @@ function Football({ full = false, onLeague, only, league: ownerLeague, favOnly }
     </div>}
     {!only && <LeaguePicker value={league} onChange={setLeague} />}
     <div className="fb-list">{list.length ? (() => { let lastDay = null, lastGrp = null; return list.map((m, index) => {
-      const dayKey = m.status === 'live' ? 'live' : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(m.date));
-      const newDay = dayKey !== lastDay, head = newDay ? <div className="fb-day">{dayKey === 'live' ? '● در حال بازی' : dayTitle(dayKey)}</div> : null; lastDay = dayKey;
+      // results rebuilt from a table's last-5 have no real date: grouped by «آخرین بازی / بازی قبلی / …»
+      const dayKey = m.status === 'live' ? 'live' : m.approx ? 'r:' + m.round : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(m.date));
+      const newDay = dayKey !== lastDay, head = newDay ? <div className="fb-day">{dayKey === 'live' ? '● در حال بازی' : m.approx ? `${m.round} هر تیم` : dayTitle(dayKey)}</div> : null; lastDay = dayKey;
       const grpHead = m.group && (newDay || m.group !== lastGrp) ? <div className="fb-grp">{m.group}</div> : null; lastGrp = m.group || null;
       const hmT = new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(m.date));
       return <React.Fragment key={m.fixtureId || m.id || index}>{head}{grpHead}<div className={`score-row ${isFav(m) ? 'is-fav' : ''} ${m.status === 'live' ? 'is-live' : ''}`}>
