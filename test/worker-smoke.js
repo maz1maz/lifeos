@@ -502,6 +502,12 @@ async function main() {
   }
   const habit = (await call('/api/habits', { method: 'POST', cookie, body: { name: 'wh' } })).d;
   check('habit toggle -> 200', !!habit.id && (await call(`/api/habits/${habit.id}/toggle`, { method: 'POST', cookie, body: { date: today() } })).status === 200);
+  {
+    // explicit done is idempotent: a repeated / stale click can no longer untick a day
+    const hd = '2026-01-10', set = done => call(`/api/habits/${habit.id}/toggle`, { method: 'POST', cookie, body: { date: hd, done } });
+    const a1 = (await set(true)).d, a2 = (await set(true)).d, a3 = (await set(false)).d;
+    check('habit toggle with done:true twice stays done, done:false clears', a1.done === true && a2.done === true && a3.done === false, JSON.stringify([a1, a2, a3]));
+  }
   const shop = (await call('/api/shopping', { method: 'POST', cookie, body: { title: 'ws' } })).d;
   check('shopping buy -> 200', !!shop.id && (await call(`/api/shopping/${shop.id}/buy`, { method: 'POST', cookie, body: { price: 10 } })).status === 200);
   const trip = (await call('/api/trips', { method: 'POST', cookie, body: { destination: 'WT' } })).d;

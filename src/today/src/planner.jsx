@@ -43,29 +43,28 @@ function TaskCard({ task, index, reminder, onToggle, onEdit, onDelete }) {
   const t = isoToday(), overdue = !task.done && task.date && task.date < t, todayish = !task.done && task.date === t;
   const tags = task.tags || [];
   return (
-    <li className="plnr-card" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
+    <li className="plnr-card plnr-line" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
       <button type="button" role="checkbox" aria-checked={task.done} className={`plnr-check ${task.done ? 'on' : ''}`} onClick={() => onToggle(task)} aria-label={task.done ? 'بازگرداندن کار به حالت باز' : 'انجام شد'}>
         {task.done && <Check size={14} strokeWidth={3} />}
       </button>
-      <div className="plnr-card-body">
-        <div className="plnr-card-head">
-          <b className={task.done ? 'done' : ''}>{task.title}</b>
-          <div className="plnr-card-actions">
-            <button type="button" onClick={() => onEdit(task)} aria-label="ویرایش کار"><Pencil size={15} /></button>
-            <button type="button" onClick={() => onDelete(task)} aria-label="حذف کار"><Trash2 size={15} /></button>
-          </div>
-        </div>
-        {task.notes && <p className={task.done ? 'done' : ''}>{task.notes}</p>}
-        <div className="plnr-chips">
-          {task.date && <Chip tone={overdue ? 'rose' : todayish ? 'teal' : 'neutral'} icon={overdue ? CircleAlert : CalendarDays}>{overdue ? `عقب‌افتاده · ${dueLabel(task.date)}` : dueLabel(task.date)}</Chip>}
-          {!task.date && <Chip>یادداشتِ بی‌تاریخ</Chip>}
-          {task.startTime && <Chip icon={Clock}>{faDigits(task.startTime)}</Chip>}
-          <Chip tone={PRIORITY_TONE[task.priority] || 'neutral'}><span className="plnr-chip-dot" />اولویت {PRIORITY_LABELS[task.priority] || task.priority}</Chip>
-          {task.recurrence && <Chip tone="sky" icon={Repeat}>{REPEAT_LABELS[task.recurrence] || task.recurrence}</Chip>}
-          {task.attCount ? <Chip tone="neutral">📎 {Number(task.attCount).toLocaleString('fa-IR')}</Chip> : null}
-          {reminder && <Chip tone="amber" icon={Bell}>یادآوری {reminder.time ? faDigits(reminder.time) : dueLabel(reminder.date)}</Chip>}
-          {tags.map(tag => <Chip key={tag} icon={Hash}>{tag}</Chip>)}
-        </div>
+      {/* one row: title (+ notes, truncated) · chips · actions */}
+      <div className="plnr-line-main" title={task.notes || task.title}>
+        <b className={task.done ? 'done' : ''}>{task.title}</b>
+        {task.notes && <small className={task.done ? 'done' : ''}>{task.notes}</small>}
+      </div>
+      <div className="plnr-chips">
+        {task.date && <Chip tone={overdue ? 'rose' : todayish ? 'teal' : 'neutral'} icon={overdue ? CircleAlert : CalendarDays}>{overdue ? `عقب‌افتاده · ${dueLabel(task.date)}` : dueLabel(task.date)}</Chip>}
+        {!task.date && <Chip>بی‌تاریخ</Chip>}
+        {task.startTime && <Chip icon={Clock}>{faDigits(task.startTime)}</Chip>}
+        {task.priority && task.priority !== 'medium' && <Chip tone={PRIORITY_TONE[task.priority] || 'neutral'}><span className="plnr-chip-dot" />{PRIORITY_LABELS[task.priority] || task.priority}</Chip>}
+        {task.recurrence && <Chip tone="sky" icon={Repeat}>{REPEAT_LABELS[task.recurrence] || task.recurrence}</Chip>}
+        {task.attCount ? <Chip tone="neutral">📎 {Number(task.attCount).toLocaleString('fa-IR')}</Chip> : null}
+        {reminder && <Chip tone="amber" icon={Bell}>{reminder.time ? faDigits(reminder.time) : dueLabel(reminder.date)}</Chip>}
+        {tags.map(tag => <Chip key={tag} icon={Hash}>{tag}</Chip>)}
+      </div>
+      <div className="plnr-card-actions">
+        <button type="button" onClick={() => onEdit(task)} aria-label="ویرایش کار"><Pencil size={15} /></button>
+        <button type="button" onClick={() => onDelete(task)} aria-label="حذف کار"><Trash2 size={15} /></button>
       </div>
     </li>
   );

@@ -81,11 +81,11 @@ function JPop({ value, onPick, clearable, min }) {
   // label's trigger button and reopen the calendar right after a day is picked
   return <div className="jdi-pop" ref={pop} role="dialog" aria-label="انتخاب تاریخ" onClick={e => e.preventDefault()}>
     <div className="jdi-head">
-      <button type="button" dir="ltr" onClick={() => setYm(y => ({ ...y, jy: y.jy + 1 }))} aria-label="سال بعد">»</button>
-      <button type="button" dir="ltr" onClick={() => shift(1)} aria-label="ماه بعد">›</button>
+      <button type="button" dir="ltr" onClick={() => setYm(y => ({ ...y, jy: y.jy - 1 }))} aria-label="سال قبل">»</button>
+      <button type="button" dir="ltr" onClick={() => shift(-1)} aria-label="ماه قبل">›</button>
       <b>{MONTHS[ym.jm - 1]} {faD(ym.jy)}</b>
-      <button type="button" dir="ltr" onClick={() => shift(-1)} aria-label="ماه قبل">‹</button>
-      <button type="button" dir="ltr" onClick={() => setYm(y => ({ ...y, jy: y.jy - 1 }))} aria-label="سال قبل">«</button>
+      <button type="button" dir="ltr" onClick={() => shift(1)} aria-label="ماه بعد">‹</button>
+      <button type="button" dir="ltr" onClick={() => setYm(y => ({ ...y, jy: y.jy + 1 }))} aria-label="سال بعد">«</button>
     </div>
     <div className="jdi-grid">
       {WD.map((w, i) => <small key={w} className={i === 6 ? 'off' : ''}>{w}</small>)}
