@@ -677,12 +677,15 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     (data.teams||[]).forEach(t=>{byName[t.name]=t});
     items.forEach(it=>{let t=byName[it.team];if(!t||!Array.isArray(t.recentMatches))return;let rm=t.recentMatches.filter(x=>map[x.resultType]).slice(-5);it.form=rm.map(x=>map[x.resultType]).join('');it.formTips=rm.map(x=>String(x.tooltip||'').trim())});
   }
+  // every captioned table on the page (group stages have one per group: «جدول گروه ۱»…); with more than one
+  // table each row gets group = its caption without «جدول»
   function parseVarzesh3Standings(html){
-    let capIdx=html.indexOf('<caption');
-    if(capIdx===-1)return[];
-    let tableStart=html.lastIndexOf('<table',capIdx),tableEnd=html.indexOf('</table>',capIdx);
-    if(tableStart===-1||tableEnd===-1)return[];
-    let table=html.slice(tableStart,tableEnd+8);
+    let all=[],tables=[],from=0,capIdx;
+    while((capIdx=html.indexOf('<caption',from))!==-1){let tableStart=html.lastIndexOf('<table',capIdx),tableEnd=html.indexOf('</table>',capIdx);if(tableStart===-1||tableEnd===-1)break;tables.push({cap:html.slice(capIdx,html.indexOf('</caption>',capIdx)).replace(/<[^>]*>/g,'').replace(/^\s*جدول\s*/,'').trim(),table:html.slice(tableStart,tableEnd+8)});from=tableEnd+8}
+    for(const t of tables){let rows=parseVarzesh3StandingsTable(t.table);if(tables.length>1)rows.forEach(r=>{r.group=t.cap||null});all.push(...rows)}
+    return all;
+  }
+  function parseVarzesh3StandingsTable(table){
     let rowRe=/<tr class="[^"]*"><td[^>]*>(\d+)<\/td><td[^>]*><\/td><td[^>]*><a[^>]*href="\/football\/team\/(\d+)\/[^"]*"><img[^>]*src="([^"]*)"[^>]*\/><span[^>]*>([^<]*)<\/span><\/a><\/td><td[^>]*>(\d+)<\/td><td[^>]*>(\d+)<\/td><td[^>]*>(\d+)<\/td><td[^>]*>(\d+)<\/td><td[^>]*>(\d+)<!--\s*-->-<!--\s*-->(\d+)<\/td><td[^>]*>(-?\d+)<\/td><td[^>]*>(-?\d+)<\/td>/g,out=[],m;
     while((m=rowRe.exec(table)))out.push({rank:Number(m[1]),team:m[4],logo:m[3],played:Number(m[5]),win:Number(m[6]),draw:Number(m[7]),loss:Number(m[8]),gf:Number(m[9]),ga:Number(m[10]),gd:Number(m[11]),pts:Number(m[12])});
     return out;
@@ -720,7 +723,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     weeks.forEach(week=>{(week.dates||[]).forEach(d=>{(d.matches||[]).forEach(m=>{let mapped=mapVarzesh3WeekMatch(m,leagueName,d.date);if(mapped)out.push(mapped)})})});
     return out
   }
-  async function fetchFreeLeagueStandings(league){let v3id=VARZESH3_LEAGUE_IDS[league.id];if(v3id){try{let html=await fetchVarzesh3LeaguePage(v3id),items=parseVarzesh3Standings(html);if(items.length){try{await attachVarzesh3Form(v3id,html,items)}catch(e){}return items}}catch(e){}}try{let items=await fetchFootba11Standings(league);if(items.length)return items}catch(e){}if(ESPN_LEAGUE_IDS.includes(league.id)){try{let r=await fetch('https://site.api.espn.com/apis/v2/sports/soccer/'+league.id+'/standings',{headers:ESPN_UA});if(r.ok){let data=await r.json(),items=mapEspnStandings(data);if(items.length)return items}}catch(e){}}try{let data=await fetchTheSportsDb('/lookuptable.php?l='+league.tsdb);let items=mapTsdbStandings(data);if(items.length)return items}catch(e){}try{let data=await fetchTheSportsDb('/lookuptable.php?l='+league.tsdb+'&s='+league.season);return mapTsdbStandings(data)}catch(e){return[]}}
+  async function fetchFreeLeagueStandings(league){let v3id=VARZESH3_LEAGUE_IDS[league.id];if(v3id){try{let html=await fetchVarzesh3LeaguePage(v3id),items=parseVarzesh3Standings(html);if(items.length){try{await attachVarzesh3Form(v3id,html,items)}catch(e){}if(league.id==='uefa.nations'){/* tier A from Varzesh3, tiers B–D from footba11 */items.forEach(r=>{r.group='سطح A'+(r.group?' · '+r.group:'')});try{items=items.concat((await fetchFootba11Standings(league)).filter(r=>!/^سطح A/.test(r.group||'')))}catch(e){}}return items}}catch(e){}}try{let items=await fetchFootba11Standings(league);if(items.length)return items}catch(e){}if(ESPN_LEAGUE_IDS.includes(league.id)){try{let r=await fetch('https://site.api.espn.com/apis/v2/sports/soccer/'+league.id+'/standings',{headers:ESPN_UA});if(r.ok){let data=await r.json(),items=mapEspnStandings(data);if(items.length)return items}}catch(e){}}try{let data=await fetchTheSportsDb('/lookuptable.php?l='+league.tsdb);let items=mapTsdbStandings(data);if(items.length)return items}catch(e){}try{let data=await fetchTheSportsDb('/lookuptable.php?l='+league.tsdb+'&s='+league.season);return mapTsdbStandings(data)}catch(e){return[]}}
   // eventsseason.php نیازمند حدس دقیق فرمت فصل و پوشش کامل تقویمه؛ eventsnextleague/eventspastleague
   // همون چیزیه که این UI لازم داره (چند بازی بعدی/قبلی لیگ) و بدون فصل، همیشه چیزی برمی‌گردونه.
   async function fetchTheSportsDbNextPast(tsdbId){
@@ -765,6 +768,8 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     let out=[],v3id=VARZESH3_LEAGUE_IDS[league.id];
     if(v3id){try{let items=await fetchVarzesh3LeagueMatches(v3id,league.name);if(items.length)out=items}catch(e){}}
     let fromF11=false;
+    // UEFA Nations League: Varzesh3 (318) only has tier A; tiers B–D still come from footba11
+    if(out.length&&league.id==='uefa.nations'){out.forEach(m=>{m.group=m.group||'سطح A'});try{let rest=(await fetchFootba11Range(league,fromDate,toDate)).filter(m=>!/^سطح A/.test(m.group||''));out=out.concat(rest);fromF11=true}catch(e){}}
     if(!out.length){try{let items=await fetchFootba11Range(league,fromDate,toDate);if(items.length){out=items;fromF11=true}}catch(e){}}
     if(!out.length&&ESPN_LEAGUE_IDS.includes(league.id)){try{let events=await fetchEspnScoreboardRange(league.id,fromDate,toDate);out=events.map(ev=>mapEspnEvent(ev,league.name))}catch(e){}}
     if(!out.length){try{let data=await fetchTheSportsDb('/eventsseason.php?id='+league.tsdb+'&s='+league.season);out=(data.events||[]).filter(e=>e.dateEvent>=fromDate&&e.dateEvent<=toDate).map(mapTheSportsDbEvent)}catch(e){}}
