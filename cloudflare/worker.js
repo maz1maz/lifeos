@@ -667,7 +667,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
   function mapEspnStandings(data){let entries=(data.children&&data.children[0]&&data.children[0].standings&&data.children[0].standings.entries)||[];return entries.map(e=>{let st={};(e.stats||[]).forEach(s=>st[s.name]=s.value);return{rank:st.rank||0,team:(e.team&&e.team.displayName)||'',logo:(e.team&&e.team.logos&&e.team.logos[0]&&e.team.logos[0].href)||null,played:st.gamesPlayed||0,win:st.wins||0,draw:st.ties||0,loss:st.losses||0,gf:st.pointsFor||0,ga:st.pointsAgainst||0,gd:st.pointDifferential||0,pts:st.points||0}}).sort((a,b)=>a.rank-b.rank)}
   function mapTsdbStandings(data){return(data.table||[]).map(t=>({rank:Number(t.intRank)||0,team:t.strTeam||'',logo:t.strBadge?String(t.strBadge).replace(/\/tiny$/,''):null,played:Number(t.intPlayed)||0,win:Number(t.intWin)||0,draw:Number(t.intDraw)||0,loss:Number(t.intLoss)||0,gf:Number(t.intGoalsFor)||0,ga:Number(t.intGoalsAgainst)||0,gd:Number(t.intGoalDifference)||0,pts:Number(t.intPoints)||0}))}
   const ESPN_UA={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36','Accept':'application/json'};
-  const VARZESH3_LEAGUE_IDS={'ger.1':1,'esp.1':2,'eng.1':3,'ita.1':4,'fra.1':5,'irn.1':6,'uefa.champions':25,'uefa.europa':29,'afc.champions':26,'por.1':55,'ksa.1':326,'tur.1':35};
+  const VARZESH3_LEAGUE_IDS={'ger.1':1,'esp.1':2,'eng.1':3,'ita.1':4,'fra.1':5,'irn.1':6,'uefa.champions':25,'uefa.europa':29,'afc.champions':26,'por.1':55,'ksa.1':326,'tur.1':35,'uefa.nations':318};
   async function fetchVarzesh3LeaguePage(v3id){let r=await fetch('https://www.varzesh3.com/football/league/'+v3id+'/x',{headers:BROWSER_UA});if(!r.ok)throw new Error('HTTP '+r.status);return await r.text()}
   // فرم ۵ بازی آخر: API جدول ورزش۳ برای هر تیم recentMatches داره (قدیمی→جدید؛ 1=برد، 2=باخت، 3=مساوی)
   async function attachVarzesh3Form(v3id,html,items){
@@ -713,7 +713,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     let dm=(dateJalali||'').match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/),isoDate=dm?jalaliToGregorianIso(Number(dm[1]),Number(dm[2]),Number(dm[3])):null;
     if(!isoDate)return null;
     let status=m.isLive?'live':(m.goals?'finished':'upcoming');
-    return{fixtureId:m.id,home:(m.host&&m.host.name)||'',away:(m.guest&&m.guest.name)||'',homeLogo:(m.host&&m.host.logo)||null,awayLogo:(m.guest&&m.guest.logo)||null,league:leagueName||'',date:isoDate+'T12:00:00Z',time:m.time||null,status,score:m.goals?(m.goals.host??'-')+' - '+(m.goals.guest??'-'):'- - -'}
+    return{fixtureId:m.id,home:(m.host&&m.host.name)||'',away:(m.guest&&m.guest.name)||'',homeLogo:(m.host&&m.host.logo)||null,awayLogo:(m.guest&&m.guest.logo)||null,league:leagueName||'',/* Varzesh3 times are Tehran time; without one keep noon UTC (used to always be noon, so every match read 15:30) */date:/^\d{1,2}:\d{2}$/.test(String(m.time||''))?isoDate+'T'+String(m.time).padStart(5,'0')+':00+03:30':isoDate+'T12:00:00Z',time:m.time||null,status,score:m.goals?(m.goals.host??'-')+' - '+(m.goals.guest??'-'):'- - -'}
   }
   async function fetchVarzesh3LeagueMatches(v3id,leagueName){
     let html=await fetchVarzesh3LeagueMatchesPage(v3id),weeks=extractVarzesh3Weeks(html),out=[];
