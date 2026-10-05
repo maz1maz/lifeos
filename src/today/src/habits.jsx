@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { isoToJ, MONTHS } from './jdate';
 import './habits.css';
 import { VocabStats } from './vocab';
@@ -19,42 +19,64 @@ const weekStart = iso => { const d = new Date(iso + 'T12:00:00Z'), back = (d.get
 const WD = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
 const ICONS = ['✓', '💧', '🏃', '📖', '🧘', '💪', '🥗', '😴', '🚭', '✍️', '🇬🇧', '🙏'];
 const WEEKS = 16;
+// how long a new habit runs (days); '' = open-ended (grid shows the last WEEKS weeks)
+const LENGTHS = [['7', '۷ روز'], ['21', '۲۱ روز'], ['30', '۳۰ روز'], ['40', '۴۰ روز'], ['66', '۶۶ روز'], ['90', '۹۰ روز'], ['', 'بدون پایان']];
+// the days a habit's grid shows: its own period (whole weeks, future days included) or the last WEEKS weeks
+const gridDays = (h, start, today) => { const from = h.days ? weekStart(h.startDate) : start, last = h.days ? addDays(h.startDate, h.days - 1) : today, to = h.days ? addDays(weekStart(last), 6) : today, out = []; for (let d = from; d <= to; d = addDays(d, 1)) out.push(d); return out; };
+const inPeriod = (h, d) => !h.days || (d >= h.startDate && d <= addDays(h.startDate, h.days - 1));
 
 export function HabitsPage({ Nav }) {
   const today = todayIso();
   const [habits, setHabits] = useState(null);
   const [logs, setLogs] = useState([]);
-  const [name, setName] = useState(''), [icon, setIcon] = useState('✓');
+  const [name, setName] = useState(''), [icon, setIcon] = useState('✓'), [len, setLen] = useState('30');
+  // toggles still on their way: a reload that lands meanwhile would briefly drop the newer ticks ("ticks jump")
+  const pending = useRef(0), reloadTimer = useRef(null);
   const [msg, setMsg] = useState('');
   const start = weekStart(addDays(today, -7 * (WEEKS - 1)));
   const load = async () => {
     try {
-      const [h, hist] = await Promise.all([api(`/api/habits?date=${today}`), api(`/api/habits/history?from=${start}&to=${today}`)]);
-      setHabits(h.items || []); setLogs(hist.logs || []);
+      const h = await api(`/api/habits?date=${today}`), items = h.items || [];
+      const from = items.reduce((m, x) => x.days && x.startDate && x.startDate < m ? weekStart(x.startDate) : m, start);
+      const hist = await api(`/api/habits/history?from=${from}&to=${today}`);
+      if (pending.current) return; // a newer tick is in flight; the reload after it brings everything
+      setHabits(items); setLogs(hist.logs || []);
     } catch (e) { setMsg(e.message); setHabits([]); }
   };
   useEffect(() => { load(); }, []);
   const doneSet = useMemo(() => new Set(logs.filter(l => l.done).map(l => l.habitId + '|' + l.date)), [logs]);
-  const days = useMemo(() => { const out = []; for (let d = start; d <= today; d = addDays(d, 1)) out.push(d); return out; }, [start, today]);
 
   const toggle = async (h, date = today) => {
     const k = h.id + '|' + date, was = doneSet.has(k);
     setLogs(ls => was ? ls.filter(l => !(l.habitId === h.id && l.date === date)) : [...ls, { habitId: h.id, date, done: true }]);
     if (date === today) setHabits(hs => hs.map(x => x.id === h.id ? { ...x, done: !was, streak: Math.max(0, (x.streak || 0) + (was ? -1 : 1)) } : x));
-    try { await api(`/api/habits/${h.id}/toggle`, { method: 'POST', body: JSON.stringify({ date, done: !was }) }); if (date !== today) load(); } catch (e) { setMsg(e.message); load(); }
+    if (date > today || !inPeriod(h, date)) return;
+    pending.current++; clearTimeout(reloadTimer.current);
+    try { await api(`/api/habits/${h.id}/toggle`, { method: 'POST', body: JSON.stringify({ date, done: !was }) }); } catch (e) { setMsg(e.message); }
+    // one quiet reload (streaks) once the clicking stops — never between two quick clicks
+    if (--pending.current === 0) reloadTimer.current = setTimeout(load, 1200);
   };
   const add = async e => {
     e.preventDefault(); if (!name.trim()) return;
-    try { await api('/api/habits', { method: 'POST', body: JSON.stringify({ name: name.trim(), icon }) }); setName(''); load(); } catch (err) { setMsg(err.message); }
+    try { await api('/api/habits', { method: 'POST', body: JSON.stringify({ name: name.trim(), icon, ...(len ? { days: Number(len), startDate: today } : {}) }) }); setName(''); load(); } catch (err) { setMsg(err.message); }
   };
   const remove = async h => { if (!window.confirm(`عادت «${h.name}» و همهٔ سابقه‌اش حذف شود؟`)) return; await api(`/api/habits/${h.id}`, { method: 'DELETE' }).catch(() => {}); load(); };
-  const rename = async h => { const n = window.prompt('نام تازه:', h.name); if (!n || n === h.name) return; await api(`/api/habits/${h.id}`, { method: 'PATCH', body: JSON.stringify({ name: n }) }).catch(() => {}); load(); };
+  // edit name and length (days, counted from the habit's start — or from today when it had none; empty = open-ended)
+  const rename = async h => {
+    const n = window.prompt('نام عادت:', h.name); if (n === null) return;
+    const dRaw = window.prompt('چند روز ادامه دارد؟ (خالی = بدون پایان)', h.days ? String(h.days) : ''); if (dRaw === null) return;
+    const dn = Math.round(Number(String(dRaw).replace(/[۰-۹]/g, c => '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)))) || 0;
+    const body = { name: n.trim() || h.name, days: dn > 0 ? dn : 0 };
+    await api(`/api/habits/${h.id}`, { method: 'PATCH', body: JSON.stringify(body) }).catch(e => setMsg(e.message)); load();
+  };
 
   const stats = h => {
     let best = 0, run = 0;
-    for (const d of days) { if (doneSet.has(h.id + '|' + d)) { run++; best = Math.max(best, run); } else run = 0; }
-    const last30 = days.slice(-30).filter(d => doneSet.has(h.id + '|' + d)).length;
-    return { best, pct30: Math.round(last30 / 30 * 100) };
+    const span = gridDays(h, start, today).filter(d => d <= today && inPeriod(h, d));
+    for (const d of span) { if (doneSet.has(h.id + '|' + d)) { run++; best = Math.max(best, run); } else run = 0; }
+    const last30 = span.slice(-30).filter(d => doneSet.has(h.id + '|' + d)).length;
+    const done = span.filter(d => doneSet.has(h.id + '|' + d)).length, end = h.days ? addDays(h.startDate, h.days - 1) : '';
+    return { best, pct30: Math.round(last30 / Math.max(1, Math.min(30, span.length)) * 100), done, end, left: end ? Math.max(0, Math.round((Date.parse(end) - Date.parse(today)) / 864e5)) : 0 };
   };
   const doneToday = (habits || []).filter(h => doneSet.has(h.id + '|' + today)).length;
 
@@ -69,22 +91,23 @@ export function HabitsPage({ Nav }) {
       <form className="hb-add" onSubmit={add}>
         <select value={icon} onChange={e => setIcon(e.target.value)} aria-label="آیکن">{ICONS.map(i => <option key={i}>{i}</option>)}</select>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="عادت تازه… مثلاً ۸ لیوان آب، ۲۰ دقیقه مطالعه" />
+        <select value={len} onChange={e => setLen(e.target.value)} aria-label="چند روز؟" title="این عادت چند روز ادامه دارد؟ (از امروز)">{LENGTHS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         <button className="hb-btn">افزودن</button>
       </form>
       {habits === null ? <p className="hb-empty">در حال دریافت…</p> : !habits.length ? <p className="hb-empty">هنوز عادتی نساختی. از بالا یکی اضافه کن؛ هر روز تیکش بزن تا زنجیره‌اش بلند شود 🔥</p> :
         <div className="hb-list">{habits.map(h => {
-          const st = stats(h), on = doneSet.has(h.id + '|' + today);
+          const st = stats(h), on = doneSet.has(h.id + '|' + today), hd = gridDays(h, start, today);
           return <article key={h.id} className={`hb-card ${on ? 'on' : ''}`}>
             <div className="hb-top">
               <button type="button" className={`hb-check ${on ? 'on' : ''}`} onClick={() => toggle(h)} aria-pressed={on} aria-label={`${h.name} امروز`}>{on ? '✓' : h.icon || '✓'}</button>
-              <div className="hb-title"><b>{h.name}</b><small>🔥 {fa(h.streak || 0)} روز پشت‌سرهم · رکورد {fa(st.best)} · ۳۰ روز اخیر {fa(st.pct30)}٪</small></div>
+              <div className="hb-title"><b>{h.name}</b><small>🔥 {fa(h.streak || 0)} روز پشت‌سرهم · رکورد {fa(st.best)} · {h.days ? <>{fa(st.done)} از {fa(h.days)} روز · {st.left ? `${fa(st.left)} روز مانده` : today > st.end ? 'تمام شد' : 'امروز روز آخر است'}</> : <>۳۰ روز اخیر {fa(st.pct30)}٪</>}</small></div>
               <span className="hb-ops"><button type="button" onClick={() => rename(h)}>ویرایش</button><button type="button" className="del" onClick={() => remove(h)}>حذف</button></span>
             </div>
-            <div className="hb-heat" style={{ gridTemplateColumns: `18px repeat(${Math.ceil(days.length / 7)}, 1fr)` }}>
+            <div className="hb-heat" style={{ gridTemplateColumns: `18px repeat(${Math.ceil(hd.length / 7)}, minmax(0, 34px))` }}>
               {/* row 1: month name over the week a Jalali month starts in; rows 2–8: days (Jalali day number in each cell) */}
-              {days.map((d, i) => { const j = isoToJ(d); return j.jd === 1 || i === 0 ? <span key={'m' + d} className="hb-month" style={{ gridRow: 1, gridColumn: `${Math.floor(i / 7) + 2} / span 3` }}>{MONTHS[j.jm - 1]}</span> : null; })}
+              {hd.map((d, i) => { const j = isoToJ(d); return j.jd === 1 || i === 0 ? <span key={'m' + d} className="hb-month" style={{ gridRow: 1, gridColumn: `${Math.floor(i / 7) + 2} / span 3` }}>{MONTHS[j.jm - 1]}</span> : null; })}
               {WD.map((w, r) => <span key={'w' + r} className="hb-wd" style={{ gridRow: r + 2, gridColumn: 1 }}>{r % 2 === 0 ? w : ''}</span>)}
-              {days.map((d, i) => { const k = doneSet.has(h.id + '|' + d), col = Math.floor(i / 7) + 2, row = (i % 7) + 2; return <button type="button" key={d} className={`hb-cell ${k ? 'on' : ''} ${d === today ? 'today' : ''}`} style={{ gridColumn: col, gridRow: row }} title={`${jLabel(d)}${k ? ' ✓' : ''}`} aria-label={`${jLabel(d)}${k ? ' انجام شد' : ''}`} aria-pressed={k} onClick={() => toggle(h, d)}>{faD(isoToJ(d).jd)}</button>; })}
+              {hd.map((d, i) => { const k = doneSet.has(h.id + '|' + d), col = Math.floor(i / 7) + 2, row = (i % 7) + 2, off = d > today || !inPeriod(h, d); return <button type="button" key={d} disabled={off} className={`hb-cell ${k ? 'on' : ''} ${d === today ? 'today' : ''} ${d > today && inPeriod(h, d) ? 'future' : ''} ${!inPeriod(h, d) ? 'out' : ''}`} style={{ gridColumn: col, gridRow: row }} title={`${jLabel(d)}${k ? ' ✓' : ''}`} aria-label={`${jLabel(d)}${k ? ' انجام شد' : ''}`} aria-pressed={k} onClick={() => toggle(h, d)}>{faD(isoToJ(d).jd)}</button>; })}
             </div>
           </article>;
         })}</div>}

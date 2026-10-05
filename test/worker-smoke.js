@@ -507,6 +507,9 @@ async function main() {
     const hd = '2026-01-10', set = done => call(`/api/habits/${habit.id}/toggle`, { method: 'POST', cookie, body: { date: hd, done } });
     const a1 = (await set(true)).d, a2 = (await set(true)).d, a3 = (await set(false)).d;
     check('habit toggle with done:true twice stays done, done:false clears', a1.done === true && a2.done === true && a3.done === false, JSON.stringify([a1, a2, a3]));
+    const timed = (await call('/api/habits', { method: 'POST', cookie, body: { name: 'آب ۳۰ روزه', days: 30, startDate: '2026-10-01' } })).d;
+    const cleared = (await call(`/api/habits/${timed.id}`, { method: 'PATCH', cookie, body: { days: 0 } })).d;
+    check('habit with a length keeps days + startDate; days:0 makes it open-ended', timed.days === 30 && timed.startDate === '2026-10-01' && cleared.days === undefined, JSON.stringify([timed, cleared]));
   }
   const shop = (await call('/api/shopping', { method: 'POST', cookie, body: { title: 'ws' } })).d;
   check('shopping buy -> 200', !!shop.id && (await call(`/api/shopping/${shop.id}/buy`, { method: 'POST', cookie, body: { price: 10 } })).status === 200);
