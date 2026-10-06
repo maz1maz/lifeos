@@ -8,9 +8,12 @@
 // Static files come from public/ (SPA fallback to index.html), like the wrangler `assets` binding.
 //
 // Usage: PORT=3000 DB_PATH=/tmp/db.json node test/worker-host.js   — env vars are passed to the Worker as `env`.
+// TLS_CERT=cert.pem TLS_KEY=key.pem serves https instead (the sid cookie is `Secure`, so a browser or scanner
+// on plain http never sends it back — e.g. the HawkScan run in stackhawk.yml).
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const https = require('https');
 const { pathToFileURL } = require('url');
 const { makeKvD1 } = require('./d1-kv-fake');
 
@@ -66,7 +69,8 @@ async function main() {
 
   // Requests run concurrently, like production isolates: a slow upstream fetch (tgju, weather) must not stall
   // the rest. The Worker's own D1 write guards handle overlapping writes.
-  const server = http.createServer((req, res) => {
+  const tls = process.env.TLS_CERT && process.env.TLS_KEY ? { cert: fs.readFileSync(process.env.TLS_CERT), key: fs.readFileSync(process.env.TLS_KEY) } : null;
+  const handler = (req, res) => {
     (async () => {
       try {
         syncIn();
@@ -75,7 +79,7 @@ async function main() {
         const body = chunks.length && !['GET', 'HEAD'].includes(req.method) ? Buffer.concat(chunks) : undefined;
         const headers = new Headers();
         for (const [k, v] of Object.entries(req.headers)) if (v !== undefined) headers.set(k, Array.isArray(v) ? v.join(', ') : v);
-        const request = new Request(`http://${req.headers.host || 'localhost:' + PORT}${req.url}`, { method: req.method, headers, body, redirect: 'manual' });
+        const request = new Request(`${tls ? 'https' : 'http'}://${req.headers.host || 'localhost:' + PORT}${req.url}`, { method: req.method, headers, body, redirect: 'manual' });
         const waits = [];
         const response = await worker.fetch(request, env, { waitUntil: p => waits.push(Promise.resolve(p).catch(() => {})), passThroughOnException() {} });
         await Promise.all(waits);
@@ -93,8 +97,9 @@ async function main() {
         res.end('worker-host error: ' + (e && e.message));
       }
     })();
-  });
-  server.listen(PORT, '127.0.0.1', () => console.log(`worker-host on ${PORT}${DB_PATH ? ' · DB_PATH=' + DB_PATH : ''}`));
+  };
+  const server = tls ? https.createServer(tls, handler) : http.createServer(handler);
+  server.listen(PORT, '127.0.0.1', () => console.log(`worker-host on ${tls ? 'https' : 'http'}://127.0.0.1:${PORT}${DB_PATH ? ' · DB_PATH=' + DB_PATH : ''}`));
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

@@ -1,0 +1,42 @@
+# HawkScan (StackHawk DAST) config for the LifeOS Worker.
+# Run the Worker locally first (https — the sid cookie is Secure; a self-signed cert is fine):
+#   PORT=3990 DB_PATH=/tmp/scan-db.json TLS_CERT=cert.pem TLS_KEY=key.pem node test/worker-host.js
+# then create the scan user (signup) and:   API_KEY=$HAWK_API_KEY hawk scan
+# Assumptions (headless run, 2026-10-06):
+#  - target = the real cloudflare/worker.js behind test/worker-host.js (no wrangler needed); host overridable via APP_HOST
+#  - REST surface only; spec generated from worker.js by `node scripts/gen-openapi.js` (re-run after adding routes)
+#  - scan user is a NON-admin account (the first signup on a fresh DB becomes admin, so sign up an owner first)
+#  - logout and the PIN lock are excluded so the scan can't end or lock its own session
+app:
+  applicationId: ${APP_ID:be7d070b-abc4-4fe0-b93b-20b69189ecaa}
+  env: ${APP_ENV:Development}
+  host: ${APP_HOST:https://localhost:3990}
+  openApiConf:
+    filePath: stackhawk/openapi.json
+  excludePaths:
+    - "/api/auth/logout"
+    - "/api/security/pin.*"
+  authentication:
+    usernamePassword:
+      type: JSON
+      loginPath: /api/auth/login
+      usernameField: email
+      passwordField: password
+      scanUsername: ${SCAN_USERNAME:scanner@lifeos.local}
+      scanPassword: ${SCAN_PASSWORD}
+    cookieAuthorization:
+      cookieNames:
+        - sid
+    testPath:
+      path: /api/tasks
+      success: ".*200.*"
+
+tags:
+  - name: _STACKHAWK_AGENT
+    value: ${HAWK_AGENT:none}
+  - name: _STACKHAWK_GIT_COMMIT_SHA
+    value: ${COMMIT_SHA:none}
+  - name: _STACKHAWK_GIT_BRANCH
+    value: ${BRANCH_NAME:none}
+  - name: git_origin
+    value: maz1maz/lifeos
