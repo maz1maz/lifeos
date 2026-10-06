@@ -230,8 +230,16 @@ const REVIEW_TABS = [['goals', 'اهداف سالانه', Target, GoalsPage], ['
 const LEARN_TABS = [['learning', 'کتاب و دوره', BookOpen, LearningPage], ['vocab', 'زبان', Languages, VocabPage]];
 const NOTES_TABS = [['notes', 'یادداشت‌ها', StickyNote, NotesReact], ['journal', 'روزنگار', BookOpen, JournalPage], ['shopping', 'لیست خرید', ShoppingCart, ShopView]];
 
-// Router first: other pages must not pay for the Today page's data fetching.
+// Something was saved from Ctrl+K: re-mount the current page so it fetches its data again (lazy chunks are
+// already loaded, so this is quick) — no full reload, the URL and tab stay as they are.
 function App() {
+  const [tick, setTick] = useState(0);
+  useEffect(() => { const f = () => setTick(t => t + 1); window.addEventListener('lifeos:captured', f); return () => window.removeEventListener('lifeos:captured', f); }, []);
+  return <Routes key={tick} />;
+}
+
+// Router first: other pages must not pay for the Today page's data fetching.
+function Routes() {
   const page = new URLSearchParams(location.search).get('page');
   if (['calendar', 'planner', 'habits', 'focus'].includes(page)) return <TabHub active="planner" label="نمای برنامه‌ریز" tabs={PLAN_TABS} initial={page === 'planner' ? 'list' : page} url={v => v === 'list' ? 'planner' : v} />;
   if (page === 'insights') return <InsightsPage Nav={() => <TopNav active="insights" />} />;
