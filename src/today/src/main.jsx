@@ -24,7 +24,7 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, ChevronsLeft, ChevronsRight, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Newspaper, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck, LogOut
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
@@ -32,10 +32,14 @@ import './habits.css';
 import './watchx.css';
 import './insights.css';
 import './logbook.css';
+import './reading.css';
+import './assistant.css';
+import './admin.css';
+import './courses.css';
 import { InsightsHomeCard } from './insights-card';
-import { CommandPalette } from './palette';
-import { AdminPage, MsgBar } from './admin';
-import { CoursesPage, ClassTodayCard } from './courses';
+import { CommandPalette, flushOutbox } from './palette';
+import { api, isoToday, fa, faDigits, JALALI_MONTHS, WEEKDAYS, iso, fromIso, jdiv, jmod, jalCal, g2d, d2g, j2d, d2j, toJalali, toGregorian, jalaliMonthLength, addDays, sameDate, weekdayIndex, eventOnDate, eventLabel, seasonAiredCount, seasonTotalCount, seriesHasFresh, nextToWatch, watchLabel, waitingNewSeason, episodesWatchedCount, seriesAiredTotal, SERIES_TABS, seriesInTab, SHOW_STATUS_FA, readDataUrl, jalaliDayLabel } from './main-util';
+import { MsgBar } from './msgbar';
 import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import './life.css';
@@ -46,29 +50,22 @@ import './mobile.css'; // phone/iPhone pass — keep last so it overrides page C
 const PAGE_CHUNKS = {
   notes: () => import('./notes'), contacts: () => import('./contacts'), documents: () => import('./documents'),
   media: () => import('./media'), market: () => import('./market'), calendar: () => import('./calendar'),
-  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook')
+  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), watch: () => import('./watch-pages'), admin: () => import('./admin'), courses: () => import('./courses'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook'), reading: () => import('./reading')
 };
 const lazyPage = (chunk, name) => React.lazy(() => PAGE_CHUNKS[chunk]().then(m => ({ default: m[name] })));
+const AdminPage = lazyPage('admin', 'AdminPage'), CoursesPage = lazyPage('courses', 'CoursesPage'), ClassTodayCardLazy = lazyPage('courses', 'ClassTodayCard');
+const SeriesReact = lazyPage('watch', 'SeriesReact'), MoviesReact = lazyPage('watch', 'MoviesReact');
 const NotesReact = lazyPage('notes', 'NotesReact'), ContactsReact = lazyPage('contacts', 'ContactsReact'), DocumentsReact = lazyPage('documents', 'DocumentsReact');
 const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('market', 'MarketReact'), CalendarReact = lazyPage('calendar', 'CalendarReact');
 const FinanceReact = lazyPage('finance', 'FinanceReact'), HabitsPage = lazyPage('habits', 'HabitsPage'), WeeklyPage = lazyPage('habits', 'WeeklyPage');
 const [HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, LifeStatsPage] =
   ['HealthPage', 'CarPage', 'TravelPage', 'ProjectsPage', 'CrmPage', 'LearningPage', 'JournalPage', 'GoalsPage', 'FocusPage', 'LifeStatsPage'].map(n => lazyPage('life', n));
-const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage');
+const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage'), ReadingPage = lazyPage('reading', 'ReadingPage');
 // Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
 const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
 function PageLoading() { return <div className="page-loading" role="status" aria-label="در حال بارگذاری"><i /></div>; }
 
-const api = async (url, options) => {
-  const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || 'دریافت اطلاعات ناموفق بود.');
-  return body;
-};
-const isoToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-const fa = value => Number(value || 0).toLocaleString('fa-IR');
 const shortRial = n => { const a = Math.abs(Number(n) || 0), f = v => v.toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : 1 }); return a >= 1e9 ? `${f(a / 1e9)} میلیارد ریال` : a >= 1e6 ? `${f(a / 1e6)} میلیون ریال` : `${fa(a)} ریال`; };
-const faDigits = value => String(value ?? '').replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const jalali = date => { const p = Object.fromEntries(new Intl.DateTimeFormat('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Tehran' }).formatToParts(date).map(x => [x.type, x.value])); return `${p.weekday} ${p.day} ${p.month} ${p.year}`; };
 const TGJU_LABELS = {
   price_dollar_rl: 'دلار آزاد', price_eur: 'یورو', price_gbp: 'پوند', price_aed: 'درهم', price_try: 'لیر',
@@ -119,7 +116,7 @@ const NAV_GROUPS = [
   ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
   ['زندگی', [['health', 'سلامت', HeartPulse], ['car', 'خودرو', Car], ['travel', 'سفر', Plane]]],
   ['سرگرمی', [['series', 'فیلم و سریال', Clapperboard], ['media', 'موسیقی و یوتیوب', Music], ['football', 'فوتبال', Trophy]]],
-  ['یادگیری و آرشیو', [['learning', 'یادگیری و زبان', Library], ['notes', 'یادداشت و روزنگار', StickyNote], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
+  ['یادگیری و آرشیو', [['learning', 'یادگیری و زبان', Library], ['notes', 'یادداشت و روزنگار', StickyNote], ['reading', 'خبر و خواندنی', Newspaper], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
 ];
 // Phone-only bar at the bottom: the everyday pages within thumb reach; «همه» opens the full drawer.
 const BOTTOM_TABS = [['', 'امروز', House], ['planner', 'برنامه', CalendarDays], ['finance', 'مالی', Wallet], ['notes', 'یادداشت', StickyNote], ['series', 'تماشا', Clapperboard]];
@@ -166,6 +163,7 @@ function TopNav({ active, right }) {
   const link = ([page, label, Icon]) => <a className={page === (active || '') ? 'active' : ''} href={page ? `/?page=${page}` : '/'} key={page || 'home'} onClick={e => navFromDrawer(e, page)}><Icon size={17} strokeWidth={2.1} /><span>{label}</span></a>;
   const tabs = BOTTOM_TABS.filter(([pg]) => navOn(mods, pg)).slice(0, 4);
   return (<>
+    <a className="skip-link" href="#main" onClick={e => { e.preventDefault(); const m = document.querySelector('main .planner-page, main, .lf-page, [role=main]'); if (m) { m.setAttribute('tabindex', '-1'); m.focus(); } }}>رفتن به محتوای اصلی</a>
     <nav className={`topbar${open ? ' menu-open' : ''}`}>
       <button type="button" className="nav-toggle" aria-label={open ? 'بستن منو' : 'بازکردن منو'} aria-expanded={open} onClick={() => setOpen(v => !v)}>
         {open ? <X size={20} /> : <Menu size={20} />}
@@ -174,6 +172,7 @@ function TopNav({ active, right }) {
       <span className="nav-current">{current[1]}</span>
       <span className="nav-spacer" />
       <button type="button" className="nav-search" onClick={() => window.dispatchEvent(new Event('lifeos:search'))} aria-label="جستجو (Ctrl+K)" title="جستجو — Ctrl+K"><Search size={17} /><span>جستجو</span><kbd>Ctrl K</kbd></button>
+      <FocusChip />
       <ThemeToggle />
       {right}
       <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
@@ -181,7 +180,7 @@ function TopNav({ active, right }) {
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
         {groups.map(([title, items]) => <div className="drawer-group" key={title}><small>{title}</small>{items.map(link)}</div>)}
-        <div className="drawer-foot">{admin ? link(['admin', 'مدیریت کاربران', ShieldCheck]) : null}{link(['settings', 'تنظیمات', Settings])}</div>
+        <div className="drawer-foot">{admin ? link(['admin', 'مدیریت کاربران', ShieldCheck]) : null}{link(['settings', 'تنظیمات', Settings])}<button type="button" className="drawer-out" onClick={() => { if (window.confirm('از حساب خارج شوی؟')) signOut(); }}><LogOut size={17} strokeWidth={2.1} /><span>خروج از حساب</span></button></div>
       </aside>
     </nav>
     <nav className="bnav" aria-label="ناوبری سریع">
@@ -241,7 +240,9 @@ function App() {
 // Router first: other pages must not pay for the Today page's data fetching.
 function Routes() {
   const page = new URLSearchParams(location.search).get('page');
+  if (pageLocked(page)) return <><TopNav /><main className="locked-page" dir="rtl"><h1>🔒 این بخش بسته است</h1><p>مدیر سایت دسترسی حساب تو به این بخش را بسته است.</p><a href="/">بازگشت به امروز</a></main></>;
   if (['calendar', 'planner', 'habits', 'focus'].includes(page)) return <TabHub active="planner" label="نمای برنامه‌ریز" tabs={PLAN_TABS} initial={page === 'planner' ? 'list' : page} url={v => v === 'list' ? 'planner' : v} />;
+  if (page === 'reading' || page === 'news' || page === 'bookmarks') return <ReadingPage Nav={() => <TopNav active="reading" />} />;
   if (page === 'insights') return <InsightsPage Nav={() => <TopNav active="insights" />} />;
   if (['review', 'goals', 'week', 'stats', 'logbook'].includes(page)) return <TabHub active="review" label="مرور و اهداف" tabs={REVIEW_TABS} initial={page} />;
   if (['learning', 'vocab'].includes(page)) return <TabHub active="learning" label="یادگیری" tabs={LEARN_TABS} initial={page} />;
@@ -434,7 +435,7 @@ function HomePage() {
         calendar: (<LiveCalendar today={today} />),
         ...(modOn(mods, 'market') ? { market: (<Market />) } : modOn(mods, 'finance') ? { goals: (<GoalsMini />) } : modOn(mods, 'habits') ? { habits: (<HabitsMini />) } : {})
       }} />
-      {modOn(mods, 'courses') ? <ClassTodayCard /> : null}
+      {modOn(mods, 'courses') ? <React.Suspense fallback={null}><ClassTodayCardLazy /></React.Suspense> : null}
       <Layout id="grid" className="grid home-grid" editing={layoutEdit} cards={{
         agenda: (<Card className="agenda" icon={CheckSquare2} title="کارها و یادآوری‌ها" action={<a href="/?page=planner">برنامه‌ریز ←</a>}>
           <div className={`ag-mit ${mitList.length ? '' : 'empty'}`}>
@@ -478,665 +479,6 @@ function Calendar() {
   const now = new Date(), j = toJalali(now), first = toGregorian(j.jy, j.jm, 1), len = jalaliMonthLength(j.jy, j.jm);
   const days = [...Array(len)].map((_, i) => addDays(first, i));
   return <Card className="calendar" icon={CalendarDays} title={`${JALALI_MONTHS[j.jm - 1]} ${faDigits(j.jy)}`} action={<a href="/?page=calendar">امروز</a>}><div className="weekdays">{WEEKDAYS.map(x => <span key={x}>{x}</span>)}</div><div className="calendar-days">{[...Array(weekdayIndex(first))].map((_, i) => <span key={`blank${i}`} />)}{days.map((day, i) => <b className={sameDate(day, now) ? 'today' : weekdayIndex(day) === 6 ? 'holiday' : ''} key={i}>{faDigits(i + 1)}</b>)}</div></Card>;
-}
-const JALALI_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
-const WEEKDAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
-const iso = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-const fromIso = value => { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); };
-const jdiv = (a, b) => Math.trunc(a / b);
-const jmod = (a, b) => a - Math.trunc(a / b) * b;
-function jalCal(jy) { const breaks = [-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178]; let leapJ = -14, jp = breaks[0], jump, jm, n; for (let i = 1; i < breaks.length; i += 1) { jm = breaks[i]; jump = jm - jp; if (jy < jm) break; leapJ += jdiv(jump, 33) * 8 + jdiv(jmod(jump, 33), 4); jp = jm; } n = jy - jp; leapJ += jdiv(n, 33) * 8 + jdiv(jmod(n, 33) + 3, 4); if (jmod(jump, 33) === 4 && jump - n === 4) leapJ += 1; const gy = jy + 621, leapG = jdiv(gy, 4) - jdiv((jdiv(gy, 100) + 1) * 3, 4) - 150; const march = 20 + leapJ - leapG; if (jump - n < 6) n = n - jump + jdiv(jump + 4, 33) * 33; let leap = jmod(jmod(n + 1, 33) - 1, 4); if (leap === -1) leap = 4; return { leap, gy, march }; }
-function g2d(gy, gm, gd) { let d = jdiv((gy + jdiv(gm - 8, 6) + 100100) * 1461, 4) + jdiv(153 * jmod(gm + 9, 12) + 2, 5) + gd - 34840408; return d - jdiv(jdiv(gy + 100100 + jdiv(gm - 8, 6), 100) * 3, 4) + 752; }
-function d2g(jdn) { let j = 4 * jdn + 139361631; j += jdiv(jdiv(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908; const i = jdiv(jmod(j, 1461), 4) * 5 + 308; return { gd: jdiv(jmod(i, 153), 5) + 1, gm: jmod(jdiv(i, 153), 12) + 1, gy: jdiv(j, 1461) - 100100 + jdiv(8 - jmod(jdiv(i, 153), 12) - 1, 6) }; }
-const j2d = (jy, jm, jd) => { const r = jalCal(jy); return g2d(r.gy, 3, r.march) + (jm - 1) * 31 - jdiv(jm, 7) * (jm - 7) + jd - 1; };
-function d2j(jdn) { const gy = d2g(jdn).gy; let jy = gy - 621, r = jalCal(jy), k = jdn - g2d(gy, 3, r.march); if (k >= 0) { if (k <= 185) return { jy, jm: 1 + jdiv(k, 31), jd: jmod(k, 31) + 1 }; k -= 186; } else { jy -= 1; k += 179; if (r.leap === 1) k += 1; } return { jy, jm: 7 + jdiv(k, 30), jd: jmod(k, 30) + 1 }; }
-const toJalali = date => d2j(g2d(date.getFullYear(), date.getMonth() + 1, date.getDate()));
-const toGregorian = (jy, jm, jd) => { const g = d2g(j2d(jy, jm, jd)); return new Date(g.gy, g.gm - 1, g.gd); };
-const jalaliMonthLength = (year, month) => month <= 6 ? 31 : month < 12 ? 30 : jalCal(year).leap === 0 ? 30 : 29;
-const addDays = (date, amount) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
-const sameDate = (a, b) => iso(a) === iso(b);
-const weekdayIndex = date => (date.getDay() + 1) % 7;
-const eventOnDate = (event, day) => { const dayIso = iso(day), start = String(event.startDate || event.date || '').slice(0, 10), end = String(event.endDate || start).slice(0, 10); if (!start) return false; if (event.allDay) return dayIso >= start && dayIso < end; if (event.source === 'lifeos') return dayIso === start; return dayIso >= start && dayIso <= end; };
-const eventLabel = event => `${event.time ? `${event.time} · ` : ''}${event.title || 'رویداد'}`;
-
-function seasonAiredCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.aired) || 0 : 0; }
-function seasonTotalCount(item, season) { const by = item.seasonEpisodes || {}; const s = by[season] || by[String(season)]; return s ? Number(s.total) || 0 : 0; }
-function seriesHasFresh(item) {
-  const cur = Number(item.currentSeason) || 1;
-  if (seasonAiredCount(item, cur) > (Number(item.currentEpisode) || 0)) return true;
-  const by = item.seasonEpisodes || {};
-  return Object.keys(by).some(s => Number(s) > cur && (Number(by[s].aired) || 0) > 0);
-}
-// The episode the "دیدم" button will record (same rule as quickWatch): next in this season, or E1 of the next aired season.
-function nextToWatch(item) {
-  if (item.status === 'watchlist') return { s: 1, e: 1 };
-  const cur = Number(item.currentSeason) || 1, ep0 = Number(item.currentEpisode) || 0, aired = seasonAiredCount(item, cur) || Number(item.airedInSeason) || 0;
-  const roll = aired && ep0 >= aired && (Number((item.seasonEpisodes || {})[cur + 1]?.aired) || 0) > 0;
-  return roll ? { s: cur + 1, e: 1 } : { s: cur, e: ep0 + 1 };
-}
-const watchLabel = item => { const n = nextToWatch(item); return `دیدم ف${fa(n.s)} ق${fa(n.e)}`; };
-// Caught up on everything aired AND the current season has finished airing → waiting for a new season.
-function waitingNewSeason(item) {
-  if (item.status !== 'watching' || seriesHasFresh(item)) return false;
-  const cur = Number(item.currentSeason) || 1, aired = seasonAiredCount(item, cur), total = seasonTotalCount(item, cur) || aired;
-  return aired > 0 && aired >= total;
-}
-function episodesWatchedCount(item) {
-  const by = item.seasonEpisodes || {}, cur = Number(item.currentSeason) || 1;
-  let n = 0;
-  Object.keys(by).forEach(s => { if (Number(s) < cur) n += Number(by[s].total) || 0; });
-  return n + (Number(item.currentEpisode) || 0);
-}
-function seriesAiredTotal(item) {
-  const by = item.seasonEpisodes || {};
-  return Object.values(by).reduce((n, s) => n + (Number(s.aired) || 0), 0);
-}
-const SERIES_TABS = [['all', 'همه'], ['watching', 'در حال تماشا'], ['waiting', 'در انتظار فصل جدید'], ['watchlist', 'بعداً'], ['completed', 'تمام‌شده'], ['dropped', 'رها‌شده']];
-const seriesInTab = (x, tab) => tab === 'all' ? true : tab === 'waiting' ? waitingNewSeason(x) : tab === 'watching' ? x.status === 'watching' && !waitingNewSeason(x) : x.status === tab;
-const SHOW_STATUS_FA = { Running: 'در حال پخش', Ended: 'پایان‌یافته', 'To Be Determined': 'نامشخص', 'In Development': 'در دست تولید' };
-function ShowPreview({ show, added, busy, onAdd, onOpen, onClose }) {
-  const [eps, setEps] = useState(null), [openS, setOpenS] = useState(null);
-  useEffect(() => {
-    let dead = false; setEps(null);
-    api(`/api/movies/tvmaze/episodes?tvmazeId=${encodeURIComponent(show.tvmazeId)}`).then(d => !dead && setEps(d.items || [])).catch(() => !dead && setEps([]));
-    const k = e => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k);
-    return () => { dead = true; window.removeEventListener('keydown', k); };
-  }, [show.tvmazeId]);
-  const seasons = useMemo(() => {
-    const m = new Map(); (eps || []).forEach(e => { const s = m.get(e.season) || { n: e.season, total: 0, aired: 0, first: e.airdate, last: e.airdate, eps: [] }; s.total++; if (e.aired) s.aired++; if (e.airdate && (!s.first || e.airdate < s.first)) s.first = e.airdate; if (e.airdate > s.last) s.last = e.airdate; s.eps.push(e); m.set(e.season, s); });
-    return [...m.values()].sort((a, b) => a.n - b.n);
-  }, [eps]);
-  const total = (eps || []).length, aired = (eps || []).filter(e => e.aired).length;
-  const rts = (eps || []).map(e => Number(e.runtime)).filter(Boolean), runtime = rts.length ? Math.round(rts.reduce((a, b) => a + b, 0) / rts.length) : null;
-  const next = (eps || []).filter(e => !e.aired && e.airdate).sort((a, b) => a.airdate.localeCompare(b.airdate))[0];
-  const jd = iso => { if (!iso) return ''; const j = toJalali(fromIso(iso)); return `${faDigits(j.jd)} ${JALALI_MONTHS[j.jm - 1]} ${faDigits(j.jy)}`; };
-  const yr = iso => iso ? faDigits(toJalali(fromIso(iso)).jy) : '';
-  return (
-    <div className="strk-modal-backdrop" onClick={onClose}>
-      <div className="strk-modal shp" onClick={e => e.stopPropagation()}>
-        <button className="strk-modal-close" onClick={onClose} aria-label="بستن"><X size={18} /></button>
-        <div className="strk-modal-head">
-          {show.posterUrl ? <img src={show.posterUrl} alt="" /> : <span className="strk-modal-poster-fallback">🎬</span>}
-          <div className="strk-modal-info">
-            <h2><bdi>{show.name}</bdi></h2>
-            <p className="strk-modal-meta">{[show.year && faDigits(show.year), show.network, (show.genres || []).join('، ')].filter(Boolean).join(' · ')}</p>
-            <div className="shp-facts">
-              {show.status && <span className={show.status === 'Running' ? 'ok' : ''}>{SHOW_STATUS_FA[show.status] || show.status}</span>}
-              {show.rating ? <span>★ {faDigits(show.rating)}</span> : null}
-              {eps === null ? <span>…</span> : <>
-                <span><b>{fa(seasons.length)}</b> فصل</span>
-                <span><b>{fa(total)}</b> قسمت{aired < total ? ` (${fa(aired)} پخش‌شده)` : ''}</span>
-                {runtime && <span>~<b>{fa(runtime)}</b> دقیقه</span>}
-                {runtime && aired ? <span>کل: <b>{fa(Math.round(runtime * aired / 60))}</b> ساعت</span> : null}
-              </>}
-            </div>
-            {next && <p className="shp-next">قسمت بعد: فصل {fa(next.season)} قسمت {fa(next.number)} · {jd(next.airdate)}</p>}
-            <div className="shp-actions">
-              {added ? <><span className="strk-added">✓ در فهرست شماست</span><button type="button" className="strk-more-btn" onClick={onOpen}>باز کردن</button></>
-                : <><button type="button" className="strk-add-btn" disabled={busy} onClick={() => onAdd('watchlist')}>{busy ? 'در حال افزودن…' : '+ افزودن به «بعداً»'}</button>
-                  <button type="button" className="strk-more-btn" disabled={busy} onClick={() => onAdd('watching')}>▶ دارم می‌بینم</button></>}
-            </div>
-          </div>
-        </div>
-        {show.summary && <p className="strk-modal-note shp-sum" dir="auto">{show.summary}</p>}
-        <div className="strk-seasons-body">
-          {eps === null ? <p className="empty">در حال دریافت فصل‌ها…</p> : !seasons.length ? <p className="empty">اطلاعات فصل‌ها در دسترس نیست.</p> : seasons.map(se => (
-            <div className="strk-season" key={se.n}>
-              <button className="strk-season-head" onClick={() => setOpenS(openS === se.n ? null : se.n)}>
-                <ChevronDown size={16} className={openS === se.n ? 'open' : ''} />
-                <span className="strk-season-count">{fa(se.total)} قسمت</span>
-                <b>فصل {fa(se.n)}</b>
-                <small className="muted shp-yr">{yr(se.first)}{se.aired < se.total ? ` · ${fa(se.aired)} پخش‌شده` : ''}</small>
-              </button>
-              {openS === se.n && <ul className="strk-ep-list">{se.eps.map(ep => <li key={ep.id} className={!ep.aired ? 'strk-ep-unaired' : ''} style={{ cursor: 'default' }}><span className="strk-ep-info"><b><bdi>{ep.name || `قسمت ${fa(ep.number)}`}</bdi></b><small>{jd(ep.airdate)}</small></span><span className="strk-ep-num">E{faDigits(ep.number)}</span></li>)}</ul>}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-function StatusSeg({ value, options, onChange }) {
-  return <div className="strk-seg" role="radiogroup">{options.map(([k, l]) => <button type="button" key={k} role="radio" aria-checked={value === k} className={value === k ? 'on' : ''} onClick={() => value !== k && onChange(k)}>{l}</button>)}</div>;
-}
-// rating stored 1..10 (legacy); shown as 5 stars, each star = 2 points
-function Stars5({ value, onChange }) {
-  const cur = Math.round((Number(value) || 0) / 2);
-  return <div className="strk-stars" title={cur ? `${fa(cur)} از ۵` : 'امتیاز'}>{[1, 2, 3, 4, 5].map(n => <button type="button" key={n} aria-label={`${fa(n)} ستاره`} className={n <= cur ? 'on' : ''} onClick={() => onChange(n === cur ? null : n * 2)}><Star size={18} fill={n <= cur ? 'currentColor' : 'none'} /></button>)}</div>;
-}
-const SERIES_STATUS_OPTIONS = [['watchlist', 'بعداً'], ['watching', 'در حال تماشا'], ['completed', 'تمام‌شده'], ['dropped', 'رها‌شده']];
-
-function SeriesReact({ Nav = TopNav }) {
-  const [items, setItems] = useState([]);
-  const [tab, setTab] = useState('watching');
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [open, setOpen] = useState(null);
-  const [busyId, setBusyId] = useState(null);
-  const [notice, setNotice] = useState('');
-  const [toast, setToast] = useState('');
-  const [bingersOpen, setBingersOpen] = useState(false);
-  const [bingersLib, setBingersLib] = useState(null);
-  const [bingersWatches, setBingersWatches] = useState(null);
-  const [bingersPreview, setBingersPreview] = useState(null);
-  const [bingersSelected, setBingersSelected] = useState(new Set());
-  const [bingersBusy, setBingersBusy] = useState(false);
-
-  const flash = (msg, ms = 2400) => { setToast(msg); setTimeout(() => setToast(''), ms); };
-  const load = () => api('/api/movies').then(data => setItems((data.items || []).filter(x => x.type === 'series'))).catch(e => setNotice(e.message));
-  useEffect(() => { load(); }, []);
-
-  const readDataUrl = file => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
-  const previewBingers = async () => {
-    if (!bingersLib) return flash('فایل library.csv را انتخاب کن.');
-    setBingersBusy(true);
-    try {
-      const libraryCsvBase64 = await readDataUrl(bingersLib);
-      const watchesCsvBase64 = bingersWatches ? await readDataUrl(bingersWatches) : undefined;
-      const data = await api('/api/movies/import-bingers/preview', { method: 'POST', body: JSON.stringify({ libraryCsvBase64, watchesCsvBase64 }) });
-      setBingersPreview(data);
-      setBingersSelected(new Set((data.items || []).filter(x => !x.duplicate).map((x, i) => i)));
-    } catch (e) { flash(e.message); }
-    setBingersBusy(false);
-  };
-
-  const commitBingers = async () => {
-    if (!bingersPreview) return;
-    const items = (bingersPreview.items || []).filter((x, i) => bingersSelected.has(i));
-    if (!items.length) return flash('چیزی برای درون‌ریزی انتخاب نشده.');
-    setBingersBusy(true);
-    try {
-      const res = await api('/api/movies/import-bingers/commit', { method: 'POST', body: JSON.stringify({ items }) });
-      flash(`${fa(res.imported)} سریال اضافه شد${res.skipped ? ` · ${fa(res.skipped)} تکراری رد شد` : ''} ✓`);
-      setBingersOpen(false); setBingersPreview(null); setBingersLib(null); setBingersWatches(null); setBingersSelected(new Set());
-      load();
-    } catch (e) { flash(e.message); }
-    setBingersBusy(false);
-  };
-
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) { setResults([]); setSearching(false); return; }
-    setSearching(true);
-    const t = setTimeout(() => {
-      api(`/api/movies/tvmaze/search?q=${encodeURIComponent(q)}`).then(d => setResults(d.items || [])).catch(() => setResults([])).finally(() => setSearching(false));
-    }, 380);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  const addedIds = new Set(items.map(x => String(x.tvmazeId)));
-
-  const [addingId, setAddingId] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const addShow = async (show, status = 'watchlist') => {
-    if (!show || addingId) return;
-    setAddingId(show.tvmazeId);
-    try {
-      const r = await api('/api/movies/from-tvmaze', { method: 'POST', body: JSON.stringify({ tvmazeId: show.tvmazeId, name: show.name, posterUrl: show.posterUrl, status, ...(status === 'watching' ? { currentSeason: 1, currentEpisode: 0 } : {}) }) });
-      setQuery(''); setResults([]); setPreview(null);
-      if (r.already) { setTab('all'); flash(`«${show.name}» از قبل در فهرست هست`); }
-      else { setTab('all'); flash(`«${show.name}» اضافه شد ✓`); }
-      load();
-    } catch (e) { flash('افزودن نشد — ' + e.message, 5000); }
-    setAddingId(null);
-  };
-
-  const quickWatch = async item => {
-    setBusyId(item.id);
-    const cur = Number(item.currentSeason) || 1, ep0 = Number(item.currentEpisode) || 0, aired = seasonAiredCount(item, cur) || Number(item.airedInSeason) || 0;
-    const roll = aired && ep0 >= aired && (Number((item.seasonEpisodes || {})[cur + 1]?.aired) || 0) > 0;
-    const nextSeason = item.status === 'watchlist' ? 1 : roll ? cur + 1 : cur, nextEp = item.status === 'watchlist' ? 1 : roll ? 1 : ep0 + 1;
-    try {
-      await api(`/api/movies/${item.id}`, { method: 'PATCH', body: JSON.stringify({ currentEpisode: nextEp, currentSeason: nextSeason, status: item.status === 'watchlist' ? 'watching' : item.status }) });
-      flash(`«${item.title}» فصل ${fa(nextSeason)} قسمت ${fa(nextEp)} ✓`);
-      load();
-    } catch (e) { flash(e.message); }
-    setBusyId(null);
-  };
-
-  const stats = useMemo(() => {
-    const eps = items.reduce((n, x) => n + episodesWatchedCount(x), 0);
-    const mins = items.reduce((n, x) => n + episodesWatchedCount(x) * (x.durationMinutes || 45), 0);
-    return { count: items.length, eps, hours: Math.round(mins / 60), completed: items.filter(x => x.status === 'completed').length };
-  }, [items]);
-
-  const unseenOf = x => { const c = Number(x.currentSeason) || 1; return Math.max(0, (seasonAiredCount(x, c) || Number(x.airedInSeason) || 0) - (Number(x.currentEpisode) || 0)); };
-  const shown = items.filter(x => seriesInTab(x, tab)).slice().sort((a, b) => (seriesHasFresh(b) - seriesHasFresh(a)) || (b.lastTouchedAt || b.createdAt || 0) - (a.lastTouchedAt || a.createdAt || 0));
-
-  return (
-    <main className="strk" dir="rtl">
-      <Nav active="series" />
-      <div className="strk-page">
-        <header className="strk-hero">
-          <div><p>ردیاب سریال‌ها</p><h1>سریال‌های من</h1></div>
-          <div className="strk-stats">
-            <div><b>{fa(stats.count)}</b><small>سریال</small></div>
-            <div><b>{fa(stats.eps)}</b><small>قسمت دیده‌شده</small></div>
-            <div><b>{fa(stats.hours)}</b><small>ساعت تماشا</small></div>
-            <div><b>{fa(stats.completed)}</b><small>تمام‌شده</small></div>
-          </div>
-        </header>
-
-        <div className="strk-search">
-          <Search size={16} className="strk-search-ic" />
-          <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const f = results.find(x => !addedIds.has(String(x.tvmazeId))); if (f) addShow(f); } if (e.key === 'Escape') { setQuery(''); setResults([]); } }} placeholder="نام سریال (انگلیسی، با سال اختیاری مثل Monster 2022) یا لینک TVMaze / IMDb" />
-          {searching && <span className="strk-spinner" />}
-          {results.length > 0 && (
-            <div className="strk-results">
-              {results.map(show => (
-                <div className="strk-result-row is-click" key={show.tvmazeId} onClick={() => setPreview(show)} title="جزئیات سریال">
-                  {show.posterUrl ? <img src={show.posterUrl} alt="" /> : <span className="strk-result-fallback">🎬</span>}
-                  <div className="strk-result-info"><b>{show.name}</b><small>{show.year}{show.genres?.length ? ' · ' + show.genres.join('، ') : ''}</small></div>
-                  {addedIds.has(String(show.tvmazeId)) ? <span className="strk-added">اضافه شده</span> : <button type="button" className="strk-add-btn" disabled={!!addingId} onClick={e => { e.stopPropagation(); addShow(show); }}>{addingId === show.tvmazeId ? 'در حال افزودن…' : '+ افزودن'}</button>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <button type="button" className="strk-more-btn" style={{ marginBottom: 14 }} onClick={() => setBingersOpen(v => !v)}>📥 ایمپورت از Bingers</button>
-        {bingersOpen && (
-          <section className="strk-upnext" style={{ marginBottom: 16 }}>
-            <div className="strk-upnext-head"><h2>ایمپورت از Bingers</h2><span>library.csv الزامی · watches.csv اختیاری</span></div>
-            {!bingersPreview ? (
-              <div className="strk-upnext-list">
-                <label className="strk-result-row" style={{ cursor: 'pointer' }}>
-                  <span className="strk-result-info"><b>library.csv</b><small>{bingersLib ? bingersLib.name : 'فایلی انتخاب نشده'}</small></span>
-                  <input type="file" accept=".csv,text/csv" hidden onChange={e => setBingersLib(e.target.files?.[0] || null)} />
-                  <span className="strk-add-btn">انتخاب</span>
-                </label>
-                <label className="strk-result-row" style={{ cursor: 'pointer' }}>
-                  <span className="strk-result-info"><b>watches.csv</b><small>{bingersWatches ? bingersWatches.name : 'اختیاری — برای تشخیص قسمت جاری'}</small></span>
-                  <input type="file" accept=".csv,text/csv" hidden onChange={e => setBingersWatches(e.target.files?.[0] || null)} />
-                  <span className="strk-add-btn">انتخاب</span>
-                </label>
-                <button type="button" className="strk-watch-btn-full" disabled={bingersBusy} onClick={previewBingers}>{bingersBusy ? '...' : 'پیش‌نمایش'}</button>
-              </div>
-            ) : (
-              <div className="strk-upnext-list">
-                <div className="strk-upnext-head"><span>{fa(bingersPreview.items.length)} سریال · {fa(bingersPreview.duplicateCount)} تکراری</span></div>
-                {bingersPreview.items.map((it, i) => (
-                  <label className="strk-upnext-row" key={i} style={{ opacity: it.duplicate ? .55 : 1 }}>
-                    <input type="checkbox" checked={bingersSelected.has(i)} onChange={e => setBingersSelected(prev => { const n = new Set(prev); if (e.target.checked) n.add(i); else n.delete(i); return n; })} />
-                    <div className="strk-upnext-info"><b>{it.title}</b><small>{it.year || ''}{it.duplicate ? ' · قبلاً اضافه شده' : ''}{it.episodesWatched ? ` · ${fa(it.episodesWatched)} قسمت دیده‌شده` : ''}</small></div>
-                  </label>
-                ))}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" className="strk-watch-btn-full" disabled={bingersBusy} onClick={commitBingers}>{bingersBusy ? '...' : `درون‌ریزی ${fa(bingersSelected.size)} مورد`}</button>
-                  <button type="button" className="strk-more-btn" onClick={() => { setBingersPreview(null); setBingersSelected(new Set()); }}>بازگشت</button>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
-
-        <div className="strk-tabs">
-          {SERIES_TABS.map(([key, label]) => (
-            <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
-              {label} ({fa(items.filter(x => seriesInTab(x, key)).length)})
-            </button>
-          ))}
-        </div>
-
-        {shown.length === 0 && <p className="empty">چیزی اینجا نیست — از جستجوی بالا سریال اضافه کن.</p>}
-
-        <div className="sr-grid sr-page">
-          {shown.map(item => {
-            const cur = Number(item.currentSeason) || 1, ep = Number(item.currentEpisode) || 0;
-            const aired = seasonAiredCount(item, cur) || Number(item.airedInSeason) || 0, total = seasonTotalCount(item, cur) || aired;
-            const airedTotal = seriesAiredTotal(item), watched = episodesWatchedCount(item);
-            const pct = airedTotal ? Math.min(100, watched / airedTotal * 100) : 0, left = unseenOf(item), fresh = seriesHasFresh(item);
-            const seasons = Object.keys(item.seasonEpisodes || {}).length;
-            const canWatch = item.status === 'watchlist' || (item.status === 'watching' && fresh);
-            return <div className={`sr-item ${fresh && item.status === 'watching' ? 'has-new' : ''}`} key={item.id}>
-              <button type="button" className="sr-poster" onClick={() => setOpen(item)} aria-label={`جزئیات ${item.title}`}>{item.posterUrl ? <img src={item.posterUrl} alt="" loading="lazy" onError={e => e.target.remove()} /> : null}<span>🎬</span>{item.tmdbRating != null && <em>★ {fa(Math.round(item.tmdbRating * 10) / 10)}</em>}</button>
-              <div className="sr-info">
-                <b title={item.title}>{item.title}</b>
-                <small>{item.status === 'watchlist' ? `${seasons ? fa(seasons) + ' فصل' : 'سریال'}${item.network ? ' · ' + item.network : ''}` : `فصل ${fa(cur)} · قسمت ${fa(ep)}${total ? ` از ${fa(total)}` : ''}`}</small>
-                <i className="sr-bar"><u style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--g-good)' : undefined }} /></i>
-                <small className="sr-total">{airedTotal ? `${fa(watched)} از ${fa(airedTotal)} قسمت کل سریال` : ''}</small>
-                <div className="sr-foot">
-                  {item.status === 'watchlist' ? <span className="muted">هنوز شروع نشده</span> : item.status === 'completed' ? <span className="sr-ok">✓ تمام شد</span> : left > 0 ? <span className="sr-new">{fa(left)} قسمت ندیده</span> : fresh ? <span className="sr-new">فصل تازه</span> : waitingNewSeason(item) ? <span className="muted">منتظر فصل جدید</span> : <span className="muted">منتظر قسمت بعد</span>}
-                  <span className="sr-actions">
-                    <button type="button" className="ghost" onClick={() => setOpen(item)}>قسمت‌ها</button>
-                    {canWatch && <button type="button" disabled={busyId === item.id} onClick={() => quickWatch(item)}><Check size={14} /><span dir="rtl">{watchLabel(item)}</span></button>}
-                  </span>
-                </div>
-              </div>
-            </div>;
-          })}
-        </div>
-      </div>
-      {preview && <ShowPreview show={preview} added={addedIds.has(String(preview.tvmazeId))} busy={addingId === preview.tvmazeId} onAdd={st => addShow(preview, st)} onOpen={() => { const it = items.find(x => String(x.tvmazeId) === String(preview.tvmazeId)); setPreview(null); if (it) setOpen(it); }} onClose={() => setPreview(null)} />}
-      {open && <SeriesDetail item={open} onClose={() => { setOpen(null); load(); }} flash={flash} />}
-      {toast && <div className="strk-toast">{toast}</div>}
-    </main>
-  );
-}
-
-function SeriesDetail({ item, onClose, flash }) {
-  const [row, setRow] = useState(item);
-  const [episodes, setEpisodes] = useState(null);
-  const [openSeason, setOpenSeason] = useState(Number(item.currentSeason) || 1);
-  const [pendingKey, setPendingKey] = useState('');
-
-  useEffect(() => {
-    if (!item.tvmazeId) { setEpisodes([]); return; }
-    api(`/api/movies/tvmaze/episodes?tvmazeId=${encodeURIComponent(item.tvmazeId)}`).then(d => setEpisodes(d.items || [])).catch(() => setEpisodes([]));
-  }, [item.tvmazeId]);
-
-  useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
-
-  const patch = async body => {
-    try {
-      const updated = await api(`/api/movies/${row.id}`, { method: 'PATCH', body: JSON.stringify(body) });
-      setRow(updated);
-      return updated;
-    } catch (e) { flash(e.message); return null; }
-  };
-
-  const seasons = episodes && episodes.length
-    ? [...new Set(episodes.map(e => e.season))].sort((a, b) => a - b)
-    : Object.keys(row.seasonEpisodes || {}).map(Number).sort((a, b) => a - b);
-
-  const isWatched = (season, number) => {
-    const cur = Number(row.currentSeason) || 1;
-    if (season < cur) return true;
-    if (season > cur) return false;
-    return number <= (Number(row.currentEpisode) || 0);
-  };
-
-  const toggleEpisode = async ep => {
-    if (!ep.aired) return;
-    const key = `${ep.season}-${ep.number}`;
-    setPendingKey(key);
-    if (isWatched(ep.season, ep.number)) await patch({ currentSeason: ep.season, currentEpisode: Math.max(0, ep.number - 1) });
-    else await patch({ currentSeason: ep.season, currentEpisode: ep.number });
-    setPendingKey('');
-  };
-
-  const markSeason = async season => {
-    const aired = (episodes || []).filter(e => e.season === season && e.aired);
-    const maxNum = aired.length ? Math.max(...aired.map(e => e.number)) : seasonAiredCount(row, season);
-    await patch({ currentSeason: season, currentEpisode: maxNum });
-    flash(`فصل ${fa(season)} دیده شد ✓`);
-  };
-  const clearSeason = async season => {
-    await patch({ currentSeason: season, currentEpisode: 0 });
-    flash(`فصل ${fa(season)} پاک شد`);
-  };
-
-  const del = async () => {
-    if (!window.confirm(`«${row.title}» حذف شود؟`)) return;
-    try { await api(`/api/movies/${row.id}`, { method: 'DELETE' }); onClose(); } catch (e) { flash(e.message); }
-  };
-
-  const totalEps = episodes ? episodes.filter(e => e.aired).length : seriesAiredTotal(row);
-  const watchedEps = episodesWatchedCount(row);
-  const pct = totalEps ? Math.min(100, Math.round((watchedEps / totalEps) * 100)) : 0;
-
-  return (
-    <div className="strk-modal-backdrop" onClick={onClose}>
-      <div className="strk-modal" onClick={e => e.stopPropagation()}>
-        <button className="strk-modal-close" onClick={onClose}><X size={18} /></button>
-        <div className="strk-modal-head">
-          {row.posterUrl ? <img src={row.posterUrl} alt="" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} /> : null}
-          <span className="strk-modal-poster-fallback" style={{ display: row.posterUrl ? 'none' : 'flex' }}>🎬</span>
-          <div className="strk-modal-info">
-            <h2>{row.title}</h2>
-            <p className="strk-modal-meta">{[row.genre, row.network, row.year].filter(Boolean).join(' · ')}</p>
-            {totalEps > 0 && (
-              <>
-                <div className="strk-progress-row"><span>{fa(watchedEps)} از {fa(totalEps)} قسمت دیده شده</span><span>{fa(pct)}٪</span></div>
-                <div className="strk-progress"><i style={{ width: `${pct}%` }} /></div>
-              </>
-            )}
-            <div className="strk-modal-controls">
-              <StatusSeg value={row.status} options={SERIES_STATUS_OPTIONS} onChange={v => patch({ status: v })} />
-              <Stars5 value={row.rating} onChange={v => patch({ rating: v })} />
-              <button className="strk-del-btn" onClick={del}><Trash2 size={14} /> حذف</button>
-            </div>
-          </div>
-        </div>
-
-        {row.note && <p className="strk-modal-note">{row.note}</p>}
-
-        <div className="strk-seasons-body">
-          {episodes === null ? (
-            <p className="empty">در حال دریافت قسمت‌ها…</p>
-          ) : !seasons.length ? (
-            <p className="empty">قسمتی یافت نشد.</p>
-          ) : seasons.map(season => {
-            const seasonEps = (episodes || []).filter(e => e.season === season);
-            const aired = seasonEps.filter(e => e.aired);
-            const watchedInSeason = aired.filter(e => isWatched(e.season, e.number)).length;
-            const isOpen = openSeason === season;
-            return (
-              <div className="strk-season" key={season}>
-                <button className="strk-season-head" onClick={() => setOpenSeason(isOpen ? null : season)}>
-                  <ChevronDown size={16} className={isOpen ? 'open' : ''} />
-                  <span className="strk-season-count">{fa(watchedInSeason)}/{fa(aired.length || seasonTotalCount(row, season))}</span>
-                  <b>فصل {fa(season)}</b>
-                  {watchedInSeason < aired.length && <span className="strk-new-badge">{fa(aired.length - watchedInSeason)} جدید</span>}
-                </button>
-                {isOpen && (
-                  <div className="strk-season-body">
-                    {seasonEps.length > 0 && (
-                      <div className="strk-season-actions">
-                        <button onClick={() => markSeason(season)}>همه‌ی قسمت‌های پخش‌شده رو دیدم ✓</button>
-                        <button onClick={() => clearSeason(season)}>↺ پاک‌کردن فصل</button>
-                      </div>
-                    )}
-                    <ul className="strk-ep-list">
-                      {seasonEps.map(ep => {
-                        const watched = isWatched(ep.season, ep.number), key = `${ep.season}-${ep.number}`;
-                        return (
-                          <li key={ep.id} className={!ep.aired ? 'strk-ep-unaired' : ''} onClick={() => toggleEpisode(ep)}>
-                            <span className={`strk-ep-check ${watched ? 'on' : ''}`}>{pendingKey === key ? '…' : watched ? <Check size={12} /> : ''}</span>
-                            <span className="strk-ep-info">
-                              <b>{ep.name || `قسمت ${fa(ep.number)}`}</b>
-                              <small>{ep.airdate || 'به‌زودی'}</small>
-                            </span>
-                            <span className="strk-ep-num">E{fa(ep.number)}</span>
-                          </li>
-                        );
-                      })}
-                      {!seasonEps.length && <li className="strk-ep-unaired"><span className="strk-ep-info"><small>داده‌ی قسمت‌به‌قسمت این فصل موجود نیست.</small></span></li>}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const MOVIE_TABS = [['all', 'همه'], ['watchlist', 'فهرست تماشا'], ['completed', 'دیده‌شده']];
-const MOVIE_STATUS_OPTIONS = [['watchlist', 'فهرست تماشا'], ['completed', 'دیده‌شده']];
-
-function MoviesReact({ Nav = TopNav }) {
-  const [items, setItems] = useState([]);
-  const [tab, setTab] = useState('watchlist');
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [open, setOpen] = useState(null);
-  const [busyId, setBusyId] = useState(null);
-  const [notice, setNotice] = useState('');
-  const [toast, setToast] = useState('');
-
-  const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2400); };
-  const load = () => api('/api/movies').then(data => setItems((data.items || []).filter(x => x.type === 'movie'))).catch(e => setNotice(e.message));
-  useEffect(() => { load(); }, []);
-
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) { setResults([]); setSearching(false); return; }
-    setSearching(true);
-    const t = setTimeout(() => {
-      api(`/api/movies/tmdb/search?q=${encodeURIComponent(q)}`).then(d => setResults((d.items || []).filter(x => x.mediaType === 'movie'))).catch(e => { setResults([]); flash(e.message); }).finally(() => setSearching(false));
-    }, 380);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  const addedIds = new Set(items.map(x => String(x.tmdbId)));
-
-  const addMovie = async show => {
-    try {
-      await api('/api/movies/from-tmdb', { method: 'POST', body: JSON.stringify({ tmdbId: show.tmdbId, mediaType: 'movie', status: 'watchlist' }) });
-      setQuery(''); setResults([]); flash(`«${show.title}» اضافه شد ✓`); load();
-    } catch (e) { flash(e.message); }
-  };
-
-  const markWatched = async item => {
-    setBusyId(item.id);
-    try {
-      await api(`/api/movies/${item.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed', date: isoToday() }) });
-      flash(`«${item.title}» → دیده‌شده ✓`); load();
-    } catch (e) { flash(e.message); }
-    setBusyId(null);
-  };
-
-  const stats = useMemo(() => {
-    const done = items.filter(x => x.status === 'completed');
-    const mins = done.reduce((n, x) => n + (Number(x.durationMinutes) || 0), 0);
-    const rated = done.filter(x => x.rating).map(x => Number(x.rating));
-    return { count: items.length, done: done.length, hours: Math.round(mins / 60), avg: rated.length ? rated.reduce((a, b) => a + b, 0) / rated.length : null };
-  }, [items]);
-
-  const shown = (tab === 'all' ? items : items.filter(x => x.status === tab)).slice().sort((a, b) => tab === 'completed' ? String(b.date || '').localeCompare(String(a.date || '')) : (b.createdAt || 0) - (a.createdAt || 0));
-
-  return (
-    <main className="strk" dir="rtl">
-      <Nav active="series" />
-      <div className="strk-page">
-        <header className="strk-hero">
-          <div><p>ردیاب فیلم‌ها</p><h1>فیلم‌های من</h1></div>
-          <div className="strk-stats">
-            <div><b>{fa(stats.count)}</b><small>فیلم</small></div>
-            <div><b>{fa(stats.done)}</b><small>دیده‌شده</small></div>
-            <div><b>{fa(stats.hours)}</b><small>ساعت تماشا</small></div>
-            <div><b>{stats.avg ? fa(Math.round(stats.avg / 2 * 10) / 10) + ' ★' : '—'}</b><small>میانگین امتیاز از ۵</small></div>
-          </div>
-        </header>
-
-        <div className="strk-search">
-          <Search size={16} className="strk-search-ic" />
-          <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const f = results.find(x => !addedIds.has(String(x.tvmazeId))); if (f) addShow(f); } if (e.key === 'Escape') { setQuery(''); setResults([]); } }} placeholder="جستجوی فیلم برای افزودن…" />
-          {searching && <span className="strk-spinner" />}
-          {results.length > 0 && (
-            <div className="strk-results">
-              {results.map(show => (
-                <div className="strk-result-row" key={show.tmdbId}>
-                  {show.posterUrl ? <img src={show.posterUrl} alt="" /> : <span className="strk-result-fallback">🎬</span>}
-                  <div className="strk-result-info"><b>{show.title}</b><small>{(show.date || '').slice(0, 4)}</small></div>
-                  {addedIds.has(String(show.tmdbId)) ? <span className="strk-added">اضافه شده</span> : <button className="strk-add-btn" onClick={() => addMovie(show)}>+ افزودن</button>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
-
-        <div className="strk-tabs">
-          {MOVIE_TABS.map(([key, label]) => (
-            <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
-              {label} ({fa(key === 'all' ? items.length : items.filter(x => x.status === key).length)})
-            </button>
-          ))}
-        </div>
-
-        {shown.length === 0 && <p className="empty">چیزی اینجا نیست — از جستجوی بالا فیلم اضافه کن.</p>}
-
-        <div className="sr-grid sr-page mv-page">
-          {shown.map(item => {
-            const meta = [item.director, item.genre, item.durationMinutes ? `${fa(item.durationMinutes)} دقیقه` : ''].filter(Boolean).join(' · ');
-            return <div className="sr-item" key={item.id}>
-              <button type="button" className="sr-poster" onClick={() => setOpen(item)} aria-label={`جزئیات ${item.title}`}>{item.posterUrl ? <img src={item.posterUrl} alt="" loading="lazy" onError={e => e.target.remove()} /> : null}<span>🎬</span>{item.tmdbRating != null && <em>★ {fa(Math.round(item.tmdbRating * 10) / 10)}</em>}</button>
-              <div className="sr-info">
-                <b title={item.title}>{item.title}</b>
-                {meta && <small>{meta}</small>}
-                {item.status === 'completed'
-                  ? <small className="mv-seen">✓ دیده‌شده{item.date ? ` · ${jalaliDayLabel(String(item.date).slice(0, 10))} ${faDigits(toJalali(fromIso(String(item.date).slice(0, 10))).jy)}` : ''}{item.rating ? ` · ${'★'.repeat(Math.round(item.rating / 2))}` : ''}</small>
-                  : <small className="muted">{item.status === 'watchlist' ? 'توی فهرست تماشا' : ''}</small>}
-                <div className="sr-foot">
-                  <span />
-                  <span className="sr-actions">
-                    <button type="button" className="ghost" onClick={() => setOpen(item)}>جزئیات</button>
-                    {item.status !== 'completed' && <button type="button" disabled={busyId === item.id} onClick={() => markWatched(item)}><Check size={14} />دیدمش</button>}
-                  </span>
-                </div>
-              </div>
-            </div>;
-          })}
-        </div>
-      </div>
-      {open && <MovieDetail item={open} onClose={() => { setOpen(null); load(); }} flash={flash} />}
-      {toast && <div className="strk-toast">{toast}</div>}
-    </main>
-  );
-}
-
-function MovieDetail({ item, onClose, flash }) {
-  const [row, setRow] = useState(item);
-
-  useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
-
-  const patch = async body => {
-    try {
-      const updated = await api(`/api/movies/${row.id}`, { method: 'PATCH', body: JSON.stringify(body) });
-      setRow(updated);
-      return updated;
-    } catch (e) { flash(e.message); return null; }
-  };
-
-  const del = async () => {
-    if (!window.confirm(`«${row.title}» حذف شود؟`)) return;
-    try { await api(`/api/movies/${row.id}`, { method: 'DELETE' }); onClose(); } catch (e) { flash(e.message); }
-  };
-
-  return (
-    <div className="strk-modal-backdrop" onClick={onClose}>
-      <div className="strk-modal" onClick={e => e.stopPropagation()}>
-        <button className="strk-modal-close" onClick={onClose}><X size={18} /></button>
-        <div className="strk-modal-head">
-          {row.posterUrl ? <img src={row.posterUrl} alt="" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} /> : null}
-          <span className="strk-modal-poster-fallback" style={{ display: row.posterUrl ? 'none' : 'flex' }}>🎬</span>
-          <div className="strk-modal-info">
-            <h2>{row.title}</h2>
-            <p className="strk-modal-meta">{[row.genre, row.director, row.durationMinutes && `${fa(row.durationMinutes)} دقیقه`].filter(Boolean).join(' · ')}</p>
-            <div className="strk-modal-controls">
-              <StatusSeg value={row.status} options={MOVIE_STATUS_OPTIONS} onChange={v => patch({ status: v })} />
-              <Stars5 value={row.rating} onChange={v => patch({ rating: v })} />
-              <button className="strk-del-btn" onClick={del}><Trash2 size={14} /> حذف</button>
-            </div>
-          </div>
-        </div>
-        {row.note && <p className="strk-modal-note">{row.note}</p>}
-      </div>
-    </div>
-  );
 }
 
 function RecordsReact({ kind }) {
@@ -1239,7 +581,7 @@ function HomeSettings({ me, onSaved, flash }) {
     </article>
     <article>
       <div><b>شهر هواشناسی</b><small>از روی کارت هوا هم می‌شه عوضش کرد (با جستجو).</small></div>
-      <select value={IR_CITIES.some(([n]) => n === city.name) ? city.name : ''} onChange={pickCity}>{!IR_CITIES.some(([n]) => n === city.name) && <option value="">{city.name}</option>}{IR_CITIES.map(([n]) => <option key={n} value={n}>{n}</option>)}</select>
+      <select aria-label="شهر" value={IR_CITIES.some(([n]) => n === city.name) ? city.name : ''} onChange={pickCity}>{!IR_CITIES.some(([n]) => n === city.name) && <option value="">{city.name}</option>}{IR_CITIES.map(([n]) => <option key={n} value={n}>{n}</option>)}</select>
     </article>
     <AppearanceSettings flash={flash} />
     <article className="hs-layout">
@@ -1252,7 +594,6 @@ function HomeSettings({ me, onSaved, flash }) {
   </section>;
 }
 
-const readDataUrl = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('خواندن فایل لوگو ناموفق بود.')); reader.onload = () => resolve(String(reader.result || '')); reader.readAsDataURL(file); });
 const loadImage = src => new Promise((resolve, reject) => { const image = new Image(); image.onerror = () => reject(new Error('تصویر لوگو قابل استفاده نیست.')); image.onload = () => resolve(image); image.src = src; });
 async function compactReportLogo(file) {
   if (!file || !/^image\/(png|jpe?g|webp)$/i.test(file.type)) throw new Error('لوگو باید PNG، JPG یا WebP باشد.');
@@ -1436,44 +777,44 @@ function SettingsReact() {
           <article>
             <div><b>🌅 گزارش صبح</b><small>سررسید اشتراک‌ها و بدهی‌ها + بازی‌های امروز + برنامهٔ امروز</small></div>
             <div className="digest-controls">
-              <select value={digest.tgMorningHour} onChange={e => saveDigest({ tgMorningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
-              <button type="button" className={`plnr-switch ${digest.tgMorningOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgMorningOn} onClick={() => saveDigest({ tgMorningOn: !digest.tgMorningOn })}><i /></button>
+              <select aria-label="ساعت گزارش صبح" value={digest.tgMorningHour} onChange={e => saveDigest({ tgMorningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
+              <button type="button" className={`plnr-switch ${digest.tgMorningOn ? 'on' : ''}`} role="switch" aria-label="گزارش صبح" aria-checked={digest.tgMorningOn} onClick={() => saveDigest({ tgMorningOn: !digest.tgMorningOn })}><i /></button>
             </div>
           </article>
           <article>
             <div><b>🌙 گزارش عصر</b><small>جمع کارهای امروز + هزینهٔ روز + حال و خواب + یادآوری ثبت روزنگار</small></div>
             <div className="digest-controls">
-              <select value={digest.tgEveningHour} onChange={e => saveDigest({ tgEveningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
-              <button type="button" className={`plnr-switch ${digest.tgEveningOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgEveningOn} onClick={() => saveDigest({ tgEveningOn: !digest.tgEveningOn })}><i /></button>
+              <select aria-label="ساعت گزارش شب" value={digest.tgEveningHour} onChange={e => saveDigest({ tgEveningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
+              <button type="button" className={`plnr-switch ${digest.tgEveningOn ? 'on' : ''}`} role="switch" aria-label="گزارش شب" aria-checked={digest.tgEveningOn} onClick={() => saveDigest({ tgEveningOn: !digest.tgEveningOn })}><i /></button>
             </div>
           </article>
           <article>
             <div><b>✨ یادداشت هوشمند</b><small>{digest.aiConfigured ? 'زیر گزارش صبح و عصر، دو جملهٔ کوتاه از دستیار: تمرکز امروز و جمع‌بندی روز.' : 'برای فعال شدن، کلید AI باید روی سرور تنظیم باشد.'}</small></div>
-            <button type="button" className={`plnr-switch ${digest.tgAiOn && digest.aiConfigured ? 'on' : ''}`} role="switch" aria-checked={digest.tgAiOn && digest.aiConfigured} disabled={!digest.aiConfigured} onClick={() => saveDigest({ tgAiOn: !digest.tgAiOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgAiOn && digest.aiConfigured ? 'on' : ''}`} role="switch" aria-label="یادداشت هوشمند در گزارش‌ها" aria-checked={digest.tgAiOn && digest.aiConfigured} disabled={!digest.aiConfigured} onClick={() => saveDigest({ tgAiOn: !digest.tgAiOn })}><i /></button>
           </article>
           <article>
             <div><b>📊 گزارش ماهانهٔ مالی</b><small>روز اول هر ماه شمسی، ساعت گزارش صبح: درآمد، هزینه، مقایسه با ماه قبل، سقف‌های ردشده و سررسیدها</small></div>
-            <button type="button" className={`plnr-switch ${digest.tgMonthlyOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgMonthlyOn} onClick={() => saveDigest({ tgMonthlyOn: !digest.tgMonthlyOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgMonthlyOn ? 'on' : ''}`} role="switch" aria-label="گزارش ماهانه" aria-checked={digest.tgMonthlyOn} onClick={() => saveDigest({ tgMonthlyOn: !digest.tgMonthlyOn })}><i /></button>
           </article>
           <article>
             <div><b>🗓 مرور هفته</b><small>جمعه‌ها ساعت گزارش عصر: کارهای انجام‌شده، عادت‌ها، هزینهٔ هفته و سررسیدهای هفتهٔ بعد</small></div>
-            <button type="button" className={`plnr-switch ${digest.tgWeeklyOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgWeeklyOn} onClick={() => saveDigest({ tgWeeklyOn: !digest.tgWeeklyOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgWeeklyOn ? 'on' : ''}`} role="switch" aria-label="گزارش هفتگی" aria-checked={digest.tgWeeklyOn} onClick={() => saveDigest({ tgWeeklyOn: !digest.tgWeeklyOn })}><i /></button>
           </article>
           <article>
             <div><b>📁 گزارش هفتگی پروژه‌ها</b><small>جمعه‌ها ساعت گزارش عصر: پیشرفت هر پروژه، کارت‌های انجام‌شدهٔ هفته، عقب‌افتاده‌ها، مهلت‌ها و کارهای هفتهٔ بعد · <button type="button" className="linkish" onClick={async () => { try { await api('/api/projects/report', { method: 'POST' }); setNotice('گزارش پروژه‌ها به تلگرام فرستاده شد ✓'); } catch (e) { setNotice(e.message); } }}>الان بفرست</button></small></div>
-            <button type="button" className={`plnr-switch ${digest.tgProjectsOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgProjectsOn} onClick={() => saveDigest({ tgProjectsOn: !digest.tgProjectsOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgProjectsOn ? 'on' : ''}`} role="switch" aria-label="گزارش هفتگی پروژه‌ها" aria-checked={digest.tgProjectsOn} onClick={() => saveDigest({ tgProjectsOn: !digest.tgProjectsOn })}><i /></button>
           </article>
           {modOn(mods, 'courses') ? <><article>
             <div><b>🎓 یادآوری سررسید شهریه</b><small>دو روز مانده به سررسید هر دانشجو، ساعت گزارش صبح: نام، مانده و دکمهٔ «پیام واتساپ» با متن آماده</small></div>
-            <button type="button" className={`plnr-switch ${digest.tgFeeRemindOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgFeeRemindOn} onClick={() => saveDigest({ tgFeeRemindOn: !digest.tgFeeRemindOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgFeeRemindOn ? 'on' : ''}`} role="switch" aria-label="یادآوری شهریه" aria-checked={digest.tgFeeRemindOn} onClick={() => saveDigest({ tgFeeRemindOn: !digest.tgFeeRemindOn })}><i /></button>
           </article>
           <article>
             <div><b>📚 گزارش ماهانهٔ دوره‌ها</b><small>اول هر ماه: دریافتی ماه، مانده، بدهکارها و درصد حضور هر دوره · <button type="button" className="linkish" onClick={async () => { try { await api('/api/courses/report?prev=0', { method: 'POST' }); setNotice('گزارش این ماه دوره‌ها به تلگرام فرستاده شد ✓'); } catch (e) { setNotice(e.message); } }}>الان بفرست (این ماه)</button></small></div>
-            <button type="button" className={`plnr-switch ${digest.tgCoursesMonthlyOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgCoursesMonthlyOn} onClick={() => saveDigest({ tgCoursesMonthlyOn: !digest.tgCoursesMonthlyOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgCoursesMonthlyOn ? 'on' : ''}`} role="switch" aria-label="گزارش ماهانهٔ دوره‌ها" aria-checked={digest.tgCoursesMonthlyOn} onClick={() => saveDigest({ tgCoursesMonthlyOn: !digest.tgCoursesMonthlyOn })}><i /></button>
           </article></> : null}
           <article>
             <div><b>ارسال گزارش‌ها در تلگرام</b><small>خاموش‌کردن یعنی هیچ دایجستی فرستاده نشود</small></div>
-            <button type="button" className={`plnr-switch ${digest.tgReports ? 'on' : ''}`} role="switch" aria-checked={digest.tgReports} onClick={() => saveDigest({ tgReports: !digest.tgReports })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgReports ? 'on' : ''}`} role="switch" aria-label="گزارش‌های تلگرام" aria-checked={digest.tgReports} onClick={() => saveDigest({ tgReports: !digest.tgReports })}><i /></button>
           </article>
         </section>
 
@@ -1595,6 +936,8 @@ const writeLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } 
 const MODULES = [['projects', 'پروژه‌ها', '🗂', 'تابلوی کانبان برای پروژه‌ها'], ['courses', 'دوره‌ها و دانشجوها', '🎓', 'شهریه، پرداخت‌ها و حضور و غیاب'], ['vocab', 'زبان', '📘', '۷۰۰۰ واژهٔ آیلتس با مرور فاصله‌دار'], ['crmOn', 'مشتری و فروش', '💼', 'مشتری، پیش‌فاکتور و پیگیری (پیش‌فرض خاموش)'], ['health', 'سلامت', '💪', 'وزن، خواب، ورزش و آب'], ['car', 'خودرو', '🚗', 'بیمه، معاینه، سرویس و هزینه‌ها'], ['travel', 'سفر', '✈️', 'برنامه، بودجه و لیست وسایل'], ['journal', 'روزنگار', '📔', 'نوشته و عکس روزانه'], ['habits', 'عادت‌ها', '🔥', 'عادت روزانه و زنجیرهٔ روزها'], ['learning', 'یادگیری', '🎓', 'کتاب‌ها و دوره‌ها'], ['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
 const PAGE_MODULE = { projects: 'projects', courses: 'courses', vocab: 'vocab', crm: 'crmOn', health: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', habits: 'habits', shopping: 'notes', finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
 let MODS_CACHE = readLs('lifeos-modules', null);
+let LOCKS_CACHE = readLs('lifeos-locks', []); // sections the site admin closed for this account (server answers 403 too)
+const pageLocked = page => !!PAGE_MODULE[page] && LOCKS_CACHE.includes(PAGE_MODULE[page]);
 const OPT_IN = new Set(['crmOn']); // off unless explicitly turned on
 const modOn = (m, k) => OPT_IN.has(k) ? !!(m && m[k] === true) : (!m || m[k] !== false);
 const pageOn = (m, page) => !PAGE_MODULE[page] || modOn(m, PAGE_MODULE[page]);
@@ -1602,12 +945,35 @@ const pageOn = (m, page) => !PAGE_MODULE[page] || modOn(m, PAGE_MODULE[page]);
 const NAV_HUB = { learning: ['learning', 'vocab'], notes: ['notes', 'journal'] };
 const navOn = (m, page) => (NAV_HUB[page] || [page]).some(pg => pageOn(m, pg));
 function setModules(m, needsOnboard = false) { MODS_CACHE = m; writeLs('lifeos-modules', m); window.__needsOnboard = needsOnboard; window.dispatchEvent(new Event('lifeos:modules')); }
-function useModules() {
-  const [m, setM] = useState(MODS_CACHE);
+// ── focus mode: during work hours (or when switched on) the leisure sections disappear from menu and Today ──
+const FOCUS_DEF = { mode: 'off', from: 9, to: 17, days: [6, 0, 1, 2, 3], hide: ['football', 'watch', 'media', 'market'], snooze: '' };
+const readFocus = () => ({ ...FOCUS_DEF, ...readLs('lifeos-focus', {}) });
+const tehranNow = () => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tehran', hour: 'numeric', hourCycle: 'h23', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map(x => [x.type, x.value])); return { h: Number(p.hour), wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday), day: `${p.year}-${p.month}-${p.day}` }; };
+function focusActive(f = readFocus()) {
+  if (f.mode === 'on') return true;
+  if (f.mode !== 'auto') return false;
+  const t = tehranNow();
+  return f.snooze !== t.day && f.days.includes(t.wd) && t.h >= f.from && t.h < f.to;
+}
+function saveFocus(f) { writeLs('lifeos-focus', f); FOCUS_ON = focusActive(f); window.dispatchEvent(new Event('lifeos:modules')); }
+let FOCUS_ON = focusActive();
+if (typeof window !== 'undefined') window.addEventListener('lifeos:focus-toggle', () => { const f = readFocus(); saveFocus(FOCUS_ON ? (f.mode === 'auto' ? { ...f, snooze: tehranNow().day } : { ...f, mode: 'off' }) : { ...f, mode: 'on' }); });
+if (typeof window !== 'undefined') setInterval(() => { const on = focusActive(); if (on !== FOCUS_ON) { FOCUS_ON = on; window.dispatchEvent(new Event('lifeos:modules')); } }, 60e3);
+const withFocus = m => { if (!FOCUS_ON) return m; const f = readFocus(), out = { ...(m || {}) }; for (const k of f.hide) out[k] = false; return out; };
+function useFocusOn() { const [on, setOn] = useState(FOCUS_ON); useEffect(() => { const f = () => setOn(FOCUS_ON); window.addEventListener('lifeos:modules', f); return () => window.removeEventListener('lifeos:modules', f); }, []); return on; }
+function FocusChip() {
+  const on = useFocusOn();
+  if (!on) return null;
+  const off = () => { const f = readFocus(); saveFocus(f.mode === 'auto' ? { ...f, snooze: tehranNow().day } : { ...f, mode: 'off' }); };
+  return <button type="button" className="focus-chip" onClick={off} title="حالت تمرکز روشن است — بزن تا خاموش شود" aria-label="حالت تمرکز روشن است؛ خاموش کن"><Target size={15} /><span>تمرکز</span></button>;
+}
+function useModules(raw = false) {
+  const [m0, setM] = useState(MODS_CACHE), focusOn = useFocusOn();
+  const m = raw || !focusOn ? m0 : withFocus(m0);
   useEffect(() => {
     const f = () => setM(MODS_CACHE);
     window.addEventListener('lifeos:modules', f);
-    if (!window.__modsFetched) { window.__modsFetched = true; api('/api/me').then(d => { if (d.user) setModules(d.user.modules || null, !d.user.modules); }).catch(() => {}); }
+    if (!window.__modsFetched) { window.__modsFetched = true; api('/api/me').then(d => { if (d.user) { const lk = d.user.lockedModules || []; if (lk.join() !== LOCKS_CACHE.join()) { LOCKS_CACHE = lk; writeLs('lifeos-locks', lk); } setModules(d.user.modules || null, !d.user.modules); } }).catch(() => {}); }
     return () => window.removeEventListener('lifeos:modules', f);
   }, []);
   return m;
@@ -1616,9 +982,9 @@ async function saveModules(m) { setModules(m); try { await api('/api/me', { meth
 function ModulesPicker({ value, onChange }) {
   const cur = { ...Object.fromEntries(MODULES.map(([k]) => [k, modOn(value, k)])), ...(value || {}) };
   return <div className="mods-grid">{MODULES.map(([k, label, icon, sub]) => {
-    const on = OPT_IN.has(k) ? cur[k] === true : cur[k] !== false;
-    return <button type="button" key={k} className={`mods-item ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => onChange({ ...cur, [k]: !on })}>
-      <span className="mods-ic">{icon}</span><span className="mods-txt"><b>{label}</b><small>{sub}</small></span><i className="mods-check">{on ? '✓' : ''}</i>
+    const locked = LOCKS_CACHE.includes(k), on = !locked && (OPT_IN.has(k) ? cur[k] === true : cur[k] !== false);
+    return <button type="button" key={k} className={`mods-item ${on ? 'on' : ''} ${locked ? 'locked' : ''}`} aria-pressed={on} disabled={locked} title={locked ? 'مدیر سایت این بخش را بسته است' : undefined} onClick={() => onChange({ ...cur, [k]: !on })}>
+      <span className="mods-ic">{icon}</span><span className="mods-txt"><b>{label}</b><small>{sub}</small></span><i className="mods-check">{locked ? '🔒' : on ? '✓' : ''}</i>
     </button>;
   })}</div>;
 }
@@ -1726,7 +1092,6 @@ const AQI_LEVEL = v => v == null ? null : v <= 50 ? ['پاک', 'good'] : v <= 10
 const hm = iso => faDigits(String(iso || '').slice(11, 16));
 
 const addDaysIso = (isoDate, n) => iso(addDays(fromIso(isoDate), n));
-const jalaliDayLabel = isoDate => { const j = toJalali(fromIso(isoDate)); return `${faDigits(j.jd)} ${JALALI_MONTHS[j.jm - 1]}`; };
 let IRAN_EVENTS_PROMISE = null;
 const loadIranEvents = () => (IRAN_EVENTS_PROMISE ||= fetch('/data/iran-events.json').then(r => r.json()).catch(() => ({})));
 const jKey = (jy, jm, jd) => `${jy}${String(jm).padStart(2, '0')}${String(jd).padStart(2, '0')}`;
@@ -2017,7 +1382,7 @@ function WeatherCard({ weather, aqi, city, onCity }) {
           <span>بیشینه {fa(Math.round(dl.temperature_2m_max[0]))}° · کمینه {fa(Math.round(dl.temperature_2m_min[0]))}°</span>
         </div>
       </div>
-      <div className="wx-panel wx-hours">{hours.map((h, i) => <div key={h.t}><small>{i === 0 ? 'اکنون' : faDigits(h.t.slice(11, 13))}</small><span>{h.code != null ? WEATHER_ICON(h.code, h.day) : ''}</span><b>{fa(Math.round(h.temp))}°</b></div>)}</div>
+      <div className="wx-panel wx-hours" tabIndex={0} role="region" aria-label="پیش‌بینی ساعتی">{hours.map((h, i) => <div key={h.t}><small>{i === 0 ? 'اکنون' : faDigits(h.t.slice(11, 13))}</small><span>{h.code != null ? WEATHER_ICON(h.code, h.day) : ''}</span><b>{fa(Math.round(h.temp))}°</b></div>)}</div>
       <div className="wx-tiles">
         <div className="wx-tile"><small>🌡️ حس‌شده</small><b>{fa(feels)}°</b><span>{feelsNote}</span></div>
         <div className="wx-tile"><small>☀️ شاخص UV</small><b>{fa(uv)} <em>{UV_LEVEL(uv)}</em></b><i className="wx-meter uv"><u style={{ insetInlineStart: `${Math.min(100, uv / 11 * 100)}%` }} /></i></div>
@@ -2255,7 +1620,7 @@ function NotifyCard() {
     <h2>🔔 اعلان یادآوری‌ها</h2>
     <article>
       <div><b>تلگرام — سر ساعت هر یادآوری</b><small>با دکمه‌های «✓ انجام شد»، «⏰ ۱۵ دقیقه بعد» و «📅 فردا»؛ هشدار زودتر را در فرم هر یادآوری انتخاب کن. {me && !me.telegramUserId ? '— اول بات تلگرام را وصل کن.' : ''}</small></div>
-      <button type="button" className={`plnr-switch ${tgOn ? 'on' : ''}`} role="switch" aria-checked={tgOn} onClick={toggleTg}><i /></button>
+      <button type="button" className={`plnr-switch ${tgOn ? 'on' : ''}`} role="switch" aria-label="ارسال به تلگرام" aria-checked={tgOn} onClick={toggleTg}><i /></button>
     </article>
     <article>
       <div><b>اعلان روی همین دستگاه</b><small>{!supported ? (ios && !standalone ? 'در آیفون اول سایت را «Add to Home Screen» کن و از همان آیکن باز کن.' : 'این مرورگر اعلان وب را پشتیبانی نمی‌کند.') : perm === 'denied' ? 'اجازهٔ اعلان در مرورگر بسته است؛ از تنظیمات سایت در مرورگر بازش کن.' : subscribed ? 'فعال است ✓ — یادآوری‌ها مثل پیام برنامه‌ها روی صفحه می‌آیند، حتی وقتی سایت بسته است.' : 'یادآوری‌ها مثل پیام برنامه‌ها روی گوشی یا کامپیوتر می‌آیند، حتی بدون تلگرام.'}</small></div>
@@ -2292,12 +1657,30 @@ function SiteTokensCard() {
   </section>;
 }
 
+function FocusSettings() {
+  const [f, setF] = useState(readFocus);
+  const set = patch => { const n = { ...f, ...patch, snooze: '' }; setF(n); saveFocus(n); };
+  const DAYS = [[6, 'شنبه'], [0, 'یکشنبه'], [1, 'دوشنبه'], [2, 'سه‌شنبه'], [3, 'چهارشنبه'], [4, 'پنجشنبه'], [5, 'جمعه']];
+  const hour = (v, on) => <select value={v} onChange={e => on(Number(e.target.value))}>{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{fa(h)}:۰۰</option>)}</select>;
+  return <div className="focus-set">
+    <h3>🎯 حالت تمرکز</h3>
+    <p className="muted">وقتی روشن است، بخش‌های سرگرمی از منو و صفحهٔ امروز پنهان می‌شوند (داده‌ها سر جایشان می‌مانند).</p>
+    <div className="focus-modes" role="radiogroup" aria-label="حالت تمرکز">{[['off', 'خاموش'], ['auto', 'خودکار در ساعت کاری'], ['on', 'همیشه روشن']].map(([k, l]) => <button type="button" key={k} role="radio" aria-checked={f.mode === k} className={f.mode === k ? 'on' : ''} onClick={() => set({ mode: k })}>{l}</button>)}</div>
+    {f.mode === 'auto' ? <div className="focus-row">
+      <label>از {hour(f.from, v => set({ from: v }))}</label><label>تا {hour(f.to, v => set({ to: v }))}</label>
+      <div className="focus-days" role="group" aria-label="روزهای کاری">{DAYS.map(([d, l]) => { const on = f.days.includes(d); return <button type="button" key={d} aria-pressed={on} className={on ? 'on' : ''} onClick={() => set({ days: on ? f.days.filter(x => x !== d) : [...f.days, d] })}>{l}</button>; })}</div>
+    </div> : null}
+    <div className="focus-row"><span className="muted">پنهان در تمرکز:</span><div className="focus-days" role="group" aria-label="بخش‌های پنهان در تمرکز">{MODULES.map(([k, l, ic]) => { const on = f.hide.includes(k); return <button type="button" key={k} aria-pressed={on} className={on ? 'on' : ''} onClick={() => set({ hide: on ? f.hide.filter(x => x !== k) : [...f.hide, k] })}>{ic} {l}</button>; })}</div></div>
+  </div>;
+}
+
 function ModulesCard() {
-  const mods = useModules();
+  const mods = useModules(true);
   return <section className="planner-list digest-card" id="modules">
     <h2>🧩 بخش‌های من</h2>
     <p className="muted" style={{ margin: '0 0 10px' }}>بخش‌های خاموش از منو، صفحهٔ اصلی، جستجو و گزارش‌های تلگرام حذف می‌شوند؛ داده‌هایشان پاک نمی‌شود.</p>
     <ModulesPicker value={mods} onChange={saveModules} />
+    <FocusSettings />
   </section>;
 }
 
@@ -2324,10 +1707,30 @@ function BackupInstallCard({ lastBackup, freq = 'weekly', onFreq }) {
   </section>;
 }
 
+// AI assistant on every page: a floating button (only when the server has an AI key); the panel loads on demand.
+const AssistantPanel = React.lazy(() => import('./assistant'));
+function AssistantDock() {
+  const [ok, setOk] = useState(false), [open, setOpen] = useState(false);
+  useEffect(() => { meOnce().then(u => setOk(!!u?.aiConfigured)); const f = () => setOpen(true); window.addEventListener('lifeos:assistant', f); return () => window.removeEventListener('lifeos:assistant', f); }, []);
+  if (!ok || new URLSearchParams(location.search).get('page') === 'vocab') return null;
+  return open ? <React.Suspense fallback={null}><AssistantPanel onClose={() => setOpen(false)} /></React.Suspense>
+    : <button type="button" className="as-fab" onClick={() => setOpen(true)} aria-label="دستیار هوشمند" title="دستیار هوشمند"><Sparkles size={22} /></button>;
+}
+
 function OfflineBar() {
   const [off, setOff] = useState(!navigator.onLine);
-  useEffect(() => { const a = () => setOff(false), b = () => setOff(true); window.addEventListener('online', a); window.addEventListener('offline', b); return () => { window.removeEventListener('online', a); window.removeEventListener('offline', b); }; }, []);
+  useEffect(() => { const a = () => { setOff(false); flushOutbox(); }, b = () => setOff(true); window.addEventListener('online', a); window.addEventListener('offline', b); return () => { window.removeEventListener('online', a); window.removeEventListener('offline', b); }; }, []);
   return off ? <div className="offline-bar" role="status">⚡ آفلاین هستی — آخرین داده‌های ذخیره‌شده نمایش داده می‌شود؛ ثبت و ویرایش بعد از وصل شدن.</div> : null;
+}
+
+setTimeout(() => flushOutbox(), 1500); // captures queued offline in an earlier visit
+
+// Sign out: end the session, then drop this device's cached API data and per-account preferences.
+async function signOut() {
+  try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
+  try { const keys = await caches.keys(); await Promise.all(keys.filter(k => k.endsWith('-data')).map(k => caches.delete(k))); } catch {}
+  try { ['lifeos-modules', 'lifeos-locks', 'lifeos-is-admin', 'lifeos-outbox'].forEach(k => localStorage.removeItem(k)); sessionStorage.clear(); } catch {}
+  location.href = '/design/login-page.html';
 }
 
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window.__lifeosInstall = e; window.dispatchEvent(new Event('lifeos:installable')); });
@@ -2335,5 +1738,5 @@ if ('serviceWorker' in navigator && !navigator.webdriver && (location.protocol =
   window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
 }
 
-createRoot(document.getElementById('root')).render(<><React.Suspense fallback={<PageLoading />}><App /></React.Suspense><OfflineBar /><MsgBar load={meOnce} /></>);
+createRoot(document.getElementById('root')).render(<><React.Suspense fallback={<PageLoading />}><App /></React.Suspense><OfflineBar /><MsgBar load={meOnce} /><AssistantDock /></>);
 window.addEventListener('load', () => { const idle = window.requestIdleCallback || (f => setTimeout(f, 2500)); idle(prefetchPages, { timeout: 6000 }); });

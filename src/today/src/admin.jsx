@@ -1,16 +1,9 @@
 // Site admin: users, activity and database size. Read-only; only the admin account gets data (server enforces 403).
 import { useEffect, useMemo, useState } from 'react';
 import { Page, api, fa, jShort } from './life-core';
+import { ago, isoOf } from './msgbar';
+export { MsgBar } from './msgbar';
 
-// Messages the site admin sent to this user — shown once on any page until dismissed.
-export function MsgBar({ load }) {
-  const [msgs, setMsgs] = useState([]);
-  useEffect(() => { load().then(u => setMsgs(u?.msgs || [])); }, []);
-  if (!msgs.length) return null;
-  const m = msgs[0];
-  const close = () => { setMsgs(x => x.slice(1)); api(`/api/messages/${m.id}/read`, { method: 'POST', body: '{}' }).catch(() => {}); };
-  return <div className="adm-inbox" role="status" dir="rtl"><b>📣 پیام از مدیر</b><p>{m.text}</p><div><small>{ago(m.at)}{msgs.length > 1 ? ` · ${fa(msgs.length - 1)} پیام دیگر` : ''}</small><button type="button" onClick={close}>{msgs.length > 1 ? 'بعدی' : 'باشه'}</button></div></div>;
-}
 
 function MsgDrawer({ to, onClose, onSent }) {
   const [text, setText] = useState(''), [tg, setTg] = useState(true), [push, setPush] = useState(true), [busy, setBusy] = useState(false), [err, setErr] = useState('');
@@ -29,19 +22,9 @@ function MsgDrawer({ to, onClose, onSent }) {
     <div className="adm-macts"><button className="lf-btn ghost" onClick={onClose}>انصراف</button><button className="lf-btn" disabled={busy || !text.trim()} onClick={send}>{busy ? 'در حال ارسال…' : 'ارسال'}</button></div>
   </div></div>;
 }
-import './admin.css';
 
 const MOD_FA = { football: 'فوتبال', watch: 'فیلم و سریال', market: 'بازار', finance: 'مالی', media: 'رسانه', notes: 'یادداشت', documents: 'مدارک', contacts: 'مخاطبین', health: 'سلامت', car: 'خودرو', travel: 'سفر', projects: 'پروژه', crm: 'فروش', learning: 'یادگیری', journal: 'روزنگار', 'همه': 'همه (پیش‌فرض)' };
 const ITEM_FA = { tasks: 'کار', reminders: 'یادآوری', transactions: 'تراکنش', notes: 'یادداشت', movies: 'فیلم/سریال', contacts: 'مخاطب', documents: 'مدرک', poker: 'پوکر', col: 'سایر بخش‌ها' };
-const isoOf = ms => ms ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(ms)) : '';
-function ago(ms) {
-  if (!ms) return 'هرگز';
-  const m = Math.round((Date.now() - ms) / 60000);
-  if (m < 2) return 'همین الان'; if (m < 60) return `${fa(m)} دقیقه پیش`;
-  const h = Math.round(m / 60); if (h < 24) return `${fa(h)} ساعت پیش`;
-  const d = Math.round(h / 24); if (d < 31) return `${fa(d)} روز پیش`;
-  return jShort(isoOf(ms));
-}
 const kb = b => b >= 1048576 ? `${fa(b / 1048576, 2)} مگابایت` : `${fa(b / 1024, 0)} کیلوبایت`;
 
 function Weeks({ weeks }) {
@@ -50,6 +33,19 @@ function Weeks({ weeks }) {
     <div className="adm-wbars"><i className="a" style={{ height: `${(w.active / max) * 100}%` }} /><i className="s" style={{ height: `${(w.signups / max) * 100}%` }} /></div>
     <small>{i === weeks.length - 1 ? 'این هفته' : jShort(w.from)}</small>
   </div>)}</div>;
+}
+
+// Sections the admin can lock for a user: off in their menu and refused by the API (403).
+const LOCK_FA = [['finance', 'مالی'], ['market', 'بازار'], ['projects', 'پروژه‌ها'], ['courses', 'دوره‌ها'], ['crmOn', 'مشتری و فروش'], ['vocab', 'زبان'], ['learning', 'یادگیری'], ['habits', 'عادت‌ها'], ['health', 'سلامت'], ['car', 'خودرو'], ['travel', 'سفر'], ['journal', 'روزنگار'], ['notes', 'یادداشت و خرید'], ['documents', 'مدارک'], ['contacts', 'مخاطبین'], ['football', 'فوتبال'], ['watch', 'فیلم و سریال'], ['media', 'رسانه']];
+function LockEditor({ u, onSaved }) {
+  const [sel, setSel] = useState(() => new Set(u.locked || [])), [busy, setBusy] = useState(false), [note, setNote] = useState('');
+  const dirty = [...sel].sort().join() !== [...(u.locked || [])].sort().join();
+  const save = async () => { setBusy(true); try { await api(`/api/admin/users/${u.id}/locks`, { method: 'POST', body: JSON.stringify({ locked: [...sel] }) }); setNote('ذخیره شد.'); onSaved(); } catch (e) { setNote(e.message); } setBusy(false); };
+  return <fieldset className="adm-locks">
+    <legend>بخش‌های بسته برای این کاربر</legend>
+    <div className="lf-chips">{LOCK_FA.map(([k, l]) => { const on = sel.has(k); return <button type="button" key={k} className={`lf-chip adm-lock ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => { const n = new Set(sel); on ? n.delete(k) : n.add(k); setSel(n); setNote(''); }}>{on ? '🔒 ' : ''}{l}</button>; })}</div>
+    <div className="adm-acts"><button type="button" className="lf-btn" disabled={!dirty || busy} onClick={save}>{busy ? '…' : 'ذخیرهٔ دسترسی'}</button>{note ? <small role="status">{note}</small> : <small>بخش بسته از منوی کاربر حذف می‌شود و سرور هم داده‌اش را نمی‌دهد.</small>}</div>
+  </fieldset>;
 }
 
 export function AdminPage({ Nav }) {
@@ -114,6 +110,7 @@ export function AdminPage({ Nav }) {
               {u.admin ? null : <button className={`lf-btn ${u.disabled ? '' : 'danger'}`} disabled={!!busy} onClick={() => act(u, 'disable')}>{busy === u.id + 'disable' ? '…' : u.disabled ? 'فعال‌کردن دوباره' : 'غیرفعال‌کردن'}</button>}
               {u.disabled ? <small className="adm-off">غیرفعال از {ago(u.disabledAt)}</small> : null}
             </div>
+            {u.admin ? null : <LockEditor key={(u.locked || []).join()} u={u} onSaved={load} />}
             <small>بخش‌ها: {u.modules ? (u.modules.length ? u.modules.map(m => MOD_FA[m] || m).join('، ') : 'فقط بخش‌های پایه') : 'همه (انتخاب نکرده)'} · {fa(u.sessions)} نشست باز · آخرین ورود: {ago(u.lastLoginAt)}</small>
           </div> : null}
         </div>; })}

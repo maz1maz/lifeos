@@ -57,3 +57,8 @@ i.s{background:var(--g-accent)}i.a{background:#60a5fa}
 .adm-inbox b{color:#f0c060;font-size:13px}.adm-inbox p{margin:0;white-space:pre-wrap;font-size:13.5px;line-height:1.8}
 .adm-inbox div{display:flex;align-items:center;justify-content:space-between}.adm-inbox small{color:#999;font-size:11px}
 .adm-inbox button{border:0;background:#f0c060;color:#111;font:inherit;font-weight:700;font-size:12px;padding:5px 14px;border-radius:999px;cursor:pointer}
+.adm-locks{border:1px solid var(--line,rgba(127,127,127,.25));border-radius:12px;padding:10px 12px;margin:10px 0;display:grid;gap:10px}
+.adm-locks legend{font-size:12.5px;color:var(--muted);padding:0 6px}
+.adm-lock{cursor:pointer;border:1px solid transparent;font:inherit}
+.adm-lock.on{border-color:#f87171;color:#f87171;background:color-mix(in srgb,#f87171 10%,transparent)}
+.adm-locks small{color:var(--muted);font-size:12px}

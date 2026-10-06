@@ -174,3 +174,5 @@
 .dm-tools select.on { border-color: var(--dm-cyan); color: var(--dm-cyan); }
 .dm-tools select option { background: #1b1b1e; color: #ececee; }
 @media (max-width: 700px) { .dm-tools select { flex: 1 1 40%; } }
+.dm-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--g-border-2); display: grid; place-items: center; font-style: normal; font-size: 12px; line-height: 1; color: #111; }
+.dm-check.on { background: var(--g-accent); border-color: var(--g-accent); }

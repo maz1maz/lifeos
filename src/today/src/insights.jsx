@@ -93,6 +93,16 @@ function YearAgo() {
   </Section>;
 }
 
+function OnThisDay() {
+  const [v, setV] = useState(null);
+  useEffect(() => { load('/api/calendar/on-this-day?fa=1', setV); }, []);
+  const en = v?.lang === 'en';
+  return <Section title="امروز در تاریخ" sub={en ? 'از ویکی‌پدیا (انگلیسی؛ با کلید AI فارسی می‌شود)' : 'از ویکی‌پدیا'}>
+    <Wait v={v} />
+    {v?.events ? (v.events.length ? <ul className="ins-notes">{v.events.map((e, i) => <li key={i}><i className="ins-year">{fa(e.year, 0).replace(/٬/g, '')}</i><span dir={en ? 'ltr' : undefined}>{e.text}</span></li>)}</ul> : <p className="ins-muted">رویدادی پیدا نشد.</p>) : null}
+  </Section>;
+}
+
 export function InsightsPage({ Nav }) {
   return <Page Nav={Nav} className="ins" kicker="دستیار هسته" title="بینش" sub="خلاصه، اولویت‌ها و الگوهایی که از داده‌های خودت پیدا شده">
     <div className="ins-grid">
@@ -101,6 +111,7 @@ export function InsightsPage({ Nav }) {
       <InsightsList />
       <Correlations />
       <YearAgo />
+      <OnThisDay />
     </div>
   </Page>;
 }

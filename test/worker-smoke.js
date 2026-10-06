@@ -385,6 +385,63 @@ async function main() {
   check('exercise log + delete', !!ex.id && (await call(`/api/exercise/${ex.id}`, { method: 'DELETE', cookie })).status === 200);
   check('media-log -> 201', (await call('/api/media-log', { method: 'POST', cookie, body: { source: 'spotify', title: 'wt' } })).status === 201);
 
+  { // password recovery: 6-digit code to the linked Telegram chat, no account probing, sessions reset
+    const em = 'reset-' + Date.now() + '@t.com';
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'R', email: em, password: 'oldpass1' } });
+    const lg = await call('/api/auth/login', { method: 'POST', body: { email: em, password: 'oldpass1' } });
+    const ck = String((typeof lg.headers.getSetCookie === 'function' ? lg.headers.getSetCookie()[0] : lg.headers.get('set-cookie')) || '').split(';')[0];
+    check('forgot without a bot -> 503', (await call('/api/auth/forgot', { method: 'POST', body: { email: em } })).status === 503);
+    await call('/api/me', { method: 'PATCH', cookie: ck, body: { telegramUserId: '880011' } });
+    const sent = [], realFetch = globalThis.fetch; env.TELEGRAM_BOT_TOKEN = 'TEST';
+    globalThis.fetch = async (url, init) => { if (String(url).includes('api.telegram.org')) { sent.push(JSON.parse(init.body)); return new Response('{"ok":true,"result":{}}'); } return new Response('{}', { status: 404 }); };
+    try {
+      const f1 = await call('/api/auth/forgot', { method: 'POST', body: { email: em.toUpperCase() } });
+      const f2 = await call('/api/auth/forgot', { method: 'POST', body: { email: 'nobody-' + Date.now() + '@t.com' } });
+      check('forgot: same answer for known and unknown email', f1.status === 200 && f2.status === 200 && f1.d.message === f2.d.message);
+      const msg = sent.find(m => /کد بازیابی/.test(m.text || '')), code = msg && (msg.text.match(/\d{6}/) || [])[0];
+      check('forgot: code sent to the linked Telegram chat', !!code && msg.chat_id === '880011', JSON.stringify(sent));
+      const wrong = String((Number(code) + 1) % 1000000).padStart(6, '0');
+      check('reset: wrong code -> 400', (await call('/api/auth/reset', { method: 'POST', body: { email: em, code: wrong, password: 'newpass1' } })).status === 400);
+      const ok = await call('/api/auth/reset', { method: 'POST', body: { email: em, code: code.replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]), password: 'newpass1' } });
+      check('reset: right code (Persian digits) -> 200 + new session', ok.status === 200 && /sid=/.test(ok.headers.get('set-cookie') || ''));
+      check('reset: old session closed', !(await call('/api/me', { cookie: ck })).d.user);
+      check('reset: old password refused, new one works', (await call('/api/auth/login', { method: 'POST', body: { email: em, password: 'oldpass1' } })).status === 401 && (await call('/api/auth/login', { method: 'POST', body: { email: em, password: 'newpass1' } })).status === 200);
+      check('reset: code is single-use', (await call('/api/auth/reset', { method: 'POST', body: { email: em, code, password: 'another1' } })).status === 400);
+    } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; }
+  }
+  { // admin locks sections for another user: menu modules forced off + the section's APIs answer 403
+    const em = 'locked-' + Date.now() + '@t.com';
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'L', email: em, password: 'secret123' } });
+    const lg = await call('/api/auth/login', { method: 'POST', body: { email: em, password: 'secret123' } });
+    const ck = String((typeof lg.headers.getSetCookie === 'function' ? lg.headers.getSetCookie()[0] : lg.headers.get('set-cookie')) || '').split(';')[0];
+    const ov = await call('/api/admin/overview', { cookie }), uid = ov.d.users.find(x => x.email === em).id;
+    check('lock: non-admin cannot lock', (await call(`/api/admin/users/${uid}/locks`, { method: 'POST', cookie: ck, body: { locked: ['finance'] } })).status === 403);
+    const r = await call(`/api/admin/users/${uid}/locks`, { method: 'POST', cookie, body: { locked: ['finance', 'football', 'bogus'] } });
+    check('lock: admin saves valid keys only', r.status === 200 && JSON.stringify(r.d.locked) === '["finance","football"]', JSON.stringify(r.d));
+    const me = (await call('/api/me', { cookie: ck })).d.user;
+    check('lock: /api/me lists locks and forces those modules off', JSON.stringify(me.lockedModules) === '["finance","football"]' && me.modules.finance === false && me.modules.football === false);
+    check('lock: locked API -> 403', (await call('/api/transactions', { cookie: ck })).status === 403 && (await call('/api/accounts', { cookie: ck })).status === 403);
+    check('lock: other APIs still open', (await call('/api/tasks', { cookie: ck })).status === 200);
+    await call('/api/me', { method: 'PATCH', cookie: ck, body: { modules: { finance: true, notes: true } } });
+    check('lock: user cannot switch a locked module back on', (await call('/api/me', { cookie: ck })).d.user.modules.finance === false);
+    check('lock: admin overview shows locks', (await call('/api/admin/overview', { cookie })).d.users.find(x => x.id === uid).locked.length === 2);
+    await call(`/api/admin/users/${uid}/locks`, { method: 'POST', cookie, body: { locked: [] } });
+    check('lock: unlock reopens the API', (await call('/api/transactions', { cookie: ck })).status === 200);
+  }
+  { // assistant panel: /api/ai/chat adds the current page's own rows (slimmed) to the AI context
+    await call('/api/transactions', { method: 'POST', cookie, body: { title: 'قهوه‌ی تست پنل', amount: 1500000, kind: 'expense', category: 'خوراک', date: new Date().toISOString().slice(0, 10) } });
+    const seen = [], realFetch = globalThis.fetch;
+    env.AI_PROVIDER_API_KEY = 'k'; env.AI_PROVIDER_BASE_URL = 'https://ai.test/v1'; env.AI_MODEL = 'm';
+    globalThis.fetch = async (url, init) => { if (String(url).startsWith('https://ai.test/')) { seen.push(JSON.parse(init.body)); return new Response(JSON.stringify({ choices: [{ message: { content: 'پاسخ تست' } }] })); } return realFetch(url, init); };
+    try {
+      const r = await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'خرج‌هام؟', page: 'finance' } });
+      const sys = seen[0] && seen[0].messages[0].content;
+      check('assistant: reply + finance page rows in context', r.status === 200 && r.d.reply === 'پاسخ تست' && /قهوه‌ی تست پنل/.test(sys || '') && /"currentPage"/.test(sys || ''), (sys || '').slice(0, 200));
+      check('assistant: no ids/userIds leak into context', !/"userId"/.test(sys || ''));
+      await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام', page: '<script>' } });
+      check('assistant: unknown page adds nothing', !/"currentPage"/.test(seen[1].messages[0].content));
+    } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
+  }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
   check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');

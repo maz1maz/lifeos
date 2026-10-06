@@ -11,6 +11,35 @@ const mKey = (jy, jm) => `${jy}-${String(jm).padStart(2, '0')}`;
 const tehranDay = ms => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
 const faY = y => String(y).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
+// Day-by-day strip for the month: daily spending as bars, mood as a row of dots under them (two separate rows,
+// not two scales on one axis). Data: /api/reports (Gregorian months) covering the Jalali month's range.
+function DayStrip({ from, to }) {
+  const [days, setDays] = useState(null), [hover, setHover] = useState(null);
+  useEffect(() => {
+    if (!from || !to) return;
+    const months = [...new Set([from.slice(0, 7), to.slice(0, 7)])];
+    Promise.all(months.map(m => api(`/api/reports?month=${m}`).then(x => x.days || []).catch(() => [])))
+      .then(all => setDays(all.flat().filter(x => x.date >= from && x.date <= to)));
+  }, [from, to]);
+  if (!days) return null;
+  if (!days.some(x => x.expense || x.mood)) return <p className="lb-muted">برای نمودار روزانه هنوز خرج یا حالی در این ماه ثبت نشده.</p>;
+  const max = Math.max(1, ...days.map(x => x.expense));
+  const dayOf = iso => isoToJ(iso).jd;
+  const h = hover != null ? days[hover] : null;
+  return <figure className="lb-strip" aria-label="خرج و حال روزانهٔ ماه">
+    <figcaption><b>خرج روزانه</b><span className="lb-muted">{h ? `${fa(dayOf(h.date))} ${MONTHS[isoToJ(h.date).jm - 1]}: ${h.expense ? toman(h.expense) : 'بدون خرج'}${h.mood ? ` · حال ${fa(h.mood)}` : ''}` : `بیشترین: ${toman(max)}`}</span></figcaption>
+    <div className="lb-bars" onMouseLeave={() => setHover(null)}>
+      {days.map((x, i) => <button type="button" key={x.date} className={`lb-bar ${hover === i ? 'on' : ''}`} onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)} onBlur={() => setHover(null)}
+        aria-label={`${fa(dayOf(x.date))} ${MONTHS[isoToJ(x.date).jm - 1]}: ${x.expense ? toman(x.expense) : 'بدون خرج'}${x.mood ? `، حال ${fa(x.mood)}` : ''}`}>
+        <i style={{ height: `${x.expense ? Math.max(4, Math.round(x.expense / max * 100)) : 0}%` }} />
+      </button>)}
+    </div>
+    <div className="lb-moods" aria-hidden="true">{days.map(x => <span key={x.date} title={x.mood ? `حال ${fa(x.mood)}` : ''} style={{ opacity: x.mood ? 0.25 + 0.75 * (Number(x.mood) / 10) : 0 }} />)}</div>
+    <div className="lb-axis" aria-hidden="true"><span>{fa(dayOf(days[0].date))}</span><span>{fa(dayOf(days[days.length - 1].date))}</span></div>
+    <small className="lb-muted">ردیف نقطه‌ها: حال روزانه (پررنگ‌تر = بهتر)</small>
+  </figure>;
+}
+
 function MonthReview() {
   const t = isoToJ(todayIso());
   const [ym, setYm] = useState({ jy: t.jy, jm: t.jm });
@@ -42,6 +71,7 @@ function MonthReview() {
         <div><span>🙂 میانگین حال</span><b>{s.avgMood != null ? fa(s.avgMood) : '—'}</b></div>
       </div>
       {d.narrative ? <p className="lb-ai">✨ {d.narrative}</p> : null}
+      <DayStrip from={s.from} to={s.to} />
       <label className="lb-label" htmlFor="lb-reflect">این ماه برای خودت چه بود؟ (فقط خودت می‌بینی)</label>
       <textarea id="lb-reflect" rows={4} value={text} onChange={e => { setText(e.target.value); setSaved(''); }} placeholder="چه چیزی خوب پیش رفت؟ چه چیزی را ماه بعد عوض می‌کنی؟" />
       <div className="lb-row"><button type="button" className="lb-btn" onClick={save}>ذخیرهٔ مرور</button><small>{saved}</small></div>

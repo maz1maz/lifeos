@@ -196,8 +196,8 @@ function Composer({ editing, onCloseEdit, onSaved, toast }) {
       <div className="dm-form">
         <input ref={titleRef} value={form.title} onChange={e => set('title', e.target.value)} placeholder="عنوان *" maxLength={160} />
         <div className="dm-2col">
-          <select value={form.type} onChange={e => set('type', e.target.value)}>{DOC_TYPES.map(t => <option key={t}>{t}</option>)}</select>
-          <select value={form.category} onChange={e => set('category', e.target.value)}>{CATEGORIES.map(t => <option key={t}>{t}</option>)}</select>
+          <select aria-label="نوع مدرک" value={form.type} onChange={e => set('type', e.target.value)}>{DOC_TYPES.map(t => <option key={t}>{t}</option>)}</select>
+          <select aria-label="دستهٔ مدرک" value={form.category} onChange={e => set('category', e.target.value)}>{CATEGORIES.map(t => <option key={t}>{t}</option>)}</select>
         </div>
         {form.type === 'سایر' && <input value={form.customType} onChange={e => set('customType', e.target.value)} placeholder="نوع سفارشی سند…" />}
         <input value={form.docNumber} onChange={e => set('docNumber', e.target.value)} placeholder="شماره / شناسه سند" dir="ltr" />
@@ -231,9 +231,9 @@ function Composer({ editing, onCloseEdit, onSaved, toast }) {
             </div>
           )}
         </div>
-        <button type="button" className="dm-pin" onClick={() => set('favorite', !form.favorite)}>
+        <button type="button" className="dm-pin" aria-pressed={!!form.favorite} onClick={() => set('favorite', !form.favorite)}>
           <span>★ افزودن به علاقه‌مندی‌ها</span>
-          <input type="checkbox" checked={form.favorite} readOnly />
+          <i className={`dm-check${form.favorite ? ' on' : ''}`} aria-hidden="true">{form.favorite ? '✓' : ''}</i>
         </button>
         {error && <p className="dm-error">{error}</p>}
         <button type="submit" className="dm-save" disabled={busy}>{busy && <Loader2 size={16} className="spin" />}{busy ? 'در حال ذخیره…' : editing ? 'ذخیرهٔ تغییرات' : 'ذخیره'}</button>
@@ -473,7 +473,7 @@ export function DocumentsReact({ Nav }) {
               <select className={filterType !== 'همه' ? 'on' : ''} value={filterType} onChange={e => setFilterType(e.target.value)} aria-label="نوع">{usedTypes.map(([t, n]) => <option key={t} value={t}>{t === 'همه' ? 'همهٔ انواع' : `${t} (${faNum(n)})`}</option>)}</select>
               <select className={filterCat !== 'همه' ? 'on' : ''} value={filterCat} onChange={e => setFilterCat(e.target.value)} aria-label="دسته">{usedCats.map(([t, n]) => <option key={t} value={t}>{t === 'همه' ? 'همهٔ دسته‌ها' : `${t} (${faNum(n)})`}</option>)}</select>
               {(filterType !== 'همه' || filterCat !== 'همه') && <button type="button" className="dm-fav-btn" onClick={() => { setFilterType('همه'); setFilterCat('همه'); }}><X size={14} /> حذف فیلتر</button>}
-              <select value={sortBy} onChange={e => setSortBy(e.target.value)}>{SORTS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}</select>
+              <select aria-label="مرتب‌سازی" value={sortBy} onChange={e => setSortBy(e.target.value)}>{SORTS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}</select>
               <button type="button" className={`dm-fav-btn ${favOnly ? 'on' : ''}`} onClick={() => setFavOnly(v => !v)}><Star size={14} /> علاقه</button>
             </div>
 

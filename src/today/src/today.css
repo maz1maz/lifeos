@@ -1,6 +1,6 @@
 :root{
   --g-bg:#0a0a0b; --g-panel:#141416; --g-panel-2:#1b1b1d;
-  --g-text:#f5f5f5; --g-muted:#9a9a9f; --g-faint:#6b6b70;
+  --g-text:#f5f5f5; --g-muted:#9a9a9f; --g-faint:#8a8a90;
   --g-border:rgba(255,255,255,.08); --g-border-2:rgba(255,255,255,.14);
   --g-accent:#d8a44c; --g-accent-strong:#e6b563; --g-accent-fg:#221904; --g-accent-soft:rgba(216,164,76,.14);
   --g-good:#34d399; --g-bad:#f87171; --g-warn:#eab308;
