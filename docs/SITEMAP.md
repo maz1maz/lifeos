@@ -34,7 +34,7 @@
 goals · habits(+history) · exercise · learning · projects · time/timer · trips · shopping · subscriptions · wins · decisions · bookmarks · news(+sources, sync, weekly-summary) · weekly-review · life-review · insights · reports · one-year-ago · calendar/on-this-day · search · export · ai/{report, correlations, tomorrow-priorities, process, suggest-category} · football/{matches, teams, accuracy, remote/odds, 1xbet, sofascore} · movies/{stats, next-episode-alerts} · reminders/statement-check · days.
 
 ## ۳) بک‌اند
-- **تنها بک‌اند: `cloudflare/worker.js`** — `makeHelpers(env)` (auth/PBKDF2، تاریخ تهران/جلالی، پارس پیامک بانکی `parseBankMessage`، متن آزاد `parseLifeText`، Google Calendar، فوتبال، بت/پوکر، storage v2 روی D1)، `handleApi`، و در `export default`: tgju، webhook تلگرام، uploads (در تلگرام)، cron، دروازهٔ لاگین. `server.js`/`port.js`/`header.js`/`footer.js` در ۲۰۲۶-۱۰ حذف شدند.
+- **تنها بک‌اند: Worker** — ورودی `cloudflare/worker.js` + `cloudflare/lib/{helpers,api,edge,security}.js` (۲۰۲۶-۱۰ از یک فایل ۴۶۶KB جدا شد) — `makeHelpers(env)` (auth/PBKDF2، تاریخ تهران/جلالی، پارس پیامک بانکی `parseBankMessage`، متن آزاد `parseLifeText`، Google Calendar، فوتبال، بت/پوکر، storage v2 روی D1)، `handleApi`، و در `export default`: tgju، webhook تلگرام، uploads (در تلگرام)، cron، دروازهٔ لاگین. `server.js`/`port.js`/`header.js`/`footer.js` در ۲۰۲۶-۱۰ حذف شدند.
 - مدل داده: یک blob با آرایه‌های users, sessions, transactions, tasks, inbox, daily, accounts, budgets, investments, investmentTx, assetPrices, priceAlerts, portfolioSnapshots, movies, mediaLog, contacts, documents, habits, habitLogs, matches, news, newsSources, betDays, … (پیش‌فرض‌ها در `read()`).
 
 ### حذف server.js (۲۰۲۶-۱۰-۰۶)

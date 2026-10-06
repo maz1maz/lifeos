@@ -98,16 +98,9 @@ function makeEnv(assetMode) {
   };
 }
 
+// src = { 'worker.js': text, 'lib/api.js': text, … } (see test/load-worker.js)
 async function loadWorker(src) {
-  const tmp = path.join(__dirname, '.tmp-verify-worker.mjs');
-  const XLSX_IMPORT = "import * as XLSX from 'xlsx';";
-  if (!src.includes(XLSX_IMPORT)) throw new Error('xlsx import line changed — update this harness stub');
-  fs.writeFileSync(tmp, src.replace(XLSX_IMPORT, 'const XLSX = null; // harness stub'));
-  try {
-    return (await import(pathToFileURL(tmp).href + '?v=' + Math.random())).default;
-  } finally {
-    fs.rmSync(tmp, { force: true });
-  }
+  return (await require('./load-worker').loadWorkerModule(() => src)).default;
 }
 
 // Runs docs/verify-live.console.js the way a browser would: same-origin requests
@@ -171,14 +164,14 @@ async function runVerifyScript(worker, env) {
 }
 
 async function main() {
-  const fixedSrc = fs.readFileSync(path.join(ROOT, 'cloudflare', 'worker.js'), 'utf8');
+  const fixedSrc = require('./load-worker').workerSources();
 
   // Build the pre-fix variant: the two helpers exist but are missing from both the
   // makeHelpers `return {...}` list and the handleApi destructuring.
   const UNEXPORTED = 'normalizeCategoryName, categorizeTransaction, ';
-  const occurrences = fixedSrc.split(UNEXPORTED).length - 1;
+  const occurrences = Object.values(fixedSrc).reduce((n, t) => n + t.split(UNEXPORTED).length - 1, 0);
   check('harness: finds both export lists to break (return + destructuring)', occurrences === 2, `found ${occurrences}`);
-  const brokenSrc = fixedSrc.split(UNEXPORTED).join('');
+  const brokenSrc = Object.fromEntries(Object.entries(fixedSrc).map(([f, t]) => [f, t.split(UNEXPORTED).join('')]));
 
   console.log('\n[V1] the verify script on the current (fixed) worker');
   const fixedLines = await runVerifyScript(await loadWorker(fixedSrc), makeEnv());

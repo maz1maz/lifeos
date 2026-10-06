@@ -1,0 +1,46 @@
+// Security headers on every response (HawkScan DAST findings, 2026-10). HTML also gets a CSP: no third-party
+// scripts, plugins, <base> hijacking or framing by other sites. Inline <script> blocks are allowed only by their
+// exact sha256 — computed here from the page being served, so editing an inline script can never be blocked by
+// a stale hash. Inline styles stay allowed (React and the vocab app set style attributes). Images, media and API
+// calls go to many https hosts (TMDB, team logos, Unsplash, open-meteo, CoinGecko…), hence the https: allowances.
+const CSP_REST = [
+  "default-src 'self'", "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:", "media-src 'self' data: blob: https:", "font-src 'self' data:",
+  "connect-src 'self' https:", "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com",
+  "worker-src 'self'", "manifest-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'self'",
+].join('; ');
+const INLINE_SCRIPT_RE = /<script(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
+const scriptHashCache = new Map(); // html text -> "'sha256-…' …" (pages are static assets, so this stays tiny)
+async function inlineScriptHashes(html) {
+  if (scriptHashCache.has(html)) return scriptHashCache.get(html);
+  const out = [];
+  for (const m of html.matchAll(INLINE_SCRIPT_RE)) {
+    if (!m[1].trim()) continue;
+    const d = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(m[1])));
+    let bin = ''; for (const b of d) bin += String.fromCharCode(b);
+    out.push(`'sha256-${btoa(bin)}'`);
+  }
+  const v = [...new Set(out)].join(' ');
+  if (scriptHashCache.size > 200) scriptHashCache.clear();
+  scriptHashCache.set(html, v);
+  return v;
+}
+export async function withSecurityHeaders(res) {
+  if (!res || res.status === 101) return res;
+  const isHtml = /text\/html/i.test(res.headers.get('content-type') || '');
+  let body = res.body, csp = null;
+  if (isHtml && res.body) {
+    body = await res.text();
+    csp = `script-src 'self' ${await inlineScriptHashes(body)}`.trim() + '; ' + CSP_REST;
+  }
+  const out = new Response(body, res); // Response.redirect()/fetch() headers are immutable
+  const h = out.headers;
+  h.set('X-Content-Type-Options', 'nosniff');
+  h.set('X-Frame-Options', 'SAMEORIGIN');
+  h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  h.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(self), payment=()');
+  if (csp) { h.set('Content-Security-Policy', csp); h.delete('content-length'); }
+  return out;
+}
+

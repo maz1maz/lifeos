@@ -164,7 +164,7 @@ check('React settings explains the dedicated LifeOS calendar and non-destructive
   if (bad.length) console.log('    ' + bad.join('\n    '));
 }
 check('PIN lock script is loaded by the app shell (Settings promises a PIN screen)', read('src/today/index.html').includes('src="/app-lock.js') && read('public/index.html').includes('/app-lock.js'));
-const workerSource = read('cloudflare/worker.js');
+const workerSource = Object.values(require('./load-worker').workerSources()).join('\n');
 check('Worker backups redact Calendar refresh tokens and live sessions',
   workerSource.includes('delete u.googleCalendarRefreshToken') && workerSource.includes('clone.sessions=[]'));
 check('Google OAuth uses read-only visible-calendar access plus app-created-calendar write access, never full calendar scope',
