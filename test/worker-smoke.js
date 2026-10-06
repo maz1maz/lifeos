@@ -96,6 +96,7 @@ async function main() {
   const email = `wsmoke_${Date.now()}@example.com`;
   const signup = await call('/api/auth/signup', { method: 'POST', body: { name: 'Wsmoke', email, password: 'secret123' } });
   check('signup -> 201', signup.status === 201);
+  check('security headers on every response (nosniff, frame, HSTS, referrer)', signup.headers.get('x-content-type-options') === 'nosniff' && signup.headers.get('x-frame-options') === 'SAMEORIGIN' && /max-age=\d+/.test(signup.headers.get('strict-transport-security') || '') && !!signup.headers.get('referrer-policy'));
   const v2Rows = [...env.DB._store.entries()].filter(([key]) => key.startsWith('state:v2:'));
   check('legacy state migrates to v2 shards', env.DB._store.has('state:v2:meta') && !env.DB._store.has('db') && v2Rows.some(([key]) => key.includes('seed-user')));
   check('each persisted state shard stays below the safe size', v2Rows.filter(([key]) => key !== 'state:v2:meta').every(([, value]) => Buffer.byteLength(value) <= 1600000));
