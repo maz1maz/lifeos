@@ -14,21 +14,14 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const https = require('https');
-const { pathToFileURL } = require('url');
 const { makeKvD1 } = require('./d1-kv-fake');
 
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.webmanifest': 'application/manifest+json', '.txt': 'text/plain; charset=utf-8' };
 
-async function loadWorker() {
-  // worker.js is an ES module; import a copy with makeHelpers exported so the host can read the full state.
-  const src = fs.readFileSync(path.join(ROOT, 'cloudflare', 'worker.js'), 'utf8');
-  if (!/\nfunction makeHelpers\(env\)/.test(src)) throw new Error('worker.js: makeHelpers(env) not found — update test/worker-host.js');
-  const tmp = path.join(__dirname, `.tmp-worker-host-${process.pid}.mjs`);
-  fs.writeFileSync(tmp, src + '\nexport { makeHelpers as __makeHelpers };\n');
-  try { return await import(pathToFileURL(tmp).href); } finally { fs.rmSync(tmp, { force: true }); }
-}
+// cloudflare/worker.js + lib/ (with makeHelpers, so the host can read the full state for DB_PATH)
+const loadWorker = () => require('./load-worker').loadWorkerModule();
 
 function assets() {
   const file = p => { try { const f = path.join(PUBLIC, decodeURIComponent(p)); if (!f.startsWith(PUBLIC)) return null; const st = fs.statSync(f); return st.isFile() ? f : st.isDirectory() && fs.existsSync(path.join(f, 'index.html')) ? path.join(f, 'index.html') : null; } catch { return null; } };
@@ -62,7 +55,7 @@ async function main() {
   };
   const syncOut = async () => {
     if (!DB_PATH) return;
-    const db = await mod.__makeHelpers(env).read();
+    const db = await mod.makeHelpers(env).read();
     const text = JSON.stringify(db, null, 2);
     if (text !== mirrored) { fs.writeFileSync(DB_PATH, text); mirrored = text; }
   };

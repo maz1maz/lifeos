@@ -5,8 +5,12 @@
 بک‌لاگ: `REMAINING-WORK.md` (اولویت‌بندی‌شده) · تاریخچه: `docs/WORK-SUMMARY.md`, `docs/LIFEOS-WORKLOG.md`.
 
 ## معماری در یک نگاه
-- **بک‌اند = فقط `cloudflare/worker.js`** (تنها بک‌اند؛ `server.js`، `port.js`، `header.js`، `footer.js` در ۲۰۲۶-۱۰ با تأیید کاربر حذف شدند). مستقیم همین فایل را ویرایش کن.
-  - ورودی: `export default { fetch, scheduled }` ته فایل؛ helperها در `makeHelpers(env)`؛ مسیرهای API در `handleApi`؛ مسیرهای خاص (tgju، webhook تلگرام، uploads، اشتراک خرید، دروازهٔ لاگین) قبل از `handleApi` در `fetch`.
+- **بک‌اند = فقط Worker** (`server.js`/`port.js`/`header.js`/`footer.js` در ۲۰۲۶-۱۰ با تأیید کاربر حذف شدند). فایل‌ها:
+  - `cloudflare/worker.js` = ورودی کوچک: `export default { fetch, scheduled }`، دروازهٔ لاگین و مسیرهای خاص.
+  - `cloudflare/lib/helpers.js` = `makeHelpers(env)` (همهٔ helperها: auth، تاریخ، پارسرها، storage، تلگرام، AI…).
+  - `cloudflare/lib/api.js` = `handleApi` (همهٔ مسیرهای `/api/*`). مسیر تازه اینجا.
+  - `cloudflare/lib/edge.js` = webhook تلگرام، cron، tgju، uploads، لیست خرید اشتراکی. `cloudflare/lib/security.js` = CSP و هدرهای امنیتی.
+  - helper تازه: داخل `makeHelpers` + در `return {…}` آن + destructuring بالای `handleApi`.
   - ذخیره: D1 `pdmaz-db`، جدول `kv`، state به‌صورت shardهای `state:v2:*` (کلید قدیمی `db` خودکار مهاجرت می‌کند). PBKDF2 سقف ۱۰۰k.
   - فایل‌ها (رسید، مدارک) در چت تلگرام کاربر ذخیره می‌شوند؛ بدون اتصال بات → 503.
   - cron (wrangler.jsonc) جای تایمرهای پس‌زمینه است.
@@ -32,7 +36,7 @@ npm run build:studio     # پنل seyfikhani.ir (ProjectsPage+CoursesPage) → i
 ## قواعد کار
 - هر تغییر API: `cloudflare/worker.js` + تست در `test/worker-smoke.js` یا `test/smoke.js` → `npm test`.
 - اپ زبان: `public/vocab/` (`words.json` = آرایهٔ فشرده) + `src/today/src/vocab.jsx` + `/api/vocab`.
-- **جهت فلش‌های قبل/بعد (RTL — کاربر بارها تذکر داده):** دکمهٔ «قبل» سمت راست است و فلشش به راست (`ChevronRight` / `›` / `»`)؛ «بعد» سمت چپ و فلشش به چپ (`ChevronLeft` / `‹` / `«`). یعنی در DOM اول «قبل» بیاید. تست `ui-smoke` این را چک می‌کند.
+- **جهت فلش‌های قبل/بعد (RTL — کاربر بارها تذکر داده):** دکمهٔ «قبل» سمت راست است و فلشش به راست (`ChevronRight` / `›` / `»`)؛ «بعد» سمت چپ و فلشش به چپ (`ChevronLeft` / `‹` / `«`). یعنی در DOM اول «قبل» بیاید. ⚠️ نویسه‌های `‹ › « »` در متن RTL خودکار برعکس نمایش داده می‌شوند؛ دکمهٔ متنی حتماً `dir="ltr"` بگیرد (یا آیکون lucide). تست `ui-smoke` هر دو را چک می‌کند؛ ولی همیشه با اسکرین‌شات هم ببین.
 - متن UI فارسی، `dir=rtl`، اعداد با `fa()`/`toLocaleString('fa-IR')`. واحد پول ذخیره‌شده **ریال** است (`_meta.currencyUnit='IRR'`)، نمایش تومان = ÷۱۰.
 - تاریخ‌ها ISO با منطقهٔ `Asia/Tehran`؛ نمایش جلالی با `Intl` (`fa-IR-u-ca-persian`).
 - کلیدهای API: محلی در `.dev.vars` (نمونه: `.env.example`)، لایو با `wrangler secret`. هرگز commit نکن.

@@ -159,11 +159,14 @@ check('React settings explains the dedicated LifeOS calendar and non-destructive
     const prev = /قبل/.test(m[1]), arrow = m[2] || m[3];
     const pointsRight = /Right$/.test(arrow) || arrow === '›' || arrow === '»';
     if (prev !== pointsRight) bad.push(`${f}: «${m[1]}» → ${arrow}`);
+    // ‹ › « » are bidi-mirrored: inside RTL text they render flipped, so text arrows need dir="ltr" on the button
+    if (m[3]) { const tag = src.slice(src.lastIndexOf('<button', m.index), m.index); if (!/dir="ltr"/.test(tag)) bad.push(`${f}: «${m[1]}» text arrow without dir="ltr" (renders mirrored in RTL)`); }
   }
   check('RTL prev/next arrows: «قبل» points right, «بعد» points left', bad.length === 0);
   if (bad.length) console.log('    ' + bad.join('\n    '));
 }
-const workerSource = read('cloudflare/worker.js');
+check('PIN lock script is loaded by the app shell (Settings promises a PIN screen)', read('src/today/index.html').includes('src="/app-lock.js') && read('public/index.html').includes('/app-lock.js'));
+const workerSource = Object.values(require('./load-worker').workerSources()).join('\n');
 check('Worker backups redact Calendar refresh tokens and live sessions',
   workerSource.includes('delete u.googleCalendarRefreshToken') && workerSource.includes('clone.sessions=[]'));
 check('Google OAuth uses read-only visible-calendar access plus app-created-calendar write access, never full calendar scope',

@@ -16,7 +16,6 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { pathToFileURL } = require('url');
 
 const ROOT = path.join(__dirname, '..');
 let pass = 0, fail = 0;
@@ -52,22 +51,8 @@ function makeEnv(legacy = null) {
 }
 
 async function main() {
-  // worker.js is an ES module (`export default`); copy it next to this file as
-  // .mjs so node imports it as ESM, with the `xlsx` bare import stubbed out.
-  const workerSrc = fs.readFileSync(path.join(ROOT, 'cloudflare', 'worker.js'), 'utf8');
-  const XLSX_IMPORT = "import * as XLSX from 'xlsx';";
-  if (!workerSrc.includes(XLSX_IMPORT)) throw new Error('xlsx import line changed — update the worker-smoke harness stub');
-  const tmpFile = path.join(__dirname, '.tmp-worker.mjs');
-  fs.writeFileSync(tmpFile, workerSrc.replace(
-    XLSX_IMPORT,
-    'const XLSX = null; // harness stub: seal-toman import route is skipped in worker-smoke (production bundles real xlsx)'
-  ));
-  let worker;
-  try {
-    worker = (await import(pathToFileURL(tmpFile).href)).default;
-  } finally {
-    fs.rmSync(tmpFile, { force: true });
-  }
+  // cloudflare/worker.js + cloudflare/lib/*.js, imported from a temp copy (see test/load-worker.js)
+  const worker = (await require('./load-worker').loadWorkerModule()).default;
   if (!worker || typeof worker.fetch !== 'function') throw new Error('worker.js did not export { fetch }');
 
   // The legacy value is just under D1's former hard limit. It contains a
@@ -96,6 +81,17 @@ async function main() {
   const email = `wsmoke_${Date.now()}@example.com`;
   const signup = await call('/api/auth/signup', { method: 'POST', body: { name: 'Wsmoke', email, password: 'secret123' } });
   check('signup -> 201', signup.status === 201);
+  {
+    // HTML gets a CSP whose script-src lists the exact sha256 of each inline <script> (no 'unsafe-inline')
+    const inline = "document.documentElement.dataset.mode='dark'";
+    const htmlEnv = { ...env, ASSETS: { fetch: async () => new Response(`<html><head><script>${inline}</script><script src="/a.js"></script></head></html>`, { headers: { 'content-type': 'text/html; charset=utf-8' } }) } };
+    const page = await worker.fetch(new Request('https://worker-smoke.local/design/login-page.html'), htmlEnv, {});
+    const csp = page.headers.get('content-security-policy') || '';
+    const want = require('crypto').createHash('sha256').update(inline).digest('base64');
+    const scriptSrc = (csp.split(';').find(x => x.trim().startsWith('script-src')) || '').trim();
+    check('HTML CSP allows inline scripts only by their sha256', scriptSrc === `script-src 'self' 'sha256-${want}'` && /frame-ancestors 'self'/.test(csp) && /object-src 'none'/.test(csp), scriptSrc);
+    check('HTML body survives the CSP pass unchanged', (await page.text()).includes(inline));
+  }
   check('security headers on every response (nosniff, frame, HSTS, referrer)', signup.headers.get('x-content-type-options') === 'nosniff' && signup.headers.get('x-frame-options') === 'SAMEORIGIN' && /max-age=\d+/.test(signup.headers.get('strict-transport-security') || '') && !!signup.headers.get('referrer-policy'));
   const v2Rows = [...env.DB._store.entries()].filter(([key]) => key.startsWith('state:v2:'));
   check('legacy state migrates to v2 shards', env.DB._store.has('state:v2:meta') && !env.DB._store.has('db') && v2Rows.some(([key]) => key.includes('seed-user')));
@@ -934,18 +930,9 @@ async function main() {
         && w16auth.chain.join(' ') === '/newtab.html /newtab',
       JSON.stringify({ chain: w16auth.chain, status: w16auth.status }));
     const w16gateLine = "const isPublic = /^\\/design\\/login-page(\\.html)?$/.test(url.pathname)";
-    if (!workerSrc.includes(w16gateLine)) throw new Error('the isPublic line changed shape — update this guard');
-    const w16brokenSrc = workerSrc
-      .replace(XLSX_IMPORT, 'const XLSX = null; // harness stub (see the loader above)')
-      .replace(w16gateLine, "const isPublic = /^\\/design\\/login-page\\.html$/.test(url.pathname)");
-    const w16tmp = path.join(__dirname, '.tmp-w16-worker.mjs');
-    fs.writeFileSync(w16tmp, w16brokenSrc);
-    let w16broken;
-    try {
-      w16broken = (await import(pathToFileURL(w16tmp).href + '?v=' + Math.random())).default;
-    } finally {
-      fs.rmSync(w16tmp, { force: true });
-    }
+    const srcs = require('./load-worker').workerSources();
+    if (!srcs['worker.js'].includes(w16gateLine)) throw new Error('the isPublic line changed shape — update this guard');
+    const w16broken = (await require('./load-worker').loadWorkerModule(x => ({ ...x, 'worker.js': x['worker.js'].replace(w16gateLine, "const isPublic = /^\\/design\\/login-page\\.html$/.test(url.pathname)") }))).default;
     const w16loop = await w16hop(w16broken, '/newtab.html', null);
     check('[W16] teeth: a gate that only knows /design/login-page.html loops every anonymous visitor',
       w16loop.looping, JSON.stringify(w16loop.chain));

@@ -1547,18 +1547,20 @@ const LEAGUE_CACHE = {};
 const fetchLeague = id => (LEAGUE_CACHE[id] ||= api(`/api/football/remote/free/matches?league=${id}`).then(d => d.items || []).catch(e => { delete LEAGUE_CACHE[id]; throw e; }));
 // The league whose next (or live) match is soonest within the coming week.
 async function pickNearestLeague() {
-  const cached = readLs('lifeos-home-league-auto', null);
+  const cached = readLs('lifeos-home-league-auto2', null);
   if (cached && Date.now() - cached.at < 3 * 3600000) return cached.league;
   const now = Date.now(), week = now + 7 * 86400000;
-  const res = await Promise.all(FOOT_LEAGUES.map(([id]) => fetchLeague(id).then(items => {
+  // a league that hasn't answered within 10 s doesn't hold the card back (it keeps loading into LEAGUE_CACHE)
+  const timeout = new Promise(r => setTimeout(r, 10000));
+  const res = await Promise.all(FOOT_LEAGUES.map(([id]) => Promise.race([fetchLeague(id).then(items => {
     if (items.some(m => m.status === 'live')) return [id, 0];
     const next = items.filter(m => m.status === 'upcoming').map(m => Date.parse(m.date)).filter(t => t >= now - 3 * 3600000 && t <= week).sort((a, b) => a - b)[0];
     return [id, next ?? Infinity];
-  }).catch(() => [id, Infinity])));
+  }).catch(() => [id, Infinity]), timeout.then(() => [id, Infinity])])));
   const best = res.sort((a, b) => a[1] - b[1])[0];
-  const league = best && best[1] !== Infinity ? best[0] : 'eng.1';
-  writeLs('lifeos-home-league-auto', { at: Date.now(), league });
-  return league;
+  if (!best || best[1] === Infinity) return 'eng.1'; // nothing known yet: show the Premier League but don't remember it as the pick
+  writeLs('lifeos-home-league-auto2', { at: Date.now(), league: best[0] });
+  return best[0];
 }
 function LeaguePicker({ value, onChange }) {
   const [open, setOpen] = useState(false);

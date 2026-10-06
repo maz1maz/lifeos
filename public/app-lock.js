@@ -9,13 +9,13 @@
     if(document.getElementById('lifeosPinLock'))return;
     var ov=el('div','position:fixed;inset:0;z-index:99999;background:rgba(6,10,18,.92);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)');
     ov.id='lifeosPinLock';
-    ov.innerHTML='<div style="width:min(340px,92vw);background:var(--panel,#141a24);border:1.5px solid var(--border2,rgba(255,255,255,.1));border-radius:22px;padding:28px 22px;text-align:center;font-family:inherit;color:var(--text,#e8eef7)">'+
+    ov.innerHTML='<div style="width:min(340px,92vw);background:var(--g-panel,#141416);border:1.5px solid var(--g-border-2,rgba(255,255,255,.1));border-radius:22px;padding:28px 22px;text-align:center;font-family:inherit;color:var(--g-text,#f2efe8)">'+
       '<div style="font-size:36px;margin-bottom:8px">🔐</div>'+
-      '<div style="font-weight:800;font-size:20px;margin-bottom:6px">قفل lifeos</div>'+
-      '<div style="color:var(--muted,#9aa6b2);font-size:13.5px;margin-bottom:16px;line-height:1.6">PIN خودت را وارد کن</div>'+
-      '<input id="lifeosPinIn" type="password" inputmode="numeric" maxlength="8" autocomplete="one-time-code" placeholder="••••" style="width:100%;text-align:center;letter-spacing:.3em;font-size:22px;padding:12px;border-radius:14px;border:1.5px solid var(--border,rgba(255,255,255,.12));background:var(--panel2,#0d121a);color:inherit;font-family:inherit;margin-bottom:12px">'+
-      '<button id="lifeosPinGo" type="button" style="width:100%;padding:12px;border:none;border-radius:14px;background:var(--acc,#22d3ee);color:#062028;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">باز کردن</button>'+
-      '<div id="lifeosPinErr" style="color:var(--bad,#f87171);font-size:13px;margin-top:10px;min-height:18px"></div>'+
+      '<div style="font-weight:800;font-size:20px;margin-bottom:6px">قفل LifeOS</div>'+
+      '<div style="color:var(--g-muted,#a19d94);font-size:13.5px;margin-bottom:16px;line-height:1.6">PIN خودت را وارد کن</div>'+
+      '<input id="lifeosPinIn" type="password" inputmode="numeric" maxlength="8" autocomplete="one-time-code" placeholder="••••" style="width:100%;text-align:center;letter-spacing:.3em;font-size:22px;padding:12px;border-radius:14px;border:1.5px solid var(--g-border,rgba(255,255,255,.12));background:var(--g-panel-2,#0e0e10);color:inherit;font-family:inherit;margin-bottom:12px">'+
+      '<button id="lifeosPinGo" type="button" style="width:100%;padding:12px;border:none;border-radius:14px;background:var(--g-accent,#d6a64a);color:var(--g-accent-fg,#1a1405);font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">باز کردن</button>'+
+      '<div id="lifeosPinErr" style="color:var(--g-bad,#f87171);font-size:13px;margin-top:10px;min-height:18px"></div>'+
       '</div>';
     document.body.appendChild(ov);
     var inp=document.getElementById('lifeosPinIn');

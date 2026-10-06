@@ -1,4 +1,4 @@
-// Derives an OpenAPI 3 spec for the HawkScan DAST scan from the route checks in cloudflare/worker.js
+// Derives an OpenAPI 3 spec for the HawkScan DAST scan from the route checks in cloudflare/worker.js + lib/
 // (the Worker has no framework that could emit one). Run after adding routes:
 //   node scripts/gen-openapi.js      → stackhawk/openapi.json
 // It reads `p==='/api/…'` / `p.startsWith('/api/…')…endsWith('/…')` conditions and the `req.method==='…'`
@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const src = fs.readFileSync(path.join(ROOT, 'cloudflare', 'worker.js'), 'utf8');
+const src = ['worker.js', ...fs.readdirSync(path.join(ROOT, 'cloudflare', 'lib')).map(f => 'lib/' + f)].map(f => fs.readFileSync(path.join(ROOT, 'cloudflare', f), 'utf8')).join('\n');
 const ops = new Map(); // path -> Set(method)
 const add = (p, m) => { if (!ops.has(p)) ops.set(p, new Set()); ops.get(p).add(m); };
 
