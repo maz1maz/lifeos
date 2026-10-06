@@ -24,7 +24,7 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, ChevronsLeft, ChevronsRight, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Newspaper, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
@@ -32,6 +32,7 @@ import './habits.css';
 import './watchx.css';
 import './insights.css';
 import './logbook.css';
+import './reading.css';
 import { InsightsHomeCard } from './insights-card';
 import { CommandPalette } from './palette';
 import { AdminPage, MsgBar } from './admin';
@@ -46,7 +47,7 @@ import './mobile.css'; // phone/iPhone pass — keep last so it overrides page C
 const PAGE_CHUNKS = {
   notes: () => import('./notes'), contacts: () => import('./contacts'), documents: () => import('./documents'),
   media: () => import('./media'), market: () => import('./market'), calendar: () => import('./calendar'),
-  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook')
+  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook'), reading: () => import('./reading')
 };
 const lazyPage = (chunk, name) => React.lazy(() => PAGE_CHUNKS[chunk]().then(m => ({ default: m[name] })));
 const NotesReact = lazyPage('notes', 'NotesReact'), ContactsReact = lazyPage('contacts', 'ContactsReact'), DocumentsReact = lazyPage('documents', 'DocumentsReact');
@@ -54,7 +55,7 @@ const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('mark
 const FinanceReact = lazyPage('finance', 'FinanceReact'), HabitsPage = lazyPage('habits', 'HabitsPage'), WeeklyPage = lazyPage('habits', 'WeeklyPage');
 const [HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, LifeStatsPage] =
   ['HealthPage', 'CarPage', 'TravelPage', 'ProjectsPage', 'CrmPage', 'LearningPage', 'JournalPage', 'GoalsPage', 'FocusPage', 'LifeStatsPage'].map(n => lazyPage('life', n));
-const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage');
+const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage'), ReadingPage = lazyPage('reading', 'ReadingPage');
 // Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
 const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
 function PageLoading() { return <div className="page-loading" role="status" aria-label="در حال بارگذاری"><i /></div>; }
@@ -119,7 +120,7 @@ const NAV_GROUPS = [
   ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
   ['زندگی', [['health', 'سلامت', HeartPulse], ['car', 'خودرو', Car], ['travel', 'سفر', Plane]]],
   ['سرگرمی', [['series', 'فیلم و سریال', Clapperboard], ['media', 'موسیقی و یوتیوب', Music], ['football', 'فوتبال', Trophy]]],
-  ['یادگیری و آرشیو', [['learning', 'یادگیری و زبان', Library], ['notes', 'یادداشت و روزنگار', StickyNote], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
+  ['یادگیری و آرشیو', [['learning', 'یادگیری و زبان', Library], ['notes', 'یادداشت و روزنگار', StickyNote], ['reading', 'خبر و خواندنی', Newspaper], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
 ];
 // Phone-only bar at the bottom: the everyday pages within thumb reach; «همه» opens the full drawer.
 const BOTTOM_TABS = [['', 'امروز', House], ['planner', 'برنامه', CalendarDays], ['finance', 'مالی', Wallet], ['notes', 'یادداشت', StickyNote], ['series', 'تماشا', Clapperboard]];
@@ -242,6 +243,7 @@ function App() {
 function Routes() {
   const page = new URLSearchParams(location.search).get('page');
   if (['calendar', 'planner', 'habits', 'focus'].includes(page)) return <TabHub active="planner" label="نمای برنامه‌ریز" tabs={PLAN_TABS} initial={page === 'planner' ? 'list' : page} url={v => v === 'list' ? 'planner' : v} />;
+  if (page === 'reading' || page === 'news' || page === 'bookmarks') return <ReadingPage Nav={() => <TopNav active="reading" />} />;
   if (page === 'insights') return <InsightsPage Nav={() => <TopNav active="insights" />} />;
   if (['review', 'goals', 'week', 'stats', 'logbook'].includes(page)) return <TabHub active="review" label="مرور و اهداف" tabs={REVIEW_TABS} initial={page} />;
   if (['learning', 'vocab'].includes(page)) return <TabHub active="learning" label="یادگیری" tabs={LEARN_TABS} initial={page} />;
