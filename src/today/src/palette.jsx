@@ -33,6 +33,19 @@ export function CommandPalette({ pages }) {
   const [parsed, setParsed] = useState([]), [parsedFor, setParsedFor] = useState(''); // actions the free-text parser found in q (preview only, nothing saved)
   const [flash, setFlash] = useState(null); // { ok, text } after a capture
   const inputRef = useRef(null), listRef = useRef(null), enterWaiting = useRef(false);
+  // Voice input (Web Speech API, Persian). Chrome/Edge/Safari only; the mic button is hidden elsewhere.
+  const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+  const [listening, setListening] = useState(false), recRef = useRef(null);
+  const toggleMic = () => {
+    if (listening) { recRef.current?.stop(); return; }
+    const rec = new SR(); rec.lang = 'fa-IR'; rec.interimResults = true; rec.maxAlternatives = 1;
+    rec.onresult = e => { setQ([...e.results].map(r => r[0].transcript).join(' ')); };
+    rec.onerror = e => { setFlash({ ok: false, text: e.error === 'not-allowed' ? 'اجازهٔ میکروفون داده نشد.' : 'صدا شناخته نشد؛ دوباره امتحان کن.' }); };
+    rec.onend = () => { setListening(false); recRef.current = null; inputRef.current?.focus(); };
+    recRef.current = rec; setFlash(null); setListening(true);
+    try { rec.start(); } catch { setListening(false); }
+  };
+  useEffect(() => { if (!open) recRef.current?.abort?.(); }, [open]);
 
   useEffect(() => {
     const onKey = e => {
@@ -98,6 +111,7 @@ export function CommandPalette({ pages }) {
       { kind: 'act', icon: '🎯', text: 'اهداف پس‌انداز', sub: 'مالی', href: '/?page=finance&tab=wealth' },
       { kind: 'act', icon: '📅', text: 'تقویم پخش سریال‌ها', sub: 'فیلم و سریال', href: '/?page=upcoming' },
       { kind: 'act', icon: '✨', text: 'پیشنهاد سریال و فیلم', sub: 'فیلم و سریال', href: '/?page=discover' },
+      { kind: 'act', icon: '🎯', text: 'حالت تمرکز روشن / خاموش', sub: 'پنهان‌کردن بخش‌های سرگرمی', run: () => window.dispatchEvent(new Event('lifeos:focus-toggle')) },
       { kind: 'act', icon: '🌓', text: 'تغییر حالت روشن / تاریک', sub: 'ظاهر', run: () => { const next = document.documentElement.dataset.mode === 'light' ? 'dark' : 'light'; document.documentElement.dataset.mode = next; try { localStorage.setItem('lifeos-mode', next); } catch {} } },
     ];
     return t ? base.filter(c => norm(c.text + ' ' + c.sub).includes(t)) : base;
@@ -124,6 +138,7 @@ export function CommandPalette({ pages }) {
       <div className="cp-in">
         <span aria-hidden="true">🔍</span>
         <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)} onKeyDown={onKey} placeholder="جستجو یا ثبت سریع — مثلاً «۸۰ هزار تاکسی»" aria-label="جستجو یا ثبت سریع" />
+        {SR ? <button type="button" className={`cp-mic ${listening ? 'on' : ''}`} onClick={toggleMic} aria-pressed={listening} aria-label={listening ? 'توقف ضبط صدا' : 'گفتن با صدا'} title="گفتن با صدا (فارسی)">🎙</button> : null}
         {busy ? <i className="cp-spin" /> : <kbd>Esc</kbd>}
       </div>
       {flash ? <div className={`cp-flash ${flash.ok ? 'ok' : 'bad'}`} role="status">{flash.ok ? '✓ ' : '⚠ '}{flash.text}</div> : null}

@@ -29,3 +29,8 @@
 /* light/dark switch next to search (TopNav → ThemeToggle) */
 .nav-theme { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-inline-end: 8px; border: 1px solid var(--g-border-2); border-radius: 10px; background: rgba(255,255,255,.03); color: var(--g-muted); cursor: pointer; flex: none; }
 .nav-theme:hover { color: var(--g-text); }
+.cp-mic{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--g-border-2,rgba(127,127,127,.3));background:transparent;font-size:16px;cursor:pointer;display:grid;place-items:center;transition:.15s}
+.cp-mic:hover,.cp-mic:focus-visible{border-color:var(--g-accent,#d6a54b)}
+.cp-mic.on{background:#ef4444;border-color:#ef4444;animation:cp-pulse 1.2s ease-in-out infinite}
+@keyframes cp-pulse{50%{box-shadow:0 0 0 6px rgba(239,68,68,.25)}}
+@media (prefers-reduced-motion:reduce){.cp-mic.on{animation:none}}

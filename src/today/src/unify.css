@@ -216,3 +216,14 @@ html[data-mode="light"] select option,html[data-mode="light"] select optgroup{ba
 .locked-page h1{font-size:22px;margin:0 0 10px}
 .locked-page p{color:var(--g-muted);margin:0 0 18px}
 .locked-page a{color:var(--g-accent)}
+.focus-chip{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border-radius:999px;border:1px solid color-mix(in srgb,var(--g-accent) 55%,transparent);background:color-mix(in srgb,var(--g-accent) 12%,transparent);color:var(--g-text);font:inherit;font-size:13px;cursor:pointer}
+.focus-chip:hover,.focus-chip:focus-visible{background:color-mix(in srgb,var(--g-accent) 22%,transparent)}
+.focus-set{margin-top:18px;padding-top:14px;border-top:1px solid var(--g-border-2);display:grid;gap:10px}
+.focus-set h3{margin:0;font-size:16px}
+.focus-set p{margin:0}
+.focus-modes,.focus-days{display:flex;flex-wrap:wrap;gap:6px}
+.focus-modes button,.focus-days button{border:1px solid var(--g-border-2);background:transparent;color:var(--g-muted);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+.focus-modes button.on,.focus-days button.on{border-color:color-mix(in srgb,var(--g-accent) 60%,transparent);background:color-mix(in srgb,var(--g-accent) 12%,transparent);color:var(--g-text)}
+.focus-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.focus-row select{margin-inline-start:6px;background:transparent;color:var(--g-text);border:1px solid var(--g-border-2);border-radius:8px;padding:4px 6px;font:inherit}
+@media (max-width:640px){.focus-chip span{display:none}.focus-chip{padding:0 9px}}

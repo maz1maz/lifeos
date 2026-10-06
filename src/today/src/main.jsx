@@ -175,6 +175,7 @@ function TopNav({ active, right }) {
       <span className="nav-current">{current[1]}</span>
       <span className="nav-spacer" />
       <button type="button" className="nav-search" onClick={() => window.dispatchEvent(new Event('lifeos:search'))} aria-label="جستجو (Ctrl+K)" title="جستجو — Ctrl+K"><Search size={17} /><span>جستجو</span><kbd>Ctrl K</kbd></button>
+      <FocusChip />
       <ThemeToggle />
       {right}
       <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
@@ -1607,8 +1608,31 @@ const pageOn = (m, page) => !PAGE_MODULE[page] || modOn(m, PAGE_MODULE[page]);
 const NAV_HUB = { learning: ['learning', 'vocab'], notes: ['notes', 'journal'] };
 const navOn = (m, page) => (NAV_HUB[page] || [page]).some(pg => pageOn(m, pg));
 function setModules(m, needsOnboard = false) { MODS_CACHE = m; writeLs('lifeos-modules', m); window.__needsOnboard = needsOnboard; window.dispatchEvent(new Event('lifeos:modules')); }
-function useModules() {
-  const [m, setM] = useState(MODS_CACHE);
+// ── focus mode: during work hours (or when switched on) the leisure sections disappear from menu and Today ──
+const FOCUS_DEF = { mode: 'off', from: 9, to: 17, days: [6, 0, 1, 2, 3], hide: ['football', 'watch', 'media', 'market'], snooze: '' };
+const readFocus = () => ({ ...FOCUS_DEF, ...readLs('lifeos-focus', {}) });
+const tehranNow = () => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tehran', hour: 'numeric', hourCycle: 'h23', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map(x => [x.type, x.value])); return { h: Number(p.hour), wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday), day: `${p.year}-${p.month}-${p.day}` }; };
+function focusActive(f = readFocus()) {
+  if (f.mode === 'on') return true;
+  if (f.mode !== 'auto') return false;
+  const t = tehranNow();
+  return f.snooze !== t.day && f.days.includes(t.wd) && t.h >= f.from && t.h < f.to;
+}
+function saveFocus(f) { writeLs('lifeos-focus', f); FOCUS_ON = focusActive(f); window.dispatchEvent(new Event('lifeos:modules')); }
+let FOCUS_ON = focusActive();
+if (typeof window !== 'undefined') window.addEventListener('lifeos:focus-toggle', () => { const f = readFocus(); saveFocus(FOCUS_ON ? (f.mode === 'auto' ? { ...f, snooze: tehranNow().day } : { ...f, mode: 'off' }) : { ...f, mode: 'on' }); });
+if (typeof window !== 'undefined') setInterval(() => { const on = focusActive(); if (on !== FOCUS_ON) { FOCUS_ON = on; window.dispatchEvent(new Event('lifeos:modules')); } }, 60e3);
+const withFocus = m => { if (!FOCUS_ON) return m; const f = readFocus(), out = { ...(m || {}) }; for (const k of f.hide) out[k] = false; return out; };
+function useFocusOn() { const [on, setOn] = useState(FOCUS_ON); useEffect(() => { const f = () => setOn(FOCUS_ON); window.addEventListener('lifeos:modules', f); return () => window.removeEventListener('lifeos:modules', f); }, []); return on; }
+function FocusChip() {
+  const on = useFocusOn();
+  if (!on) return null;
+  const off = () => { const f = readFocus(); saveFocus(f.mode === 'auto' ? { ...f, snooze: tehranNow().day } : { ...f, mode: 'off' }); };
+  return <button type="button" className="focus-chip" onClick={off} title="حالت تمرکز روشن است — بزن تا خاموش شود" aria-label="حالت تمرکز روشن است؛ خاموش کن"><Target size={15} /><span>تمرکز</span></button>;
+}
+function useModules(raw = false) {
+  const [m0, setM] = useState(MODS_CACHE), focusOn = useFocusOn();
+  const m = raw || !focusOn ? m0 : withFocus(m0);
   useEffect(() => {
     const f = () => setM(MODS_CACHE);
     window.addEventListener('lifeos:modules', f);
@@ -2297,12 +2321,30 @@ function SiteTokensCard() {
   </section>;
 }
 
+function FocusSettings() {
+  const [f, setF] = useState(readFocus);
+  const set = patch => { const n = { ...f, ...patch, snooze: '' }; setF(n); saveFocus(n); };
+  const DAYS = [[6, 'شنبه'], [0, 'یکشنبه'], [1, 'دوشنبه'], [2, 'سه‌شنبه'], [3, 'چهارشنبه'], [4, 'پنجشنبه'], [5, 'جمعه']];
+  const hour = (v, on) => <select value={v} onChange={e => on(Number(e.target.value))}>{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{fa(h)}:۰۰</option>)}</select>;
+  return <div className="focus-set">
+    <h3>🎯 حالت تمرکز</h3>
+    <p className="muted">وقتی روشن است، بخش‌های سرگرمی از منو و صفحهٔ امروز پنهان می‌شوند (داده‌ها سر جایشان می‌مانند).</p>
+    <div className="focus-modes" role="radiogroup" aria-label="حالت تمرکز">{[['off', 'خاموش'], ['auto', 'خودکار در ساعت کاری'], ['on', 'همیشه روشن']].map(([k, l]) => <button type="button" key={k} role="radio" aria-checked={f.mode === k} className={f.mode === k ? 'on' : ''} onClick={() => set({ mode: k })}>{l}</button>)}</div>
+    {f.mode === 'auto' ? <div className="focus-row">
+      <label>از {hour(f.from, v => set({ from: v }))}</label><label>تا {hour(f.to, v => set({ to: v }))}</label>
+      <div className="focus-days" role="group" aria-label="روزهای کاری">{DAYS.map(([d, l]) => { const on = f.days.includes(d); return <button type="button" key={d} aria-pressed={on} className={on ? 'on' : ''} onClick={() => set({ days: on ? f.days.filter(x => x !== d) : [...f.days, d] })}>{l}</button>; })}</div>
+    </div> : null}
+    <div className="focus-row"><span className="muted">پنهان در تمرکز:</span><div className="focus-days" role="group" aria-label="بخش‌های پنهان در تمرکز">{MODULES.map(([k, l, ic]) => { const on = f.hide.includes(k); return <button type="button" key={k} aria-pressed={on} className={on ? 'on' : ''} onClick={() => set({ hide: on ? f.hide.filter(x => x !== k) : [...f.hide, k] })}>{ic} {l}</button>; })}</div></div>
+  </div>;
+}
+
 function ModulesCard() {
-  const mods = useModules();
+  const mods = useModules(true);
   return <section className="planner-list digest-card" id="modules">
     <h2>🧩 بخش‌های من</h2>
     <p className="muted" style={{ margin: '0 0 10px' }}>بخش‌های خاموش از منو، صفحهٔ اصلی، جستجو و گزارش‌های تلگرام حذف می‌شوند؛ داده‌هایشان پاک نمی‌شود.</p>
     <ModulesPicker value={mods} onChange={saveModules} />
+    <FocusSettings />
   </section>;
 }
 
