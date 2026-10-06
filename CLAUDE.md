@@ -5,10 +5,11 @@
 بک‌لاگ: `REMAINING-WORK.md` (اولویت‌بندی‌شده) · تاریخچه: `docs/WORK-SUMMARY.md`, `docs/LIFEOS-WORKLOG.md`.
 
 ## معماری در یک نگاه
-- **بک‌اند مرجع = `server.js`** (Node خام، بدون فریم‌ورک، ~۹۷۵ خط ولی خطوط خیلی بلند/minified-style).
+- **بک‌اند مرجع = `cloudflare/worker.js`** (از ۲۰۲۶-۱۰-۰۶، با تأیید کاربر). API تازه یا تغییر API فقط در `worker.js` + تست در `test/worker-smoke.js`.
+- **`server.js` = نسخهٔ قدیمی و منجمد** (Node خام، ~۹۷۵ خط minified-style). مسیر تازه به آن اضافه نکن؛ فقط باگ‌هایی که `test/smoke.js` را قرمز می‌کنند. ۳۸ مسیر Worker را ندارد (فهرست در `docs/SITEMAP.md`). اجرا: `npm run start:legacy`.
   - دادهٔ محلی: `data/db.json` (یک blob JSON) + بکاپ روزانه در `data/backups/`.
   - helperها: خطوط ۱–۶۳۳ · `handleRequest`: خط ~۶۳۴ · بلوک مسیرها: از `if(p==='/api/auth/signup'` تا `let file=p==='/'…` (~۸۴۲) · سرو استاتیک و تایمرها بعد از آن.
-- **Worker کلادفلر = `cloudflare/worker.js`.**
+- **Worker کلادفلر = `cloudflare/worker.js`** (مرجع؛ محلی با `npm start`).
   - ⚠️ از v50–v66 (شاخهٔ loving-brown) کد مستقیم در `worker.js` نوشته شده (کاربر disabled، تکرار جلالی `jmonthly`، …) و در `server.js`/`header.js` نیست. **تا آشتی‌دادن، `node cloudflare/port.js` را اجرا نکن** (port.js حالا گارد route-loss دارد و بدون نوشتن فایل با خطا متوقف می‌شود). تغییرات Worker را فعلاً مستقیم در `worker.js` بده.
   - `node cloudflare/port.js` = `cloudflare/header.js` + بلوک مسیرهای server.js (تبدیل‌شده به Web API) + `cloudflare/footer.js`.
   - helper جدید در server.js ⇒ همان را داخل `makeHelpers(env)` در `header.js` هم اضافه کن (گاردهای Drift/Export/Helper-parity در port.js چک می‌کنند).
@@ -26,10 +27,8 @@
 npm ci
 npm run build:today      # حتماً قبل از تست؛ بدون build، ui/verify تست‌ها قرمز می‌شوند
 npm test                 # smoke(490) + worker-smoke(267) + verify-script(26) + ui-smoke(45) — همه باید سبز باشند
-npm start                # server.js روی :3000
-# Worker واقعی به‌صورت محلی (همهٔ مسیرها، از جمله col/*، vocab، site-tokens — server.js این‌ها را ندارد):
-npx wrangler d1 execute pdmaz-db --local --file cloudflare/kv-local.sql   # یک‌بار: جدول kv در D1 محلی
-npx wrangler dev --local --port 8787     # کلیدها از .dev.vars (نه .env)
+npm start                # Worker واقعی محلی روی :3000 (wrangler dev --local + جدول kv در D1 محلی؛ کلیدها از .dev.vars نه .env)
+npm run start:legacy     # server.js قدیمی روی :3000 (منجمد)
 npm run dev:today        # vite dev
 node cloudflare/port.js  # ⚠️ فعلاً ممنوع — بالا را ببین
 npm run deploy           # build + wrangler deploy (فقط با اجازهٔ کاربر)
@@ -37,7 +36,7 @@ npm run build:studio     # پنل seyfikhani.ir (ProjectsPage+CoursesPage) → i
 ```
 
 ## قواعد کار
-- هر تغییر API: هم `server.js` هم `worker.js` (تا آشتی port.js) → `npm test`.
+- هر تغییر API: فقط `cloudflare/worker.js` + تست در `test/worker-smoke.js` → `npm test`. به `server.js` مسیر تازه اضافه نکن.
 - اپ زبان: `public/vocab/` (`words.json` = آرایهٔ فشرده) + `src/today/src/vocab.jsx` + `/api/vocab`.
 - متن UI فارسی، `dir=rtl`، اعداد با `fa()`/`toLocaleString('fa-IR')`. واحد پول ذخیره‌شده **ریال** است (`_meta.currencyUnit='IRR'`)، نمایش تومان = ÷۱۰.
 - تاریخ‌ها ISO با منطقهٔ `Asia/Tehran`؛ نمایش جلالی با `Intl` (`fa-IR-u-ca-persian`).

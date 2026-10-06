@@ -40,7 +40,7 @@ goals · habits(+history) · exercise · learning · projects · time/timer · t
 
 ### اختلاف server.js و Worker (۲۰۲۶-۱۰-۰۶)
 - server.js ۱۵۹ مسیر، worker.js ۱۹۷. ۳۸ مسیر فقط در Worker: admin/*, attachments, backup/now, col/*, courses/{due,report}, finance/{insights,monthly-report,weekly-report,year}, fun/status, movies/{recommendations,upcoming}, portfolio/snapshots, projects/{due,report}, push/*, report-brand, savings-goals, shop/share, site-tokens, transactions/{receipt-scan,recurring}, vocab/*, ext/*, messages/*. مسیری فقط در server.js نیست.
-- اجرای محلی کامل: `wrangler dev --local` (دستورها در CLAUDE.md). server.js: درخواست‌های بیرونی مهلت ۱۲ ثانیه دارند و GETهای پروکسی (فوتبال، TVmaze/TMDB، Spotify/YouTube، سهام) بدون قفل DB اجرا می‌شوند.
+- **تصمیم:** Worker مرجع است و `server.js` منجمد (فقط `npm run start:legacy`). اجرای محلی کامل: `npm start` (= `wrangler dev --local --port 3000`). server.js: درخواست‌های بیرونی مهلت ۱۲ ثانیه دارند و GETهای پروکسی (فوتبال، TVmaze/TMDB، Spotify/YouTube، سهام) بدون قفل DB اجرا می‌شوند.
 
 ## ۴) تست‌ها (`test/`)
 - `smoke.js`: server.js واقعی روی DB موقت (۴۹۰ چک).
