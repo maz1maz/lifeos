@@ -36,3 +36,4 @@
 .ins-home li{display:flex;gap:8px}
 @media(max-width:900px){.ins-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.ins-grid{grid-template-columns:1fr}.ins-card{padding:14px}.ins-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.ins-list li{flex-direction:column;align-items:stretch}.ins-corr li{grid-template-columns:90px 1fr}}
+.ins-year{font-style:normal;color:var(--g-accent);font-weight:700;min-width:42px}
