@@ -242,6 +242,7 @@ function App() {
 // Router first: other pages must not pay for the Today page's data fetching.
 function Routes() {
   const page = new URLSearchParams(location.search).get('page');
+  if (pageLocked(page)) return <><TopNav /><main className="locked-page" dir="rtl"><h1>🔒 این بخش بسته است</h1><p>مدیر سایت دسترسی حساب تو به این بخش را بسته است.</p><a href="/">بازگشت به امروز</a></main></>;
   if (['calendar', 'planner', 'habits', 'focus'].includes(page)) return <TabHub active="planner" label="نمای برنامه‌ریز" tabs={PLAN_TABS} initial={page === 'planner' ? 'list' : page} url={v => v === 'list' ? 'planner' : v} />;
   if (page === 'reading' || page === 'news' || page === 'bookmarks') return <ReadingPage Nav={() => <TopNav active="reading" />} />;
   if (page === 'insights') return <InsightsPage Nav={() => <TopNav active="insights" />} />;
@@ -1597,6 +1598,8 @@ const writeLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } 
 const MODULES = [['projects', 'پروژه‌ها', '🗂', 'تابلوی کانبان برای پروژه‌ها'], ['courses', 'دوره‌ها و دانشجوها', '🎓', 'شهریه، پرداخت‌ها و حضور و غیاب'], ['vocab', 'زبان', '📘', '۷۰۰۰ واژهٔ آیلتس با مرور فاصله‌دار'], ['crmOn', 'مشتری و فروش', '💼', 'مشتری، پیش‌فاکتور و پیگیری (پیش‌فرض خاموش)'], ['health', 'سلامت', '💪', 'وزن، خواب، ورزش و آب'], ['car', 'خودرو', '🚗', 'بیمه، معاینه، سرویس و هزینه‌ها'], ['travel', 'سفر', '✈️', 'برنامه، بودجه و لیست وسایل'], ['journal', 'روزنگار', '📔', 'نوشته و عکس روزانه'], ['habits', 'عادت‌ها', '🔥', 'عادت روزانه و زنجیرهٔ روزها'], ['learning', 'یادگیری', '🎓', 'کتاب‌ها و دوره‌ها'], ['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
 const PAGE_MODULE = { projects: 'projects', courses: 'courses', vocab: 'vocab', crm: 'crmOn', health: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', habits: 'habits', shopping: 'notes', finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
 let MODS_CACHE = readLs('lifeos-modules', null);
+let LOCKS_CACHE = readLs('lifeos-locks', []); // sections the site admin closed for this account (server answers 403 too)
+const pageLocked = page => !!PAGE_MODULE[page] && LOCKS_CACHE.includes(PAGE_MODULE[page]);
 const OPT_IN = new Set(['crmOn']); // off unless explicitly turned on
 const modOn = (m, k) => OPT_IN.has(k) ? !!(m && m[k] === true) : (!m || m[k] !== false);
 const pageOn = (m, page) => !PAGE_MODULE[page] || modOn(m, PAGE_MODULE[page]);
@@ -1609,7 +1612,7 @@ function useModules() {
   useEffect(() => {
     const f = () => setM(MODS_CACHE);
     window.addEventListener('lifeos:modules', f);
-    if (!window.__modsFetched) { window.__modsFetched = true; api('/api/me').then(d => { if (d.user) setModules(d.user.modules || null, !d.user.modules); }).catch(() => {}); }
+    if (!window.__modsFetched) { window.__modsFetched = true; api('/api/me').then(d => { if (d.user) { const lk = d.user.lockedModules || []; if (lk.join() !== LOCKS_CACHE.join()) { LOCKS_CACHE = lk; writeLs('lifeos-locks', lk); } setModules(d.user.modules || null, !d.user.modules); } }).catch(() => {}); }
     return () => window.removeEventListener('lifeos:modules', f);
   }, []);
   return m;
@@ -1618,9 +1621,9 @@ async function saveModules(m) { setModules(m); try { await api('/api/me', { meth
 function ModulesPicker({ value, onChange }) {
   const cur = { ...Object.fromEntries(MODULES.map(([k]) => [k, modOn(value, k)])), ...(value || {}) };
   return <div className="mods-grid">{MODULES.map(([k, label, icon, sub]) => {
-    const on = OPT_IN.has(k) ? cur[k] === true : cur[k] !== false;
-    return <button type="button" key={k} className={`mods-item ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => onChange({ ...cur, [k]: !on })}>
-      <span className="mods-ic">{icon}</span><span className="mods-txt"><b>{label}</b><small>{sub}</small></span><i className="mods-check">{on ? '✓' : ''}</i>
+    const locked = LOCKS_CACHE.includes(k), on = !locked && (OPT_IN.has(k) ? cur[k] === true : cur[k] !== false);
+    return <button type="button" key={k} className={`mods-item ${on ? 'on' : ''} ${locked ? 'locked' : ''}`} aria-pressed={on} disabled={locked} title={locked ? 'مدیر سایت این بخش را بسته است' : undefined} onClick={() => onChange({ ...cur, [k]: !on })}>
+      <span className="mods-ic">{icon}</span><span className="mods-txt"><b>{label}</b><small>{sub}</small></span><i className="mods-check">{locked ? '🔒' : on ? '✓' : ''}</i>
     </button>;
   })}</div>;
 }

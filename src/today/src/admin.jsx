@@ -52,6 +52,19 @@ function Weeks({ weeks }) {
   </div>)}</div>;
 }
 
+// Sections the admin can lock for a user: off in their menu and refused by the API (403).
+const LOCK_FA = [['finance', 'مالی'], ['market', 'بازار'], ['projects', 'پروژه‌ها'], ['courses', 'دوره‌ها'], ['crmOn', 'مشتری و فروش'], ['vocab', 'زبان'], ['learning', 'یادگیری'], ['habits', 'عادت‌ها'], ['health', 'سلامت'], ['car', 'خودرو'], ['travel', 'سفر'], ['journal', 'روزنگار'], ['notes', 'یادداشت و خرید'], ['documents', 'مدارک'], ['contacts', 'مخاطبین'], ['football', 'فوتبال'], ['watch', 'فیلم و سریال'], ['media', 'رسانه']];
+function LockEditor({ u, onSaved }) {
+  const [sel, setSel] = useState(() => new Set(u.locked || [])), [busy, setBusy] = useState(false), [note, setNote] = useState('');
+  const dirty = [...sel].sort().join() !== [...(u.locked || [])].sort().join();
+  const save = async () => { setBusy(true); try { await api(`/api/admin/users/${u.id}/locks`, { method: 'POST', body: JSON.stringify({ locked: [...sel] }) }); setNote('ذخیره شد.'); onSaved(); } catch (e) { setNote(e.message); } setBusy(false); };
+  return <fieldset className="adm-locks">
+    <legend>بخش‌های بسته برای این کاربر</legend>
+    <div className="lf-chips">{LOCK_FA.map(([k, l]) => { const on = sel.has(k); return <button type="button" key={k} className={`lf-chip adm-lock ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => { const n = new Set(sel); on ? n.delete(k) : n.add(k); setSel(n); setNote(''); }}>{on ? '🔒 ' : ''}{l}</button>; })}</div>
+    <div className="adm-acts"><button type="button" className="lf-btn" disabled={!dirty || busy} onClick={save}>{busy ? '…' : 'ذخیرهٔ دسترسی'}</button>{note ? <small role="status">{note}</small> : <small>بخش بسته از منوی کاربر حذف می‌شود و سرور هم داده‌اش را نمی‌دهد.</small>}</div>
+  </fieldset>;
+}
+
 export function AdminPage({ Nav }) {
   const [d, setD] = useState(null), [err, setErr] = useState(''), [q, setQ] = useState(''), [open, setOpen] = useState(null), [sort, setSort] = useState('seen');
   const [busy, setBusy] = useState(''), [msg, setMsg] = useState(''), [compose, setCompose] = useState(null);
@@ -114,6 +127,7 @@ export function AdminPage({ Nav }) {
               {u.admin ? null : <button className={`lf-btn ${u.disabled ? '' : 'danger'}`} disabled={!!busy} onClick={() => act(u, 'disable')}>{busy === u.id + 'disable' ? '…' : u.disabled ? 'فعال‌کردن دوباره' : 'غیرفعال‌کردن'}</button>}
               {u.disabled ? <small className="adm-off">غیرفعال از {ago(u.disabledAt)}</small> : null}
             </div>
+            {u.admin ? null : <LockEditor key={(u.locked || []).join()} u={u} onSaved={load} />}
             <small>بخش‌ها: {u.modules ? (u.modules.length ? u.modules.map(m => MOD_FA[m] || m).join('، ') : 'فقط بخش‌های پایه') : 'همه (انتخاب نکرده)'} · {fa(u.sessions)} نشست باز · آخرین ورود: {ago(u.lastLoginAt)}</small>
           </div> : null}
         </div>; })}

@@ -409,6 +409,25 @@ async function main() {
       check('reset: code is single-use', (await call('/api/auth/reset', { method: 'POST', body: { email: em, code, password: 'another1' } })).status === 400);
     } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; }
   }
+  { // admin locks sections for another user: menu modules forced off + the section's APIs answer 403
+    const em = 'locked-' + Date.now() + '@t.com';
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'L', email: em, password: 'secret123' } });
+    const lg = await call('/api/auth/login', { method: 'POST', body: { email: em, password: 'secret123' } });
+    const ck = String((typeof lg.headers.getSetCookie === 'function' ? lg.headers.getSetCookie()[0] : lg.headers.get('set-cookie')) || '').split(';')[0];
+    const ov = await call('/api/admin/overview', { cookie }), uid = ov.d.users.find(x => x.email === em).id;
+    check('lock: non-admin cannot lock', (await call(`/api/admin/users/${uid}/locks`, { method: 'POST', cookie: ck, body: { locked: ['finance'] } })).status === 403);
+    const r = await call(`/api/admin/users/${uid}/locks`, { method: 'POST', cookie, body: { locked: ['finance', 'football', 'bogus'] } });
+    check('lock: admin saves valid keys only', r.status === 200 && JSON.stringify(r.d.locked) === '["finance","football"]', JSON.stringify(r.d));
+    const me = (await call('/api/me', { cookie: ck })).d.user;
+    check('lock: /api/me lists locks and forces those modules off', JSON.stringify(me.lockedModules) === '["finance","football"]' && me.modules.finance === false && me.modules.football === false);
+    check('lock: locked API -> 403', (await call('/api/transactions', { cookie: ck })).status === 403 && (await call('/api/accounts', { cookie: ck })).status === 403);
+    check('lock: other APIs still open', (await call('/api/tasks', { cookie: ck })).status === 200);
+    await call('/api/me', { method: 'PATCH', cookie: ck, body: { modules: { finance: true, notes: true } } });
+    check('lock: user cannot switch a locked module back on', (await call('/api/me', { cookie: ck })).d.user.modules.finance === false);
+    check('lock: admin overview shows locks', (await call('/api/admin/overview', { cookie })).d.users.find(x => x.id === uid).locked.length === 2);
+    await call(`/api/admin/users/${uid}/locks`, { method: 'POST', cookie, body: { locked: [] } });
+    check('lock: unlock reopens the API', (await call('/api/transactions', { cookie: ck })).status === 200);
+  }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
   check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');
