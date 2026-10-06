@@ -21,3 +21,8 @@
 .nav-search:hover { color: var(--g-text); border-color: var(--g-accent); }
 .nav-search kbd { font: inherit; font-size: 10.5px; border: 1px solid var(--g-border-2); border-radius: 5px; padding: 0 5px; direction: ltr; }
 @media (max-width: 700px) { .nav-search span, .nav-search kbd { display: none; } .nav-search { width: 38px; padding: 0; justify-content: center; } .cp-bg { padding-top: 12px; } .cp { max-height: 88vh; } .cp-foot { display: none; } }
+.cp-row.cap b { font-weight: 600; }
+.cp-row.cap .cp-ic { color: var(--g-accent); }
+.cp-flash { margin: 8px 8px 0; padding: 9px 12px; border-radius: 10px; font-size: 13.5px; }
+.cp-flash.ok { background: color-mix(in srgb, var(--g-good, #34d399) 16%, transparent); color: var(--g-good, #34d399); }
+.cp-flash.bad { background: color-mix(in srgb, var(--g-bad, #fb7185) 16%, transparent); color: var(--g-bad, #fb7185); }

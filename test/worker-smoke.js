@@ -464,6 +464,8 @@ async function main() {
   check('TMDB import without ids -> 400 (not 503)', (await call('/api/movies/from-tmdb', { method: 'POST', cookie, body: {} })).status === 400);
 
   console.log('\n[W6] ai + dashboard + finance surfaces');
+  const wPrev = (await call('/api/ai/process', { method: 'POST', cookie, body: { text: 'فردا ساعت ۵ تماس با بانک', preview: true } })).d;
+  check('ai/process preview returns actions without saving', wPrev.preview === true && wPrev.actions.length > 0 && !wPrev.done);
   check('ai/process bank msg -> 200 with actions', ((await call('/api/ai/process', { method: 'POST', cookie, body: { text: '۵۰ هزار ناهار' } })).d.done || []).length > 0);
   check('suggest-category -> 200', (await call('/api/ai/suggest-category', { method: 'POST', cookie, body: { title: 'ناهار رستوران' } })).d.category === 'خوراک');
   check('correlations -> 200', (await call('/api/ai/correlations?days=30', { cookie })).status === 200);

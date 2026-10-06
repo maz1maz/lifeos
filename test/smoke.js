@@ -468,6 +468,10 @@ async function main() {
     console.log('\n[29] telegram free-text parsing reused from /api/ai/process (same parser the bot uses)');
     const tgLikeProcess = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: 'امروز ۲ ساعت کار کردم و ۵۰۰۰۰ تومان ناهار خرج کردم' }) });
     check('shared free-text parser still parses time + spend (Telegram bot depends on this)', tgLikeProcess.status === 200);
+    const txBefore = (x => (Array.isArray(x) ? x : x.items || x.transactions || []).length)(await fetch(`${BASE}/api/transactions`, { headers: authHeaders }).then(r => r.json()));
+    const prev = await fetch(`${BASE}/api/ai/process`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ text: '۸۰ هزار تومان تاکسی', preview: true }) }).then(r => r.json());
+    const txAfter = (x => (Array.isArray(x) ? x : x.items || x.transactions || []).length)(await fetch(`${BASE}/api/transactions`, { headers: authHeaders }).then(r => r.json()));
+    check('ai/process preview parses but saves nothing (Ctrl+K capture)', prev.preview === true && prev.actions.some(a => a.type === 'transaction') && !prev.done && txAfter === txBefore);
 
     console.log('\n[30] AI features: deterministic parts work with no AI key configured, AI-gated parts fail gracefully');
     const catFood = await fetch(`${BASE}/api/ai/suggest-category`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'ناهار رستوران' }) }).then(r => r.json());
