@@ -353,17 +353,19 @@ code{direction:ltr;unicode-bidi:isolate;background:${C.soft};border-radius:4px;p
 strong{color:${C.head}}
 @media print{.bar{display:none}main{padding:0}}
 </style></head><body>
-<div class="bar"><span>برای PDF، در پنجرهٔ چاپ «Save as PDF» را بزن</span><button type="button" onclick="print()">چاپ / PDF</button></div>
+<div class="bar"><span>برای PDF، در پنجرهٔ چاپ «Save as PDF» را بزن</span><button type="button" data-print>چاپ / PDF</button></div>
 <main>
 <div class="cover"><div class="k">${kicker}</div><h1>${heading}</h1><p>${sub}</p><i></i>${owner ? `<div class="card"><small>دفترچه یادداشت متعلق به</small><b>${esc(owner)}</b></div>` : ""}<div class="d">تهیه‌شده در ${made}</div></div>
 ${toc ? `<div class="toc"><h2>فهرست مطالب</h2>${toc}</div>` : ""}
 ${body}
 </main>
-<script>document.fonts.ready.then(function(){setTimeout(function(){print()},400)})<\/script>
 </body></html>`;
   const w = window.open("", "_blank");
   if (!w) { toast("پنجرهٔ تازه باز نشد؛ اجازهٔ پاپ‌آپ را بده."); return; }
   w.document.open(); w.document.write(html); w.document.close();
+  // the new window inherits this page's CSP (no inline script/handlers), so printing is wired from here
+  w.document.querySelector("[data-print]")?.addEventListener("click", () => w.print());
+  w.document.fonts.ready.then(() => setTimeout(() => w.print(), 400));
 }
 function ntPdf() {
   if (!NOTES) return;
@@ -1076,7 +1078,7 @@ function drawLogin(msg) {
     </div>
     ${msg ? `<div class="alert">${esc(msg)}</div>` : ""}
     ${!users.length && u === "login" ? `<div class="alert" style="background:#252010;border-color:#5c4815;color:#fce49b">هنوز حسابی روی این مرورگر ساخته نشده است. ابتدا روی «ساخت حساب تازه» بزن یا از دکمهٔ «ورود سریع به عنوان مهمان» استفاده کن.</div>` : ""}
-    <form id="authForm" onsubmit="return false;">
+    <form id="authForm">
       <div class="grid" style="gap:10px">
         <div><label class="f">نام کاربری (حداقل ۳ حرف انگلیسی)</label>
           <input type="text" id="aUser" class="en" autocomplete="username" spellcheck="false" placeholder="مثلاً ali" ${users.length && u === "login" ? 'list="userlist"' : ""}></div>

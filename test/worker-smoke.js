@@ -96,6 +96,17 @@ async function main() {
   const email = `wsmoke_${Date.now()}@example.com`;
   const signup = await call('/api/auth/signup', { method: 'POST', body: { name: 'Wsmoke', email, password: 'secret123' } });
   check('signup -> 201', signup.status === 201);
+  {
+    // HTML gets a CSP whose script-src lists the exact sha256 of each inline <script> (no 'unsafe-inline')
+    const inline = "document.documentElement.dataset.mode='dark'";
+    const htmlEnv = { ...env, ASSETS: { fetch: async () => new Response(`<html><head><script>${inline}</script><script src="/a.js"></script></head></html>`, { headers: { 'content-type': 'text/html; charset=utf-8' } }) } };
+    const page = await worker.fetch(new Request('https://worker-smoke.local/design/login-page.html'), htmlEnv, {});
+    const csp = page.headers.get('content-security-policy') || '';
+    const want = require('crypto').createHash('sha256').update(inline).digest('base64');
+    const scriptSrc = (csp.split(';').find(x => x.trim().startsWith('script-src')) || '').trim();
+    check('HTML CSP allows inline scripts only by their sha256', scriptSrc === `script-src 'self' 'sha256-${want}'` && /frame-ancestors 'self'/.test(csp) && /object-src 'none'/.test(csp), scriptSrc);
+    check('HTML body survives the CSP pass unchanged', (await page.text()).includes(inline));
+  }
   check('security headers on every response (nosniff, frame, HSTS, referrer)', signup.headers.get('x-content-type-options') === 'nosniff' && signup.headers.get('x-frame-options') === 'SAMEORIGIN' && /max-age=\d+/.test(signup.headers.get('strict-transport-security') || '') && !!signup.headers.get('referrer-policy'));
   const v2Rows = [...env.DB._store.entries()].filter(([key]) => key.startsWith('state:v2:'));
   check('legacy state migrates to v2 shards', env.DB._store.has('state:v2:meta') && !env.DB._store.has('db') && v2Rows.some(([key]) => key.includes('seed-user')));
