@@ -385,6 +385,30 @@ async function main() {
   check('exercise log + delete', !!ex.id && (await call(`/api/exercise/${ex.id}`, { method: 'DELETE', cookie })).status === 200);
   check('media-log -> 201', (await call('/api/media-log', { method: 'POST', cookie, body: { source: 'spotify', title: 'wt' } })).status === 201);
 
+  { // password recovery: 6-digit code to the linked Telegram chat, no account probing, sessions reset
+    const em = 'reset-' + Date.now() + '@t.com';
+    await call('/api/auth/signup', { method: 'POST', body: { name: 'R', email: em, password: 'oldpass1' } });
+    const lg = await call('/api/auth/login', { method: 'POST', body: { email: em, password: 'oldpass1' } });
+    const ck = String((typeof lg.headers.getSetCookie === 'function' ? lg.headers.getSetCookie()[0] : lg.headers.get('set-cookie')) || '').split(';')[0];
+    check('forgot without a bot -> 503', (await call('/api/auth/forgot', { method: 'POST', body: { email: em } })).status === 503);
+    await call('/api/me', { method: 'PATCH', cookie: ck, body: { telegramUserId: '880011' } });
+    const sent = [], realFetch = globalThis.fetch; env.TELEGRAM_BOT_TOKEN = 'TEST';
+    globalThis.fetch = async (url, init) => { if (String(url).includes('api.telegram.org')) { sent.push(JSON.parse(init.body)); return new Response('{"ok":true,"result":{}}'); } return new Response('{}', { status: 404 }); };
+    try {
+      const f1 = await call('/api/auth/forgot', { method: 'POST', body: { email: em.toUpperCase() } });
+      const f2 = await call('/api/auth/forgot', { method: 'POST', body: { email: 'nobody-' + Date.now() + '@t.com' } });
+      check('forgot: same answer for known and unknown email', f1.status === 200 && f2.status === 200 && f1.d.message === f2.d.message);
+      const msg = sent.find(m => /کد بازیابی/.test(m.text || '')), code = msg && (msg.text.match(/\d{6}/) || [])[0];
+      check('forgot: code sent to the linked Telegram chat', !!code && msg.chat_id === '880011', JSON.stringify(sent));
+      const wrong = String((Number(code) + 1) % 1000000).padStart(6, '0');
+      check('reset: wrong code -> 400', (await call('/api/auth/reset', { method: 'POST', body: { email: em, code: wrong, password: 'newpass1' } })).status === 400);
+      const ok = await call('/api/auth/reset', { method: 'POST', body: { email: em, code: code.replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]), password: 'newpass1' } });
+      check('reset: right code (Persian digits) -> 200 + new session', ok.status === 200 && /sid=/.test(ok.headers.get('set-cookie') || ''));
+      check('reset: old session closed', !(await call('/api/me', { cookie: ck })).d.user);
+      check('reset: old password refused, new one works', (await call('/api/auth/login', { method: 'POST', body: { email: em, password: 'oldpass1' } })).status === 401 && (await call('/api/auth/login', { method: 'POST', body: { email: em, password: 'newpass1' } })).status === 200);
+      check('reset: code is single-use', (await call('/api/auth/reset', { method: 'POST', body: { email: em, code, password: 'another1' } })).status === 400);
+    } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; }
+  }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
   check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');
