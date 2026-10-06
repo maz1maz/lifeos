@@ -5,6 +5,19 @@
 // در سطح ماژول (نه داخل makeHelpers) تا بین درخواست‌های مختلف روی همون Worker isolate باقی بمونه
 let _usStocksCache = { at: 0, items: null };
 
+// Football sources (varzesh3, footba11, ESPN, TheSportsDB, SofaScore) can hang for a minute or more from
+// Cloudflare; with no deadline every league request waited 40–120 s (live logs, 2026-10). Calls to those hosts
+// get an 8 s deadline so the next source in the fallback chain gets its turn. Other hosts are untouched.
+const FOOTBALL_HOSTS = /(^|\.)(varzesh3\.com|footba11\.co|espn\.com|thesportsdb\.com|sofascore\.com)$/i;
+const fetch = (url, options) => {
+  let host = ''; try { host = new URL(typeof url === 'string' ? url : url.url).hostname; } catch {}
+  if (FOOTBALL_HOSTS.test(host) && !(options && options.signal)) options = { ...(options || {}), signal: AbortSignal.timeout(8000) };
+  return globalThis.fetch(url, options);
+};
+// League match lists, cached per isolate and in the colo cache: every Today page load asks for all 14 leagues.
+// 10 min normally, 2 min while a match is live.
+const LEAGUE_RANGE_MEM = new Map();
+
 
 export function makeHelpers(env) {
   const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET = env.GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI = env.GOOGLE_REDIRECT_URI, GOOGLE_CALENDAR_REDIRECT_URI = env.GOOGLE_CALENDAR_REDIRECT_URI,
@@ -775,6 +788,16 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
         let real=dates[i]||null;out.push({fixtureId:'v3f-'+key,home:r.team,away:opp,homeLogo:r.logo||null,awayLogo:logo(opp),league:leagueName||'',date:real||new Date(t0-back*7*864e5).toISOString(),status:'finished',score:a+' - '+b,approx:!real,round:back===0?'آخرین بازی':back===1?'بازی قبلی':(back).toLocaleString('fa-IR')+' بازی قبل‌تر'})})}
     return out;
   }
+  async function cachedLeagueRange(league,fromDate,toDate){
+    const key='https://pdmaz-cache.local/league/'+encodeURIComponent(league.id)+'/'+fromDate+'/'+toDate,now=Date.now();
+    const mem=LEAGUE_RANGE_MEM.get(key);if(mem&&mem.until>now)return mem.items;
+    const cache=typeof caches!=='undefined'&&caches.default?caches.default:null;
+    if(cache){try{const hit=await cache.match(key);if(hit){const items=await hit.json();LEAGUE_RANGE_MEM.set(key,{items,until:now+60000});return items}}catch(e){}}
+    const items=await fetchFreeLeagueRange(league,fromDate,toDate);
+    if(items.length){const ttl=items.some(m=>m.status==='live')?120:600;LEAGUE_RANGE_MEM.set(key,{items,until:now+ttl*1000});if(LEAGUE_RANGE_MEM.size>100)LEAGUE_RANGE_MEM.clear();
+      if(cache){try{await cache.put(key,new Response(JSON.stringify(items),{headers:{'content-type':'application/json','cache-control':'max-age='+ttl}}))}catch(e){}}}
+    return items;
+  }
   async function fetchFreeLeagueRange(league,fromDate,toDate){
     let out=[],v3id=VARZESH3_LEAGUE_IDS[league.id];
     if(v3id){try{let items=await fetchVarzesh3LeagueMatches(v3id,league.name);if(items.length)out=items}catch(e){}}
@@ -1271,7 +1294,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
   return { read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
     jalaliToGregorianIso, jalaliDateLabel, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel, seasonStatsFromEpisodes, seasonTotAired, fetchTvMazeShowFull, progressFromShow, ensureSeriesTvMazeData, clampEpisodeAgainstSeason,
-    parseSleepHours, suggestCategoryKeyword, catKey, catKeyGeneric, learnedCategory, isIncomeTx, stripBalanceNotes, stripRefNumbers, matchBankStatementItems, ensureStatementReminder, betRollup, betAutoStart, betLatest, betDaysOf, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
+    parseSleepHours, suggestCategoryKeyword, catKey, catKeyGeneric, learnedCategory, isIncomeTx, stripBalanceNotes, stripRefNumbers, matchBankStatementItems, ensureStatementReminder, betRollup, betAutoStart, betLatest, betDaysOf, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, cachedLeagueRange, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
     refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, checkRateLimit, clearRateLimit, clientIp, hashPin, genLinkCode, tgApi, tgSend, tgSendDocument, redactForBackup, userSnapshot, backupDbToTelegram, buildProjectsWeekly, funCheck, funMonth, isAdmin, adminOverview, studentMoney, courseDues, projectDues, courseSessions, buildCoursesMonthly, feeRemindersDue, sendFeeReminders, vocabRead, vocabWrite, vocabSummary, wordOfDay, hardWord, tgSendHardWord, vocabLearn, handleTelegramMessage, tgCheckReports, COLS, colOf, cleanItem, shopList, shopAdd, lifeDueLines, checkReminderNotifications, handleTelegramCallback, reminderAct, sendWebPush, vapidKeys, notifyUser, fetchTehranWeatherBrief, buildMorningBrief, buildMonthlyReport, buildWeeklyReport, monthStats, recurringList, nextRecurDate, jParts, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
     googleCalendarConfigured, googleCalendarStateCookie, googleCalendarErrorMessage, googleCalendarAuthUrl, exchangeGoogleCalendarCode, googleCalendarAccount, syncGoogleCalendar, calendarFeed, syncAllGoogleCalendars, GOOGLE_CALENDAR_SCOPES,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, GOOGLE_CALENDAR_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
