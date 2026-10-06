@@ -21,7 +21,7 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, ChevronsLeft, ChevronsRight, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Target, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
@@ -90,12 +90,15 @@ function Sparkline({ data, up, width = 72, height = 28, uid = 'sp', color: force
 }
 
 const NAV_GROUPS = [
-  ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays]]],
-  ['کار', [['projects', 'پروژه‌ها', LayoutGrid], ['courses', 'دوره‌ها و دانشجوها', GraduationCap], ['vocab', 'زبان', Languages], ['crm', 'مشتری و فروش', Briefcase]]],
+  ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays], ['review', 'مرور و اهداف', Target]]],
+  ['کار', [['projects', 'پروژه‌ها', LayoutGrid], ['courses', 'دوره‌ها و دانشجوها', GraduationCap], ['crm', 'مشتری و فروش', Briefcase]]],
   ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
-  ['زندگی', [['health', 'سلامت', HeartPulse], ['car', 'خودرو', Car], ['travel', 'سفر', Plane], ['football', 'فوتبال', Trophy], ['series', 'فیلم و سریال', Clapperboard], ['media', 'رسانه', Music]]],
-  ['آرشیو', [['notes', 'یادداشت‌ها و خرید', StickyNote], ['journal', 'روزنگار', BookOpen], ['learning', 'یادگیری', GraduationCap], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
+  ['زندگی', [['health', 'سلامت', HeartPulse], ['car', 'خودرو', Car], ['travel', 'سفر', Plane]]],
+  ['سرگرمی', [['series', 'فیلم و سریال', Clapperboard], ['media', 'موسیقی و یوتیوب', Music], ['football', 'فوتبال', Trophy]]],
+  ['یادگیری و آرشیو', [['learning', 'یادگیری و زبان', Library], ['notes', 'یادداشت و روزنگار', StickyNote], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
 ];
+// Phone-only bar at the bottom: the everyday pages within thumb reach; «همه» opens the full drawer.
+const BOTTOM_TABS = [['', 'امروز', House], ['planner', 'برنامه', CalendarDays], ['finance', 'مالی', Wallet], ['notes', 'یادداشت', StickyNote], ['series', 'تماشا', Clapperboard]];
 const NAV_PAGES = [...NAV_GROUPS.flatMap(([, items]) => items), ['settings', 'تنظیمات', Settings], ['admin', 'مدیریت', ShieldCheck]];
 let ME_ONCE = null;
 const meOnce = () => (ME_ONCE ||= api('/api/me').then(d => d.user || null).catch(() => null));
@@ -104,7 +107,7 @@ function TopNav({ active, right }) {
   const mods = useModules();
   const [admin, setAdmin] = useState(() => readLs('lifeos-is-admin', false));
   useEffect(() => { meOnce().then(u => { const a = !!u?.isAdmin; setAdmin(a); writeLs('lifeos-is-admin', a); }); }, []);
-  const groups = NAV_GROUPS.map(([t, items]) => [t, items.filter(([pg]) => pageOn(mods, pg))]).filter(([, items]) => items.length);
+  const groups = NAV_GROUPS.map(([t, items]) => [t, items.filter(([pg]) => navOn(mods, pg))]).filter(([, items]) => items.length);
   useEffect(() => {
     document.body.classList.toggle('nav-lock', open);
     const onKey = e => { if (e.key === 'Escape') setOpen(false); };
@@ -129,7 +132,8 @@ function TopNav({ active, right }) {
     requestAnimationFrame(() => requestAnimationFrame(() => { location.href = href; }));
   };
   const link = ([page, label, Icon]) => <a className={page === (active || '') ? 'active' : ''} href={page ? `/?page=${page}` : '/'} key={page || 'home'} onClick={e => navFromDrawer(e, page)}><Icon size={17} strokeWidth={2.1} /><span>{label}</span></a>;
-  return (
+  const tabs = BOTTOM_TABS.filter(([pg]) => navOn(mods, pg)).slice(0, 4);
+  return (<>
     <nav className={`topbar${open ? ' menu-open' : ''}`}>
       <button type="button" className="nav-toggle" aria-label={open ? 'بستن منو' : 'بازکردن منو'} aria-expanded={open} onClick={() => setOpen(v => !v)}>
         {open ? <X size={20} /> : <Menu size={20} />}
@@ -139,7 +143,7 @@ function TopNav({ active, right }) {
       <span className="nav-spacer" />
       <button type="button" className="nav-search" onClick={() => window.dispatchEvent(new Event('lifeos:search'))} aria-label="جستجو (Ctrl+K)" title="جستجو — Ctrl+K"><Search size={17} /><span>جستجو</span><kbd>Ctrl K</kbd></button>
       {right}
-      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => pageOn(mods, pg))} />
+      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
@@ -147,17 +151,11 @@ function TopNav({ active, right }) {
         <div className="drawer-foot">{admin ? link(['admin', 'مدیریت کاربران', ShieldCheck]) : null}{link(['settings', 'تنظیمات', Settings])}</div>
       </aside>
     </nav>
-  );
-}
-
-function NotesHub({ initial }) {
-  const [view, setView] = useState(initial);
-  const go = v => { setView(v); try { history.replaceState(null, '', `/?page=${v === 'shop' ? 'shopping' : 'notes'}`); } catch {} };
-  const HubNav = () => <>
-    <TopNav active="notes" />
-    <div className="hub-switch" role="tablist"><button type="button" className={view === 'notes' ? 'on' : ''} onClick={() => go('notes')}><StickyNote size={16} />یادداشت‌ها</button><button type="button" className={view === 'shop' ? 'on' : ''} onClick={() => go('shop')}><ShoppingCart size={16} />لیست خرید</button></div>
-  </>;
-  return view === 'shop' ? <main className="lf" dir="rtl"><HubNav /><div className="lf-page"><ShoppingPanel /></div></main> : <NotesReact Nav={HubNav} />;
+    <nav className="bnav" aria-label="ناوبری سریع">
+      {tabs.map(([page, label, Icon]) => <a key={page || 'home'} href={page ? `/?page=${page}` : '/'} className={page === (active || '') ? 'on' : ''} aria-current={page === (active || '') ? 'page' : undefined}><Icon size={21} strokeWidth={2} /><span>{label}</span></a>)}
+      <button type="button" className={open ? 'on' : ''} onClick={() => setOpen(v => !v)} aria-expanded={open}><Menu size={21} strokeWidth={2} /><span>همه</span></button>
+    </nav>
+  </>);
 }
 
 // Planner + Calendar live in one place: same data, two ways of looking at it.
@@ -177,38 +175,42 @@ function WatchHub({ initial }) {
   return view === 'movies' ? <MoviesReact Nav={HubNav} /> : view === 'upcoming' ? <UpcomingPage Nav={HubNav} /> : view === 'discover' ? <DiscoverPage Nav={HubNav} /> : <SeriesReact Nav={HubNav} />;
 }
 
-function PlanHub({ initial }) {
-  const [view, setView] = useState(initial);
-  const go = v => { setView(v); try { history.replaceState(null, '', `/?page=${v === 'list' ? 'planner' : v}`); } catch {} window.scrollTo(0, 0); };
+// One menu entry, several views of the same area: a tab strip under the top bar; the URL follows the tab.
+// Tabs whose module is switched off are hidden; `url` maps a tab id to its ?page= value.
+function TabHub({ active, label, tabs, initial, url = v => v }) {
+  const mods = useModules();
+  const shown = tabs.filter(([id]) => pageOn(mods, id));
+  const [view, setView] = useState(() => (shown.find(([id]) => id === initial) || shown[0] || tabs[0])[0]);
+  const go = v => { setView(v); try { history.replaceState(null, '', `/?page=${url(v)}`); } catch {} window.scrollTo(0, 0); };
   const HubNav = () => <>
-    <TopNav active="planner" />
-    <div className="hub-switch" role="tablist" aria-label="نمای برنامه‌ریز">
-      <button type="button" role="tab" aria-selected={view === 'list'} className={view === 'list' ? 'on' : ''} onClick={() => go('list')}><ListChecks size={16} />لیست کارها</button>
-      <button type="button" role="tab" aria-selected={view === 'calendar'} className={view === 'calendar' ? 'on' : ''} onClick={() => go('calendar')}><CalendarDays size={16} />تقویم</button>
-      <button type="button" role="tab" aria-selected={view === 'habits'} className={view === 'habits' ? 'on' : ''} onClick={() => go('habits')}><Flame size={16} />عادت‌ها</button>
-      <button type="button" role="tab" aria-selected={view === 'goals'} className={view === 'goals' ? 'on' : ''} onClick={() => go('goals')}><Target size={16} />اهداف سالانه</button>
-      <button type="button" role="tab" aria-selected={view === 'focus'} className={view === 'focus' ? 'on' : ''} onClick={() => go('focus')}><Timer size={16} />تمرکز</button>
-      <button type="button" role="tab" aria-selected={view === 'week'} className={view === 'week' ? 'on' : ''} onClick={() => go('week')}><ClipboardCheck size={16} />مرور هفته</button>
-      <button type="button" role="tab" aria-selected={view === 'stats'} className={view === 'stats' ? 'on' : ''} onClick={() => go('stats')}><BarChart3 size={16} />آمار زندگی</button>
-    </div>
+    <TopNav active={active} />
+    {shown.length > 1 ? <div className="hub-switch" role="tablist" aria-label={label}>
+      {shown.map(([id, title, Icon]) => <button key={id} type="button" role="tab" aria-selected={view === id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon size={16} />{title}</button>)}
+    </div> : null}
   </>;
-  return view === 'calendar' ? <CalendarReact Nav={HubNav} /> : view === 'habits' ? <HabitsPage Nav={HubNav} /> : view === 'week' ? <WeeklyPage Nav={HubNav} /> : view === 'goals' ? <GoalsPage Nav={HubNav} /> : view === 'focus' ? <FocusPage Nav={HubNav} /> : view === 'stats' ? <LifeStatsPage Nav={HubNav} /> : <PlannerReact Nav={HubNav} />;
+  const Page = (tabs.find(([id]) => id === view) || tabs[0])[3];
+  return <Page Nav={HubNav} />;
 }
+const ShopView = ({ Nav }) => <main className="lf" dir="rtl"><Nav /><div className="lf-page"><ShoppingPanel /></div></main>;
+const PLAN_TABS = [['list', 'لیست کارها', ListChecks, PlannerReact], ['calendar', 'تقویم', CalendarDays, CalendarReact], ['habits', 'عادت‌ها', Flame, HabitsPage], ['focus', 'تمرکز', Timer, FocusPage]];
+const REVIEW_TABS = [['goals', 'اهداف سالانه', Target, GoalsPage], ['week', 'مرور هفته', ClipboardCheck, WeeklyPage], ['stats', 'آمار زندگی', BarChart3, LifeStatsPage]];
+const LEARN_TABS = [['learning', 'کتاب و دوره', BookOpen, LearningPage], ['vocab', 'زبان', Languages, VocabPage]];
+const NOTES_TABS = [['notes', 'یادداشت‌ها', StickyNote, NotesReact], ['journal', 'روزنگار', BookOpen, JournalPage], ['shopping', 'لیست خرید', ShoppingCart, ShopView]];
 
 // Router first: other pages must not pay for the Today page's data fetching.
 function App() {
   const page = new URLSearchParams(location.search).get('page');
-  if (['calendar', 'planner', 'habits', 'week', 'goals', 'focus', 'stats'].includes(page)) return <PlanHub initial={page === 'planner' ? 'list' : page} />;
-  const LIFE = { courses: CoursesPage, health: HealthPage, car: CarPage, travel: TravelPage, projects: ProjectsPage, crm: CrmPage, learning: LearningPage, journal: JournalPage };
-  if (page === 'vocab') return <VocabPage Nav={() => <TopNav active="vocab" />} />;
+  if (['calendar', 'planner', 'habits', 'focus'].includes(page)) return <TabHub active="planner" label="نمای برنامه‌ریز" tabs={PLAN_TABS} initial={page === 'planner' ? 'list' : page} url={v => v === 'list' ? 'planner' : v} />;
+  if (['review', 'goals', 'week', 'stats'].includes(page)) return <TabHub active="review" label="مرور و اهداف" tabs={REVIEW_TABS} initial={page} />;
+  if (['learning', 'vocab'].includes(page)) return <TabHub active="learning" label="یادگیری" tabs={LEARN_TABS} initial={page} />;
+  if (['notes', 'journal', 'shopping'].includes(page)) return <TabHub active="notes" label="یادداشت‌ها" tabs={NOTES_TABS} initial={page} />;
+  const LIFE = { courses: CoursesPage, health: HealthPage, car: CarPage, travel: TravelPage, projects: ProjectsPage, crm: CrmPage };
   if (LIFE[page]) { const P = LIFE[page]; return <P Nav={() => <TopNav active={page} />} />; }
-  if (page === 'shopping') return <NotesHub initial="shop" />;
   if (page === 'finance') return <FinanceReact Nav={TopNav} />;
   if (page === 'market') return <MarketReact Nav={TopNav} />;
   if (page === 'football') return <FootballPage />;
   if (['movies', 'series', 'upcoming', 'discover'].includes(page)) return <WatchHub initial={page} />;
   if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;
-  if (page === 'notes') return <NotesHub initial="notes" />;
   if (page === 'documents') return <DocumentsReact Nav={TopNav} />;
   if (page === 'contacts') return <ContactsReact Nav={TopNav} />;
   if (page === 'settings') return <SettingsReact />;
@@ -389,7 +391,7 @@ function HomePage() {
         day: (<DayCard today={today} greeting={`${greeting}${firstName ? `، ${firstName}` : ''}`} summary={summary} streak={streak} />),
         weather: (<WeatherCard weather={weather} aqi={aqi} city={city} onCity={changeCity} />),
         calendar: (<LiveCalendar today={today} />),
-        ...(modOn(mods, 'market') ? { market: (<Market />) } : modOn(mods, 'finance') ? { goals: (<GoalsMini />) } : { habits: (<HabitsMini />) })
+        ...(modOn(mods, 'market') ? { market: (<Market />) } : modOn(mods, 'finance') ? { goals: (<GoalsMini />) } : modOn(mods, 'habits') ? { habits: (<HabitsMini />) } : {})
       }} />
       {modOn(mods, 'courses') ? <ClassTodayCard /> : null}
       <Layout id="grid" className="grid home-grid" editing={layoutEdit} cards={{
@@ -414,7 +416,7 @@ function HomePage() {
             </div>;
           })}
         </Card>),
-        ...(modOn(mods, 'football') ? { football: (<Football />) } : (!modOn(mods, 'market') && !modOn(mods, 'finance')) ? {} : { habits: (<HabitsMini />) }),
+        ...(modOn(mods, 'football') ? { football: (<Football />) } : (!modOn(mods, 'market') && !modOn(mods, 'finance')) ? {} : modOn(mods, 'habits') ? { habits: (<HabitsMini />) } : {}),
         ...(modOn(mods, 'watch') ? { series: (<SeriesCard />) } : modOn(mods, 'notes') ? { notes: (<NotesMini />) } : {}),
         focus: (<FocusCard Card={Card} Icon={Timer} />),
         ...(modOn(mods, 'vocab') ? { vocab: (<VocabHomeCard Card={Card} Icon={Languages} />) } : {}),
@@ -1542,12 +1544,15 @@ const readLs = (k, f) => { try { const v = JSON.parse(localStorage.getItem(k) ||
 const writeLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
 // ── per-user sections ("بخش‌های من"): hide what a user doesn't use, everywhere ──
-const MODULES = [['projects', 'پروژه‌ها', '🗂', 'تابلوی کانبان برای پروژه‌ها'], ['courses', 'دوره‌ها و دانشجوها', '🎓', 'شهریه، پرداخت‌ها و حضور و غیاب'], ['vocab', 'زبان', '📘', '۷۰۰۰ واژهٔ آیلتس با مرور فاصله‌دار'], ['crmOn', 'مشتری و فروش', '💼', 'مشتری، پیش‌فاکتور و پیگیری (پیش‌فرض خاموش)'], ['health', 'سلامت', '💪', 'وزن، خواب، ورزش و آب'], ['car', 'خودرو', '🚗', 'بیمه، معاینه، سرویس و هزینه‌ها'], ['travel', 'سفر', '✈️', 'برنامه، بودجه و لیست وسایل'], ['journal', 'روزنگار', '📔', 'نوشته و عکس روزانه'], ['learning', 'یادگیری', '🎓', 'کتاب‌ها و دوره‌ها'], ['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
-const PAGE_MODULE = { projects: 'projects', courses: 'courses', vocab: 'vocab', crm: 'crmOn', health: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
+const MODULES = [['projects', 'پروژه‌ها', '🗂', 'تابلوی کانبان برای پروژه‌ها'], ['courses', 'دوره‌ها و دانشجوها', '🎓', 'شهریه، پرداخت‌ها و حضور و غیاب'], ['vocab', 'زبان', '📘', '۷۰۰۰ واژهٔ آیلتس با مرور فاصله‌دار'], ['crmOn', 'مشتری و فروش', '💼', 'مشتری، پیش‌فاکتور و پیگیری (پیش‌فرض خاموش)'], ['health', 'سلامت', '💪', 'وزن، خواب، ورزش و آب'], ['car', 'خودرو', '🚗', 'بیمه، معاینه، سرویس و هزینه‌ها'], ['travel', 'سفر', '✈️', 'برنامه، بودجه و لیست وسایل'], ['journal', 'روزنگار', '📔', 'نوشته و عکس روزانه'], ['habits', 'عادت‌ها', '🔥', 'عادت روزانه و زنجیرهٔ روزها'], ['learning', 'یادگیری', '🎓', 'کتاب‌ها و دوره‌ها'], ['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
+const PAGE_MODULE = { projects: 'projects', courses: 'courses', vocab: 'vocab', crm: 'crmOn', health: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', habits: 'habits', shopping: 'notes', finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
 let MODS_CACHE = readLs('lifeos-modules', null);
 const OPT_IN = new Set(['crmOn']); // off unless explicitly turned on
 const modOn = (m, k) => OPT_IN.has(k) ? !!(m && m[k] === true) : (!m || m[k] !== false);
 const pageOn = (m, page) => !PAGE_MODULE[page] || modOn(m, PAGE_MODULE[page]);
+// A menu entry that opens a hub stays visible while any of its tabs is on.
+const NAV_HUB = { learning: ['learning', 'vocab'], notes: ['notes', 'journal'] };
+const navOn = (m, page) => (NAV_HUB[page] || [page]).some(pg => pageOn(m, pg));
 function setModules(m, needsOnboard = false) { MODS_CACHE = m; writeLs('lifeos-modules', m); window.__needsOnboard = needsOnboard; window.dispatchEvent(new Event('lifeos:modules')); }
 function useModules() {
   const [m, setM] = useState(MODS_CACHE);

@@ -111,7 +111,7 @@ const TABS = [
   { id: 'budget', label: 'بودجه و حساب‌ها' },
   { id: 'bills', label: 'قبض و اشتراک' },
   { id: 'wealth', label: 'بدهی و سرمایه' },
-  { id: 'fun', label: 'سرگرمی' },
+  { id: 'fun', label: 'بت و پوکر' },
 ]
 const FILTERS = [['all', 'همه'], ['expense', 'هزینه'], ['income', 'درآمد'], ['transfer', 'انتقال'], ['misc', 'بدون دسته']]
 

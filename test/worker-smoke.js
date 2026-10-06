@@ -310,6 +310,10 @@ async function main() {
     await call('/api/me', { method: 'PATCH', cookie, body: { modules: { courses: true } } });
     const mo52 = (await call('/api/me', { cookie })).d.user.modules;
     check('modules: courses kept, CRM is opt-in (off unless crmOn)', mo52.courses === true && mo52.crmOn === false);
+    await call('/api/me', { method: 'PATCH', cookie, body: { modules: { vocab: false, habits: false } } });
+    const moVh = (await call('/api/me', { cookie })).d.user.modules;
+    check('modules: vocab and habits can be switched off', moVh.vocab === false && moVh.habits === false && moVh.courses === true);
+    await call('/api/me', { method: 'PATCH', cookie, body: { modules: { vocab: true, habits: true, courses: true } } });
     { const t0 = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date()), y0 = new Date(Date.parse(t0 + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10), n0 = new Date(Date.parse(t0 + 'T12:00:00Z') + 5 * 864e5).toISOString().slice(0, 10);
       const pr = (await call('/api/col/projects', { method: 'POST', cookie, body: { name: 'سایت', color: '#60a5fa' } })).d, pa = (await call('/api/col/projects', { method: 'POST', cookie, body: { name: 'قدیمی', archived: true } })).d;
       const c1 = (await call('/api/col/cards', { method: 'POST', cookie, body: { projectId: pr.id, title: 'امروزی', col: 'todo', due: t0, prio: 'h' } })).d;
