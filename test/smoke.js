@@ -109,7 +109,8 @@ async function waitForServer() {
 async function main() {
   fs.writeFileSync(DB_PATH, JSON.stringify(EMPTY_DB, null, 2));
   const googleFixture = await startGoogleCalendarFixtureServer();
-  const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: {
+  // The real cloudflare/worker.js behind a Node HTTP host (fake D1 mirrored to DB_PATH).
+  const child = spawn(process.execPath, ['test/worker-host.js'], { cwd: ROOT, env: {
     ...process.env, PORT: String(PORT), DB_PATH,
     // Hermetic run: never inherit local .env secrets (they would turn "no network call" expectations into live calls).
     SKIP_DOTENV: '1', STOCK_API_KEY: '', TMDB_API_KEY: '',
@@ -364,18 +365,12 @@ async function main() {
     console.log('\n[21] receipt photo attach');
     const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
     const receiptTx = await fetch(`${BASE}/api/transactions`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'with receipt', amount: 10000, date: today() }) }).then(r => r.json());
-    const receiptSave = await fetch(`${BASE}/api/transactions/${receiptTx.id}/receipt`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ image: tinyPng }) }).then(r => r.json());
-    check('receipt upload sets a /uploads path', !!(receiptSave.receipt && receiptSave.receipt.startsWith('/uploads/')));
-    const uploadedFileExists = fs.existsSync(path.join(ROOT, 'public', receiptSave.receipt));
-    check('receipt file actually written to disk', uploadedFileExists);
-    // /uploads/* is private on purpose (same guard in server.js and the Worker):
-    // anonymous fetch must 401, and an authenticated fetch — like a browser <img>
-    // tag, which always sends same-origin cookies — must serve the image bytes.
-    const receiptAnon = await fetch(`${BASE}${receiptSave.receipt}`);
-    check('private uploads reject anonymous fetch -> 401 (receipts are per-user)', receiptAnon.status === 401);
-    const receiptServed = await fetch(`${BASE}${receiptSave.receipt}`, { headers: { Cookie: cookie } });
-    check('uploaded receipt is served with an image content-type, not text/plain', (receiptServed.headers.get('content-type') || '').startsWith('image/'));
-    if (uploadedFileExists) fs.unlinkSync(path.join(ROOT, 'public', receiptSave.receipt));
+    const receiptRes = await fetch(`${BASE}/api/transactions/${receiptTx.id}/receipt`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ image: tinyPng }) });
+    const receiptSave = await receiptRes.json();
+    // The Worker has no disk: receipts go to the user's Telegram chat, so without a linked bot it refuses up front.
+    check('receipt upload without a linked Telegram bot -> 503 with a clear message (not a crash)', receiptRes.status === 503 && /تلگرام/.test(receiptSave.error || ''));
+    const anonUpload = await fetch(`${BASE}/uploads/nothing.png`);
+    check('private uploads reject anonymous fetch -> 401 (receipts are per-user)', anonUpload.status === 401);
 
     console.log('\n[22] insights: debt/subscription due-soon reminders');
     const soon = new Date(); soon.setDate(soon.getDate() + 1);
@@ -741,8 +736,9 @@ async function main() {
     check('document requires a title -> 400', docNoTitle.status === 400);
     const doc = await fetch(`${BASE}/api/documents`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'گارانتی یخچال', type: 'warranty', expiryDate: daysAgo(-2) }) }).then(r => r.json());
     const tinyPngB64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
-    const attachDoc = await fetch(`${BASE}/api/documents/${doc.id}/attach`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ image: 'data:image/png;base64,' + tinyPngB64 }) }).then(r => r.json());
-    check('attaching a file to a document sets fileUrl', attachDoc.fileUrl && attachDoc.fileUrl.startsWith('/uploads/'));
+    const attachRes = await fetch(`${BASE}/api/documents/${doc.id}/attach`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ image: 'data:image/png;base64,' + tinyPngB64 }) });
+    const attachDoc = await attachRes.json();
+    check('document attach without a linked Telegram bot -> 503 with a clear message (files are stored in Telegram)', attachRes.status === 503 && /تلگرام/.test(attachDoc.error || ''));
     const insightsWithDoc = await fetch(`${BASE}/api/insights`, { headers: authHeaders }).then(r => r.json());
     check('soon-to-expire document shows up in insights', insightsWithDoc.items.some(i => i.icon === '📄'));
     const deleteDoc = await fetch(`${BASE}/api/documents/${doc.id}`, { method: 'DELETE', headers: authHeaders });

@@ -5,16 +5,11 @@
 بک‌لاگ: `REMAINING-WORK.md` (اولویت‌بندی‌شده) · تاریخچه: `docs/WORK-SUMMARY.md`, `docs/LIFEOS-WORKLOG.md`.
 
 ## معماری در یک نگاه
-- **بک‌اند مرجع = `cloudflare/worker.js`** (از ۲۰۲۶-۱۰-۰۶، با تأیید کاربر). API تازه یا تغییر API فقط در `worker.js` + تست در `test/worker-smoke.js`.
-- **`server.js` = نسخهٔ قدیمی و منجمد** (Node خام، ~۹۷۵ خط minified-style). مسیر تازه به آن اضافه نکن؛ فقط باگ‌هایی که `test/smoke.js` را قرمز می‌کنند. ۳۸ مسیر Worker را ندارد (فهرست در `docs/SITEMAP.md`). اجرا: `npm run start:legacy`.
-  - دادهٔ محلی: `data/db.json` (یک blob JSON) + بکاپ روزانه در `data/backups/`.
-  - helperها: خطوط ۱–۶۳۳ · `handleRequest`: خط ~۶۳۴ · بلوک مسیرها: از `if(p==='/api/auth/signup'` تا `let file=p==='/'…` (~۸۴۲) · سرو استاتیک و تایمرها بعد از آن.
-- **Worker کلادفلر = `cloudflare/worker.js`** (مرجع؛ محلی با `npm start`).
-  - ⚠️ از v50–v66 (شاخهٔ loving-brown) کد مستقیم در `worker.js` نوشته شده (کاربر disabled، تکرار جلالی `jmonthly`، …) و در `server.js`/`header.js` نیست. **تا آشتی‌دادن، `node cloudflare/port.js` را اجرا نکن** (port.js حالا گارد route-loss دارد و بدون نوشتن فایل با خطا متوقف می‌شود). تغییرات Worker را فعلاً مستقیم در `worker.js` بده.
-  - `node cloudflare/port.js` = `cloudflare/header.js` + بلوک مسیرهای server.js (تبدیل‌شده به Web API) + `cloudflare/footer.js`.
-  - helper جدید در server.js ⇒ همان را داخل `makeHelpers(env)` در `header.js` هم اضافه کن (گاردهای Drift/Export/Helper-parity در port.js چک می‌کنند).
-  - مسیرهای فقط-Worker (tgju، webhook تلگرام، uploads، cron، دروازهٔ لاگین) در `footer.js` هستند.
-  - ذخیره: D1 `pdmaz-db`، جدول `kv`، key=`db` (همان blob). PBKDF2 روی Worker سقف ۱۰۰k دارد.
+- **بک‌اند = فقط `cloudflare/worker.js`** (تنها بک‌اند؛ `server.js`، `port.js`، `header.js`، `footer.js` در ۲۰۲۶-۱۰ با تأیید کاربر حذف شدند). مستقیم همین فایل را ویرایش کن.
+  - ورودی: `export default { fetch, scheduled }` ته فایل؛ helperها در `makeHelpers(env)`؛ مسیرهای API در `handleApi`؛ مسیرهای خاص (tgju، webhook تلگرام، uploads، اشتراک خرید، دروازهٔ لاگین) قبل از `handleApi` در `fetch`.
+  - ذخیره: D1 `pdmaz-db`، جدول `kv`، state به‌صورت shardهای `state:v2:*` (کلید قدیمی `db` خودکار مهاجرت می‌کند). PBKDF2 سقف ۱۰۰k.
+  - فایل‌ها (رسید، مدارک) در چت تلگرام کاربر ذخیره می‌شوند؛ بدون اتصال بات → 503.
+  - cron (wrangler.jsonc) جای تایمرهای پس‌زمینه است.
 - **فرانت = React 19 + Vite** در `src/today/` → build داخل `public/` (`index.html` و `assets/index-*.js` gitignore هستند).
   - یک SPA؛ روتینگ با `/?page=<name>` در `src/today/src/main.jsx` (تابع `App`، ~خط ۱۵۷).
   - صفحات: calendar, planner, finance, market, football, series, movies, media(music/youtube), notes, documents, contacts, settings. هر کدام `src/today/src/<page>.jsx` + `.css` (series/movies/settings داخل main.jsx).
@@ -26,21 +21,20 @@
 ```bash
 npm ci
 npm run build:today      # حتماً قبل از تست؛ بدون build، ui/verify تست‌ها قرمز می‌شوند
-npm test                 # smoke(490) + worker-smoke(267) + verify-script(26) + ui-smoke(45) — همه باید سبز باشند
-npm start                # Worker واقعی محلی روی :3000 (wrangler dev --local + جدول kv در D1 محلی؛ کلیدها از .dev.vars نه .env)
-npm run start:legacy     # server.js قدیمی روی :3000 (منجمد)
+npm test                 # smoke(~489، روی worker.js از طریق test/worker-host.js) + worker-smoke(~288) + verify-script(26) + ui-smoke(45) — همه سبز
+npm start                # Worker واقعی محلی روی :3000 (wrangler dev --local + جدول kv در D1 محلی؛ کلیدها از .dev.vars)
+PORT=3000 DB_PATH=/tmp/db.json node test/worker-host.js   # همان Worker بدون wrangler (D1 جعلی، state در DB_PATH)
 npm run dev:today        # vite dev
-node cloudflare/port.js  # ⚠️ فعلاً ممنوع — بالا را ببین
 npm run deploy           # build + wrangler deploy (فقط با اجازهٔ کاربر)
 npm run build:studio     # پنل seyfikhani.ir (ProjectsPage+CoursesPage) → integrations/seyfikhani/public_html
 ```
 
 ## قواعد کار
-- هر تغییر API: فقط `cloudflare/worker.js` + تست در `test/worker-smoke.js` → `npm test`. به `server.js` مسیر تازه اضافه نکن.
+- هر تغییر API: `cloudflare/worker.js` + تست در `test/worker-smoke.js` یا `test/smoke.js` → `npm test`.
 - اپ زبان: `public/vocab/` (`words.json` = آرایهٔ فشرده) + `src/today/src/vocab.jsx` + `/api/vocab`.
 - متن UI فارسی، `dir=rtl`، اعداد با `fa()`/`toLocaleString('fa-IR')`. واحد پول ذخیره‌شده **ریال** است (`_meta.currencyUnit='IRR'`)، نمایش تومان = ÷۱۰.
 - تاریخ‌ها ISO با منطقهٔ `Asia/Tehran`؛ نمایش جلالی با `Intl` (`fa-IR-u-ca-persian`).
-- کلیدهای API در `.env` (نمونه: `.env.example`) / `wrangler secret`. هرگز commit نکن.
+- کلیدهای API: محلی در `.dev.vars` (نمونه: `.env.example`)، لایو با `wrangler secret`. هرگز commit نکن.
 - بستهٔ IELTS (zip، از ریپو حذف شد — در تاریخچهٔ git پیش از این کامیت هست) = دادهٔ واژگان IELTS (۴۵ فایل JSON، ۴۴۹۴ واژه) واردشده با `node scripts/import-ielts.js <dir>` (بعد از unzip). ستون ۱۱ اختیاری `words.json` = معنی‌های اضافه `[[pos,fa,d,df,e,ef],…]`.
 
 ## روال کار با کاربر (مهم)
@@ -56,6 +50,6 @@ npm run build:studio     # پنل seyfikhani.ir (ProjectsPage+CoursesPage) → i
 3. `git add -A integrations/seyfikhani/public_html` (حذف assetهای قدیمی هم commit شود).
 4. push + PR بساز؛ قبل از مرج به کاربر خبر بده.
 5. در پیام بگو روی هاست ملینا آپلود شود: `studio.html` و کل `studio-assets/` (بعد از پاک‌کردن فایل‌های قدیمی آن پوشه). کاربر زیپ این دو را می‌خواهد (برای extract در `public_html`).
-- deploy فقط با اجازهٔ کاربر. `port.js` ممنوع.
+- deploy فقط با اجازهٔ کاربر.
 - endpoint تازه برای پنل: `/api/ext/*` فقط در `cloudflare/worker.js` (با بررسی scope توکن) + مسیر در `$allowed` فایل `integrations/seyfikhani/public_html/studio-api.php` + تست در `test/worker-smoke.js`.
 - اگر ساخت پنل شکست خورد یا تغییر در پنل کار نکرد، صریح گزارش بده.

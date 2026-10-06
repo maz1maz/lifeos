@@ -150,14 +150,12 @@ check('Project PDF reports include configurable branding and automatic page numb
   read('src/today/src/life.css').includes('counter(page)') && todaySource.includes('reportPrintSettings') && todaySource.includes('compactReportLogo'));
 check('React settings explains the dedicated LifeOS calendar and non-destructive delete policy',
   todaySource.includes('تقویم اختصاصی LifeOS') && todaySource.includes('حذف آن در گوگل دادهٔ هسته را پاک نمی‌کند'));
-const serverSource = read('server.js');
-const workerHeader = read('cloudflare/header.js');
-check('Node and Worker backups redact Calendar refresh tokens and live sessions',
-  serverSource.includes('delete u.googleCalendarRefreshToken') && workerHeader.includes('delete u.googleCalendarRefreshToken') &&
-  serverSource.includes('clone.sessions=[]') && workerHeader.includes('clone.sessions=[]'));
+const workerSource = read('cloudflare/worker.js');
+check('Worker backups redact Calendar refresh tokens and live sessions',
+  workerSource.includes('delete u.googleCalendarRefreshToken') && workerSource.includes('clone.sessions=[]'));
 check('Google OAuth uses read-only visible-calendar access plus app-created-calendar write access, never full calendar scope',
-  serverSource.includes('auth/calendar.readonly') && serverSource.includes('auth/calendar.app.created') &&
-  !serverSource.includes("SCOPES='https://www.googleapis.com/auth/calendar'"));
+  workerSource.includes('auth/calendar.readonly') && workerSource.includes('auth/calendar.app.created') &&
+  !/SCOPES\s*=\s*'https:\/\/www\.googleapis\.com\/auth\/calendar'/.test(workerSource));
 for (const file of ['public/design/calendar-page.html','public/design/settings-page.html']) {
   const html = read(file);
   let syntaxOk = true, detail = '';

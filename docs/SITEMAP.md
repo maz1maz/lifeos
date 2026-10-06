@@ -34,16 +34,15 @@
 goals · habits(+history) · exercise · learning · projects · time/timer · trips · shopping · subscriptions · wins · decisions · bookmarks · news(+sources, sync, weekly-summary) · weekly-review · life-review · insights · reports · one-year-ago · calendar/on-this-day · search · export · ai/{report, correlations, tomorrow-priorities, process, suggest-category} · football/{matches, teams, accuracy, remote/odds, 1xbet, sofascore} · movies/{stats, next-episode-alerts} · reminders/statement-check · days.
 
 ## ۳) بک‌اند
-- `server.js`: helperها ۱–۶۳۳ (auth/PBKDF2، تاریخ تهران/جلالی، پارس پیامک بانکی `parseBankMessage`، متن آزاد `parseLifeText`، Google Calendar sync، فوتبال varzesh3/ESPN/TheSportsDB، بت/پوکر)، `handleRequest` ۶۳۴، مسیرها ۶۳۵–۸۴۱، استاتیک ۸۴۲+، تایمرها (تلگرام long-poll، گزارش صبح/شب، قیمت‌ها) و `createServer` در انتها.
-- Worker: `cloudflare/header.js` (makeHelpers + handleApi + مسیرهای فقط-Worker مثل backup/telegram) → `port.js` → `worker.js`. `footer.js`: buildResponse، uploads (R2)، webhook تلگرام، cron هر ۱۵ دقیقه، tgju، دروازهٔ لاگین برای همهٔ مسیرهای غیر API.
+- **تنها بک‌اند: `cloudflare/worker.js`** — `makeHelpers(env)` (auth/PBKDF2، تاریخ تهران/جلالی، پارس پیامک بانکی `parseBankMessage`، متن آزاد `parseLifeText`، Google Calendar، فوتبال، بت/پوکر، storage v2 روی D1)، `handleApi`، و در `export default`: tgju، webhook تلگرام، uploads (در تلگرام)، cron، دروازهٔ لاگین. `server.js`/`port.js`/`header.js`/`footer.js` در ۲۰۲۶-۱۰ حذف شدند.
 - مدل داده: یک blob با آرایه‌های users, sessions, transactions, tasks, inbox, daily, accounts, budgets, investments, investmentTx, assetPrices, priceAlerts, portfolioSnapshots, movies, mediaLog, contacts, documents, habits, habitLogs, matches, news, newsSources, betDays, … (پیش‌فرض‌ها در `read()`).
 
-### اختلاف server.js و Worker (۲۰۲۶-۱۰-۰۶)
-- server.js ۱۵۹ مسیر، worker.js ۱۹۷. ۳۸ مسیر فقط در Worker: admin/*, attachments, backup/now, col/*, courses/{due,report}, finance/{insights,monthly-report,weekly-report,year}, fun/status, movies/{recommendations,upcoming}, portfolio/snapshots, projects/{due,report}, push/*, report-brand, savings-goals, shop/share, site-tokens, transactions/{receipt-scan,recurring}, vocab/*, ext/*, messages/*. مسیری فقط در server.js نیست.
-- **تصمیم:** Worker مرجع است و `server.js` منجمد (فقط `npm run start:legacy`). اجرای محلی کامل: `npm start` (= `wrangler dev --local --port 3000`). server.js: درخواست‌های بیرونی مهلت ۱۲ ثانیه دارند و GETهای پروکسی (فوتبال، TVmaze/TMDB، Spotify/YouTube، سهام) بدون قفل DB اجرا می‌شوند.
+### حذف server.js (۲۰۲۶-۱۰-۰۶)
+- پیش از حذف: server.js ۱۵۹ مسیر داشت و worker.js ۱۹۷ (۳۸ مسیر فقط در Worker؛ مسیری فقط در server.js نبود). تست‌های smoke.js حالا روی Worker اجرا می‌شوند.
+- اجرای محلی: `npm start` (= `wrangler dev --local --port 3000`) یا `node test/worker-host.js` (بدون wrangler).
 
 ## ۴) تست‌ها (`test/`)
-- `smoke.js`: server.js واقعی روی DB موقت (۴۹۰ چک).
+- `smoke.js`: worker.js واقعی از طریق `test/worker-host.js` (سرور HTTP نود + D1 جعلی که state را در DB_PATH آینه می‌کند) — ~۴۸۹ چک.
 - `worker-smoke.js`: worker.js با D1 شبیه‌سازی‌شده (۱۳۴).
 - `verify-script-smoke.js`: `docs/verify-live.console.js` (چک سلامت دیپلوی لایو) — نیاز به build.
 - `ui-smoke.js`: باندل React در Chromium (۳۹) — نیاز به build.
