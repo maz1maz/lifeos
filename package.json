@@ -19,7 +19,6 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.56.0",
     "@vitejs/plugin-react": "^5.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

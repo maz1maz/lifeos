@@ -55,6 +55,6 @@ goals · habits(+history) · exercise · learning · projects · time/timer · t
 ## ۶) نکات/بدهی فنی شناخته‌شده
 - blob واحد JSON ⇒ نوشتن همزمان «آخرین برنده». برای یک کاربر OK.
 - رمزهای هش‌شده با ۱۳۰k تکرار در Node روی Worker کار نمی‌کنند (سقف ۱۰۰k).
-- دو فایل vite config (`vite.config.js` با پلاگین cloudflare، `vite.today.config.mjs` که build واقعی از آن است).
+- (حل شد ۲۰۲۶-۱۰) `vite.config.js` و `@cloudflare/vite-plugin` حذف شدند؛ build فقط با `vite.today.config.mjs`. قبلاً: دو فایل vite config (`vite.today.config.mjs` که build واقعی از آن است).
 - `public/design/cards-v2.html` (۳۵۰KB) و `login-page.html` (۲۷۰KB) فونت base64 دارند.
 - ۲۰۲۶-۰۹-۳۰: `header.js` از `worker.js` عقب بود (fixهای فوتبال دستی در worker.js)؛ همگام شد و `port.js` دوباره سبز است.

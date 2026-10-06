@@ -163,6 +163,7 @@ check('React settings explains the dedicated LifeOS calendar and non-destructive
   check('RTL prev/next arrows: «قبل» points right, «بعد» points left', bad.length === 0);
   if (bad.length) console.log('    ' + bad.join('\n    '));
 }
+check('PIN lock script is loaded by the app shell (Settings promises a PIN screen)', read('src/today/index.html').includes('src="/app-lock.js') && read('public/index.html').includes('/app-lock.js'));
 const workerSource = read('cloudflare/worker.js');
 check('Worker backups redact Calendar refresh tokens and live sessions',
   workerSource.includes('delete u.googleCalendarRefreshToken') && workerSource.includes('clone.sessions=[]'));
