@@ -502,7 +502,8 @@ async function main() {
     const aiChatNoKey = await fetch(`${BASE}/api/ai/chat`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ message: 'سلام' }) });
     check('AI chat -> 503 with no AI_PROVIDER_API_KEY configured (not a crash)', aiChatNoKey.status === 503);
     const aiReportNoKey = await fetch(`${BASE}/api/ai/report?period=daily`, { headers: authHeaders });
-    check('AI report -> 503 with no AI_PROVIDER_API_KEY configured (not a crash)', aiReportNoKey.status === 503);
+    const aiReportNoKeyBody = await aiReportNoKey.json();
+    check('AI report with no AI key -> 200 with the numbers, no written report', aiReportNoKey.status === 200 && aiReportNoKeyBody.aiOff === true && aiReportNoKeyBody.report === null && aiReportNoKeyBody.data && aiReportNoKeyBody.data.period === 'daily');
 
     console.log('\n[31] football data sources: free leagues + RapidAPI-backed routes degrade gracefully with no key');
     const freeFootballLeagues = await fetch(`${BASE}/api/football/remote/free/leagues`, { headers: authHeaders }).then(r => r.json());

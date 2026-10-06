@@ -30,6 +30,8 @@ import { JalaliDateInput } from './jdate';
 import './numgroup';
 import './habits.css';
 import './watchx.css';
+import './insights.css';
+import { InsightsHomeCard } from './insights-card';
 import { CommandPalette } from './palette';
 import { AdminPage, MsgBar } from './admin';
 import { CoursesPage, ClassTodayCard } from './courses';
@@ -42,13 +44,13 @@ import './mobile.css'; // phone/iPhone pass — keep last so it overrides page C
 const PAGE_CHUNKS = {
   notes: () => import('./notes'), contacts: () => import('./contacts'), documents: () => import('./documents'),
   media: () => import('./media'), market: () => import('./market'), calendar: () => import('./calendar'),
-  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx')
+  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), insights: () => import('./insights')
 };
 const lazyPage = (chunk, name) => React.lazy(() => PAGE_CHUNKS[chunk]().then(m => ({ default: m[name] })));
 const NotesReact = lazyPage('notes', 'NotesReact'), ContactsReact = lazyPage('contacts', 'ContactsReact'), DocumentsReact = lazyPage('documents', 'DocumentsReact');
 const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('market', 'MarketReact'), CalendarReact = lazyPage('calendar', 'CalendarReact');
 const FinanceReact = lazyPage('finance', 'FinanceReact'), HabitsPage = lazyPage('habits', 'HabitsPage'), WeeklyPage = lazyPage('habits', 'WeeklyPage');
-const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage');
+const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage');
 // Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
 const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
 function PageLoading() { return <div className="page-loading" role="status" aria-label="در حال بارگذاری"><i /></div>; }
@@ -108,7 +110,7 @@ function Sparkline({ data, up, width = 72, height = 28, uid = 'sp', color: force
 }
 
 const NAV_GROUPS = [
-  ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays], ['review', 'مرور و اهداف', Target]]],
+  ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays], ['insights', 'بینش', Sparkles], ['review', 'مرور و اهداف', Target]]],
   ['کار', [['projects', 'پروژه‌ها', LayoutGrid], ['courses', 'دوره‌ها و دانشجوها', GraduationCap], ['crm', 'مشتری و فروش', Briefcase]]],
   ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
   ['زندگی', [['health', 'سلامت', HeartPulse], ['car', 'خودرو', Car], ['travel', 'سفر', Plane]]],
@@ -219,6 +221,7 @@ const NOTES_TABS = [['notes', 'یادداشت‌ها', StickyNote, NotesReact], 
 function App() {
   const page = new URLSearchParams(location.search).get('page');
   if (['calendar', 'planner', 'habits', 'focus'].includes(page)) return <TabHub active="planner" label="نمای برنامه‌ریز" tabs={PLAN_TABS} initial={page === 'planner' ? 'list' : page} url={v => v === 'list' ? 'planner' : v} />;
+  if (page === 'insights') return <InsightsPage Nav={() => <TopNav active="insights" />} />;
   if (['review', 'goals', 'week', 'stats'].includes(page)) return <TabHub active="review" label="مرور و اهداف" tabs={REVIEW_TABS} initial={page} />;
   if (['learning', 'vocab'].includes(page)) return <TabHub active="learning" label="یادگیری" tabs={LEARN_TABS} initial={page} />;
   if (['notes', 'journal', 'shopping'].includes(page)) return <TabHub active="notes" label="یادداشت‌ها" tabs={NOTES_TABS} initial={page} />;
@@ -439,6 +442,7 @@ function HomePage() {
         focus: (<FocusCard Card={Card} Icon={Timer} />),
         ...(modOn(mods, 'vocab') ? { vocab: (<VocabHomeCard Card={Card} Icon={Languages} />) } : {}),
         ...(modOn(mods, 'finance') ? { bills: (<BillsWeekCard Card={Card} Icon={Receipt} />) } : {}),
+        insights: (<InsightsHomeCard Card={Card} Icon={Sparkles} />),
       }} />
       <div className={`home-layout-bar ${layoutEdit ? 'on' : ''}`}>
         {layoutEdit ? <><span>کارت‌ها را با موس بکش و جای دیگری رها کن (یا با فلش‌ها جابه‌جا کن) — ترتیب ذخیره می‌شود.</span><button type="button" className="outline" onClick={() => { resetLayouts(); }}>پیش‌فرض</button><button type="button" className="save" onClick={() => setLayoutEdit(false)}>تمام</button></>
@@ -1850,7 +1854,7 @@ function LiveCalendar({ today }) {
 
 // ---- draggable card layout (order saved per browser) ----
 const LAYOUT_KEY = id => `lifeos-home-layout-${id}`;
-const LAYOUT_LABELS = { day: 'تاریخ', weather: 'هوا', calendar: 'تقویم', market: 'بازارها', agenda: 'کارها و یادآوری‌ها', finance: 'مالی', football: 'فوتبال', series: 'سریال‌ها', daily: 'ثبت روزانه', focus: 'تمرکز', bills: 'قبض‌ها', habits: 'عادت‌ها', notes: 'یادداشت‌ها', goals: 'اهداف' };
+const LAYOUT_LABELS = { day: 'تاریخ', weather: 'هوا', calendar: 'تقویم', market: 'بازارها', agenda: 'کارها و یادآوری‌ها', finance: 'مالی', football: 'فوتبال', series: 'سریال‌ها', daily: 'ثبت روزانه', focus: 'تمرکز', bills: 'قبض‌ها', habits: 'عادت‌ها', notes: 'یادداشت‌ها', goals: 'اهداف', insights: 'بینش' };
 const resetLayouts = () => { ['top', 'grid'].forEach(id => { try { localStorage.removeItem(LAYOUT_KEY(id)); } catch {} }); window.dispatchEvent(new Event('lifeos-layout-reset')); };
 function Layout({ id, className, cards, editing }) {
   const keys = Object.keys(cards);

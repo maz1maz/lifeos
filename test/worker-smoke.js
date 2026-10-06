@@ -471,7 +471,8 @@ async function main() {
   check('correlations -> 200', (await call('/api/ai/correlations?days=30', { cookie })).status === 200);
   check('tomorrow-priorities -> 200', (await call('/api/ai/tomorrow-priorities', { cookie })).status === 200);
   check('ai/chat -> 503 with no key', (await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'hi' } })).status === 503);
-  check('ai/report -> 503 with no key', (await call('/api/ai/report?period=daily', { cookie })).status === 503);
+  const wRep = await call('/api/ai/report?period=weekly', { cookie });
+  check('ai/report with no key -> 200 stats, report null', wRep.status === 200 && wRep.d.aiOff === true && wRep.d.data.period === 'weekly');
   const dash = await call(`/api/dashboard?date=${today()}`, { cookie });
   check('dashboard -> 200 with shape', dash.status === 200 && Array.isArray(dash.d.tasks) && Array.isArray(dash.d.transactions));
   check('finance -> 200', (await call(`/api/finance?month=${today().slice(0, 7)}`, { cookie })).status === 200);
