@@ -404,6 +404,38 @@ async function main() {
   check('TMDB import without ids -> 400 (not 503)', (await call('/api/movies/from-tmdb', { method: 'POST', cookie, body: {} })).status === 400);
 
   console.log('\n[W6] ai + dashboard + finance surfaces');
+  await call('/api/me', { method: 'PATCH', cookie, body: { tgAiOn: false } });
+  const meAi = (await call('/api/me', { cookie })).d.user;
+  check('Telegram AI note: setting saved, and the app knows no AI key is configured', meAi.tgAiOn === false && meAi.aiConfigured === false);
+  await call('/api/me', { method: 'PATCH', cookie, body: { tgAiOn: true } });
+  {
+    // the «✨» AI note on Telegram reports, against a fake OpenAI-compatible provider
+    const { makeHelpers } = await require('./load-worker').loadWorkerModule();
+    const H = makeHelpers({ ...env, AI_PROVIDER_API_KEY: 'k', AI_PROVIDER_BASE_URL: 'https://ai.test/v1', AI_MODEL: 'm' });
+    const realFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async (url, o) => String(url).startsWith('https://ai.test/') ? new Response(JSON.stringify({ choices: [{ message: { content: 'امروز روی پروژه تمرکز کن.' } }] }), { headers: { 'content-type': 'application/json' } }) : realFetch(url, o);
+      const withNote = await H.withAiNote({}, '📋 برنامه امروز', 'morning');
+      check('Telegram AI note is appended under the report', withNote.startsWith('📋 برنامه امروز') && withNote.includes('✨ امروز روی پروژه تمرکز کن.'), withNote);
+      check('Telegram AI note respects the setting', (await H.withAiNote({ tgAiOn: false }, 'x', 'evening')) === 'x');
+      globalThis.fetch = async (url, o) => { if (String(url).startsWith('https://ai.test/')) throw new Error('down'); return realFetch(url, o); };
+      check('Telegram report still goes out when the AI provider fails', (await H.withAiNote({}, 'گزارش', 'evening')) === 'گزارش');
+    } finally { globalThis.fetch = realFetch; }
+  }
+  // «دفتر و مرور»: Jalali-month life review, wins, decision journal
+  const lrJ = (await call('/api/life-review?period=jmonthly&key=1405-07', { cookie })).d;
+  check('life-review jmonthly 1405-07 covers Mehr (2026-09-23 … 2026-10-22)', lrJ && lrJ.stats && lrJ.stats.from === '2026-09-23' && lrJ.stats.to === '2026-10-22', JSON.stringify(lrJ && lrJ.stats));
+  const lrJ12 = (await call('/api/life-review?period=jmonthly&key=1404-12', { cookie })).d;
+  check('life-review jmonthly Esfand ends the day before Nowruz', lrJ12.stats.from === '2026-02-20' && lrJ12.stats.to === '2026-03-20', JSON.stringify(lrJ12.stats));
+  await call('/api/life-review', { method: 'PUT', cookie, body: { period: 'jmonthly', periodKey: '1405-07', reflection: 'ماه خوبی بود' } });
+  check('life-review reflection saved per Jalali month', (await call('/api/life-review?period=jmonthly&key=1405-07', { cookie })).d.reflection === 'ماه خوبی بود');
+  const win = (await call('/api/wins', { method: 'POST', cookie, body: { text: 'قرارداد بسته شد', date: today() } })).d;
+  check('wins: add + list', !!win.id && (await call('/api/wins', { cookie })).d.items.some(w => w.id === win.id));
+  check('wins: delete', (await call(`/api/wins/${win.id}`, { method: 'DELETE', cookie })).status === 200 && !(await call('/api/wins', { cookie })).d.items.some(w => w.id === win.id));
+  const dec = (await call('/api/decisions', { method: 'POST', cookie, body: { title: 'خرید ماشین', decision: 'صبر تا بهار', reviewDate: today() } })).d;
+  const decP = (await call(`/api/decisions/${dec.id}`, { method: 'PATCH', cookie, body: { outcome: 'درست بود' } })).d;
+  check('decisions: add + record the outcome', decP.outcome === 'درست بود' && decP.decision === 'صبر تا بهار');
+  await call(`/api/decisions/${dec.id}`, { method: 'DELETE', cookie });
   const wPrev = (await call('/api/ai/process', { method: 'POST', cookie, body: { text: 'فردا ساعت ۵ تماس با بانک', preview: true } })).d;
   check('ai/process preview returns actions without saving', wPrev.preview === true && wPrev.actions.length > 0 && !wPrev.done);
   const pv = async text => (await call('/api/ai/process', { method: 'POST', cookie, body: { text, preview: true } })).d.actions || [];

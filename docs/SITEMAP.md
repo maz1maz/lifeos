@@ -18,6 +18,8 @@
 | `/?page=notes` | `notes.jsx` | inbox |
 | `/?page=documents` | `documents.jsx` | documents (+`/attach` base64 ≤۱۲MB) |
 | `/?page=contacts` | `contacts.jsx` | contacts, contacts/import, contacts/dedupe |
+| `/?page=insights` بینش | `insights.jsx` (+ کارت `insights-card.jsx`) | ai/report, ai/tomorrow-priorities, insights, ai/correlations, one-year-ago |
+| `/?page=logbook` دفتر و مرور | `logbook.jsx` | life-review (period=jmonthly), wins, decisions |
 | `/?page=settings` | `SettingsReact` در main.jsx | me, integrations, google-calendar/sync, telegram/link-code, security/pin, backup/telegram (فقط Worker) |
 | `/design/login-page.html` | صفحهٔ ورود مستقل (HTML بزرگ) | auth/login, auth/signup, auth/google |
 | `/design/*-page.html` | ریدایرکت به `/?page=…` | — |
@@ -31,7 +33,7 @@
 - ماژول تازهٔ قابل خاموش‌کردن: `habits`؛ `vocab` و `habits` به whitelist ماژول‌ها در worker.js اضافه شدند.
 
 ## ۲) APIهای بک‌اند **بدون UI در React** (فرصت توسعه)
-goals · habits(+history) · exercise · learning · projects · time/timer · trips · shopping · subscriptions · wins · decisions · bookmarks · news(+sources, sync, weekly-summary) · weekly-review · life-review · insights · reports · one-year-ago · calendar/on-this-day · search · export · ai/{report, correlations, tomorrow-priorities, process, suggest-category} · football/{matches, teams, accuracy, remote/odds, 1xbet, sofascore} · movies/{stats, next-episode-alerts} · reminders/statement-check · days.
+(به‌روز ۲۰۲۶-۱۰) هنوز بدون صفحه: bookmarks · news(+sources, sync, weekly-summary) · reports · calendar/on-this-day · exercise · time/timer · trips (سفر در life.jsx با col است). صفحه دارند: goals, habits, learning, projects, shopping, subscriptions (قبض‌ها)، weekly-review, insights, one-year-ago (بینش)، wins, decisions, life-review (دفتر و مرور)، search (Ctrl+K).
 
 ## ۳) بک‌اند
 - **تنها بک‌اند: Worker** — ورودی `cloudflare/worker.js` + `cloudflare/lib/{helpers,api,edge,security}.js` (۲۰۲۶-۱۰ از یک فایل ۴۶۶KB جدا شد) — `makeHelpers(env)` (auth/PBKDF2، تاریخ تهران/جلالی، پارس پیامک بانکی `parseBankMessage`، متن آزاد `parseLifeText`، Google Calendar، فوتبال، بت/پوکر، storage v2 روی D1)، `handleApi`، و در `export default`: tgju، webhook تلگرام، uploads (در تلگرام)، cron، دروازهٔ لاگین. `server.js`/`port.js`/`header.js`/`footer.js` در ۲۰۲۶-۱۰ حذف شدند.

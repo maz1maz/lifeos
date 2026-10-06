@@ -24,13 +24,14 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, ChevronsLeft, ChevronsRight, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
 import './habits.css';
 import './watchx.css';
 import './insights.css';
+import './logbook.css';
 import { InsightsHomeCard } from './insights-card';
 import { CommandPalette } from './palette';
 import { AdminPage, MsgBar } from './admin';
@@ -45,7 +46,7 @@ import './mobile.css'; // phone/iPhone pass — keep last so it overrides page C
 const PAGE_CHUNKS = {
   notes: () => import('./notes'), contacts: () => import('./contacts'), documents: () => import('./documents'),
   media: () => import('./media'), market: () => import('./market'), calendar: () => import('./calendar'),
-  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), insights: () => import('./insights'), life: () => import('./life')
+  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook')
 };
 const lazyPage = (chunk, name) => React.lazy(() => PAGE_CHUNKS[chunk]().then(m => ({ default: m[name] })));
 const NotesReact = lazyPage('notes', 'NotesReact'), ContactsReact = lazyPage('contacts', 'ContactsReact'), DocumentsReact = lazyPage('documents', 'DocumentsReact');
@@ -53,7 +54,7 @@ const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('mark
 const FinanceReact = lazyPage('finance', 'FinanceReact'), HabitsPage = lazyPage('habits', 'HabitsPage'), WeeklyPage = lazyPage('habits', 'WeeklyPage');
 const [HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, LifeStatsPage] =
   ['HealthPage', 'CarPage', 'TravelPage', 'ProjectsPage', 'CrmPage', 'LearningPage', 'JournalPage', 'GoalsPage', 'FocusPage', 'LifeStatsPage'].map(n => lazyPage('life', n));
-const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage');
+const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage');
 // Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
 const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
 function PageLoading() { return <div className="page-loading" role="status" aria-label="در حال بارگذاری"><i /></div>; }
@@ -175,7 +176,7 @@ function TopNav({ active, right }) {
       <button type="button" className="nav-search" onClick={() => window.dispatchEvent(new Event('lifeos:search'))} aria-label="جستجو (Ctrl+K)" title="جستجو — Ctrl+K"><Search size={17} /><span>جستجو</span><kbd>Ctrl K</kbd></button>
       <ThemeToggle />
       {right}
-      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
+      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
@@ -225,16 +226,24 @@ function TabHub({ active, label, tabs, initial, url = v => v }) {
 }
 const ShopView = ({ Nav }) => <main className="lf" dir="rtl"><Nav /><div className="lf-page"><ShoppingPanel /></div></main>;
 const PLAN_TABS = [['list', 'لیست کارها', ListChecks, PlannerReact], ['calendar', 'تقویم', CalendarDays, CalendarReact], ['habits', 'عادت‌ها', Flame, HabitsPage], ['focus', 'تمرکز', Timer, FocusPage]];
-const REVIEW_TABS = [['goals', 'اهداف سالانه', Target, GoalsPage], ['week', 'مرور هفته', ClipboardCheck, WeeklyPage], ['stats', 'آمار زندگی', BarChart3, LifeStatsPage]];
+const REVIEW_TABS = [['goals', 'اهداف سالانه', Target, GoalsPage], ['week', 'مرور هفته', ClipboardCheck, WeeklyPage], ['stats', 'آمار زندگی', BarChart3, LifeStatsPage], ['logbook', 'دفتر و مرور', BookMarked, LogbookPage]];
 const LEARN_TABS = [['learning', 'کتاب و دوره', BookOpen, LearningPage], ['vocab', 'زبان', Languages, VocabPage]];
 const NOTES_TABS = [['notes', 'یادداشت‌ها', StickyNote, NotesReact], ['journal', 'روزنگار', BookOpen, JournalPage], ['shopping', 'لیست خرید', ShoppingCart, ShopView]];
 
-// Router first: other pages must not pay for the Today page's data fetching.
+// Something was saved from Ctrl+K: re-mount the current page so it fetches its data again (lazy chunks are
+// already loaded, so this is quick) — no full reload, the URL and tab stay as they are.
 function App() {
+  const [tick, setTick] = useState(0);
+  useEffect(() => { const f = () => setTick(t => t + 1); window.addEventListener('lifeos:captured', f); return () => window.removeEventListener('lifeos:captured', f); }, []);
+  return <Routes key={tick} />;
+}
+
+// Router first: other pages must not pay for the Today page's data fetching.
+function Routes() {
   const page = new URLSearchParams(location.search).get('page');
   if (['calendar', 'planner', 'habits', 'focus'].includes(page)) return <TabHub active="planner" label="نمای برنامه‌ریز" tabs={PLAN_TABS} initial={page === 'planner' ? 'list' : page} url={v => v === 'list' ? 'planner' : v} />;
   if (page === 'insights') return <InsightsPage Nav={() => <TopNav active="insights" />} />;
-  if (['review', 'goals', 'week', 'stats'].includes(page)) return <TabHub active="review" label="مرور و اهداف" tabs={REVIEW_TABS} initial={page} />;
+  if (['review', 'goals', 'week', 'stats', 'logbook'].includes(page)) return <TabHub active="review" label="مرور و اهداف" tabs={REVIEW_TABS} initial={page} />;
   if (['learning', 'vocab'].includes(page)) return <TabHub active="learning" label="یادگیری" tabs={LEARN_TABS} initial={page} />;
   if (['notes', 'journal', 'shopping'].includes(page)) return <TabHub active="notes" label="یادداشت‌ها" tabs={NOTES_TABS} initial={page} />;
   const LIFE = { courses: CoursesPage, health: HealthPage, car: CarPage, travel: TravelPage, projects: ProjectsPage, crm: CrmPage };
@@ -1298,13 +1307,13 @@ function SettingsReact() {
   const [pinNew, setPinNew] = useState(''), [pinCur, setPinCur] = useState('');
   const [tgLink, setTgLink] = useState(null);
   const [tgBackupBusy, setTgBackupBusy] = useState(false);
-  const [digest, setDigest] = useState({ tgMorningHour: 9, tgEveningHour: 23, tgMorningOn: true, tgEveningOn: true, tgMonthlyOn: true, tgWeeklyOn: true, tgReports: true });
+  const [digest, setDigest] = useState({ tgMorningHour: 9, tgEveningHour: 23, tgMorningOn: true, tgEveningOn: true, tgMonthlyOn: true, tgWeeklyOn: true, tgReports: true, tgAiOn: true, aiConfigured: false });
   const [chatLog, setChatLog] = useState([]), [chatInput, setChatInput] = useState(''), [chatBusy, setChatBusy] = useState(false);
 
   const load = () => api('/api/integrations').then(setIntegrations).catch(error => setNotice(error.message));
   const loadMe = () => api('/api/me').then(data => {
     setMe(data.user || null);
-    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false, tgMonthlyOn: data.user.tgMonthlyOn !== false, tgWeeklyOn: data.user.tgWeeklyOn !== false, tgProjectsOn: data.user.tgProjectsOn !== false, tgFeeRemindOn: data.user.tgFeeRemindOn !== false, tgCoursesMonthlyOn: data.user.tgCoursesMonthlyOn !== false, backupFreq: data.user.backupFreq || 'weekly', tgLastBackup: data.user.tgLastBackup || null }));
+    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false, tgAiOn: data.user.tgAiOn !== false, aiConfigured: !!data.user.aiConfigured, tgMonthlyOn: data.user.tgMonthlyOn !== false, tgWeeklyOn: data.user.tgWeeklyOn !== false, tgProjectsOn: data.user.tgProjectsOn !== false, tgFeeRemindOn: data.user.tgFeeRemindOn !== false, tgCoursesMonthlyOn: data.user.tgCoursesMonthlyOn !== false, backupFreq: data.user.backupFreq || 'weekly', tgLastBackup: data.user.tgLastBackup || null }));
   }).catch(error => setNotice(error.message));
   useEffect(() => { load(); loadMe(); }, []);
 
@@ -1437,6 +1446,10 @@ function SettingsReact() {
               <select value={digest.tgEveningHour} onChange={e => saveDigest({ tgEveningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
               <button type="button" className={`plnr-switch ${digest.tgEveningOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgEveningOn} onClick={() => saveDigest({ tgEveningOn: !digest.tgEveningOn })}><i /></button>
             </div>
+          </article>
+          <article>
+            <div><b>✨ یادداشت هوشمند</b><small>{digest.aiConfigured ? 'زیر گزارش صبح و عصر، دو جملهٔ کوتاه از دستیار: تمرکز امروز و جمع‌بندی روز.' : 'برای فعال شدن، کلید AI باید روی سرور تنظیم باشد.'}</small></div>
+            <button type="button" className={`plnr-switch ${digest.tgAiOn && digest.aiConfigured ? 'on' : ''}`} role="switch" aria-checked={digest.tgAiOn && digest.aiConfigured} disabled={!digest.aiConfigured} onClick={() => saveDigest({ tgAiOn: !digest.tgAiOn })}><i /></button>
           </article>
           <article>
             <div><b>📊 گزارش ماهانهٔ مالی</b><small>روز اول هر ماه شمسی، ساعت گزارش صبح: درآمد، هزینه، مقایسه با ماه قبل، سقف‌های ردشده و سررسیدها</small></div>

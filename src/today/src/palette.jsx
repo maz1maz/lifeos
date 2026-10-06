@@ -71,11 +71,11 @@ export function CommandPalette({ pages }) {
     try {
       const msg = await run();
       setFlash({ ok: true, text: typeof msg === 'string' ? msg : okText }); setQ(''); setParsed([]);
-      window.dispatchEvent(new Event('lifeos:captured'));
-      // pages that show what was just saved (Today, planner, money, notes, …) reload so it appears right away
+      // pages that show what was just saved (Today, planner, money, notes, …) refetch their data — the app
+      // re-mounts the current page on this event (see App in main.jsx); no full page reload
       const page = new URLSearchParams(location.search).get('page') || '';
       const unaffected = /^(market|football|media|music|youtube|settings|contacts|documents|vocab|admin|courses|projects|crm|car|travel|learning)$/.test(page);
-      setTimeout(() => { setOpen(false); if (!unaffected) location.reload(); }, 1300);
+      setTimeout(() => { setOpen(false); if (!unaffected) window.dispatchEvent(new Event('lifeos:captured')); }, 1300);
     } catch (e) { setFlash({ ok: false, text: e.message || 'ثبت نشد.' }); }
   };
   const captureRows = useMemo(() => {
