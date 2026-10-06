@@ -20,6 +20,7 @@
 | `/?page=contacts` | `contacts.jsx` | contacts, contacts/import, contacts/dedupe |
 | `/?page=insights` بینش | `insights.jsx` (+ کارت `insights-card.jsx`) | ai/report, ai/tomorrow-priorities, insights, ai/correlations, one-year-ago |
 | `/?page=logbook` دفتر و مرور | `logbook.jsx` (+ نوار روزانهٔ خرج/حال از reports) | life-review (period=jmonthly), wins, decisions, reports |
+| `/?page=exercise` ورزش (تب کنار سلامت) | `exercise.jsx` | exercise (type, minutes, date, km?, note?) |
 | `/?page=reading` خبر و خواندنی | `reading.jsx` | news(+sources, sync, :id/summarize, :id/translate), bookmarks |
 | دستیار (همهٔ صفحه‌ها) | `assistant.jsx` (lazy، دکمهٔ شناور فقط وقتی aiConfigured) | ai/chat با `page` → `pageContext` در api.js |
 | `/?page=admin` | `admin.jsx` (lazy) + `msgbar.jsx` (نوار پیام مدیر) | admin/overview, admin/users/:id/{logout,disable,locks}, admin/message |
@@ -41,7 +42,7 @@
 - ماژول تازهٔ قابل خاموش‌کردن: `habits`؛ `vocab` و `habits` به whitelist ماژول‌ها در worker.js اضافه شدند.
 
 ## ۲) APIهای بک‌اند **بدون UI در React** (فرصت توسعه)
-(به‌روز ۲۰۲۶-۱۰) هنوز بدون صفحه: news/weekly-summary · exercise · time/timer · trips (سفر در life.jsx با col است). صفحه دارند: goals, habits, learning, projects, shopping, subscriptions (قبض‌ها)، weekly-review, insights, one-year-ago (بینش)، wins, decisions, life-review (دفتر و مرور)، search (Ctrl+K).
+(به‌روز ۲۰۲۶-۱۰) هنوز بدون صفحه: news/weekly-summary · time/timer · trips (سفر در life.jsx با col است). صفحه دارند: goals, habits, learning, projects, shopping, subscriptions (قبض‌ها)، weekly-review, insights, one-year-ago (بینش)، wins, decisions, life-review (دفتر و مرور)، search (Ctrl+K).
 
 ## ۳) بک‌اند
 - **تنها بک‌اند: Worker** — ورودی `cloudflare/worker.js` + `cloudflare/lib/{helpers,api,edge,security}.js` (۲۰۲۶-۱۰ از یک فایل ۴۶۶KB جدا شد) — `makeHelpers(env)` (auth/PBKDF2، تاریخ تهران/جلالی، پارس پیامک بانکی `parseBankMessage`، متن آزاد `parseLifeText`، Google Calendar، فوتبال، بت/پوکر، storage v2 روی D1)، `handleApi`، و در `export default`: tgju، webhook تلگرام، uploads (در تلگرام)، cron، دروازهٔ لاگین. `server.js`/`port.js`/`header.js`/`footer.js` در ۲۰۲۶-۱۰ حذف شدند.

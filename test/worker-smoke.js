@@ -383,6 +383,11 @@ async function main() {
   check('timer start/stop', t0.status === 201 && (await call('/api/timer/stop', { method: 'POST', cookie, body: {} })).status === 200);
   const ex = (await call('/api/exercise', { method: 'POST', cookie, body: { type: 'run', minutes: 20 } })).d;
   check('exercise log + delete', !!ex.id && (await call(`/api/exercise/${ex.id}`, { method: 'DELETE', cookie })).status === 200);
+  { const e2 = await call('/api/exercise', { method: 'POST', cookie, body: { type: 'دویدن', minutes: 35, km: 5.256, note: 'پارک', date: '2026-01-02' } });
+    check('exercise keeps km (2 decimals) + note + date', e2.status === 201 && e2.d.km === 5.26 && e2.d.note === 'پارک' && e2.d.date === '2026-01-02');
+    check('exercise: bad minutes / date refused', (await call('/api/exercise', { method: 'POST', cookie, body: { type: 'x', minutes: 5000 } })).status === 400 && (await call('/api/exercise', { method: 'POST', cookie, body: { type: 'x', minutes: 10, date: 'nope' } })).status === 400);
+    check('exercise range read', (await call('/api/exercise?from=2026-01-01&to=2026-01-31', { cookie })).d.items.some(x => x.id === e2.d.id));
+    await call(`/api/exercise/${e2.d.id}`, { method: 'DELETE', cookie }); }
   check('media-log -> 201', (await call('/api/media-log', { method: 'POST', cookie, body: { source: 'spotify', title: 'wt' } })).status === 201);
 
   { // password recovery: 6-digit code to the linked Telegram chat, no account probing, sessions reset
