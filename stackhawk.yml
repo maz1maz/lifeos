@@ -16,6 +16,13 @@ app:
   excludePaths:
     - "/api/auth/logout"
     - "/api/security/pin.*"
+    # read-only proxies to outside services (football, TV/movie search, Spotify/YouTube, stocks, tgju): they never
+    # touch the DB and each test waits on the slow upstream, which stretched the first scan past 90 minutes
+    - "/api/football/remote/.*"
+    - "/api/movies/(tvmaze|tmdb)/.*"
+    - "/api/integrations/(spotify|youtube)/.*"
+    - "/api/market/stocks.*"
+    - "/api/tgju.*"
   authentication:
     usernamePassword:
       type: JSON
