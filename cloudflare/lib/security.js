@@ -1,12 +1,13 @@
 // Security headers on every response (HawkScan DAST findings, 2026-10). HTML also gets a CSP: no third-party
 // scripts, plugins, <base> hijacking or framing by other sites. Inline <script> blocks are allowed only by their
 // exact sha256 — computed here from the page being served, so editing an inline script can never be blocked by
-// a stale hash. Inline styles stay allowed (React and the vocab app set style attributes). Images, media and API
-// calls go to many https hosts (TMDB, team logos, Unsplash, open-meteo, CoinGecko…), hence the https: allowances.
+// a stale hash. Inline styles stay allowed (React and the vocab app set style attributes). The browser only calls
+// open-meteo and CoinGecko directly (everything else goes through /api). Images still come from many https hosts
+// (TMDB, TVmaze, team logos, Unsplash, Spotify, YouTube, URLs saved in the data), so img-src keeps https:.
 const CSP_REST = [
   "default-src 'self'", "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:", "media-src 'self' data: blob: https:", "font-src 'self' data:",
-  "connect-src 'self' https:", "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com",
+  "img-src 'self' data: blob: https:", "media-src 'self' data: blob:", "font-src 'self' data:",
+  "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://air-quality-api.open-meteo.com https://api.coingecko.com", "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com",
   "worker-src 'self'", "manifest-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'self'",
 ].join('; ');
 const INLINE_SCRIPT_RE = /<script(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
