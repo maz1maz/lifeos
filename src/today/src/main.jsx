@@ -1307,13 +1307,13 @@ function SettingsReact() {
   const [pinNew, setPinNew] = useState(''), [pinCur, setPinCur] = useState('');
   const [tgLink, setTgLink] = useState(null);
   const [tgBackupBusy, setTgBackupBusy] = useState(false);
-  const [digest, setDigest] = useState({ tgMorningHour: 9, tgEveningHour: 23, tgMorningOn: true, tgEveningOn: true, tgMonthlyOn: true, tgWeeklyOn: true, tgReports: true });
+  const [digest, setDigest] = useState({ tgMorningHour: 9, tgEveningHour: 23, tgMorningOn: true, tgEveningOn: true, tgMonthlyOn: true, tgWeeklyOn: true, tgReports: true, tgAiOn: true, aiConfigured: false });
   const [chatLog, setChatLog] = useState([]), [chatInput, setChatInput] = useState(''), [chatBusy, setChatBusy] = useState(false);
 
   const load = () => api('/api/integrations').then(setIntegrations).catch(error => setNotice(error.message));
   const loadMe = () => api('/api/me').then(data => {
     setMe(data.user || null);
-    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false, tgMonthlyOn: data.user.tgMonthlyOn !== false, tgWeeklyOn: data.user.tgWeeklyOn !== false, tgProjectsOn: data.user.tgProjectsOn !== false, tgFeeRemindOn: data.user.tgFeeRemindOn !== false, tgCoursesMonthlyOn: data.user.tgCoursesMonthlyOn !== false, backupFreq: data.user.backupFreq || 'weekly', tgLastBackup: data.user.tgLastBackup || null }));
+    if (data.user) setDigest(prev => ({ ...prev, tgMorningHour: data.user.tgMorningHour ?? 9, tgEveningHour: data.user.tgEveningHour ?? 23, tgReports: data.user.tgReports !== false, tgMorningOn: data.user.tgMorningOn !== false, tgEveningOn: data.user.tgEveningOn !== false, tgAiOn: data.user.tgAiOn !== false, aiConfigured: !!data.user.aiConfigured, tgMonthlyOn: data.user.tgMonthlyOn !== false, tgWeeklyOn: data.user.tgWeeklyOn !== false, tgProjectsOn: data.user.tgProjectsOn !== false, tgFeeRemindOn: data.user.tgFeeRemindOn !== false, tgCoursesMonthlyOn: data.user.tgCoursesMonthlyOn !== false, backupFreq: data.user.backupFreq || 'weekly', tgLastBackup: data.user.tgLastBackup || null }));
   }).catch(error => setNotice(error.message));
   useEffect(() => { load(); loadMe(); }, []);
 
@@ -1446,6 +1446,10 @@ function SettingsReact() {
               <select value={digest.tgEveningHour} onChange={e => saveDigest({ tgEveningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
               <button type="button" className={`plnr-switch ${digest.tgEveningOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgEveningOn} onClick={() => saveDigest({ tgEveningOn: !digest.tgEveningOn })}><i /></button>
             </div>
+          </article>
+          <article>
+            <div><b>✨ یادداشت هوشمند</b><small>{digest.aiConfigured ? 'زیر گزارش صبح و عصر، دو جملهٔ کوتاه از دستیار: تمرکز امروز و جمع‌بندی روز.' : 'برای فعال شدن، کلید AI باید روی سرور تنظیم باشد.'}</small></div>
+            <button type="button" className={`plnr-switch ${digest.tgAiOn && digest.aiConfigured ? 'on' : ''}`} role="switch" aria-checked={digest.tgAiOn && digest.aiConfigured} disabled={!digest.aiConfigured} onClick={() => saveDigest({ tgAiOn: !digest.tgAiOn })}><i /></button>
           </article>
           <article>
             <div><b>📊 گزارش ماهانهٔ مالی</b><small>روز اول هر ماه شمسی، ساعت گزارش صبح: درآمد، هزینه، مقایسه با ماه قبل، سقف‌های ردشده و سررسیدها</small></div>

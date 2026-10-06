@@ -404,6 +404,24 @@ async function main() {
   check('TMDB import without ids -> 400 (not 503)', (await call('/api/movies/from-tmdb', { method: 'POST', cookie, body: {} })).status === 400);
 
   console.log('\n[W6] ai + dashboard + finance surfaces');
+  await call('/api/me', { method: 'PATCH', cookie, body: { tgAiOn: false } });
+  const meAi = (await call('/api/me', { cookie })).d.user;
+  check('Telegram AI note: setting saved, and the app knows no AI key is configured', meAi.tgAiOn === false && meAi.aiConfigured === false);
+  await call('/api/me', { method: 'PATCH', cookie, body: { tgAiOn: true } });
+  {
+    // the «✨» AI note on Telegram reports, against a fake OpenAI-compatible provider
+    const { makeHelpers } = await require('./load-worker').loadWorkerModule();
+    const H = makeHelpers({ ...env, AI_PROVIDER_API_KEY: 'k', AI_PROVIDER_BASE_URL: 'https://ai.test/v1', AI_MODEL: 'm' });
+    const realFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async (url, o) => String(url).startsWith('https://ai.test/') ? new Response(JSON.stringify({ choices: [{ message: { content: 'امروز روی پروژه تمرکز کن.' } }] }), { headers: { 'content-type': 'application/json' } }) : realFetch(url, o);
+      const withNote = await H.withAiNote({}, '📋 برنامه امروز', 'morning');
+      check('Telegram AI note is appended under the report', withNote.startsWith('📋 برنامه امروز') && withNote.includes('✨ امروز روی پروژه تمرکز کن.'), withNote);
+      check('Telegram AI note respects the setting', (await H.withAiNote({ tgAiOn: false }, 'x', 'evening')) === 'x');
+      globalThis.fetch = async (url, o) => { if (String(url).startsWith('https://ai.test/')) throw new Error('down'); return realFetch(url, o); };
+      check('Telegram report still goes out when the AI provider fails', (await H.withAiNote({}, 'گزارش', 'evening')) === 'گزارش');
+    } finally { globalThis.fetch = realFetch; }
+  }
   // «دفتر و مرور»: Jalali-month life review, wins, decision journal
   const lrJ = (await call('/api/life-review?period=jmonthly&key=1405-07', { cookie })).d;
   check('life-review jmonthly 1405-07 covers Mehr (2026-09-23 … 2026-10-22)', lrJ && lrJ.stats && lrJ.stats.from === '2026-09-23' && lrJ.stats.to === '2026-10-22', JSON.stringify(lrJ && lrJ.stats));

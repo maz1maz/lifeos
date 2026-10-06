@@ -1209,6 +1209,14 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     lines.push('موفق باشی 💪 — /امروز برای جزئیات');
     return lines.join('\n');
   }
+  // «✨» line on the Telegram morning/evening report: a short personal note written by the AI from the report
+  // itself. Only with an AI key and Settings → «یادداشت هوشمند» on; 12 s budget, and the report goes out without
+  // it on any failure.
+  async function withAiNote(user,text,kind){
+    if(!AI_PROVIDER_API_KEY||user.tgAiOn===false)return text;
+    const sys=kind==='morning'?'تو دستیار شخصی اپ «هِسته» هستی. از روی برنامهٔ امروز کاربر که پایین آمده، ۲ جملهٔ کوتاه، گرم و عملی به فارسی بنویس: مهم‌ترین تمرکز امروز و یک پیشنهاد کوچک. فقط از همین داده استفاده کن؛ بدون عنوان و بدون تکرار فهرست.':'تو دستیار شخصی اپ «هِسته» هستی. از روی گزارش امروز کاربر که پایین آمده، ۲ جملهٔ کوتاه و مهربان به فارسی بنویس: یک جمع‌بندی منصفانه از روز و یک پیشنهاد برای فردا. فقط از همین داده استفاده کن؛ بدون عنوان.';
+    try{const note=await Promise.race([aiComplete(sys,text,160),new Promise(r=>setTimeout(()=>r(null),12000))]);const t=String(note||'').trim();return t?text+'\n\n✨ '+t:text}catch(e){return text}
+  }
   async function buildEveningReport(db,user,d){
     let lines=[];
     lines.push('🌙 گزارش شب · '+tgFmtDate(d));
@@ -1269,7 +1277,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
       let eveningH=user.tgEveningHour!=null?Number(user.tgEveningHour):23;
       if(user.tgReports===false)continue;
       if(hh===morningH&&user.tgMorningOn!==false&&user.tgLastMorning!==d){
-        let text=await buildMorningBrief(db,user,d,await fetchTehranWeatherBrief(user.weather));
+        let text=await withAiNote(user,await buildMorningBrief(db,user,d,await fetchTehranWeatherBrief(user.weather)),'morning');
         let r=await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
         if(r&&r.ok){user.tgLastMorning=d; changed=true; await tgSendHardWord(user)}
       }
@@ -1281,7 +1289,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
       if(wd===5&&hh===eveningH&&user.tgWeeklyOn!==false&&user.tgLastWeekly!==d){let r=await tgSend(user.telegramUserId,buildWeeklyReport(db,user,d));if(r&&r.ok){user.tgLastWeekly=d;changed=true}}
       if(wd===5&&hh===eveningH&&user.tgProjectsOn!==false&&user.tgLastProjects!==d){let t=buildProjectsWeekly(db,user,d);if(!t){user.tgLastProjects=d;changed=true}else{let r=await tgSend(user.telegramUserId,t);if(r&&r.ok){user.tgLastProjects=d;changed=true}}}
       if(hh===eveningH&&user.tgEveningOn!==false&&user.tgLastEvening!==d){
-        let text=await buildEveningReport(db,user,d);
+        let text=await withAiNote(user,await buildEveningReport(db,user,d),'evening');
         let r=await tgSend(user.telegramUserId,text,{reply_markup:tgMainKeyboard()});
         if(r&&r.ok){user.tgLastEvening=d; changed=true}
       }
@@ -1294,7 +1302,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
   return { read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances,
     jalaliToGregorianIso, jalaliDateLabel, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel, seasonStatsFromEpisodes, seasonTotAired, fetchTvMazeShowFull, progressFromShow, ensureSeriesTvMazeData, clampEpisodeAgainstSeason,
-    parseSleepHours, suggestCategoryKeyword, catKey, catKeyGeneric, learnedCategory, isIncomeTx, stripBalanceNotes, stripRefNumbers, matchBankStatementItems, ensureStatementReminder, betRollup, betAutoStart, betLatest, betDaysOf, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, cachedLeagueRange, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
+    parseSleepHours, suggestCategoryKeyword, catKey, catKeyGeneric, learnedCategory, isIncomeTx, stripBalanceNotes, stripRefNumbers, matchBankStatementItems, ensureStatementReminder, betRollup, betAutoStart, betLatest, betDaysOf, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, cachedLeagueRange, withAiNote, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
     refreshAllCryptoPrices, computeHoldings, portfolioTotals, evaluateAlerts, checkRateLimit, clearRateLimit, clientIp, hashPin, genLinkCode, tgApi, tgSend, tgSendDocument, redactForBackup, userSnapshot, backupDbToTelegram, buildProjectsWeekly, funCheck, funMonth, isAdmin, adminOverview, studentMoney, courseDues, projectDues, courseSessions, buildCoursesMonthly, feeRemindersDue, sendFeeReminders, vocabRead, vocabWrite, vocabSummary, wordOfDay, hardWord, tgSendHardWord, vocabLearn, handleTelegramMessage, tgCheckReports, COLS, colOf, cleanItem, shopList, shopAdd, lifeDueLines, checkReminderNotifications, handleTelegramCallback, reminderAct, sendWebPush, vapidKeys, notifyUser, fetchTehranWeatherBrief, buildMorningBrief, buildMonthlyReport, buildWeeklyReport, monthStats, recurringList, nextRecurDate, jParts, buildEveningReport, tehranHourNow, refreshPricesAndAlerts,
     googleCalendarConfigured, googleCalendarStateCookie, googleCalendarErrorMessage, googleCalendarAuthUrl, exchangeGoogleCalendarCode, googleCalendarAccount, syncGoogleCalendar, calendarFeed, syncAllGoogleCalendars, GOOGLE_CALENDAR_SCOPES,
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, GOOGLE_CALENDAR_REDIRECT_URI, API_FOOTBALL_KEY, TMDB_API_KEY, TELEGRAM_BOT_TOKEN,
