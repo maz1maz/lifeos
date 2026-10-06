@@ -2,7 +2,7 @@
 // a cumulative P/L line chart and a 6-month net bar chart.
 import { useEffect, useMemo, useState } from 'react';
 import { isoToJ, jToIso, MONTHS } from './jdate';
-import { api } from './life';
+import { api } from './life-core';
 import './fun.css';
 
 const faN = (n, d = 0) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: d });

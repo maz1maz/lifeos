@@ -150,14 +150,25 @@ check('Project PDF reports include configurable branding and automatic page numb
   read('src/today/src/life.css').includes('counter(page)') && todaySource.includes('reportPrintSettings') && todaySource.includes('compactReportLogo'));
 check('React settings explains the dedicated LifeOS calendar and non-destructive delete policy',
   todaySource.includes('تقویم اختصاصی LifeOS') && todaySource.includes('حذف آن در گوگل دادهٔ هسته را پاک نمی‌کند'));
-const serverSource = read('server.js');
-const workerHeader = read('cloudflare/header.js');
-check('Node and Worker backups redact Calendar refresh tokens and live sessions',
-  serverSource.includes('delete u.googleCalendarRefreshToken') && workerHeader.includes('delete u.googleCalendarRefreshToken') &&
-  serverSource.includes('clone.sessions=[]') && workerHeader.includes('clone.sessions=[]'));
+// RTL prev/next arrows (the user has asked for this many times): «قبل» sits on the right and points right,
+// «بعد» sits on the left and points left. Flag any button whose label and arrow disagree.
+{
+  const files = ['main.jsx', 'calendar.jsx', 'finance.jsx', 'habits.jsx', 'life.jsx', 'jdate.jsx'].map(f => [f, read('src/today/src/' + f)]);
+  const bad = [];
+  for (const [f, src] of files) for (const m of src.matchAll(/aria-label="([^"]*(?:قبل|بعد)[^"]*)">\s*(?:<(Chevrons?(?:Left|Right))|([‹›«»]))/g)) {
+    const prev = /قبل/.test(m[1]), arrow = m[2] || m[3];
+    const pointsRight = /Right$/.test(arrow) || arrow === '›' || arrow === '»';
+    if (prev !== pointsRight) bad.push(`${f}: «${m[1]}» → ${arrow}`);
+  }
+  check('RTL prev/next arrows: «قبل» points right, «بعد» points left', bad.length === 0);
+  if (bad.length) console.log('    ' + bad.join('\n    '));
+}
+const workerSource = read('cloudflare/worker.js');
+check('Worker backups redact Calendar refresh tokens and live sessions',
+  workerSource.includes('delete u.googleCalendarRefreshToken') && workerSource.includes('clone.sessions=[]'));
 check('Google OAuth uses read-only visible-calendar access plus app-created-calendar write access, never full calendar scope',
-  serverSource.includes('auth/calendar.readonly') && serverSource.includes('auth/calendar.app.created') &&
-  !serverSource.includes("SCOPES='https://www.googleapis.com/auth/calendar'"));
+  workerSource.includes('auth/calendar.readonly') && workerSource.includes('auth/calendar.app.created') &&
+  !/SCOPES\s*=\s*'https:\/\/www\.googleapis\.com\/auth\/calendar'/.test(workerSource));
 for (const file of ['public/design/calendar-page.html','public/design/settings-page.html']) {
   const html = read(file);
   let syntaxOk = true, detail = '';

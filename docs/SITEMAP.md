@@ -25,16 +25,24 @@
 | `/?page=settings` → «🌐 اتصال سایت شخصی» | `SiteTokensCard` در main.jsx | site-tokens (ساخت/لغو توکن scope‌دار) |
 | سایت ملینا `seyfikhani.ir/studio.html` | `integrations/seyfikhani/` (HTML/JS + پروکسی PHP روی cPanel) | `/api/ext/*` با Bearer توکن (فقط Worker): col/{projects,cards,projectProcesses,courses,students}, students/:id/payments, reminders, me |
 
+### هاب‌های منو (`TabHub` در main.jsx) — ۲۰۲۶-۱۰-۰۶
+- برنامه‌ریز: `planner|calendar|habits|focus` · مرور و اهداف: `review|goals|week|stats` · یادگیری: `learning|vocab` · یادداشت: `notes|journal|shopping` · تماشا: `series|movies|upcoming|discover` (WatchHub).
+- گروه‌های منو: روزانه، کار، مالی، زندگی، سرگرمی، یادگیری و آرشیو. موبایل (≤۷۰۰px): نوار پایین `.bnav` (امروز، برنامه، مالی، یادداشت، همه).
+- ماژول تازهٔ قابل خاموش‌کردن: `habits`؛ `vocab` و `habits` به whitelist ماژول‌ها در worker.js اضافه شدند.
+
 ## ۲) APIهای بک‌اند **بدون UI در React** (فرصت توسعه)
 goals · habits(+history) · exercise · learning · projects · time/timer · trips · shopping · subscriptions · wins · decisions · bookmarks · news(+sources, sync, weekly-summary) · weekly-review · life-review · insights · reports · one-year-ago · calendar/on-this-day · search · export · ai/{report, correlations, tomorrow-priorities, process, suggest-category} · football/{matches, teams, accuracy, remote/odds, 1xbet, sofascore} · movies/{stats, next-episode-alerts} · reminders/statement-check · days.
 
 ## ۳) بک‌اند
-- `server.js`: helperها ۱–۶۳۳ (auth/PBKDF2، تاریخ تهران/جلالی، پارس پیامک بانکی `parseBankMessage`، متن آزاد `parseLifeText`، Google Calendar sync، فوتبال varzesh3/ESPN/TheSportsDB، بت/پوکر)، `handleRequest` ۶۳۴، مسیرها ۶۳۵–۸۴۱، استاتیک ۸۴۲+، تایمرها (تلگرام long-poll، گزارش صبح/شب، قیمت‌ها) و `createServer` در انتها.
-- Worker: `cloudflare/header.js` (makeHelpers + handleApi + مسیرهای فقط-Worker مثل backup/telegram) → `port.js` → `worker.js`. `footer.js`: buildResponse، uploads (R2)، webhook تلگرام، cron هر ۱۵ دقیقه، tgju، دروازهٔ لاگین برای همهٔ مسیرهای غیر API.
+- **تنها بک‌اند: `cloudflare/worker.js`** — `makeHelpers(env)` (auth/PBKDF2، تاریخ تهران/جلالی، پارس پیامک بانکی `parseBankMessage`، متن آزاد `parseLifeText`، Google Calendar، فوتبال، بت/پوکر، storage v2 روی D1)، `handleApi`، و در `export default`: tgju، webhook تلگرام، uploads (در تلگرام)، cron، دروازهٔ لاگین. `server.js`/`port.js`/`header.js`/`footer.js` در ۲۰۲۶-۱۰ حذف شدند.
 - مدل داده: یک blob با آرایه‌های users, sessions, transactions, tasks, inbox, daily, accounts, budgets, investments, investmentTx, assetPrices, priceAlerts, portfolioSnapshots, movies, mediaLog, contacts, documents, habits, habitLogs, matches, news, newsSources, betDays, … (پیش‌فرض‌ها در `read()`).
 
+### حذف server.js (۲۰۲۶-۱۰-۰۶)
+- پیش از حذف: server.js ۱۵۹ مسیر داشت و worker.js ۱۹۷ (۳۸ مسیر فقط در Worker؛ مسیری فقط در server.js نبود). تست‌های smoke.js حالا روی Worker اجرا می‌شوند.
+- اجرای محلی: `npm start` (= `wrangler dev --local --port 3000`) یا `node test/worker-host.js` (بدون wrangler).
+
 ## ۴) تست‌ها (`test/`)
-- `smoke.js`: server.js واقعی روی DB موقت (۴۹۰ چک).
+- `smoke.js`: worker.js واقعی از طریق `test/worker-host.js` (سرور HTTP نود + D1 جعلی که state را در DB_PATH آینه می‌کند) — ~۴۸۹ چک.
 - `worker-smoke.js`: worker.js با D1 شبیه‌سازی‌شده (۱۳۴).
 - `verify-script-smoke.js`: `docs/verify-live.console.js` (چک سلامت دیپلوی لایو) — نیاز به build.
 - `ui-smoke.js`: باندل React در Chromium (۳۹) — نیاز به build.

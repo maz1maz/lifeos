@@ -1,6 +1,6 @@
 // Project cards (kanban) that are due today or overdue — shown on Today, Planner and Calendar without copying data.
 import { useEffect, useState } from 'react';
-import { api } from './life.jsx';
+import { api } from './life-core';
 import './pcards.css';
 
 export const cardHref = c => `/?page=projects&pid=${encodeURIComponent(c.projectId)}&card=${encodeURIComponent(c.id)}`;

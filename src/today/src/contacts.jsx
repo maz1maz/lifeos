@@ -64,7 +64,7 @@ const LOG_TYPES = [
   { key: 'other', label: 'سایر' }
 ];
 // Contacts may store several numbers in one string, separated by one of ·|,;/ —
-// matches the backend dedupe split in server.js (`(c.phone||'').split(/[·|,;/]/)[0]`).
+// matches the backend dedupe split in cloudflare/worker.js (`(c.phone||'').split(/[·|,;/]/)[0]`).
 // New entries are joined with ' · ', the house-style bullet separator used across LifeOS.
 const PHONE_SPLIT_RE = /[·|,;/]/;
 const splitPhones = phone => String(phone || '').split(PHONE_SPLIT_RE).map(x => x.trim()).filter(Boolean);

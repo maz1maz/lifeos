@@ -57,13 +57,13 @@ function MonthPicker({ value, onChange }) {
   const cur = jKeyOf(isoToday())
   return (
     <div className="fn-mp">
-      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, -1))} aria-label="ماه قبل">‹</button>
+      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, -1))} aria-label="ماه قبل">›</button>
       <button type="button" className="fn-mp-btn" onClick={() => setOpen((v) => !v)}>{JMONTHS[m - 1]} {faD(y)} <span>▾</span></button>
-      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, 1))} aria-label="ماه بعد">›</button>
+      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, 1))} aria-label="ماه بعد">‹</button>
       {value !== cur ? <button type="button" className="fn-mp-today" onClick={() => onChange(cur)}>این ماه</button> : null}
       {open ? (
         <div className="fn-mp-pop">
-          <div className="fn-mp-year"><button type="button" onClick={() => setYy(yy - 1)} aria-label="سال قبل">‹</button><b>{faD(yy)}</b><button type="button" onClick={() => setYy(yy + 1)} aria-label="سال بعد">›</button></div>
+          <div className="fn-mp-year"><button type="button" onClick={() => setYy(yy - 1)} aria-label="سال قبل">›</button><b>{faD(yy)}</b><button type="button" onClick={() => setYy(yy + 1)} aria-label="سال بعد">‹</button></div>
           <div className="fn-mp-grid">{JMONTHS.map((name, i) => { const k = `${yy}-${String(i + 1).padStart(2, '0')}`; return <button type="button" key={k} className={`${k === value ? 'on' : ''} ${k === cur ? 'cur' : ''}`} onClick={() => { onChange(k); setOpen(false) }}>{name}</button> })}</div>
         </div>
       ) : null}
@@ -111,7 +111,7 @@ const TABS = [
   { id: 'budget', label: 'بودجه و حساب‌ها' },
   { id: 'bills', label: 'قبض و اشتراک' },
   { id: 'wealth', label: 'بدهی و سرمایه' },
-  { id: 'fun', label: 'سرگرمی' },
+  { id: 'fun', label: 'بت و پوکر' },
 ]
 const FILTERS = [['all', 'همه'], ['expense', 'هزینه'], ['income', 'درآمد'], ['transfer', 'انتقال'], ['misc', 'بدون دسته']]
 
@@ -497,9 +497,9 @@ export function FinanceReact({ Nav }) {
           </div>
           {tab === 'dash' ? <>
           <div className="fn-kpis">
-            <div className="fn-kpi green" title={faMoney(income)}><small>💰 درآمد ماه</small><b>{short(income, false)}</b><small className="fn-u">{UNIT_FA()}</small></div>
-            <div className="fn-kpi rose" title={faMoney(expense)}><small>💸 هزینه ماه</small><b>{short(expense, false)}</b><small className="fn-u">{UNIT_FA()}</small></div>
-            <div className={`fn-kpi ${balance >= 0 ? 'cyan' : 'amber'}`} title={faMoney(balance)}><small>⚖️ مانده ماه</small><b>{short(balance, false)}</b><small className="fn-u">{UNIT_FA()}</small></div>
+            <div className="fn-kpi green" title={faMoney(income)}><small>💰 درآمد ماه</small><b>{income ? short(income, false) : '—'}</b><small className="fn-u">{income ? UNIT_FA() : 'بدون تراکنش'}</small></div>
+            <div className="fn-kpi rose" title={faMoney(expense)}><small>💸 هزینه ماه</small><b>{expense ? short(expense, false) : '—'}</b><small className="fn-u">{expense ? UNIT_FA() : 'بدون تراکنش'}</small></div>
+            <div className={`fn-kpi ${balance >= 0 ? 'cyan' : 'amber'}`} title={faMoney(balance)}><small>⚖️ مانده ماه</small><b>{balance ? short(balance, false) : '—'}</b><small className="fn-u">{balance ? UNIT_FA() : 'بدون تراکنش'}</small></div>
             <div className="fn-kpi cyan">
               <small>نرخ پس‌انداز {fa(savings)}٪</small>
               <div className="fn-gauge" style={{ marginTop: 10 }}><i style={{ width: `${Math.max(0, Math.min(100, savings))}%` }} /></div>
@@ -998,9 +998,9 @@ export function FinanceReact({ Nav }) {
         <div className="fn-modal" onClick={() => setReport(null)}>
           <div className="fn-glass fn-report" onClick={(e) => e.stopPropagation()}>
             <div className="fn-head"><h2>گزارش ماهانه</h2>
-              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, -1))} aria-label="ماه قبل">‹</button>
+              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, -1))} aria-label="ماه قبل">›</button>
               <b>{monthFa(report.k)}</b>
-              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, 1))} aria-label="ماه بعد">›</button>
+              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, 1))} aria-label="ماه بعد">‹</button>
             </div>
             <pre>{report.text || 'در حال ساخت…'}</pre>
             <div className="fn-report-ops">

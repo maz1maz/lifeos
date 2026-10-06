@@ -40,69 +40,12 @@ function daysAgo(n) {
   return dt.toISOString().slice(0, 10);
 }
 
-// In-memory D1 `kv` table. Storage v2 reads a marker plus a key prefix and
-// commits its migration through D1.batch(), so the harness intentionally
-// models those three surfaces as well as ordinary prepared statements.
+const { makeKvD1 } = require('./d1-kv-fake');
 function makeEnv(legacy = null) {
   const store = new Map();
   if (legacy !== null) store.set('db', JSON.stringify(legacy));
-  const run = async (sql, params) => {
-    if (sql.startsWith('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?) ON CONFLICT')) {
-      store.set(params[0], params[1]);
-      return { success: true };
-    }
-    if (sql.startsWith('INSERT INTO kv (key,value,updated_at) VALUES (?,?,?)')) {
-      if (store.has(params[0])) throw new Error('UNIQUE constraint failed: kv.key');
-      store.set(params[0], params[1]);
-      return { success: true };
-    }
-    // write guards: fail (UNIQUE on the existing meta key) when a shard changed since it was read
-    if (sql.startsWith("INSERT INTO kv (key,value,updated_at) SELECT ?,'',0 WHERE NOT EXISTS")) {
-      if (store.get(params[1]) !== params[2]) throw new Error('UNIQUE constraint failed: kv.key');
-      return { success: true };
-    }
-    if (sql.startsWith("INSERT INTO kv (key,value,updated_at) SELECT ?,'',0 WHERE EXISTS")) {
-      if (store.has(params[1])) throw new Error('UNIQUE constraint failed: kv.key');
-      return { success: true };
-    }
-    if (sql.startsWith('DELETE FROM kv WHERE key=?')) {
-      store.delete(params[0]);
-      return { success: true };
-    }
-    throw new Error('unexpected SQL in harness: ' + sql);
-  };
   return {
-    DB: {
-      _store: store,
-      prepare(sql) {
-        const st = {
-          _params: [],
-          bind(...p) { st._params = p; return st; },
-          async first() {
-            if (sql.startsWith('SELECT value FROM kv WHERE key=?')) { const v = store.get(st._params[0]); return v === undefined ? null : { value: v }; }
-            throw new Error('unexpected SQL in harness: ' + sql);
-          },
-          async all() {
-            if (sql.startsWith('SELECT key,value FROM kv WHERE key LIKE ?')) {
-              const prefix = String(st._params[0] || '').replace(/%$/, '');
-              return { results: [...store.entries()].filter(([key]) => key.startsWith(prefix)).map(([key, value]) => ({ key, value })) };
-            }
-            throw new Error('unexpected SQL in harness: ' + sql);
-          },
-          async run() {
-            return run(sql, st._params);
-          },
-        };
-        return st;
-      },
-      // D1 batches are transactions: a failing statement rolls back the whole batch
-      async batch(statements) {
-        const snapshot = new Map(store);
-        try { for (const statement of statements) await statement.run(); }
-        catch (e) { store.clear(); for (const [k, v] of snapshot) store.set(k, v); throw e; }
-        return statements.map(() => ({ success: true }));
-      },
-    },
+    DB: makeKvD1(store),
     ASSETS: { fetch: async () => new Response('not found', { status: 404 }) },
     // No secrets on purpose — same as test/smoke.js (no .env there either).
   };
@@ -310,6 +253,10 @@ async function main() {
     await call('/api/me', { method: 'PATCH', cookie, body: { modules: { courses: true } } });
     const mo52 = (await call('/api/me', { cookie })).d.user.modules;
     check('modules: courses kept, CRM is opt-in (off unless crmOn)', mo52.courses === true && mo52.crmOn === false);
+    await call('/api/me', { method: 'PATCH', cookie, body: { modules: { vocab: false, habits: false } } });
+    const moVh = (await call('/api/me', { cookie })).d.user.modules;
+    check('modules: vocab and habits can be switched off', moVh.vocab === false && moVh.habits === false && moVh.courses === true);
+    await call('/api/me', { method: 'PATCH', cookie, body: { modules: { vocab: true, habits: true, courses: true } } });
     { const t0 = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date()), y0 = new Date(Date.parse(t0 + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10), n0 = new Date(Date.parse(t0 + 'T12:00:00Z') + 5 * 864e5).toISOString().slice(0, 10);
       const pr = (await call('/api/col/projects', { method: 'POST', cookie, body: { name: 'سایت', color: '#60a5fa' } })).d, pa = (await call('/api/col/projects', { method: 'POST', cookie, body: { name: 'قدیمی', archived: true } })).d;
       const c1 = (await call('/api/col/cards', { method: 'POST', cookie, body: { projectId: pr.id, title: 'امروزی', col: 'todo', due: t0, prio: 'h' } })).d;
@@ -460,12 +407,20 @@ async function main() {
   check('TMDB import without ids -> 400 (not 503)', (await call('/api/movies/from-tmdb', { method: 'POST', cookie, body: {} })).status === 400);
 
   console.log('\n[W6] ai + dashboard + finance surfaces');
+  const wPrev = (await call('/api/ai/process', { method: 'POST', cookie, body: { text: 'فردا ساعت ۵ تماس با بانک', preview: true } })).d;
+  check('ai/process preview returns actions without saving', wPrev.preview === true && wPrev.actions.length > 0 && !wPrev.done);
+  const pv = async text => (await call('/api/ai/process', { method: 'POST', cookie, body: { text, preview: true } })).d.actions || [];
+  const remA = (await pv('یادم بنداز پنجشنبه قبض برق')).find(x => x.type === 'reminder');
+  check('reminder title drops the «یادم بنداز» command words', remA && remA.title === 'قبض برق', remA && remA.title);
+  const serA = (await pv('دیدم بریکینگ بد فصل ۲ قسمت ۳')).find(x => x.type === 'series');
+  check('series title drops a leading «دیدم»', serA && serA.title === 'بریکینگ بد' && serA.season === 2 && serA.episode === 3, serA && serA.title);
   check('ai/process bank msg -> 200 with actions', ((await call('/api/ai/process', { method: 'POST', cookie, body: { text: '۵۰ هزار ناهار' } })).d.done || []).length > 0);
   check('suggest-category -> 200', (await call('/api/ai/suggest-category', { method: 'POST', cookie, body: { title: 'ناهار رستوران' } })).d.category === 'خوراک');
   check('correlations -> 200', (await call('/api/ai/correlations?days=30', { cookie })).status === 200);
   check('tomorrow-priorities -> 200', (await call('/api/ai/tomorrow-priorities', { cookie })).status === 200);
   check('ai/chat -> 503 with no key', (await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'hi' } })).status === 503);
-  check('ai/report -> 503 with no key', (await call('/api/ai/report?period=daily', { cookie })).status === 503);
+  const wRep = await call('/api/ai/report?period=weekly', { cookie });
+  check('ai/report with no key -> 200 stats, report null', wRep.status === 200 && wRep.d.aiOff === true && wRep.d.data.period === 'weekly');
   const dash = await call(`/api/dashboard?date=${today()}`, { cookie });
   check('dashboard -> 200 with shape', dash.status === 200 && Array.isArray(dash.d.tasks) && Array.isArray(dash.d.transactions));
   check('finance -> 200', (await call(`/api/finance?month=${today().slice(0, 7)}`, { cookie })).status === 200);

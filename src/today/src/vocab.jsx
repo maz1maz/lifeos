@@ -1,7 +1,7 @@
 // «زبان»: the IELTS flashcard app lives at /vocab/ (static, same origin) and syncs progress to /api/vocab.
 // This file wraps it in the LifeOS shell and adds the Today card + stats block.
 import { useEffect, useState } from 'react';
-import { api, fa } from './life';
+import { api, fa } from './life-core';
 import './vocab.css';
 
 export function VocabPage({ Nav }) {

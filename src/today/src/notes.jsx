@@ -4,6 +4,7 @@ import {
   Paperclip, Pencil, Pin, PinOff, Plus, Rows3, Search, SlidersHorizontal, Trash2, X
 } from 'lucide-react';
 import './notes.css';
+import { describe } from './palette';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -271,7 +272,30 @@ function NoteCard({ note, query, selected, busy, view, onSelect, onEdit, onToggl
   );
 }
 
-function Inspector({ note, allNotes, query, onClose, onEdit, onTogglePin, onDelete, onFocusTag, onConvert }) {
+// If the note reads like something the app can log (a spend, a reminder, sleep, an episode…), offer to log it —
+// same free-text parser as Ctrl+K and the Telegram bot; nothing is saved until the button is pressed.
+function SmartSuggest({ note, onDone }) {
+  const text = (note.body || '').trim() || note.title;
+  const [acts, setActs] = useState(null), [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let live = true; setActs(null);
+    api('/api/ai/process', { method: 'POST', body: JSON.stringify({ text, preview: true }) }).then(d => { if (live) setActs(d.actions || []); }).catch(() => { if (live) setActs([]); });
+    return () => { live = false; };
+  }, [note.id, text]);
+  if (!acts?.length) return null;
+  const apply = async () => {
+    setBusy(true);
+    try {
+      const d = await api('/api/ai/process', { method: 'POST', body: JSON.stringify({ text }) });
+      if (!(d.done || []).length) throw new Error('چیزی ثبت نشد.');
+      await api(`/api/inbox/${note.id}`, { method: 'PATCH', body: JSON.stringify({ archived: true }) });
+      onDone(`ثبت شد: ${d.done.join('، ')} — یادداشت بایگانی شد.`);
+    } catch (e) { onDone(e.message); setBusy(false); }
+  };
+  return <div className="nd-smart"><small>✨ پیشنهاد هسته</small>{acts.map((a, i) => <span key={i}>{describe(a)}</span>)}<button type="button" disabled={busy} onClick={apply}>{busy ? 'در حال ثبت…' : 'ثبت کن و بایگانی'}</button></div>;
+}
+
+function Inspector({ note, allNotes, query, onClose, onEdit, onTogglePin, onDelete, onFocusTag, onConvert, onSmartDone }) {
   if (!note) {
     const total = allNotes.length;
     const pinnedCount = allNotes.filter(n => n.pinned).length;
@@ -335,6 +359,7 @@ function Inspector({ note, allNotes, query, onClose, onEdit, onTogglePin, onDele
           <button type="button" className={note.pinned ? 'amber' : ''} onClick={() => onTogglePin(note)} aria-label="سنجاق">{note.pinned ? <PinOff size={15} /> : <Pin size={15} />}</button>
           <button type="button" onClick={() => onDelete(note.id)} aria-label="حذف"><Trash2 size={15} /></button>
         </div>
+        {onSmartDone && <SmartSuggest note={note} onDone={onSmartDone} />}
         {onConvert && <div className="nd-convert">
           <button type="button" onClick={() => onConvert(note, 'task')}>تبدیل به کار</button>
           <button type="button" onClick={() => onConvert(note, 'reminder')}>تبدیل به یادآور</button>
@@ -486,7 +511,7 @@ export function NotesReact({ Nav }) {
         <div className="nd-drawer" onClick={() => setSelectedId(null)}>
           <div onClick={e => e.stopPropagation()}>
             <Inspector note={selected} allNotes={notes} query={query} onClose={() => setSelectedId(null)} onEdit={n => { setSelectedId(null); handleEdit(n); }} onTogglePin={handleTogglePin} onDelete={handleDelete}
-              onFocusTag={t => { setTagFilter(t); setSelectedId(null); }} onConvert={handleConvert} />
+              onFocusTag={t => { setTagFilter(t); setSelectedId(null); }} onConvert={handleConvert} onSmartDone={msg => { setNotice(msg); setSelectedId(null); load(); }} />
           </div>
         </div>
       )}

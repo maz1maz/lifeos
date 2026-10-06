@@ -52,3 +52,18 @@ button,a,[role=button],label{-webkit-tap-highlight-color:transparent}
   .lf-palerts button{white-space:normal;text-align:start}
   .lf-drawer{max-height:100dvh;padding-bottom:env(safe-area-inset-bottom)}
 }
+
+/* Phone bottom bar (TopNav → .bnav): hidden on wider screens. Sits under the topbar's stacking
+   context (z 20) so the open drawer and its scrim still cover it. */
+.bnav{display:none}
+@media (max-width:700px){
+  .bnav{--bnav-h:58px;display:flex;position:fixed;inset-inline:0;bottom:0;z-index:19;height:calc(var(--bnav-h) + env(safe-area-inset-bottom,0px));padding:0 4px env(safe-area-inset-bottom,0px);background:var(--g-panel);border-top:1px solid var(--g-border);box-shadow:0 -6px 18px rgba(0,0,0,.18)}
+  .bnav a,.bnav button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:none;color:var(--g-muted);font:inherit;font-size:11px;font-weight:600;text-decoration:none;-webkit-tap-highlight-color:transparent;cursor:pointer}
+  .bnav a.on,.bnav button.on{color:var(--g-accent)}
+  .bnav a.on svg{filter:drop-shadow(0 0 6px var(--g-accent-soft))}
+  .bnav span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  body:has(.bnav){padding-bottom:calc(58px + env(safe-area-inset-bottom,0px))}
+  body:has(.bnav) :is(.strk-toast,.plnr-toast,.adm-inbox,.cs-receipt){bottom:calc(70px + env(safe-area-inset-bottom,0px))}
+  /* vocab fills the screen with an iframe: leave room for the bar instead of hiding the frame's bottom */
+  body:has(.bnav) .vc-page{box-sizing:border-box;height:calc(100dvh / var(--app-zoom,1) - 58px - env(safe-area-inset-bottom,0px))}
+}

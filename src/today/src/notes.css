@@ -186,3 +186,9 @@
 
 .nd .notice { margin-bottom: 12px; background: rgba(248, 113, 113, 0.12); border: 1px solid rgba(248, 113, 113, 0.35); color: #fecdd3; border-radius: var(--g-radius-control); padding: 10px 12px; display: flex; justify-content: space-between; gap: 8px; }
 .nd .notice button { background: none; border: 0; color: inherit; cursor: pointer; }
+
+/* «پیشنهاد هسته» in the note inspector (SmartSuggest) */
+.nd-smart{margin-top:12px;padding:10px 12px;border:1px dashed var(--g-accent);border-radius:12px;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.nd-smart small{color:var(--g-accent);font-weight:700}
+.nd-smart button{align-self:flex-start;margin-top:4px;border:1px solid var(--g-accent);background:var(--g-accent);color:var(--g-accent-fg);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+.nd-smart button:disabled{opacity:.6}

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "node server.js",
+    "start": "wrangler d1 execute pdmaz-db --local --file cloudflare/kv-local.sql && wrangler dev --local --port 3000",
     "dev:today": "vite --config vite.today.config.mjs",
     "build:today": "vite build --config vite.today.config.mjs && node scripts/prune-stale-bundles.js",
     "test": "node test/smoke.js && node test/worker-smoke.js && node test/verify-script-smoke.js && node test/ui-smoke.js",

@@ -11,7 +11,7 @@ for (const [season, ids] of Object.entries(SEASON_PHOTOS)) {
     const file = new URL(`${season}-${String(i + 1).padStart(2, '0')}.jpg`, dir);
     try { if ((await stat(file)).size > 10000) { ok++; continue; } } catch {}
     try {
-      const res = await fetch(unsplashUrl(ids[i]));
+      const res = await fetch(unsplashUrl(ids[i], 1000)); // the Today hero is at most ~1000px wide
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const buf = Buffer.from(await res.arrayBuffer());
       await writeFile(file, buf);

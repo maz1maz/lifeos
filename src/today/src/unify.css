@@ -207,3 +207,7 @@ html[data-mode="light"] select option,html[data-mode="light"] select optgroup{ba
 /* «·» separators sit next to Persian digits («۱۳ · مهر»); in Vazirmatn the dot looks just like «۰», so draw it as a thin bar.
    Declared after home.css's Vazirmatn faces, so it wins for U+00B7 only. */
 @font-face{font-family:'Vazirmatn';font-display:swap;src:url('./fonts/sep-bar.woff2') format('woff2');unicode-range:U+00B7}
+/* Suspense fallback while a page chunk loads (main.jsx PageLoading) */
+.page-loading{min-height:60vh;display:grid;place-items:center}
+.page-loading i{width:28px;height:28px;border-radius:50%;border:3px solid var(--g-border-2);border-top-color:var(--g-accent);animation:pgSpin .7s linear infinite}
+@keyframes pgSpin{to{transform:rotate(360deg)}}

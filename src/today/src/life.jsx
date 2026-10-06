@@ -9,121 +9,10 @@ import './life.css';
 import { VocabStats } from './vocab';
 import { printProjectReport, sendProjectReportToTelegram, printCompareReport } from './projectReportPrint';
 
-export const api = async (url, options) => {
-  // the personal-site build (studio.jsx) routes these pages through its own proxy
-  if (typeof window !== 'undefined' && window.__lifeosApi) return window.__lifeosApi(url, options);
-  const r = await fetch(url, { credentials: 'include', cache: 'no-store', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
-  const b = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(b.error || 'دریافت اطلاعات ناموفق بود.');
-  return b;
-};
-export const todayIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-export const addDays = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-export const faD = v => String(v ?? '').replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
-export const fa = (n, max = 1) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: max });
-export const jl = iso => { if (!/^\d{4}-\d{2}-\d{2}/.test(iso || '')) return ''; const j = isoToJ(iso); return `${faD(j.jd)} ${MONTHS[j.jm - 1]} ${faD(j.jy)}`; };
-export const jShort = iso => { if (!/^\d{4}-\d{2}-\d{2}/.test(iso || '')) return ''; const j = isoToJ(iso); return `${faD(j.jd)} ${MONTHS[j.jm - 1]}`; };
-export const money = n => { const a = Math.abs(Number(n) || 0), f = v => v.toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : 1 }); return (n < 0 ? '−' : '') + (a >= 1e9 ? `${f(a / 1e9)} میلیارد` : a >= 1e6 ? `${f(a / 1e6)} میلیون` : fa(a, 0)) + ' ریال'; };
-const num = v => { const n = Number(String(v ?? '').replace(/[,٬]/g, '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))); return Number.isFinite(n) ? n : 0; };
-export const daysTo = iso => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(todayIso() + 'T00:00:00Z')) / 864e5);
-export const dueChip = iso => { if (!iso) return null; const d = daysTo(iso); const cls = d < 0 ? 'late' : d <= 7 ? 'soon' : ''; return <span className={`lf-due ${cls}`}>{d < 0 ? `${fa(-d)} روز گذشته` : d === 0 ? 'امروز' : d <= 30 ? `${fa(d)} روز دیگر` : jShort(iso)}</span>; };
-
-// D1 currently stores the app state in one record.  Two simultaneous collection
-// mutations can therefore write stale snapshots over one another.  Serialize
-// browser-side collection writes so an optimistic tick cannot be undone by the
-// next background checklist/project write.
-let colMutationQueue = Promise.resolve();
-const queueColMutation = work => {
-  const next = colMutationQueue.then(work, work);
-  colMutationQueue = next.catch(() => {});
-  return next;
-};
-
-// Edits the server refused or never got (after the connection-level retries): kept on screen and listed in
-// <SaveErrorBar> with a retry button, instead of silently reverting to the old value.
-const saveFailures = new Map(), saveListeners = new Set();
-const notifySave = () => saveListeners.forEach(f => f());
-export function SaveErrorBar() {
-  const [, force] = useState(0);
-  useEffect(() => { const f = () => force(x => x + 1); saveListeners.add(f); return () => { saveListeners.delete(f); }; }, []);
-  const list = [...saveFailures.values()];
-  if (!list.length) return null;
-  return <div className="lf-save-error" role="alert"><span>⚠ {fa(list.length)} تغییر ذخیره نشد{list[list.length - 1].message ? `: ${list[list.length - 1].message}` : ''}</span><button type="button" onClick={() => list.forEach(x => x.retry())}>تلاش دوباره</button></div>;
-}
-export function useCol(name) {
-  const [items, setItems] = useState(null);
-  const [err, setErr] = useState('');
-  // edits not yet confirmed by the server, re-applied over any reload that lands before them
-  const unsaved = useRef(new Map());
-  // a reload waits for writes already queued (the seyfikhani proxy is slow: a read sent right after an
-  // edit used to return the old row, so the typed value vanished and came back seconds later)
-  const load = () => colMutationQueue.then(() => api(`/api/col/${name}`)).then(d => setItems((d.items || []).map(x => unsaved.current.has(x.id) ? { ...x, ...unsaved.current.get(x.id) } : x))).catch(e => { setErr(e.message); setItems(xs => xs || []); });
-  useEffect(() => { load(); }, [name]);
-  const upsertLocal = (xs, row) => { const list = xs || [], index = list.findIndex(item => item.id === row.id); return index < 0 ? [...list, row] : list.map((item, i) => i === index ? row : item); };
-  const add = async body => { const r = await queueColMutation(() => api(`/api/col/${name}`, { method: 'POST', body: JSON.stringify(body) })); setItems(xs => upsertLocal(xs, r)); return r; };
-  const addMany = async rows => {
-    if (!rows?.length) return [];
-    const result = await queueColMutation(() => api(`/api/col/${name}`, { method: 'POST', body: JSON.stringify({ items: rows }) }));
-    const made = result.items || [];
-    setItems(xs => made.reduce((next, row) => upsertLocal(next, row), xs || []));
-    return made;
-  };
-  // a server reply only replaces the row when no newer patch for it is in flight; otherwise quick
-  // successive clicks flicker (reply #1 briefly undoes the optimistic state of click #2)
-  const patchSeq = useRef({});
-  const patch = async (id, body) => { const seq = patchSeq.current[id] = (patchSeq.current[id] || 0) + 1; unsaved.current.set(id, { ...(unsaved.current.get(id) || {}), ...body }); setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: JSON.stringify(body) })); if (patchSeq.current[id] === seq) { unsaved.current.delete(id); setItems(xs => (xs || []).map(x => x.id === id ? r : x)); if (saveFailures.delete(`${name}|${id}`)) notifySave(); } return r; } catch (e) { setErr(e.message); if (patchSeq.current[id] === seq) { const key = `${name}|${id}`; saveFailures.set(key, { message: e.message, retry: () => { saveFailures.delete(key); notifySave(); return patch(id, unsaved.current.get(id) || body); } }); notifySave(); } } };
-  const remove = async id => { setItems(xs => (xs || []).filter(x => x.id !== id)); try { await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'DELETE' })); } catch (e) { setErr(e.message); load(); } };
-  return { items, add, addMany, patch, remove, reload: load, err, setErr };
-}
-
-export function Page({ Nav, kicker, title, sub, actions, children, className = '' }) {
-  return <main className={`lf ${className}`} dir="rtl">
-    <Nav />
-    <div className="lf-page">
-      <header className="lf-hero"><div><p>{kicker}</p><h1>{title}</h1>{sub ? <small>{sub}</small> : null}</div>{actions ? <div className="lf-hero-ops">{actions}</div> : null}</header>
-      {children}
-    </div>
-  </main>;
-}
-
-// Side drawer with a form built from a field list; used by every module for add/edit.
-// money fields show thousands separators even for values filled in by code (numgroup only reacts to typing)
-const grp = x => { if (x === undefined || x === null || x === '') return ''; const t = String(x); return /^\d+$/.test(t) ? Number(t).toLocaleString('en-US') : typeof x === 'number' ? x.toLocaleString('en-US') : t; };
-export function FormDrawer({ open, title, fields, initial, onClose, onSubmit, submitLabel = 'ذخیره', extra }) {
-  const [v, setV] = useState({});
-  const [busy, setBusy] = useState(false), [err, setErr] = useState('');
-  useEffect(() => { if (open) { setV({ ...(Object.fromEntries(fields.filter(f => f.def !== undefined).map(f => [f.k, typeof f.def === 'function' ? f.def() : f.def]))), ...(initial || {}) }); setErr(''); } }, [open]);
-  useEffect(() => { if (!open) return; const k = e => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [open]);
-  if (!open) return null;
-  const set = (k, x) => setV(o => ({ ...o, [k]: x }));
-  const submit = async e => {
-    e.preventDefault();
-    const vis = f => !f.show || f.show(v);
-    const miss = fields.find(f => vis(f) && f.req && (v[f.k] === undefined || v[f.k] === ''));
-    if (miss) { setErr(`«${miss.l}» لازم است.`); return; }
-    const out = { ...v }; fields.forEach(f => { if (f.calc) out[f.k] = f.calc(v); else if (f.t === 'num' || f.t === 'money') out[f.k] = v[f.k] === '' || v[f.k] === undefined ? null : num(v[f.k]); });
-    setBusy(true); try { await onSubmit(out); onClose(); } catch (x) { setErr(x.message); } setBusy(false);
-  };
-  return <div className="lf-drawer-bg" onClick={onClose}>
-    <form className="lf-drawer" onClick={e => e.stopPropagation()} onSubmit={submit}>
-      <header><h2>{title}</h2><button type="button" onClick={onClose} aria-label="بستن">×</button></header>
-      <div className="lf-drawer-body">
-        {fields.filter(f => !f.show || f.show(v)).map(f => { const value = f.calc ? f.calc(v) : v[f.k]; return <label key={f.k} className={`lf-field ${f.half ? 'half' : ''}`}>
-          <span>{f.l}{f.req ? ' *' : ''}{f.hint ? <em> ({f.hint})</em> : null}</span>
-          {f.t === 'days' ? <span className="lf-days">{f.o.map(([k, l]) => { const on = (v[f.k] || []).map(Number).includes(k); return <button type="button" key={k} className={on ? 'on' : ''} onClick={() => set(f.k, on ? (v[f.k] || []).filter(x => Number(x) !== k) : [...(v[f.k] || []), k])}>{l}</button>; })}</span>
-            : f.t === 'check' ? <span className="lf-check-toggle"><input type="checkbox" checked={!!value} onChange={e => set(f.k, e.target.checked)} /> <b>{value ? 'انجام شد' : 'انجام نشده'}</b></span>
-            : f.t === 'date' ? <JalaliDateInput value={v[f.k] || ''} onChange={x => set(f.k, x)} />
-            : f.t === 'sel' ? <select value={v[f.k] ?? ''} onChange={e => set(f.k, e.target.value)}>{f.o.map(([a, b]) => <option key={a} value={a}>{b}</option>)}</select>
-            : f.t === 'area' ? <textarea rows={f.rows || 3} value={value ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} readOnly={!!f.calc} />
-            : <input value={f.t === 'money' ? grp(value) : value ?? ''} onChange={e => set(f.k, e.target.value)} placeholder={f.ph || ''} inputMode={f.t === 'num' ? 'decimal' : f.t === 'money' ? 'numeric' : undefined} data-raw={f.t === 'num' ? '' : undefined} type={f.t === 'time' ? 'time' : 'text'} readOnly={!!f.calc} />}
-        </label>; })}
-        {extra ? extra(v, set) : null}
-        {err ? <p className="lf-err">{err}</p> : null}
-      </div>
-      <footer><button className="lf-btn" disabled={busy}>{busy ? '…' : submitLabel}</button><button type="button" className="lf-btn ghost" onClick={onClose}>انصراف</button></footer>
-    </form>
-  </div>;
-}
+import { api, todayIso, addDays, faD, fa, jl, jShort, money, daysTo, dueChip, SaveErrorBar, useCol, Page, FormDrawer, num } from './life-core';
+import { FocusControl } from './life-cards';
+export { api, todayIso, addDays, faD, fa, jl, jShort, money, daysTo, dueChip, SaveErrorBar, useCol, Page, FormDrawer } from './life-core';
+export { FocusControl, FocusCard, ShoppingPanel, BillsWeekCard } from './life-cards';
 
 // Tiny SVG charts (no library)
 export function LineChart({ points, unit = '', height = 150, color = 'var(--g-accent)' }) {
@@ -1204,7 +1093,7 @@ export function GoalsPage({ Nav }) {
   const pct = g => g.target ? Math.min(100, Math.round((g.current || 0) / g.target * 100)) : (g.milestones || []).length ? Math.round((g.milestones.filter(m => m.done).length / g.milestones.length) * 100) : (g.done ? 100 : 0);
   const avg = items.length ? Math.round(items.reduce((a, g) => a + pct(g), 0) / items.length) : 0;
   const AREA = { work: '💼', money: '💰', health: '💪', learn: '📚', family: '❤️', personal: '✨' };
-  return <Page Nav={Nav} kicker="اهداف سالانه" title={`سال ${faD(year)}`} sub={items.length ? `پیشرفت کلی ${fa(avg)}٪` : ''} actions={<><button className="lf-btn ghost" onClick={() => setYear(year - 1)} aria-label="سال قبل">‹</button><button className="lf-btn ghost" onClick={() => setYear(year + 1)} aria-label="سال بعد">›</button><button className="lf-btn" onClick={() => setEdit({ year })}>＋ هدف</button></>}>
+  return <Page Nav={Nav} kicker="اهداف سالانه" title={`سال ${faD(year)}`} sub={items.length ? `پیشرفت کلی ${fa(avg)}٪` : ''} actions={<><button className="lf-btn ghost" onClick={() => setYear(year - 1)} aria-label="سال قبل">›</button><button className="lf-btn ghost" onClick={() => setYear(year + 1)} aria-label="سال بعد">‹</button><button className="lf-btn" onClick={() => setEdit({ year })}>＋ هدف</button></>}>
     {col.items === null ? <p className="lf-empty">در حال دریافت…</p> : !items.length ? <p className="lf-empty">برای {faD(year)} هدفی تعریف نشده. هدف‌های بزرگ را بنویس و به گام‌های کوچک بشکن.</p> :
       <div className="lf-cards">{items.map(g => <article key={g.id} className={`lf-card lf-goal ${pct(g) >= 100 ? 'done' : ''}`}>
         <div className="lf-row-head"><div><b>{AREA[g.area] || '✨'} {g.title}</b>{g.why ? <small>{g.why}</small> : null}</div><strong>{fa(pct(g))}٪</strong></div>
@@ -1218,41 +1107,6 @@ export function GoalsPage({ Nav }) {
   </Page>;
 }
 
-/* ───────────────────────── Focus timer (pomodoro) ───────────────────────── */
-const FKEY = 'lifeos-focus';
-const readFocus = () => { try { return JSON.parse(localStorage.getItem(FKEY) || 'null'); } catch { return null; } };
-const writeFocus = v => { try { v ? localStorage.setItem(FKEY, JSON.stringify(v)) : localStorage.removeItem(FKEY); } catch {} window.dispatchEvent(new Event('lifeos:focus')); };
-function useFocusTimer() {
-  const [st, setSt] = useState(readFocus), [, tick] = useState(0);
-  useEffect(() => { const f = () => setSt(readFocus()); window.addEventListener('lifeos:focus', f); window.addEventListener('storage', f); const t = setInterval(() => tick(x => x + 1), 1000); return () => { window.removeEventListener('lifeos:focus', f); window.removeEventListener('storage', f); clearInterval(t); }; }, []);
-  const left = st ? Math.max(0, Math.round((st.endAt - Date.now()) / 1000)) : 0;
-  return { st, left };
-}
-async function finishFocus(st, partial = false) {
-  const minutes = Math.round(((partial ? Date.now() : st.endAt) - st.startAt) / 60000);
-  writeFocus(null);
-  if (st.kind === 'focus' && minutes >= 1) { try { await api('/api/col/focus', { method: 'POST', body: JSON.stringify({ date: todayIso(), minutes, label: st.label || 'بدون برچسب', projectId: st.projectId || null, at: Date.now() }) }); } catch {} }
-  try { if ('Notification' in window && Notification.permission === 'granted') new Notification(st.kind === 'focus' ? '⏰ وقت استراحت!' : '💪 برگرد سر کار', { body: st.kind === 'focus' ? `${minutes} دقیقه تمرکز روی «${st.label || 'کار'}» ثبت شد.` : 'استراحت تمام شد.', icon: '/assets/img/icon-192.png' }); } catch {}
-  try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value = 880; g.gain.setValueAtTime(.2, a.currentTime); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + 1.2); o.start(); o.stop(a.currentTime + 1.2); } catch {}
-  window.dispatchEvent(new Event('lifeos:focus-saved'));
-}
-const mmss = s => `${faD(String(Math.floor(s / 60)).padStart(2, '0'))}:${faD(String(s % 60).padStart(2, '0'))}`;
-export function FocusControl({ compact = false }) {
-  const { st, left } = useFocusTimer();
-  const [label, setLabel] = useState(() => { try { return localStorage.getItem('lifeos-focus-label') || ''; } catch { return ''; } }), [len, setLen] = useState(25);
-  const done = useRef(false);
-  useEffect(() => { if (st && left === 0 && !done.current) { done.current = true; finishFocus(st); } if (!st || left > 0) done.current = false; }, [st, left]);
-  const start = (kind, mins) => { try { localStorage.setItem('lifeos-focus-label', label); if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch {} writeFocus({ kind, label: kind === 'focus' ? label : 'استراحت', startAt: Date.now(), endAt: Date.now() + mins * 60000, mins }); };
-  const total = st ? st.mins * 60 : len * 60, pct = st ? 100 - (left / total) * 100 : 0;
-  return <div className={`lf-focus ${compact ? 'compact' : ''} ${st?.kind || ''}`}>
-    <div className="lf-ring" style={{ '--p': `${pct}%` }}><div><b>{st ? mmss(left) : mmss(len * 60)}</b><small>{st ? (st.kind === 'focus' ? st.label || 'تمرکز' : 'استراحت') : 'آماده'}</small></div></div>
-    {st ? <div className="lf-ops"><button className="lf-btn ghost" onClick={() => finishFocus(st, true)}>پایان و ثبت</button><button className="lf-link del" onClick={() => writeFocus(null)}>لغو</button></div> : <>
-      <input className="lf-focus-label" value={label} onChange={e => setLabel(e.target.value)} placeholder="روی چه کاری تمرکز می‌کنی؟" />
-      <div className="lf-ops">{[25, 50, 90].map(m => <button key={m} className={`lf-chip-btn ${len === m ? 'on' : ''}`} onClick={() => setLen(m)}>{fa(m)} دقیقه</button>)}</div>
-      <div className="lf-ops"><button className="lf-btn" onClick={() => start('focus', len)}>▶ شروع تمرکز</button><button className="lf-btn ghost" onClick={() => start('break', 5)}>☕ ۵ دقیقه استراحت</button></div>
-    </>}
-  </div>;
-}
 export function FocusPage({ Nav }) {
   const col = useCol('focus');
   useEffect(() => { const f = () => col.reload(); window.addEventListener('lifeos:focus-saved', f); return () => window.removeEventListener('lifeos:focus-saved', f); }, []);
@@ -1274,27 +1128,6 @@ export function FocusPage({ Nav }) {
     </div>
   </Page>;
 }
-export function FocusCard({ Card, Icon }) {
-  return <Card className="mini-card focus-card" icon={Icon} title="تایمر تمرکز" action={<a href="/?page=focus">آمار ←</a>}><FocusControl compact /></Card>;
-}
-
-/* ───────────────────────── Shopping list (notes tab) ───────────────────────── */
-export function ShoppingPanel() {
-  const col = useCol('shopping');
-  const [t, setT] = useState(''), [code, setCode] = useState(null), [msg, setMsg] = useState('');
-  useEffect(() => { api('/api/me').then(d => setCode(d.user?.shopCode || null)).catch(() => {}); }, []);
-  const add = async e => { e.preventDefault(); const parts = t.split(/[،,\n]+/).map(x => x.trim()).filter(Boolean); if (!parts.length) return; await api('/api/col/shopping', { method: 'POST', body: JSON.stringify({ items: parts.map(text => ({ text, done: false })) }) }); setT(''); col.reload(); };
-  const share = async (reset = false) => { const r = await api('/api/shop/share', { method: 'POST', body: JSON.stringify({ reset }) }); setCode(r.code); const url = `${location.origin}/s/${r.code}`; try { await navigator.clipboard.writeText(url); setMsg('لینک کپی شد ✓ — برای خانواده بفرست.'); } catch { setMsg(url); } };
-  const items = (col.items || []).slice().sort((a, b) => a.done - b.done || (b.createdAt || 0) - (a.createdAt || 0));
-  return <section className="lf-card lf-shop" dir="rtl">
-    <div className="lf-row-head"><h2>🛒 لیست خرید</h2><div className="lf-ops"><button className="lf-btn ghost" onClick={() => share(false)}>🔗 لینک مشترک</button>{code ? <button className="lf-link" onClick={() => share(true)} title="لینک قبلی باطل می‌شود">لینک تازه</button> : null}</div></div>
-    <form className="lf-inline" onSubmit={add}><input value={t} onChange={e => setT(e.target.value)} placeholder="نان، شیر، پنیر… (با ویرگول چندتا با هم)" /><button className="lf-btn">افزودن</button></form>
-    <ul className="lf-check big">{items.map(x => <li key={x.id} className={x.done ? 'done' : ''} onClick={() => col.patch(x.id, { done: !x.done })}><i>{x.done ? '✓' : ''}</i><span>{x.text}</span><button className="lf-x" onClick={e => { e.stopPropagation(); col.remove(x.id); }}>×</button></li>)}</ul>
-    {items.some(x => x.done) ? <button className="lf-link del" onClick={() => items.filter(x => x.done).forEach(x => col.remove(x.id))}>پاک کردن خریده‌شده‌ها</button> : null}
-    <p className="lf-note">{msg || 'با لینک مشترک، خانواده بدون حساب کاربری به همین لیست اضافه می‌کنند. در تلگرام هم: «/خرید نان، شیر» یا «/لیست».'}</p>
-  </section>;
-}
-
 /* ───────────────────────── Bills & subscriptions (finance tab) ───────────────────────── */
 const CYC = [['monthly', 'ماهانه'], ['yearly', 'سالانه'], ['weekly', 'هفتگی']];
 export function BillsPanel({ onChanged }) {
@@ -1319,14 +1152,6 @@ export function BillsPanel({ onChanged }) {
     <FormDrawer open={!!edit} title={edit?.id ? 'ویرایش' : 'قبض / اشتراک تازه'} fields={fields} initial={edit} onClose={() => setEdit(null)} onSubmit={save} />
   </section>;
 }
-export function BillsWeekCard({ Card, Icon }) {
-  const [items, setItems] = useState(null);
-  useEffect(() => { api('/api/subscriptions').then(d => setItems((d.items || []).filter(x => x.nextDate <= addDays(todayIso(), 10)))).catch(() => setItems([])); }, []);
-  return <Card className="mini-card" icon={Icon} title="قبض‌ها و اقساط نزدیک" action={<a href="/?page=finance&tab=bills">همه ←</a>}>
-    {items === null ? <p className="empty">در حال دریافت…</p> : !items.length ? <p className="empty">تا ۱۰ روز آینده موعدی نیست.</p> : <div className="mini-list">{items.map(x => <a key={x.id} className="mini-note" href="/?page=finance&tab=bills"><b>{x.name} {dueChip(x.nextDate)}</b><small>{money(x.amount)}</small></a>)}</div>}
-  </Card>;
-}
-
 /* ───────────────────────── Life statistics (week hub tab) ───────────────────────── */
 const pearson = (xs, ys) => { const n = xs.length; if (n < 5) return null; const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n; let num_ = 0, dx = 0, dy = 0; for (let i = 0; i < n; i++) { num_ += (xs[i] - mx) * (ys[i] - my); dx += (xs[i] - mx) ** 2; dy += (ys[i] - my) ** 2; } return dx && dy ? num_ / Math.sqrt(dx * dy) : null; };
 export function LifeStatsPage({ Nav }) {

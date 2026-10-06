@@ -174,12 +174,13 @@
   //    باندل Vite هستند و /design/finance-page.html فقط یک ریدایرکت به /?page=finance است.
   //    خرابی کلاسیک دیپلوی این‌جاست: index.html تازه آپلود شده ولی باندل هش‌داری که به آن
   //    اشاره می‌کند روی دیپلوی نیست (صفحهٔ سفید). پس: شِل را می‌خوانیم، آدرس باندل را از
-  //    خودش درمی‌آوریم، همان باندل را می‌گیریم و نشانهٔ صفحهٔ مالی React را در آن می‌سنجیم.
+  //    خودش درمی‌آوریم، همان باندل را می‌گیریم و نشانهٔ پوستهٔ React (نوار بالا، nav-current) را در آن می‌سنجیم.
+  //    (صفحهٔ مالی از ۲۰۲۶-۱۰ چانک lazy جداست، پس نشانه‌اش دیگر در باندل اصلی نیست.)
   const shell = await req('/');
   const bundleM = (shell.raw || '').match(/<script[^>]+type="module"[^>]+src="(\/assets\/index-[^"]+\.js)"/);
   const bundlePath = bundleM ? bundleM[1] : null;
   const bundle = bundlePath ? await req(bundlePath) : { st: 0, raw: '', err: 'index.html به هیچ باندل /assets/index-*.js اشاره نمی‌کند' };
-  const hasFinanceReact = shell.st === 200 && !!bundlePath && bundle.st === 200 && /finance-react/.test(bundle.raw || '');
+  const hasFinanceReact = shell.st === 200 && !!bundlePath && bundle.st === 200 && /nav-current/.test(bundle.raw || '');
   out(
     hasFinanceReact,
     'چک ۵ — اپ React (باندل index.html) روی دیپلوی',
@@ -191,7 +192,7 @@
           ? 'index.html ۲۰۰ است ولی تگ <script type="module" src="/assets/index-*.js"> ندارد — شِل قدیمی روی دیپلوی است'
           : bundle.st !== 200
             ? 'باندل ' + bundlePath + ': ' + code(bundle) + ' — index.html به باندلی اشاره می‌کند که روی دیپلوی نیست (صفحهٔ سفید)؛ `public/assets` را با همان بیلد دیپلوی کن'
-            : 'باندل ' + bundlePath + ' ۲۰۰ است ولی نشانهٔ صفحهٔ مالی React (finance-react) در آن نیست — بیلد قدیمی است'
+            : 'باندل ' + bundlePath + ' ۲۰۰ است ولی نشانهٔ پوستهٔ React (nav-current) در آن نیست — بیلد قدیمی است'
   );
 
   const failed = rows.filter((r) => r.startsWith('❌')).length;
