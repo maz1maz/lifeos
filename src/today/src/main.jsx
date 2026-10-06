@@ -33,6 +33,7 @@ import './watchx.css';
 import './insights.css';
 import './logbook.css';
 import './reading.css';
+import './assistant.css';
 import { InsightsHomeCard } from './insights-card';
 import { CommandPalette } from './palette';
 import { AdminPage, MsgBar } from './admin';
@@ -2371,6 +2372,16 @@ function BackupInstallCard({ lastBackup, freq = 'weekly', onFreq }) {
   </section>;
 }
 
+// AI assistant on every page: a floating button (only when the server has an AI key); the panel loads on demand.
+const AssistantPanel = React.lazy(() => import('./assistant'));
+function AssistantDock() {
+  const [ok, setOk] = useState(false), [open, setOpen] = useState(false);
+  useEffect(() => { meOnce().then(u => setOk(!!u?.aiConfigured)); const f = () => setOpen(true); window.addEventListener('lifeos:assistant', f); return () => window.removeEventListener('lifeos:assistant', f); }, []);
+  if (!ok || new URLSearchParams(location.search).get('page') === 'vocab') return null;
+  return open ? <React.Suspense fallback={null}><AssistantPanel onClose={() => setOpen(false)} /></React.Suspense>
+    : <button type="button" className="as-fab" onClick={() => setOpen(true)} aria-label="دستیار هوشمند" title="دستیار هوشمند"><Sparkles size={22} /></button>;
+}
+
 function OfflineBar() {
   const [off, setOff] = useState(!navigator.onLine);
   useEffect(() => { const a = () => setOff(false), b = () => setOff(true); window.addEventListener('online', a); window.addEventListener('offline', b); return () => { window.removeEventListener('online', a); window.removeEventListener('offline', b); }; }, []);
@@ -2382,5 +2393,5 @@ if ('serviceWorker' in navigator && !navigator.webdriver && (location.protocol =
   window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
 }
 
-createRoot(document.getElementById('root')).render(<><React.Suspense fallback={<PageLoading />}><App /></React.Suspense><OfflineBar /><MsgBar load={meOnce} /></>);
+createRoot(document.getElementById('root')).render(<><React.Suspense fallback={<PageLoading />}><App /></React.Suspense><OfflineBar /><MsgBar load={meOnce} /><AssistantDock /></>);
 window.addEventListener('load', () => { const idle = window.requestIdleCallback || (f => setTimeout(f, 2500)); idle(prefetchPages, { timeout: 6000 }); });

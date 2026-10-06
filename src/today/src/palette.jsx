@@ -108,6 +108,7 @@ export function CommandPalette({ pages }) {
       ...pages.map(([page, label]) => ({ kind: 'page', icon: '↗', text: label, sub: 'رفتن به صفحه', href: page ? `/?page=${page}` : '/' })),
       { kind: 'act', icon: '💸', text: 'ثبت تراکنش تازه', sub: 'مالی', href: '/?page=finance&tab=ledger' },
       { kind: 'act', icon: '📊', text: 'گزارش ماهانهٔ مالی', sub: 'مالی', href: '/?page=finance' },
+      { kind: 'act', icon: '✨', text: 'دستیار هوشمند', sub: 'پرسیدن دربارهٔ داده‌های همین صفحه', run: () => window.dispatchEvent(new Event('lifeos:assistant')) },
       { kind: 'act', icon: '🎯', text: 'اهداف پس‌انداز', sub: 'مالی', href: '/?page=finance&tab=wealth' },
       { kind: 'act', icon: '📅', text: 'تقویم پخش سریال‌ها', sub: 'فیلم و سریال', href: '/?page=upcoming' },
       { kind: 'act', icon: '✨', text: 'پیشنهاد سریال و فیلم', sub: 'فیلم و سریال', href: '/?page=discover' },
