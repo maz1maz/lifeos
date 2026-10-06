@@ -20,6 +20,7 @@
 | `/?page=contacts` | `contacts.jsx` | contacts, contacts/import, contacts/dedupe |
 | `/?page=insights` بینش | `insights.jsx` (+ کارت `insights-card.jsx`) | ai/report, ai/tomorrow-priorities, insights, ai/correlations, one-year-ago |
 | `/?page=logbook` دفتر و مرور | `logbook.jsx` (+ نوار روزانهٔ خرج/حال از reports) | life-review (period=jmonthly), wins, decisions, reports |
+| `/?page=time` زمان کار (تب برنامه‌ریز) | `timelog.jsx` | timer(+start/stop/cancel), time (+:id PATCH/DELETE), col/projects |
 | `/?page=exercise` ورزش (تب کنار سلامت) | `exercise.jsx` | exercise (type, minutes, date, km?, note?) |
 | `/?page=reading` خبر و خواندنی | `reading.jsx` | news(+sources, sync, :id/summarize, :id/translate), bookmarks |
 | دستیار (همهٔ صفحه‌ها) | `assistant.jsx` (lazy، دکمهٔ شناور فقط وقتی aiConfigured) | ai/chat با `page` → `pageContext` در api.js |
@@ -37,12 +38,12 @@
 - ورودی صوتی Ctrl+K (Web Speech، fa-IR). صف آفلاین ثبت سریع: `postOrQueue`/`flushOutbox` در palette.jsx. خروج از حساب در کشوی منو (`signOut`، پاک‌کردن کش داده‌ها).
 
 ### هاب‌های منو (`TabHub` در main.jsx) — ۲۰۲۶-۱۰-۰۶
-- برنامه‌ریز: `planner|calendar|habits|focus` · مرور و اهداف: `review|goals|week|stats` · یادگیری: `learning|vocab` · یادداشت: `notes|journal|shopping` · تماشا: `series|movies|upcoming|discover` (WatchHub).
+- برنامه‌ریز: `planner|calendar|habits|focus|time` · مرور و اهداف: `review|goals|week|stats` · یادگیری: `learning|vocab` · یادداشت: `notes|journal|shopping` · تماشا: `series|movies|upcoming|discover` (WatchHub).
 - گروه‌های منو: روزانه، کار، مالی، زندگی، سرگرمی، یادگیری و آرشیو. موبایل (≤۷۰۰px): نوار پایین `.bnav` (امروز، برنامه، مالی، یادداشت، همه).
 - ماژول تازهٔ قابل خاموش‌کردن: `habits`؛ `vocab` و `habits` به whitelist ماژول‌ها در worker.js اضافه شدند.
 
 ## ۲) APIهای بک‌اند **بدون UI در React** (فرصت توسعه)
-(به‌روز ۲۰۲۶-۱۰) هنوز بدون صفحه: news/weekly-summary · time/timer · trips (سفر در life.jsx با col است). صفحه دارند: goals, habits, learning, projects, shopping, subscriptions (قبض‌ها)، weekly-review, insights, one-year-ago (بینش)، wins, decisions, life-review (دفتر و مرور)، search (Ctrl+K).
+(به‌روز ۲۰۲۶-۱۰) هنوز بدون صفحه: news/weekly-summary · trips (سفر در life.jsx با col است). صفحه دارند: goals, habits, learning, projects, shopping, subscriptions (قبض‌ها)، weekly-review, insights, one-year-ago (بینش)، wins, decisions, life-review (دفتر و مرور)، search (Ctrl+K).
 
 ## ۳) بک‌اند
 - **تنها بک‌اند: Worker** — ورودی `cloudflare/worker.js` + `cloudflare/lib/{helpers,api,edge,security}.js` (۲۰۲۶-۱۰ از یک فایل ۴۶۶KB جدا شد) — `makeHelpers(env)` (auth/PBKDF2، تاریخ تهران/جلالی، پارس پیامک بانکی `parseBankMessage`، متن آزاد `parseLifeText`، Google Calendar، فوتبال، بت/پوکر، storage v2 روی D1)، `handleApi`، و در `export default`: tgju، webhook تلگرام، uploads (در تلگرام)، cron، دروازهٔ لاگین. `server.js`/`port.js`/`header.js`/`footer.js` در ۲۰۲۶-۱۰ حذف شدند.

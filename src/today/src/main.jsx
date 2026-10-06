@@ -35,6 +35,7 @@ import './logbook.css';
 import './reading.css';
 import './assistant.css';
 import './exercise.css';
+import './timelog.css';
 import './admin.css';
 import './courses.css';
 import { InsightsHomeCard } from './insights-card';
@@ -51,11 +52,11 @@ import './mobile.css'; // phone/iPhone pass — keep last so it overrides page C
 const PAGE_CHUNKS = {
   notes: () => import('./notes'), contacts: () => import('./contacts'), documents: () => import('./documents'),
   media: () => import('./media'), market: () => import('./market'), calendar: () => import('./calendar'),
-  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), watch: () => import('./watch-pages'), exercise: () => import('./exercise'), admin: () => import('./admin'), courses: () => import('./courses'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook'), reading: () => import('./reading')
+  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), watch: () => import('./watch-pages'), exercise: () => import('./exercise'), timelog: () => import('./timelog'), admin: () => import('./admin'), courses: () => import('./courses'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook'), reading: () => import('./reading')
 };
 const lazyPage = (chunk, name) => React.lazy(() => PAGE_CHUNKS[chunk]().then(m => ({ default: m[name] })));
 const AdminPage = lazyPage('admin', 'AdminPage'), CoursesPage = lazyPage('courses', 'CoursesPage'), ClassTodayCardLazy = lazyPage('courses', 'ClassTodayCard');
-const ExercisePage = lazyPage('exercise', 'ExercisePage');
+const ExercisePage = lazyPage('exercise', 'ExercisePage'), TimeLogPage = lazyPage('timelog', 'TimeLogPage');
 const SeriesReact = lazyPage('watch', 'SeriesReact'), MoviesReact = lazyPage('watch', 'MoviesReact');
 const NotesReact = lazyPage('notes', 'NotesReact'), ContactsReact = lazyPage('contacts', 'ContactsReact'), DocumentsReact = lazyPage('documents', 'DocumentsReact');
 const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('market', 'MarketReact'), CalendarReact = lazyPage('calendar', 'CalendarReact');
@@ -177,7 +178,7 @@ function TopNav({ active, right }) {
       <FocusChip />
       <ThemeToggle />
       {right}
-      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['exercise', 'ورزش'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
+      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['exercise', 'ورزش'], ['time', 'زمان کار و تایمر'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
@@ -226,7 +227,7 @@ function TabHub({ active, label, tabs, initial, url = v => v }) {
   return <Page Nav={HubNav} />;
 }
 const ShopView = ({ Nav }) => <main className="lf" dir="rtl"><Nav /><div className="lf-page"><ShoppingPanel /></div></main>;
-const PLAN_TABS = [['list', 'لیست کارها', ListChecks, PlannerReact], ['calendar', 'تقویم', CalendarDays, CalendarReact], ['habits', 'عادت‌ها', Flame, HabitsPage], ['focus', 'تمرکز', Timer, FocusPage]];
+const PLAN_TABS = [['list', 'لیست کارها', ListChecks, PlannerReact], ['calendar', 'تقویم', CalendarDays, CalendarReact], ['habits', 'عادت‌ها', Flame, HabitsPage], ['focus', 'تمرکز', Timer, FocusPage], ['time', 'زمان کار', Clock, TimeLogPage]];
 const REVIEW_TABS = [['goals', 'اهداف سالانه', Target, GoalsPage], ['week', 'مرور هفته', ClipboardCheck, WeeklyPage], ['stats', 'آمار زندگی', BarChart3, LifeStatsPage], ['logbook', 'دفتر و مرور', BookMarked, LogbookPage]];
 const HEALTH_TABS = [['health', 'سلامت', HeartPulse, HealthPage], ['exercise', 'ورزش', Dumbbell, ExercisePage]];
 const LEARN_TABS = [['learning', 'کتاب و دوره', BookOpen, LearningPage], ['vocab', 'زبان', Languages, VocabPage]];
@@ -244,7 +245,7 @@ function App() {
 function Routes() {
   const page = new URLSearchParams(location.search).get('page');
   if (pageLocked(page)) return <><TopNav /><main className="locked-page" dir="rtl"><h1>🔒 این بخش بسته است</h1><p>مدیر سایت دسترسی حساب تو به این بخش را بسته است.</p><a href="/">بازگشت به امروز</a></main></>;
-  if (['calendar', 'planner', 'habits', 'focus'].includes(page)) return <TabHub active="planner" label="نمای برنامه‌ریز" tabs={PLAN_TABS} initial={page === 'planner' ? 'list' : page} url={v => v === 'list' ? 'planner' : v} />;
+  if (['calendar', 'planner', 'habits', 'focus', 'time'].includes(page)) return <TabHub active="planner" label="نمای برنامه‌ریز" tabs={PLAN_TABS} initial={page === 'planner' ? 'list' : page} url={v => v === 'list' ? 'planner' : v} />;
   if (page === 'reading' || page === 'news' || page === 'bookmarks') return <ReadingPage Nav={() => <TopNav active="reading" />} />;
   if (page === 'insights') return <InsightsPage Nav={() => <TopNav active="insights" />} />;
   if (['review', 'goals', 'week', 'stats', 'logbook'].includes(page)) return <TabHub active="review" label="مرور و اهداف" tabs={REVIEW_TABS} initial={page} />;
