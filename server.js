@@ -1,6 +1,10 @@
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto');let XLSX=null;try{XLSX=require('xlsx')}catch(e){XLSX=null}
 const PORT=process.env.PORT||3000, ROOT=__dirname, DB=process.env.DB_PATH?path.resolve(process.env.DB_PATH):path.join(ROOT,'data','db.json');
 const UPLOADS_DIR=path.join(ROOT,'public','uploads');if(!fs.existsSync(UPLOADS_DIR))fs.mkdirSync(UPLOADS_DIR,{recursive:true});
+// Every request and background job runs behind one DB lock (dbLock below), so an outbound call that hangs
+// would freeze the whole API. Give each outbound fetch a default deadline; callers that pass their own
+// signal (e.g. tgApi) keep theirs.
+const FETCH_TIMEOUT_MS=Number(process.env.FETCH_TIMEOUT_MS)||12000;{const nativeFetch=globalThis.fetch;if(nativeFetch&&typeof AbortSignal!=='undefined'&&AbortSignal.timeout)globalThis.fetch=(url,options)=>nativeFetch(url,options&&options.signal?options:Object.assign({},options||{},{signal:AbortSignal.timeout(FETCH_TIMEOUT_MS)}))}
 // Loads local secrets if a .env file exists. On production, use host environment variables instead.
 // SKIP_DOTENV=1 (used by test/smoke.js) keeps the run hermetic: no local secrets, no accidental network calls.
 const envFile=path.join(ROOT,'.env');if(process.env.SKIP_DOTENV!=='1'&&fs.existsSync(envFile))for(const line of fs.readFileSync(envFile,'utf8').split(/\r?\n/)){let m=line.match(/^([A-Z0-9_]+)=(.*)$/);if(m&&!process.env[m[1]])process.env[m[1]]=m[2].trim()}
@@ -971,7 +975,10 @@ async function backgroundNewsSync(){let db=read(),{changed}=await syncAllNewsSou
 setInterval(()=>{let p=dbLock.then(backgroundNewsSync,backgroundNewsSync);dbLock=p.catch(()=>{})},30*60*1000);
 async function backgroundGoogleCalendarSync(){let db=read(),r=await syncAllGoogleCalendars(db).catch(()=>({changed:false}));if(r.changed)write(db)}
 setInterval(()=>{let p=dbLock.then(backgroundGoogleCalendarSync,backgroundGoogleCalendarSync);dbLock=p.catch(()=>{})},15*60*1000);
-const server=http.createServer((req,res)=>{dbLock=dbLock.then(()=>handleRequest(req,res),()=>handleRequest(req,res))});
+// Read-only GETs that only proxy an outside service (football, TV/movie search, Spotify/YouTube, stocks)
+// skip the DB lock: they never write, and a slow upstream must not stall every other request behind it.
+const LOCK_FREE_GET=/^\/api\/(football\/remote\/|movies\/(tvmaze|tmdb)\/|integrations\/(spotify\/(recent|search)|youtube\/(playlists|history|playlist-items|search))$|calendar\/on-this-day$|market\/stocks$)/;
+const server=http.createServer((req,res)=>{if(req.method==='GET'&&LOCK_FREE_GET.test(String(req.url||'').split('?')[0])){handleRequest(req,res);return}dbLock=dbLock.then(()=>handleRequest(req,res),()=>handleRequest(req,res))});
 backupDb();
 setInterval(backupDb,24*60*60*1000);
 server.listen(PORT,'0.0.0.0',()=>console.log(`LifeOS running on ${PORT}`));

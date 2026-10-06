@@ -3,14 +3,17 @@ import { createRoot } from 'react-dom/client';
 import './today.css';
 import './calendar.css';
 import './planner.css';
-import { NotesReact } from './notes';
-import { ContactsReact } from './contacts';
-import { DocumentsReact } from './documents';
+// Page modules load on demand (React.lazy below); their CSS stays here so the cascade order is unchanged
+// and mobile.css (imported last) still overrides it.
+import './notes.css';
+import './contacts.css';
+import './documents.css';
 import { PlannerReact, TaskDrawer, createPlannerItem, savePlannerItem } from './planner';
-import { MediaReact } from './media';
-import { MarketReact } from './market';
-import { CalendarReact } from './calendar';
-import { FinanceReact } from './finance';
+import './media.css';
+import './market.css';
+import './finance.css';
+import './fun.css';
+import './xcards.css';
 import { photoOfDay } from './season-photos.mjs';
 import { MarketLogo } from './market-logos';
 import { PriceChart } from './pricechart';
@@ -25,8 +28,8 @@ import {
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
-import { HabitsPage, WeeklyPage } from './habits';
-import { UpcomingPage, DiscoverPage } from './watchx';
+import './habits.css';
+import './watchx.css';
 import { CommandPalette } from './palette';
 import { AdminPage, MsgBar } from './admin';
 import { CoursesPage, ClassTodayCard } from './courses';
@@ -34,6 +37,21 @@ import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import { HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, FocusCard, ShoppingPanel, BillsWeekCard, LifeStatsPage } from './life';
 import './mobile.css'; // phone/iPhone pass — keep last so it overrides page CSS
+
+// Pages the Today screen doesn't need are split into their own chunks, so the first load stays small.
+const PAGE_CHUNKS = {
+  notes: () => import('./notes'), contacts: () => import('./contacts'), documents: () => import('./documents'),
+  media: () => import('./media'), market: () => import('./market'), calendar: () => import('./calendar'),
+  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx')
+};
+const lazyPage = (chunk, name) => React.lazy(() => PAGE_CHUNKS[chunk]().then(m => ({ default: m[name] })));
+const NotesReact = lazyPage('notes', 'NotesReact'), ContactsReact = lazyPage('contacts', 'ContactsReact'), DocumentsReact = lazyPage('documents', 'DocumentsReact');
+const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('market', 'MarketReact'), CalendarReact = lazyPage('calendar', 'CalendarReact');
+const FinanceReact = lazyPage('finance', 'FinanceReact'), HabitsPage = lazyPage('habits', 'HabitsPage'), WeeklyPage = lazyPage('habits', 'WeeklyPage');
+const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage');
+// Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
+const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
+function PageLoading() { return <div className="page-loading" role="status" aria-label="در حال بارگذاری"><i /></div>; }
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -2287,4 +2305,5 @@ if ('serviceWorker' in navigator && !navigator.webdriver && (location.protocol =
   window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
 }
 
-createRoot(document.getElementById('root')).render(<><App /><OfflineBar /><MsgBar load={meOnce} /></>);
+createRoot(document.getElementById('root')).render(<><React.Suspense fallback={<PageLoading />}><App /></React.Suspense><OfflineBar /><MsgBar load={meOnce} /></>);
+window.addEventListener('load', () => { const idle = window.requestIdleCallback || (f => setTimeout(f, 2500)); idle(prefetchPages, { timeout: 6000 }); });
