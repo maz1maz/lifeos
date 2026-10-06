@@ -27,6 +27,9 @@ npm ci
 npm run build:today      # حتماً قبل از تست؛ بدون build، ui/verify تست‌ها قرمز می‌شوند
 npm test                 # smoke(490) + worker-smoke(267) + verify-script(26) + ui-smoke(45) — همه باید سبز باشند
 npm start                # server.js روی :3000
+# Worker واقعی به‌صورت محلی (همهٔ مسیرها، از جمله col/*، vocab، site-tokens — server.js این‌ها را ندارد):
+npx wrangler d1 execute pdmaz-db --local --file cloudflare/kv-local.sql   # یک‌بار: جدول kv در D1 محلی
+npx wrangler dev --local --port 8787     # کلیدها از .dev.vars (نه .env)
 npm run dev:today        # vite dev
 node cloudflare/port.js  # ⚠️ فعلاً ممنوع — بالا را ببین
 npm run deploy           # build + wrangler deploy (فقط با اجازهٔ کاربر)

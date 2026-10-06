@@ -38,6 +38,10 @@ goals · habits(+history) · exercise · learning · projects · time/timer · t
 - Worker: `cloudflare/header.js` (makeHelpers + handleApi + مسیرهای فقط-Worker مثل backup/telegram) → `port.js` → `worker.js`. `footer.js`: buildResponse، uploads (R2)، webhook تلگرام، cron هر ۱۵ دقیقه، tgju، دروازهٔ لاگین برای همهٔ مسیرهای غیر API.
 - مدل داده: یک blob با آرایه‌های users, sessions, transactions, tasks, inbox, daily, accounts, budgets, investments, investmentTx, assetPrices, priceAlerts, portfolioSnapshots, movies, mediaLog, contacts, documents, habits, habitLogs, matches, news, newsSources, betDays, … (پیش‌فرض‌ها در `read()`).
 
+### اختلاف server.js و Worker (۲۰۲۶-۱۰-۰۶)
+- server.js ۱۵۹ مسیر، worker.js ۱۹۷. ۳۸ مسیر فقط در Worker: admin/*, attachments, backup/now, col/*, courses/{due,report}, finance/{insights,monthly-report,weekly-report,year}, fun/status, movies/{recommendations,upcoming}, portfolio/snapshots, projects/{due,report}, push/*, report-brand, savings-goals, shop/share, site-tokens, transactions/{receipt-scan,recurring}, vocab/*, ext/*, messages/*. مسیری فقط در server.js نیست.
+- اجرای محلی کامل: `wrangler dev --local` (دستورها در CLAUDE.md). server.js: درخواست‌های بیرونی مهلت ۱۲ ثانیه دارند و GETهای پروکسی (فوتبال، TVmaze/TMDB، Spotify/YouTube، سهام) بدون قفل DB اجرا می‌شوند.
+
 ## ۴) تست‌ها (`test/`)
 - `smoke.js`: server.js واقعی روی DB موقت (۴۹۰ چک).
 - `worker-smoke.js`: worker.js با D1 شبیه‌سازی‌شده (۱۳۴).
