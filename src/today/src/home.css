@@ -1033,3 +1033,5 @@ button,input,select,textarea{font-family:inherit}
 .score-row .team.long{font-size:.9em}
 .score-row .team.xlong{font-size:.8em;letter-spacing:-.2px}
 .mkh-coin{width:24px;height:24px;border-radius:50%;object-fit:cover}
+.drawer-out{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;min-height:42px;border:0;border-radius:var(--g-radius-control);background:none;color:var(--g-muted);font:inherit;font-size:14px;cursor:pointer;text-align:right}
+.drawer-out:hover,.drawer-out:focus-visible{background:color-mix(in srgb,#f87171 10%,transparent);color:#f87171}

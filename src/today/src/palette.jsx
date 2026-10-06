@@ -5,6 +5,34 @@ import { isoToJ, MONTHS } from './jdate';
 const norm = v => String(v || '').toLowerCase().replace(/[يى]/g, 'ی').replace(/ك/g, 'ک');
 const faD = v => String(v ?? '').replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const post = (url, body) => fetch(url, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'ثبت نشد.'); return d; });
+// Offline outbox: a quick capture made without a connection is kept in localStorage and sent when the
+// connection comes back (flushOutbox runs on 'online' and on every app start — see main.jsx).
+const OUTBOX = 'lifeos-outbox', QUEUED = { queued: true };
+const readBox = () => { try { return JSON.parse(localStorage.getItem(OUTBOX) || '[]'); } catch { return []; } };
+const writeBox = b => { try { localStorage.setItem(OUTBOX, JSON.stringify(b)); } catch {} };
+// `later` is merged into the body only when queued (e.g. the capture day, so «فردا» still means the right day)
+const postOrQueue = async (url, body, later = {}) => {
+  const queue = () => { writeBox([...readBox(), { url, body: { ...body, ...later }, at: Date.now() }]); return QUEUED; };
+  if (!navigator.onLine) return queue();
+  try { return await post(url, body); }
+  catch (e) { if (e instanceof TypeError) return queue(); throw e; }
+};
+const QUEUED_MSG = 'آفلاینی؛ نگه داشته شد و بعد از وصل‌شدن خودکار ثبت می‌شود.';
+let flushing = false;
+export async function flushOutbox() {
+  if (flushing || !navigator.onLine) return 0;
+  flushing = true; let sent = 0;
+  try {
+    for (const item of readBox()) {
+      try { await post(item.url, item.body); sent++; }
+      catch (e) { if (e instanceof TypeError) break; } // still offline: keep the rest; a server refusal drops the item
+      writeBox(readBox().filter(x => x.at !== item.at));
+    }
+  } finally { flushing = false; }
+  if (sent) window.dispatchEvent(new Event('lifeos:captured'));
+  return sent;
+}
+export const outboxSize = () => readBox().length;
 const localIso = (add = 0) => { const d = new Date(); d.setDate(d.getDate() + add); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const whenFa = (date, time) => { const day = !date ? '' : date === localIso() ? 'امروز' : date === localIso(1) ? 'فردا' : (() => { const j = isoToJ(date); return `${faD(j.jd)} ${MONTHS[j.jm - 1]}`; })(); return [day, time ? faD(time) : ''].filter(Boolean).join(' ساعت '); };
 // One parsed action (same parser as the Telegram bot: /api/ai/process) → a short Persian line for the preview.
@@ -94,10 +122,10 @@ export function CommandPalette({ pages }) {
   const captureRows = useMemo(() => {
     const t = q.trim();
     if (t.length < 2) return [];
-    if (parsed.length) return [{ kind: 'cap', icon: '⚡', text: parsed.map(describe).join('  +  '), sub: 'Enter = ثبت', run: () => capture(async () => { const d = await post('/api/ai/process', { text: t }); if (!(d.done || []).length) throw new Error('چیزی ثبت نشد.'); return 'ثبت شد: ' + d.done.join('، '); }) }];
+    if (parsed.length) return [{ kind: 'cap', icon: '⚡', text: parsed.map(describe).join('  +  '), sub: 'Enter = ثبت', run: () => capture(async () => { const d = await postOrQueue('/api/ai/process', { text: t }, { date: localIso() }); if (d.queued) return QUEUED_MSG; if (!(d.done || []).length) throw new Error('چیزی ثبت نشد.'); return 'ثبت شد: ' + d.done.join('، '); }) }];
     return [
-      { kind: 'cap', icon: '➕', text: `کار برای امروز: «${t}»`, sub: 'برنامه‌ریز', run: () => capture(() => post('/api/tasks', { title: t, date: localIso() }), `کار «${t}» برای امروز ثبت شد.`) },
-      { kind: 'cap', icon: '📝', text: `یادداشت: «${t}»`, sub: 'یادداشت‌ها', run: () => capture(() => post('/api/inbox', { text: t }), 'یادداشت ذخیره شد.') },
+      { kind: 'cap', icon: '➕', text: `کار برای امروز: «${t}»`, sub: 'برنامه‌ریز', run: () => capture(async () => (await postOrQueue('/api/tasks', { title: t, date: localIso() })).queued ? QUEUED_MSG : `کار «${t}» برای امروز ثبت شد.`) },
+      { kind: 'cap', icon: '📝', text: `یادداشت: «${t}»`, sub: 'یادداشت‌ها', run: () => capture(async () => (await postOrQueue('/api/inbox', { text: t })).queued ? QUEUED_MSG : 'یادداشت ذخیره شد.') },
       ...(t.split(/\s+/).length >= 3 ? [{ kind: 'cap', icon: '✨', text: `بفهم و ثبت کن: «${t}»`, sub: 'با دستیار هوشمند', run: () => capture(async () => { const d = await post('/api/ai/process', { text: t }); if (!(d.done || []).length) throw new Error('دستیار چیزی برای ثبت پیدا نکرد.'); return 'ثبت شد: ' + d.done.join('، '); }) }] : []),
     ];
   }, [q, parsed]);

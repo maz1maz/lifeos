@@ -24,7 +24,7 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, ChevronsLeft, ChevronsRight, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Newspaper, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Newspaper, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck, LogOut
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
@@ -35,7 +35,7 @@ import './logbook.css';
 import './reading.css';
 import './assistant.css';
 import { InsightsHomeCard } from './insights-card';
-import { CommandPalette } from './palette';
+import { CommandPalette, flushOutbox } from './palette';
 import { AdminPage, MsgBar } from './admin';
 import { CoursesPage, ClassTodayCard } from './courses';
 import { VocabPage, VocabHomeCard } from './vocab';
@@ -184,7 +184,7 @@ function TopNav({ active, right }) {
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
         {groups.map(([title, items]) => <div className="drawer-group" key={title}><small>{title}</small>{items.map(link)}</div>)}
-        <div className="drawer-foot">{admin ? link(['admin', 'مدیریت کاربران', ShieldCheck]) : null}{link(['settings', 'تنظیمات', Settings])}</div>
+        <div className="drawer-foot">{admin ? link(['admin', 'مدیریت کاربران', ShieldCheck]) : null}{link(['settings', 'تنظیمات', Settings])}<button type="button" className="drawer-out" onClick={() => { if (window.confirm('از حساب خارج شوی؟')) signOut(); }}><LogOut size={17} strokeWidth={2.1} /><span>خروج از حساب</span></button></div>
       </aside>
     </nav>
     <nav className="bnav" aria-label="ناوبری سریع">
@@ -2384,8 +2384,18 @@ function AssistantDock() {
 
 function OfflineBar() {
   const [off, setOff] = useState(!navigator.onLine);
-  useEffect(() => { const a = () => setOff(false), b = () => setOff(true); window.addEventListener('online', a); window.addEventListener('offline', b); return () => { window.removeEventListener('online', a); window.removeEventListener('offline', b); }; }, []);
+  useEffect(() => { const a = () => { setOff(false); flushOutbox(); }, b = () => setOff(true); window.addEventListener('online', a); window.addEventListener('offline', b); return () => { window.removeEventListener('online', a); window.removeEventListener('offline', b); }; }, []);
   return off ? <div className="offline-bar" role="status">⚡ آفلاین هستی — آخرین داده‌های ذخیره‌شده نمایش داده می‌شود؛ ثبت و ویرایش بعد از وصل شدن.</div> : null;
+}
+
+setTimeout(() => flushOutbox(), 1500); // captures queued offline in an earlier visit
+
+// Sign out: end the session, then drop this device's cached API data and per-account preferences.
+async function signOut() {
+  try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
+  try { const keys = await caches.keys(); await Promise.all(keys.filter(k => k.endsWith('-data')).map(k => caches.delete(k))); } catch {}
+  try { ['lifeos-modules', 'lifeos-locks', 'lifeos-is-admin', 'lifeos-outbox'].forEach(k => localStorage.removeItem(k)); sessionStorage.clear(); } catch {}
+  location.href = '/design/login-page.html';
 }
 
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window.__lifeosInstall = e; window.dispatchEvent(new Event('lifeos:installable')); });
