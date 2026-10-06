@@ -26,3 +26,6 @@
 .cp-flash { margin: 8px 8px 0; padding: 9px 12px; border-radius: 10px; font-size: 13.5px; }
 .cp-flash.ok { background: color-mix(in srgb, var(--g-good, #34d399) 16%, transparent); color: var(--g-good, #34d399); }
 .cp-flash.bad { background: color-mix(in srgb, var(--g-bad, #fb7185) 16%, transparent); color: var(--g-bad, #fb7185); }
+/* light/dark switch next to search (TopNav → ThemeToggle) */
+.nav-theme { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-inline-end: 8px; border: 1px solid var(--g-border-2); border-radius: 10px; background: rgba(255,255,255,.03); color: var(--g-muted); cursor: pointer; flex: none; }
+.nav-theme:hover { color: var(--g-text); }

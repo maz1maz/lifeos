@@ -9,7 +9,7 @@ const localIso = (add = 0) => { const d = new Date(); d.setDate(d.getDate() + ad
 const whenFa = (date, time) => { const day = !date ? '' : date === localIso() ? 'امروز' : date === localIso(1) ? 'فردا' : (() => { const j = isoToJ(date); return `${faD(j.jd)} ${MONTHS[j.jm - 1]}`; })(); return [day, time ? faD(time) : ''].filter(Boolean).join(' ساعت '); };
 // One parsed action (same parser as the Telegram bot: /api/ai/process) → a short Persian line for the preview.
 const tomanFa = rial => `${Math.round(Number(rial || 0) / 10).toLocaleString('fa-IR')} تومان`;
-function describe(a) {
+export function describe(a) {
   switch (a.type) {
     case 'transaction': return `${a.kind === 'income' ? '💰 درآمد' : '💸 خرج'}: ${a.title || ''} · ${tomanFa(a.amount)}${a.category ? ` · ${a.category}` : ''}`;
     case 'task': return `✅ کار: ${a.title} · ${whenFa(a.date, a.startTime) || 'امروز'}`;
@@ -72,7 +72,10 @@ export function CommandPalette({ pages }) {
       const msg = await run();
       setFlash({ ok: true, text: typeof msg === 'string' ? msg : okText }); setQ(''); setParsed([]);
       window.dispatchEvent(new Event('lifeos:captured'));
-      setTimeout(() => setOpen(false), 1300);
+      // pages that show what was just saved (Today, planner, money, notes, …) reload so it appears right away
+      const page = new URLSearchParams(location.search).get('page') || '';
+      const unaffected = /^(market|football|media|music|youtube|settings|contacts|documents|vocab|admin|courses|projects|crm|car|travel|learning)$/.test(page);
+      setTimeout(() => { setOpen(false); if (!unaffected) location.reload(); }, 1300);
     } catch (e) { setFlash({ ok: false, text: e.message || 'ثبت نشد.' }); }
   };
   const captureRows = useMemo(() => {

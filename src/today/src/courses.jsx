@@ -1,7 +1,7 @@
 // Online courses & students: tuition in rial, payments (deposit / installments / refunds), dues, attendance,
 // reminder message, CSV/print, returning students, optional mirroring of payments into Finance.
 import { useEffect, useMemo, useState } from 'react';
-import { useCol, Page, FormDrawer, api, fa, faD, jShort, todayIso, dueChip, SaveErrorBar } from './life';
+import { useCol, Page, FormDrawer, api, fa, faD, jShort, todayIso, dueChip, SaveErrorBar } from './life-core';
 import { JalaliDateInput } from './jdate';
 import './courses.css';
 import { CopyBtn, xcAuto } from './xcards';

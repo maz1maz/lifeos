@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Page, api, fa } from './life';
+import { Page, api, fa } from './life-core';
 import { isoToJ, MONTHS } from './jdate';
 
 // «بینش»: what the backend already knows about you, in one place — period report (AI text when a key is set),

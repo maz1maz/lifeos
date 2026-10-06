@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, fa } from './life';
+import { api, fa } from './life-core';
 
 // Today-page card for «بینش» (the full page is a lazy chunk; this stays tiny).
 export function InsightsHomeCard({ Card, Icon }) {

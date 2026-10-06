@@ -37,19 +37,22 @@ import { AdminPage, MsgBar } from './admin';
 import { CoursesPage, ClassTodayCard } from './courses';
 import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
-import { HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, FocusCard, ShoppingPanel, BillsWeekCard, LifeStatsPage } from './life';
+import './life.css';
+import { FocusCard, ShoppingPanel, BillsWeekCard } from './life-cards';
 import './mobile.css'; // phone/iPhone pass — keep last so it overrides page CSS
 
 // Pages the Today screen doesn't need are split into their own chunks, so the first load stays small.
 const PAGE_CHUNKS = {
   notes: () => import('./notes'), contacts: () => import('./contacts'), documents: () => import('./documents'),
   media: () => import('./media'), market: () => import('./market'), calendar: () => import('./calendar'),
-  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), insights: () => import('./insights')
+  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), insights: () => import('./insights'), life: () => import('./life')
 };
 const lazyPage = (chunk, name) => React.lazy(() => PAGE_CHUNKS[chunk]().then(m => ({ default: m[name] })));
 const NotesReact = lazyPage('notes', 'NotesReact'), ContactsReact = lazyPage('contacts', 'ContactsReact'), DocumentsReact = lazyPage('documents', 'DocumentsReact');
 const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('market', 'MarketReact'), CalendarReact = lazyPage('calendar', 'CalendarReact');
 const FinanceReact = lazyPage('finance', 'FinanceReact'), HabitsPage = lazyPage('habits', 'HabitsPage'), WeeklyPage = lazyPage('habits', 'WeeklyPage');
+const [HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, LifeStatsPage] =
+  ['HealthPage', 'CarPage', 'TravelPage', 'ProjectsPage', 'CrmPage', 'LearningPage', 'JournalPage', 'GoalsPage', 'FocusPage', 'LifeStatsPage'].map(n => lazyPage('life', n));
 const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage');
 // Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
 const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
@@ -122,6 +125,14 @@ const BOTTOM_TABS = [['', 'امروز', House], ['planner', 'برنامه', Cale
 const NAV_PAGES = [...NAV_GROUPS.flatMap(([, items]) => items), ['settings', 'تنظیمات', Settings], ['admin', 'مدیریت', ShieldCheck]];
 let ME_ONCE = null;
 const meOnce = () => (ME_ONCE ||= api('/api/me').then(d => d.user || null).catch(() => null));
+// Light/dark switch in the top bar of every page. Watches data-mode so the Ctrl+K «تغییر حالت» command updates the icon too.
+function ThemeToggle() {
+  const [, tick] = useState(0);
+  useEffect(() => { const mo = new MutationObserver(() => tick(t => t + 1)); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] }); return () => mo.disconnect(); }, []);
+  const light = document.documentElement.dataset.mode === 'light';
+  const flip = () => { const next = light ? 'dark' : 'light'; document.documentElement.dataset.mode = next; try { localStorage.setItem('lifeos-mode', next); } catch {} };
+  return <button type="button" className="nav-theme" onClick={flip} aria-label={light ? 'حالت تاریک' : 'حالت روشن'} title={light ? 'حالت تاریک' : 'حالت روشن'}>{light ? <Moon size={17} /> : <Sun size={17} />}</button>;
+}
 function TopNav({ active, right }) {
   const [open, setOpen] = useState(false);
   const mods = useModules();
@@ -162,6 +173,7 @@ function TopNav({ active, right }) {
       <span className="nav-current">{current[1]}</span>
       <span className="nav-spacer" />
       <button type="button" className="nav-search" onClick={() => window.dispatchEvent(new Event('lifeos:search'))} aria-label="جستجو (Ctrl+K)" title="جستجو — Ctrl+K"><Search size={17} /><span>جستجو</span><kbd>Ctrl K</kbd></button>
+      <ThemeToggle />
       {right}
       <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
@@ -246,7 +258,6 @@ function HomePage() {
   const [quick, setQuick] = useState({ type: 'task', title: '', amount: '', when: 'today', date: '', time: '' });
   const [pickerOpen, setPickerOpen] = useState(false);
   const whenRef = React.useRef(null);
-  const [, setModeTick] = useState(0);
   const heroRef = React.useRef(null);
   useEffect(() => {
     const fit = () => { const bar = document.querySelector('.topbar'), el = heroRef.current; if (!bar || !el) return; const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1; el.style.top = `${Math.round(bar.getBoundingClientRect().height / zoom)}px`; };
@@ -390,7 +401,7 @@ function HomePage() {
     nextAny ? `بعدی: ${nextAny.title}، ساعت ${faDigits(nextAny.time)}.` : ''
   ].filter(Boolean).join(' ');
   return <main>
-    <TopNav active="" right={<div className="profile"><button aria-label="تغییر حالت روشن و تاریک" onClick={() => { const next = document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.mode = next; try { localStorage.setItem('lifeos-mode', next); } catch {} setModeTick(t => t + 1); }}>{document.documentElement.dataset.mode === 'light' ? <Moon size={17} /> : <Sun size={17} />}</button><b>{data.user?.displayName || data.user?.name || 'سلام'}</b></div>} />
+    <TopNav active="" right={<div className="profile"><b>{data.user?.displayName || data.user?.name || 'سلام'}</b></div>} />
     <div className="page home">
       <section className="hero bar" ref={heroRef}>
         <DigitalClock compact />

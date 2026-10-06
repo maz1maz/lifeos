@@ -86,7 +86,7 @@ function MarketInsights() {
         <div className="mk-ins-wrap"><table className="mk-ins-table">
           <thead><tr><th>دارایی</th><th>روند ۲ سال</th><th>۱ ماه</th><th>۳ ماه</th><th>۱ سال</th><th>۲ سال</th><th>نوسان سالانه</th><th>بیشترین افت</th><th>وضعیت</th></tr></thead>
           <tbody>{d.assets.map((a) => { const [tl, tc] = trend(a); return <tr key={a.key}>
-            <td><b>{a.name}</b><small>{a.unit === 'دلار' ? `$${Math.round(a.last).toLocaleString('en-US')}` : `${Math.round(a.last).toLocaleString('fa-IR')} ریال`}</small></td>
+            <td><b>{a.name}</b><small>{a.unit === 'دلار' ? `${Math.round(a.last).toLocaleString('fa-IR')} دلار` : `${Math.round(a.last).toLocaleString('fa-IR')} ریال`}</small></td>
             <td><Sparkline data={a.spark} up={(a.ch2y ?? 0) >= 0} uid={'ins-' + a.key} /></td>
             {[a.ch1m, a.ch3m, a.ch1y, a.ch2y].map((v, i) => <td key={i} className={v > 0 ? 'mk-up' : v < 0 ? 'mk-down' : ''}><bdi dir="ltr">{pctTxt(v)}</bdi></td>)}
             <td><bdi dir="ltr">{pctTxt(a.vol).replace('+', '')}</bdi></td><td className="mk-down"><bdi dir="ltr">{pctTxt(a.maxDD)}</bdi></td>

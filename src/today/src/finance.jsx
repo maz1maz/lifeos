@@ -497,9 +497,9 @@ export function FinanceReact({ Nav }) {
           </div>
           {tab === 'dash' ? <>
           <div className="fn-kpis">
-            <div className="fn-kpi green" title={faMoney(income)}><small>💰 درآمد ماه</small><b>{short(income, false)}</b><small className="fn-u">{UNIT_FA()}</small></div>
-            <div className="fn-kpi rose" title={faMoney(expense)}><small>💸 هزینه ماه</small><b>{short(expense, false)}</b><small className="fn-u">{UNIT_FA()}</small></div>
-            <div className={`fn-kpi ${balance >= 0 ? 'cyan' : 'amber'}`} title={faMoney(balance)}><small>⚖️ مانده ماه</small><b>{short(balance, false)}</b><small className="fn-u">{UNIT_FA()}</small></div>
+            <div className="fn-kpi green" title={faMoney(income)}><small>💰 درآمد ماه</small><b>{income ? short(income, false) : '—'}</b><small className="fn-u">{income ? UNIT_FA() : 'بدون تراکنش'}</small></div>
+            <div className="fn-kpi rose" title={faMoney(expense)}><small>💸 هزینه ماه</small><b>{expense ? short(expense, false) : '—'}</b><small className="fn-u">{expense ? UNIT_FA() : 'بدون تراکنش'}</small></div>
+            <div className={`fn-kpi ${balance >= 0 ? 'cyan' : 'amber'}`} title={faMoney(balance)}><small>⚖️ مانده ماه</small><b>{balance ? short(balance, false) : '—'}</b><small className="fn-u">{balance ? UNIT_FA() : 'بدون تراکنش'}</small></div>
             <div className="fn-kpi cyan">
               <small>نرخ پس‌انداز {fa(savings)}٪</small>
               <div className="fn-gauge" style={{ marginTop: 10 }}><i style={{ width: `${Math.max(0, Math.min(100, savings))}%` }} /></div>

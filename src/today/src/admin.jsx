@@ -1,6 +1,6 @@
 // Site admin: users, activity and database size. Read-only; only the admin account gets data (server enforces 403).
 import { useEffect, useMemo, useState } from 'react';
-import { Page, api, fa, jShort } from './life';
+import { Page, api, fa, jShort } from './life-core';
 
 // Messages the site admin sent to this user — shown once on any page until dismissed.
 export function MsgBar({ load }) {

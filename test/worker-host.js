@@ -64,9 +64,10 @@ async function main() {
     if (text !== mirrored) { fs.writeFileSync(DB_PATH, text); mirrored = text; }
   };
 
-  let queue = Promise.resolve(); // one request at a time, like a single Worker isolate handling this user's traffic
+  // Requests run concurrently, like production isolates: a slow upstream fetch (tgju, weather) must not stall
+  // the rest. The Worker's own D1 write guards handle overlapping writes.
   const server = http.createServer((req, res) => {
-    queue = queue.then(async () => {
+    (async () => {
       try {
         syncIn();
         const chunks = [];
@@ -91,7 +92,7 @@ async function main() {
         if (!res.headersSent) res.writeHead(500, { 'content-type': 'text/plain' });
         res.end('worker-host error: ' + (e && e.message));
       }
-    });
+    })();
   });
   server.listen(PORT, '127.0.0.1', () => console.log(`worker-host on ${PORT}${DB_PATH ? ' · DB_PATH=' + DB_PATH : ''}`));
 }

@@ -409,6 +409,11 @@ async function main() {
   console.log('\n[W6] ai + dashboard + finance surfaces');
   const wPrev = (await call('/api/ai/process', { method: 'POST', cookie, body: { text: 'فردا ساعت ۵ تماس با بانک', preview: true } })).d;
   check('ai/process preview returns actions without saving', wPrev.preview === true && wPrev.actions.length > 0 && !wPrev.done);
+  const pv = async text => (await call('/api/ai/process', { method: 'POST', cookie, body: { text, preview: true } })).d.actions || [];
+  const remA = (await pv('یادم بنداز پنجشنبه قبض برق')).find(x => x.type === 'reminder');
+  check('reminder title drops the «یادم بنداز» command words', remA && remA.title === 'قبض برق', remA && remA.title);
+  const serA = (await pv('دیدم بریکینگ بد فصل ۲ قسمت ۳')).find(x => x.type === 'series');
+  check('series title drops a leading «دیدم»', serA && serA.title === 'بریکینگ بد' && serA.season === 2 && serA.episode === 3, serA && serA.title);
   check('ai/process bank msg -> 200 with actions', ((await call('/api/ai/process', { method: 'POST', cookie, body: { text: '۵۰ هزار ناهار' } })).d.done || []).length > 0);
   check('suggest-category -> 200', (await call('/api/ai/suggest-category', { method: 'POST', cookie, body: { title: 'ناهار رستوران' } })).d.category === 'خوراک');
   check('correlations -> 200', (await call('/api/ai/correlations?days=30', { cookie })).status === 200);
