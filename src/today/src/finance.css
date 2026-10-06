@@ -45,7 +45,7 @@
 .fn-kpi.rose { background: rgba(248,113,113,.1); }
 .fn-kpi.cyan { background: var(--g-accent-soft); }
 .fn-kpi.amber { background: var(--g-accent-soft); }
-.fn-kpi small { display: block; font-size: 11px; opacity: .8; }
+.fn-kpi small { display: block; font-size: 11px; }
 .fn-kpi b { display: block; margin-top: 6px; font-size: 18px; direction: ltr; text-align: left; }
 .fn-cats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 12px; }
 .fn-cat { padding: 10px; text-align: center; }

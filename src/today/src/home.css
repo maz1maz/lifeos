@@ -305,7 +305,7 @@
 /* light mode for the Graphite tokens */
 html[data-mode="light"]{color-scheme:light;
   --g-bg:#f4f2ee; --g-panel:#ffffff; --g-panel-2:#f3f0ea;
-  --g-text:#1c1a17; --g-muted:#6b665e; --g-faint:#9a948a;
+  --g-text:#1c1a17; --g-muted:#6b665e; --g-faint:#726c63;
   --g-border:rgba(28,26,23,.10); --g-border-2:rgba(28,26,23,.18);
   --g-accent:#c48a2c; --g-accent-strong:#a8741e; --g-accent-fg:#ffffff; --g-accent-soft:rgba(196,138,44,.13);
   --g-good:#059669; --g-bad:#dc2626; --g-warn:#b45309}

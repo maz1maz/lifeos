@@ -163,6 +163,7 @@ function TopNav({ active, right }) {
   const link = ([page, label, Icon]) => <a className={page === (active || '') ? 'active' : ''} href={page ? `/?page=${page}` : '/'} key={page || 'home'} onClick={e => navFromDrawer(e, page)}><Icon size={17} strokeWidth={2.1} /><span>{label}</span></a>;
   const tabs = BOTTOM_TABS.filter(([pg]) => navOn(mods, pg)).slice(0, 4);
   return (<>
+    <a className="skip-link" href="#main" onClick={e => { e.preventDefault(); const m = document.querySelector('main .planner-page, main, .lf-page, [role=main]'); if (m) { m.setAttribute('tabindex', '-1'); m.focus(); } }}>رفتن به محتوای اصلی</a>
     <nav className={`topbar${open ? ' menu-open' : ''}`}>
       <button type="button" className="nav-toggle" aria-label={open ? 'بستن منو' : 'بازکردن منو'} aria-expanded={open} onClick={() => setOpen(v => !v)}>
         {open ? <X size={20} /> : <Menu size={20} />}
@@ -580,7 +581,7 @@ function HomeSettings({ me, onSaved, flash }) {
     </article>
     <article>
       <div><b>شهر هواشناسی</b><small>از روی کارت هوا هم می‌شه عوضش کرد (با جستجو).</small></div>
-      <select value={IR_CITIES.some(([n]) => n === city.name) ? city.name : ''} onChange={pickCity}>{!IR_CITIES.some(([n]) => n === city.name) && <option value="">{city.name}</option>}{IR_CITIES.map(([n]) => <option key={n} value={n}>{n}</option>)}</select>
+      <select aria-label="شهر" value={IR_CITIES.some(([n]) => n === city.name) ? city.name : ''} onChange={pickCity}>{!IR_CITIES.some(([n]) => n === city.name) && <option value="">{city.name}</option>}{IR_CITIES.map(([n]) => <option key={n} value={n}>{n}</option>)}</select>
     </article>
     <AppearanceSettings flash={flash} />
     <article className="hs-layout">
@@ -776,44 +777,44 @@ function SettingsReact() {
           <article>
             <div><b>🌅 گزارش صبح</b><small>سررسید اشتراک‌ها و بدهی‌ها + بازی‌های امروز + برنامهٔ امروز</small></div>
             <div className="digest-controls">
-              <select value={digest.tgMorningHour} onChange={e => saveDigest({ tgMorningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
-              <button type="button" className={`plnr-switch ${digest.tgMorningOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgMorningOn} onClick={() => saveDigest({ tgMorningOn: !digest.tgMorningOn })}><i /></button>
+              <select aria-label="ساعت گزارش صبح" value={digest.tgMorningHour} onChange={e => saveDigest({ tgMorningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
+              <button type="button" className={`plnr-switch ${digest.tgMorningOn ? 'on' : ''}`} role="switch" aria-label="گزارش صبح" aria-checked={digest.tgMorningOn} onClick={() => saveDigest({ tgMorningOn: !digest.tgMorningOn })}><i /></button>
             </div>
           </article>
           <article>
             <div><b>🌙 گزارش عصر</b><small>جمع کارهای امروز + هزینهٔ روز + حال و خواب + یادآوری ثبت روزنگار</small></div>
             <div className="digest-controls">
-              <select value={digest.tgEveningHour} onChange={e => saveDigest({ tgEveningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
-              <button type="button" className={`plnr-switch ${digest.tgEveningOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgEveningOn} onClick={() => saveDigest({ tgEveningOn: !digest.tgEveningOn })}><i /></button>
+              <select aria-label="ساعت گزارش شب" value={digest.tgEveningHour} onChange={e => saveDigest({ tgEveningHour: Number(e.target.value) })}>{DIGEST_HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:۰۰</option>)}</select>
+              <button type="button" className={`plnr-switch ${digest.tgEveningOn ? 'on' : ''}`} role="switch" aria-label="گزارش شب" aria-checked={digest.tgEveningOn} onClick={() => saveDigest({ tgEveningOn: !digest.tgEveningOn })}><i /></button>
             </div>
           </article>
           <article>
             <div><b>✨ یادداشت هوشمند</b><small>{digest.aiConfigured ? 'زیر گزارش صبح و عصر، دو جملهٔ کوتاه از دستیار: تمرکز امروز و جمع‌بندی روز.' : 'برای فعال شدن، کلید AI باید روی سرور تنظیم باشد.'}</small></div>
-            <button type="button" className={`plnr-switch ${digest.tgAiOn && digest.aiConfigured ? 'on' : ''}`} role="switch" aria-checked={digest.tgAiOn && digest.aiConfigured} disabled={!digest.aiConfigured} onClick={() => saveDigest({ tgAiOn: !digest.tgAiOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgAiOn && digest.aiConfigured ? 'on' : ''}`} role="switch" aria-label="یادداشت هوشمند در گزارش‌ها" aria-checked={digest.tgAiOn && digest.aiConfigured} disabled={!digest.aiConfigured} onClick={() => saveDigest({ tgAiOn: !digest.tgAiOn })}><i /></button>
           </article>
           <article>
             <div><b>📊 گزارش ماهانهٔ مالی</b><small>روز اول هر ماه شمسی، ساعت گزارش صبح: درآمد، هزینه، مقایسه با ماه قبل، سقف‌های ردشده و سررسیدها</small></div>
-            <button type="button" className={`plnr-switch ${digest.tgMonthlyOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgMonthlyOn} onClick={() => saveDigest({ tgMonthlyOn: !digest.tgMonthlyOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgMonthlyOn ? 'on' : ''}`} role="switch" aria-label="گزارش ماهانه" aria-checked={digest.tgMonthlyOn} onClick={() => saveDigest({ tgMonthlyOn: !digest.tgMonthlyOn })}><i /></button>
           </article>
           <article>
             <div><b>🗓 مرور هفته</b><small>جمعه‌ها ساعت گزارش عصر: کارهای انجام‌شده، عادت‌ها، هزینهٔ هفته و سررسیدهای هفتهٔ بعد</small></div>
-            <button type="button" className={`plnr-switch ${digest.tgWeeklyOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgWeeklyOn} onClick={() => saveDigest({ tgWeeklyOn: !digest.tgWeeklyOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgWeeklyOn ? 'on' : ''}`} role="switch" aria-label="گزارش هفتگی" aria-checked={digest.tgWeeklyOn} onClick={() => saveDigest({ tgWeeklyOn: !digest.tgWeeklyOn })}><i /></button>
           </article>
           <article>
             <div><b>📁 گزارش هفتگی پروژه‌ها</b><small>جمعه‌ها ساعت گزارش عصر: پیشرفت هر پروژه، کارت‌های انجام‌شدهٔ هفته، عقب‌افتاده‌ها، مهلت‌ها و کارهای هفتهٔ بعد · <button type="button" className="linkish" onClick={async () => { try { await api('/api/projects/report', { method: 'POST' }); setNotice('گزارش پروژه‌ها به تلگرام فرستاده شد ✓'); } catch (e) { setNotice(e.message); } }}>الان بفرست</button></small></div>
-            <button type="button" className={`plnr-switch ${digest.tgProjectsOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgProjectsOn} onClick={() => saveDigest({ tgProjectsOn: !digest.tgProjectsOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgProjectsOn ? 'on' : ''}`} role="switch" aria-label="گزارش هفتگی پروژه‌ها" aria-checked={digest.tgProjectsOn} onClick={() => saveDigest({ tgProjectsOn: !digest.tgProjectsOn })}><i /></button>
           </article>
           {modOn(mods, 'courses') ? <><article>
             <div><b>🎓 یادآوری سررسید شهریه</b><small>دو روز مانده به سررسید هر دانشجو، ساعت گزارش صبح: نام، مانده و دکمهٔ «پیام واتساپ» با متن آماده</small></div>
-            <button type="button" className={`plnr-switch ${digest.tgFeeRemindOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgFeeRemindOn} onClick={() => saveDigest({ tgFeeRemindOn: !digest.tgFeeRemindOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgFeeRemindOn ? 'on' : ''}`} role="switch" aria-label="یادآوری شهریه" aria-checked={digest.tgFeeRemindOn} onClick={() => saveDigest({ tgFeeRemindOn: !digest.tgFeeRemindOn })}><i /></button>
           </article>
           <article>
             <div><b>📚 گزارش ماهانهٔ دوره‌ها</b><small>اول هر ماه: دریافتی ماه، مانده، بدهکارها و درصد حضور هر دوره · <button type="button" className="linkish" onClick={async () => { try { await api('/api/courses/report?prev=0', { method: 'POST' }); setNotice('گزارش این ماه دوره‌ها به تلگرام فرستاده شد ✓'); } catch (e) { setNotice(e.message); } }}>الان بفرست (این ماه)</button></small></div>
-            <button type="button" className={`plnr-switch ${digest.tgCoursesMonthlyOn ? 'on' : ''}`} role="switch" aria-checked={digest.tgCoursesMonthlyOn} onClick={() => saveDigest({ tgCoursesMonthlyOn: !digest.tgCoursesMonthlyOn })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgCoursesMonthlyOn ? 'on' : ''}`} role="switch" aria-label="گزارش ماهانهٔ دوره‌ها" aria-checked={digest.tgCoursesMonthlyOn} onClick={() => saveDigest({ tgCoursesMonthlyOn: !digest.tgCoursesMonthlyOn })}><i /></button>
           </article></> : null}
           <article>
             <div><b>ارسال گزارش‌ها در تلگرام</b><small>خاموش‌کردن یعنی هیچ دایجستی فرستاده نشود</small></div>
-            <button type="button" className={`plnr-switch ${digest.tgReports ? 'on' : ''}`} role="switch" aria-checked={digest.tgReports} onClick={() => saveDigest({ tgReports: !digest.tgReports })}><i /></button>
+            <button type="button" className={`plnr-switch ${digest.tgReports ? 'on' : ''}`} role="switch" aria-label="گزارش‌های تلگرام" aria-checked={digest.tgReports} onClick={() => saveDigest({ tgReports: !digest.tgReports })}><i /></button>
           </article>
         </section>
 
@@ -1381,7 +1382,7 @@ function WeatherCard({ weather, aqi, city, onCity }) {
           <span>بیشینه {fa(Math.round(dl.temperature_2m_max[0]))}° · کمینه {fa(Math.round(dl.temperature_2m_min[0]))}°</span>
         </div>
       </div>
-      <div className="wx-panel wx-hours">{hours.map((h, i) => <div key={h.t}><small>{i === 0 ? 'اکنون' : faDigits(h.t.slice(11, 13))}</small><span>{h.code != null ? WEATHER_ICON(h.code, h.day) : ''}</span><b>{fa(Math.round(h.temp))}°</b></div>)}</div>
+      <div className="wx-panel wx-hours" tabIndex={0} role="region" aria-label="پیش‌بینی ساعتی">{hours.map((h, i) => <div key={h.t}><small>{i === 0 ? 'اکنون' : faDigits(h.t.slice(11, 13))}</small><span>{h.code != null ? WEATHER_ICON(h.code, h.day) : ''}</span><b>{fa(Math.round(h.temp))}°</b></div>)}</div>
       <div className="wx-tiles">
         <div className="wx-tile"><small>🌡️ حس‌شده</small><b>{fa(feels)}°</b><span>{feelsNote}</span></div>
         <div className="wx-tile"><small>☀️ شاخص UV</small><b>{fa(uv)} <em>{UV_LEVEL(uv)}</em></b><i className="wx-meter uv"><u style={{ insetInlineStart: `${Math.min(100, uv / 11 * 100)}%` }} /></i></div>
@@ -1619,7 +1620,7 @@ function NotifyCard() {
     <h2>🔔 اعلان یادآوری‌ها</h2>
     <article>
       <div><b>تلگرام — سر ساعت هر یادآوری</b><small>با دکمه‌های «✓ انجام شد»، «⏰ ۱۵ دقیقه بعد» و «📅 فردا»؛ هشدار زودتر را در فرم هر یادآوری انتخاب کن. {me && !me.telegramUserId ? '— اول بات تلگرام را وصل کن.' : ''}</small></div>
-      <button type="button" className={`plnr-switch ${tgOn ? 'on' : ''}`} role="switch" aria-checked={tgOn} onClick={toggleTg}><i /></button>
+      <button type="button" className={`plnr-switch ${tgOn ? 'on' : ''}`} role="switch" aria-label="ارسال به تلگرام" aria-checked={tgOn} onClick={toggleTg}><i /></button>
     </article>
     <article>
       <div><b>اعلان روی همین دستگاه</b><small>{!supported ? (ios && !standalone ? 'در آیفون اول سایت را «Add to Home Screen» کن و از همان آیکن باز کن.' : 'این مرورگر اعلان وب را پشتیبانی نمی‌کند.') : perm === 'denied' ? 'اجازهٔ اعلان در مرورگر بسته است؛ از تنظیمات سایت در مرورگر بازش کن.' : subscribed ? 'فعال است ✓ — یادآوری‌ها مثل پیام برنامه‌ها روی صفحه می‌آیند، حتی وقتی سایت بسته است.' : 'یادآوری‌ها مثل پیام برنامه‌ها روی گوشی یا کامپیوتر می‌آیند، حتی بدون تلگرام.'}</small></div>
