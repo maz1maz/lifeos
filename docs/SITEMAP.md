@@ -12,20 +12,28 @@
 | `/?page=finance` | `finance.jsx` (تب‌ها: تراکنش، حساب، بودجه، بدهی، پورتفو، هشدار، بت/پوکر، واردکردن بانک) | transactions(+import-bank, recategorize), accounts, transfers, budgets, debts, finance, portfolio, investments/tx, investments/alerts, bet, poker |
 | `/?page=market` | `market.jsx` | tgju, tgju/history (فقط Worker)، market/stocks |
 | `/?page=football` | `football.jsx` | football/remote/free/{leagues,matches,standings} |
-| `/?page=series` | `SeriesReact` در main.jsx | movies, movies/tvmaze/*, movies/from-tvmaze, import-bingers |
-| `/?page=movies` | `MoviesReact` در main.jsx | movies, movies/tmdb/search, movies/from-tmdb |
+| `/?page=series` | `SeriesReact` در `watch-pages.jsx` (lazy؛ helperها در `main-util.jsx`) | movies, movies/tvmaze/*, movies/from-tvmaze, import-bingers |
+| `/?page=movies` | `MoviesReact` در `watch-pages.jsx` | movies, movies/tmdb/search, movies/from-tmdb |
 | `/?page=media` `music` `youtube` | `media.jsx` | media-log, integrations/spotify/*, integrations/youtube/* |
 | `/?page=notes` | `notes.jsx` | inbox |
 | `/?page=documents` | `documents.jsx` | documents (+`/attach` base64 ≤۱۲MB) |
 | `/?page=contacts` | `contacts.jsx` | contacts, contacts/import, contacts/dedupe |
 | `/?page=insights` بینش | `insights.jsx` (+ کارت `insights-card.jsx`) | ai/report, ai/tomorrow-priorities, insights, ai/correlations, one-year-ago |
-| `/?page=logbook` دفتر و مرور | `logbook.jsx` | life-review (period=jmonthly), wins, decisions |
+| `/?page=logbook` دفتر و مرور | `logbook.jsx` (+ نوار روزانهٔ خرج/حال از reports) | life-review (period=jmonthly), wins, decisions, reports |
+| `/?page=reading` خبر و خواندنی | `reading.jsx` | news(+sources, sync, :id/summarize, :id/translate), bookmarks |
+| دستیار (همهٔ صفحه‌ها) | `assistant.jsx` (lazy، دکمهٔ شناور فقط وقتی aiConfigured) | ai/chat با `page` → `pageContext` در api.js |
+| `/?page=admin` | `admin.jsx` (lazy) + `msgbar.jsx` (نوار پیام مدیر) | admin/overview, admin/users/:id/{logout,disable,locks}, admin/message |
 | `/?page=settings` | `SettingsReact` در main.jsx | me, integrations, google-calendar/sync, telegram/link-code, security/pin, backup/telegram (فقط Worker) |
-| `/design/login-page.html` | صفحهٔ ورود مستقل (HTML بزرگ) | auth/login, auth/signup, auth/google |
+| `/design/login-page.html` | صفحهٔ ورود مستقل (HTML بزرگ) | auth/login, auth/signup, auth/google, auth/forgot + auth/reset (کد ۶ رقمی به تلگرام) |
 | `/design/*-page.html` | ریدایرکت به `/?page=…` | — |
 | legacy | `legacy-today.html`, `old-app.html`, `report.html`, `newtab.html` | — |
 | `/?page=settings` → «🌐 اتصال سایت شخصی» | `SiteTokensCard` در main.jsx | site-tokens (ساخت/لغو توکن scope‌دار) |
 | سایت ملینا `seyfikhani.ir/studio.html` | `integrations/seyfikhani/` (HTML/JS + پروکسی PHP روی cPanel) | `/api/ext/*` با Bearer توکن (فقط Worker): col/{projects,cards,projectProcesses,courses,students}, students/:id/payments, reminders, me |
+
+### قابلیت‌های سراسری (۲۰۲۶-۱۰)
+- قفل بخش‌ها توسط مدیر: `user.lockedModules` (کلیدهای «بخش‌های من») → در `/api/me` ماژول خاموش و API آن بخش ۴۰۳ (`MODULE_API` + `auth` سایه‌شده در `runRoutes`). صفحهٔ قفل: `pageLocked` در main.jsx.
+- حالت تمرکز: `lifeos-focus` در localStorage (off/auto/on، ساعت و روز، بخش‌های پنهان) → `withFocus` روی `useModules()`؛ تنظیمات با `useModules(true)` (خام) کار می‌کند.
+- ورودی صوتی Ctrl+K (Web Speech، fa-IR). صف آفلاین ثبت سریع: `postOrQueue`/`flushOutbox` در palette.jsx. خروج از حساب در کشوی منو (`signOut`، پاک‌کردن کش داده‌ها).
 
 ### هاب‌های منو (`TabHub` در main.jsx) — ۲۰۲۶-۱۰-۰۶
 - برنامه‌ریز: `planner|calendar|habits|focus` · مرور و اهداف: `review|goals|week|stats` · یادگیری: `learning|vocab` · یادداشت: `notes|journal|shopping` · تماشا: `series|movies|upcoming|discover` (WatchHub).
@@ -33,7 +41,7 @@
 - ماژول تازهٔ قابل خاموش‌کردن: `habits`؛ `vocab` و `habits` به whitelist ماژول‌ها در worker.js اضافه شدند.
 
 ## ۲) APIهای بک‌اند **بدون UI در React** (فرصت توسعه)
-(به‌روز ۲۰۲۶-۱۰) هنوز بدون صفحه: bookmarks · news(+sources, sync, weekly-summary) · reports · calendar/on-this-day · exercise · time/timer · trips (سفر در life.jsx با col است). صفحه دارند: goals, habits, learning, projects, shopping, subscriptions (قبض‌ها)، weekly-review, insights, one-year-ago (بینش)، wins, decisions, life-review (دفتر و مرور)، search (Ctrl+K).
+(به‌روز ۲۰۲۶-۱۰) هنوز بدون صفحه: news/weekly-summary · exercise · time/timer · trips (سفر در life.jsx با col است). صفحه دارند: goals, habits, learning, projects, shopping, subscriptions (قبض‌ها)، weekly-review, insights, one-year-ago (بینش)، wins, decisions, life-review (دفتر و مرور)، search (Ctrl+K).
 
 ## ۳) بک‌اند
 - **تنها بک‌اند: Worker** — ورودی `cloudflare/worker.js` + `cloudflare/lib/{helpers,api,edge,security}.js` (۲۰۲۶-۱۰ از یک فایل ۴۶۶KB جدا شد) — `makeHelpers(env)` (auth/PBKDF2، تاریخ تهران/جلالی، پارس پیامک بانکی `parseBankMessage`، متن آزاد `parseLifeText`، Google Calendar، فوتبال، بت/پوکر، storage v2 روی D1)، `handleApi`، و در `export default`: tgju، webhook تلگرام، uploads (در تلگرام)، cron، دروازهٔ لاگین. `server.js`/`port.js`/`header.js`/`footer.js` در ۲۰۲۶-۱۰ حذف شدند.
