@@ -2044,8 +2044,41 @@ async function handleTgjuHistory(request, env) {
   return new Response(slice(body), { headers: Object.assign({}, J, { 'Cache-Control': 'public,max-age=3600' }) });
 }
 
+// Security headers on every response (HawkScan DAST findings, 2026-10). The CSP only goes on HTML: it stops
+// third-party scripts, plugins, <base> hijacking and framing by other sites. Inline scripts are still allowed —
+// index.html, the login page, the /design redirect stubs and the vocab app use them — so tightening script-src
+// to hashes is the next step. Images, media and API calls go to many https hosts (TMDB, team logos, Unsplash,
+// open-meteo, CoinGecko…), hence the https: allowances there.
+const CSP = [
+  "default-src 'self'", "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:", "media-src 'self' data: blob: https:", "font-src 'self' data:",
+  "connect-src 'self' https:", "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com",
+  "worker-src 'self'", "manifest-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'self'",
+].join('; ');
+function withSecurityHeaders(res) {
+  if (!res || res.status === 101) return res;
+  const out = new Response(res.body, res); // Response.redirect()/fetch() headers are immutable
+  const h = out.headers;
+  h.set('X-Content-Type-Options', 'nosniff');
+  h.set('X-Frame-Options', 'SAMEORIGIN');
+  h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  h.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(self), payment=()');
+  if (/text\/html/i.test(h.get('content-type') || '')) h.set('Content-Security-Policy', CSP);
+  return out;
+}
+
 export default {
   async fetch(request, env, ctx) {
+    return withSecurityHeaders(await routeRequest(request, env, ctx));
+  },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runScheduled(env));
+  },
+};
+
+async function routeRequest(request, env, ctx) {
+  {
     const url = new URL(request.url);
     if (url.pathname === '/api/telegram/webhook' && request.method === 'POST') return handleTelegramWebhook(request, env);
     if (url.pathname === '/api/tgju') return handleTgju(request, env);
@@ -2065,8 +2098,5 @@ export default {
       return env.ASSETS.fetch(request);
     }
     return handleApi(request, env);
-  },
-  async scheduled(event, env, ctx) {
-    ctx.waitUntil(runScheduled(env));
-  },
-};
+  }
+}
