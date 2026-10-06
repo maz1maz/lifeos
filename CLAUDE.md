@@ -32,6 +32,7 @@ npm run build:studio     # پنل seyfikhani.ir (ProjectsPage+CoursesPage) → i
 ## قواعد کار
 - هر تغییر API: `cloudflare/worker.js` + تست در `test/worker-smoke.js` یا `test/smoke.js` → `npm test`.
 - اپ زبان: `public/vocab/` (`words.json` = آرایهٔ فشرده) + `src/today/src/vocab.jsx` + `/api/vocab`.
+- **جهت فلش‌های قبل/بعد (RTL — کاربر بارها تذکر داده):** دکمهٔ «قبل» سمت راست است و فلشش به راست (`ChevronRight` / `›` / `»`)؛ «بعد» سمت چپ و فلشش به چپ (`ChevronLeft` / `‹` / `«`). یعنی در DOM اول «قبل» بیاید. تست `ui-smoke` این را چک می‌کند.
 - متن UI فارسی، `dir=rtl`، اعداد با `fa()`/`toLocaleString('fa-IR')`. واحد پول ذخیره‌شده **ریال** است (`_meta.currencyUnit='IRR'`)، نمایش تومان = ÷۱۰.
 - تاریخ‌ها ISO با منطقهٔ `Asia/Tehran`؛ نمایش جلالی با `Intl` (`fa-IR-u-ca-persian`).
 - کلیدهای API: محلی در `.dev.vars` (نمونه: `.env.example`)، لایو با `wrangler secret`. هرگز commit نکن.

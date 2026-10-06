@@ -3,9 +3,9 @@
    - pages: network-first, fall back to the cached shell (the app routes by ?page=…)
    - GET /api/*: network-first, fall back to the last good response (so data is readable offline)
    Nothing is ever written offline; mutations fail with a clear message. */
-const VERSION = 'lifeos-v40';
+const VERSION = 'lifeos-v41'; // v41: new gold logo + icons
 const SHELL = VERSION + '-shell', DATA = VERSION + '-data';
-const PRECACHE = ['/', '/manifest.webmanifest', '/assets/img/icon-192.png', '/assets/img/icon-512.png', '/assets/img/logo-mask.png', '/assets/fonts/vazirmatn-arabic.woff2', '/assets/fonts/vazirmatn-latin.woff2'];
+const PRECACHE = ['/', '/manifest.webmanifest', '/assets/img/icon-192.png', '/assets/img/icon-512.png', '/assets/img/logo.png', '/assets/fonts/vazirmatn-arabic.woff2', '/assets/fonts/vazirmatn-latin.woff2'];
 const NO_CACHE_API = /^\/api\/(auth|telegram|backup|export|google|spotify|youtube|ai\/)/;
 
 self.addEventListener('install', e => {
