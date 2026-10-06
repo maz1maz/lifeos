@@ -153,7 +153,7 @@ check('React settings explains the dedicated LifeOS calendar and non-destructive
 // RTL prev/next arrows (the user has asked for this many times): «قبل» sits on the right and points right,
 // «بعد» sits on the left and points left. Flag any button whose label and arrow disagree.
 {
-  const files = ['main.jsx', 'calendar.jsx', 'finance.jsx', 'habits.jsx', 'life.jsx', 'jdate.jsx'].map(f => [f, read('src/today/src/' + f)]);
+  const files = ['main.jsx', 'calendar.jsx', 'finance.jsx', 'habits.jsx', 'life.jsx', 'jdate.jsx', 'logbook.jsx', 'insights.jsx'].map(f => [f, read('src/today/src/' + f)]);
   const bad = [];
   for (const [f, src] of files) for (const m of src.matchAll(/aria-label="([^"]*(?:قبل|بعد)[^"]*)">\s*(?:<(Chevrons?(?:Left|Right))|([‹›«»]))/g)) {
     const prev = /قبل/.test(m[1]), arrow = m[2] || m[3];
