@@ -495,6 +495,15 @@ async function main() {
       for (const x of [ny.d, rt.d]) if (x && x.id) await call(`/api/news/sources/${x.id}`, { method: 'DELETE', cookie });
     } finally { globalThis.fetch = realFetch; }
   }
+  { // Tehran-exchange stock (Persian ticker) is priced in rial, not multiplied by the dollar rate; buys are editable
+    const t1 = await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'عیارتست', type: 'buy', quantity: 2919, price: 600000 } });
+    check('Persian stock ticker -> currency IRR', t1.status === 201 && t1.d.currency === 'IRR');
+    const us = await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'AAPLT', type: 'buy', quantity: 1, price: 200 } });
+    check('Latin stock ticker -> USD unless chosen', us.d.currency === 'USD' && (await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'XYZT', type: 'buy', quantity: 1, price: 5, currency: 'IRR' } })).d.currency === 'IRR');
+    const ed = await call(`/api/investments/tx/${t1.d.id}`, { method: 'PATCH', cookie, body: { quantity: 3000, price: 610000 } });
+    check('investment buy editable', ed.d.quantity === 3000 && ed.d.price === 610000);
+    for (const sym of ['عیارتست', 'AAPLT', 'XYZT']) for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent(sym)}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
   check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');

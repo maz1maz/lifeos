@@ -178,7 +178,39 @@ function Donut({ slices }) {
 
 
 // expanded asset card: quantity, cost, P/L and a 30-day price sparkline from TGJU (gold / dollar / euro)
-function AssetMore({ row }) {
+// The buys/sells behind one holding, each editable (quantity, unit price, date) or removable.
+function AssetTxs({ row, onChanged }) {
+  const [items, setItems] = useState(null), [edit, setEdit] = useState(null), [err, setErr] = useState('')
+  const load = () => api(`/api/investments/tx?symbol=${encodeURIComponent(row.item.symbol)}`).then((d) => setItems((d.items || []).filter((t) => t.assetType === row.item.assetType))).catch((e) => setErr(e.message))
+  useEffect(() => { load() }, [row.item.symbol])
+  const face = row.item.assetType === 'dollar' || row.item.assetType === 'euro'
+  const save = async (e) => {
+    e.preventDefault(); const f = new FormData(e.currentTarget), num = (v) => Number(String(v || '').replace(/[,٬]/g, '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    const body = { quantity: num(f.get('quantity')), date: f.get('date') || edit.date, type: f.get('type') }
+    if (!face) body.price = num(f.get('price'))
+    if (!(body.quantity > 0) || (!face && !(body.price > 0))) { setErr('تعداد و قیمت معتبر لازم است.'); return }
+    try { await api(`/api/investments/tx/${edit.id}`, { method: 'PATCH', body: JSON.stringify(body) }); setEdit(null); setErr(''); await load(); onChanged() } catch (x) { setErr(x.message) }
+  }
+  const del = async (t) => { if (!window.confirm(`این ${t.type === 'sell' ? 'فروش' : 'خرید'} (${fa(t.quantity)} واحد · ${jalaliShort(t.date)}) حذف شود؟`)) return; try { await api(`/api/investments/tx/${t.id}`, { method: 'DELETE' }); await load(); onChanged() } catch (x) { setErr(x.message) } }
+  if (items === null) return <p className="xc-sub">{err || 'در حال دریافت خریدها…'}</p>
+  return <div className="xc-txs">
+    <small className="xc-txh">خرید و فروش‌ها</small>
+    {items.map((t) => edit?.id === t.id ? <form key={t.id} className="xc-txedit" onSubmit={save} onClick={(e) => e.stopPropagation()}>
+      <select name="type" defaultValue={t.type}><option value="buy">خرید</option><option value="sell">فروش</option></select>
+      <input name="quantity" defaultValue={t.quantity} inputMode="decimal" aria-label="تعداد" placeholder="تعداد" />
+      {face ? null : <input name="price" defaultValue={t.price} inputMode="decimal" aria-label="قیمت واحد" placeholder="قیمت واحد" />}
+      <JalaliDateInput name="date" defaultValue={t.date} clearable={false} />
+      <button className="fn-save">ذخیره</button><button type="button" className="fn-link" onClick={() => setEdit(null)}>انصراف</button>
+    </form> : <div key={t.id} className="xc-tx">
+      <span>{t.type === 'sell' ? 'فروش' : t.type === 'buy' ? 'خرید' : t.type === 'dividend' ? 'سود نقدی' : 'کارمزد'} · {jalaliShort(t.date)}</span>
+      <b>{t.quantity ? `${fa(t.quantity)} واحد` : ''}{t.price && !face ? ` × ${faMoney(t.price)}` : t.amount ? faMoney(t.amount) : ''}</b>
+      <span className="xc-txops"><button type="button" onClick={(e) => { e.stopPropagation(); setEdit(t) }}>ویرایش</button><button type="button" className="del" onClick={(e) => { e.stopPropagation(); del(t) }}>حذف</button></span>
+    </div>)}
+    {err ? <p className="xc-sub">⚠ {err}</p> : null}
+  </div>
+}
+
+function AssetMore({ row, onChanged }) {
   const key = row.item.assetType === 'gold' ? row.item.symbol : row.item.assetType === 'dollar' ? 'price_dollar_rl' : row.item.assetType === 'euro' ? 'price_eur' : null
   const [hist, setHist] = useState(null)
   useEffect(() => { if (key) api(`/api/tgju/history?key=${encodeURIComponent(key)}&days=30`).then((d) => setHist((d.items || []).map((x) => x.price).filter((v) => v > 0))).catch(() => setHist([])) }, [key])
@@ -190,6 +222,7 @@ function AssetMore({ row }) {
       <div><small>سود / زیان</small><b>{row.pnl ? `${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl))}` : '—'}{row.cost ? ` (${pct >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(pct * 10) / 10))}٪)` : ''}</b></div>
       <div><small>مقدار</small><b>{fa(row.item.quantity)} واحد</b></div>
     </div>
+    <AssetTxs row={row} onChanged={onChanged} />
     {key ? (hist === null ? <p className="xc-sub">در حال دریافت نمودار…</p> : hist.length > 1 ? <div><Spark data={hist} up={hist[hist.length - 1] >= hist[0]} /><p className="xc-sub">قیمت ۳۰ روز اخیر{ch != null ? ` · ${ch >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(ch * 10) / 10))}٪` : ''}</p></div> : <p className="xc-sub">تاریخچهٔ قیمت در دسترس نیست.</p>) : null}
   </>
 }
@@ -845,7 +878,7 @@ export function FinanceReact({ Nav }) {
             </section>
             <section className="fn-glass fn-list">
               <div className="fn-head"><h2>سبد سرمایه</h2><Drawer label="خرید / فروش" title="تراکنش سرمایه‌گذاری">
-<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const body = { assetType: holdAssetType, type: f.get('type'), quantity: Number(f.get('quantity')), fee: Number(f.get('fee') || 0), date: f.get('date'), note: f.get('note') }; if (!face) { body.symbol = f.get('symbol'); body.price = Number(f.get('price')) } send('/api/investments/tx', body, 'تراکنش سرمایه‌گذاری ثبت شد.'); e.currentTarget.reset() }}>
+<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const body = { assetType: holdAssetType, type: f.get('type'), quantity: Number(f.get('quantity')), fee: Number(f.get('fee') || 0), date: f.get('date'), note: f.get('note'), ...(f.get('currency') ? { currency: f.get('currency') } : {}) }; if (!face) { body.symbol = f.get('symbol'); body.price = Number(f.get('price')) } send('/api/investments/tx', body, 'تراکنش سرمایه‌گذاری ثبت شد.'); e.currentTarget.reset() }}>
                 <div>
                   <select value={holdAssetType} onChange={(e) => setHoldAssetType(e.target.value)}>
                     <option value="crypto">رمزارز</option><option value="stock">سهام</option><option value="gold">طلا</option>
@@ -856,8 +889,9 @@ export function FinanceReact({ Nav }) {
                 <input name="symbol" required={!face} disabled={face} placeholder={face ? 'نماد لازم نیست' : 'نماد'} />
                 <div>
                   <input name="quantity" required inputMode="decimal" placeholder="تعداد" />
-                  <input name="price" required={!face} disabled={face} placeholder={face ? 'قیمت لازم نیست' : 'قیمت واحد'} />
+                  <input name="price" required={!face} disabled={face} inputMode="decimal" placeholder={face ? 'قیمت لازم نیست' : 'قیمت واحد'} />
                 </div>
+                {holdAssetType === 'stock' || holdAssetType === 'other' ? <select name="currency" defaultValue="IRR" aria-label="واحد قیمت"><option value="IRR">قیمت به ریال (بورس تهران)</option><option value="USD">قیمت به دلار (بورس خارجی)</option></select> : null}
                 <input name="fee" inputMode="decimal" placeholder="کارمزد" />
                 <JalaliDateInput name="date" defaultValue={isoToday()} />
                 <input name="note" placeholder="یادداشت" />
@@ -878,7 +912,7 @@ export function FinanceReact({ Nav }) {
                   <div className="xc-top"><span className="xc-ic">{row.item.assetType === 'gold' ? '🪙' : row.item.assetType === 'dollar' ? '💵' : row.item.assetType === 'euro' ? '💶' : row.item.assetType === 'crypto' ? '₿' : row.item.assetType === 'stock' ? '📈' : '📦'}</span><span className="xc-name">{row.label}</span></div>
                   <div><div className="xc-val" title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</div><div className="xc-sub">{fa(row.item.quantity)} واحد{row.pnl ? ` · ${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl), false)}` : ''}</div></div>
                 </>}
-                renderMore={(row) => <AssetMore row={row} />} /> : <p className="fn-empty">دارایی ثبت نشده.</p>}
+                renderMore={(row) => <AssetMore row={row} onChanged={load} />} /> : <p className="fn-empty">دارایی ثبت نشده.</p>}
               <div className="fn-alerts">
                 <div className="fn-head"><h2>هشدار قیمت</h2><Drawer label="هشدار" title="هشدار قیمت">
 <form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/investments/alerts', { symbol: f.get('symbol'), condition: f.get('condition'), value: Number(f.get('value')) }, 'هشدار ثبت شد.'); e.currentTarget.reset() }}>
