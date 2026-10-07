@@ -685,9 +685,12 @@ export function FinanceReact({ Nav }) {
             <div className="fn-mp-row"><MonthPicker value={month} onChange={setMonth} />{tab === 'fun' ? <span className="fn-unit fn-funmode" role="radiogroup" aria-label="نمایش">{[['all', 'جمع'], ['poker', 'پوکر'], ['bet', 'بت']].map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={funMode === k} className={funMode === k ? 'on' : ''} onClick={() => pickFunMode(k)}>{l}</button>)}</span> : null}</div>
             <div className="fn-chips">
               <span className="fn-unit" role="radiogroup" aria-label="واحد نمایش">{[['rial', 'ریال'], ['toman', 'تومان']].map(([k, l]) => <button key={k} type="button" className={unit === k ? 'on' : ''} onClick={() => switchUnit(k)}>{l}</button>)}</span>
+              {/* net worth / receivables / debts: only where they belong (not on poker/bet or the portfolio tab) */}
+              {tab !== 'fun' && tab !== 'invest' ? <>
               <span className="fn-chip">دارایی: {compact(netWorth)}</span>
               <span className="fn-chip">طلب: {compact(debtTot.rec)}</span>
               <span className="fn-chip">بدهی: {compact(debtTot.pay)}</span>
+              </> : null}
             </div>
           </div>
           {tab === 'dash' ? <>

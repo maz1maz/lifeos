@@ -200,14 +200,23 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
   const rLabel = ranges.find(r => r[0] === range)?.[1] || '';
   return <section className="fn-glass fu-card">
     <div className="fu-head">
-      <div><h2>وضعیت کلی پوکر و بت</h2><p>{data.hasBet ? (data.histOk ? 'بت با نرخ دلار همان روز به ریال تبدیل شده.' : `بت با دلار امروز (${faN(data.rate)} ریال) تبدیل شده؛ تاریخچهٔ نرخ در دسترس نبود.`) : bet.length ? 'نرخ دلار در دسترس نیست؛ بت فقط دلاری نشان داده می‌شود.' : 'فقط پوکر ثبت شده.'}</p></div>
+      <div><h2>{mode === 'poker' ? 'وضعیت پوکر' : mode === 'bet' ? 'وضعیت بت' : 'وضعیت کلی پوکر و بت'}</h2><p>{data.hasBet ? (data.histOk ? 'بت با نرخ دلار همان روز به ریال تبدیل شده.' : `بت با دلار امروز (${faN(data.rate)} ریال) تبدیل شده؛ تاریخچهٔ نرخ در دسترس نبود.`) : bet.length ? 'نرخ دلار در دسترس نیست؛ بت فقط دلاری نشان داده می‌شود.' : 'فقط پوکر ثبت شده.'}</p></div>
       <div className="fu-seg fu-range">{ranges.map(([k, l]) => <button type="button" key={k} className={range === k ? 'on' : ''} onClick={() => pick(k)}>{l}</button>)}</div>
     </div>
+    {/* KPIs follow جمع / پوکر / بت from the top bar */}
     <div className="fu-kpis">
+      {mode === 'all' ? <>
       <div className={`fu-kpi main ${tone(data.totalR)}`}><small>جمع · {rLabel}</small><b>{bare(data.totalR)}</b><em>{data.countR ? `${faN(data.winsR)} برد · ${faN(data.lossesR)} باخت · وین‌ریت ${faN((data.winsR / data.countR) * 100)}٪` : 'در این بازه چیزی ثبت نشده'}</em></div>
       <div className={`fu-kpi ${tone(data.totalAll)}`}><small>{past ? `جمع کل تا آخر ${mName}` : 'جمع کل از ابتدا'}</small><b>{bare(data.totalAll)}</b><em>پوکر {signed(data.pokerAll)} · بت {usdTxt(data.betUsdAll)}</em></div>
       <div className={`fu-kpi ${tone(data.pokerR)}`}><small>پوکر · {rLabel}</small><b>{bare(data.pokerR)}</b><em>{faN(data.pR.length)} جلسه</em></div>
       <div className={`fu-kpi ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{'$' + faN(Math.abs(data.betUsdR), 2)}</b><em>{data.hasBet ? `≈ ${signed(data.betRialR)}` : 'بدون نرخ دلار'}</em></div>
+      </> : mode === 'poker' ? <>
+      <div className={`fu-kpi main ${tone(data.pokerR)}`}><small>پوکر · {rLabel}</small><b>{bare(data.pokerR)}</b><em>{faN(data.pR.length)} جلسه</em></div>
+      <div className={`fu-kpi ${tone(data.pokerAll)}`}><small>{past ? `پوکر تا آخر ${mName}` : 'پوکر از ابتدا'}</small><b>{bare(data.pokerAll)}</b><em>{faN(poker.filter(x => x.date <= anchor).length)} جلسه</em></div>
+      </> : <>
+      <div className={`fu-kpi main ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{'$' + faN(Math.abs(data.betUsdR), 2)}</b><em>{data.hasBet ? `≈ ${signed(data.betRialR)}` : 'بدون نرخ دلار'}</em></div>
+      <div className={`fu-kpi ${tone(data.betUsdAll)}`}><small>{past ? `بت تا آخر ${mName}` : 'بت از ابتدا'}</small><b>{'$' + faN(Math.abs(data.betUsdAll), 2)}</b><em>{faN(bet.filter(x => x.date <= anchor).length)} روز</em></div>
+      </>}
     </div>
     <LossLimit status={status} onSave={saveLimit} />
     <div className="fu-streaks">
