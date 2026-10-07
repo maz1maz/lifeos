@@ -181,8 +181,10 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
     const pokerAll = pokerUp.reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdAll = betUp.reduce((s, b) => s + (Number(b.result) || 0), 0);
     const pR = poker.filter(p => p.date >= from && p.date <= today), bR = bet.filter(b => b.date >= from && b.date <= today);
     const pokerR = pR.reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdR = bR.reduce((s, b) => s + (Number(b.result) || 0), 0);
-    const seq = [...poker.map(p => ({ d: p.date, c: p.createdAt || 0, v: p.cashOut - p.buyIn })), ...bet.map(b => ({ d: b.date, c: 0, v: Number(b.result) || 0 }))].sort((a, b) => a.d.localeCompare(b.d) || a.c - b.c);
-    const st = streaks(seq), rUnits = [...pR.map(p => p.cashOut - p.buyIn), ...bR.map(b => Number(b.result) || 0)];
+    // win/loss streaks over every session up to the picked month's end; separately for poker, bet and both
+    const pSeq = pokerUp.map(p => ({ d: p.date, c: p.createdAt || 0, v: p.cashOut - p.buyIn })), bSeq = betUp.map(b => ({ d: b.date, c: 0, v: Number(b.result) || 0 }));
+    const order = xs => xs.sort((a, b) => a.d.localeCompare(b.d) || a.c - b.c);
+    const st = streaks(order([...pSeq, ...bSeq])), stByMode = { all: st, poker: streaks(order([...pSeq])), bet: streaks(order([...bSeq])) }, rUnits = [...pR.map(p => p.cashOut - p.buyIn), ...bR.map(b => Number(b.result) || 0)];
     // bars: per day for the short ranges, per Jalali month otherwise
     let bars;
     if (range === 'm' || range === 'm2') bars = inR.map(d => { const j = isoToJ(d), x = byDate[d]; return { key: d, label: faN(j.jd), title: jLbl(d), net: net(d), poker: x.poker, bet: hasBet ? x.bet : 0, betUsd: x.betUsd, sessions: x.n || 0 }; });
@@ -193,7 +195,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
       inR.forEach(d => { const i = ix[jKey(d)], x = byDate[d]; if (i != null) { const r = list[i]; r.net += net(d); r.poker += x.poker; r.bet += hasBet ? x.bet : 0; r.betUsd += x.betUsd; r.sessions += x.n || 0; } });
       bars = list.slice(-24);
     }
-    return { days, hasBet, rate, from, pokerAll, betUsdAll, pokerR, betUsdR, totalAll: pokerAll + (hasBet ? betRial(betUp) : 0), totalR: pokerR + (hasBet ? betRial(bR) : 0), betRialAll: betRial(betUp), betRialR: betRial(bR), histOk: hist.length > 0, winsR: rUnits.filter(v => v > 0).length, lossesR: rUnits.filter(v => v < 0).length, countR: rUnits.length, count: seq.length, bars, st, pR };
+    return { stByMode, days, hasBet, rate, from, pokerAll, betUsdAll, pokerR, betUsdR, totalAll: pokerAll + (hasBet ? betRial(betUp) : 0), totalR: pokerR + (hasBet ? betRial(bR) : 0), betRialAll: betRial(betUp), betRialR: betRial(bR), histOk: hist.length > 0, winsR: rUnits.filter(v => v > 0).length, lossesR: rUnits.filter(v => v < 0).length, countR: rUnits.length, count: seq.length, bars, st, pR };
   }, [poker, bet, usdRate, range, hist, anchor]);
   const [status, setStatus] = useState(null);
   useEffect(() => { api(`/api/fun/status${usdRate ? `?usdRate=${Math.round(usdRate)}` : ''}`).then(setStatus).catch(() => {}); }, [usdRate, poker.length, bet.length]);
@@ -201,6 +203,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
   if (!data.count) return <section className="fn-glass fu-card"><LossLimit status={status} onSave={saveLimit} /></section>;
   const tone = n => (n > 0 ? 'pos' : n < 0 ? 'neg' : '');
   const rLabel = ranges.find(r => r[0] === range)?.[1] || '';
+  const stM = (data.stByMode && data.stByMode[mode]) || data.st;
   return <section className="fn-glass fu-card">
     <div className="fu-head">
       <div><h2>{mode === 'poker' ? 'وضعیت پوکر' : mode === 'bet' ? 'وضعیت بت' : 'وضعیت کلی پوکر و بت'}</h2><p>{data.hasBet ? (data.histOk ? 'بت با نرخ دلار همان روز به ریال تبدیل شده.' : `بت با دلار امروز (${faN(data.rate)} ریال) تبدیل شده؛ تاریخچهٔ نرخ در دسترس نبود.`) : bet.length ? 'نرخ دلار در دسترس نیست؛ بت فقط دلاری نشان داده می‌شود.' : 'فقط پوکر ثبت شده.'}</p></div>
@@ -222,10 +225,11 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
       </>}
     </div>
     <LossLimit status={status} onSave={saveLimit} />
+    {/* streaks: «پشت‌سرهم» counts consecutive winning / losing sessions (days for bet) of the chosen kind */}
     <div className="fu-streaks">
-      <span className={data.st.cur.kind === 'win' ? 'pos' : data.st.cur.kind === 'loss' ? 'neg' : ''}><small>روند فعلی</small><b>{data.st.cur.n ? `${faN(data.st.cur.n)} ${data.st.cur.kind === 'win' ? 'برد' : 'باخت'} پشت‌سرهم` : '—'}</b></span>
-      <span className="pos"><small>بیشترین برد پشت‌سرهم</small><b>{faN(data.st.bestWin)}</b></span>
-      <span className="neg"><small>بیشترین باخت پشت‌سرهم</small><b>{faN(data.st.worstLoss)}</b></span>
+      <span className={stM.cur.kind === 'win' ? 'pos' : stM.cur.kind === 'loss' ? 'neg' : ''}><small>{mode === 'bet' ? 'روند فعلی بت' : mode === 'poker' ? 'روند فعلی پوکر' : 'روند فعلی (پوکر و بت)'}</small><b>{stM.cur.n ? `${faN(stM.cur.n)} ${stM.cur.kind === 'win' ? 'برد' : 'باخت'} پشت‌سرهم` : '—'}</b></span>
+      <span className="pos"><small>بیشترین برد پشت‌سرهم{mode === 'bet' ? ' (روز)' : ' (جلسه)'}</small><b>{faN(stM.bestWin)}</b></span>
+      <span className="neg"><small>بیشترین باخت پشت‌سرهم{mode === 'bet' ? ' (روز)' : ' (جلسه)'}</small><b>{faN(stM.worstLoss)}</b></span>
     </div>
     <div className="fu-grid">
       <div className="fu-modebar">{modeProp ? null : <div className="fu-seg">{[['all', 'جمع'], ['poker', 'پوکر'], ['bet', 'بت']].map(([k, l]) => <button type="button" key={k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}</div>}{mode === 'bet' && !data.hasBet ? <small>بدون نرخ دلار، بت به ریال قابل‌نمایش نیست.</small> : null}</div>
