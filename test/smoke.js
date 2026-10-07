@@ -678,6 +678,9 @@ async function main() {
       const deleteNews = await fetch(`${BASE}/api/news/${item2.id}`, { method: 'DELETE', headers: authHeaders });
       check('delete a news item -> 200', deleteNews.status === 200);
 
+      const ren = await fetch(`${BASE}/api/news/sources/${source.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ name: 'فید تازه', category: 'علم' }) }).then(r => r.json());
+      const afterRen = await fetch(`${BASE}/api/news?source=${encodeURIComponent('فید تازه')}`, { headers: authHeaders }).then(r => r.json());
+      check('renaming a source / changing its tag carries over to its news items', ren.name === 'فید تازه' && ren.category === 'علم' && afterRen.items.length >= 1 && afterRen.items.every(x => x.category === 'علم'));
       const deleteSource = await fetch(`${BASE}/api/news/sources/${source.id}`, { method: 'DELETE', headers: authHeaders });
       check('delete a news source -> 200', deleteSource.status === 200);
       const sourcesAfterDelete = await fetch(`${BASE}/api/news/sources`, { headers: authHeaders }).then(r => r.json());

@@ -60,3 +60,24 @@
 .rd-wsaved a{color:var(--g-text)}
 @media (max-width:700px){.rd-src .rd-srcadd{grid-template-columns:1fr}}
 .rd-presets .rd-all{border-style:solid;border-color:color-mix(in srgb,var(--g-accent) 60%,transparent);background:color-mix(in srgb,var(--g-accent) 14%,transparent);font-weight:700}
+/* compact headline list */
+.rd-compact{gap:0}
+.rd-compact li{border-bottom:1px solid var(--g-border);padding:0}
+.rd-row{display:flex;align-items:center;gap:8px;padding:8px 2px;min-height:40px}
+.rd-t{flex:1;min-width:0;color:var(--g-text);text-decoration:none;font-size:14px;line-height:1.7;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+a.rd-t:hover,a.rd-t:focus-visible{color:var(--g-accent)}
+.rd-sname{flex:none;color:var(--g-muted);font-size:11.5px;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-ic{flex:none;border:0;background:none;color:var(--g-muted);cursor:pointer;padding:5px;border-radius:7px;display:grid;place-items:center}
+.rd-ic:hover,.rd-ic:focus-visible{color:var(--g-text);background:color-mix(in srgb,var(--g-text) 7%,transparent)}
+.rd-ic.on{color:var(--g-accent)}
+.rd-compact li.open{background:color-mix(in srgb,var(--g-text) 3%,transparent);border-radius:10px}
+.rd-more{padding:0 8px 10px}
+.rd-open{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--g-border);color:var(--g-muted);border-radius:8px;padding:4px 9px;font-size:12.5px;text-decoration:none}
+.rd-open:hover{color:var(--g-accent);border-color:var(--g-accent)}
+.rd-moreall{width:100%;margin-top:10px}
+.rd-srcsel{border:1px solid var(--g-border-2);background:transparent;color:var(--g-text);border-radius:999px;padding:5px 10px;font:inherit;font-size:12.5px;margin-inline-start:auto;max-width:180px}
+.rd-tag{font-style:normal;font-size:11px;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--g-accent) 14%,transparent);color:var(--g-text)}
+.rd-srcedit{display:grid;grid-template-columns:1.4fr 1fr auto auto;gap:6px;width:100%}
+.rd-srcedit input{border:1px solid var(--g-border-2);background:transparent;color:var(--g-text);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px;min-width:0}
+@media (max-width:700px){.rd-sname{display:none}.rd-srcedit{grid-template-columns:1fr 1fr}.rd-srcsel{margin-inline-start:0}}
+.rd-host{font-style:normal}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bookmark, BookmarkCheck, ExternalLink, Languages, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
+import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, ExternalLink, Languages, Pencil, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
 import { Page, api, fa } from './life-core';
 import { jLabel } from './jdate';
 
@@ -8,7 +8,7 @@ import { jLabel } from './jdate';
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
 // Feed/page titles make clumsy names ("مرجع فوتبال و ورزش | ورزش سه", "Al Jazeera &#8211; Breaking News…"):
 // decode entities and keep the shortest meaningful part. Display only; the stored name stays the filter key.
-const cleanName = n => { const t = String(n || '').replace(/&#(\d+);/g, (_, c) => String.fromCharCode(c)).replace(/&amp;/g, '&').trim(); const parts = t.split(/\s+[|–—-]\s+/).map(x => x.trim()).filter(x => x.length >= 2 && !/^(world news|news|latest news|latest|home|homepage|اخبار)$/i.test(x)); return parts.length > 1 ? parts.reduce((a, b) => b.length < a.length ? b : a) : t; };
+const cleanName = n => { const t = String(n || '').replace(/&#(\d+);/g, (_, c) => String.fromCharCode(c)).replace(/&amp;/g, '&').trim(); const parts = t.split(/\s+[|–—-]\s+/).map(x => x.trim()).filter(x => x.length >= 2 && !/^(world news|news|latest news|latest|home|homepage|اخبار)$/i.test(x)); return parts.length ? parts.reduce((a, b) => b.length < a.length ? b : a) : t; };
 const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '';
 // One-tap sources; the server checks each feed when it's added (an unreachable one just shows an error).
 // A site address (no feed path) works too: the server finds its feed. Ecoiran was dropped: it refuses requests from Cloudflare.
@@ -40,10 +40,17 @@ function WeeklySummary({ onClose }) {
 function News() {
   const [items, setItems] = useState(null), [sources, setSources] = useState([]), [cat, setCat] = useState(''), [savedOnly, setSavedOnly] = useState(false);
   const [busy, setBusy] = useState(''), [msg, setMsg] = useState(''), [showSrc, setShowSrc] = useState(false), [src, setSrc] = useState({ url: '', category: '' }), [week, setWeek] = useState(false);
+  const [srcF, setSrcF] = useState(''), [open, setOpen] = useState(null), [limit, setLimit] = useState(25), [edit, setEdit] = useState(null);
   const load = () => Promise.all([api('/api/news').then(d => setItems(d.items || [])), api('/api/news/sources').then(d => setSources(d.items || []))]).catch(e => setMsg(e.message));
   useEffect(() => { load(); }, []);
   const cats = useMemo(() => [...new Set((items || []).map(x => x.category).filter(Boolean))], [items]);
-  const list = (items || []).filter(x => (!cat || x.category === cat) && (!savedOnly || x.saved));
+  const list = (items || []).filter(x => (!cat || x.category === cat) && (!savedOnly || x.saved) && (!srcF || x.source === srcF));
+  useEffect(() => { setLimit(25); setOpen(null); }, [cat, savedOnly, srcF]);
+  const saveSrc = async e => {
+    e.preventDefault();
+    try { const r = await api(`/api/news/sources/${edit.id}`, { method: 'PATCH', body: JSON.stringify({ name: edit.name, category: edit.category }) }); setMsg(`«${cleanName(r.name)}» ذخیره شد${r.moved ? ` (${fa(r.moved)} خبر به‌روز شد)` : ''}.`); if (srcF && srcF !== r.name) setSrcF(r.name); setEdit(null); await load(); }
+    catch (x) { setMsg(x.message); }
+  };
   const sync = async () => { setBusy('sync'); setMsg(''); try { const r = await api('/api/news/sync', { method: 'POST' }); setMsg(r.added ? `${fa(r.added)} خبر تازه آمد.` : 'خبر تازه‌ای نبود.'); await load(); } catch (e) { setMsg(e.message); } setBusy(''); };
   const patch = async (x, body) => { setItems(xs => xs.map(y => y.id === x.id ? { ...y, ...body } : y)); await api(`/api/news/${x.id}`, { method: 'PATCH', body: JSON.stringify(body) }).catch(() => load()); };
   const del = async x => { setItems(xs => xs.filter(y => y.id !== x.id)); await api(`/api/news/${x.id}`, { method: 'DELETE' }).catch(() => load()); };
@@ -86,29 +93,41 @@ function News() {
       </form>
       <p className="rd-muted rd-hint">لازم نیست RSS را بدانی؛ آدرس خود سایت کافی است. اگر سایت فید نداشته باشد، تیترها از خود صفحه خوانده می‌شوند (مثل ورزش سه).</p>
       {PRESETS.filter(([n, u]) => !sources.some(x => x.url === u || x.name === n)).length ? <div className="rd-presets"><small>پیشنهادی (یک کلیک):</small><button type="button" className="rd-all" disabled={busy === 'add'} onClick={addAll}>＋ همه را اضافه کن</button>{PRESETS.filter(([n, u]) => !sources.some(x => x.url === u || x.name === n)).map(([n, u, c]) => <button type="button" key={u} disabled={busy === 'add'} onClick={() => addFrom({ name: n, url: u, category: c })}>+ {n}</button>)}</div> : null}
-      {sources.length ? <ul className="rd-srclist">{sources.map(s => <li key={s.id}><span><b title={s.name}>{cleanName(s.name)}</b><small dir="ltr">{host(s.url)}</small>{s.lastError ? <small className="bad">⚠ {s.lastError}</small> : null}</span><button type="button" className="rd-x" onClick={() => delSrc(s)} aria-label={`حذف منبع ${s.name}`}><Trash2 size={15} /></button></li>)}</ul> : <p className="rd-muted">هنوز منبعی نداری. از پیشنهادها انتخاب کن یا آدرس یک سایت خبری را بنویس.</p>}
+      {sources.length ? <ul className="rd-srclist">{sources.map(s => edit?.id === s.id ? <li key={s.id}><form className="rd-srcedit" onSubmit={saveSrc}>
+        <input value={edit.name} onChange={e => setEdit(o => ({ ...o, name: e.target.value }))} aria-label="نام منبع" maxLength={60} />
+        <input value={edit.category} onChange={e => setEdit(o => ({ ...o, category: e.target.value }))} aria-label="تگ / دسته" placeholder="تگ" maxLength={30} list="rd-cats" />
+        <button type="submit" className="rd-btn sm">ذخیره</button><button type="button" className="rd-btn ghost sm" onClick={() => setEdit(null)}>انصراف</button>
+      </form></li> : <li key={s.id}><span><b title={s.name}>{cleanName(s.name)}</b><small><em className="rd-tag">{s.category || 'عمومی'}</em> <i className="rd-host" dir="ltr">{host(s.url)}</i></small>{s.lastError ? <small className="bad">⚠ {s.lastError}</small> : null}</span><button type="button" className="rd-x" onClick={() => setEdit({ id: s.id, name: cleanName(s.name), category: s.category || '' })} aria-label={`ویرایش ${cleanName(s.name)}`}><Pencil size={15} /></button><button type="button" className="rd-x" onClick={() => delSrc(s)} aria-label={`حذف منبع ${s.name}`}><Trash2 size={15} /></button></li>)}</ul> : <p className="rd-muted">هنوز منبعی نداری. از پیشنهادها انتخاب کن یا آدرس یک سایت خبری را بنویس.</p>}
+      <datalist id="rd-cats">{cats.map(c => <option key={c} value={c} />)}</datalist>
     </div> : null}
     <div className="rd-filters" role="group" aria-label="فیلتر اخبار">
       <button type="button" className={!cat && !savedOnly ? 'on' : ''} onClick={() => { setCat(''); setSavedOnly(false); }}>همه</button>
       <button type="button" className={savedOnly ? 'on' : ''} onClick={() => setSavedOnly(v => !v)}>ذخیره‌شده</button>
       {cats.map(c => <button type="button" key={c} className={cat === c ? 'on' : ''} onClick={() => setCat(cat === c ? '' : c)}>{c}</button>)}
+      {sources.length > 1 ? <select className="rd-srcsel" value={srcF} onChange={e => setSrcF(e.target.value)} aria-label="فیلتر منبع"><option value="">همهٔ منابع</option>{sources.map(s => <option key={s.id} value={s.name}>{cleanName(s.name)}</option>)}</select> : null}
     </div>
     {msg ? <p className="rd-msg" role="status">{msg}</p> : null}
     {items === null ? <p className="rd-muted">در حال بارگذاری…</p> : !list.length ? <p className="rd-muted">{items.length ? 'با این فیلتر خبری نیست.' : sources.length ? 'خبری نیست؛ «به‌روزرسانی» را بزن.' : 'برای دیدن اخبار، بالا یک منبع انتخاب کن.'}</p>
-      : <ul className="rd-news">{list.slice(0, 60).map(x => <li key={x.id}>
-        <div className="rd-news-head">
-          {safeUrl(x.url) ? <a href={safeUrl(x.url)} target="_blank" rel="noopener noreferrer"><b>{x.title}</b><ExternalLink size={13} /></a> : <b>{x.title}</b>}
+      : <><ul className="rd-news rd-compact">{list.slice(0, limit).map(x => { const on = open === x.id; return <li key={x.id} className={on ? 'open' : ''}>
+        <div className="rd-row">
+          {safeUrl(x.url) ? <a className="rd-t" href={safeUrl(x.url)} target="_blank" rel="noopener noreferrer" dir="auto">{x.title}</a> : <span className="rd-t" dir="auto">{x.title}</span>}
+          <small className="rd-sname">{cleanName(x.source)}</small>
+          <button type="button" className={`rd-ic${x.saved ? ' on' : ''}`} onClick={() => patch(x, { saved: !x.saved })} aria-pressed={!!x.saved} aria-label={x.saved ? 'برداشتن از ذخیره‌شده‌ها' : 'ذخیره'}>{x.saved ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}</button>
+          <button type="button" className="rd-ic" onClick={() => setOpen(on ? null : x.id)} aria-expanded={on} aria-label={on ? 'بستن جزئیات' : 'جزئیات'}>{on ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
         </div>
-        <small className="rd-meta">{[cleanName(x.source), x.category, jLabel(x.date)].filter(Boolean).join(' · ')}</small>
-        {x.summary ? <p className="rd-sum">{x.summary.length > 320 ? x.summary.slice(0, 320) + '…' : x.summary}</p> : null}
-        {x.aiSummary ? <p className="rd-ai">✨ {x.aiSummary}</p> : null}
-        <div className="rd-actions">
-          <button type="button" onClick={() => patch(x, { saved: !x.saved })} aria-pressed={!!x.saved} aria-label={x.saved ? 'برداشتن از ذخیره‌شده‌ها' : 'ذخیره'}>{x.saved ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}{x.saved ? 'ذخیره شد' : 'ذخیره'}</button>
-          {x.summary && x.summary.length >= 300 ? <button type="button" onClick={() => ai(x, 'summarize')} disabled={busy === 'summarize' + x.id}><Sparkles size={15} />خلاصه</button> : null}
-          {/[a-z]{4,}/i.test(x.title) ? <button type="button" onClick={() => ai(x, 'translate')} disabled={busy === 'translate' + x.id}><Languages size={15} />ترجمه</button> : null}
-          <button type="button" className="rd-del" onClick={() => del(x)} aria-label="حذف خبر"><Trash2 size={15} /></button>
-        </div>
-      </li>)}</ul>}
+        {on ? <div className="rd-more">
+          <small className="rd-meta">{[cleanName(x.source), x.category, jLabel(x.date)].filter(Boolean).join(' · ')}</small>
+          {x.summary ? <p className="rd-sum" dir="auto">{x.summary.length > 400 ? x.summary.slice(0, 400) + '…' : x.summary}</p> : null}
+          {x.aiSummary ? <p className="rd-ai">✨ {x.aiSummary}</p> : null}
+          <div className="rd-actions">
+            {x.summary && x.summary.length >= 300 ? <button type="button" onClick={() => ai(x, 'summarize')} disabled={busy === 'summarize' + x.id}><Sparkles size={15} />خلاصه</button> : null}
+            {/[a-z]{4,}/i.test(x.title) ? <button type="button" onClick={() => ai(x, 'translate')} disabled={busy === 'translate' + x.id}><Languages size={15} />ترجمه</button> : null}
+            {safeUrl(x.url) ? <a className="rd-open" href={safeUrl(x.url)} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} />خبر کامل</a> : null}
+            <button type="button" className="rd-del" onClick={() => del(x)} aria-label="حذف خبر"><Trash2 size={15} /></button>
+          </div>
+        </div> : null}
+      </li>; })}</ul>
+      {list.length > limit ? <button type="button" className="rd-btn ghost rd-moreall" onClick={() => setLimit(l => l + 25)}>نمایش بیشتر ({fa(list.length - limit)} خبر دیگر)</button> : null}</>}
   </section>;
 }
 
