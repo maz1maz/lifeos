@@ -337,7 +337,7 @@ export function compareReportHtml({ rows, brand = {} }) {
   const logo = /^data:image\/(?:png|jpeg|webp);base64,/i.test(String(brand.logo || '')) ? brand.logo : '';
   // graphic cover page: one ring per project (its progress), title, totals and who prepared the report
   const coverHtml = (() => {
-    const list = rows.slice(0, 14), cx = 160, cy = 160, gap = Math.min(11, 120 / Math.max(1, list.length)), sw = Math.max(3, gap - 3);
+    const list = rows.slice(0, 24), cx = 160, cy = 160, gap = Math.min(11, 120 / Math.max(1, list.length)), sw = Math.max(3, gap - 3);
     const rings = list.map(({ p, m }, i) => { const r = 140 - i * gap, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, m.progress || 0)); const col = /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1';
       return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#eef2f7" stroke-width="${sw}"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${(c * v / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})"/>`; }).join('');
     const inner = Math.max(30, 140 - list.length * gap - 6);
@@ -370,7 +370,7 @@ html.capture body{width:${CMP_W}px}
 table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th{padding:5px 4px;vertical-align:middle}table.cmp .pg{display:flex;align-items:center;gap:6px}table.cmp .pg b{font-size:8.5pt;font-weight:800;min-width:26px}table.cmp .pg .bar{flex:1;height:5px;margin:0}.sm{font-size:6.8pt;color:#64748b}table.cmp .dot{margin-inline-end:4px}.num{font-weight:700}
 .nx{display:grid;grid-template-columns:1fr 1fr;gap:16px;break-inside:avoid}.nx ul{margin:4px 0 0;padding:0;list-style:none;font-size:8.5pt}.nx li{padding:3px 0;border-bottom:1px dashed #e2e8f0}
 .neg{color:#be123c}.pos{color:#047857}.st{display:inline-block;padding:0 6px;border:1px solid;border-radius:99px;font-size:7pt;font-weight:700;white-space:nowrap}
-.cover{position:relative;height:178mm;overflow:hidden;border:1px solid #e2e8f0;border-radius:6mm;background:#fff;color:#0f172a;break-after:page;page-break-after:always;display:grid;grid-template-columns:1.15fr 1fr;align-items:center;padding:0 14mm}
+.cover{position:relative;height:178mm;overflow:hidden;border:1px solid #e2e8f0;border-radius:6mm;background:#fff;color:#0f172a;break-after:page;page-break-after:always;display:grid;grid-template-columns:1.15fr 1fr;grid-template-rows:1fr auto;align-items:center;column-gap:8mm;padding:8mm 14mm 8mm}
 .cover .glow{position:absolute;top:0;right:0;width:5mm;height:100%;background:#d4a843}
 .cover .grid{position:absolute;inset:0;background-image:none;background-size:9mm 9mm}
 .cover .txt{position:relative;z-index:1}
@@ -380,8 +380,8 @@ table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th
 .cover .line{width:34mm;height:1.6mm;border-radius:1mm;background:linear-gradient(90deg,#d4a843,#f5d98a);margin-bottom:6mm}
 .cover .sub{font-size:11pt;color:#475569}
 .cover .stats{display:flex;gap:6mm;margin-top:10mm}.cover .stats div{display:flex;flex-direction:column;border-inline-start:2px solid #d4a843;padding-inline-start:3mm}.cover .stats b{font-size:17pt;font-weight:900}.cover .stats small{font-size:8pt;color:#64748b}
-.cover .prep{position:absolute;bottom:10mm;right:14mm;left:14mm;display:flex;justify-content:space-between;align-items:flex-end;font-size:9pt;color:#64748b;z-index:1;border-top:1px solid #e2e8f0;padding-top:3mm}.cover .prep b{display:block;font-size:12.5pt;color:#0f172a;font-weight:800}
-.cover .ringw{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3mm}.cover svg{width:100%;max-height:120mm}.cover .rleg{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5mm 4mm;font-size:7.5pt;color:#475569;max-width:120mm}.cover .rleg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:4px;vertical-align:middle}
+.cover .prep{grid-column:1 / -1;position:relative;display:flex;justify-content:space-between;align-items:flex-end;font-size:9pt;color:#64748b;z-index:1;border-top:1px solid #e2e8f0;padding-top:3mm}.cover .prep b{display:block;font-size:12.5pt;color:#0f172a;font-weight:800}
+.cover .ringw{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3mm}.cover svg{width:100%;max-height:105mm}.cover .rleg{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5mm 4mm;font-size:7.5pt;color:#475569;max-width:120mm}.cover .rleg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:4px;vertical-align:middle}
 </style></head><body>
 ${coverHtml}
 <header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه${brand.preparer ? `  |  تهیه‌کننده: ${esc(brand.preparer)}` : ''}</div></div>
