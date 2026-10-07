@@ -195,7 +195,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
       inR.forEach(d => { const i = ix[jKey(d)], x = byDate[d]; if (i != null) { const r = list[i]; r.net += net(d); r.poker += x.poker; r.bet += hasBet ? x.bet : 0; r.betUsd += x.betUsd; r.sessions += x.n || 0; } });
       bars = list.slice(-24);
     }
-    return { stByMode, days, hasBet, rate, from, pokerAll, betUsdAll, pokerR, betUsdR, totalAll: pokerAll + (hasBet ? betRial(betUp) : 0), totalR: pokerR + (hasBet ? betRial(bR) : 0), betRialAll: betRial(betUp), betRialR: betRial(bR), histOk: hist.length > 0, winsR: rUnits.filter(v => v > 0).length, lossesR: rUnits.filter(v => v < 0).length, countR: rUnits.length, count: seq.length, bars, st, pR };
+    return { stByMode, days, hasBet, rate, from, pokerAll, betUsdAll, pokerR, betUsdR, totalAll: pokerAll + (hasBet ? betRial(betUp) : 0), totalR: pokerR + (hasBet ? betRial(bR) : 0), betRialAll: betRial(betUp), betRialR: betRial(bR), histOk: hist.length > 0, winsR: rUnits.filter(v => v > 0).length, lossesR: rUnits.filter(v => v < 0).length, countR: rUnits.length, count: poker.length + bet.length, bars, st, pR };
   }, [poker, bet, usdRate, range, hist, anchor]);
   const [status, setStatus] = useState(null);
   useEffect(() => { api(`/api/fun/status${usdRate ? `?usdRate=${Math.round(usdRate)}` : ''}`).then(setStatus).catch(() => {}); }, [usdRate, poker.length, bet.length]);
