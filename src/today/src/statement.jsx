@@ -8,7 +8,7 @@
 // payable(N) = gross(N) (+ insurance when it is paid on top) − deductions(N) − payable of the statements before N.
 import { useEffect, useRef, useState } from 'react';
 import { JalaliDateInput } from './jdate';
-import { fa, jl, num, todayIso } from './life-core';
+import { api, fa, jl, num, todayIso } from './life-core';
 
 export const BOQ_UNITS = ['مترمربع', 'مترطول', 'مترمکعب', 'عدد', 'کیلوگرم', 'تن', 'دستگاه', 'سرویس', 'کنترات'];
 export const boqAmount = row => Math.round(num(row?.qty) * num(row?.price));
@@ -38,7 +38,8 @@ export function grossUpTo(boq, measures, n) {
 }
 export const svRatesOf = contract => ({ ...Object.fromEntries(SV_RATES.map(([k, , d]) => [k, d])), insuranceMode: 'add', ...(contract?.svRates || {}) });
 // Same rules as the contractor's Excel forms:
-// · discount = discount% of the contract (non-extra) items, at most discount% of the contract total;
+// · discount = discount% of the contract (non-extra) items, at most the contract's discount (svRates.discountCap, else
+//   discount% of the contract total);
 // · insurance (تأمین اجتماعی, 16.67%) on the install/service items only — contract ones after the discount, extras in full —
 //   paid on top of the work (or, if the contract says so, deducted);
 // · retention 10% (the final statement keeps only 5%: half is released at provisional delivery);
@@ -52,7 +53,8 @@ export function statementSummary(contract, n, payments) {
   for (let k = 1; k <= Math.max(1, n); k++) {
     const q = cumulativeQty(measures, k), amt = it => (q[it.id] || 0) * num(it.price), sum = f => Math.round(boq.filter(f).reduce((a, it) => a + amt(it), 0));
     const gross = sum(() => true), prevGross = k > 1 ? grossUpTo(boq, measures, k - 1) : 0, contractGross = sum(it => !it.extra);
-    const discount = Math.round(Math.min(contractGross, base || contractGross) * d);
+    const cap = num(rates.discountCap) > 0 ? num(rates.discountCap) : Math.round((base || contractGross) * d);
+    const discount = Math.min(Math.round(contractGross * d), cap);
     const insuranceBase = Math.round(sum(it => !it.extra && itemKind(it) === 'install') * (1 - d) + sum(it => it.extra && itemKind(it) === 'install'));
     const insurance = Math.round(insuranceBase * num(rates.insurance) / 100);
     const isFinal = Number(contract?.svFinal) === k, retentionRate = isFinal ? num(rates.retentionFinal) : num(rates.retention);
@@ -73,13 +75,13 @@ export const statementNumbers = contract => { const max = Math.max(0, ...(contra
 export const contractTotals = boq => { const base = boqTotal((boq || []).filter(b => !b.extra)), extra = boqTotal((boq || []).filter(b => b.extra)); return { base, extra, all: base + extra, extraPct: base ? extra / base * 100 : 0 }; };
 export const statementTitle = (contract, n) => Number(contract?.svFinal) === n ? 'صورت وضعیت قطعی' : `صورت وضعیت موقت شماره ${fa(n)}`;
 // everything a printout / export needs, with the cover fields resolved from the brand settings → project → contract
-export function statementDoc(contract, project, n, payments, scope = 'all') {
+export function statementDoc(contract, project, n, payments, scope = 'all', house = {}) {
   const b = contract?.svBrand || {}, period = contract?.svPeriods?.[n] || {};
   return {
     n, title: statementTitle(contract, n), isFinal: Number(contract?.svFinal) === n,
     projectName: b.projectName || project?.name || '', subject: b.subject || contract?.subject || '',
-    employerName: b.employerName || project?.client || '', contractorName: b.contractorName || '',
-    employerLogo: b.employerLogo || '', contractorLogo: b.contractorLogo || '',
+    employerName: b.employerName || project?.client || '', contractorName: b.contractorName || house.contractorName || '',
+    employerLogo: b.employerLogo || '', contractorLogo: b.contractorLogo || house.contractorLogo || '',
     contractNo: b.contractNo || contract?.contractNo || '', contractDate: b.contractDate || contract?.contractStartDate || '',
     from: period.from || '', to: period.to || '', prep: period.prep || todayIso(),
     boq: contract?.boq || [], measures: contract?.measures || [], labels: itemLabels(contract?.boq), totals: contractTotals(contract?.boq),
@@ -99,12 +101,12 @@ function useContractList(contract, key, onPatchContract, clean) {
 }
 const cleanNums = (...keys) => xs => xs.map(r => ({ ...r, ...Object.fromEntries(keys.map(k => [k, r[k] === '' || r[k] == null ? '' : num(r[k])])) }));
 
-function BoqSheet({ contract, list, measureList }) {
+function BoqSheet({ contract, list, measureList, onImport }) {
   const { rows, commit, edit, save } = list;
   const add = extra => commit([...rows, { id: rid('b'), desc: '', qty: '', unit: BOQ_UNITS[0], price: '', ...(extra ? { extra: true } : {}) }]);
   const used = new Set((contract?.measures || []).map(m => m.itemId)), labels = itemLabels(rows), t = contractTotals(rows);
   return <>
-    <div className="lf-sv-bar"><span>آیتم‌ها را یک بار تعریف کنید؛ ریزمتره از همین فهرست پر می‌شود.</span><span className="ops"><button type="button" className="lf-btn ghost" onClick={() => add(false)}>＋ آیتم</button><button type="button" className="lf-btn ghost" onClick={() => add(true)}>＋ مازاد</button></span></div>
+    <div className="lf-sv-bar"><span>آیتم‌ها را یک بار تعریف کنید؛ ریزمتره از همین فهرست پر می‌شود.</span><span className="ops"><label className="lf-btn ghost lf-sv-import">📥 ورود از اکسل<input type="file" accept=".xlsx,.xls" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onImport(f); }} /></label><button type="button" className="lf-btn ghost" onClick={() => add(false)}>＋ آیتم</button><button type="button" className="lf-btn ghost" onClick={() => add(true)}>＋ مازاد</button></span></div>
     {rows.length ? <div className="lf-boq-table" role="table"><div className="lf-boq-row head" role="row"><span>ردیف</span><span>شرح آیتم قرارداد</span><span>نوع</span><span>مقدار</span><span>واحد</span><span>فی (ریال)</span><span>مبلغ (ریال)</span><span /></div>
       {rows.map(r => <div className={`lf-boq-row ${r.extra ? 'extra' : ''}`} role="row" key={r.id}>
         <button type="button" className="no" title={r.extra ? 'تبدیل به آیتم قرارداد' : 'تبدیل به مازاد بر قرارداد'} onClick={() => commit(rows.map(x => x.id === r.id ? { ...x, extra: !x.extra } : x))}>{labels[r.id]}</button>
@@ -198,21 +200,21 @@ async function logoDataUrl(file) {
   let url = c.toDataURL('image/png'); if (url.length > 150000) url = c.toDataURL('image/webp', 0.85); if (url.length > 190000) url = c.toDataURL('image/jpeg', 0.8);
   return url;
 }
-function LogoField({ label, value, onChange }) {
+function LogoField({ label, value, inherited, onChange }) {
   const ref = useRef(null), [err, setErr] = useState('');
   const pick = async e => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; if (!/^image\//.test(f.type)) { setErr('فقط فایل تصویر.'); return; } try { setErr(''); onChange(await logoDataUrl(f)); } catch (x) { setErr(x.message); } };
-  return <div className="lf-sv-logo"><span>{label}</span><button type="button" className="box" onClick={() => ref.current?.click()}>{value ? <img src={value} alt={label} /> : <em>＋ انتخاب لوگو</em>}</button>{value ? <button type="button" className="lf-link del" onClick={() => onChange('')}>حذف لوگو</button> : null}<input ref={ref} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden onChange={pick} />{err ? <small className="lf-err">{err}</small> : null}</div>;
+  return <div className="lf-sv-logo"><span>{label}</span><button type="button" className="box" onClick={() => ref.current?.click()}>{value || inherited ? <img src={value || inherited} alt={label} /> : <em>＋ انتخاب لوگو</em>}</button>{value ? <button type="button" className="lf-link del" onClick={() => onChange('')}>{inherited ? 'برگشت به لوگوی تنظیمات' : 'حذف لوگو'}</button> : inherited ? <small>از «تنظیمات › قالب گزارش» — برای همهٔ پروژه‌ها</small> : null}<input ref={ref} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden onChange={pick} />{err ? <small className="lf-err">{err}</small> : null}</div>;
 }
-function CoverSheet({ contract, project, payments, scope, setScope, onPatchContract, n, onPrint, onExcel, busy }) {
-  const b = contract?.svBrand || {}, doc = statementDoc(contract, project, n, payments, scope);
+function CoverSheet({ contract, project, payments, scope, setScope, house, onPatchContract, n, onPrint, onExcel, busy }) {
+  const b = contract?.svBrand || {}, doc = statementDoc(contract, project, n, payments, scope, house);
   const set = (k, v) => onPatchContract({ svBrand: { ...(contract?.svBrand || {}), [k]: v } });
   const text = (k, label, fallback) => <label className="lf-sheet-field"><span>{label}</span><input defaultValue={b[k] || ''} key={`${k}-${b[k] || ''}`} placeholder={fallback || label} onBlur={e => e.target.value.trim() !== (b[k] || '') && set(k, e.target.value.trim())} /></label>;
   const frame = useRef(null);
-  useEffect(() => { let alive = true; import('./statementPrint').then(m => { if (!alive || !frame.current) return; const d = frame.current.contentDocument; d.open(); d.write(m.statementHtml(doc, { only: 'cover' })); d.close(); }); return () => { alive = false; }; }, [JSON.stringify(b), n, scope, doc.summary.payableWithVat, doc.from, doc.to, doc.prep, doc.contractAmount]);
+  useEffect(() => { let alive = true; import('./statementPrint').then(m => { if (!alive || !frame.current) return; const d = frame.current.contentDocument; d.open(); d.write(m.statementHtml(doc, { only: 'cover' })); d.close(); }); return () => { alive = false; }; }, [JSON.stringify(b), JSON.stringify(house), n, scope, doc.summary.payableWithVat, doc.from, doc.to, doc.prep, doc.contractAmount]);
   return <div className="lf-sv-cover">
     <div className="lf-sv-cover-form">
-      <div className="lf-sv-logos"><LogoField label="لوگوی کارفرما" value={b.employerLogo} onChange={v => set('employerLogo', v)} /><LogoField label="لوگوی پیمانکار" value={b.contractorLogo} onChange={v => set('contractorLogo', v)} /></div>
-      <div className="lf-sv-fields">{text('employerName', 'نام کارفرما', project?.client)}{text('contractorName', 'نام پیمانکار')}{text('projectName', 'نام پروژه', project?.name)}{text('subject', 'موضوع قرارداد', contract?.subject)}{text('contractNo', 'شماره قرارداد', contract?.contractNo)}<label className="lf-sheet-field"><span>تاریخ قرارداد</span><JalaliDateInput value={b.contractDate || contract?.contractStartDate || ''} onChange={v => set('contractDate', v)} /></label></div>
+      <div className="lf-sv-logos"><LogoField label="لوگوی کارفرما" value={b.employerLogo} onChange={v => set('employerLogo', v)} /><LogoField label="لوگوی پیمانکار" value={b.contractorLogo} inherited={house.contractorLogo} onChange={v => set('contractorLogo', v)} /></div>
+      <div className="lf-sv-fields">{text('employerName', 'نام کارفرما', project?.client)}{text('contractorName', 'نام پیمانکار', house.contractorName)}{text('projectName', 'نام پروژه', project?.name)}{text('subject', 'موضوع قرارداد', contract?.subject)}{text('contractNo', 'شماره قرارداد', contract?.contractNo)}<label className="lf-sheet-field"><span>تاریخ قرارداد</span><JalaliDateInput value={b.contractDate || contract?.contractStartDate || ''} onChange={v => set('contractDate', v)} /></label></div>
       <div className="lf-sv-out"><label className="lf-sv-scope"><span>اقلام چاپ</span><select value={scope} onChange={e => setScope(e.target.value)}>{SCOPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label><button type="button" className="lf-btn" disabled={busy} onClick={onPrint}>🖨 چاپ / PDF کامل</button><button type="button" className="lf-btn ghost" disabled={busy} onClick={onExcel}>📊 خروجی اکسل</button></div>
       <p className="lf-sv-hint">چاپ شامل روکش، خلاصهٔ مالی، صورت کارکرد و ریزمتره است. خالی‌ها از اطلاعات پروژه پر می‌شوند.</p>
     </div>
@@ -228,17 +230,35 @@ export function StatementWorkbook({ contract, project, payments, onPatchContract
   const live = { ...(contract || {}), boq: boqList.rows, measures: measureList.rows };
   const nums = statementNumbers(live);
   const [n, setN] = useState(() => nums[nums.length - 1]);
-  const [busy, setBusy] = useState(false), [err, setErr] = useState(''), [scope, setScope] = useState('all');
-  const run = async kind => { setBusy(true); setErr(''); try { const m = await import('./statementPrint'); const doc = statementDoc(live, project, n, payments, scope); await (kind === 'excel' ? m.exportStatementExcel(doc) : m.printStatement(doc)); } catch (x) { setErr(x.message || 'خروجی ساخته نشد.'); } setBusy(false); };
+  const [busy, setBusy] = useState(false), [err, setErr] = useState(''), [scope, setScope] = useState('all'), [note, setNote] = useState(null);
+  // the contractor is the user's own company: its name + logo come from Settings › report template (same for every
+  // project); the employer is per project (svBrand)
+  const [house, setHouse] = useState({});
+  useEffect(() => { let on = true; api('/api/report-brand').then(d => on && setHouse({ contractorName: d?.headerText || '', contractorLogo: d?.logo || '' })).catch(() => {}); return () => { on = false; }; }, []);
+  const importFile = async file => {
+    if ((boqList.rows.length || measureList.rows.length) && !window.confirm('آیتم‌ها و ریزمترهٔ فعلی با محتوای فایل جایگزین شود؟')) return;
+    setBusy(true); setErr(''); setNote(null);
+    try {
+      const { parseStatementWorkbook } = await import('./statementImport');
+      const r = await parseStatementWorkbook(await file.arrayBuffer());
+      boqList.commit(r.boq); measureList.commit(r.measures);
+      const brand = { ...(contract?.svBrand || {}) }; for (const k of ['employerName', 'contractorName', 'projectName', 'subject', 'contractNo', 'contractDate']) if (r.info[k] && !brand[k]) brand[k] = r.info[k];
+      onPatchContract({ svBrand: brand, svPeriods: { ...(contract?.svPeriods || {}), ...r.periods }, ...(r.finalNo ? { svFinal: r.finalNo } : {}), ...(r.info.discountPct ? { svRates: { ...svRatesOf(contract), discount: Math.round(r.info.discountPct * 1e9) / 1e9, ...(r.info.discountAmount ? { discountCap: Math.round(r.info.discountAmount) } : {}) } } : {}), ...(!contract?.contractNo && r.info.contractNo ? { contractNo: r.info.contractNo } : {}) });
+      setN(r.lastNo); setTab('measure');
+      setNote({ text: `${fa(r.boq.length)} آیتم و ${fa(r.measures.length)} ردیف ریزمتره وارد شد${r.finalNo ? ' (صورت وضعیت قطعی)' : ''}.`, warnings: r.warnings });
+    } catch (x) { setErr(x.message || 'فایل خوانده نشد.'); }
+    setBusy(false);
+  };
+  const run = async kind => { setBusy(true); setErr(''); try { const m = await import('./statementPrint'); const doc = statementDoc(live, project, n, payments, scope, house); await (kind === 'excel' ? m.exportStatementExcel(doc) : m.printStatement(doc)); } catch (x) { setErr(x.message || 'خروجی ساخته نشد.'); } setBusy(false); };
   const pick = <label className="lf-sv-pick"><span>صورت وضعیت شماره</span><select value={n} onChange={e => setN(Number(e.target.value))}>{[...new Set([...nums, n])].sort((a, b) => a - b).map(k => <option key={k} value={k}>{Number(live.svFinal) === k ? 'قطعی' : fa(k)}</option>)}</select><button type="button" className="lf-link" onClick={() => setN(Math.max(...nums, n) + 1)}>＋ صورت وضعیت جدید</button></label>;
   return <section className="lf-boq lf-sv">
     <header className="lf-contract-financials-head"><h4>صورت وضعیت از روی ریزمتره</h4>{tab !== 'boq' ? pick : null}{boqList.rows.length ? <span className="lf-sv-head-ops"><button type="button" className="lf-btn ghost" disabled={busy} onClick={() => run('print')}>🖨 چاپ</button><button type="button" className="lf-btn ghost" disabled={busy} onClick={() => run('excel')}>📊 اکسل</button></span> : null}</header>
-    {err ? <p className="lf-err">{err}</p> : null}
+    {err ? <p className="lf-err">{err}</p> : null}{note ? <div className="lf-sv-note"><b>✓ {note.text}</b>{note.warnings.map((w, i) => <small key={i}>⚠ {w}</small>)}<button type="button" className="lf-x" aria-label="بستن" onClick={() => setNote(null)}>×</button></div> : null}
     <div className="lf-tabs lf-sv-tabs">{SV_TABS.map(([k, l]) => <button type="button" key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
-    {tab === 'boq' ? <BoqSheet contract={live} list={boqList} measureList={measureList} />
+    {tab === 'boq' ? <BoqSheet contract={live} list={boqList} measureList={measureList} onImport={importFile} />
       : tab === 'measure' ? <MeasureSheet contract={live} onPatchContract={onPatchContract} list={measureList} n={n} />
       : tab === 'work' ? <><label className="lf-sv-scope"><span>اقلام</span><select value={scope} onChange={e => setScope(e.target.value)}>{SCOPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label><WorkSheet contract={live} n={n} payments={payments} scope={scope} /></>
       : tab === 'summary' ? <SummarySheet contract={live} onPatchContract={onPatchContract} n={n} payments={payments} />
-      : <CoverSheet contract={live} project={project} payments={payments} scope={scope} setScope={setScope} onPatchContract={onPatchContract} n={n} busy={busy} onPrint={() => run('print')} onExcel={() => run('excel')} />}
+      : <CoverSheet contract={live} project={project} payments={payments} scope={scope} setScope={setScope} house={house} onPatchContract={onPatchContract} n={n} busy={busy} onPrint={() => run('print')} onExcel={() => run('excel')} />}
   </section>;
 }
