@@ -285,8 +285,20 @@ export async function sendProjectReportToTelegram(data) {
   return filename;
 }
 
-// Opens the browser print dialog; the suggested file name is reportFileName.
+// Phones can't print a hidden iframe (nothing happens), so there the PDF file itself is built and shared/downloaded.
+const isPhone = () => typeof window !== 'undefined' && (window.matchMedia?.('(pointer: coarse)').matches || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent));
+// (the download fallback uses a Latin name: some browsers drop a Persian one and save «download» without .pdf)
+async function savePdf(blob, filename) {
+  const file = typeof File === 'function' ? new File([blob], filename, { type: 'application/pdf' }) : null;
+  if (file && navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: filename.replace(/\.pdf$/, '') }); return; } catch (e) { if (e?.name === 'AbortError') return; } }
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = /^[\x20-\x7e]+$/.test(filename) ? filename : `project-report-${todayIso()}.pdf`; a.rel = 'noopener'; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// Opens the browser print dialog (desktop) or saves the PDF file (phone); the file name is reportFileName.
 export async function printProjectReport(data) {
+  if (isPhone()) return savePdf(await projectReportPdf(data), reportFileName(data.project));
   const title = reportFileName(data.project).replace(/\.pdf$/, '');
   const frame = mountFrame('lf-report-print-frame', 695, projectReportHtml(data), false);
   const doc = frame.contentDocument;
