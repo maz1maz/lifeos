@@ -132,8 +132,8 @@ function Drawer({ label, title, children }) {
 const CATS = ['خوراک', 'حمل‌ونقل', 'قبض', 'مسکن', 'سلامت', 'تفریح', 'آموزش', 'پوشاک', 'حقوق', 'سرمایه‌گذاری', 'هدیه', 'سفر', 'متفرقه']
 const ICONS = { 'خوراک': '🍔', 'حمل‌ونقل': '🚕', 'قبض': '🧾', 'مسکن': '🏠', 'سلامت': '💊', 'تفریح': '🎮', 'آموزش': '📚', 'پوشاک': '👕', 'حقوق': '💼', 'سرمایه‌گذاری': '📈', 'هدیه': '🎁', 'سفر': '✈️', 'متفرقه': '📦', 'انتقال': '🔄' }
 const COLORS = ['#22d3ee', '#a78bfa', '#fbbf24', '#34d399', '#f472b6', '#60a5fa', '#fb7185', '#4ade80', '#f97316']
-const usd = (n) => `$${fa(Math.round((Math.abs(Number(n) || 0)) * 100) / 100)}`
-const signedUsd = (n) => `${Number(n) >= 0 ? '+' : '−'}${usd(n)}`
+const usd = (n) => `$${fa(Math.round(Math.abs(Number(n) || 0)))}` // whole dollars
+const signedUsd = (n) => `${Number(n) < 0 ? '−' : ''}${usd(n)}`
 const ALERT_COND = { price_above: 'قیمت بالاتر از', price_below: 'قیمت پایین‌تر از', pnl_pct_above: 'سود٪ بالاتر از', pnl_pct_below: 'زیان٪ پایین‌تر از' }
 const TABS = [
   { id: 'dash', label: 'داشبورد' },
@@ -409,7 +409,11 @@ export function FinanceReact({ Nav }) {
   const [goalDep, setGoalDep] = useState(null)
   const [emptyHint, setEmptyHint] = useState(null)
 
+  // each load is numbered: when the month changes quickly, a slower answer for an earlier month must not
+  // overwrite the newer one (the page then looked as if switching months did nothing)
+  const loadSeq = useRef(0)
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current
     try {
       const months = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5))
       const { from, to } = jRange(month), rq = `from=${from}&to=${to}`
@@ -427,6 +431,7 @@ export function FinanceReact({ Nav }) {
         api('/api/poker').catch(() => ({ items: [] })),
         ...months.map((m) => { const r = jRange(m); return api(`/api/finance?from=${r.from}&to=${r.to}`).catch(() => ({ income: 0, expense: 0 })) }),
       ])
+      if (seq !== loadSeq.current) return
       setSummary(sum)
       setTxs(list.items || [])
       setEmptyHint(null)
@@ -1199,9 +1204,9 @@ export function FinanceReact({ Nav }) {
                   <div>
                     <b>{jalaliShort(item.date)}</b>
                     <small>داشتم {usd(item.start)} · واریز {usd(item.deposit)} · برداشت {usd(item.withdraw)} · موجودی {usd(item.balance)}{item.note ? ` · ${item.note}` : ''}</small>
-                    {(() => { const r = makeRateOn(usdHist, usdRate)(item.date, Number(item.usdRate)); return r ? <small className="fn-bet-rial">دلار {fa(Math.round(r))} · ≈ <span className={item.result >= 0 ? 'pos' : 'neg'}>{item.result >= 0 ? '+' : '−'}{short(Math.abs(item.result * r))}</span></small> : null })()}
+                    {(() => { const r = makeRateOn(usdHist, usdRate)(item.date, Number(item.usdRate)); return r ? <small className="fn-bet-rial">دلار آن روز {fa(Math.round(r))}</small> : null })()}
                   </div>
-                  <span className={`amt ${item.result >= 0 ? 'pos' : 'neg'}`}>{signedUsd(item.result)}</span>
+                  {(() => { const r = makeRateOn(usdHist, usdRate)(item.date, Number(item.usdRate)); return <span className={`amt ${item.result >= 0 ? 'pos' : 'neg'}`}>{r ? <>{short(Math.abs(item.result * r))} <small>({usd(item.result)})</small></> : usd(item.result)}</span> })()}
                   <div className="fn-ops">
                     <button type="button" onClick={() => setEditing({ type: 'bet', item })}>ویرایش</button>
                     <button type="button" className="del" onClick={() => { if (window.confirm('این روز حذف شود؟')) send(`/api/bet/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>

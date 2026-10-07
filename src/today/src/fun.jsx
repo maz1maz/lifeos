@@ -17,8 +17,9 @@ const money = n => { const [v, w] = parts(n); return `${Number(n) < 0 ? '−' : 
 // a loss keeps «−» where the number isn't coloured (tooltips); coloured numbers drop it (see `bare`)
 const sign = n => (n < 0 ? '−' : '');
 const bare = n => money(Math.abs(n));
+const usdR = n => `$${faN(Math.round(Math.abs(n)))}`; // whole dollars
 const signed = n => sign(n) + money(Math.abs(n)).replace(/^−/, '');
-const usdTxt = n => `${sign(n)}$${faN(Math.abs(n), 2)}`;
+const usdTxt = n => `${sign(n)}$${faN(Math.round(Math.abs(n)))}`; // whole dollars
 const jKey = iso => { const j = isoToJ(iso); return `${j.jy}-${String(j.jm).padStart(2, '0')}`; };
 const jLbl = iso => { const j = isoToJ(iso); return `${faN(j.jd)} ${MONTHS[j.jm - 1]}`; };
 
@@ -130,7 +131,7 @@ function NetBars({ items: all, mode, hasBet }) {
     </div>
     {h ? <div className="fu-nb-tip"><b>{h.title || h.label}</b>
       <span><i className="poker" />پوکر: {signed(h.poker)}{h.sessions ? ` · ${faN(h.sessions)} جلسه` : ''}</span>
-      {h.betUsd ? <span><i className="bet" />بت: {usdTxt(h.betUsd)}{hasBet ? ` ≈ ${signed(h.bet)}` : ''}</span> : null}
+      {h.betUsd ? <span><i className="bet" />بت: {hasBet ? `${signed(h.bet)} (${usdTxt(h.betUsd)})` : usdTxt(h.betUsd)}</span> : null}
       <span className="t"><i className="total" />جمع: <b className={h.net > 0 ? 'pos' : h.net < 0 ? 'neg' : ''}>{bare(h.net)}</b></span>
     </div> : <div className="fu-nb-tip muted">روی هر ستون برو تا جزئیات پوکر و بت آن را ببینی.</div>}
   </div>;
@@ -207,15 +208,15 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
     <div className="fu-kpis">
       {mode === 'all' ? <>
       <div className={`fu-kpi main ${tone(data.totalR)}`}><small>جمع · {rLabel}</small><b>{bare(data.totalR)}</b><em>{data.countR ? `${faN(data.winsR)} برد · ${faN(data.lossesR)} باخت · وین‌ریت ${faN((data.winsR / data.countR) * 100)}٪` : 'در این بازه چیزی ثبت نشده'}</em></div>
-      <div className={`fu-kpi ${tone(data.totalAll)}`}><small>{past ? `جمع کل تا آخر ${mName}` : 'جمع کل از ابتدا'}</small><b>{bare(data.totalAll)}</b><em>پوکر {signed(data.pokerAll)} · بت {usdTxt(data.betUsdAll)}</em></div>
+      <div className={`fu-kpi ${tone(data.totalAll)}`}><small>{past ? `جمع کل تا آخر ${mName}` : 'جمع کل از ابتدا'}</small><b>{bare(data.totalAll)}</b><em>پوکر {signed(data.pokerAll)} · بت {data.hasBet ? `${signed(data.betRialAll)} (${sign(data.betUsdAll)}${usdR(data.betUsdAll)})` : usdTxt(data.betUsdAll)}</em></div>
       <div className={`fu-kpi ${tone(data.pokerR)}`}><small>پوکر · {rLabel}</small><b>{bare(data.pokerR)}</b><em>{faN(data.pR.length)} جلسه</em></div>
-      <div className={`fu-kpi ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{'$' + faN(Math.abs(data.betUsdR), 2)}</b><em>{data.hasBet ? `≈ ${signed(data.betRialR)}` : 'بدون نرخ دلار'}</em></div>
+      <div className={`fu-kpi ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{data.hasBet ? bare(data.betRialR) : usdR(data.betUsdR)}</b><em>{data.hasBet ? `(${usdR(data.betUsdR)})` : 'بدون نرخ دلار'}</em></div>
       </> : mode === 'poker' ? <>
       <div className={`fu-kpi main ${tone(data.pokerR)}`}><small>پوکر · {rLabel}</small><b>{bare(data.pokerR)}</b><em>{faN(data.pR.length)} جلسه</em></div>
       <div className={`fu-kpi ${tone(data.pokerAll)}`}><small>{past ? `پوکر تا آخر ${mName}` : 'پوکر از ابتدا'}</small><b>{bare(data.pokerAll)}</b><em>{faN(poker.filter(x => x.date <= anchor).length)} جلسه</em></div>
       </> : <>
-      <div className={`fu-kpi main ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{'$' + faN(Math.abs(data.betUsdR), 2)}</b><em>{data.hasBet ? `≈ ${signed(data.betRialR)}` : 'بدون نرخ دلار'}</em></div>
-      <div className={`fu-kpi ${tone(data.betUsdAll)}`}><small>{past ? `بت تا آخر ${mName}` : 'بت از ابتدا'}</small><b>{'$' + faN(Math.abs(data.betUsdAll), 2)}</b><em>{faN(bet.filter(x => x.date <= anchor).length)} روز</em></div>
+      <div className={`fu-kpi main ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{data.hasBet ? bare(data.betRialR) : usdR(data.betUsdR)}</b><em>{data.hasBet ? `(${usdR(data.betUsdR)})` : 'بدون نرخ دلار'}</em></div>
+      <div className={`fu-kpi ${tone(data.betUsdAll)}`}><small>{past ? `بت تا آخر ${mName}` : 'بت از ابتدا'}</small><b>{data.hasBet ? bare(data.betRialAll) : usdR(data.betUsdAll)}</b><em>{data.hasBet ? `(${usdR(data.betUsdAll)}) · ` : ''}{faN(bet.filter(x => x.date <= anchor).length)} روز</em></div>
       </>}
     </div>
     <LossLimit status={status} onSave={saveLimit} />
