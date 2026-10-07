@@ -330,6 +330,8 @@ export function compareReportHtml({ rows, brand = {} }) {
   const title = `مقایسهٔ پروژه‌ها – ${jl(today)}`;
   const sum = f => rows.reduce((a, r) => a + (Number(f(r.m)) || 0), 0);
   const avg = rows.length ? Math.round(sum(m => m.progress) / rows.length) : 0;
+  // the same average without finished projects (their 100% hides how far the open work is)
+  const openRows = rows.filter(r => r.m.state !== 'done' && r.m.progress < 100), avgOpen = openRows.length ? Math.round(openRows.reduce((a, r) => a + (Number(r.m.progress) || 0), 0) / openRows.length) : null;
   const amount = sum(m => m.amount), received = sum(m => m.received), outstanding = sum(m => m.outstanding), late = sum(m => m.late);
   // «وصول از قراردادها» only over projects that have a contract amount (payments on projects without one made it 130%)
   const recPct = amount ? Math.round(sum(m => m.amount ? Math.min(m.received, m.amount) : 0) / amount * 100) : null;
@@ -347,7 +349,7 @@ export function compareReportHtml({ rows, brand = {} }) {
 <div class="brandc">${logo ? `<img src="${logo}" alt="">` : ''}</div>
 <div class="kick">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="line"></div>
 <div class="sub">${esc(jl(today))}</div>
-<div class="stats"><div><b>${fa(rows.length)}</b><small>پروژه</small></div><div><b>${pct(avg)}</b><small>میانگین پیشرفت</small></div><div><b>${recPct == null ? '—' : pct(recPct)}</b><small>وصول از قراردادها</small></div><div><b>${fa(late)}</b><small>مرحلهٔ عقب‌افتاده</small></div></div>
+<div class="stats"><div><b>${fa(rows.length)}</b><small>پروژه</small></div><div><b>${pct(avg)}</b><small>میانگین پیشرفت</small></div>${avgOpen != null && openRows.length < rows.length ? `<div><b>${pct(avgOpen)}</b><small>میانگین در جریان (${fa(openRows.length)})</small></div>` : ''}<div><b>${recPct == null ? '—' : pct(recPct)}</b><small>وصول از قراردادها</small></div><div><b>${fa(late)}</b><small>مرحلهٔ عقب‌افتاده</small></div></div>
 </div><div class="ringw">${svg}<div class="rleg">${list.map(({ p, m }) => `<span><i style="background:${/^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1'}"></i>${esc(p.name)} ${pct(m.progress)}</span>`).join('')}</div></div>
 <div class="prep"><span>${preparer ? `تهیه‌کننده<b>${esc(preparer)}</b>` : ''}</span><span>تاریخ تهیه: ${esc(printedAt)}</span></div></section>`;
   })();
@@ -387,7 +389,7 @@ ${coverHtml}
 <header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه${brand.preparer ? `  |  تهیه‌کننده: ${esc(brand.preparer)}` : ''}</div></div>
 <div class="brand">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div></header>
 <div class="cmp-kpis">
-<div class="kpi"><small>میانگین پیشرفت</small><b class="num">${pct(avg)}</b>${bar(avg, '#0f172a')}</div>
+<div class="kpi"><small>میانگین پیشرفت</small><b class="num">${pct(avg)}</b>${bar(avg, '#0f172a')}${avgOpen != null && openRows.length < rows.length ? `<span>در جریان: ${pct(avgOpen)} (${fa(openRows.length)} پروژه)</span>` : ''}</div>
 <div class="kpi"><small>جمع مبلغ قراردادها</small><b class="num">${money(amount)}</b></div>
 <div class="kpi"><small>جمع وصولی</small><b class="num">${money(received)}</b>${bar(recPct || 0, '#059669')}<span>${recPct == null ? '—' : pct(recPct)} از قراردادها</span></div>
 <div class="kpi ${outstanding ? 'bad' : ''}"><small>جمع مطالبات معوق</small><b class="num">${money(outstanding)}</b></div>

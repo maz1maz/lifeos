@@ -636,7 +636,7 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">
-    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
+    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{(() => { const open = rows.filter(r => r.m.state !== 'done' && r.m.progress < 100), avg = rows.length ? Math.round(sum(m => m.progress) / rows.length) : 0, avgOpen = open.length ? Math.round(open.reduce((a, r) => a + r.m.progress, 0) / open.length) : null; return <><span>میانگین: {fa(avg)}٪</span>{avgOpen != null && open.length < rows.length ? <span>در جریان: {fa(avgOpen)}٪</span> : null}</>; })()}{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
     <div className="lf-compare-wrap"><table>
       <thead><tr>{th('order', 'پروژه')}{th('progress', 'پیشرفت')}<th>زمان</th>{th('variance', 'انحراف')}{th('end', 'پایان قرارداد')}<th>مبلغ قرارداد</th><th>وصولی</th>{th('outstanding', 'معوق')}<th>مراحل عقب</th><th>وضعیت</th></tr></thead>
       <tbody>{rows.map(({ p, m }) => <tr key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}>

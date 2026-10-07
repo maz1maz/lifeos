@@ -366,3 +366,22 @@
 .fn-closed em { font-style: normal; font-size: 12px; font-weight: 800; }
 .fn-closed em.pos { color: var(--g-good, #34d399); } .fn-closed em.neg { color: #fb7185; }
 .fn-closed-more { flex-basis: 100%; border: 1px solid var(--g-border); border-radius: var(--g-radius-control); padding: 10px 12px; }
+
+/* جمع / پوکر / بت beside the month picker; the list that isn't chosen is hidden */
+.fn-mp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.fn-2.fun-poker .fn-bet-sec, .fn-2.fun-bet .fn-poker-sec { display: none; }
+.fn-2.fun-poker, .fn-2.fun-bet { grid-template-columns: 1fr; }
+/* an opened holding card: the details sit on a dark panel so the text reads well on any card colour */
+.fn-xpf .xc.open .xc-more { background: rgba(10, 15, 28, .82); color: #e2e8f0; border-radius: 14px; padding: 12px; margin-top: 10px; }
+.fn-xpf .xc.open .xc-more * { color: inherit; }
+.fn-xpf .xc.open .xc-more small, .fn-xpf .xc.open .xc-more .muted { color: #94a3b8; }
+.fn-xpf .xc.open .xc-more > * > div, .fn-xpf .xc.open .xc-more .xc-price, .fn-xpf .xc.open .xc-more .xc-txs > * { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.08); }
+.fn-xpf .xc.open .xc-more button { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #e2e8f0; }
+.fn-xpf .xc.open .xc-more input { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #f8fafc; }
+.fn-xpf .xc.open .xc-more .pos b { color: #34d399; } .fn-xpf .xc.open .xc-more .neg b { color: #fb7185; }
+/* trade list: buy green, sell red (a coloured edge + the word) */
+.xc-tx { border-inline-start: 3px solid transparent; }
+.xc-tx.t-buy { border-inline-start-color: #34d399; } .xc-tx.t-sell { border-inline-start-color: #fb7185; }
+.xc-tx .xc-side { font-style: normal; font-weight: 800; }
+.fn-xpf .xc.open .xc-more .xc-tx.t-buy .xc-side { color: #34d399; } .fn-xpf .xc.open .xc-more .xc-tx.t-sell .xc-side { color: #fb7185; }
+.xc-tx.t-buy .xc-side { color: #34d399; } .xc-tx.t-sell .xc-side { color: #fb7185; }
