@@ -4632,6 +4632,16 @@
         }
       }
     },
+    "/api/investments/price-history": {
+      "get": {
+        "operationId": "get_api_investments_price_history",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/investments/price/refresh": {
       "post": {
         "operationId": "post_api_investments_price_refresh",
