@@ -285,11 +285,11 @@ export function processTemplate(contract) {
   for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '', group: 'end' });
   return out.map((s, order) => ({ ...s, order }));
 }
-// Weighted progress. Each contract item is its own 0–100 (inside it: control 10, technical 15, supply 30,
-// execution 45; execution stages weighted by EXEC_BASE). The project = fixed stages (FIXED_WEIGHT, in %) +
+// Weighted progress. Each contract item is its own 0–100 (inside it: control 10, technical 15, supply 45,
+// execution 30; execution stages weighted by EXEC_BASE). The project = fixed stages (FIXED_WEIGHT, in %) +
 // the items, each item's share proportional to its contract area (items with no area count as the average;
 // no areas at all → equal shares).
-const DEPT_WEIGHT = { 'کنترل پروژه': 10, 'فنی': 15, 'تأمین': 30, 'اجرا': 45 };
+const DEPT_WEIGHT = { 'کنترل پروژه': 10, 'فنی': 15, 'تأمین': 45, 'اجرا': 30 };
 const EXEC_BASE = { 'ابعادبرداری برآوردی': 1, 'ابعادبرداری دقیق': 2, 'شروع نصب': 3, 'پایان نصب': 12 };
 const FIXED_WEIGHT = { 'ابلاغ قرارداد': 1, 'تأیید رنگ از کارفرما': 1, 'سفارش بیلت': 1, 'سفارش یراق‌آلات': 1, 'تحویل پروژه': 2 };
 const baseOf = s => s.base || String(s.title || '').split(ITEM_SEP)[0];
