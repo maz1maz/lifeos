@@ -5,7 +5,9 @@
 import { jToIso } from './jdate';
 import { itemKind } from './statement';
 
-const norm = v => String(v ?? '').replace(/[‌\s]+/g, ' ').replace(/ي/g, 'ی').replace(/ك/g, 'ک').trim();
+// for matching header/label texts only: a half-space (ZWNJ) counts as a space
+const hn = v => norm(v).replace(/\u200c/g, ' ');
+const norm = v => String(v ?? '').replace(/\s+/g, ' ').replace(/ي/g, 'ی').replace(/ك/g, 'ک').trim();
 const digits = v => String(v ?? '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 const numOf = v => { if (typeof v === 'number') return v; const n = Number(digits(v).replace(/[,٬\s]/g, '')); return Number.isFinite(n) ? n : NaN; };
 export const jalaliIso = v => { const m = /(1[34]\d\d)\s*[/\-.]\s*(\d{1,2})\s*[/\-.]\s*(\d{1,2})/.exec(digits(v)); return m ? jToIso(+m[1], +m[2], +m[3]) : ''; };
@@ -22,7 +24,7 @@ function grid(XLSX, ws) {
 function findHeader(g, texts) {
   for (let r = 0; r < Math.min(g.rows, 80); r++) {
     const col = {};
-    for (let c = 0; c < g.cols; c++) { const t = norm(g.at(r, c)); for (const want of texts) if (col[want] == null && t === want) col[want] = c; }
+    for (let c = 0; c < g.cols; c++) { const t = hn(g.at(r, c)); for (const want of texts) if (col[want] == null && t === want) col[want] = c; }
     if (texts.every(t => col[t] != null)) return { row: r, col };
   }
   return null;
@@ -30,7 +32,7 @@ function findHeader(g, texts) {
 // the value next to a label like «شماره قرارداد :» (first non-empty cell after it in the same row)
 function labelValue(g, label) {
   for (let r = 0; r < Math.min(g.rows, 40); r++) for (let c = 0; c < g.cols; c++) {
-    const t = norm(g.at(r, c)); if (!t.startsWith(label)) continue;
+    const t = norm(g.at(r, c)); if (!hn(t).startsWith(label)) continue;
     const rest = norm(t.slice(label.length).replace(/^[:\s]+/, '')); if (rest) return rest;
     for (let k = c + 1; k < Math.min(g.cols, c + 6); k++) { const v = g.at(r, k); if (norm(v)) return typeof v === 'number' ? v : norm(v); }
   }
@@ -47,7 +49,7 @@ export async function parseStatementWorkbook(buffer) {
     const h = findHeader(g, ['شماره آیتم قرارداد', 'شرح آیتم قرارداد', 'مقدار', 'واحد', 'فی']);
     if (h && !items) {
       items = []; let total = 0, discount = 0; // total: first «جمع کل» row (fallback only)
-      const C = h.col;
+      const C = h.col, kindCol = (() => { for (let c = 0; c < g.cols; c++) if (norm(g.at(h.row, c)) === 'نوع') return c; return -1; })();
       for (let r = h.row + 1; r < g.rows; r++) {
         const code = g.at(r, C['شماره آیتم قرارداد']), label = norm(code);
         if (label.startsWith('جمع کل') && !total) total = numOf(g.at(r, C['فی'])) || numOf(g.at(r, C['فی'] + 1)) || 0;
@@ -56,7 +58,8 @@ export async function parseStatementWorkbook(buffer) {
         const desc = norm(g.at(r, C['شرح آیتم قرارداد'])), key = codeKey(code), price = numOf(g.at(r, C['فی'])), qty = numOf(g.at(r, C['مقدار']));
         if (!desc || !key || !Number.isFinite(price)) continue;
         if (items.some(x => x.key === key)) { warnings.push(`ردیف «${label}» دو بار در فهرست آیتم‌ها آمده؛ اولی نگه داشته شد.`); continue; }
-        items.push({ key, desc, qty: Number.isFinite(qty) ? qty : '', unit: norm(g.at(r, C['واحد'])) || 'مترمربع', price, extra: key.startsWith('x') });
+        const k = kindCol >= 0 ? norm(g.at(r, kindCol)) : '', kind = /نصب|خدمات|بیمه/.test(k) ? 'install' : /فروش|تأمین|تامین/.test(k) ? 'supply' : /سایر/.test(k) ? 'other' : '';
+        items.push({ key, desc, qty: Number.isFinite(qty) ? qty : '', unit: norm(g.at(r, C['واحد'])) || 'مترمربع', price, extra: key.startsWith('x'), kind });
       }
       // discount rate = contract discount ÷ the contract (non-extra) items — the «جمع کل» rows below also hold VAT totals
       const base = items.filter(x => !x.extra).reduce((t, x) => t + (Number(x.qty) || 0) * x.price, 0) || total;
@@ -93,7 +96,7 @@ export async function parseStatementWorkbook(buffer) {
   }
   if (!items?.length) throw new Error('فهرست آیتم‌های قرارداد در این فایل پیدا نشد (ستون‌های «شماره آیتم قرارداد»، «شرح آیتم قرارداد»، «مقدار»، «واحد»، «فی»).');
   const ids = Object.fromEntries(items.map((x, i) => [x.key, `b${Date.now().toString(36)}${i}`]));
-  const boq = items.map(x => { const row = { id: ids[x.key], desc: x.desc, qty: x.qty, unit: x.unit, price: x.price, ...(x.extra ? { extra: true } : {}) }; return { ...row, kind: itemKind(row) }; });
+  const boq = items.map(x => { const row = { id: ids[x.key], desc: x.desc, qty: x.qty, unit: x.unit, price: x.price, ...(x.extra ? { extra: true } : {}) }; return { ...row, kind: x.kind || itemKind(row) }; });
   // statement numbers: numeric ones as they are; a text one («ماقبل قطعی», «قطعی») becomes the next number
   const numeric = (measuresRaw || []).map(x => numOf(x.st)).filter(Number.isFinite), maxNo = numeric.length ? Math.max(...numeric) : 0;
   const textNo = (measuresRaw || []).some(x => !Number.isFinite(numOf(x.st)) && norm(x.st)) ? maxNo + 1 : 0;
@@ -105,5 +108,6 @@ export async function parseStatementWorkbook(buffer) {
   }
   const last = Math.max(1, ...measures.map(x => x.statementNo));
   const periods = period || prep ? { [last]: { ...(period || {}), ...(prep ? { prep } : {}) } } : {};
-  return { boq, measures, info, periods, finalNo: isFinalDoc ? last : null, lastNo: last, warnings };
+  const finalRow = (measuresRaw || []).some(x => norm(x.st) === 'قطعی');
+  return { boq, measures, info, periods, finalNo: isFinalDoc || finalRow ? last : null, lastNo: last, warnings };
 }
