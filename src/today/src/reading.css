@@ -59,3 +59,4 @@
 .rd-wsaved{margin:0;padding-inline-start:18px;font-size:13px;display:grid;gap:4px}
 .rd-wsaved a{color:var(--g-text)}
 @media (max-width:700px){.rd-src .rd-srcadd{grid-template-columns:1fr}}
+.rd-presets .rd-all{border-style:solid;border-color:color-mix(in srgb,var(--g-accent) 60%,transparent);background:color-mix(in srgb,var(--g-accent) 14%,transparent);font-weight:700}

@@ -50,6 +50,18 @@ function News() {
     catch (x) { setMsg(x.message); }
     setBusy('');
   };
+  // every suggested source in one go (one request each, so a site that can't be reached doesn't block the rest)
+  const addAll = async () => {
+    const todo = PRESETS.filter(([, u]) => !sources.some(x => x.url === u)); if (!todo.length) return;
+    setBusy('add'); let ok = 0, got = 0; const bad = [];
+    for (const [i, [n, u, c]] of todo.entries()) {
+      setMsg(`در حال افزودن ${fa(i + 1)} از ${fa(todo.length)}: ${n}…`);
+      try { const r = await api('/api/news/sources', { method: 'POST', body: JSON.stringify({ name: n, url: u, category: c }) }); ok++; got += r.added || 0; }
+      catch (x) { if (!/قبلاً/.test(x.message)) bad.push(n); }
+    }
+    setMsg(`${fa(ok)} منبع اضافه شد و ${fa(got)} خبر آمد.${bad.length ? ` در دسترس نبود: ${bad.join('، ')}` : ''}`);
+    setBusy(''); await load();
+  };
   const addSrc = e => { e.preventDefault(); if (!src.url.trim()) { setMsg('آدرس سایت را بنویس، مثلاً zoomit.ir'); return; } addFrom({ url: src.url.trim(), category: src.category || 'عمومی' }, () => setSrc({ url: '', category: '' })); };
   const delSrc = async s => { if (!window.confirm(`منبع «${s.name}» حذف شود؟`)) return; await api(`/api/news/sources/${s.id}`, { method: 'DELETE' }).catch(() => {}); load(); };
   return <section className="rd-card">
@@ -69,7 +81,7 @@ function News() {
         <button type="submit" className="rd-btn" disabled={busy === 'add'}>{busy === 'add' ? '…' : 'افزودن'}</button>
       </form>
       <p className="rd-muted rd-hint">لازم نیست RSS را بدانی؛ آدرس خود سایت کافی است و فید خبری‌اش خودکار پیدا می‌شود.</p>
-      {PRESETS.filter(([, u]) => !sources.some(x => x.url === u)).length ? <div className="rd-presets"><small>پیشنهادی (یک کلیک):</small>{PRESETS.filter(([, u]) => !sources.some(x => x.url === u)).map(([n, u, c]) => <button type="button" key={u} disabled={busy === 'add'} onClick={() => addFrom({ name: n, url: u, category: c })}>+ {n}</button>)}</div> : null}
+      {PRESETS.filter(([, u]) => !sources.some(x => x.url === u)).length ? <div className="rd-presets"><small>پیشنهادی (یک کلیک):</small><button type="button" className="rd-all" disabled={busy === 'add'} onClick={addAll}>＋ همه را اضافه کن</button>{PRESETS.filter(([, u]) => !sources.some(x => x.url === u)).map(([n, u, c]) => <button type="button" key={u} disabled={busy === 'add'} onClick={() => addFrom({ name: n, url: u, category: c })}>+ {n}</button>)}</div> : null}
       {sources.length ? <ul className="rd-srclist">{sources.map(s => <li key={s.id}><span><b>{s.name}</b><small dir="ltr">{host(s.url)}</small>{s.lastError ? <small className="bad">⚠ {s.lastError}</small> : null}</span><button type="button" className="rd-x" onClick={() => delSrc(s)} aria-label={`حذف منبع ${s.name}`}><Trash2 size={15} /></button></li>)}</ul> : <p className="rd-muted">هنوز منبعی نداری. از پیشنهادها انتخاب کن یا آدرس یک سایت خبری را بنویس.</p>}
     </div> : null}
     <div className="rd-filters" role="group" aria-label="فیلتر اخبار">
