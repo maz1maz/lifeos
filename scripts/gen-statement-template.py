@@ -9,8 +9,8 @@ OUT = 'public/templates/statement-template.xlsx'
 NAVY, GOLD, INPUT, MUTED = '0B1F3A', 'C8A24A', 'FFF9E8', '64748B'
 thin = Side(style='thin', color='CBD5E1')
 box = Border(left=thin, right=thin, top=thin, bottom=thin)
-center = Alignment(horizontal='center', vertical='center', wrap_text=True)
-right = Alignment(horizontal='right', vertical='center', wrap_text=True)
+center = Alignment(horizontal='center', vertical='center', wrap_text=True, readingOrder=2)
+right = Alignment(horizontal='right', vertical='center', wrap_text=True, readingOrder=2)
 head_font, head_fill = Font(name='Tahoma', bold=True, color='FFFFFF', size=10), PatternFill('solid', fgColor=NAVY)
 in_fill = PatternFill('solid', fgColor=INPUT)
 base = Font(name='Tahoma', size=10)
@@ -28,10 +28,10 @@ for label, cell in info:
     c = ws[cell]; c.value = label; c.font = Font(name='Tahoma', bold=True, size=10); c.alignment = right
     v = ws.cell(row=c.row, column=c.column + 1); v.fill = in_fill; v.border = box; v.font = base; v.alignment = right
 ws.merge_cells('C3:E3'); ws.merge_cells('C4:E4'); ws.merge_cells('C5:E5')
-ws['H4'] = '(مثلاً ۱۴۰۵/۰۲/۰۶)'; ws['H4'].font = Font(name='Tahoma', size=8, color=MUTED)
+ws['H4'] = '(مثلاً ۱۴۰۵/۰۲/۰۶)'; ws['H4'].font = Font(name='Tahoma', size=8, color=MUTED); ws['H4'].alignment = right
 ws['F5'] = 'نام پیمانکار'; ws['G5'] = 'شرکت'
 for c in (ws['F5'], ws['G5']): c.font = Font(name='Tahoma', bold=True, size=9, color=MUTED); c.alignment = center
-ws['G6'].fill = in_fill; ws['G6'].border = box; ws['G6'].font = base; ws['F6'] = '(نام شرکت پیمانکار)'; ws['F6'].font = Font(name='Tahoma', size=8, color=MUTED)
+ws['G6'].fill = in_fill; ws['G6'].border = box; ws['G6'].font = base; ws['F6'] = '(نام شرکت پیمانکار)'; ws['F6'].font = Font(name='Tahoma', size=8, color=MUTED); ws['F6'].alignment = right
 
 H = 8
 headers = ['شماره آیتم قرارداد', 'شرح آیتم قرارداد', 'نوع', 'مقدار', 'واحد', 'فی', 'مبلغ']
@@ -52,13 +52,14 @@ for r in range(first, last + 1):
 tot, disc = last + 1, last + 2
 ws.cell(row=tot, column=2, value='جمع کل'); ws.cell(row=tot, column=7, value=f'=SUMPRODUCT(--(LEFT(B{first}:B{last},5)<>"مازاد"),H{first}:H{last})')
 ws.cell(row=disc, column=2, value='تخفیف'); ws.cell(row=disc, column=7).fill = in_fill
-ws.cell(row=disc, column=8, value='← مبلغ تخفیف کل قرارداد (اختیاری، ریال)').font = Font(name='Tahoma', size=8, color=MUTED)
+ws.cell(row=disc, column=8, value='← مبلغ تخفیف کل قرارداد (اختیاری، ریال)').font = Font(name='Tahoma', size=8, color=MUTED); ws.cell(row=disc, column=8).alignment = right
 for r in (tot, disc):
     ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
     for col in range(2, 8):
         c = ws.cell(row=r, column=col); c.border = box; c.font = Font(name='Tahoma', bold=True, size=10); c.alignment = center
     ws.cell(row=r, column=7).number_format = '#,##0'
 for col, w in zip('ABCDEFGH', (2, 20, 52, 20, 12, 13, 18, 22)): ws.column_dimensions[col].width = w
+ws.column_dimensions['H'].width = 26
 dv_unit = DataValidation(type='list', formula1=f'"{UNITS}"', allow_blank=True); dv_kind = DataValidation(type='list', formula1=f'"{KINDS}"', allow_blank=True)
 ws.add_data_validation(dv_unit); ws.add_data_validation(dv_kind)
 dv_unit.add(f'F{first}:F{last}'); dv_kind.add(f'D{first}:D{last}')
@@ -67,8 +68,8 @@ ws.freeze_panes = f'A{first}'
 # ── measurement sheet (optional) ──
 m = wb.create_sheet('ریزمتر'); m.sheet_view.rightToLeft = True
 m.merge_cells('A1:H1'); m['A1'] = 'ریزمتره (اختیاری — مقدار انجام‌شدهٔ هر آیتم در هر صورت وضعیت)'; m['A1'].font = Font(name='Tahoma', bold=True, size=13, color=NAVY); m['A1'].alignment = center
-m['A3'] = 'دوره کارکرد :'; m['A3'].font = Font(name='Tahoma', bold=True); m['B3'].fill = in_fill; m['B3'].border = box; m.merge_cells('B3:C3')
-m['D3'] = '(مثلاً ۱۴۰۵/۰۴/۲۲-۱۴۰۵/۰۶/۰۶ — دورهٔ آخرین صورت وضعیت)'; m['D3'].font = Font(name='Tahoma', size=8, color=MUTED)
+m['A3'] = 'دوره کارکرد :'; m['A3'].font = Font(name='Tahoma', bold=True); m['A3'].alignment = right; m['B3'].fill = in_fill; m['B3'].border = box; m.merge_cells('B3:C3')
+m['D3'] = '(مثلاً ۱۴۰۵/۰۴/۲۲-۱۴۰۵/۰۶/۰۶ — دورهٔ آخرین صورت وضعیت)'; m['D3'].font = Font(name='Tahoma', size=8, color=MUTED); m['D3'].alignment = right
 mh = ['آیتم قرارداد', 'شماره صورت وضعیت', 'تاریخ انجام', 'شرح آیتم قرارداد', 'مقدار انجام شده', 'فی', 'مبلغ', 'توضیحات']
 for i, h in enumerate(mh):
     c = m.cell(row=5, column=1 + i, value=h); c.font = head_font; c.fill = head_fill; c.alignment = center; c.border = box
