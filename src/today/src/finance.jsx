@@ -527,10 +527,13 @@ export function FinanceReact({ Nav }) {
     }).catch(() => setPfTx([]))
   }, [tab])
   const pfSeries = (() => {
-    const real = pfSnaps || [], first = real.length ? real[0].date : isoToday()
-    const curOf = (t) => t.currency === 'IRR' || t.currency === 'USD' ? t.currency : t.assetType === 'crypto' ? 'USD' : 'IRR'
-    const histOn = (k, date) => { const h = pfHist[k]; if (!h || !h.length) return k === 'price_dollar_rl' ? usdRate : k === 'price_eur' ? eurRate : rates[k] || 0; return makeRateOn(h, 0)(date) }
-    return [...rebuildPfHistory(pfTx, curOf, histOn, first), ...real]
+    // trades are the source of truth for every past day: early snapshots were taken before the broker import
+    // (wrong holdings, e.g. a false dip on 5 Mehr). A saved snapshot is used only where no trades exist, plus today.
+    const today = isoToday(), rebuilt = rebuildPfHistory(pfTx, (t) => t.currency === 'IRR' || t.currency === 'USD' ? t.currency : t.assetType === 'crypto' ? 'USD' : 'IRR', (k, date) => { const h = pfHist[k]; if (!h || !h.length) return k === 'price_dollar_rl' ? usdRate : k === 'price_eur' ? eurRate : rates[k] || 0; return makeRateOn(h, 0)(date) }, today)
+    // today = the live portfolio (current prices), not a snapshot saved earlier in the day
+    const live = pf.total > 0 ? [{ date: today, value: Math.round(pf.total), cost: Math.round(Math.max(0, pf.total - pf.pnl)) }] : (pfSnaps || []).filter((x) => x.date === today)
+    if (rebuilt.length) { const have = new Set(rebuilt.map((x) => x.date)); return [...rebuilt, ...(pfSnaps || []).filter((x) => x.date !== today && !have.has(x.date) && x.date > rebuilt[rebuilt.length - 1].date), ...live] }
+    return [...(pfSnaps || []).filter((x) => x.date !== today), ...live]
   })()
   const pastMonth = mRange.to < isoToday(), endSnap = pastMonth ? pfSeries.filter((x) => x.date >= mRange.from && x.date <= mRange.to).pop() : null
   // Portfolio history: one snapshot per day (rial value + cost), taken when the wealth tab is opened with live rates.
