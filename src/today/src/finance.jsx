@@ -418,20 +418,20 @@ export function FinanceReact({ Nav }) {
     try {
       const months = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5))
       const { from, to } = jRange(month), rq = `from=${from}&to=${to}`
-      const [sum, list, acc, bud, debt, pf, pk, pkSum, bt, al, pkAll, ...hist] = await Promise.all([
-        api(`/api/finance?${rq}`),
-        api(`/api/transactions?${rq}`),
-        api('/api/accounts').catch(() => ({ accounts: [] })),
-        api(`/api/budgets?month=${month}&legacy=${legacyKey(month)}&${rq}`).catch(() => ({ budgets: [] })),
-        api('/api/debts').catch(() => ({ items: [] })),
-        api('/api/portfolio').catch(() => ({ items: [], totals: {} })),
-        api(`/api/poker?${rq}`).catch(() => ({ items: [] })),
-        api(`/api/poker/summary?${rq}`).catch(() => ({})),
-        api(`/api/bet?${rq}`).catch(() => ({ items: [], stats: {} })),
-        api('/api/investments/alerts').catch(() => ({ items: [] })),
-        api('/api/poker').catch(() => ({ items: [] })),
-        ...months.map((m) => { const r = jRange(m); return api(`/api/finance?from=${r.from}&to=${r.to}`).catch(() => ({ income: 0, expense: 0 })) }),
-      ])
+      // one round trip (/api/bundle reads the data once); each entry: [path, fallback] — no fallback = required
+      const want = [
+        [`/api/finance?${rq}`], [`/api/transactions?${rq}`],
+        ['/api/accounts', { accounts: [] }], [`/api/budgets?month=${month}&legacy=${legacyKey(month)}&${rq}`, { budgets: [] }],
+        ['/api/debts', { items: [] }], ['/api/portfolio', { items: [], totals: {} }],
+        [`/api/poker?${rq}`, { items: [] }], [`/api/poker/summary?${rq}`, {}], [`/api/bet?${rq}`, { items: [], stats: {} }],
+        ['/api/investments/alerts', { items: [] }], ['/api/poker', { items: [] }],
+        ...months.map((m) => { const r = jRange(m); return [`/api/finance?from=${r.from}&to=${r.to}`, { income: 0, expense: 0 }] }),
+      ]
+      let b = null
+      try { b = await api('/api/bundle?' + want.map(([u]) => 'p=' + encodeURIComponent(u)).join('&')) } catch { /* older Worker without /api/bundle */ }
+      const got = b ? want.map(([, fb], i) => { const it = b.items?.[i]; if (it && it.status < 400) return it.body; if (fb) return fb; throw new Error(it?.body?.error || 'دریافت اطلاعات ناموفق بود.') })
+        : await Promise.all(want.map(([u, fb]) => fb ? api(u).catch(() => fb) : api(u)))
+      const [sum, list, acc, bud, debt, pf, pk, pkSum, bt, al, pkAll, ...hist] = got
       if (seq !== loadSeq.current) return
       setSummary(sum)
       setTxs(list.items || [])

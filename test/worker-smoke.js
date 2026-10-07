@@ -573,6 +573,13 @@ async function main() {
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
     check('TSE hours: Sunday 10:00 Tehran open, 14:00 closed, Thursday closed', H.tseMarketOpen(at('2026-10-11T06:30:00Z')) && !H.tseMarketOpen(at('2026-10-11T10:30:00Z')) && !H.tseMarketOpen(at('2026-10-08T06:30:00Z')));
   }
+  { // /api/bundle: several GETs in one round trip, same answers as asking one by one; bad paths refused per entry
+    const one = (await call('/api/accounts', { cookie })).d, b = await call('/api/bundle?p=' + encodeURIComponent('/api/accounts') + '&p=' + encodeURIComponent('/api/finance?from=2026-01-01&to=2026-12-31') + '&p=' + encodeURIComponent('/api/auth/logout') + '&p=' + encodeURIComponent('https://evil.example/x'), { cookie });
+    check('bundle -> 200 with one entry per path', b.status === 200 && b.d.items.length === 4, JSON.stringify(b.d).slice(0, 200));
+    check('bundle entry equals the single request', JSON.stringify(b.d.items[0].body) === JSON.stringify(one) && b.d.items[1].status === 200);
+    check('bundle refuses auth routes and outside URLs', b.d.items[2].status === 400 && b.d.items[3].status === 400);
+    check('bundle needs a session', (await call('/api/bundle?p=' + encodeURIComponent('/api/accounts'))).status === 401);
+  }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
   check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');
