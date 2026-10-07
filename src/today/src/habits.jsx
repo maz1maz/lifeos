@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { isoToJ, MONTHS } from './jdate';
 import './habits.css';
 import { VocabStats } from './vocab';
@@ -134,9 +135,9 @@ export function WeeklyPage({ Nav }) {
       <header className="hb-hero">
         <div><p>مرور هفتگی</p><h1>{jLabel(ws)} تا {jLabel(we)}</h1></div>
         <div className="hb-weeknav">
-          <button dir="ltr" type="button" onClick={() => setWs(addDays(ws, -7))} aria-label="هفتهٔ قبل">›</button>
+          <button type="button" onClick={() => setWs(addDays(ws, -7))} aria-label="هفتهٔ قبل"><ChevronRight size={18} aria-hidden="true" /></button>
           {!isCur && <button type="button" className="txt" onClick={() => setWs(weekStart(today))}>این هفته</button>}
-          <button dir="ltr" type="button" onClick={() => setWs(addDays(ws, 7))} disabled={isCur} aria-label="هفتهٔ بعد">‹</button>
+          <button type="button" onClick={() => setWs(addDays(ws, 7))} disabled={isCur} aria-label="هفتهٔ بعد"><ChevronLeft size={18} aria-hidden="true" /></button>
         </div>
       </header>
       {!data ? <p className="hb-empty">در حال دریافت…</p> : data.error ? <p className="hb-empty">{data.error}</p> : <>

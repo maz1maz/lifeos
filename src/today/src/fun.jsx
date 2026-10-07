@@ -14,7 +14,8 @@ const cv = n => (U === 'toman' ? (Number(n) || 0) / 10 : Number(n) || 0);
 const f1 = v => v.toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : 1 });
 const parts = n => { const a = Math.abs(cv(n)); return a >= 1e9 ? [f1(a / 1e9), 'میلیارد'] : a >= 1e6 ? [f1(a / 1e6), 'میلیون'] : a >= 1e3 ? [f1(a / 1e3), 'هزار'] : [faN(a), '']; };
 const money = n => { const [v, w] = parts(n); return `${Number(n) < 0 ? '−' : ''}${v}${w ? ' ' + w : ''} ${UF()}`; };
-const sign = n => (n > 0 ? '+' : n < 0 ? '−' : '');
+// green/red already tells gain from loss; only a loss keeps its sign
+const sign = n => (n < 0 ? '−' : '');
 const signed = n => sign(n) + money(Math.abs(n)).replace(/^−/, '');
 const usdTxt = n => `${sign(n)}$${faN(Math.abs(n), 2)}`;
 const jKey = iso => { const j = isoToJ(iso); return `${j.jy}-${String(j.jm).padStart(2, '0')}`; };
@@ -145,7 +146,12 @@ function rangeFrom(r, today) {
   return '0000-00-00';
 }
 
-export function FunOverview({ poker = [], bet = [], usdRate = 0 }) {
+export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo }) {
+  // The ranges count back from the month picked at the top of the finance page (not always from today):
+  // «این ماه» = that month, «امسال» = its year, and nothing after its last day is included.
+  const now = todayTeh(), anchor = monthTo && monthTo < now ? monthTo : now, past = anchor !== now;
+  const aj = isoToJ(anchor), mName = MONTHS[aj.jm - 1], prevName = MONTHS[(aj.jm + 10) % 12];
+  const ranges = past ? [['m', mName], ['m2', `${mName} و ${prevName}`], ['q', 'آن فصل'], ['y', `سال ${faN(aj.jy)}`], ['all', `تا آخر ${mName}`]] : RANGES;
   const [range, setRange] = useState(() => { try { return localStorage.getItem('lifeos-fun-range') || 'm2'; } catch { return 'm2'; } });
   const pick = r => { setRange(r); try { localStorage.setItem('lifeos-fun-range', r); } catch {} };
   const [mode, setModeS] = useState(() => { try { return localStorage.getItem('lifeos-fun-mode') || 'all'; } catch { return 'all'; } });
@@ -153,7 +159,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0 }) {
   // Dollar rate of each bet day: the rate saved with the entry, else TGJU's daily close for that date (or the nearest earlier market day), else today's.
   const hist = useUsdHistory(bet.length > 0);
   const data = useMemo(() => {
-    const rate = Number(usdRate) || 0, hasBet = bet.length > 0 && (rate > 0 || hist.length > 0), today = todayTeh(), from = rangeFrom(range, today);
+    const rate = Number(usdRate) || 0, hasBet = bet.length > 0 && (rate > 0 || hist.length > 0), today = anchor, from = rangeFrom(range, today);
     const rateOn = makeRateOn(hist, rate);
     const byDate = {};
     poker.forEach(p => { const d = (byDate[p.date] ||= { poker: 0, bet: 0, betUsd: 0, n: 0 }); d.poker += (Number(p.cashOut) || 0) - (Number(p.buyIn) || 0); d.n = (d.n || 0) + 1; });
@@ -165,7 +171,8 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0 }) {
     let cp = 0, cb = 0; const days = inR.map(date => { cp += byDate[date].poker; cb += hasBet ? byDate[date].bet : 0; return { date, poker: cp, bet: cb, total: cp + cb }; });
     if (days.length && range !== 'all' && days[0].date > from) days.unshift({ date: from, poker: 0, bet: 0, total: 0 });
     if (days.length && days[days.length - 1].date < today) days.push({ ...days[days.length - 1], date: today });
-    const pokerAll = poker.reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdAll = bet.reduce((s, b) => s + (Number(b.result) || 0), 0);
+    const upTo = x => x.date <= today, pokerUp = poker.filter(upTo), betUp = bet.filter(upTo);
+    const pokerAll = pokerUp.reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdAll = betUp.reduce((s, b) => s + (Number(b.result) || 0), 0);
     const pR = poker.filter(p => p.date >= from && p.date <= today), bR = bet.filter(b => b.date >= from && b.date <= today);
     const pokerR = pR.reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdR = bR.reduce((s, b) => s + (Number(b.result) || 0), 0);
     const seq = [...poker.map(p => ({ d: p.date, c: p.createdAt || 0, v: p.cashOut - p.buyIn })), ...bet.map(b => ({ d: b.date, c: 0, v: Number(b.result) || 0 }))].sort((a, b) => a.d.localeCompare(b.d) || a.c - b.c);
@@ -180,22 +187,22 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0 }) {
       inR.forEach(d => { const i = ix[jKey(d)], x = byDate[d]; if (i != null) { const r = list[i]; r.net += net(d); r.poker += x.poker; r.bet += hasBet ? x.bet : 0; r.betUsd += x.betUsd; r.sessions += x.n || 0; } });
       bars = list.slice(-24);
     }
-    return { days, hasBet, rate, from, pokerAll, betUsdAll, pokerR, betUsdR, totalAll: pokerAll + (hasBet ? betRial(bet) : 0), totalR: pokerR + (hasBet ? betRial(bR) : 0), betRialAll: betRial(bet), betRialR: betRial(bR), histOk: hist.length > 0, winsR: rUnits.filter(v => v > 0).length, lossesR: rUnits.filter(v => v < 0).length, countR: rUnits.length, count: seq.length, bars, st, pR };
-  }, [poker, bet, usdRate, range, hist]);
+    return { days, hasBet, rate, from, pokerAll, betUsdAll, pokerR, betUsdR, totalAll: pokerAll + (hasBet ? betRial(betUp) : 0), totalR: pokerR + (hasBet ? betRial(bR) : 0), betRialAll: betRial(betUp), betRialR: betRial(bR), histOk: hist.length > 0, winsR: rUnits.filter(v => v > 0).length, lossesR: rUnits.filter(v => v < 0).length, countR: rUnits.length, count: seq.length, bars, st, pR };
+  }, [poker, bet, usdRate, range, hist, anchor]);
   const [status, setStatus] = useState(null);
   useEffect(() => { api(`/api/fun/status${usdRate ? `?usdRate=${Math.round(usdRate)}` : ''}`).then(setStatus).catch(() => {}); }, [usdRate, poker.length, bet.length]);
   const saveLimit = async v => { await api('/api/me', { method: 'PATCH', body: JSON.stringify({ funLossLimit: v }) }); setStatus(s => ({ ...(s || {}), limit: v })); };
   if (!data.count) return <section className="fn-glass fu-card"><LossLimit status={status} onSave={saveLimit} /></section>;
   const tone = n => (n > 0 ? 'pos' : n < 0 ? 'neg' : '');
-  const rLabel = RANGES.find(r => r[0] === range)?.[1] || '';
+  const rLabel = ranges.find(r => r[0] === range)?.[1] || '';
   return <section className="fn-glass fu-card">
     <div className="fu-head">
       <div><h2>وضعیت کلی پوکر و بت</h2><p>{data.hasBet ? (data.histOk ? 'بت با نرخ دلار همان روز به ریال تبدیل شده.' : `بت با دلار امروز (${faN(data.rate)} ریال) تبدیل شده؛ تاریخچهٔ نرخ در دسترس نبود.`) : bet.length ? 'نرخ دلار در دسترس نیست؛ بت فقط دلاری نشان داده می‌شود.' : 'فقط پوکر ثبت شده.'}</p></div>
-      <div className="fu-seg fu-range">{RANGES.map(([k, l]) => <button type="button" key={k} className={range === k ? 'on' : ''} onClick={() => pick(k)}>{l}</button>)}</div>
+      <div className="fu-seg fu-range">{ranges.map(([k, l]) => <button type="button" key={k} className={range === k ? 'on' : ''} onClick={() => pick(k)}>{l}</button>)}</div>
     </div>
     <div className="fu-kpis">
       <div className={`fu-kpi main ${tone(data.totalR)}`}><small>جمع · {rLabel}</small><b>{signed(data.totalR)}</b><em>{data.countR ? `${faN(data.winsR)} برد · ${faN(data.lossesR)} باخت · وین‌ریت ${faN((data.winsR / data.countR) * 100)}٪` : 'در این بازه چیزی ثبت نشده'}</em></div>
-      <div className={`fu-kpi ${tone(data.totalAll)}`}><small>جمع کل از ابتدا</small><b>{signed(data.totalAll)}</b><em>پوکر {signed(data.pokerAll)} · بت {usdTxt(data.betUsdAll)}</em></div>
+      <div className={`fu-kpi ${tone(data.totalAll)}`}><small>{past ? `جمع کل تا آخر ${mName}` : 'جمع کل از ابتدا'}</small><b>{signed(data.totalAll)}</b><em>پوکر {signed(data.pokerAll)} · بت {usdTxt(data.betUsdAll)}</em></div>
       <div className={`fu-kpi ${tone(data.pokerR)}`}><small>پوکر · {rLabel}</small><b>{signed(data.pokerR)}</b><em>{faN(data.pR.length)} جلسه</em></div>
       <div className={`fu-kpi ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{usdTxt(data.betUsdR)}</b><em>{data.hasBet ? `≈ ${signed(data.betRialR)}` : 'بدون نرخ دلار'}</em></div>
     </div>
@@ -215,30 +222,36 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0 }) {
 }
 
 // Portfolio value vs cost over time (daily snapshots taken when the wealth tab is opened).
-export function PfTrend({ snaps }) {
+// `to` = end of the month picked at the top of the finance page (ranges count back from it).
+export function PfTrend({ snaps, to }) {
   const [range, setRange] = useState('all'), [hi, setHi] = useState(null);
-  const pts = useMemo(() => { const days = { '1m': 31, '3m': 92, '6m': 183 }[range]; if (!days) return snaps; const cut = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10); return snaps.filter(x => x.date >= cut); }, [snaps, range]);
+  const pts = useMemo(() => { const upto = to ? snaps.filter(x => x.date <= to) : snaps, days = { '1m': 31, '3m': 92, '6m': 183 }[range]; if (!days) return upto; const end = to ? Date.parse(to + 'T12:00:00Z') : Date.now(), cut = new Date(end - days * 864e5).toISOString().slice(0, 10); return upto.filter(x => x.date >= cut); }, [snaps, range, to]);
   const head = <div className="fu-pf-head"><h3>روند سبد</h3><div className="fu-seg">{[['1m', '۱ ماه'], ['3m', '۳ ماه'], ['6m', '۶ ماه'], ['all', 'همه']].map(([k, l]) => <button type="button" key={k} className={range === k ? 'on' : ''} onClick={() => setRange(k)}>{l}</button>)}</div></div>;
-  if (pts.length < 2) return <div className="fu-panel fu-pf">{head}<p className="fu-empty">{snaps.length ? 'از امروز هر روزی که این صفحه را باز کنی ارزش سبد ثبت می‌شود؛ از فردا نمودار می‌آید.' : 'در حال آماده‌سازی…'}</p></div>;
+  if (pts.length < 2) return <div className="fu-panel fu-pf">{head}<p className="fu-empty">{to && snaps.length ? 'تا پایان این ماه روند ثبت‌شده‌ای نیست.' : snaps.length ? 'از امروز هر روزی که این صفحه را باز کنی ارزش سبد ثبت می‌شود؛ از فردا نمودار می‌آید.' : 'در حال آماده‌سازی…'}</p></div>;
   const W = 720, H = 200, L = 8, R = 8, T = 14, B = 24;
   const vals = pts.flatMap(p => [p.value, p.cost]); let min = Math.min(...vals), max = Math.max(...vals); const pad = (max - min) * 0.1 || max * 0.05 || 1; min -= pad; max += pad;
-  const x = i => L + (i / (pts.length - 1)) * (W - L - R), y = v => T + (1 - (v - min) / (max - min)) * (H - T - B);
+  // x follows the calendar (days without a snapshot leave a gap instead of being squeezed out)
+  const ts = pts.map(p => Date.parse(p.date + 'T12:00:00Z')), t0 = ts[0], span = (ts[ts.length - 1] - t0) || 1;
+  const x = i => L + ((ts[i] - t0) / span) * (W - L - R), y = v => T + (1 - (v - min) / (max - min)) * (H - T - B);
   const line = k => pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p[k]).toFixed(1)}`).join(' ');
   const band = `${line('value')} ${pts.slice().reverse().map((p, j) => `L${x(pts.length - 1 - j).toFixed(1)} ${y(p.cost).toFixed(1)}`).join(' ')} Z`;
-  const last = pts[pts.length - 1], first = pts[0], pnl = last.value - last.cost, chg = last.value - first.value;
+  // «change» = change in profit, not in value: money put in (new buys) raises value and cost alike and isn't a gain
+  const last = pts[pts.length - 1], first = pts[0], pnl = last.value - last.cost, chg = pnl - (first.value - first.cost);
   const h = hi != null ? pts[hi] : null;
-  const move = e => { const r = e.currentTarget.getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * W; setHi(Math.max(0, Math.min(pts.length - 1, Math.round(((px - L) / (W - L - R)) * (pts.length - 1))))); };
+  const move = e => { const r = e.currentTarget.getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * W; let best = 0; for (let i = 1; i < pts.length; i++) if (Math.abs(x(i) - px) < Math.abs(x(best) - px)) best = i; setHi(best); };
   return <div className="fu-panel fu-pf">{head}
-    <div className="fu-pf-kpis"><span><small>سود/زیان فعلی</small><b className={pnl >= 0 ? 'pos' : 'neg'}>{signed(pnl)}</b></span><span><small>تغییر ارزش در این بازه</small><b className={chg >= 0 ? 'pos' : 'neg'}>{signed(chg)}</b></span><span className="fu-legend"><span><i className="total" />ارزش</span><span><i className="cost" />بهای خرید</span></span></div>
+    <div className="fu-pf-kpis"><span><small>سود/زیان فعلی</small><b className={pnl >= 0 ? 'pos' : 'neg'}>{signed(pnl)}</b></span><span><small>تغییر سود در این بازه</small><b className={chg >= 0 ? 'pos' : 'neg'}>{signed(chg)}</b></span><span className="fu-legend"><span><i className="total" />ارزش</span><span><i className="cost" />بهای خرید</span></span></div>
+      {pts.some(p => p.est) ? <p className="fu-est">تا {jLbl(pts.filter(p => p.est).pop().date)} برآورد از خرید و فروش‌ها (سهام با قیمت آخرین معامله، ارز و طلا با نرخ همان روز)؛ از آن به بعد ثبت روزانه.</p> : null}
     <div className="fu-chart">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" onMouseMove={move} onMouseLeave={() => setHi(null)} role="img" aria-label="روند ارزش سبد">
         <path d={band} className={pnl >= 0 ? 'fu-band pos' : 'fu-band neg'} />
         <path d={line('cost')} className="fu-l cost" />
         <path d={line('value')} className="fu-l total" />
+        {pts.length <= 40 ? pts.map((p, i) => <circle key={p.date} cx={x(i)} cy={y(p.value)} r="3" className="fu-pt" />) : null}
         {h ? <g><line x1={x(hi)} x2={x(hi)} y1={T} y2={H - B} className="fu-cross" /><circle cx={x(hi)} cy={y(h.value)} r="4" className="fu-dot" /></g> : null}
       </svg>
       <div className="fu-ticks"><span className="first" style={{ left: '0%' }}>{jLbl(first.date)}</span><span className="last" style={{ left: '100%' }}>{jLbl(last.date)}</span></div>
-      {h ? <div className="fu-tip" style={{ insetInlineStart: `${Math.min(78, Math.max(2, 100 - (x(hi) / W) * 100 - 10))}%` }}><b>{jLbl(h.date)}</b><span><i className="total" />ارزش {money(h.value)}</span><span><i className="cost" />بهای خرید {money(h.cost)}</span><span>سود/زیان {signed(h.value - h.cost)}</span></div> : null}
+      {h ? <div className="fu-tip" style={{ insetInlineStart: `${Math.min(78, Math.max(2, 100 - (x(hi) / W) * 100 - 10))}%` }}><b>{jLbl(h.date)}{h.est ? ' · برآورد' : ''}</b><span><i className="total" />ارزش {money(h.value)}</span><span><i className="cost" />بهای خرید {money(h.cost)}</span><span>سود/زیان {signed(h.value - h.cost)}</span></div> : null}
     </div>
   </div>;
 }

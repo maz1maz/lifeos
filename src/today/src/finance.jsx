@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import './finance.css'
 import { jalaliShort, jalaliDay } from './jalali'
 import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './jdate';
@@ -35,6 +36,27 @@ const jRange = (k) => { const [y, m] = jParts(k); return { from: jToIso(y, m, 1)
 const legacyKey = (k) => { const [y, m] = jParts(k); return jToIso(y, m, 15).slice(0, 7) }
 const monthFa = (k) => { const [y, m] = jParts(k); return `${JMONTHS[m - 1]} ${faD(y)}` }
 const shiftMonth = (k, d) => { let [y, m] = jParts(k); m += d; while (m > 12) { m -= 12; y++ } while (m < 1) { m += 12; y-- } return `${y}-${String(m).padStart(2, '0')}` }
+// Daily portfolio value rebuilt from the trades (for days before snapshots began). Between trades a stock keeps its
+// last traded price; dollar/euro/gold use the TGJU daily history. Cost = rial paid for what is still held (average cost).
+function rebuildPfHistory(txs, curOf, histOn, until) {
+  const list = (txs || []).filter((t) => t.date && (t.type === 'buy' || t.type === 'sell')).slice().sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0))
+  if (!list.length) return []
+  const pos = {}, out = [], day = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
+  const fx = (p, date) => p.assetType === 'dollar' ? histOn('price_dollar_rl', date) : p.assetType === 'euro' ? histOn('price_eur', date) : p.cur === 'USD' ? histOn('price_dollar_rl', date) : 1
+  const unit = (p, date) => p.assetType === 'dollar' || p.assetType === 'euro' ? 1 : p.assetType === 'gold' ? (histOn(p.symbol, date) || p.last) : p.last
+  let i = 0
+  for (let d = list[0].date; d < until; d = day(d, 1)) {
+    for (; i < list.length && list[i].date <= d; i++) {
+      const t = list[i], k = `${t.assetType}|${t.symbol}`, p = pos[k] || (pos[k] = { assetType: t.assetType, symbol: t.symbol, cur: curOf(t), qty: 0, cost: 0, last: 0 }), q = Number(t.quantity) || 0, pr = Number(t.price) || 0
+      if (pr && t.assetType !== 'dollar' && t.assetType !== 'euro') p.last = pr
+      if (t.type === 'buy') { p.cost += (q * (pr || 1) + (Number(t.fee) || 0)) * fx(p, t.date); p.qty += q } else if (p.qty > 0) { const f = Math.min(1, q / p.qty); p.cost -= p.cost * f; p.qty = Math.max(0, p.qty - q) }
+    }
+    let value = 0, cost = 0
+    for (const p of Object.values(pos)) if (p.qty > 0) { value += p.qty * unit(p, d) * fx(p, d); cost += p.cost }
+    if (value > 0) out.push({ date: d, value: Math.round(value), cost: Math.round(cost), est: true })
+  }
+  return out
+}
 const ACC_FA = { bank: 'بانک', card: 'کارت', cash: 'نقدی' }
 const GOLD_FA = { geram18: 'طلای ۱۸ عیار (گرم)', geram24: 'طلای ۲۴ عیار (گرم)', sekee: 'سکه امامی', sekeb: 'سکه بهار آزادی', nim: 'نیم‌سکه', rob: 'ربع‌سکه', gerami: 'سکه گرمی', mesghal: 'مثقال طلا' }
 const ASSET_FA = { crypto: 'رمزارز', stock: 'سهام', gold: 'طلا', dollar: 'ارز', euro: 'ارز', other: 'سایر' }
@@ -45,6 +67,14 @@ const dueInfo = (iso) => {
   if (d === 0) return { label: 'امروز', cls: 'soon' }
   if (d <= 7) return { label: `${fa(d)} روز مانده`, cls: 'soon' }
   return { label: jalaliShort(iso), cls: '' }
+}
+// When the money was lent/borrowed (not a due date): «۱۵ مهر · ۲۰ روز پیش». Old rows with only a dueDate keep the due chip.
+const givenInfo = (item) => {
+  const iso = item.date || (item.createdAt ? new Date(item.createdAt).toISOString().slice(0, 10) : '')
+  if (item.dueDate && !item.date) return dueInfo(item.dueDate)
+  if (!iso) return { label: '', cls: '' }
+  const d = Math.round((Date.parse(`${isoToday()}T00:00:00Z`) - Date.parse(`${iso}T00:00:00Z`)) / 864e5)
+  return { label: `${new Intl.DateTimeFormat('fa-IR-u-ca-persian', { day: 'numeric', month: 'long', ...(iso.slice(0, 4) !== isoToday().slice(0, 4) ? { year: 'numeric' } : {}), timeZone: 'UTC' }).format(new Date(iso + 'T12:00:00Z'))}${d > 0 ? ` · ${fa(d)} روز پیش` : d === 0 ? ' · امروز' : ''}`, cls: '' }
 }
 const isMisc = (t) => t.kind === 'expense' && (!t.category || String(t.category).trim() === 'متفرقه')
 
@@ -57,13 +87,13 @@ function MonthPicker({ value, onChange }) {
   const cur = jKeyOf(isoToday())
   return (
     <div className="fn-mp">
-      <button dir="ltr" type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, -1))} aria-label="ماه قبل">›</button>
+      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, -1))} aria-label="ماه قبل"><ChevronRight size={18} aria-hidden="true" /></button>
       <button type="button" className="fn-mp-btn" onClick={() => setOpen((v) => !v)}>{JMONTHS[m - 1]} {faD(y)} <span>▾</span></button>
-      <button dir="ltr" type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, 1))} aria-label="ماه بعد">‹</button>
+      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, 1))} aria-label="ماه بعد"><ChevronLeft size={18} aria-hidden="true" /></button>
       {value !== cur ? <button type="button" className="fn-mp-today" onClick={() => onChange(cur)}>این ماه</button> : null}
       {open ? (
         <div className="fn-mp-pop">
-          <div className="fn-mp-year"><button dir="ltr" type="button" onClick={() => setYy(yy - 1)} aria-label="سال قبل">›</button><b>{faD(yy)}</b><button dir="ltr" type="button" onClick={() => setYy(yy + 1)} aria-label="سال بعد">‹</button></div>
+          <div className="fn-mp-year"><button type="button" onClick={() => setYy(yy - 1)} aria-label="سال قبل"><ChevronRight size={18} aria-hidden="true" /></button><b>{faD(yy)}</b><button type="button" onClick={() => setYy(yy + 1)} aria-label="سال بعد"><ChevronLeft size={18} aria-hidden="true" /></button></div>
           <div className="fn-mp-grid">{JMONTHS.map((name, i) => { const k = `${yy}-${String(i + 1).padStart(2, '0')}`; return <button type="button" key={k} className={`${k === value ? 'on' : ''} ${k === cur ? 'cur' : ''}`} onClick={() => { onChange(k); setOpen(false) }}>{name}</button> })}</div>
         </div>
       ) : null}
@@ -110,7 +140,8 @@ const TABS = [
   { id: 'ledger', label: 'تراکنش‌ها' },
   { id: 'budget', label: 'بودجه و حساب‌ها' },
   { id: 'bills', label: 'قبض و اشتراک' },
-  { id: 'wealth', label: 'بدهی و سرمایه' },
+  { id: 'wealth', label: 'بدهی و اهداف' },
+  { id: 'invest', label: 'سبد سرمایه' },
   { id: 'fun', label: 'بت و پوکر' },
 ]
 const FILTERS = [['all', 'همه'], ['expense', 'هزینه'], ['income', 'درآمد'], ['transfer', 'انتقال'], ['misc', 'بدون دسته']]
@@ -170,7 +201,139 @@ function Donut({ slices }) {
 
 
 // expanded asset card: quantity, cost, P/L and a 30-day price sparkline from TGJU (gold / dollar / euro)
-function AssetMore({ row }) {
+// The buys/sells behind one holding, each editable (quantity, unit price, date) or removable.
+function AssetTxs({ row, onChanged }) {
+  const [items, setItems] = useState(null), [edit, setEdit] = useState(null), [err, setErr] = useState('')
+  const load = () => api(`/api/investments/tx?symbol=${encodeURIComponent(row.item.symbol)}`).then((d) => setItems((d.items || []).filter((t) => t.assetType === row.item.assetType))).catch((e) => setErr(e.message))
+  useEffect(() => { load() }, [row.item.symbol])
+  const face = row.item.assetType === 'dollar' || row.item.assetType === 'euro'
+  const save = async (e) => {
+    e.preventDefault(); const f = new FormData(e.currentTarget), num = (v) => Number(String(v || '').replace(/[,٬]/g, '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    const body = { quantity: num(f.get('quantity')), date: f.get('date') || edit.date, type: f.get('type') }
+    if (!face) body.price = num(f.get('price'))
+    if (!(body.quantity > 0) || (!face && !(body.price > 0))) { setErr('تعداد و قیمت معتبر لازم است.'); return }
+    try { await api(`/api/investments/tx/${edit.id}`, { method: 'PATCH', body: JSON.stringify(body) }); setEdit(null); setErr(''); await load(); onChanged() } catch (x) { setErr(x.message) }
+  }
+  const del = async (t) => { if (!window.confirm(`این ${t.type === 'sell' ? 'فروش' : 'خرید'} (${fa(t.quantity)} واحد · ${jalaliShort(t.date)}) حذف شود؟`)) return; try { await api(`/api/investments/tx/${t.id}`, { method: 'DELETE' }); await load(); onChanged() } catch (x) { setErr(x.message) } }
+  if (items === null) return <p className="xc-sub">{err || 'در حال دریافت خریدها…'}</p>
+  return <div className="xc-txs">
+    <small className="xc-txh">خرید و فروش‌ها</small>
+    {items.map((t) => edit?.id === t.id ? <form key={t.id} className="xc-txedit" onSubmit={save} onClick={(e) => e.stopPropagation()}>
+      <select name="type" defaultValue={t.type}><option value="buy">خرید</option><option value="sell">فروش</option></select>
+      <input name="quantity" defaultValue={t.quantity} inputMode="decimal" aria-label="تعداد" placeholder="تعداد" />
+      {face ? null : <input name="price" defaultValue={t.price} inputMode="decimal" aria-label="قیمت واحد" placeholder="قیمت واحد" />}
+      <JalaliDateInput name="date" defaultValue={t.date} clearable={false} />
+      <button className="fn-save">ذخیره</button><button type="button" className="fn-link" onClick={() => setEdit(null)}>انصراف</button>
+    </form> : <div key={t.id} className="xc-tx">
+      <span>{t.type === 'sell' ? 'فروش' : t.type === 'buy' ? 'خرید' : t.type === 'dividend' ? 'سود نقدی' : 'کارمزد'} · {jalaliShort(t.date)}</span>
+      <b>{t.quantity ? `${fa(t.quantity)} واحد` : ''}{t.price && !face ? ` × ${faMoney(t.price)}` : t.amount ? faMoney(t.amount) : ''}</b>
+      <span className="xc-txops"><button type="button" onClick={(e) => { e.stopPropagation(); setEdit(t) }}>ویرایش</button><button type="button" className="del" onClick={(e) => { e.stopPropagation(); del(t) }}>حذف</button></span>
+    </div>)}
+    {err ? <p className="xc-sub">⚠ {err}</p> : null}
+  </div>
+}
+
+// Today's price of a holding: Tehran-exchange stocks fetch theirs from TSETMC, anything else can be typed in.
+function AssetPrice({ row, onChanged }) {
+  const it = row.item, tse = it.assetType === 'stock' && /[\u0600-\u06FF]/.test(it.symbol), live = it.assetType === 'crypto' || tse
+  const [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [val, setVal] = useState('')
+  if (it.assetType === 'dollar' || it.assetType === 'euro' || it.assetType === 'gold') return null
+  const ago = it.priceUpdatedAt ? Math.round((Date.now() - it.priceUpdatedAt) / 60000) : null
+  const refresh = async (e) => { e.stopPropagation(); setBusy(true); setMsg(''); try { const r = await api('/api/investments/price/refresh', { method: 'POST', body: JSON.stringify({ symbol: it.symbol, assetType: it.assetType }) }); setMsg(`قیمت روز: ${faMoney(r.price)}`); onChanged() } catch (x) { setMsg(x.message) } setBusy(false) }
+  const saveManual = async (e) => { e.preventDefault(); e.stopPropagation(); const price = Number(String(val).replace(/[,٬]/g, '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))); if (!(price > 0)) { setMsg('قیمت معتبر بنویس.'); return } try { await api('/api/investments/price', { method: 'POST', body: JSON.stringify({ symbol: it.symbol, assetType: it.assetType, price }) }); setVal(''); setMsg('قیمت ثبت شد.'); onChanged() } catch (x) { setMsg(x.message) } }
+  return <div className="xc-price" onClick={(e) => e.stopPropagation()}>
+    <span><small>قیمت روز</small><b>{faMoney(it.currentPrice)}</b><em>{it.priceSource === 'bourse' || it.priceSource === 'tsetmc' ? 'از بورس' : it.priceSource === 'live' ? 'خودکار' : 'دستی / قیمت خرید'}{ago != null ? ` · ${ago < 60 ? `${fa(ago)} دقیقه` : ago < 1440 ? `${fa(Math.round(ago / 60))} ساعت` : `${fa(Math.round(ago / 1440))} روز`} پیش` : ''}</em></span>
+    {live ? <button type="button" disabled={busy} onClick={refresh}>{busy ? '…' : tse ? 'قیمت از بورس' : 'قیمت روز'}</button> : null}
+    <form onSubmit={saveManual}><input value={val} onChange={(e) => setVal(e.target.value)} inputMode="decimal" data-raw="" placeholder="قیمت دستی" aria-label="قیمت روز دستی" /><button type="submit">ثبت</button></form>
+    {msg ? <small className="xc-pmsg">{msg}</small> : null}
+  </div>
+}
+
+// Paste a portfolio (one holding per line: «نماد تعداد میانگین‌قیمت», any separators, Persian digits ok) → buys.
+// With «جایگزین» the symbol's earlier buys/sells are removed first, so pasting again never double-counts.
+const toLatin = (v) => String(v).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+function parsePortfolio(text) {
+  return String(text || '').split(/\n+/).map((line) => {
+    const sym = (line.match(/[\u0621-\u064A\u067E-\u06D3][\u0621-\u064A\u067E-\u06D3\u200c]*/) || [])[0]?.trim()
+    const nums = (toLatin(line).replace(/\([^)]*\)/g, ' ').match(/\d[\d,٬]*(?:\.\d+)?/g) || []).map((n) => Number(n.replace(/[,٬]/g, ''))).filter((n) => n > 0)
+    return sym && nums.length >= 2 ? { symbol: sym, quantity: nums[0], price: nums[1] } : null
+  }).filter(Boolean)
+}
+function PortfolioImport({ onDone }) {
+  const [text, setText] = useState(''), [replace, setReplace] = useState(true), [busy, setBusy] = useState(false), [msg, setMsg] = useState('')
+  const rows = parsePortfolio(text)
+  const run = async (e) => {
+    e.preventDefault(); if (!rows.length) return; setBusy(true); let done = 0; const bad = []
+    for (const r of rows) {
+      setMsg(`در حال ثبت ${fa(done + 1)} از ${fa(rows.length)}: ${r.symbol}…`)
+      try {
+        if (replace) { const old = await api(`/api/investments/tx?symbol=${encodeURIComponent(r.symbol)}`); for (const t of old.items || []) if (t.assetType === 'stock') await api(`/api/investments/tx/${t.id}`, { method: 'DELETE' }) }
+        await api('/api/investments/tx', { method: 'POST', body: JSON.stringify({ assetType: 'stock', symbol: r.symbol, type: 'buy', quantity: r.quantity, price: r.price, currency: 'IRR', date: isoToday(), note: 'وارد شده از پرتفوی' }) })
+        await api('/api/investments/price/refresh', { method: 'POST', body: JSON.stringify({ symbol: r.symbol, assetType: 'stock' }) }).catch(() => {})
+        done++
+      } catch (x) { bad.push(`${r.symbol} (${x.message})`) }
+    }
+    setBusy(false); setMsg(`${fa(done)} نماد ثبت شد.${bad.length ? ` نشد: ${bad.join('، ')}` : ''}`); if (done) { setText(''); onDone() }
+  }
+  return <form className="fn-form fn-import" onSubmit={run}>
+    <p className="fn-note">هر سهم در یک خط: نماد، تعداد، میانگین قیمت خرید (ریال). مثلاً:<br /><span dir="rtl">عیار ۲۹۱۹ ۵۳۴٬۸۰۸</span></p>
+    <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder={'عیار 2919 534808\nسیلور 23532 13209\nشکیمیا 533 5941'} aria-label="متن پرتفوی" />
+    {rows.length ? <table className="fn-imp-t"><thead><tr><th>نماد</th><th>تعداد</th><th>میانگین خرید</th><th>بهای کل</th></tr></thead><tbody>{rows.map((r, i) => <tr key={i}><td>{r.symbol}</td><td>{fa(r.quantity)}</td><td>{fa(r.price)}</td><td>{short(r.quantity * r.price)}</td></tr>)}</tbody></table> : text.trim() ? <p className="fn-note">خطی پیدا نشد که نماد و دو عدد (تعداد و قیمت) داشته باشد.</p> : null}
+    <button type="button" className={`fn-toggle${replace ? ' on' : ''}`} role="switch" aria-checked={replace} onClick={() => setReplace((v) => !v)}><i aria-hidden="true" /><span>جایگزین ثبت‌های قبلی همین نمادها</span></button>
+    <button className="fn-save" disabled={busy || !rows.length}>{busy ? '…' : `ثبت ${rows.length ? fa(rows.length) + ' نماد' : ''}`}</button>
+    {msg ? <p className="fn-note" role="status">{msg}</p> : null}
+  </form>
+}
+
+// Broker order history (Excel/CSV «تاریخچه سفارشات» from easytrader / Mofid): every filled buy/sell with its real date.
+// When the file starts after shares were already bought (a sell bigger than the buys before it), those shares are
+// asked for as «موجودی قبل از فایل» (count + average price) so the holding and the realized profit come out right.
+function BrokerImport({ onDone }) {
+  const [pv, setPv] = useState(null), [open, setOpen] = useState({}), [replace, setReplace] = useState(true), [busy, setBusy] = useState(false), [msg, setMsg] = useState('')
+  const pick = async (e) => {
+    const list = [...(e.target.files || [])]; e.target.value = ''; if (!list.length) return
+    setBusy(true); setMsg('در حال خواندن فایل…'); setPv(null)
+    try {
+      const enc = async (file) => { const buf = new Uint8Array(await file.arrayBuffer()); let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000)); return { fileBase64: btoa(bin), fileType: /\.csv$/i.test(file.name) ? 'csv' : 'xlsx' } }
+      const r = await api('/api/investments/import-orders/preview', { method: 'POST', body: JSON.stringify({ files: await Promise.all(list.map(enc)) }) })
+      setPv(r); setOpen(Object.fromEntries(r.symbols.filter((x) => x.heldBefore > 0).map((x) => [x.symbol, { quantity: x.heldBefore, price: '' }]))); setMsg('')
+    } catch (x) { setMsg(x.message) }
+    setBusy(false)
+  }
+  const num = (v) => Number(String(v || '').replace(/[,٬]/g, '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+  // an opening without a price takes the symbol's first price in the file (only the realized profit depends on it)
+  const run = async () => {
+    setBusy(true)
+    try {
+      const day = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10) }
+      const openings = Object.entries(open).filter(([, o]) => num(o.quantity) > 0).map(([symbol, o]) => ({ symbol, quantity: num(o.quantity), price: num(o.price) || pv.symbols.find((x) => x.symbol === symbol).firstPrice, date: day(pv.symbols.find((x) => x.symbol === symbol).first) }))
+      const r = await api('/api/investments/import-orders', { method: 'POST', body: JSON.stringify({ trades: pv.trades, openings, replace }) })
+      setMsg(`${fa(r.added)} ردیف ثبت شد${r.skipped ? ` · ${fa(r.skipped)} تکراری رد شد` : ''}${r.removed ? ` · ${fa(r.removed)} ردیف قبلی جایگزین شد` : ''}.`); setPv(null); onDone()
+      for (const sym of pv.symbols.map((x) => x.symbol)) api('/api/investments/price/refresh', { method: 'POST', body: JSON.stringify({ symbol: sym, assetType: 'stock' }) }).catch(() => {})
+    } catch (x) { setMsg(x.message) }
+    setBusy(false)
+  }
+  return <div className="fn-form fn-import">
+    <label className="fn-file">📄 فایل تاریخچهٔ سفارشات کارگزاری (Excel) — چند فایل را با هم انتخاب کن<input type="file" accept=".xlsx,.xls,.csv" multiple onChange={pick} hidden disabled={busy} /></label>
+    {pv ? <>
+      <p className="fn-note">{fa(pv.count)} سفارش انجام‌شده از {pv.from} تا {pv.to}{pv.files > 1 ? ` (${fa(pv.files)} فایل؛ سفارش تکراری یک بار حساب شد)` : ''}{pv.files === 1 && pv.rows >= 100 ? ' — فایل فقط ۱۰۰ سفارش دارد؛ معمولاً خروجی کارگزاری محدود است، پس خریدهای قدیمی‌تر در آن نیستند.' : ''}</p>
+      <table className="fn-imp-t"><thead><tr><th>نماد</th><th>خرید</th><th>فروش</th><th>موجودی قبل از فایل</th><th>میانگین قیمت آن</th><th>مانده</th></tr></thead><tbody>
+        {pv.symbols.map((x) => { const o = open[x.symbol] || { quantity: '', price: '' }, left = num(o.quantity) + x.net; return <tr key={x.symbol}>
+          <td>{x.symbol}</td><td>{fa(x.buyQty)}</td><td>{fa(x.sellQty)}</td>
+          <td><input value={o.quantity} onChange={(e) => setOpen((v) => ({ ...v, [x.symbol]: { ...o, quantity: e.target.value } }))} inputMode="numeric" data-raw="" aria-label={`موجودی ${x.symbol} قبل از فایل`} placeholder="۰" /></td>
+          <td><input value={o.price} onChange={(e) => setOpen((v) => ({ ...v, [x.symbol]: { ...o, price: e.target.value } }))} inputMode="numeric" data-raw="" aria-label={`میانگین قیمت ${x.symbol}`} placeholder={num(o.quantity) > 0 ? fa(x.firstPrice) : '—'} /></td>
+          <td className={left < 0 ? 'neg' : ''}>{fa(left)}</td>
+        </tr> })}
+      </tbody></table>
+      <p className="fn-note">«مانده» باید با تعداد سهمت در کارگزاری یکی باشد (فروخته‌شده‌ها = ۰). میانگین قیمت موجودی قبلی اختیاری است و فقط روی «سود محقق‌شده» اثر دارد؛ خالی بماند، قیمت اولین معاملهٔ آن نماد در فایل حساب می‌شود.</p>
+      <button type="button" className={`fn-toggle${replace ? ' on' : ''}`} role="switch" aria-checked={replace} onClick={() => setReplace((v) => !v)}><i aria-hidden="true" /><span>جایگزین ثبت‌های قبلی همین نمادها</span></button>
+      <button type="button" className="fn-save" disabled={busy} onClick={run}>{busy ? '…' : `ثبت ${fa(pv.count)} سفارش`}</button>
+    </> : null}
+    {msg ? <p className="fn-note" role="status">{msg}</p> : null}
+  </div>
+}
+
+function AssetMore({ row, onChanged }) {
   const key = row.item.assetType === 'gold' ? row.item.symbol : row.item.assetType === 'dollar' ? 'price_dollar_rl' : row.item.assetType === 'euro' ? 'price_eur' : null
   const [hist, setHist] = useState(null)
   useEffect(() => { if (key) api(`/api/tgju/history?key=${encodeURIComponent(key)}&days=30`).then((d) => setHist((d.items || []).map((x) => x.price).filter((v) => v > 0))).catch(() => setHist([])) }, [key])
@@ -182,6 +345,8 @@ function AssetMore({ row }) {
       <div><small>سود / زیان</small><b>{row.pnl ? `${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl))}` : '—'}{row.cost ? ` (${pct >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(pct * 10) / 10))}٪)` : ''}</b></div>
       <div><small>مقدار</small><b>{fa(row.item.quantity)} واحد</b></div>
     </div>
+    <AssetPrice row={row} onChanged={onChanged} />
+    <AssetTxs row={row} onChanged={onChanged} />
     {key ? (hist === null ? <p className="xc-sub">در حال دریافت نمودار…</p> : hist.length > 1 ? <div><Spark data={hist} up={hist[hist.length - 1] >= hist[0]} /><p className="xc-sub">قیمت ۳۰ روز اخیر{ch != null ? ` · ${ch >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(ch * 10) / 10))}٪` : ''}</p></div> : <p className="xc-sub">تاریخچهٔ قیمت در دسترس نیست.</p>) : null}
   </>
 }
@@ -219,6 +384,8 @@ export function FinanceReact({ Nav }) {
   const [poker, setPoker] = useState([])
   const [pokerAll, setPokerAll] = useState([])
   const [pfSnaps, setPfSnaps] = useState(null)
+  const [closedOpen, setClosedOpen] = useState(null)
+  const [pfTx, setPfTx] = useState(null), [pfHist, setPfHist] = useState({})
   const usdHist = useUsdHistory(tab === 'fun')
   const snapSent = useRef(false)
   const [pokerSummary, setPokerSummary] = useState({ sessions: 0, profit: 0, wins: 0, losses: 0, pushes: 0, totalBuyIn: 0, totalCashOut: 0 })
@@ -334,17 +501,42 @@ export function FinanceReact({ Nav }) {
       return { item, value, cost, pnl, native, label }
     }).sort((a, b) => b.value - a.value)
     const total = rows.reduce((a, r) => a + r.value, 0), cost = rows.reduce((a, r) => a + r.cost, 0), pnl = rows.reduce((a, r) => a + r.pnl, 0)
-    return { rows, total, cost, pnl }
+    const TYPE_FA = { stock: 'سهام و صندوق', dollar: 'دلار', euro: 'یورو', gold: 'طلا و سکه', crypto: 'رمزارز', other: 'سایر' }, by = {}
+    for (const r of rows) { const t = TYPE_FA[r.item.assetType] ? r.item.assetType : 'other'; by[t] = (by[t] || 0) + r.value }
+    const mix = Object.entries(by).filter(([, v]) => v > 0).map(([type, value]) => ({ type, label: TYPE_FA[type], value, pct: total ? Math.round((value / total) * 1000) / 10 : 0 })).sort((a, b) => b.value - a.value)
+    // sold-out symbols: one compact line with their realized profit instead of a big empty card each
+    const closed = rows.filter((r) => !(Number(r.item.quantity) > 0)).map((r) => ({ ...r, realized: toRial(Number(r.item.realizedPnl || 0), r.item.currency || 'IRR') }))
+    return { rows, total, cost, pnl, mix, closed }
   })()
-  // Portfolio history: one snapshot per day (rial value + cost), taken when the wealth tab is opened with live rates.
-  useEffect(() => { if (tab === 'wealth' && pfSnaps === null) api('/api/portfolio/snapshots').then((d) => setPfSnaps(d.items || [])).catch(() => setPfSnaps([])) }, [tab])
+  // a past month shows the portfolio as recorded on its last day (daily snapshots); the current month shows it live
+  // all trades + the daily rate histories they need, loaded once the invest tab opens
   useEffect(() => {
-    if (tab !== 'wealth' || snapSent.current || !pf.rows.length || !(pf.total > 0) || !Object.keys(rates).length) return
+    if (tab !== 'invest' || pfTx !== null) return
+    api('/api/investments/tx').then((d) => {
+      const items = d.items || []; setPfTx(items)
+      const keys = new Set(); for (const t of items) { if (t.assetType === 'dollar' || t.currency === 'USD' || t.assetType === 'crypto') keys.add('price_dollar_rl'); if (t.assetType === 'euro') keys.add('price_eur'); if (t.assetType === 'gold') keys.add(t.symbol) }
+      for (const k of keys) api(`/api/tgju/history?key=${encodeURIComponent(k)}&days=730`).then((h) => setPfHist((o) => ({ ...o, [k]: (h.items || []).filter((x) => x.price > 0 && x.date) }))).catch(() => {})
+    }).catch(() => setPfTx([]))
+  }, [tab])
+  const pfSeries = (() => {
+    const real = pfSnaps || [], first = real.length ? real[0].date : isoToday()
+    const curOf = (t) => t.currency === 'IRR' || t.currency === 'USD' ? t.currency : t.assetType === 'crypto' ? 'USD' : 'IRR'
+    const histOn = (k, date) => { const h = pfHist[k]; if (!h || !h.length) return k === 'price_dollar_rl' ? usdRate : k === 'price_eur' ? eurRate : rates[k] || 0; return makeRateOn(h, 0)(date) }
+    return [...rebuildPfHistory(pfTx, curOf, histOn, first), ...real]
+  })()
+  const pastMonth = mRange.to < isoToday(), endSnap = pastMonth ? pfSeries.filter((x) => x.date >= mRange.from && x.date <= mRange.to).pop() : null
+  // Portfolio history: one snapshot per day (rial value + cost), taken when the wealth tab is opened with live rates.
+  useEffect(() => { if (tab === 'invest' && pfSnaps === null) api('/api/portfolio/snapshots').then((d) => setPfSnaps(d.items || [])).catch(() => setPfSnaps([])) }, [tab])
+  useEffect(() => {
+    if (tab !== 'invest' || snapSent.current || !pf.rows.length || !(pf.total > 0) || !Object.keys(rates).length || pfSnaps === null) return
     if (pf.rows.some((r) => r.item.assetType === 'dollar' || (r.item.currency || 'IRR') === 'USD') && !usdRate) return
+    // today's point follows the portfolio: re-sent whenever value or cost moved more than 0.5% (an edited buy, a new price)
+    const cur = (pfSnaps || []).find((x) => x.date === isoToday()), cost = Math.max(0, pf.total - pf.pnl), off = (a, b) => !b || Math.abs(a - b) / b > 0.005
+    if (cur && !off(pf.total, cur.value) && !off(cost, cur.cost)) return
     snapSent.current = true
     api('/api/portfolio/snapshots', { method: 'POST', body: JSON.stringify({ value: pf.total, cost: Math.max(0, pf.total - pf.pnl) }) })
-      .then((r) => { if (r && r.date) setPfSnaps((list) => [...(list || []).filter((x) => x.date !== r.date), r].sort((a, b) => String(a.date).localeCompare(String(b.date)))) }).catch(() => { snapSent.current = false })
-  }, [tab, pf.total, usdRate, rates])
+      .then((r) => { snapSent.current = false; if (r && r.date) setPfSnaps((list) => [...(list || []).filter((x) => x.date !== r.date), r].sort((a, b) => String(a.date).localeCompare(String(b.date)))) }).catch(() => { snapSent.current = false })
+  }, [tab, pf.total, pf.pnl, usdRate, rates, pfSnaps])
 
   const bud = (() => {
     const bmap = Object.fromEntries((budgets.budgets || []).map((b) => [b.category, Number(b.limit) || 0]))
@@ -784,17 +976,17 @@ export function FinanceReact({ Nav }) {
             })}</div> : <p className="fn-empty">هدفی ثبت نشده. برای خرید بزرگ یا سفر هدف بگذار تا ببینی ماهی چقدر باید کنار بگذاری.</p>}
           </section>
 
-          <div className="fn-2" id="debts">
+          <div className="fn-1" id="debts">
             <section className="fn-glass fn-list">
               <div className="fn-head"><h2>بدهی و طلب</h2><Drawer label="بدهی / طلب">
-<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/debts', { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), dueDate: f.get('dueDate') || null, note: f.get('note') }, 'ثبت شد.'); e.currentTarget.reset() }}>
+<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/debts', { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), date: f.get('date') || isoToday(), note: f.get('note') }, 'ثبت شد.'); e.currentTarget.reset() }}>
                 <input name="person" required placeholder="نام شخص" />
                 <div>
                   <select name="type"><option value="payable">بدهی من</option><option value="receivable">طلب من</option></select>
                   <select name="currency"><option value="IRR">ریال</option><option value="USD">دلار</option></select>
                 </div>
                 <input name="amount" required inputMode="numeric" placeholder="مبلغ" />
-                <JalaliDateInput name="dueDate" />
+                <label className="fn-field">تاریخ دادن / گرفتن پول<JalaliDateInput name="date" defaultValue={isoToday()} clearable={false} /></label>
                 <input name="note" placeholder="یادداشت" />
                 <button className="fn-save">افزودن</button>
               </form>
@@ -808,7 +1000,7 @@ export function FinanceReact({ Nav }) {
                 <div key={k} className={`fn-debt-group ${k}`}>
                   <h3>{title}</h3>
                   {debtGroups[k].map((item) => {
-                    const due = dueInfo(item.dueDate)
+                    const due = givenInfo(item)
                     return (
                       <article key={item.id} className={`fn-debt ${due.cls}`}>
                         <div className="fn-debt-main">
@@ -835,9 +1027,16 @@ export function FinanceReact({ Nav }) {
                 </div>
               ) : null)}
             </section>
+          </div>
+
+          </>
+        ) : null}
+
+        {tab === 'invest' ? (
+          <div className="fn-invest">
             <section className="fn-glass fn-list">
-              <div className="fn-head"><h2>سبد سرمایه</h2><Drawer label="خرید / فروش" title="تراکنش سرمایه‌گذاری">
-<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const body = { assetType: holdAssetType, type: f.get('type'), quantity: Number(f.get('quantity')), fee: Number(f.get('fee') || 0), date: f.get('date'), note: f.get('note') }; if (!face) { body.symbol = f.get('symbol'); body.price = Number(f.get('price')) } send('/api/investments/tx', body, 'تراکنش سرمایه‌گذاری ثبت شد.'); e.currentTarget.reset() }}>
+              <div className="fn-head"><h2>سبد سرمایه</h2><Drawer label="وارد کردن پرتفوی" title="وارد کردن پرتفوی بورس"><BrokerImport onDone={load} /><p className="fn-note fn-or">یا پرتفوی فعلی را دستی بنویس:</p><PortfolioImport onDone={load} /></Drawer><Drawer label="خرید / فروش" title="تراکنش سرمایه‌گذاری">
+<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const body = { assetType: holdAssetType, type: f.get('type'), quantity: Number(f.get('quantity')), fee: Number(f.get('fee') || 0), date: f.get('date'), note: f.get('note'), ...(f.get('currency') ? { currency: f.get('currency') } : {}) }; if (!face) { body.symbol = f.get('symbol'); body.price = Number(f.get('price')) } send('/api/investments/tx', body, 'تراکنش سرمایه‌گذاری ثبت شد.'); e.currentTarget.reset() }}>
                 <div>
                   <select value={holdAssetType} onChange={(e) => setHoldAssetType(e.target.value)}>
                     <option value="crypto">رمزارز</option><option value="stock">سهام</option><option value="gold">طلا</option>
@@ -848,8 +1047,9 @@ export function FinanceReact({ Nav }) {
                 <input name="symbol" required={!face} disabled={face} placeholder={face ? 'نماد لازم نیست' : 'نماد'} />
                 <div>
                   <input name="quantity" required inputMode="decimal" placeholder="تعداد" />
-                  <input name="price" required={!face} disabled={face} placeholder={face ? 'قیمت لازم نیست' : 'قیمت واحد'} />
+                  <input name="price" required={!face} disabled={face} inputMode="decimal" placeholder={face ? 'قیمت لازم نیست' : 'قیمت واحد'} />
                 </div>
+                {holdAssetType === 'stock' || holdAssetType === 'other' ? <select name="currency" defaultValue="IRR" aria-label="واحد قیمت"><option value="IRR">قیمت به ریال (بورس تهران)</option><option value="USD">قیمت به دلار (بورس خارجی)</option></select> : null}
                 <input name="fee" inputMode="decimal" placeholder="کارمزد" />
                 <JalaliDateInput name="date" defaultValue={isoToday()} />
                 <input name="note" placeholder="یادداشت" />
@@ -858,19 +1058,35 @@ export function FinanceReact({ Nav }) {
 </Drawer></div>
               {portfolio.items?.length ? (
                 <div className="fn-pf-sum">
+                  {pastMonth ? (endSnap ? <>
+                    <div><small>ارزش سبد در پایان {monthFa(month)}</small><b title={faMoney(endSnap.value)}>{short(endSnap.value)}</b><em>{endSnap.est ? `برآورد از معاملات و نرخ ${jalaliShort(endSnap.date)}` : `ثبت‌شده در ${jalaliShort(endSnap.date)}`}</em></div>
+                    <div className={endSnap.value >= endSnap.cost ? 'pos' : 'neg'}><small>سود / زیان آن روز</small><b>{endSnap.value < endSnap.cost ? '−' : ''}{short(Math.abs(endSnap.value - endSnap.cost))}</b>{endSnap.cost ? <em>{endSnap.value < endSnap.cost ? '−' : ''}{fa(Math.abs(Math.round(((endSnap.value - endSnap.cost) / endSnap.cost) * 1000) / 10))}٪</em> : null}</div>
+                  </> : <p className="fn-note fn-pf-none">برای {monthFa(month)} ارزش سبد ثبت نشده؛ ثبت روزانهٔ سبد از {pfSnaps?.[0] ? jalaliShort(pfSnaps[0].date) : 'امروز'} شروع شده. پایین، سبد امروز را می‌بینی.</p>) : <>
                   <div><small>ارزش روز سبد</small><b title={faMoney(pf.total)}>{short(pf.total)}</b></div>
-                  <div className={pf.pnl >= 0 ? 'pos' : 'neg'}><small>سود / زیان</small><b>{pf.pnl >= 0 ? '+' : '−'}{short(Math.abs(pf.pnl))}</b>{pf.cost ? <em>{pf.pnl >= 0 ? '+' : '−'}{fa(Math.abs(Math.round((pf.pnl / pf.cost) * 1000) / 10))}٪</em> : null}</div>
+                  <div className={pf.pnl >= 0 ? 'pos' : 'neg'}><small>سود / زیان</small><b>{pf.pnl < 0 ? '−' : ''}{short(Math.abs(pf.pnl))}</b>{pf.cost ? <em>{pf.pnl < 0 ? '−' : ''}{fa(Math.abs(Math.round((pf.pnl / pf.cost) * 1000) / 10))}٪</em> : null}</div>
+                  </>}
+                  {pf.mix.length > 1 ? <div className="fn-mix"><small>ترکیب سبد امروز</small>
+                    <div className="fn-mix-bar" role="img" aria-label={pf.mix.map((m) => `${m.label} ${fa(m.pct)}٪`).join('، ')}>{pf.mix.map((m) => <i key={m.type} className={`t-${m.type}`} style={{ flexGrow: m.value }} title={`${m.label}: ${short(m.value)}`} />)}</div>
+                    <ul>{pf.mix.map((m) => <li key={m.type}><i className={`t-${m.type}`} aria-hidden="true" /><span>{m.label}</span><b>{short(m.value)}</b><em>{fa(m.pct)}٪</em></li>)}</ul>
+                  </div> : null}
                   <p className="fn-note">نرخ‌ها از بازار: {rates.price_dollar_rl ? `دلار ${short(rates.price_dollar_rl, false)}` : 'دلار —'}{rates.price_eur ? ` · یورو ${short(rates.price_eur, false)}` : ''}</p>
                 </div>
               ) : null}
-              {portfolio.items?.length ? <PfTrend snaps={pfSnaps || []} /> : null}
-              {portfolio.items?.length ? <XCards className="fn-xpf" items={pf.rows} getKey={(r) => `${r.item.assetType}-${r.item.symbol}`}
+              {portfolio.items?.length ? <PfTrend snaps={pfSeries} to={pastMonth ? mRange.to : undefined} /> : null}
+              {portfolio.items?.length ? <XCards className="fn-xpf" cols={3} items={pf.rows.filter((r) => Number(r.item.quantity) > 0)} getKey={(r) => `${r.item.assetType}-${r.item.symbol}`}
                 surface={(r) => r.item.assetType === 'gold' ? 'gold' : r.item.assetType === 'dollar' ? 'green' : r.item.assetType === 'euro' ? 'blue' : r.item.assetType === 'crypto' ? 'violet' : r.item.assetType === 'stock' ? 'cyan' : 'graphite'}
                 renderBody={(row) => <>
                   <div className="xc-top"><span className="xc-ic">{row.item.assetType === 'gold' ? '🪙' : row.item.assetType === 'dollar' ? '💵' : row.item.assetType === 'euro' ? '💶' : row.item.assetType === 'crypto' ? '₿' : row.item.assetType === 'stock' ? '📈' : '📦'}</span><span className="xc-name">{row.label}</span></div>
-                  <div><div className="xc-val" title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</div><div className="xc-sub">{fa(row.item.quantity)} واحد{row.pnl ? ` · ${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl), false)}` : ''}</div></div>
+                  <div><div className="xc-val" title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</div><div className="xc-sub">{fa(row.item.quantity)} واحد{row.pnl ? <> · <span className={row.pnl >= 0 ? 'pos' : 'neg'}>{row.pnl < 0 ? '−' : ''}{short(Math.abs(row.pnl), false)}</span></> : ''}</div></div>
                 </>}
-                renderMore={(row) => <AssetMore row={row} />} /> : <p className="fn-empty">دارایی ثبت نشده.</p>}
+                renderMore={(row) => <AssetMore row={row} onChanged={load} />} /> : <p className="fn-empty">دارایی ثبت نشده.</p>}
+              {pf.closed.length ? <div className="fn-closed">
+                <small>فروخته‌شده</small>
+                {pf.closed.map((r) => <button type="button" key={`${r.item.assetType}-${r.item.symbol}`} className={closedOpen === r.item.symbol ? 'on' : ''} aria-expanded={closedOpen === r.item.symbol} onClick={() => setClosedOpen((v) => v === r.item.symbol ? null : r.item.symbol)}>
+                  {r.label}{r.realized ? <em className={r.realized >= 0 ? 'pos' : 'neg'}>{r.realized < 0 ? '−' : ''}{short(Math.abs(r.realized), false)}</em> : null}
+                </button>)}
+                {pf.closed.some((r) => r.item.symbol === closedOpen) ? <div className="fn-closed-more"><AssetMore row={pf.closed.find((r) => r.item.symbol === closedOpen)} onChanged={load} /></div> : null}
+              </div> : null}
               <div className="fn-alerts">
                 <div className="fn-head"><h2>هشدار قیمت</h2><Drawer label="هشدار" title="هشدار قیمت">
 <form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/investments/alerts', { symbol: f.get('symbol'), condition: f.get('condition'), value: Number(f.get('value')) }, 'هشدار ثبت شد.'); e.currentTarget.reset() }}>
@@ -896,8 +1112,6 @@ export function FinanceReact({ Nav }) {
               </div>
             </section>
           </div>
-
-          </>
         ) : null}
 
         {tab === 'fun' ? (
@@ -998,9 +1212,9 @@ export function FinanceReact({ Nav }) {
         <div className="fn-modal" onClick={() => setReport(null)}>
           <div className="fn-glass fn-report" onClick={(e) => e.stopPropagation()}>
             <div className="fn-head"><h2>گزارش ماهانه</h2>
-              <button dir="ltr" type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, -1))} aria-label="ماه قبل">›</button>
+              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, -1))} aria-label="ماه قبل"><ChevronRight size={18} aria-hidden="true" /></button>
               <b>{monthFa(report.k)}</b>
-              <button dir="ltr" type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, 1))} aria-label="ماه بعد">‹</button>
+              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, 1))} aria-label="ماه بعد"><ChevronLeft size={18} aria-hidden="true" /></button>
             </div>
             <pre>{report.text || 'در حال ساخت…'}</pre>
             <div className="fn-report-ops">
@@ -1018,7 +1232,7 @@ export function FinanceReact({ Nav }) {
             e.preventDefault()
             const f = new FormData(e.currentTarget)
             const body = editing.type === 'debt'
-              ? { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), dueDate: f.get('dueDate') || null, note: f.get('note') }
+              ? { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), date: f.get('date') || editing.item.date || isoToday(), dueDate: null, note: f.get('note') }
               : editing.type === 'account'
               ? { name: f.get('name'), type: f.get('type'), balance: Number(f.get('amount')), archived: f.get('archived') === 'on', cardNo: f.get('cardNo') || '', sheba: f.get('sheba') || '', color: f.get('color') || '' }
               : editing.type === 'poker'
@@ -1039,7 +1253,7 @@ export function FinanceReact({ Nav }) {
                   <select name="currency" defaultValue={editing.item.currency || 'IRR'}><option value="IRR">ریال</option><option value="USD">دلار</option></select>
                 </div>
                 <input name="amount" required inputMode="numeric" defaultValue={editing.item.amount} placeholder="مبلغ باقی‌مانده" />
-                <JalaliDateInput name="dueDate" defaultValue={editing.item.dueDate || ''} />
+                <label className="fn-field">تاریخ دادن / گرفتن پول<JalaliDateInput name="date" defaultValue={editing.item.date || (editing.item.createdAt ? new Date(editing.item.createdAt).toISOString().slice(0, 10) : isoToday())} clearable={false} /></label>
                 <input name="note" defaultValue={editing.item.note} placeholder="یادداشت" />
               </>
             ) : editing.type === 'account' ? (

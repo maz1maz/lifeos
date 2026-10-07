@@ -369,6 +369,9 @@ async function main() {
   check('accounts create -> 201', !!accA.id && !!accB.id);
   check('transfer -> 201', (await call('/api/transfers', { method: 'POST', cookie, body: { fromAccount: 'WA', toAccount: 'WB', amount: 400 } })).status === 201);
   check('budgets save -> 201', (await call('/api/budgets', { method: 'POST', cookie, body: { category: 'خوراک', limit: 500, month: today().slice(0, 7) } })).status === 201);
+  { const g = await call('/api/debts', { method: 'POST', cookie, body: { person: 'گرفته‌شده', amount: 300, type: 'payable', date: '2026-09-01' } });
+    check('debt keeps the lend/borrow date, defaults to today without one', g.d.date === '2026-09-01' && (await call('/api/debts', { method: 'POST', cookie, body: { person: 'بی‌تاریخ', amount: 1, type: 'payable', date: 'bad' } })).d.date === today());
+    check('debt date editable', (await call(`/api/debts/${g.d.id}`, { method: 'PATCH', cookie, body: { date: '2026-08-15' } })).d.date === '2026-08-15'); }
   const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
   check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
   const sub = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'Wsub', amount: 50, nextDate: daysAgo(-3) } })).d;
@@ -491,6 +494,79 @@ async function main() {
       if (gt.d && gt.d.id) await call(`/api/news/sources/${gt.d.id}`, { method: 'DELETE', cookie });
       for (const x of [ny.d, rt.d]) if (x && x.id) await call(`/api/news/sources/${x.id}`, { method: 'DELETE', cookie });
     } finally { globalThis.fetch = realFetch; }
+  }
+  { // Tehran-exchange stock (Persian ticker) is priced in rial, not multiplied by the dollar rate; buys are editable
+    const t1 = await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'عیارتست', type: 'buy', quantity: 2919, price: 600000 } });
+    check('Persian stock ticker -> currency IRR', t1.status === 201 && t1.d.currency === 'IRR');
+    const us = await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'AAPLT', type: 'buy', quantity: 1, price: 200 } });
+    check('Latin stock ticker -> USD unless chosen', us.d.currency === 'USD' && (await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'XYZT', type: 'buy', quantity: 1, price: 5, currency: 'IRR' } })).d.currency === 'IRR');
+    const ed = await call(`/api/investments/tx/${t1.d.id}`, { method: 'PATCH', cookie, body: { quantity: 3000, price: 610000 } });
+    check('investment buy editable', ed.d.quantity === 3000 && ed.d.price === 610000);
+    for (const sym of ['عیارتست', 'AAPLT', 'XYZT']) for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent(sym)}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
+  { // Tehran-exchange live price from TSETMC (symbol search → closing price), Persian Kaf/Yeh variants matched
+    const realFetch = globalThis.fetch, asked = [];
+    globalThis.fetch = async (url) => { const u = String(url); asked.push(u);
+      if (u.startsWith('https://www.shakhesban.com/')) return new Response('down', { status: 503 }); // first source down -> TSETMC fallback
+      if (u.includes('/Instrument/GetInstrumentSearch/')) return new Response(JSON.stringify({ instrumentSearch: [{ insCode: '111', lVal18AFC: 'شكيميا', lVal30: 'شیمیایی' }, { insCode: '222', lVal18AFC: 'شکیمیاح', lVal30: 'حق' }] }));
+      if (u.includes('/ClosingPrice/GetClosingPriceInfo/111')) return new Response(JSON.stringify({ closingPriceInfo: { pDrCotVal: 6830, pClosing: 6830 } }));
+      return new Response('nope', { status: 404 }); };
+    try {
+      await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'شکیمیا', type: 'buy', quantity: 533, price: 5941 } });
+      const r = await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'شکیمیا', assetType: 'stock' } });
+      check('TSE price refresh: exact symbol (Kaf/Yeh-insensitive), rial', r.status === 200 && r.d.price === 6830 && r.d.currency === 'IRR' && asked.some(u => u.includes('GetClosingPriceInfo/111')), JSON.stringify(r.d));
+      const pf = await call('/api/portfolio', { cookie });
+      const h = (pf.d.items || pf.d.holdings || []).find(x => x.symbol === 'شکیمیا');
+      check('portfolio uses the live TSE price', !!h && h.currentPrice === 6830 && h.currency === 'IRR', JSON.stringify(h));
+      globalThis.fetch = async () => new Response(JSON.stringify({ instrumentSearch: [] }));
+      const miss = await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'ناموجود', assetType: 'stock' } });
+      check('TSE unknown symbol -> 502 with a Persian message', miss.status === 502 && /پیدا نشد/.test(miss.d.error));
+    } finally { globalThis.fetch = realFetch; }
+    for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent('شکیمیا')}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
+  { // shakhesban.com row parsing: exact symbol, halted duplicate skipped, last price (5th cell) else closing (8th)
+    const realFetch = globalThis.fetch;
+    const row = (sym, kind, last, close) => `<tr data-symbol="${sym}"><td>${sym}</td><td><span>نام ${sym}</span></td><td>${kind}</td><td>بورس</td><td>${last}</td><td>x</td><td>x</td><td>${close}</td></tr>`;
+    globalThis.fetch = async () => new Response(`<table>${row('عیار', 'نمادهای متوقف شده', '-', '700,000')}${row('عیارx', 'صندوق ها', '1', '1')}${row('عیار', 'صندوق ها', '719,038', '718,739')}</table>`);
+    try {
+      const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+      const r = await H.fetchTsePrice('عیار');
+      check('shakhesban: exact symbol, live row, last price', r.price === 719038 && r.closing === 718739, JSON.stringify(r));
+    } finally { globalThis.fetch = realFetch; }
+  }
+  { // broker order-history import (easytrader «تاریخچه سفارشات»): filled orders only, Jalali dates, openings, dedupe
+    const XLSX = require('xlsx');
+    const ws = XLSX.utils.aoa_to_sheet([['تاریخ', 'ساعت', 'سمت سفارش', 'نماد', 'حجم کل', 'قیمت', 'حجم انجام شده', 'وضعیت'],
+      ['1405/07/12', '12:35:02', 'خرید', 'سیلورت', 6532, 13910, 6532, 'انجام شده'],
+      ['1405/07/08', '12:43:55', 'خرید', 'شكيمياتست', 1800, 5919, 533, 'بخشی انجام و مابقی منقضی شده'],
+      ['1405/07/06', '12:05:39', 'فروش', 'تابانت', 3696, 21150, 3696, 'انجام شده'],
+      ['1405/05/27', '11:54:36', 'خرید', 'سیلورت', 3294, 531110, 0, 'ویرایش']]);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'x');
+    const b64 = Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })).toString('base64');
+    const pv = await call('/api/investments/import-orders/preview', { method: 'POST', cookie, body: { fileBase64: b64, fileType: 'xlsx' } });
+    const tab = pv.d && pv.d.symbols && pv.d.symbols.find(x => x.symbol === 'تابانت');
+    check('broker preview: 3 filled orders, Jalali→ISO, Kaf/Yeh normalised, sold-before-bought noticed', pv.status === 200 && pv.d.count === 3 && pv.d.trades[0].date === '2026-09-28' && pv.d.trades.some(t => t.symbol === 'شکیمیاتست' && t.quantity === 533) && tab.heldBefore === 3696, JSON.stringify(pv.d).slice(0, 300));
+    { // two capped exports: the older file adds earlier orders, the order in both counts once
+      const ws2 = XLSX.utils.aoa_to_sheet([['تاریخ', 'ساعت', 'سمت سفارش', 'نماد', 'حجم کل', 'قیمت', 'حجم انجام شده', 'وضعیت'],
+        ['1405/07/06', '12:05:39', 'فروش', 'تابانت', 3696, 21150, 3696, 'انجام شده'],
+        ['1405/06/01', '10:00:00', 'خرید', 'تابانت', 3696, 20000, 3696, 'انجام شده']]);
+      const wb2 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb2, ws2, 'x');
+      const b64b = Buffer.from(XLSX.write(wb2, { type: 'buffer', bookType: 'xlsx' })).toString('base64');
+      const m = await call('/api/investments/import-orders/preview', { method: 'POST', cookie, body: { files: [{ fileBase64: b64, fileType: 'xlsx' }, { fileBase64: b64b, fileType: 'xlsx' }] } });
+      const t2 = m.d.symbols && m.d.symbols.find(x => x.symbol === 'تابانت');
+      check('broker preview with 2 files: merged, overlap once, no opening needed', m.status === 200 && m.d.files === 2 && m.d.count === 4 && t2.heldBefore === 0 && m.d.trades[0].date === '2026-08-23', JSON.stringify(m.d).slice(0, 300));
+    }
+    const imp = await call('/api/investments/import-orders', { method: 'POST', cookie, body: { trades: pv.d.trades, openings: [{ symbol: 'تابانت', quantity: 3696, price: 20000, date: '2026-09-27' }], replace: true } });
+    check('broker import: trades + opening written', imp.status === 200 && imp.d.added === 4, JSON.stringify(imp.d));
+    const again = await call('/api/investments/import-orders', { method: 'POST', cookie, body: { trades: pv.d.trades } });
+    check('broker import again without replace: same orders skipped', again.d.added === 0 && again.d.skipped === 3);
+    const pf = (await call('/api/portfolio', { cookie })).d; const all = pf.items || pf.holdings || [];
+    check('holdings after import: bought kept, sold-out closed with realized P/L', all.find(h => h.symbol === 'سیلورت')?.quantity === 6532 && all.find(h => h.symbol === 'تابانت')?.realizedPnl === 3696 * 1150);
+    for (const sym of ['سیلورت', 'شکیمیاتست', 'تابانت']) for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent(sym)}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
+  { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
+    check('TSE hours: Sunday 10:00 Tehran open, 14:00 closed, Thursday closed', H.tseMarketOpen(at('2026-10-11T06:30:00Z')) && !H.tseMarketOpen(at('2026-10-11T10:30:00Z')) && !H.tseMarketOpen(at('2026-10-08T06:30:00Z')));
   }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
@@ -883,7 +959,8 @@ async function main() {
     const rr = await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: proj.d.id, title: 'تماس با کارفرما', date: today(), time: tz, notes: 'از سایت' } });
     check('site reminder -> 201 and listed for the site', rr.status === 201 && (await ext('/api/ext/reminders', { token })).d.items.some(r => r.id === rr.d.id), JSON.stringify(rr.d));
     check('site reminder appears in LifeOS reminders', (await call('/api/reminders', { cookie })).d.items.some(r => r.id === rr.d.id));
-    if (tz > '00:05') {
+    // reminder set 2 min ago, skipped just after Tehran midnight (it would land on today's 23:58, still ahead)
+    if (tz < '23:55') {
       await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777001' } });
       const sent = [], realFetch = globalThis.fetch;
       env.TELEGRAM_BOT_TOKEN = 'TEST';
