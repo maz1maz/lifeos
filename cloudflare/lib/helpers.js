@@ -640,13 +640,20 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     const UA={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36','Accept':'application/rss+xml, application/atom+xml, application/xml, text/xml, text/html;q=0.8'};
     const get=async u=>{let ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),8000);try{let r=await fetch(u,{headers:UA,signal:ctl.signal,redirect:'follow'});if(!r.ok)return null;let txt=(await r.text()).slice(0,1500000);return{url:r.url||u,txt}}catch(e){return null}finally{clearTimeout(t)}};
     const asFeed=page=>{if(!page||!/<(rss|feed|rdf:RDF)\b/i.test(page.txt.slice(0,3000)))return null;let items=parseFeed(page.txt);if(!items.length)return null;let head=page.txt.split(/<(item|entry)\b/i)[0],title=decodeXmlEntities((head.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||'').replace(/<!\[CDATA\[|\]\]>/g,'').trim();return{feedUrl:page.url,title,count:items.length}};
-    let first=await get(start.href);if(!first)throw new Error('سایت در دسترس نبود یا جواب نداد.');
+    const host=start.hostname.replace(/^www\./,'');
+    // big sites that block bots but publish official feeds elsewhere
+    const KNOWN={'nytimes.com':/international|world/i.test(start.pathname)?'https://rss.nytimes.com/services/xml/rss/nyt/World.xml':'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml','bbc.com':'https://feeds.bbci.co.uk/news/world/rss.xml','bbc.co.uk':'https://feeds.bbci.co.uk/news/rss.xml','theguardian.com':'https://www.theguardian.com/world/rss','aljazeera.com':'https://www.aljazeera.com/xml/rss/all.xml','cnn.com':'http://rss.cnn.com/rss/edition.rss'};
+    // last resort for any site that blocks us or has no feed: Google News limited to that site
+    const viaGoogle=async()=>{let fa=/\.ir$/i.test(host)||/[\u0600-\u06FF]/.test(raw),q='https://news.google.com/rss/search?q='+encodeURIComponent('site:'+host)+(fa?'&hl=fa&gl=IR&ceid=IR:fa':'&hl=en-US&gl=US&ceid=US:en'),g=asFeed(await get(q));if(!g)return null;return{feedUrl:q,title:host+' (Google News)',count:g.count,via:'gnews'}};
+    if(KNOWN[host]){let k=asFeed(await get(KNOWN[host]));if(k)return k}
+    let first=await get(start.href);if(!first){let g=await viaGoogle();if(g)return g;throw new Error('سایت در دسترس نبود یا درخواست را رد کرد.')}
     let f=asFeed(first);if(f)return f;
     let cands=[];for(const m of first.txt.matchAll(/<link\b[^>]*>/gi)){let tag=m[0];if(!/rel=["']?alternate/i.test(tag)||!/type=["']?application\/(rss|atom)\+xml/i.test(tag))continue;let href=(tag.match(/href=["']([^"']+)["']/i)||[])[1];if(href){try{cands.push(new URL(href.replace(/&amp;/g,'&'),first.url).href)}catch(e){}}}
     let origin=new URL(first.url).origin;for(const path of ['/feed','/rss','/rss.xml','/feed.xml','/atom.xml','/index.xml','/feeds/posts/default'])cands.push(origin+path);
     for(const c of [...new Set(cands)].slice(0,9)){let pg=await get(c),ff=asFeed(pg);if(ff){if(!ff.title){let t=(first.txt.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1];ff.title=t?decodeXmlEntities(t).trim():''}return ff}}
     // no feed at all: fall back to the page's own headline links if there are enough of them
     let heads=parseHtmlHeadlines(first.txt,first.url);if(heads.length>=5){let t=(first.txt.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1];return{feedUrl:first.url,title:t?decodeXmlEntities(t).replace(/\s+/g,' ').trim():'',count:heads.length,kind:'html'}}
+    let g=await viaGoogle();if(g)return g;
     throw new Error('در این سایت فید خبری (RSS) پیدا نشد و تیتر خبری هم در صفحه دیده نشد.');
   }
   async function syncAllNewsSources(db){let results=[],changed=false;for(const user of db.users){for(const src of db.newsSources.filter(x=>x.userId===user.id&&x.active)){let r=await syncOneNewsSource(db,user.id,src);if(r.added)changed=true;results.push(r)}}return{changed,results}}
