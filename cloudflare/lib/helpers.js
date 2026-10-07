@@ -111,6 +111,8 @@ export function makeHelpers(env) {
     return attachStorageState(db,'v2',chunks);
   }
   async function read(){
+    // /api/bundle reads the state once and hands it to each sub-request (reading it is the slow part)
+    if(env&&env.__sharedDb)return env.__sharedDb;
     let marker=await stateMarker();
     if(marker){let rows=await readStateRows(),db=attachStorageState(rebuildState(rows),'v2',new Map(rows.filter(r=>r.key!==STATE_V2_META).map(r=>[r.key,r.value])));if(migrateCurrencyToRial(db))await write(db);return db}
     let legacy=await env.DB.prepare('SELECT value FROM kv WHERE key=?').bind(LEGACY_DB_KEY).first(),db=normalizeState(legacy?JSON.parse(legacy.value):emptyState());

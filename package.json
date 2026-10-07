@@ -6,7 +6,7 @@
     "start": "wrangler d1 execute pdmaz-db --local --file cloudflare/kv-local.sql && wrangler dev --local --port 3000",
     "dev:today": "vite --config vite.today.config.mjs",
     "build:today": "vite build --config vite.today.config.mjs && node scripts/prune-stale-bundles.js",
-    "test": "node test/smoke.js && node test/worker-smoke.js && node test/verify-script-smoke.js && node test/ui-smoke.js",
+    "test": "node test/smoke.js && node test/worker-smoke.js && node test/verify-script-smoke.js && node test/ui-smoke.js && node test/render-smoke.js",
     "deploy": "npm run build:today && wrangler deploy",
     "preview": "npm run build:today && wrangler dev",
     "build:studio": "vite build --config vite.studio.config.mjs && node scripts/prune-studio-assets.js"

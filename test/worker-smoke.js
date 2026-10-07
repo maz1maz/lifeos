@@ -448,6 +448,12 @@ async function main() {
       check('assistant: no ids/userIds leak into context', !/"userId"/.test(sys || ''));
       await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام', page: '<script>' } });
       check('assistant: unknown page adds nothing', !/"currentPage"/.test(seen[1].messages[0].content));
+      // bet/poker are visible from any page (the overview), e.g. «روندم در بت چطوره؟» asked on the finance page
+      await call('/api/bet', { method: 'POST', cookie, body: { date: new Date().toISOString().slice(0, 10), start: 100, deposit: 0, withdraw: 0, balance: 175 } });
+      await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'روندم در بت چطوره؟', page: 'planner' } });
+      const ov = seen[2].messages[0].content, j = JSON.parse(ov.slice(ov.indexOf('DATA: ') + 6));
+      check('assistant: overview has bet / poker / portfolio / projects from any page', j.overview && j.overview.bet && j.overview.bet.days >= 1 && j.overview.bet.recent.some(x => x.resultUsd === 75) && j.overview.poker && Array.isArray(j.overview.portfolio) && Array.isArray(j.overview.projects), JSON.stringify(j.overview || {}).slice(0, 300));
+      check('assistant: overview leaks no ids', !/"userId"|"id":/.test(JSON.stringify(j.overview)));
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
   }
   { // work-time log: manual entries, validation, edit, timer start/stop
@@ -572,6 +578,13 @@ async function main() {
   { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
     check('TSE hours: Sunday 10:00 Tehran open, 14:00 closed, Thursday closed', H.tseMarketOpen(at('2026-10-11T06:30:00Z')) && !H.tseMarketOpen(at('2026-10-11T10:30:00Z')) && !H.tseMarketOpen(at('2026-10-08T06:30:00Z')));
+  }
+  { // /api/bundle: several GETs in one round trip, same answers as asking one by one; bad paths refused per entry
+    const one = (await call('/api/accounts', { cookie })).d, b = await call('/api/bundle?p=' + encodeURIComponent('/api/accounts') + '&p=' + encodeURIComponent('/api/finance?from=2026-01-01&to=2026-12-31') + '&p=' + encodeURIComponent('/api/auth/logout') + '&p=' + encodeURIComponent('https://evil.example/x'), { cookie });
+    check('bundle -> 200 with one entry per path', b.status === 200 && b.d.items.length === 4, JSON.stringify(b.d).slice(0, 200));
+    check('bundle entry equals the single request', JSON.stringify(b.d.items[0].body) === JSON.stringify(one) && b.d.items[1].status === 200);
+    check('bundle refuses auth routes and outside URLs', b.d.items[2].status === 400 && b.d.items[3].status === 400);
+    check('bundle needs a session', (await call('/api/bundle?p=' + encodeURIComponent('/api/accounts'))).status === 401);
   }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);

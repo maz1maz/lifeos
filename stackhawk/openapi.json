@@ -1335,6 +1335,16 @@
         }
       }
     },
+    "/api/bundle": {
+      "get": {
+        "operationId": "get_api_bundle",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/calendar/feed": {
       "get": {
         "operationId": "get_api_calendar_feed",
@@ -2905,6 +2915,14 @@
       }
     },
     "/api/finance/monthly-report": {
+      "get": {
+        "operationId": "get_api_finance_monthly_report",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
       "post": {
         "operationId": "post_api_finance_monthly_report",
         "responses": {
