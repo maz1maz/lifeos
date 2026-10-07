@@ -603,11 +603,13 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
   rows.sort((a, b) => key(a) - key(b));
   const sum = f => rows.reduce((a, r) => a + f(r.m), 0);
   // the «چاپ / PDF» button lives in the page actions, next to «بازگشت به پروژه»; it prints the rows in their current order
-  if (printRef) printRef.current = async () => { const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: brand || {} }); };
+  const [preparer, setPreparer] = useState(() => { try { return localStorage.getItem('lifeos-report-preparer') || ''; } catch { return ''; } });
+  const savePreparer = v => { setPreparer(v); try { localStorage.setItem('lifeos-report-preparer', v); } catch {} };
+  if (printRef) printRef.current = async () => { const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer } }); };
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">
-    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
+    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div><label className="lf-compare-prep">تهیه‌کننده<input value={preparer} onChange={e => savePreparer(e.target.value)} placeholder="نام برای کاور گزارش" maxLength={60} /></label></div>
     <div className="lf-compare-wrap"><table>
       <thead><tr>{th('order', 'پروژه')}{th('progress', 'پیشرفت')}<th>زمان</th>{th('variance', 'انحراف')}{th('end', 'پایان قرارداد')}<th>مبلغ قرارداد</th><th>وصولی</th>{th('outstanding', 'معوق')}<th>مراحل عقب</th><th>وضعیت</th></tr></thead>
       <tbody>{rows.map(({ p, m }) => <tr key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}>

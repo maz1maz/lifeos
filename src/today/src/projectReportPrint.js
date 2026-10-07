@@ -321,6 +321,22 @@ export function compareReportHtml({ rows, brand = {} }) {
   const amount = sum(m => m.amount), received = sum(m => m.received), outstanding = sum(m => m.outstanding), late = sum(m => m.late);
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   const logo = /^data:image\/(?:png|jpeg|webp);base64,/i.test(String(brand.logo || '')) ? brand.logo : '';
+  // graphic cover page: one ring per project (its progress), title, totals and who prepared the report
+  const coverHtml = (() => {
+    const list = rows.slice(0, 14), cx = 160, cy = 160, gap = Math.min(11, 120 / Math.max(1, list.length)), sw = Math.max(3, gap - 3);
+    const rings = list.map(({ p, m }, i) => { const r = 140 - i * gap, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, m.progress || 0)); const col = /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1';
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="${sw}"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${(c * v / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})"/>`; }).join('');
+    const inner = Math.max(30, 140 - list.length * gap - 6);
+    const svg = `<svg viewBox="0 0 320 320" aria-hidden="true">${rings}<circle cx="${cx}" cy="${cy}" r="${inner}" fill="rgba(212,168,67,.12)"/><text x="${cx}" y="${cy - 2}" text-anchor="middle" font-size="${Math.min(34, inner * .7)}" font-weight="900" fill="#f8fafc">${pct(avg)}</text><text x="${cx}" y="${cy + Math.min(20, inner * .45)}" text-anchor="middle" font-size="${Math.min(11, inner * .28)}" fill="#cbd5e1">میانگین پیشرفت</text></svg>`;
+    const preparer = String(brand.preparer || '').trim();
+    return `<section class="cover"><div class="grid"></div><div class="glow"></div><div class="txt">
+<div class="brandc">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div>
+<div class="kick">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="line"></div>
+<div class="sub">${esc(jl(today))}</div>
+<div class="stats"><div><b>${fa(rows.length)}</b><small>پروژه</small></div><div><b>${pct(avg)}</b><small>میانگین پیشرفت</small></div><div><b>${amount ? pct(Math.round(received / amount * 100)) : '—'}</b><small>وصول از قراردادها</small></div><div><b>${fa(late)}</b><small>مرحلهٔ عقب‌افتاده</small></div></div>
+</div><div class="ringw">${svg}<div class="rleg">${list.map(({ p, m }) => `<span><i style="background:${/^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1'}"></i>${esc(p.name)} ${pct(m.progress)}</span>`).join('')}</div></div>
+<div class="prep"><span>${preparer ? `تهیه‌کننده<b>${esc(preparer)}</b>` : ''}</span><span>تاریخ تهیه: ${esc(printedAt)}</span></div></section>`;
+  })();
   const bar = (v, c) => `<div class="bar"><i style="width:${Math.max(0, Math.min(100, v || 0))}%;background:${c}"></i></div>`;
   // progress (filled bar) against elapsed contract time (dark tick): a bar left of its tick is behind schedule
   const pc = p => /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1';
@@ -340,7 +356,20 @@ html.capture body{width:${CMP_W}px}
 table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th{padding:5px 4px;vertical-align:middle}table.cmp .pg{display:flex;align-items:center;gap:6px}table.cmp .pg b{font-size:8.5pt;font-weight:800;min-width:26px}table.cmp .pg .bar{flex:1;height:5px;margin:0}.sm{font-size:6.8pt;color:#64748b}table.cmp .dot{margin-inline-end:4px}.num{font-weight:700}
 .nx{display:grid;grid-template-columns:1fr 1fr;gap:16px;break-inside:avoid}.nx ul{margin:4px 0 0;padding:0;list-style:none;font-size:8.5pt}.nx li{padding:3px 0;border-bottom:1px dashed #e2e8f0}
 .neg{color:#be123c}.pos{color:#047857}.st{display:inline-block;padding:0 6px;border:1px solid;border-radius:99px;font-size:7pt;font-weight:700;white-space:nowrap}
+.cover{position:relative;height:178mm;overflow:hidden;border-radius:6mm;background:linear-gradient(135deg,#0b1220 0%,#14213d 55%,#1e293b 100%);color:#f8fafc;break-after:page;page-break-after:always;display:grid;grid-template-columns:1.15fr 1fr;align-items:center;padding:0 14mm}
+.cover .glow{position:absolute;inset:auto auto -40mm -30mm;width:120mm;height:120mm;border-radius:50%;background:radial-gradient(circle,rgba(212,168,67,.28),transparent 65%)}
+.cover .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:9mm 9mm}
+.cover .txt{position:relative;z-index:1}
+.cover .brandc{display:flex;align-items:center;gap:10px;margin-bottom:16mm}.cover .brandc img{max-height:16mm;max-width:46mm;object-fit:contain;background:#fff;border-radius:3mm;padding:2mm}.cover .brandc b{font-size:12pt;font-weight:800;color:#e2e8f0}
+.cover .kick{font-size:10pt;letter-spacing:.5px;color:#d4a843;font-weight:700}
+.cover h1{font-size:34pt;font-weight:900;line-height:1.25;margin:3mm 0 4mm}
+.cover .line{width:34mm;height:1.6mm;border-radius:1mm;background:linear-gradient(90deg,#d4a843,#f5d98a);margin-bottom:6mm}
+.cover .sub{font-size:11pt;color:#cbd5e1}
+.cover .stats{display:flex;gap:6mm;margin-top:10mm}.cover .stats div{display:flex;flex-direction:column;border-inline-start:2px solid rgba(212,168,67,.6);padding-inline-start:3mm}.cover .stats b{font-size:17pt;font-weight:900}.cover .stats small{font-size:8pt;color:#94a3b8}
+.cover .prep{position:absolute;bottom:10mm;right:14mm;left:14mm;display:flex;justify-content:space-between;align-items:flex-end;font-size:9pt;color:#94a3b8;z-index:1}.cover .prep b{display:block;font-size:12.5pt;color:#f8fafc;font-weight:800}
+.cover .ringw{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3mm}.cover svg{width:100%;max-height:120mm}.cover .rleg{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5mm 4mm;font-size:7.5pt;color:#cbd5e1;max-width:120mm}.cover .rleg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:4px;vertical-align:middle}
 </style></head><body>
+${coverHtml}
 <header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه</div></div>
 <div class="brand">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div></header>
 <div class="cmp-kpis">
