@@ -270,11 +270,11 @@ function PortfolioImport({ onDone }) {
 function BrokerImport({ onDone }) {
   const [pv, setPv] = useState(null), [open, setOpen] = useState({}), [replace, setReplace] = useState(true), [busy, setBusy] = useState(false), [msg, setMsg] = useState('')
   const pick = async (e) => {
-    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
+    const list = [...(e.target.files || [])]; e.target.value = ''; if (!list.length) return
     setBusy(true); setMsg('در حال خواندن فایل…'); setPv(null)
     try {
-      const buf = new Uint8Array(await file.arrayBuffer()); let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000))
-      const r = await api('/api/investments/import-orders/preview', { method: 'POST', body: JSON.stringify({ fileBase64: btoa(bin), fileType: /\.csv$/i.test(file.name) ? 'csv' : 'xlsx' }) })
+      const enc = async (file) => { const buf = new Uint8Array(await file.arrayBuffer()); let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000)); return { fileBase64: btoa(bin), fileType: /\.csv$/i.test(file.name) ? 'csv' : 'xlsx' } }
+      const r = await api('/api/investments/import-orders/preview', { method: 'POST', body: JSON.stringify({ files: await Promise.all(list.map(enc)) }) })
       setPv(r); setOpen(Object.fromEntries(r.symbols.filter((x) => x.heldBefore > 0).map((x) => [x.symbol, { quantity: x.heldBefore, price: '' }]))); setMsg('')
     } catch (x) { setMsg(x.message) }
     setBusy(false)
@@ -293,9 +293,9 @@ function BrokerImport({ onDone }) {
     setBusy(false)
   }
   return <div className="fn-form fn-import">
-    <label className="fn-file">📄 فایل تاریخچهٔ سفارشات کارگزاری (Excel)<input type="file" accept=".xlsx,.xls,.csv" onChange={pick} hidden disabled={busy} /></label>
+    <label className="fn-file">📄 فایل تاریخچهٔ سفارشات کارگزاری (Excel) — چند فایل را با هم انتخاب کن<input type="file" accept=".xlsx,.xls,.csv" multiple onChange={pick} hidden disabled={busy} /></label>
     {pv ? <>
-      <p className="fn-note">{fa(pv.count)} سفارش انجام‌شده از {pv.from} تا {pv.to}{pv.rows >= 100 ? ' — فایل فقط ۱۰۰ سفارش دارد؛ معمولاً خروجی کارگزاری محدود است، پس خریدهای قدیمی‌تر در آن نیستند.' : ''}</p>
+      <p className="fn-note">{fa(pv.count)} سفارش انجام‌شده از {pv.from} تا {pv.to}{pv.files > 1 ? ` (${fa(pv.files)} فایل؛ سفارش تکراری یک بار حساب شد)` : ''}{pv.files === 1 && pv.rows >= 100 ? ' — فایل فقط ۱۰۰ سفارش دارد؛ معمولاً خروجی کارگزاری محدود است، پس خریدهای قدیمی‌تر در آن نیستند.' : ''}</p>
       <table className="fn-imp-t"><thead><tr><th>نماد</th><th>خرید</th><th>فروش</th><th>موجودی قبل از فایل</th><th>میانگین قیمت آن</th><th>مانده</th></tr></thead><tbody>
         {pv.symbols.map((x) => { const o = open[x.symbol] || { quantity: '', price: '' }, left = num(o.quantity) + x.net; return <tr key={x.symbol}>
           <td>{x.symbol}</td><td>{fa(x.buyQty)}</td><td>{fa(x.sellQty)}</td>

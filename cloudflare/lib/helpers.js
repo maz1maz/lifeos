@@ -936,7 +936,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     return changed}
   // Broker order history (easytrader / Mofid «تاریخچه سفارشات» export): columns found by header name. Only orders with
   // a filled volume count (edited/deleted/expired ones have 0); a partly filled order counts for what was filled.
-  function parseBrokerOrders(rows){
+  function brokerOrderRows(rows){
     let hi=rows.findIndex(r=>r.some(c=>/سمت/.test(String(c)))&&r.some(c=>/نماد/.test(String(c))));if(hi<0)throw new Error('ستون‌های «سمت سفارش» و «نماد» پیدا نشد؛ فایل «تاریخچه سفارشات» کارگزاری را بده.');
     let h=rows[hi].map(c=>String(c).trim()),col=re=>h.findIndex(c=>re.test(c));
     let cDate=col(/^تاریخ/),cTime=col(/^ساعت/),cSide=col(/سمت/),cSym=col(/^نماد/),cPrice=col(/^قیمت/),cFill=col(/انجام\s*شده|معامله\s*شده/),cVol=col(/^حجم/);
@@ -945,6 +945,10 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     for(const r of rows.slice(hi+1)){let qty=num(r[cFill>=0?cFill:cVol]),price=num(r[cPrice]),sym=faNorm(r[cSym]).replace(/\s+/g,''),m=String(r[cDate]||'').replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);
       if(!qty||!price||!sym||!m)continue;let jy=+m[1],date=jy>1700?`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`:jalaliToGregorianIso(jy,+m[2],+m[3]),side=/فروش|sell/i.test(String(r[cSide]))?'sell':'buy',time=cTime>=0?String(r[cTime]||''):'';
       out.push({date,time,jdate:`${m[1]}/${m[2].padStart(2,'0')}/${m[3].padStart(2,'0')}`,side,symbol:sym,quantity:qty,price,ref:['broker',date,time,side,sym,qty,price].join('|')})}
+    return out}
+  // Several files (exports are capped, e.g. 100 orders each) are merged; an order present in two files counts once.
+  function parseBrokerOrders(...sets){
+    let out=[],seen=new Set();for(const rows of sets)for(const t of brokerOrderRows(rows))if(!seen.has(t.ref)){seen.add(t.ref);out.push(t)}
     out.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
     // per symbol: what the file alone says, and how many shares were already held before its first order
     let sums={};for(const t of out){let x=sums[t.symbol]||(sums[t.symbol]={symbol:t.symbol,buys:0,sells:0,buyQty:0,sellQty:0,net:0,minRun:0,first:t.date,firstPrice:t.price,last:t.date});x[t.side==='buy'?'buys':'sells']++;x[t.side==='buy'?'buyQty':'sellQty']+=t.quantity;x.net+=t.side==='buy'?t.quantity:-t.quantity;x.minRun=Math.min(x.minRun,x.net);x.last=t.date}

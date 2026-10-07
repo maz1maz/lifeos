@@ -546,6 +546,16 @@ async function main() {
     const pv = await call('/api/investments/import-orders/preview', { method: 'POST', cookie, body: { fileBase64: b64, fileType: 'xlsx' } });
     const tab = pv.d && pv.d.symbols && pv.d.symbols.find(x => x.symbol === 'تابانت');
     check('broker preview: 3 filled orders, Jalali→ISO, Kaf/Yeh normalised, sold-before-bought noticed', pv.status === 200 && pv.d.count === 3 && pv.d.trades[0].date === '2026-09-28' && pv.d.trades.some(t => t.symbol === 'شکیمیاتست' && t.quantity === 533) && tab.heldBefore === 3696, JSON.stringify(pv.d).slice(0, 300));
+    { // two capped exports: the older file adds earlier orders, the order in both counts once
+      const ws2 = XLSX.utils.aoa_to_sheet([['تاریخ', 'ساعت', 'سمت سفارش', 'نماد', 'حجم کل', 'قیمت', 'حجم انجام شده', 'وضعیت'],
+        ['1405/07/06', '12:05:39', 'فروش', 'تابانت', 3696, 21150, 3696, 'انجام شده'],
+        ['1405/06/01', '10:00:00', 'خرید', 'تابانت', 3696, 20000, 3696, 'انجام شده']]);
+      const wb2 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb2, ws2, 'x');
+      const b64b = Buffer.from(XLSX.write(wb2, { type: 'buffer', bookType: 'xlsx' })).toString('base64');
+      const m = await call('/api/investments/import-orders/preview', { method: 'POST', cookie, body: { files: [{ fileBase64: b64, fileType: 'xlsx' }, { fileBase64: b64b, fileType: 'xlsx' }] } });
+      const t2 = m.d.symbols && m.d.symbols.find(x => x.symbol === 'تابانت');
+      check('broker preview with 2 files: merged, overlap once, no opening needed', m.status === 200 && m.d.files === 2 && m.d.count === 4 && t2.heldBefore === 0 && m.d.trades[0].date === '2026-08-23', JSON.stringify(m.d).slice(0, 300));
+    }
     const imp = await call('/api/investments/import-orders', { method: 'POST', cookie, body: { trades: pv.d.trades, openings: [{ symbol: 'تابانت', quantity: 3696, price: 20000, date: '2026-09-27' }], replace: true } });
     check('broker import: trades + opening written', imp.status === 200 && imp.d.added === 4, JSON.stringify(imp.d));
     const again = await call('/api/investments/import-orders', { method: 'POST', cookie, body: { trades: pv.d.trades } });
