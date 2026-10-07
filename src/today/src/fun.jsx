@@ -132,10 +132,10 @@ function NetBars({ items: all, mode, hasBet }) {
       </div>; })}
     </div>
     {h ? <div className="fu-nb-tip"><b>{h.title || h.label}</b>
-      <span><i className="poker" />پوکر: {signed(h.poker)}{h.sessions ? ` · ${faN(h.sessions)} جلسه` : ''}</span>
-      {h.betUsd ? <span><i className="bet" />بت: {hasBet ? `${signed(h.bet)} (${usdTxt(h.betUsd)})` : usdTxt(h.betUsd)}</span> : null}
-      <span className="t"><i className="total" />جمع: <b className={h.net > 0 ? 'pos' : h.net < 0 ? 'neg' : ''}>{bare(h.net)}</b></span>
-    </div> : <div className="fu-nb-tip muted">روی هر ستون برو تا جزئیات پوکر و بت آن را ببینی.</div>}
+      {mode !== 'bet' ? <span><i className="poker" />پوکر: {signed(h.poker)}{h.sessions ? ` · ${faN(h.sessions)} جلسه` : ''}</span> : null}
+      {mode !== 'poker' && h.betUsd ? <span><i className="bet" />بت: {hasBet ? `${signed(h.bet)} (${usdTxt(h.betUsd)})` : usdTxt(h.betUsd)}</span> : null}
+      {mode === 'all' ? <span className="t"><i className="total" />جمع: <b className={h.net > 0 ? 'pos' : h.net < 0 ? 'neg' : ''}>{bare(h.net)}</b></span> : null}
+    </div> : <div className="fu-nb-tip muted">روی هر ستون برو تا جزئیات {mode === 'poker' ? 'پوکر' : mode === 'bet' ? 'بت' : 'پوکر و بت'} آن را ببینی.</div>}
   </div>;
 }
 
@@ -206,7 +206,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
   const stM = (data.stByMode && data.stByMode[mode]) || data.st;
   return <section className="fn-glass fu-card">
     <div className="fu-head">
-      <div><h2>{mode === 'poker' ? 'وضعیت پوکر' : mode === 'bet' ? 'وضعیت بت' : 'وضعیت کلی پوکر و بت'}</h2><p>{data.hasBet ? (data.histOk ? 'بت با نرخ دلار همان روز به ریال تبدیل شده.' : `بت با دلار امروز (${faN(data.rate)} ریال) تبدیل شده؛ تاریخچهٔ نرخ در دسترس نبود.`) : bet.length ? 'نرخ دلار در دسترس نیست؛ بت فقط دلاری نشان داده می‌شود.' : 'فقط پوکر ثبت شده.'}</p></div>
+      <div><h2>{mode === 'poker' ? 'وضعیت پوکر' : mode === 'bet' ? 'وضعیت بت' : 'وضعیت کلی پوکر و بت'}</h2><p>{mode === 'poker' ? `${faN(poker.length)} جلسه ثبت شده.` : data.hasBet ? (data.histOk ? 'بت با نرخ دلار همان روز به ریال تبدیل شده.' : `بت با دلار امروز (${faN(data.rate)} ریال) تبدیل شده؛ تاریخچهٔ نرخ در دسترس نبود.`) : bet.length ? 'نرخ دلار در دسترس نیست؛ بت فقط دلاری نشان داده می‌شود.' : 'فقط پوکر ثبت شده.'}</p></div>
       <div className="fu-seg fu-range">{ranges.map(([k, l]) => <button type="button" key={k} className={range === k ? 'on' : ''} onClick={() => pick(k)}>{l}</button>)}</div>
     </div>
     {/* KPIs follow جمع / پوکر / بت from the top bar */}
@@ -224,7 +224,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
       <div className={`fu-kpi ${tone(data.betUsdAll)}`}><small>{past ? `بت تا آخر ${mName}` : 'بت از ابتدا'}</small><b>{data.hasBet ? bare(data.betRialAll) : usdR(data.betUsdAll)}</b><em>{data.hasBet ? `(${usdR(data.betUsdAll)}) · ` : ''}{faN(bet.filter(x => x.date <= anchor).length)} روز</em></div>
       </>}
     </div>
-    <LossLimit status={status} onSave={saveLimit} />
+    {mode === 'all' ? <LossLimit status={status} onSave={saveLimit} /> : null}
     {/* streaks: «پشت‌سرهم» counts consecutive winning / losing sessions (days for bet) of the chosen kind */}
     <div className="fu-streaks">
       <span className={stM.cur.kind === 'win' ? 'pos' : stM.cur.kind === 'loss' ? 'neg' : ''}><small>{mode === 'bet' ? 'روند فعلی بت' : mode === 'poker' ? 'روند فعلی پوکر' : 'روند فعلی (پوکر و بت)'}</small><b>{stM.cur.n ? `${faN(stM.cur.n)} ${stM.cur.kind === 'win' ? 'برد' : 'باخت'} پشت‌سرهم` : '—'}</b></span>
@@ -236,7 +236,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
       <div className="fu-panel"><div className="fu-ph"><h3>روند · {rLabel}</h3><div className="fu-legend">{mode === 'all' ? <span><i className="total" />جمع</span> : null}{mode !== 'bet' ? <span><i className="poker" />پوکر</span> : null}{data.hasBet && mode !== 'poker' ? <span><i className="bet" />بت</span> : null}</div></div><CumChart days={data.days} hasBet={data.hasBet} mode={mode} /><p className="fu-how">هر نقطه = جمع سود و زیان از ابتدای بازه تا آن روز (پوکر به {UF()}، بت × نرخ دلار همان روز).</p></div>
       <div className="fu-panel"><div className="fu-ph"><h3>{range === 'm' || range === 'm2' ? 'خالص هر روز بازی' : 'خالص هر ماه'}{mode === 'all' ? '' : mode === 'poker' ? ' · پوکر' : ' · بت'}</h3><div className="fu-legend">{mode !== 'bet' ? <span><i className="poker" />پوکر</span> : null}{data.hasBet && mode !== 'poker' ? <span><i className="bet" />بت</span> : null}{mode === 'all' ? <span>عدد بالای ستون = جمع روز</span> : null}</div></div><NetBars items={data.bars} mode={mode} hasBet={data.hasBet} /></div>
     </div>
-    <Locations poker={data.pR} title={`پوکر بر اساس مکان · ${rLabel}`} />
+    {mode !== 'bet' ? <Locations poker={data.pR} title={`پوکر بر اساس مکان · ${rLabel}`} /> : null}
   </section>;
 }
 
