@@ -46,6 +46,7 @@ function startFixtureSiteServer(xml) {
     const server = http.createServer((req, res) => {
       if (req.url === '/news.xml') { res.writeHead(200, { 'Content-Type': 'application/rss+xml' }); return res.end(xml); }
       if (req.url === '/') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html><head><title>سایت نمونه</title><link rel="alternate" type="application/rss+xml" title="RSS" href="/news.xml"></head><body>hi</body></html>'); }
+      if (req.url === '/sport') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html><head><title>ورزش نمونه</title></head><body><a href="/">خانه</a>' + [1, 2, 3, 4, 5, 6].map(i => `<a href="/news/${2000000 + i}/slug-${i}"><span>تیتر خبر ورزشی شماره ${i} دربارهٔ لیگ برتر</span></a>`).join('') + '<a href="https://other.example/news/123456">خبر سایت دیگری که نباید بیاید</a></body></html>'); }
       if (req.url === '/blog') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html><head><title>بدون فید</title></head><body>no feed</body></html>'); }
       res.writeHead(404); res.end('nope');
     });
@@ -631,6 +632,14 @@ async function main() {
         const none = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ url: `http://127.0.0.1:${site.port}/blog` }) });
         check('a site with no feed -> 422 with a message', none.status === 422 && /RSS/.test((await none.json()).error));
         await fetch(`${BASE}/api/news/sources/${fj.id}`, { method: 'DELETE', headers: authHeaders });
+        const html = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ url: `http://127.0.0.1:${site.port}/sport` }) });
+        const hj = await html.json();
+        check('a site with no feed but headline links becomes an html source with its headlines', html.status === 201 && hj.kind === 'html' && hj.added === 6 && hj.name === 'ورزش نمونه', JSON.stringify(hj));
+        const hs = await fetch(`${BASE}/api/news?source=${encodeURIComponent('ورزش نمونه')}`, { headers: authHeaders }).then(r => r.json());
+        check('html headlines: same-site article links only, absolute urls', hs.items.length === 6 && hs.items.every(x => x.url.startsWith(`http://127.0.0.1:${site.port}/news/`)));
+        const hsync = await fetch(`${BASE}/api/news/sync`, { method: 'POST', headers: authHeaders }).then(r => r.json());
+        check('html source re-sync adds nothing new', hsync.results.find(r => r.source === 'ورزش نمونه').added === 0);
+        await fetch(`${BASE}/api/news/sources/${hj.id}`, { method: 'DELETE', headers: authHeaders });
       } finally { site.server.close(); }
 
       const newsItems = await fetch(`${BASE}/api/news?category=تکنولوژی`, { headers: authHeaders }).then(r => r.json());

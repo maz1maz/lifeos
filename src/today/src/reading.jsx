@@ -13,7 +13,7 @@ const PRESETS = [
   ['بی‌بی‌سی فارسی', 'https://feeds.bbci.co.uk/persian/rss.xml', 'عمومی'], ['ایندیپندنت فارسی', 'https://www.independentpersian.com/rss.xml', 'عمومی'],
   ['ایسنا', 'https://www.isna.ir/rss', 'عمومی'], ['خبرآنلاین', 'https://www.khabaronline.ir/rss', 'عمومی'],
   ['زومیت', 'https://www.zoomit.ir/feed/', 'تکنولوژی'], ['دیجیاتو', 'https://digiato.com/feed', 'تکنولوژی'],
-  ['دنیای اقتصاد', 'https://donya-e-eqtesad.com', 'اقتصاد'], ['The Verge', 'https://www.theverge.com/rss/index.xml', 'تکنولوژی'],
+  ['دنیای اقتصاد', 'https://donya-e-eqtesad.com', 'اقتصاد'], ['ورزش سه', 'https://www.varzesh3.com/news', 'ورزشی'], ['The Verge', 'https://www.theverge.com/rss/index.xml', 'تکنولوژی'],
 ];
 
 function WeeklySummary({ onClose }) {
@@ -81,7 +81,7 @@ function News() {
         <input value={src.category} onChange={e => setSrc(o => ({ ...o, category: e.target.value }))} placeholder="دسته (اختیاری)" aria-label="دستهٔ منبع" />
         <button type="submit" className="rd-btn" disabled={busy === 'add'}>{busy === 'add' ? '…' : 'افزودن'}</button>
       </form>
-      <p className="rd-muted rd-hint">لازم نیست RSS را بدانی؛ آدرس خود سایت کافی است و فید خبری‌اش خودکار پیدا می‌شود.</p>
+      <p className="rd-muted rd-hint">لازم نیست RSS را بدانی؛ آدرس خود سایت کافی است. اگر سایت فید نداشته باشد، تیترها از خود صفحه خوانده می‌شوند (مثل ورزش سه).</p>
       {PRESETS.filter(([n, u]) => !sources.some(x => x.url === u || x.name === n)).length ? <div className="rd-presets"><small>پیشنهادی (یک کلیک):</small><button type="button" className="rd-all" disabled={busy === 'add'} onClick={addAll}>＋ همه را اضافه کن</button>{PRESETS.filter(([n, u]) => !sources.some(x => x.url === u || x.name === n)).map(([n, u, c]) => <button type="button" key={u} disabled={busy === 'add'} onClick={() => addFrom({ name: n, url: u, category: c })}>+ {n}</button>)}</div> : null}
       {sources.length ? <ul className="rd-srclist">{sources.map(s => <li key={s.id}><span><b>{s.name}</b><small dir="ltr">{host(s.url)}</small>{s.lastError ? <small className="bad">⚠ {s.lastError}</small> : null}</span><button type="button" className="rd-x" onClick={() => delSrc(s)} aria-label={`حذف منبع ${s.name}`}><Trash2 size={15} /></button></li>)}</ul> : <p className="rd-muted">هنوز منبعی نداری. از پیشنهادها انتخاب کن یا آدرس یک سایت خبری را بنویس.</p>}
     </div> : null}
