@@ -44,20 +44,22 @@ function CumChart({ days, hasBet, mode = 'all' }) {
   let min = Math.min(...vals), max = Math.max(...vals); const pad = (max - min) * 0.08 || 1; min -= pad; max += pad;
   const x = i => L + (i / (days.length - 1)) * (W - L - R), y = v => T + (1 - (v - min) / (max - min)) * (H - T - B);
   const path = k => days.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(d[k]).toFixed(1)}`).join(' ');
-  const z = y(0), last = days[days.length - 1];
+  const z = y(0), last = days[days.length - 1], zf = Math.max(0, Math.min(1, (z - T) / (H - B - T)));
   const area = `${path(main)} L${x(days.length - 1).toFixed(1)} ${z.toFixed(1)} L${x(0).toFixed(1)} ${z.toFixed(1)} Z`;
   const ticks = [0, Math.floor((days.length - 1) / 2), days.length - 1].filter((v, i, a) => a.indexOf(v) === i);
   const move = e => { const r = e.currentTarget.getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * W; setHi(Math.max(0, Math.min(days.length - 1, Math.round(((px - L) / (W - L - R)) * (days.length - 1))))); };
   const h = hi != null ? days[hi] : null;
   return <div className={`fu-chart m-${main}`}>
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" onMouseMove={move} onMouseLeave={() => setHi(null)} role="img" aria-label="روند سود و زیان تجمعی">
+      {/* the main line and its area are green above zero (in profit) and red below (in loss) */}
       <defs>
-        <linearGradient id={`fuUp-${main}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={`var(--fu-${main})`} stopOpacity=".32" /><stop offset="1" stopColor={`var(--fu-${main})`} stopOpacity="0" /></linearGradient>
+        <linearGradient id={`fuSign-${main}`} gradientUnits="userSpaceOnUse" x1="0" y1={T} x2="0" y2={H - B}><stop offset={zf} stopColor="#34d399" /><stop offset={zf} stopColor="#f87171" /></linearGradient>
+        <linearGradient id={`fuSignA-${main}`} gradientUnits="userSpaceOnUse" x1="0" y1={T} x2="0" y2={H - B}><stop offset="0" stopColor="#34d399" stopOpacity=".28" /><stop offset={zf} stopColor="#34d399" stopOpacity=".04" /><stop offset={zf} stopColor="#f87171" stopOpacity=".04" /><stop offset="1" stopColor="#f87171" stopOpacity=".28" /></linearGradient>
       </defs>
       <line x1={L} x2={W - R} y1={z} y2={z} className="fu-zero" />
-      <path d={area} fill={`url(#fuUp-${main})`} />
-      {lines.map(k => <path key={k} d={path(k)} className={`fu-l ${k}`} />)}
-      <circle cx={x(days.length - 1)} cy={y(last[main])} r="4.5" className={`fu-dot ${main}`} />
+      <path d={area} fill={`url(#fuSignA-${main})`} />
+      {lines.map(k => <path key={k} d={path(k)} className={`fu-l ${k}`} style={k === main ? { stroke: `url(#fuSign-${main})` } : undefined} />)}
+      <circle cx={x(days.length - 1)} cy={y(last[main])} r="4.5" className={`fu-dot ${main}`} style={{ fill: last[main] >= 0 ? '#34d399' : '#f87171' }} />
       {h ? <g><line x1={x(hi)} x2={x(hi)} y1={T} y2={H - B} className="fu-cross" /><circle cx={x(hi)} cy={y(h[main])} r="4" className={`fu-dot ${main}`} /></g> : null}
     </svg>
     <div className="fu-ticks">{ticks.map(i => <span key={i} style={{ left: `${(x(i) / W) * 100}%` }} className={i === 0 ? 'first' : i === days.length - 1 ? 'last' : ''}>{jLbl(days[i].date)}</span>)}</div>
@@ -124,8 +126,8 @@ function NetBars({ items: all, mode, hasBet }) {
     <div className="fu-bars" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((m, i) => { const t = tot(m), [v, w] = parts(t); return <div key={m.key} className={`fu-bar ${hi === i ? 'on' : ''}`} onMouseEnter={() => setHi(i)} onClick={() => setHi(i)}>
         <div className="fu-bar-val"><b className={t > 0 ? 'pos' : t < 0 ? 'neg' : ''}>{t ? v : '—'}</b><em>{t ? w : ''}</em></div>
-        <div className="fu-bar-half up">{keys.map(k => <i key={k} className={k} style={{ height: val(m, k) > 0 ? `${Math.max(3, (val(m, k) / max) * 100)}%` : 0 }} />)}</div>
-        <div className="fu-bar-half down">{keys.map(k => <i key={k} className={k} style={{ height: val(m, k) < 0 ? `${Math.max(3, (-val(m, k) / max) * 100)}%` : 0 }} />)}</div>
+        <div className="fu-bar-half up">{keys.map(k => <i key={k} className={`${k}${keys.length === 1 ? ' sg' : ''}`} style={{ height: val(m, k) > 0 ? `${Math.max(3, (val(m, k) / max) * 100)}%` : 0 }} />)}</div>
+        <div className="fu-bar-half down">{keys.map(k => <i key={k} className={`${k}${keys.length === 1 ? ' sg' : ''}`} style={{ height: val(m, k) < 0 ? `${Math.max(3, (-val(m, k) / max) * 100)}%` : 0 }} />)}</div>
         <span>{m.label}</span>
       </div>; })}
     </div>
