@@ -14,7 +14,8 @@ const cv = n => (U === 'toman' ? (Number(n) || 0) / 10 : Number(n) || 0);
 const f1 = v => v.toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : 1 });
 const parts = n => { const a = Math.abs(cv(n)); return a >= 1e9 ? [f1(a / 1e9), 'میلیارد'] : a >= 1e6 ? [f1(a / 1e6), 'میلیون'] : a >= 1e3 ? [f1(a / 1e3), 'هزار'] : [faN(a), '']; };
 const money = n => { const [v, w] = parts(n); return `${Number(n) < 0 ? '−' : ''}${v}${w ? ' ' + w : ''} ${UF()}`; };
-const sign = n => (n > 0 ? '+' : n < 0 ? '−' : '');
+// green/red already tells gain from loss; only a loss keeps its sign
+const sign = n => (n < 0 ? '−' : '');
 const signed = n => sign(n) + money(Math.abs(n)).replace(/^−/, '');
 const usdTxt = n => `${sign(n)}$${faN(Math.abs(n), 2)}`;
 const jKey = iso => { const j = isoToJ(iso); return `${j.jy}-${String(j.jm).padStart(2, '0')}`; };
@@ -221,11 +222,12 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo }) {
 }
 
 // Portfolio value vs cost over time (daily snapshots taken when the wealth tab is opened).
-export function PfTrend({ snaps }) {
+// `to` = end of the month picked at the top of the finance page (ranges count back from it).
+export function PfTrend({ snaps, to }) {
   const [range, setRange] = useState('all'), [hi, setHi] = useState(null);
-  const pts = useMemo(() => { const days = { '1m': 31, '3m': 92, '6m': 183 }[range]; if (!days) return snaps; const cut = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10); return snaps.filter(x => x.date >= cut); }, [snaps, range]);
+  const pts = useMemo(() => { const upto = to ? snaps.filter(x => x.date <= to) : snaps, days = { '1m': 31, '3m': 92, '6m': 183 }[range]; if (!days) return upto; const end = to ? Date.parse(to + 'T12:00:00Z') : Date.now(), cut = new Date(end - days * 864e5).toISOString().slice(0, 10); return upto.filter(x => x.date >= cut); }, [snaps, range, to]);
   const head = <div className="fu-pf-head"><h3>روند سبد</h3><div className="fu-seg">{[['1m', '۱ ماه'], ['3m', '۳ ماه'], ['6m', '۶ ماه'], ['all', 'همه']].map(([k, l]) => <button type="button" key={k} className={range === k ? 'on' : ''} onClick={() => setRange(k)}>{l}</button>)}</div></div>;
-  if (pts.length < 2) return <div className="fu-panel fu-pf">{head}<p className="fu-empty">{snaps.length ? 'از امروز هر روزی که این صفحه را باز کنی ارزش سبد ثبت می‌شود؛ از فردا نمودار می‌آید.' : 'در حال آماده‌سازی…'}</p></div>;
+  if (pts.length < 2) return <div className="fu-panel fu-pf">{head}<p className="fu-empty">{to && snaps.length ? 'تا پایان این ماه روند ثبت‌شده‌ای نیست.' : snaps.length ? 'از امروز هر روزی که این صفحه را باز کنی ارزش سبد ثبت می‌شود؛ از فردا نمودار می‌آید.' : 'در حال آماده‌سازی…'}</p></div>;
   const W = 720, H = 200, L = 8, R = 8, T = 14, B = 24;
   const vals = pts.flatMap(p => [p.value, p.cost]); let min = Math.min(...vals), max = Math.max(...vals); const pad = (max - min) * 0.1 || max * 0.05 || 1; min -= pad; max += pad;
   // x follows the calendar (days without a snapshot leave a gap instead of being squeezed out)

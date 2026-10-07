@@ -339,3 +339,18 @@
 .fn-imp-t input.need{border-color:#f87171}
 .fn-imp-t td.neg{color:#f87171;font-weight:700}
 .fn-or{margin-top:14px;padding-top:12px;border-top:1px solid var(--g-border)}
+
+/* portfolio mix (stocks / dollar / gold …) */
+.fn-mix { grid-column: 1 / -1; }
+.fn-mix-bar { display: flex; gap: 2px; height: 10px; margin: 6px 0 8px; border-radius: 6px; overflow: hidden; }
+.fn-mix-bar i { min-width: 3px; }
+.fn-mix ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.fn-mix li { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.fn-mix li i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.fn-mix li b { font-size: 13px; font-weight: 800; }
+.fn-mix li em { color: var(--g-muted); }
+.fn-mix .t-stock { background: #22d3ee; } .fn-mix .t-dollar { background: #34d399; } .fn-mix .t-euro { background: #60a5fa; }
+.fn-mix .t-gold { background: #f5b942; } .fn-mix .t-crypto { background: #a78bfa; } .fn-mix .t-other { background: #94a3b8; }
+.fn-pf-none { grid-column: 1 / -1; }
+.fn-xpf .xc-sub .pos { color: #065f46; font-weight: 800; }
+.fn-xpf .xc-sub .neg { color: #9f1239; font-weight: 800; }

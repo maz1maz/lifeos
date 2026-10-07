@@ -478,8 +478,13 @@ export function FinanceReact({ Nav }) {
       return { item, value, cost, pnl, native, label }
     }).sort((a, b) => b.value - a.value)
     const total = rows.reduce((a, r) => a + r.value, 0), cost = rows.reduce((a, r) => a + r.cost, 0), pnl = rows.reduce((a, r) => a + r.pnl, 0)
-    return { rows, total, cost, pnl }
+    const TYPE_FA = { stock: 'سهام و صندوق', dollar: 'دلار', euro: 'یورو', gold: 'طلا و سکه', crypto: 'رمزارز', other: 'سایر' }, by = {}
+    for (const r of rows) { const t = TYPE_FA[r.item.assetType] ? r.item.assetType : 'other'; by[t] = (by[t] || 0) + r.value }
+    const mix = Object.entries(by).filter(([, v]) => v > 0).map(([type, value]) => ({ type, label: TYPE_FA[type], value, pct: total ? Math.round((value / total) * 1000) / 10 : 0 })).sort((a, b) => b.value - a.value)
+    return { rows, total, cost, pnl, mix }
   })()
+  // a past month shows the portfolio as recorded on its last day (daily snapshots); the current month shows it live
+  const pastMonth = mRange.to < isoToday(), endSnap = pastMonth ? (pfSnaps || []).filter((x) => x.date >= mRange.from && x.date <= mRange.to).pop() : null
   // Portfolio history: one snapshot per day (rial value + cost), taken when the wealth tab is opened with live rates.
   useEffect(() => { if (tab === 'invest' && pfSnaps === null) api('/api/portfolio/snapshots').then((d) => setPfSnaps(d.items || [])).catch(() => setPfSnaps([])) }, [tab])
   useEffect(() => {
@@ -1013,17 +1018,26 @@ export function FinanceReact({ Nav }) {
 </Drawer></div>
               {portfolio.items?.length ? (
                 <div className="fn-pf-sum">
+                  {pastMonth ? (endSnap ? <>
+                    <div><small>ارزش سبد در پایان {monthFa(month)}</small><b title={faMoney(endSnap.value)}>{short(endSnap.value)}</b><em>ثبت‌شده در {jalaliShort(endSnap.date)}</em></div>
+                    <div className={endSnap.value >= endSnap.cost ? 'pos' : 'neg'}><small>سود / زیان آن روز</small><b>{endSnap.value < endSnap.cost ? '−' : ''}{short(Math.abs(endSnap.value - endSnap.cost))}</b>{endSnap.cost ? <em>{endSnap.value < endSnap.cost ? '−' : ''}{fa(Math.abs(Math.round(((endSnap.value - endSnap.cost) / endSnap.cost) * 1000) / 10))}٪</em> : null}</div>
+                  </> : <p className="fn-note fn-pf-none">برای {monthFa(month)} ارزش سبد ثبت نشده؛ ثبت روزانهٔ سبد از {pfSnaps?.[0] ? jalaliShort(pfSnaps[0].date) : 'امروز'} شروع شده. پایین، سبد امروز را می‌بینی.</p>) : <>
                   <div><small>ارزش روز سبد</small><b title={faMoney(pf.total)}>{short(pf.total)}</b></div>
-                  <div className={pf.pnl >= 0 ? 'pos' : 'neg'}><small>سود / زیان</small><b>{pf.pnl >= 0 ? '+' : '−'}{short(Math.abs(pf.pnl))}</b>{pf.cost ? <em>{pf.pnl >= 0 ? '+' : '−'}{fa(Math.abs(Math.round((pf.pnl / pf.cost) * 1000) / 10))}٪</em> : null}</div>
+                  <div className={pf.pnl >= 0 ? 'pos' : 'neg'}><small>سود / زیان</small><b>{pf.pnl < 0 ? '−' : ''}{short(Math.abs(pf.pnl))}</b>{pf.cost ? <em>{pf.pnl < 0 ? '−' : ''}{fa(Math.abs(Math.round((pf.pnl / pf.cost) * 1000) / 10))}٪</em> : null}</div>
+                  </>}
+                  {pf.mix.length > 1 ? <div className="fn-mix"><small>ترکیب سبد امروز</small>
+                    <div className="fn-mix-bar" role="img" aria-label={pf.mix.map((m) => `${m.label} ${fa(m.pct)}٪`).join('، ')}>{pf.mix.map((m) => <i key={m.type} className={`t-${m.type}`} style={{ flexGrow: m.value }} title={`${m.label}: ${short(m.value)}`} />)}</div>
+                    <ul>{pf.mix.map((m) => <li key={m.type}><i className={`t-${m.type}`} aria-hidden="true" /><span>{m.label}</span><b>{short(m.value)}</b><em>{fa(m.pct)}٪</em></li>)}</ul>
+                  </div> : null}
                   <p className="fn-note">نرخ‌ها از بازار: {rates.price_dollar_rl ? `دلار ${short(rates.price_dollar_rl, false)}` : 'دلار —'}{rates.price_eur ? ` · یورو ${short(rates.price_eur, false)}` : ''}</p>
                 </div>
               ) : null}
-              {portfolio.items?.length ? <PfTrend snaps={pfSnaps || []} /> : null}
+              {portfolio.items?.length ? <PfTrend snaps={pfSnaps || []} to={pastMonth ? mRange.to : undefined} /> : null}
               {portfolio.items?.length ? <XCards className="fn-xpf" items={pf.rows} getKey={(r) => `${r.item.assetType}-${r.item.symbol}`}
                 surface={(r) => r.item.assetType === 'gold' ? 'gold' : r.item.assetType === 'dollar' ? 'green' : r.item.assetType === 'euro' ? 'blue' : r.item.assetType === 'crypto' ? 'violet' : r.item.assetType === 'stock' ? 'cyan' : 'graphite'}
                 renderBody={(row) => <>
                   <div className="xc-top"><span className="xc-ic">{row.item.assetType === 'gold' ? '🪙' : row.item.assetType === 'dollar' ? '💵' : row.item.assetType === 'euro' ? '💶' : row.item.assetType === 'crypto' ? '₿' : row.item.assetType === 'stock' ? '📈' : '📦'}</span><span className="xc-name">{row.label}</span></div>
-                  <div><div className="xc-val" title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</div><div className="xc-sub">{fa(row.item.quantity)} واحد{row.pnl ? ` · ${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl), false)}` : ''}</div></div>
+                  <div><div className="xc-val" title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</div><div className="xc-sub">{fa(row.item.quantity)} واحد{row.pnl ? <> · <span className={row.pnl >= 0 ? 'pos' : 'neg'}>{row.pnl < 0 ? '−' : ''}{short(Math.abs(row.pnl), false)}</span></> : ''}</div></div>
                 </>}
                 renderMore={(row) => <AssetMore row={row} onChanged={load} />} /> : <p className="fn-empty">دارایی ثبت نشده.</p>}
               <div className="fn-alerts">
