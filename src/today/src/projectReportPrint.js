@@ -221,9 +221,10 @@ async function inlineFonts(doc) {
 export function projectReportPdf(data) {
   return renderPdf(projectReportHtml(data), { running: `${data.project.name} – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: reportFileName(data.project).replace(/\.pdf$/, ''), subject: 'گزارش وضعیت پروژه' });
 }
-async function renderPdf(html, { running, footer, title, subject }) {
+async function renderPdf(html, { running, footer, title, subject, W = 695, landscape = false }) {
   const [{ jsPDF }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('html2canvas')]);
-  const W = 695, pageH = Math.floor(W * 261 / 184), MX = 13, MT = 16;
+  // same scale as the portrait report (695 px = 184 mm); a landscape page (the comparison) is just wider and shorter
+  const PW = landscape ? 297 : 210, PH = landscape ? 210 : 297, CW = W * 184 / 695, MX = (PW - CW) / 2, MT = landscape ? 12 : 16, pageH = Math.floor(W * (landscape ? 182 : 261) / CW);
   const frame = mountFrame('lf-report-pdf-frame', W, html);
   try {
     const doc = frame.contentDocument;
@@ -238,10 +239,9 @@ async function renderPdf(html, { running, footer, title, subject }) {
     const body = doc.body, total = Math.ceil(body.scrollHeight);
     frame.style.height = total + 'px';
     const top0 = body.getBoundingClientRect().top;
-    const breaks = [...doc.querySelectorAll('tr, h2, .kpis, .two, .sign, .summary, p.empty')].map(el => Math.round(el.getBoundingClientRect().top - top0)).filter(y => y > 0).sort((a, b) => a - b);
-    const p1 = doc.querySelector('.p1');
+    const breaks = [...doc.querySelectorAll('tr, h2, .kpis, .two, .sign, .summary, p.empty, .cr, .cmp-kpis, .cmp-top, .nx')].map(el => Math.round(el.getBoundingClientRect().top - top0)).filter(y => y > 0).sort((a, b) => a - b);
     const forced = [
-      ...(p1 ? [Math.round(p1.getBoundingClientRect().bottom - top0)] : []),
+      ...[...doc.querySelectorAll('.p1, .cover')].map(el => Math.round(el.getBoundingClientRect().bottom - top0)),
       ...[...doc.querySelectorAll('h2.pb')].map(el => Math.round(el.getBoundingClientRect().top - top0) - 8)
     ].filter(y => y > 0).sort((a, b) => a - b);
     const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: W, height: total, windowWidth: W, windowHeight: total, logging: false, foreignObjectRendering: true });
@@ -259,17 +259,17 @@ async function renderPdf(html, { running, footer, title, subject }) {
       if (end < total) end = snap(end, Math.max(start + 60, end - 90));
       pages.push([start, end]); start = end;
     }
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait', compress: true });
     const faNum = n => Number(n).toLocaleString('fa-IR');
     pages.forEach(([s, e], i) => {
       if (i) pdf.addPage();
       const c = doc.createElement('canvas'); c.width = canvas.width; c.height = Math.round((e - s) * k);
       const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(canvas, 0, Math.round(s * k), canvas.width, c.height, 0, 0, canvas.width, c.height);
-      pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', MX, MT, 184, (e - s) * 184 / W, undefined, 'FAST');
-      const stripH = 18 * 184 / W;
-      if (i) pdf.addImage(stripImage(doc, '', running, W), 'PNG', MX, 7, 184, stripH);
-      pdf.addImage(stripImage(doc, footer, `صفحهٔ ${faNum(i + 1)} از ${faNum(pages.length)}`, W), 'PNG', MX, 297 - 12, 184, stripH);
+      pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', MX, MT, CW, (e - s) * CW / W, undefined, 'FAST');
+      const stripH = 18 * CW / W;
+      if (i) pdf.addImage(stripImage(doc, '', running, W), 'PNG', MX, landscape ? 4 : 7, CW, stripH);
+      pdf.addImage(stripImage(doc, footer, `صفحهٔ ${faNum(i + 1)} از ${faNum(pages.length)}`, W), 'PNG', MX, PH - 12, CW, stripH);
     });
     pdf.setProperties({ title, subject, creator: 'LifeOS' });
     return pdf.output('blob');
@@ -380,8 +380,8 @@ table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th
 .cover .line{width:34mm;height:1.6mm;border-radius:1mm;background:linear-gradient(90deg,#d4a843,#f5d98a);margin-bottom:6mm}
 .cover .sub{font-size:11pt;color:#475569}
 .cover .stats{display:flex;gap:6mm;margin-top:10mm}.cover .stats div{display:flex;flex-direction:column;border-inline-start:2px solid #d4a843;padding-inline-start:3mm}.cover .stats b{font-size:17pt;font-weight:900}.cover .stats small{font-size:8pt;color:#64748b}
-.cover .prep{grid-column:1 / -1;position:relative;display:flex;justify-content:space-between;align-items:flex-end;font-size:9pt;color:#64748b;z-index:1;border-top:1px solid #e2e8f0;padding-top:3mm}.cover .prep b{display:block;font-size:12.5pt;color:#0f172a;font-weight:800}
-.cover .ringw{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3mm}.cover svg{width:100%;max-height:105mm}.cover .rleg{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5mm 4mm;font-size:7.5pt;color:#475569;max-width:120mm}.cover .rleg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:4px;vertical-align:middle}
+.cover .prep{grid-column:1 / -1;position:relative;display:flex;justify-content:space-between;align-items:flex-end;font-size:9pt;color:#64748b;z-index:1;border-top:1px solid #e2e8f0;padding-top:3mm}.cover .prep b{display:block;font-size:12.5pt;color:#0f172a;font-weight:800;white-space:nowrap}.cover .prep span,.cover .stats small,.cover .sub{white-space:nowrap}
+.cover .ringw{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3mm}.cover svg{width:100%;max-height:105mm}.cover .rleg{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5mm 4mm;font-size:7.5pt;color:#475569;max-width:120mm}.cover .rleg span{white-space:nowrap}.cover .rleg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:4px;vertical-align:middle}
 </style></head><body>
 ${coverHtml}
 <header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه${brand.preparer ? `  |  تهیه‌کننده: ${esc(brand.preparer)}` : ''}</div></div>
@@ -408,6 +408,7 @@ const compareFileName = () => { const j = isoToJ(todayIso()); return `${j.jy}-${
 
 // Print dialog (Save as PDF): the browser's own text engine shapes Persian correctly, unlike the canvas path
 export async function printCompareReport(data) {
+  if (isPhone()) { const j = compareFileName(); return savePdf(await renderPdf(compareReportHtml(data), { running: `مقایسهٔ پروژه‌ها – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: j.replace(/\.pdf$/, ''), subject: 'مقایسهٔ پروژه‌ها', W: CMP_W, landscape: true }), j); }
   const title = compareFileName().replace(/\.pdf$/, '');
   const frame = mountFrame('lf-compare-print-frame', CMP_W, compareReportHtml(data), false);
   const doc = frame.contentDocument;
