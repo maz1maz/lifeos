@@ -29,7 +29,7 @@
 ```bash
 npm ci
 npm run build:today      # حتماً قبل از تست؛ بدون build، ui/verify تست‌ها قرمز می‌شوند
-npm test                 # smoke(۴۸۹، روی worker از طریق test/worker-host.js) + worker-smoke(~۳۰۳) + verify-script(۲۶) + ui-smoke(۴۷) — همه سبز
+npm test                 # smoke(۴۸۹، روی worker از طریق test/worker-host.js) + worker-smoke(~۳۰۳) + verify-script(۲۶) + ui-smoke(۴۷) + render-smoke(۱۲، رندر کامپوننت‌های React با داده؛ خطای صفحهٔ سیاه را قبل از deploy می‌گیرد) — همه سبز
                          # تست‌ها Worker را با test/load-worker.js لود می‌کنند (کپی cloudflare/ در پوشهٔ موقت)
 npm start                # Worker واقعی محلی روی :3000 (wrangler dev --local + جدول kv در D1 محلی؛ کلیدها از .dev.vars)
 PORT=3000 DB_PATH=/tmp/db.json node test/worker-host.js   # همان Worker بدون wrangler (D1 جعلی، state در DB_PATH؛ با TLS_CERT/TLS_KEY روی https)
