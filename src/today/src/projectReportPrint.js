@@ -32,7 +32,7 @@ header.top .kicker{font-size:8.5pt;color:#475569}
 header.top h1{font-size:18pt;font-weight:800;line-height:1.35;margin:2px 0}
 header.top .meta{font-size:8pt;color:#475569}
 header.top .brand{text-align:left;max-width:60mm;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-header.top .brand img{max-height:16mm;max-width:45mm;object-fit:contain}
+header.top .brand img{max-height:22mm;max-width:60mm;object-fit:contain}
 header.top .brand b{font-size:10pt}
 .status{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:99px;font-size:8.5pt;font-weight:700;border:1px solid}
 .status.ok{color:#047857;border-color:#6ee7b7;background:#ecfdf5}.status.warn{color:#b45309;border-color:#fcd34d;background:#fffbeb}.status.bad{color:#be123c;border-color:#fda4af;background:#fff1f2}
@@ -374,7 +374,7 @@ table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th
 .cover .glow{position:absolute;top:0;right:0;width:5mm;height:100%;background:#d4a843}
 .cover .grid{position:absolute;inset:0;background-image:none;background-size:9mm 9mm}
 .cover .txt{position:relative;z-index:1}
-.cover .brandc{display:flex;align-items:center;gap:10px;margin-bottom:16mm}.cover .brandc img{max-height:16mm;max-width:46mm;object-fit:contain}.cover .brandc b{font-size:12pt;font-weight:800;color:#334155}
+.cover .brandc{display:flex;align-items:center;gap:10px;margin-bottom:16mm}.cover .brandc img{max-height:30mm;max-width:80mm;object-fit:contain}.cover .brandc b{font-size:12pt;font-weight:800;color:#334155}
 .cover .kick{font-size:10pt;letter-spacing:.5px;color:#a16207;font-weight:700}
 .cover h1{font-size:34pt;font-weight:900;line-height:1.25;margin:3mm 0 4mm}
 .cover .line{width:34mm;height:1.6mm;border-radius:1mm;background:linear-gradient(90deg,#d4a843,#f5d98a);margin-bottom:6mm}
