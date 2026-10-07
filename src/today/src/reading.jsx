@@ -8,11 +8,12 @@ import { jLabel } from './jdate';
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
 const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '';
 // One-tap sources; the server checks each feed when it's added (an unreachable one just shows an error).
+// A site address (no feed path) works too: the server finds its feed. Ecoiran was dropped: it refuses requests from Cloudflare.
 const PRESETS = [
   ['بی‌بی‌سی فارسی', 'https://feeds.bbci.co.uk/persian/rss.xml', 'عمومی'], ['ایندیپندنت فارسی', 'https://www.independentpersian.com/rss.xml', 'عمومی'],
   ['ایسنا', 'https://www.isna.ir/rss', 'عمومی'], ['خبرآنلاین', 'https://www.khabaronline.ir/rss', 'عمومی'],
   ['زومیت', 'https://www.zoomit.ir/feed/', 'تکنولوژی'], ['دیجیاتو', 'https://digiato.com/feed', 'تکنولوژی'],
-  ['اکوایران', 'https://www.ecoiran.com/rss', 'اقتصاد'], ['The Verge', 'https://www.theverge.com/rss/index.xml', 'تکنولوژی'],
+  ['دنیای اقتصاد', 'https://donya-e-eqtesad.com', 'اقتصاد'], ['The Verge', 'https://www.theverge.com/rss/index.xml', 'تکنولوژی'],
 ];
 
 function WeeklySummary({ onClose }) {
@@ -52,7 +53,7 @@ function News() {
   };
   // every suggested source in one go (one request each, so a site that can't be reached doesn't block the rest)
   const addAll = async () => {
-    const todo = PRESETS.filter(([, u]) => !sources.some(x => x.url === u)); if (!todo.length) return;
+    const todo = PRESETS.filter(([n, u]) => !sources.some(x => x.url === u || x.name === n)); if (!todo.length) return;
     setBusy('add'); let ok = 0, got = 0; const bad = [];
     for (const [i, [n, u, c]] of todo.entries()) {
       setMsg(`در حال افزودن ${fa(i + 1)} از ${fa(todo.length)}: ${n}…`);
@@ -81,7 +82,7 @@ function News() {
         <button type="submit" className="rd-btn" disabled={busy === 'add'}>{busy === 'add' ? '…' : 'افزودن'}</button>
       </form>
       <p className="rd-muted rd-hint">لازم نیست RSS را بدانی؛ آدرس خود سایت کافی است و فید خبری‌اش خودکار پیدا می‌شود.</p>
-      {PRESETS.filter(([, u]) => !sources.some(x => x.url === u)).length ? <div className="rd-presets"><small>پیشنهادی (یک کلیک):</small><button type="button" className="rd-all" disabled={busy === 'add'} onClick={addAll}>＋ همه را اضافه کن</button>{PRESETS.filter(([, u]) => !sources.some(x => x.url === u)).map(([n, u, c]) => <button type="button" key={u} disabled={busy === 'add'} onClick={() => addFrom({ name: n, url: u, category: c })}>+ {n}</button>)}</div> : null}
+      {PRESETS.filter(([n, u]) => !sources.some(x => x.url === u || x.name === n)).length ? <div className="rd-presets"><small>پیشنهادی (یک کلیک):</small><button type="button" className="rd-all" disabled={busy === 'add'} onClick={addAll}>＋ همه را اضافه کن</button>{PRESETS.filter(([n, u]) => !sources.some(x => x.url === u || x.name === n)).map(([n, u, c]) => <button type="button" key={u} disabled={busy === 'add'} onClick={() => addFrom({ name: n, url: u, category: c })}>+ {n}</button>)}</div> : null}
       {sources.length ? <ul className="rd-srclist">{sources.map(s => <li key={s.id}><span><b>{s.name}</b><small dir="ltr">{host(s.url)}</small>{s.lastError ? <small className="bad">⚠ {s.lastError}</small> : null}</span><button type="button" className="rd-x" onClick={() => delSrc(s)} aria-label={`حذف منبع ${s.name}`}><Trash2 size={15} /></button></li>)}</ul> : <p className="rd-muted">هنوز منبعی نداری. از پیشنهادها انتخاب کن یا آدرس یک سایت خبری را بنویس.</p>}
     </div> : null}
     <div className="rd-filters" role="group" aria-label="فیلتر اخبار">
