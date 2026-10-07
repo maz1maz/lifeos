@@ -471,13 +471,16 @@ function betRollup(all,month){let items=[],prev=null,st={month:month||null,days:
   async function aiComplete(system,userMsg,maxTokens){
     // دو ارائه‌دهنده همزمان فعال: اول AI_PROVIDER_* (پیش‌فرض/اصلی) امتحان می‌شه؛
     // اگه خطا داد (سهمیه/ریت‌لیمیت/قطعی سرویس) و AI_PROVIDER2_* هم تنظیم باشه، خودکار سراغ اون می‌ره.
+    // Technical details (status, provider body) go to the Worker log only; people see a short Persian message.
+    const short=e=>String(e&&e.message||e).replace(/keyLen=\d+ ?/,'').slice(0,240);
+    let first=null;
     try{
       let out=await aiCompleteOne(AI_PROVIDER_API_KEY,AI_PROVIDER_BASE_URL,AI_MODEL,system,userMsg,maxTokens);
       if(out!=null)return out;
-    }catch(e){
-      if(!AI_PROVIDER2_API_KEY)throw e;
-    }
-    return await aiCompleteOne(AI_PROVIDER2_API_KEY,AI_PROVIDER2_BASE_URL,AI_MODEL2,system,userMsg,maxTokens);
+    }catch(e){first=e;console.log('ai provider 1 failed:',short(e))}
+    if(!AI_PROVIDER2_API_KEY){if(first)throw new Error('سرویس هوش مصنوعی الان جواب نداد؛ کمی بعد دوباره امتحان کن.');return null}
+    try{return await aiCompleteOne(AI_PROVIDER2_API_KEY,AI_PROVIDER2_BASE_URL,AI_MODEL2,system,userMsg,maxTokens)}
+    catch(e){console.log('ai provider 2 failed:',short(e));throw new Error('سرویس هوش مصنوعی الان جواب نداد (هر دو سرویس خطا دادند)؛ کمی بعد دوباره امتحان کن.')}
   }
   async function aiExtractActions(text){if(!AI_PROVIDER_API_KEY)return[];let sys='اعمال را از متن کوتاه فارسی کاربر استخراج کن و فقط آرایه JSON برگردان. ساختارها: {"type":"transaction","amount":عدد ریال,"title":"...","category":"خوراک|حمل‌ونقل|قبض|سلامت|تفریح|پوشاک|آموزش|مسکن|متفرقه","kind":"expense|income"} یا {"type":"time","minutes":عدد,"title":"..."} یا {"type":"mood","value":0-10} یا {"type":"sleep","value":"N ساعت"} یا {"type":"series","title":"...","season":عدد,"episode":عدد} یا {"type":"task","title":"...","date":"YYYY-MM-DD","startTime":"HH:MM"|null} یا {"type":"reminder","title":"...","date":"YYYY-MM-DD","time":"HH:MM"|null,"whenLabel":"..."} یا {"type":"investment","assetType":"crypto|stock|gold|dollar|euro|other","symbol":"نماد کریپتو/سهم — برای طلا/دلار/یورو لازم نیست","txType":"buy|sell","quantity":عدد (برای دلار/یورو = مقدار ارز),"price":عدد (قیمت هر واحد؛ طلا/سایر به ریال، کریپتو/سهم به دلار؛ برای دلار/یورو لازم نیست بنویسی)} — برای هر متنی که «خریدم/فروختم» به‌همراه دلار، یورو، طلا، سکه، کریپتو (بیت‌کوین و…) یا سهام باشد از این نوع استفاده کن، نه transaction. مبلغ‌های فارسی: «۲/۵ م» یا «2.5م» = 2500000، «۵۰ هزار» = 50000. پیش‌فرض ریال است؛ اگر کنار مبلغ «تومان» نوشته شده بود آن را در ۱۰ ضرب کن و ریال بده (1,500,000 تومان = 15,000,000 ریال). عدد «موجودی» را هرگز مبلغ نگیر. تاریخ نسبی را به میلادی ISO با تقویم تهران تبدیل کن. اگر چیزی نبود [] برگردان.';try{let out=await aiComplete(sys,text,500);let m=out&&out.match(/\[[\s\S]*\]/);if(!m)return[];let arr=JSON.parse(m[0]);return Array.isArray(arr)?arr.filter(a=>a&&typeof a==='object'&&['transaction','time','mood','sleep','series','task','reminder','investment'].includes(a.type)):[]}catch(e){return[]}}
   function pearson(xs,ys){let n=xs.length;if(n<3)return null;let mx=xs.reduce((a,b)=>a+b,0)/n,my=ys.reduce((a,b)=>a+b,0)/n,num=0,dx2=0,dy2=0;for(let i=0;i<n;i++){let dx=xs[i]-mx,dy=ys[i]-my;num+=dx*dy;dx2+=dx*dx;dy2+=dy*dy}let den=Math.sqrt(dx2*dy2);return den===0?null:num/den}
