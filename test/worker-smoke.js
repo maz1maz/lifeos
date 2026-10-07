@@ -507,6 +507,7 @@ async function main() {
   { // Tehran-exchange live price from TSETMC (symbol search → closing price), Persian Kaf/Yeh variants matched
     const realFetch = globalThis.fetch, asked = [];
     globalThis.fetch = async (url) => { const u = String(url); asked.push(u);
+      if (u.startsWith('https://www.shakhesban.com/')) return new Response('down', { status: 503 }); // first source down -> TSETMC fallback
       if (u.includes('/Instrument/GetInstrumentSearch/')) return new Response(JSON.stringify({ instrumentSearch: [{ insCode: '111', lVal18AFC: 'شكيميا', lVal30: 'شیمیایی' }, { insCode: '222', lVal18AFC: 'شکیمیاح', lVal30: 'حق' }] }));
       if (u.includes('/ClosingPrice/GetClosingPriceInfo/111')) return new Response(JSON.stringify({ closingPriceInfo: { pDrCotVal: 6830, pClosing: 6830 } }));
       return new Response('nope', { status: 404 }); };
@@ -522,6 +523,16 @@ async function main() {
       check('TSE unknown symbol -> 502 with a Persian message', miss.status === 502 && /پیدا نشد/.test(miss.d.error));
     } finally { globalThis.fetch = realFetch; }
     for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent('شکیمیا')}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
+  { // shakhesban.com row parsing: exact symbol, halted duplicate skipped, last price (5th cell) else closing (8th)
+    const realFetch = globalThis.fetch;
+    const row = (sym, kind, last, close) => `<tr data-symbol="${sym}"><td>${sym}</td><td><span>نام ${sym}</span></td><td>${kind}</td><td>بورس</td><td>${last}</td><td>x</td><td>x</td><td>${close}</td></tr>`;
+    globalThis.fetch = async () => new Response(`<table>${row('عیار', 'نمادهای متوقف شده', '-', '700,000')}${row('عیارx', 'صندوق ها', '1', '1')}${row('عیار', 'صندوق ها', '719,038', '718,739')}</table>`);
+    try {
+      const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+      const r = await H.fetchTsePrice('عیار');
+      check('shakhesban: exact symbol, live row, last price', r.price === 719038 && r.closing === 718739, JSON.stringify(r));
+    } finally { globalThis.fetch = realFetch; }
   }
   { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
