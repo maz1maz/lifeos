@@ -532,6 +532,11 @@ async function main() {
       const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
       const r = await H.fetchTsePrice('عیار');
       check('shakhesban: exact symbol, live row, last price', r.price === 719038 && r.closing === 718739, JSON.stringify(r));
+      const rf = await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'عیار', assetType: 'stock' } });
+      const ph = (await call('/api/investments/price-history', { cookie })).d.items.filter(x => x.symbol === 'عیار');
+      check('«قیمت از بورس» also saves the day\'s close (one row per day)', rf.status === 200 && ph.length === 1 && ph[0].price === 718739 && ph[0].date === today(), JSON.stringify({ rf: rf.d, ph }));
+      await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'عیار', assetType: 'stock' } });
+      check('a second fetch the same day updates that row instead of adding one', (await call('/api/investments/price-history', { cookie })).d.items.filter(x => x.symbol === 'عیار').length === 1);
     } finally { globalThis.fetch = realFetch; }
   }
   { // broker order-history import (easytrader «تاریخچه سفارشات»): filled orders only, Jalali dates, openings, dedupe
