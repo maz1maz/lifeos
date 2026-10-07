@@ -605,7 +605,7 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
   // the «چاپ / PDF» button lives in the page actions, next to «بازگشت به پروژه»; it prints the rows in their current order
   const [preparer, setPreparer] = useState(() => { try { return localStorage.getItem('lifeos-report-preparer') || ''; } catch { return ''; } });
   const savePreparer = v => { setPreparer(v); try { localStorage.setItem('lifeos-report-preparer', v); } catch {} };
-  if (printRef) printRef.current = async () => { const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer } }); };
+  if (printRef) printRef.current = async () => { let name = preparer.trim(); if (!name) { name = (window.prompt('نام تهیه‌کنندهٔ گزارش (روی صفحهٔ اول می‌آید):', '') || '').trim(); if (name) savePreparer(name); } const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer: name } }); };
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">

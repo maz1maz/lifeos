@@ -331,6 +331,8 @@ export function compareReportHtml({ rows, brand = {} }) {
   const sum = f => rows.reduce((a, r) => a + (Number(f(r.m)) || 0), 0);
   const avg = rows.length ? Math.round(sum(m => m.progress) / rows.length) : 0;
   const amount = sum(m => m.amount), received = sum(m => m.received), outstanding = sum(m => m.outstanding), late = sum(m => m.late);
+  // «وصول از قراردادها» only over projects that have a contract amount (payments on projects without one made it 130%)
+  const recPct = amount ? Math.round(sum(m => m.amount ? Math.min(m.received, m.amount) : 0) / amount * 100) : null;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   const logo = /^data:image\/(?:png|jpeg|webp);base64,/i.test(String(brand.logo || '')) ? brand.logo : '';
   // graphic cover page: one ring per project (its progress), title, totals and who prepared the report
@@ -345,7 +347,7 @@ export function compareReportHtml({ rows, brand = {} }) {
 <div class="brandc">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div>
 <div class="kick">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="line"></div>
 <div class="sub">${esc(jl(today))}</div>
-<div class="stats"><div><b>${fa(rows.length)}</b><small>پروژه</small></div><div><b>${pct(avg)}</b><small>میانگین پیشرفت</small></div><div><b>${amount ? pct(Math.round(received / amount * 100)) : '—'}</b><small>وصول از قراردادها</small></div><div><b>${fa(late)}</b><small>مرحلهٔ عقب‌افتاده</small></div></div>
+<div class="stats"><div><b>${fa(rows.length)}</b><small>پروژه</small></div><div><b>${pct(avg)}</b><small>میانگین پیشرفت</small></div><div><b>${recPct == null ? '—' : pct(recPct)}</b><small>وصول از قراردادها</small></div><div><b>${fa(late)}</b><small>مرحلهٔ عقب‌افتاده</small></div></div>
 </div><div class="ringw">${svg}<div class="rleg">${list.map(({ p, m }) => `<span><i style="background:${/^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1'}"></i>${esc(p.name)} ${pct(m.progress)}</span>`).join('')}</div></div>
 <div class="prep"><span>${preparer ? `تهیه‌کننده<b>${esc(preparer)}</b>` : ''}</span><span>تاریخ تهیه: ${esc(printedAt)}</span></div></section>`;
   })();
@@ -387,7 +389,7 @@ ${coverHtml}
 <div class="cmp-kpis">
 <div class="kpi"><small>میانگین پیشرفت</small><b class="num">${pct(avg)}</b>${bar(avg, '#0f172a')}</div>
 <div class="kpi"><small>جمع مبلغ قراردادها</small><b class="num">${money(amount)}</b></div>
-<div class="kpi"><small>جمع وصولی</small><b class="num">${money(received)}</b>${bar(amount ? received / amount * 100 : 0, '#059669')}<span>${amount ? pct(Math.round(received / amount * 100)) : '—'} از قراردادها</span></div>
+<div class="kpi"><small>جمع وصولی</small><b class="num">${money(received)}</b>${bar(recPct || 0, '#059669')}<span>${recPct == null ? '—' : pct(recPct)} از قراردادها</span></div>
 <div class="kpi ${outstanding ? 'bad' : ''}"><small>جمع مطالبات معوق</small><b class="num">${money(outstanding)}</b></div>
 <div class="kpi ${late ? 'bad' : ''}"><small>مراحل عقب‌افتاده</small><b class="num">${fa(late)}</b><span>در همهٔ پروژه‌ها</span></div>
 </div>

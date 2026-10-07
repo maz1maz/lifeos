@@ -959,7 +959,8 @@ async function main() {
     const rr = await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: proj.d.id, title: 'تماس با کارفرما', date: today(), time: tz, notes: 'از سایت' } });
     check('site reminder -> 201 and listed for the site', rr.status === 201 && (await ext('/api/ext/reminders', { token })).d.items.some(r => r.id === rr.d.id), JSON.stringify(rr.d));
     check('site reminder appears in LifeOS reminders', (await call('/api/reminders', { cookie })).d.items.some(r => r.id === rr.d.id));
-    if (tz > '00:05') {
+    // reminder set 2 min ago, skipped just after Tehran midnight (it would land on today's 23:58, still ahead)
+    if (tz < '23:55') {
       await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777001' } });
       const sent = [], realFetch = globalThis.fetch;
       env.TELEGRAM_BOT_TOKEN = 'TEST';
