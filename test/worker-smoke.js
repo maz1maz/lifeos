@@ -464,6 +464,7 @@ async function main() {
     globalThis.fetch = async (url) => { const u = String(url); asked.push(u);
       if (u.startsWith('https://rss.nytimes.com/services/xml/rss/nyt/World.xml')) return new Response(rss('NYT > World News'));
       if (u.startsWith('https://news.google.com/rss/search')) return new Response(rss('"site:reuters.com" - Google News'));
+      if (u.startsWith('https://news.google.com/rss/topics/')) return new Response(rss('World - Latest - Google News'));
       if (/reuters\.com|nytimes\.com/.test(u)) return new Response('blocked', { status: 401 });
       return new Response('nope', { status: 404 }); };
     try {
@@ -471,6 +472,9 @@ async function main() {
       check('nytimes.com/international -> official World feed', ny.status === 201 && ny.d.url.includes('nyt/World.xml') && ny.d.added === 2, JSON.stringify(ny.d));
       const rt = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://www.reuters.com' } });
       check('reuters.com (401) -> Google News for site:reuters.com', rt.status === 201 && rt.d.url.includes('news.google.com/rss/search') && rt.d.url.includes('reuters.com') && rt.d.name === 'reuters.com (Google News)' && rt.d.added === 2, JSON.stringify(rt.d));
+      const gt = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://news.google.com/topics/CAAqJggKIiBDQkFT?hl=en-US&gl=US&ceid=US%3Aen' } });
+      check('a Google News topic page -> its /rss/topics feed', gt.status === 201 && gt.d.url.startsWith('https://news.google.com/rss/topics/CAAqJggKIiBDQkFT?hl=en-US'), JSON.stringify(gt.d));
+      if (gt.d && gt.d.id) await call(`/api/news/sources/${gt.d.id}`, { method: 'DELETE', cookie });
       for (const x of [ny.d, rt.d]) if (x && x.id) await call(`/api/news/sources/${x.id}`, { method: 'DELETE', cookie });
     } finally { globalThis.fetch = realFetch; }
   }
