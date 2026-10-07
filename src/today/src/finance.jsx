@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import './finance.css'
 import { jalaliShort, jalaliDay } from './jalali'
 import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './jdate';
@@ -65,13 +66,13 @@ function MonthPicker({ value, onChange }) {
   const cur = jKeyOf(isoToday())
   return (
     <div className="fn-mp">
-      <button dir="ltr" type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, -1))} aria-label="ماه قبل">›</button>
+      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, -1))} aria-label="ماه قبل"><ChevronRight size={18} aria-hidden="true" /></button>
       <button type="button" className="fn-mp-btn" onClick={() => setOpen((v) => !v)}>{JMONTHS[m - 1]} {faD(y)} <span>▾</span></button>
-      <button dir="ltr" type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, 1))} aria-label="ماه بعد">‹</button>
+      <button type="button" className="fn-mp-nav" onClick={() => onChange(shiftMonth(value, 1))} aria-label="ماه بعد"><ChevronLeft size={18} aria-hidden="true" /></button>
       {value !== cur ? <button type="button" className="fn-mp-today" onClick={() => onChange(cur)}>این ماه</button> : null}
       {open ? (
         <div className="fn-mp-pop">
-          <div className="fn-mp-year"><button dir="ltr" type="button" onClick={() => setYy(yy - 1)} aria-label="سال قبل">›</button><b>{faD(yy)}</b><button dir="ltr" type="button" onClick={() => setYy(yy + 1)} aria-label="سال بعد">‹</button></div>
+          <div className="fn-mp-year"><button type="button" onClick={() => setYy(yy - 1)} aria-label="سال قبل"><ChevronRight size={18} aria-hidden="true" /></button><b>{faD(yy)}</b><button type="button" onClick={() => setYy(yy + 1)} aria-label="سال بعد"><ChevronLeft size={18} aria-hidden="true" /></button></div>
           <div className="fn-mp-grid">{JMONTHS.map((name, i) => { const k = `${yy}-${String(i + 1).padStart(2, '0')}`; return <button type="button" key={k} className={`${k === value ? 'on' : ''} ${k === cur ? 'cur' : ''}`} onClick={() => { onChange(k); setOpen(false) }}>{name}</button> })}</div>
         </div>
       ) : null}
@@ -1096,9 +1097,9 @@ export function FinanceReact({ Nav }) {
         <div className="fn-modal" onClick={() => setReport(null)}>
           <div className="fn-glass fn-report" onClick={(e) => e.stopPropagation()}>
             <div className="fn-head"><h2>گزارش ماهانه</h2>
-              <button dir="ltr" type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, -1))} aria-label="ماه قبل">›</button>
+              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, -1))} aria-label="ماه قبل"><ChevronRight size={18} aria-hidden="true" /></button>
               <b>{monthFa(report.k)}</b>
-              <button dir="ltr" type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, 1))} aria-label="ماه بعد">‹</button>
+              <button type="button" className="fn-mp-nav" onClick={() => openReport(shiftMonth(report.k, 1))} aria-label="ماه بعد"><ChevronLeft size={18} aria-hidden="true" /></button>
             </div>
             <pre>{report.text || 'در حال ساخت…'}</pre>
             <div className="fn-report-ops">
