@@ -38,17 +38,18 @@ const monthFa = (k) => { const [y, m] = jParts(k); return `${JMONTHS[m - 1]} ${f
 const shiftMonth = (k, d) => { let [y, m] = jParts(k); m += d; while (m > 12) { m -= 12; y++ } while (m < 1) { m += 12; y-- } return `${y}-${String(m).padStart(2, '0')}` }
 // Daily portfolio value rebuilt from the trades (for days before snapshots began). Between trades a stock keeps its
 // last traded price; dollar/euro/gold use the TGJU daily history. Cost = rial paid for what is still held (average cost).
-function rebuildPfHistory(txs, curOf, histOn, until) {
+function rebuildPfHistory(txs, curOf, histOn, until, closeOn = () => 0) {
   const list = (txs || []).filter((t) => t.date && (t.type === 'buy' || t.type === 'sell')).slice().sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0))
   if (!list.length) return []
   const pos = {}, out = [], day = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
   const fx = (p, date) => p.assetType === 'dollar' ? histOn('price_dollar_rl', date) : p.assetType === 'euro' ? histOn('price_eur', date) : p.cur === 'USD' ? histOn('price_dollar_rl', date) : 1
-  const unit = (p, date) => p.assetType === 'dollar' || p.assetType === 'euro' ? 1 : p.assetType === 'gold' ? (histOn(p.symbol, date) || p.last) : p.last
+  // stock: the saved daily close of that day (or the latest before it) once it is newer than the last trade; else the trade price
+  const unit = (p, date) => p.assetType === 'dollar' || p.assetType === 'euro' ? 1 : p.assetType === 'gold' ? (histOn(p.symbol, date) || p.last) : (closeOn(p.symbol, date, p.lastDate) || p.last)
   let i = 0
   for (let d = list[0].date; d < until; d = day(d, 1)) {
     for (; i < list.length && list[i].date <= d; i++) {
       const t = list[i], k = `${t.assetType}|${t.symbol}`, p = pos[k] || (pos[k] = { assetType: t.assetType, symbol: t.symbol, cur: curOf(t), qty: 0, cost: 0, last: 0 }), q = Number(t.quantity) || 0, pr = Number(t.price) || 0
-      if (pr && t.assetType !== 'dollar' && t.assetType !== 'euro') p.last = pr
+      if (pr && t.assetType !== 'dollar' && t.assetType !== 'euro') { p.last = pr; p.lastDate = t.date }
       if (t.type === 'buy') { p.cost += (q * (pr || 1) + (Number(t.fee) || 0)) * fx(p, t.date); p.qty += q } else if (p.qty > 0) { const f = Math.min(1, q / p.qty); p.cost -= p.cost * f; p.qty = Math.max(0, p.qty - q) }
     }
     let value = 0, cost = 0
@@ -132,8 +133,8 @@ function Drawer({ label, title, children }) {
 const CATS = ['خوراک', 'حمل‌ونقل', 'قبض', 'مسکن', 'سلامت', 'تفریح', 'آموزش', 'پوشاک', 'حقوق', 'سرمایه‌گذاری', 'هدیه', 'سفر', 'متفرقه']
 const ICONS = { 'خوراک': '🍔', 'حمل‌ونقل': '🚕', 'قبض': '🧾', 'مسکن': '🏠', 'سلامت': '💊', 'تفریح': '🎮', 'آموزش': '📚', 'پوشاک': '👕', 'حقوق': '💼', 'سرمایه‌گذاری': '📈', 'هدیه': '🎁', 'سفر': '✈️', 'متفرقه': '📦', 'انتقال': '🔄' }
 const COLORS = ['#22d3ee', '#a78bfa', '#fbbf24', '#34d399', '#f472b6', '#60a5fa', '#fb7185', '#4ade80', '#f97316']
-const usd = (n) => `$${fa(Math.round((Math.abs(Number(n) || 0)) * 100) / 100)}`
-const signedUsd = (n) => `${Number(n) >= 0 ? '+' : '−'}${usd(n)}`
+const usd = (n) => `$${fa(Math.round(Math.abs(Number(n) || 0)))}` // whole dollars
+const signedUsd = (n) => usd(n) // colour (pos/neg) carries the sign
 const ALERT_COND = { price_above: 'قیمت بالاتر از', price_below: 'قیمت پایین‌تر از', pnl_pct_above: 'سود٪ بالاتر از', pnl_pct_below: 'زیان٪ پایین‌تر از' }
 const TABS = [
   { id: 'dash', label: 'داشبورد' },
@@ -347,7 +348,7 @@ function AssetMore({ row, onChanged }) {
     </div>
     <AssetPrice row={row} onChanged={onChanged} />
     <AssetTxs row={row} onChanged={onChanged} />
-    {key ? (hist === null ? <p className="xc-sub">در حال دریافت نمودار…</p> : hist.length > 1 ? <div><Spark data={hist} up={hist[hist.length - 1] >= hist[0]} /><p className="xc-sub">قیمت ۳۰ روز اخیر{ch != null ? ` · ${ch >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(ch * 10) / 10))}٪` : ''}</p></div> : <p className="xc-sub">تاریخچهٔ قیمت در دسترس نیست.</p>) : null}
+    {key ? (hist === null ? <p className="xc-sub">در حال دریافت نمودار…</p> : hist.length > 1 ? <div><Spark data={hist} up={hist[hist.length - 1] >= hist[0]} /><p className="xc-sub">قیمت ۳۰ روز اخیر{ch != null ? <> · <span className={ch >= 0 ? 'xc-in' : 'xc-out'}>{fa(Math.abs(Math.round(ch * 10) / 10))}٪</span></> : ''}</p></div> : <p className="xc-sub">تاریخچهٔ قیمت در دسترس نیست.</p>) : null}
   </>
 }
 
@@ -388,7 +389,7 @@ export function FinanceReact({ Nav }) {
   // جمع / پوکر / بت: chosen in the top bar next to the month; drives the charts and which list shows below
   const [funMode, setFunMode] = useState(() => { try { return localStorage.getItem('lifeos-fun-mode') || 'all' } catch { return 'all' } })
   const pickFunMode = (m) => { setFunMode(m); try { localStorage.setItem('lifeos-fun-mode', m) } catch {} }
-  const [pfTx, setPfTx] = useState(null), [pfHist, setPfHist] = useState({})
+  const [pfTx, setPfTx] = useState(null), [pfHist, setPfHist] = useState({}), [pfClose, setPfClose] = useState({})
   const usdHist = useUsdHistory(tab === 'fun')
   const snapSent = useRef(false)
   const [pokerSummary, setPokerSummary] = useState({ sessions: 0, profit: 0, wins: 0, losses: 0, pushes: 0, totalBuyIn: 0, totalCashOut: 0 })
@@ -409,7 +410,11 @@ export function FinanceReact({ Nav }) {
   const [goalDep, setGoalDep] = useState(null)
   const [emptyHint, setEmptyHint] = useState(null)
 
+  // each load is numbered: when the month changes quickly, a slower answer for an earlier month must not
+  // overwrite the newer one (the page then looked as if switching months did nothing)
+  const loadSeq = useRef(0)
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current
     try {
       const months = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5))
       const { from, to } = jRange(month), rq = `from=${from}&to=${to}`
@@ -427,6 +432,7 @@ export function FinanceReact({ Nav }) {
         api('/api/poker').catch(() => ({ items: [] })),
         ...months.map((m) => { const r = jRange(m); return api(`/api/finance?from=${r.from}&to=${r.to}`).catch(() => ({ income: 0, expense: 0 })) }),
       ])
+      if (seq !== loadSeq.current) return
       setSummary(sum)
       setTxs(list.items || [])
       setEmptyHint(null)
@@ -515,6 +521,7 @@ export function FinanceReact({ Nav }) {
   // all trades + the daily rate histories they need, loaded once the invest tab opens
   useEffect(() => {
     if (tab !== 'invest' || pfTx !== null) return
+    api('/api/investments/price-history').then((d) => { const by = {}; for (const x of d.items || []) (by[x.symbol] ||= []).push(x); setPfClose(by) }).catch(() => {})
     api('/api/investments/tx').then((d) => {
       const items = d.items || []; setPfTx(items)
       const keys = new Set(); for (const t of items) { if (t.assetType === 'dollar' || t.currency === 'USD' || t.assetType === 'crypto') keys.add('price_dollar_rl'); if (t.assetType === 'euro') keys.add('price_eur'); if (t.assetType === 'gold') keys.add(t.symbol) }
@@ -522,10 +529,13 @@ export function FinanceReact({ Nav }) {
     }).catch(() => setPfTx([]))
   }, [tab])
   const pfSeries = (() => {
-    const real = pfSnaps || [], first = real.length ? real[0].date : isoToday()
-    const curOf = (t) => t.currency === 'IRR' || t.currency === 'USD' ? t.currency : t.assetType === 'crypto' ? 'USD' : 'IRR'
-    const histOn = (k, date) => { const h = pfHist[k]; if (!h || !h.length) return k === 'price_dollar_rl' ? usdRate : k === 'price_eur' ? eurRate : rates[k] || 0; return makeRateOn(h, 0)(date) }
-    return [...rebuildPfHistory(pfTx, curOf, histOn, first), ...real]
+    // trades are the source of truth for every past day: early snapshots were taken before the broker import
+    // (wrong holdings, e.g. a false dip on 5 Mehr). A saved snapshot is used only where no trades exist, plus today.
+    const today = isoToday(), rebuilt = rebuildPfHistory(pfTx, (t) => t.currency === 'IRR' || t.currency === 'USD' ? t.currency : t.assetType === 'crypto' ? 'USD' : 'IRR', (k, date) => { const h = pfHist[k]; if (!h || !h.length) return k === 'price_dollar_rl' ? usdRate : k === 'price_eur' ? eurRate : rates[k] || 0; return makeRateOn(h, 0)(date) }, today, (sym, date, after) => { const h = pfClose[sym]; if (!h) return 0; let best = null; for (const x of h) { if (x.date > date) break; best = x } return best && (!after || best.date >= after) ? best.price : 0 })
+    // today = the live portfolio (current prices), not a snapshot saved earlier in the day
+    const live = pf.total > 0 ? [{ date: today, value: Math.round(pf.total), cost: Math.round(Math.max(0, pf.total - pf.pnl)) }] : (pfSnaps || []).filter((x) => x.date === today)
+    if (rebuilt.length) { const have = new Set(rebuilt.map((x) => x.date)); return [...rebuilt, ...(pfSnaps || []).filter((x) => x.date !== today && !have.has(x.date) && x.date > rebuilt[rebuilt.length - 1].date), ...live] }
+    return [...(pfSnaps || []).filter((x) => x.date !== today), ...live]
   })()
   const pastMonth = mRange.to < isoToday(), endSnap = pastMonth ? pfSeries.filter((x) => x.date >= mRange.from && x.date <= mRange.to).pop() : null
   // Portfolio history: one snapshot per day (rial value + cost), taken when the wealth tab is opened with live rates.
@@ -685,9 +695,12 @@ export function FinanceReact({ Nav }) {
             <div className="fn-mp-row"><MonthPicker value={month} onChange={setMonth} />{tab === 'fun' ? <span className="fn-unit fn-funmode" role="radiogroup" aria-label="نمایش">{[['all', 'جمع'], ['poker', 'پوکر'], ['bet', 'بت']].map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={funMode === k} className={funMode === k ? 'on' : ''} onClick={() => pickFunMode(k)}>{l}</button>)}</span> : null}</div>
             <div className="fn-chips">
               <span className="fn-unit" role="radiogroup" aria-label="واحد نمایش">{[['rial', 'ریال'], ['toman', 'تومان']].map(([k, l]) => <button key={k} type="button" className={unit === k ? 'on' : ''} onClick={() => switchUnit(k)}>{l}</button>)}</span>
+              {/* net worth / receivables / debts: dashboard only */}
+              {tab === 'dash' ? <>
               <span className="fn-chip">دارایی: {compact(netWorth)}</span>
               <span className="fn-chip">طلب: {compact(debtTot.rec)}</span>
               <span className="fn-chip">بدهی: {compact(debtTot.pay)}</span>
+              </> : null}
             </div>
           </div>
           {tab === 'dash' ? <>
@@ -738,7 +751,7 @@ export function FinanceReact({ Nav }) {
               {txs.length ? txs.slice(0, 8).map((t) => (
                 <article key={t.id} className="fn-row">
                   <div><b>{t.title}</b><small>{jalaliShort(t.date)} · {t.category}{t.account ? ` · ${t.account}` : ''}</small></div>
-                  <span className={`amt ${t.kind === 'income' ? 'pos' : 'neg'}`}>{t.kind === 'income' ? '+' : t.kind === 'transfer' ? '↔' : '−'}{amt(t.amount)}</span>
+                  <span className={`amt ${t.kind === 'income' ? 'pos' : 'neg'}`}>{t.kind === 'transfer' ? '↔ ' : ''}{amt(t.amount)}</span>
                 </article>
               )) : <EmptyTx hint={emptyHint} onJump={(d) => setMonth(jKeyOf(d))} />}
             </section>
@@ -822,7 +835,7 @@ export function FinanceReact({ Nav }) {
                     <b>{item.title}</b>
                     <small>{jalaliShort(item.date)} · {isMisc(item) ? <select className="fn-catpick" value="" onChange={(e) => setCat(item, e.target.value)} aria-label="انتخاب دسته"><option value="">متفرقه — دسته؟</option>{CATS.filter((c) => c !== 'متفرقه' && c !== 'حقوق').map((c) => <option key={c} value={c}>{c}</option>)}<option value="انتقال">انتقال (هزینه نیست)</option></select> : item.category} · {item.account}{item.tags?.length ? ` · ${item.tags.map((t) => `#${t}`).join(' ')}` : ''}</small>
                   </div>
-                  <span className={`amt ${item.kind === 'income' ? 'pos' : 'neg'}`}>{item.kind === 'income' ? '+' : item.kind === 'transfer' ? '↔' : '−'}{amt(item.amount)}</span>
+                  <span className={`amt ${item.kind === 'income' ? 'pos' : 'neg'}`}>{item.kind === 'transfer' ? '↔ ' : ''}{amt(item.amount)}</span>
                   <div className="fn-ops">
                     <button type="button" onClick={() => setEditing({ type: 'transaction', item })}>ویرایش</button>
                     <button type="button" className="del" onClick={() => { if (window.confirm(`«${item.title}» حذف شود؟`)) send(`/api/transactions/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
@@ -868,7 +881,7 @@ export function FinanceReact({ Nav }) {
                   <div className="xc-kv"><div><small>موجودی دقیق</small><b>{faMoney(a.balance ?? a.openingBalance ?? 0)}</b></div><div><small>تراکنش‌های این ماه</small><b>{fa(txs.filter((t) => t.account === a.name || t.toAccount === a.name).length)}</b></div></div>
                   {a.cardNo ? <CopyBtn label="شماره کارت" text={a.cardNo} /> : null}
                   {a.sheba ? <CopyBtn label="شبا" text={a.sheba} /> : null}
-                  {mine.length ? <div className="xc-list">{mine.map((t) => <div key={t.id}><span>{t.title}<small> · {jalaliShort(t.date)}</small></span><b>{t.kind === 'income' || t.toAccount === a.name ? '+' : '−'}{short(t.amount)}</b></div>)}</div> : <p className="xc-sub">این ماه تراکنشی با این حساب نیست.</p>}
+                  {mine.length ? <div className="xc-list">{mine.map((t) => <div key={t.id}><span>{t.title}<small> · {jalaliShort(t.date)}</small></span><b className={t.kind === 'income' || t.toAccount === a.name ? 'xc-in' : 'xc-out'}>{short(t.amount)}</b></div>)}</div> : <p className="xc-sub">این ماه تراکنشی با این حساب نیست.</p>}
                   <div className="xc-row"><button type="button" className="xc-pill" onClick={() => setEditing({ type: 'account', item: a })}>ویرایش و شماره کارت</button></div>
                 </> }} />
               <div className="fn-head" style={{ marginTop: 18 }}><h2>🔁 پرداخت‌ها و دریافت‌های تکراری</h2></div>
@@ -997,7 +1010,7 @@ export function FinanceReact({ Nav }) {
               <div className="fn-debt-sum">
                 <div className="pos"><small>طلب من</small><b title={faMoney(debtTot.rec)}>{short(debtTot.rec)}</b><em>{fa(debtGroups.receivable.length)} مورد</em></div>
                 <div className="neg"><small>بدهی من</small><b title={faMoney(debtTot.pay)}>{short(debtTot.pay)}</b><em>{fa(debtGroups.payable.length)} مورد</em></div>
-                <div className={debtTot.rec - debtTot.pay >= 0 ? 'pos net' : 'neg net'}><small>خالص</small><b title={faMoney(debtTot.rec - debtTot.pay)}>{debtTot.rec - debtTot.pay >= 0 ? '+' : '−'}{short(Math.abs(debtTot.rec - debtTot.pay))}</b><em>{debtTot.usdMissing ? 'دلاری‌ها بدون نرخ روز' : debtTot.hasUsd ? `دلار به نرخ ${short(rates.price_dollar_rl, false)}` : ' '}</em></div>
+                <div className={debtTot.rec - debtTot.pay >= 0 ? 'pos net' : 'neg net'}><small>خالص</small><b title={faMoney(debtTot.rec - debtTot.pay)}>{short(Math.abs(debtTot.rec - debtTot.pay))}</b><em>{debtTot.usdMissing ? 'دلاری‌ها بدون نرخ روز' : debtTot.hasUsd ? `دلار به نرخ ${short(rates.price_dollar_rl, false)}` : ' '}</em></div>
               </div>
               {!debts.length ? <p className="fn-empty">بدهی یا طلب بازی نیست.</p> : [['receivable', 'طلب‌های من'], ['payable', 'بدهی‌های من']].map(([k, title]) => debtGroups[k].length ? (
                 <div key={k} className={`fn-debt-group ${k}`}>
@@ -1149,7 +1162,7 @@ export function FinanceReact({ Nav }) {
                       <b>{item.location || 'جلسهٔ پوکر'}</b>
                       <small>{jalaliShort(item.date)} · ورود {amt(item.buyIn)} · خروج {amt(item.cashOut)}{item.note ? ` · ${item.note}` : ''}</small>
                     </div>
-                    <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : '−'}{amt(Math.abs(pnl))}</span>
+                    <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{amt(Math.abs(pnl))}</span>
                     <div className="fn-ops">
                       <button type="button" onClick={() => setEditing({ type: 'poker', item })}>ویرایش</button>
                       <button type="button" className="del" onClick={() => { if (window.confirm('این جلسه حذف شود؟')) send(`/api/poker/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
@@ -1196,9 +1209,9 @@ export function FinanceReact({ Nav }) {
                   <div>
                     <b>{jalaliShort(item.date)}</b>
                     <small>داشتم {usd(item.start)} · واریز {usd(item.deposit)} · برداشت {usd(item.withdraw)} · موجودی {usd(item.balance)}{item.note ? ` · ${item.note}` : ''}</small>
-                    {(() => { const r = makeRateOn(usdHist, usdRate)(item.date, Number(item.usdRate)); return r ? <small className="fn-bet-rial">دلار {fa(Math.round(r))} · ≈ <span className={item.result >= 0 ? 'pos' : 'neg'}>{item.result >= 0 ? '+' : '−'}{short(Math.abs(item.result * r))}</span></small> : null })()}
+                    {(() => { const r = makeRateOn(usdHist, usdRate)(item.date, Number(item.usdRate)); return r ? <small className="fn-bet-rial">دلار آن روز {fa(Math.round(r))}</small> : null })()}
                   </div>
-                  <span className={`amt ${item.result >= 0 ? 'pos' : 'neg'}`}>{signedUsd(item.result)}</span>
+                  {(() => { const r = makeRateOn(usdHist, usdRate)(item.date, Number(item.usdRate)); return <span className={`amt ${item.result >= 0 ? 'pos' : 'neg'}`}>{r ? <>{short(Math.abs(item.result * r))} <small>({usd(item.result)})</small></> : usd(item.result)}</span> })()}
                   <div className="fn-ops">
                     <button type="button" onClick={() => setEditing({ type: 'bet', item })}>ویرایش</button>
                     <button type="button" className="del" onClick={() => { if (window.confirm('این روز حذف شود؟')) send(`/api/bet/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>

@@ -63,3 +63,8 @@
 .xc-stack{display:flex;height:7px;border-radius:5px;overflow:hidden;gap:2px;background:rgba(0,0,0,.22)}
 .xc-stack i{display:block;min-width:3px}
 .xc.compact .xc-stack{height:5px}
+/* labels and dates on a card take the card's own ink (the page's grey was unreadable on gold/cyan cards) */
+.xc small,.xc .xc-sub{color:inherit}.xc-list small,.xc-kv small{opacity:.72}
+/* money in/out on a card: colour instead of +/− (darker shades on the light gold/cyan cards) */
+.xc .xc-in{color:#34d399}.xc .xc-out{color:#fb7185}
+.xc-gold .xc-in,.xc-cyan .xc-in,.xc-light .xc-in{color:#065f46}.xc-gold .xc-out,.xc-cyan .xc-out,.xc-light .xc-out{color:#9f1239}
