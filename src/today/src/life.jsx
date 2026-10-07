@@ -803,7 +803,8 @@ export function ProjectsPage({ Nav }) {
   const contractOf = id => (contracts.items || []).find(x => x.projectId === id);
   const stagesOf = p => projectStages(contractOf(p.id), (processes.items || []).filter(x => x.projectId === p.id));
   const isArchived = p => !!p.archivedAt || p.status === 'archived';
-  const isFinished = p => { if (isArchived(p)) return true; if (p.status === 'done') return true; const st = stagesOf(p); return isDelivered(st) || st.every(x => x.status === 'done'); };
+  // the checklist decides: a project once marked done goes back to active when «تحویل پروژه» is unticked
+  const isFinished = p => { if (isArchived(p)) return true; const st = stagesOf(p); if (!st.length) return p.status === 'done'; return isDelivered(st) || st.every(x => x.status === 'done'); };
   // only archived projects can be deleted; asks a sum first, then removes the project and every row that belongs to it
   const deleteProject = async p => {
     if (!isArchived(p)) return;
@@ -841,8 +842,9 @@ export function ProjectsPage({ Nav }) {
   const toggleProcess = item => processes.patch(item.id, { status: item.status === 'done' ? 'todo' : 'done' });
   const patchProcess = async (id, body) => {
     const item = (processes.items || []).find(x => x.id === id);
-    await processes.patch(id, body);
-    if (!item || (!Object.prototype.hasOwnProperty.call(body, 'reminderDate') && !Object.prototype.hasOwnProperty.call(body, 'owner') && !Object.prototype.hasOwnProperty.call(body, 'note'))) return;
+    // the saved row is returned: the checklist waits for it before re-evaluating the project's done/active status
+    const saved = await processes.patch(id, body);
+    if (!item || (!Object.prototype.hasOwnProperty.call(body, 'reminderDate') && !Object.prototype.hasOwnProperty.call(body, 'owner') && !Object.prototype.hasOwnProperty.call(body, 'note'))) return saved;
     const next = { ...item, ...body };
     const title = `یادآوری پروژهٔ ${cur.name}: ${item.title}`;
     const notes = [`مسئول: ${next.owner || 'تعیین نشده'}`, `توضیحات: ${next.note || '—'}`].join('\n');
@@ -860,6 +862,7 @@ export function ProjectsPage({ Nav }) {
         await processes.patch(id, { reminderId: null });
       }
     } catch { /* the date remains visible locally even if notification sync is temporarily unavailable */ }
+    return saved;
   };
   useEffect(() => {
     if (!projects.items || !processes.items) return;
@@ -924,7 +927,7 @@ export function ProjectsPage({ Nav }) {
       {compare && list.length > 1 ? <ProjectsCompare printRef={comparePrint} projects={ordered} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'آرشیو']]}
         onReorder={reorderProjects}
         items={ordered.map(p => { const stages = stagesOf(p), total = stages.length, done = stages.filter(x => x.status === 'done').length, pct = weightedProgress(stages);
-          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: isArchived(p) ? 'archived' : (p.status === 'done' || done === total || isDelivered(stages)) ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>
+          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: isArchived(p) ? 'archived' : isFinished(p) ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>
       {cur ? <section className="lf-card sl-top" style={{ '--c': cur.color || PCOLORS[0] }}>
         {(() => { const today = todayIso(), late = mine.filter(c => c.col !== 'done' && c.due && c.due < today).sort((a, b) => a.due.localeCompare(b.due)), soon = mine.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((a, b) => a.due.localeCompare(b.due));
           return <>
