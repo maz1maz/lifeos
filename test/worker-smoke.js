@@ -369,6 +369,9 @@ async function main() {
   check('accounts create -> 201', !!accA.id && !!accB.id);
   check('transfer -> 201', (await call('/api/transfers', { method: 'POST', cookie, body: { fromAccount: 'WA', toAccount: 'WB', amount: 400 } })).status === 201);
   check('budgets save -> 201', (await call('/api/budgets', { method: 'POST', cookie, body: { category: 'خوراک', limit: 500, month: today().slice(0, 7) } })).status === 201);
+  { const g = await call('/api/debts', { method: 'POST', cookie, body: { person: 'گرفته‌شده', amount: 300, type: 'payable', date: '2026-09-01' } });
+    check('debt keeps the lend/borrow date, defaults to today without one', g.d.date === '2026-09-01' && (await call('/api/debts', { method: 'POST', cookie, body: { person: 'بی‌تاریخ', amount: 1, type: 'payable', date: 'bad' } })).d.date === today());
+    check('debt date editable', (await call(`/api/debts/${g.d.id}`, { method: 'PATCH', cookie, body: { date: '2026-08-15' } })).d.date === '2026-08-15'); }
   const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
   check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
   const sub = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'Wsub', amount: 50, nextDate: daysAgo(-3) } })).d;

@@ -46,6 +46,14 @@ const dueInfo = (iso) => {
   if (d <= 7) return { label: `${fa(d)} روز مانده`, cls: 'soon' }
   return { label: jalaliShort(iso), cls: '' }
 }
+// When the money was lent/borrowed (not a due date): «۱۵ مهر · ۲۰ روز پیش». Old rows with only a dueDate keep the due chip.
+const givenInfo = (item) => {
+  const iso = item.date || (item.createdAt ? new Date(item.createdAt).toISOString().slice(0, 10) : '')
+  if (item.dueDate && !item.date) return dueInfo(item.dueDate)
+  if (!iso) return { label: '', cls: '' }
+  const d = Math.round((Date.parse(`${isoToday()}T00:00:00Z`) - Date.parse(`${iso}T00:00:00Z`)) / 864e5)
+  return { label: `${new Intl.DateTimeFormat('fa-IR-u-ca-persian', { day: 'numeric', month: 'long', ...(iso.slice(0, 4) !== isoToday().slice(0, 4) ? { year: 'numeric' } : {}), timeZone: 'UTC' }).format(new Date(iso + 'T12:00:00Z'))}${d > 0 ? ` · ${fa(d)} روز پیش` : d === 0 ? ' · امروز' : ''}`, cls: '' }
+}
 const isMisc = (t) => t.kind === 'expense' && (!t.category || String(t.category).trim() === 'متفرقه')
 
 function MonthPicker({ value, onChange }) {
@@ -787,14 +795,14 @@ export function FinanceReact({ Nav }) {
           <div className="fn-2" id="debts">
             <section className="fn-glass fn-list">
               <div className="fn-head"><h2>بدهی و طلب</h2><Drawer label="بدهی / طلب">
-<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/debts', { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), dueDate: f.get('dueDate') || null, note: f.get('note') }, 'ثبت شد.'); e.currentTarget.reset() }}>
+<form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/debts', { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), date: f.get('date') || isoToday(), note: f.get('note') }, 'ثبت شد.'); e.currentTarget.reset() }}>
                 <input name="person" required placeholder="نام شخص" />
                 <div>
                   <select name="type"><option value="payable">بدهی من</option><option value="receivable">طلب من</option></select>
                   <select name="currency"><option value="IRR">ریال</option><option value="USD">دلار</option></select>
                 </div>
                 <input name="amount" required inputMode="numeric" placeholder="مبلغ" />
-                <JalaliDateInput name="dueDate" />
+                <label className="fn-field">تاریخ دادن / گرفتن پول<JalaliDateInput name="date" defaultValue={isoToday()} clearable={false} /></label>
                 <input name="note" placeholder="یادداشت" />
                 <button className="fn-save">افزودن</button>
               </form>
@@ -808,7 +816,7 @@ export function FinanceReact({ Nav }) {
                 <div key={k} className={`fn-debt-group ${k}`}>
                   <h3>{title}</h3>
                   {debtGroups[k].map((item) => {
-                    const due = dueInfo(item.dueDate)
+                    const due = givenInfo(item)
                     return (
                       <article key={item.id} className={`fn-debt ${due.cls}`}>
                         <div className="fn-debt-main">
@@ -1018,7 +1026,7 @@ export function FinanceReact({ Nav }) {
             e.preventDefault()
             const f = new FormData(e.currentTarget)
             const body = editing.type === 'debt'
-              ? { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), dueDate: f.get('dueDate') || null, note: f.get('note') }
+              ? { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), date: f.get('date') || editing.item.date || isoToday(), dueDate: null, note: f.get('note') }
               : editing.type === 'account'
               ? { name: f.get('name'), type: f.get('type'), balance: Number(f.get('amount')), archived: f.get('archived') === 'on', cardNo: f.get('cardNo') || '', sheba: f.get('sheba') || '', color: f.get('color') || '' }
               : editing.type === 'poker'
@@ -1039,7 +1047,7 @@ export function FinanceReact({ Nav }) {
                   <select name="currency" defaultValue={editing.item.currency || 'IRR'}><option value="IRR">ریال</option><option value="USD">دلار</option></select>
                 </div>
                 <input name="amount" required inputMode="numeric" defaultValue={editing.item.amount} placeholder="مبلغ باقی‌مانده" />
-                <JalaliDateInput name="dueDate" defaultValue={editing.item.dueDate || ''} />
+                <label className="fn-field">تاریخ دادن / گرفتن پول<JalaliDateInput name="date" defaultValue={editing.item.date || (editing.item.createdAt ? new Date(editing.item.createdAt).toISOString().slice(0, 10) : isoToday())} clearable={false} /></label>
                 <input name="note" defaultValue={editing.item.note} placeholder="یادداشت" />
               </>
             ) : editing.type === 'account' ? (
