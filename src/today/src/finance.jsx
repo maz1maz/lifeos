@@ -433,12 +433,15 @@ export function FinanceReact({ Nav }) {
   // Portfolio history: one snapshot per day (rial value + cost), taken when the wealth tab is opened with live rates.
   useEffect(() => { if (tab === 'wealth' && pfSnaps === null) api('/api/portfolio/snapshots').then((d) => setPfSnaps(d.items || [])).catch(() => setPfSnaps([])) }, [tab])
   useEffect(() => {
-    if (tab !== 'wealth' || snapSent.current || !pf.rows.length || !(pf.total > 0) || !Object.keys(rates).length) return
+    if (tab !== 'wealth' || snapSent.current || !pf.rows.length || !(pf.total > 0) || !Object.keys(rates).length || pfSnaps === null) return
     if (pf.rows.some((r) => r.item.assetType === 'dollar' || (r.item.currency || 'IRR') === 'USD') && !usdRate) return
+    // today's point follows the portfolio: re-sent whenever value or cost moved more than 0.5% (an edited buy, a new price)
+    const cur = (pfSnaps || []).find((x) => x.date === isoToday()), cost = Math.max(0, pf.total - pf.pnl), off = (a, b) => !b || Math.abs(a - b) / b > 0.005
+    if (cur && !off(pf.total, cur.value) && !off(cost, cur.cost)) return
     snapSent.current = true
     api('/api/portfolio/snapshots', { method: 'POST', body: JSON.stringify({ value: pf.total, cost: Math.max(0, pf.total - pf.pnl) }) })
-      .then((r) => { if (r && r.date) setPfSnaps((list) => [...(list || []).filter((x) => x.date !== r.date), r].sort((a, b) => String(a.date).localeCompare(String(b.date)))) }).catch(() => { snapSent.current = false })
-  }, [tab, pf.total, usdRate, rates])
+      .then((r) => { snapSent.current = false; if (r && r.date) setPfSnaps((list) => [...(list || []).filter((x) => x.date !== r.date), r].sort((a, b) => String(a.date).localeCompare(String(b.date)))) }).catch(() => { snapSent.current = false })
+  }, [tab, pf.total, pf.pnl, usdRate, rates, pfSnaps])
 
   const bud = (() => {
     const bmap = Object.fromEntries((budgets.budgets || []).map((b) => [b.category, Number(b.limit) || 0]))

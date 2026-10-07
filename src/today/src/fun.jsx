@@ -222,19 +222,23 @@ export function PfTrend({ snaps }) {
   if (pts.length < 2) return <div className="fu-panel fu-pf">{head}<p className="fu-empty">{snaps.length ? 'از امروز هر روزی که این صفحه را باز کنی ارزش سبد ثبت می‌شود؛ از فردا نمودار می‌آید.' : 'در حال آماده‌سازی…'}</p></div>;
   const W = 720, H = 200, L = 8, R = 8, T = 14, B = 24;
   const vals = pts.flatMap(p => [p.value, p.cost]); let min = Math.min(...vals), max = Math.max(...vals); const pad = (max - min) * 0.1 || max * 0.05 || 1; min -= pad; max += pad;
-  const x = i => L + (i / (pts.length - 1)) * (W - L - R), y = v => T + (1 - (v - min) / (max - min)) * (H - T - B);
+  // x follows the calendar (days without a snapshot leave a gap instead of being squeezed out)
+  const ts = pts.map(p => Date.parse(p.date + 'T12:00:00Z')), t0 = ts[0], span = (ts[ts.length - 1] - t0) || 1;
+  const x = i => L + ((ts[i] - t0) / span) * (W - L - R), y = v => T + (1 - (v - min) / (max - min)) * (H - T - B);
   const line = k => pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p[k]).toFixed(1)}`).join(' ');
   const band = `${line('value')} ${pts.slice().reverse().map((p, j) => `L${x(pts.length - 1 - j).toFixed(1)} ${y(p.cost).toFixed(1)}`).join(' ')} Z`;
-  const last = pts[pts.length - 1], first = pts[0], pnl = last.value - last.cost, chg = last.value - first.value;
+  // «change» = change in profit, not in value: money put in (new buys) raises value and cost alike and isn't a gain
+  const last = pts[pts.length - 1], first = pts[0], pnl = last.value - last.cost, chg = pnl - (first.value - first.cost);
   const h = hi != null ? pts[hi] : null;
-  const move = e => { const r = e.currentTarget.getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * W; setHi(Math.max(0, Math.min(pts.length - 1, Math.round(((px - L) / (W - L - R)) * (pts.length - 1))))); };
+  const move = e => { const r = e.currentTarget.getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * W; let best = 0; for (let i = 1; i < pts.length; i++) if (Math.abs(x(i) - px) < Math.abs(x(best) - px)) best = i; setHi(best); };
   return <div className="fu-panel fu-pf">{head}
-    <div className="fu-pf-kpis"><span><small>سود/زیان فعلی</small><b className={pnl >= 0 ? 'pos' : 'neg'}>{signed(pnl)}</b></span><span><small>تغییر ارزش در این بازه</small><b className={chg >= 0 ? 'pos' : 'neg'}>{signed(chg)}</b></span><span className="fu-legend"><span><i className="total" />ارزش</span><span><i className="cost" />بهای خرید</span></span></div>
+    <div className="fu-pf-kpis"><span><small>سود/زیان فعلی</small><b className={pnl >= 0 ? 'pos' : 'neg'}>{signed(pnl)}</b></span><span><small>تغییر سود در این بازه</small><b className={chg >= 0 ? 'pos' : 'neg'}>{signed(chg)}</b></span><span className="fu-legend"><span><i className="total" />ارزش</span><span><i className="cost" />بهای خرید</span></span></div>
     <div className="fu-chart">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" onMouseMove={move} onMouseLeave={() => setHi(null)} role="img" aria-label="روند ارزش سبد">
         <path d={band} className={pnl >= 0 ? 'fu-band pos' : 'fu-band neg'} />
         <path d={line('cost')} className="fu-l cost" />
         <path d={line('value')} className="fu-l total" />
+        {pts.length <= 40 ? pts.map((p, i) => <circle key={p.date} cx={x(i)} cy={y(p.value)} r="3" className="fu-pt" />) : null}
         {h ? <g><line x1={x(hi)} x2={x(hi)} y1={T} y2={H - B} className="fu-cross" /><circle cx={x(hi)} cy={y(h.value)} r="4" className="fu-dot" /></g> : null}
       </svg>
       <div className="fu-ticks"><span className="first" style={{ left: '0%' }}>{jLbl(first.date)}</span><span className="last" style={{ left: '100%' }}>{jLbl(last.date)}</span></div>

@@ -523,6 +523,10 @@ async function main() {
     } finally { globalThis.fetch = realFetch; }
     for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent('شکیمیا')}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
   }
+  { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
+    check('TSE hours: Sunday 10:00 Tehran open, 14:00 closed, Thursday closed', H.tseMarketOpen(at('2026-10-11T06:30:00Z')) && !H.tseMarketOpen(at('2026-10-11T10:30:00Z')) && !H.tseMarketOpen(at('2026-10-08T06:30:00Z')));
+  }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
   check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');
