@@ -826,7 +826,8 @@ export function ProjectsPage({ Nav }) {
     finally { setDeleting(''); }
   };
   const cur = (() => { const p = list.find(x => x.id === pid); if (p && (picked || !isFinished(p))) return p; return ordered.find(x => !isFinished(x)) || p || ordered.find(x => !isArchived(x)) || ordered[0] || null; })();
-  useEffect(() => { if (cur) try { localStorage.setItem('lifeos-project', cur.id); } catch {} }, [cur?.id]);
+  // the project on screen stays on screen: ticking «تحویل پروژه» finishes it, and without this the view jumped to the next active project
+  useEffect(() => { if (cur) { try { localStorage.setItem('lifeos-project', cur.id); } catch {} if (!picked && processes.items) { setPicked(true); setPidRaw(cur.id); } } }, [cur?.id, !!processes.items]);
   const mine = (cards.items || []).filter(c => cur && c.projectId === cur.id);
   // Creating a project deliberately asks for only its name. Everything else is
   // filled in the always-open project/contract sheet immediately afterwards.
