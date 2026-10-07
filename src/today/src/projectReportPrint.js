@@ -64,7 +64,7 @@ tr.grp td{background:#f8fafc;font-weight:800;color:#0f172a;border-bottom:1px sol
 tr.done td{color:#475569}
 .muted{color:#94a3b8}
 .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px;break-inside:avoid}
-.sign div{border-top:1px solid #94a3b8;padding-top:5px;text-align:center;font-size:8.5pt;color:#475569;min-height:22mm}
+.sign div{border-top:1px solid #94a3b8;padding-top:5px;text-align:center;font-size:8.5pt;color:#475569;min-height:22mm}.sign .who{display:block;margin-top:3px;font-size:10pt;color:#0f172a}
 .empty{color:#94a3b8;font-size:8.5pt;padding:6px 0}
 .ring{display:block}
 .sharebar{display:flex;gap:2px;height:22px;margin:4px 0 6px;break-inside:avoid}
@@ -135,7 +135,7 @@ export function projectReportHtml(d) {
 
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${esc(reportNo)}</title><style>${CSS(brand, reportNo)}</style></head><body>
 <section class="p1"><div class="p1i">
-<header class="top"><div><div class="kicker">گزارش وضعیت پروژه</div><h1>${esc(project.name)}</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}${project.client ? `  |  کارفرما: ${esc(project.client)}` : ''}</div><span class="status ${state[0]}">${state[1]}</span></div>
+<header class="top"><div><div class="kicker">گزارش وضعیت پروژه</div><h1>${esc(project.name)}</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}${project.client ? `  |  کارفرما: ${esc(project.client)}` : ''}${brand?.preparer ? `  |  تهیه‌کننده: ${esc(brand.preparer)}` : ''}</div><span class="status ${state[0]}">${state[1]}</span></div>
 <div class="brand">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div></header>
 <div class="summary"><b>خلاصهٔ مدیریتی:</b> ${summary}</div>
 <div class="kpis">
@@ -158,7 +158,7 @@ ${itemsSection}
 <h2>صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">آخرین صورت‌وضعیت (تجمعی) / جمع واریزی / معوق</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
 ${next.length ? `<h2>اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
 <h2>وضعیت مراحل اجرایی</h2><table class="stages"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th class="note">توضیحات</th></tr></thead><tbody>${stageRows}</tbody></table>
-<div class="sign"><div>تهیه‌کننده</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
+<div class="sign"><div>تهیه‌کننده${brand?.preparer ? `<b class="who">${esc(brand.preparer)}</b>` : ''}</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
 </body></html>`;
 }
 
@@ -384,7 +384,7 @@ table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th
 .cover .ringw{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3mm}.cover svg{width:100%;max-height:120mm}.cover .rleg{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5mm 4mm;font-size:7.5pt;color:#475569;max-width:120mm}.cover .rleg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:4px;vertical-align:middle}
 </style></head><body>
 ${coverHtml}
-<header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه</div></div>
+<header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه${brand.preparer ? `  |  تهیه‌کننده: ${esc(brand.preparer)}` : ''}</div></div>
 <div class="brand">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div></header>
 <div class="cmp-kpis">
 <div class="kpi"><small>میانگین پیشرفت</small><b class="num">${pct(avg)}</b>${bar(avg, '#0f172a')}</div>

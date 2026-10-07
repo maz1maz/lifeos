@@ -596,6 +596,11 @@ function PipelineReport({ rows, onOpen }) {
     </div>)}
   </div>;
 }
+// name printed on every report (cover, header, signature row); asked once, kept in this browser
+const PREPARER_KEY = 'lifeos-report-preparer';
+const readPreparer = () => { try { return localStorage.getItem(PREPARER_KEY) || ''; } catch { return ''; } };
+const writePreparer = v => { try { localStorage.setItem(PREPARER_KEY, v); } catch {} };
+function askPreparer() { let name = readPreparer().trim(); if (!name) { name = (window.prompt('نام تهیه‌کنندهٔ گزارش (روی گزارش‌ها می‌آید):', '') || '').trim(); if (name) writePreparer(name); } return name; }
 function ProjectsCompare({ projects, contracts, financials, processes, onOpen, printRef }) {
   const [sort, setSort] = useState('order');
   const rows = projects.map((p, i) => ({ p, i, m: projectMetrics(p, contracts.find(x => x.projectId === p.id), financials.filter(x => x.projectId === p.id), processes.filter(x => x.projectId === p.id)) }));
@@ -603,9 +608,9 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
   rows.sort((a, b) => key(a) - key(b));
   const sum = f => rows.reduce((a, r) => a + f(r.m), 0);
   // the «چاپ / PDF» button lives in the page actions, next to «بازگشت به پروژه»; it prints the rows in their current order
-  const [preparer, setPreparer] = useState(() => { try { return localStorage.getItem('lifeos-report-preparer') || ''; } catch { return ''; } });
-  const savePreparer = v => { setPreparer(v); try { localStorage.setItem('lifeos-report-preparer', v); } catch {} };
-  if (printRef) printRef.current = async () => { let name = preparer.trim(); if (!name) { name = (window.prompt('نام تهیه‌کنندهٔ گزارش (روی صفحهٔ اول می‌آید):', '') || '').trim(); if (name) savePreparer(name); } const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer: name } }); };
+  const [preparer, setPreparer] = useState(readPreparer);
+  const savePreparer = v => { setPreparer(v); writePreparer(v); };
+  if (printRef) printRef.current = async () => { const name = askPreparer(); setPreparer(name); const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer: name } }); };
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">
@@ -668,8 +673,9 @@ function ProjectReport({ project, contract, financials, processes }) {
   const hasReportBrand = !!(reportHeaderText || reportLogo);
   const printedAt = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date());
   const [sendState, setSendState] = useState({ busy: false, msg: '', error: false });
-  const reportData = () => ({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo }, stages, departments, statements: statementRows, items: reportItems });
+  const reportData = () => ({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo, preparer: askPreparer() }, stages, departments, statements: statementRows, items: reportItems });
   const [printing, setPrinting] = useState(false);
+  const [, setPrepTick] = useState(0);
   const printReport = async () => { setPrinting(true); try { await printProjectReport(reportData()); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPrinting(false); } };
   const sendReport = async () => {
     if (sendState.busy) return;
@@ -684,7 +690,7 @@ function ProjectReport({ project, contract, financials, processes }) {
       {hasReportBrand ? <aside className="lf-report-print-brand" aria-label="سربرگ گزارش">{reportLogo ? <img src={reportLogo} alt="لوگوی گزارش" /> : null}{reportHeaderText ? <b>{reportHeaderText}</b> : null}</aside> : null}
       <div><p>گزارش عملکرد پروژه</p><h2>{project.name}</h2><small>تهیه‌شده در {printedAt}</small></div>
       <div className={`lf-report-status ${timelineBehind ? 'attention' : progress === 100 ? 'complete' : ''}`}><b>{projectState}</b><span>{fa(progress)}٪ پیشرفت اجرایی</span></div>
-      <div className="lf-report-actions"><div className="lf-report-btns"><button type="button" className="lf-btn lf-report-print" onClick={printReport} disabled={printing}>{printing ? '⏳ در حال ساخت PDF…' : '🖨 چاپ / ذخیرهٔ PDF'}</button><button type="button" className="lf-btn ghost lf-report-print" onClick={sendReport} disabled={sendState.busy}>{sendState.busy ? '⏳ در حال ارسال…' : '✈ ارسال به تلگرام'}</button></div>{sendState.msg ? <small className={`lf-report-send ${sendState.error ? 'err' : ''}`} role="status">{sendState.msg}</small> : null}</div>
+      <div className="lf-report-actions"><div className="lf-report-btns"><button type="button" className="lf-btn ghost lf-report-prep" title="نام تهیه‌کننده روی گزارش" onClick={() => { const v = window.prompt('نام تهیه‌کنندهٔ گزارش:', readPreparer()); if (v != null) { writePreparer(v.trim()); setPrepTick(t => t + 1); } }}>✎ تهیه‌کننده: {readPreparer() || '—'}</button><button type="button" className="lf-btn lf-report-print" onClick={printReport} disabled={printing}>{printing ? '⏳ در حال ساخت PDF…' : '🖨 چاپ / ذخیرهٔ PDF'}</button><button type="button" className="lf-btn ghost lf-report-print" onClick={sendReport} disabled={sendState.busy}>{sendState.busy ? '⏳ در حال ارسال…' : '✈ ارسال به تلگرام'}</button></div>{sendState.msg ? <small className={`lf-report-send ${sendState.error ? 'err' : ''}`} role="status">{sendState.msg}</small> : null}</div>
     </header>
     <section className="lf-report-metrics">
       <div className="lf-report-chart report-progress"><div className="lf-report-ring" style={{ '--progress': `${progress * 3.6}deg` }}><b>{fa(progress)}٪</b><small>اجرایی</small></div><div><small>پیشرفت مراحل</small><b>{fa(completed)} از {fa(stages.length)} مرحله</b><span>مراحل اجرایی تکمیل شده</span></div></div>
