@@ -36,6 +36,27 @@ const jRange = (k) => { const [y, m] = jParts(k); return { from: jToIso(y, m, 1)
 const legacyKey = (k) => { const [y, m] = jParts(k); return jToIso(y, m, 15).slice(0, 7) }
 const monthFa = (k) => { const [y, m] = jParts(k); return `${JMONTHS[m - 1]} ${faD(y)}` }
 const shiftMonth = (k, d) => { let [y, m] = jParts(k); m += d; while (m > 12) { m -= 12; y++ } while (m < 1) { m += 12; y-- } return `${y}-${String(m).padStart(2, '0')}` }
+// Daily portfolio value rebuilt from the trades (for days before snapshots began). Between trades a stock keeps its
+// last traded price; dollar/euro/gold use the TGJU daily history. Cost = rial paid for what is still held (average cost).
+function rebuildPfHistory(txs, curOf, histOn, until) {
+  const list = (txs || []).filter((t) => t.date && (t.type === 'buy' || t.type === 'sell')).slice().sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0))
+  if (!list.length) return []
+  const pos = {}, out = [], day = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
+  const fx = (p, date) => p.assetType === 'dollar' ? histOn('price_dollar_rl', date) : p.assetType === 'euro' ? histOn('price_eur', date) : p.cur === 'USD' ? histOn('price_dollar_rl', date) : 1
+  const unit = (p, date) => p.assetType === 'dollar' || p.assetType === 'euro' ? 1 : p.assetType === 'gold' ? (histOn(p.symbol, date) || p.last) : p.last
+  let i = 0
+  for (let d = list[0].date; d < until; d = day(d, 1)) {
+    for (; i < list.length && list[i].date <= d; i++) {
+      const t = list[i], k = `${t.assetType}|${t.symbol}`, p = pos[k] || (pos[k] = { assetType: t.assetType, symbol: t.symbol, cur: curOf(t), qty: 0, cost: 0, last: 0 }), q = Number(t.quantity) || 0, pr = Number(t.price) || 0
+      if (pr && t.assetType !== 'dollar' && t.assetType !== 'euro') p.last = pr
+      if (t.type === 'buy') { p.cost += (q * (pr || 1) + (Number(t.fee) || 0)) * fx(p, t.date); p.qty += q } else if (p.qty > 0) { const f = Math.min(1, q / p.qty); p.cost -= p.cost * f; p.qty = Math.max(0, p.qty - q) }
+    }
+    let value = 0, cost = 0
+    for (const p of Object.values(pos)) if (p.qty > 0) { value += p.qty * unit(p, d) * fx(p, d); cost += p.cost }
+    if (value > 0) out.push({ date: d, value: Math.round(value), cost: Math.round(cost), est: true })
+  }
+  return out
+}
 const ACC_FA = { bank: 'بانک', card: 'کارت', cash: 'نقدی' }
 const GOLD_FA = { geram18: 'طلای ۱۸ عیار (گرم)', geram24: 'طلای ۲۴ عیار (گرم)', sekee: 'سکه امامی', sekeb: 'سکه بهار آزادی', nim: 'نیم‌سکه', rob: 'ربع‌سکه', gerami: 'سکه گرمی', mesghal: 'مثقال طلا' }
 const ASSET_FA = { crypto: 'رمزارز', stock: 'سهام', gold: 'طلا', dollar: 'ارز', euro: 'ارز', other: 'سایر' }
@@ -364,6 +385,7 @@ export function FinanceReact({ Nav }) {
   const [pokerAll, setPokerAll] = useState([])
   const [pfSnaps, setPfSnaps] = useState(null)
   const [closedOpen, setClosedOpen] = useState(null)
+  const [pfTx, setPfTx] = useState(null), [pfHist, setPfHist] = useState({})
   const usdHist = useUsdHistory(tab === 'fun')
   const snapSent = useRef(false)
   const [pokerSummary, setPokerSummary] = useState({ sessions: 0, profit: 0, wins: 0, losses: 0, pushes: 0, totalBuyIn: 0, totalCashOut: 0 })
@@ -487,7 +509,22 @@ export function FinanceReact({ Nav }) {
     return { rows, total, cost, pnl, mix, closed }
   })()
   // a past month shows the portfolio as recorded on its last day (daily snapshots); the current month shows it live
-  const pastMonth = mRange.to < isoToday(), endSnap = pastMonth ? (pfSnaps || []).filter((x) => x.date >= mRange.from && x.date <= mRange.to).pop() : null
+  // all trades + the daily rate histories they need, loaded once the invest tab opens
+  useEffect(() => {
+    if (tab !== 'invest' || pfTx !== null) return
+    api('/api/investments/tx').then((d) => {
+      const items = d.items || []; setPfTx(items)
+      const keys = new Set(); for (const t of items) { if (t.assetType === 'dollar' || t.currency === 'USD' || t.assetType === 'crypto') keys.add('price_dollar_rl'); if (t.assetType === 'euro') keys.add('price_eur'); if (t.assetType === 'gold') keys.add(t.symbol) }
+      for (const k of keys) api(`/api/tgju/history?key=${encodeURIComponent(k)}&days=730`).then((h) => setPfHist((o) => ({ ...o, [k]: (h.items || []).filter((x) => x.price > 0 && x.date) }))).catch(() => {})
+    }).catch(() => setPfTx([]))
+  }, [tab])
+  const pfSeries = (() => {
+    const real = pfSnaps || [], first = real.length ? real[0].date : isoToday()
+    const curOf = (t) => t.currency === 'IRR' || t.currency === 'USD' ? t.currency : t.assetType === 'crypto' ? 'USD' : 'IRR'
+    const histOn = (k, date) => { const h = pfHist[k]; if (!h || !h.length) return k === 'price_dollar_rl' ? usdRate : k === 'price_eur' ? eurRate : rates[k] || 0; return makeRateOn(h, 0)(date) }
+    return [...rebuildPfHistory(pfTx, curOf, histOn, first), ...real]
+  })()
+  const pastMonth = mRange.to < isoToday(), endSnap = pastMonth ? pfSeries.filter((x) => x.date >= mRange.from && x.date <= mRange.to).pop() : null
   // Portfolio history: one snapshot per day (rial value + cost), taken when the wealth tab is opened with live rates.
   useEffect(() => { if (tab === 'invest' && pfSnaps === null) api('/api/portfolio/snapshots').then((d) => setPfSnaps(d.items || [])).catch(() => setPfSnaps([])) }, [tab])
   useEffect(() => {
@@ -1022,7 +1059,7 @@ export function FinanceReact({ Nav }) {
               {portfolio.items?.length ? (
                 <div className="fn-pf-sum">
                   {pastMonth ? (endSnap ? <>
-                    <div><small>ارزش سبد در پایان {monthFa(month)}</small><b title={faMoney(endSnap.value)}>{short(endSnap.value)}</b><em>ثبت‌شده در {jalaliShort(endSnap.date)}</em></div>
+                    <div><small>ارزش سبد در پایان {monthFa(month)}</small><b title={faMoney(endSnap.value)}>{short(endSnap.value)}</b><em>{endSnap.est ? `برآورد از معاملات و نرخ ${jalaliShort(endSnap.date)}` : `ثبت‌شده در ${jalaliShort(endSnap.date)}`}</em></div>
                     <div className={endSnap.value >= endSnap.cost ? 'pos' : 'neg'}><small>سود / زیان آن روز</small><b>{endSnap.value < endSnap.cost ? '−' : ''}{short(Math.abs(endSnap.value - endSnap.cost))}</b>{endSnap.cost ? <em>{endSnap.value < endSnap.cost ? '−' : ''}{fa(Math.abs(Math.round(((endSnap.value - endSnap.cost) / endSnap.cost) * 1000) / 10))}٪</em> : null}</div>
                   </> : <p className="fn-note fn-pf-none">برای {monthFa(month)} ارزش سبد ثبت نشده؛ ثبت روزانهٔ سبد از {pfSnaps?.[0] ? jalaliShort(pfSnaps[0].date) : 'امروز'} شروع شده. پایین، سبد امروز را می‌بینی.</p>) : <>
                   <div><small>ارزش روز سبد</small><b title={faMoney(pf.total)}>{short(pf.total)}</b></div>
@@ -1035,7 +1072,7 @@ export function FinanceReact({ Nav }) {
                   <p className="fn-note">نرخ‌ها از بازار: {rates.price_dollar_rl ? `دلار ${short(rates.price_dollar_rl, false)}` : 'دلار —'}{rates.price_eur ? ` · یورو ${short(rates.price_eur, false)}` : ''}</p>
                 </div>
               ) : null}
-              {portfolio.items?.length ? <PfTrend snaps={pfSnaps || []} to={pastMonth ? mRange.to : undefined} /> : null}
+              {portfolio.items?.length ? <PfTrend snaps={pfSeries} to={pastMonth ? mRange.to : undefined} /> : null}
               {portfolio.items?.length ? <XCards className="fn-xpf" cols={3} items={pf.rows.filter((r) => Number(r.item.quantity) > 0)} getKey={(r) => `${r.item.assetType}-${r.item.symbol}`}
                 surface={(r) => r.item.assetType === 'gold' ? 'gold' : r.item.assetType === 'dollar' ? 'green' : r.item.assetType === 'euro' ? 'blue' : r.item.assetType === 'crypto' ? 'violet' : r.item.assetType === 'stock' ? 'cyan' : 'graphite'}
                 renderBody={(row) => <>

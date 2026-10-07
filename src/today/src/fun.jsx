@@ -241,6 +241,7 @@ export function PfTrend({ snaps, to }) {
   const move = e => { const r = e.currentTarget.getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * W; let best = 0; for (let i = 1; i < pts.length; i++) if (Math.abs(x(i) - px) < Math.abs(x(best) - px)) best = i; setHi(best); };
   return <div className="fu-panel fu-pf">{head}
     <div className="fu-pf-kpis"><span><small>سود/زیان فعلی</small><b className={pnl >= 0 ? 'pos' : 'neg'}>{signed(pnl)}</b></span><span><small>تغییر سود در این بازه</small><b className={chg >= 0 ? 'pos' : 'neg'}>{signed(chg)}</b></span><span className="fu-legend"><span><i className="total" />ارزش</span><span><i className="cost" />بهای خرید</span></span></div>
+      {pts.some(p => p.est) ? <p className="fu-est">تا {jLbl(pts.filter(p => p.est).pop().date)} برآورد از خرید و فروش‌ها (سهام با قیمت آخرین معامله، ارز و طلا با نرخ همان روز)؛ از آن به بعد ثبت روزانه.</p> : null}
     <div className="fu-chart">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" onMouseMove={move} onMouseLeave={() => setHi(null)} role="img" aria-label="روند ارزش سبد">
         <path d={band} className={pnl >= 0 ? 'fu-band pos' : 'fu-band neg'} />
@@ -250,7 +251,7 @@ export function PfTrend({ snaps, to }) {
         {h ? <g><line x1={x(hi)} x2={x(hi)} y1={T} y2={H - B} className="fu-cross" /><circle cx={x(hi)} cy={y(h.value)} r="4" className="fu-dot" /></g> : null}
       </svg>
       <div className="fu-ticks"><span className="first" style={{ left: '0%' }}>{jLbl(first.date)}</span><span className="last" style={{ left: '100%' }}>{jLbl(last.date)}</span></div>
-      {h ? <div className="fu-tip" style={{ insetInlineStart: `${Math.min(78, Math.max(2, 100 - (x(hi) / W) * 100 - 10))}%` }}><b>{jLbl(h.date)}</b><span><i className="total" />ارزش {money(h.value)}</span><span><i className="cost" />بهای خرید {money(h.cost)}</span><span>سود/زیان {signed(h.value - h.cost)}</span></div> : null}
+      {h ? <div className="fu-tip" style={{ insetInlineStart: `${Math.min(78, Math.max(2, 100 - (x(hi) / W) * 100 - 10))}%` }}><b>{jLbl(h.date)}{h.est ? ' · برآورد' : ''}</b><span><i className="total" />ارزش {money(h.value)}</span><span><i className="cost" />بهای خرید {money(h.cost)}</span><span>سود/زیان {signed(h.value - h.cost)}</span></div> : null}
     </div>
   </div>;
 }
