@@ -6,6 +6,9 @@ import { jLabel } from './jdate';
 // «خبر و خواندنی»: RSS news (sources you add, synced by the Worker; AI summary/translation when a key is set)
 // and bookmarks with a read-later list. Backend: /api/news(+sources, sync, :id/summarize, :id/translate), /api/bookmarks.
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
+// Feed/page titles make clumsy names ("مرجع فوتبال و ورزش | ورزش سه", "Al Jazeera &#8211; Breaking News…"):
+// decode entities and keep the shortest meaningful part. Display only; the stored name stays the filter key.
+const cleanName = n => { const t = String(n || '').replace(/&#(\d+);/g, (_, c) => String.fromCharCode(c)).replace(/&amp;/g, '&').trim(); const parts = t.split(/\s+[|–—-]\s+/).map(x => x.trim()).filter(x => x.length >= 2 && !/^(world news|news|latest news|latest|home|homepage|اخبار)$/i.test(x)); return parts.length > 1 ? parts.reduce((a, b) => b.length < a.length ? b : a) : t; };
 const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '';
 // One-tap sources; the server checks each feed when it's added (an unreachable one just shows an error).
 // A site address (no feed path) works too: the server finds its feed. Ecoiran was dropped: it refuses requests from Cloudflare.
@@ -26,8 +29,8 @@ function WeeklySummary({ onClose }) {
       {d.narrative ? <p className="rd-ai">✨ {d.narrative}</p> : null}
       <div className="rd-wstats"><span><b>{fa(d.stats.total)}</b> خبر</span><span><b>{fa(d.stats.savedCount)}</b> ذخیره‌شده</span></div>
       {d.stats.total ? <div className="rd-wcols">
-        <div><small>دسته‌ها</small>{top(d.stats.byCategory).map(([k, n]) => <p key={k}>{k} <em>{fa(n)}</em></p>)}</div>
-        <div><small>منابع</small>{top(d.stats.bySource).map(([k, n]) => <p key={k}>{k} <em>{fa(n)}</em></p>)}</div>
+        <div><small>دسته‌ها</small>{top(d.stats.byCategory).map(([k, n]) => <p key={k}>{cleanName(k)} <em>{fa(n)}</em></p>)}</div>
+        <div><small>منابع</small>{top(d.stats.bySource).map(([k, n]) => <p key={k}>{cleanName(k)} <em>{fa(n)}</em></p>)}</div>
       </div> : <p className="rd-muted">این هفته خبری نیامده.</p>}
       {(d.savedItems || []).length ? <><small className="rd-wsub">ذخیره‌های این هفته</small><ul className="rd-wsaved">{d.savedItems.slice(0, 8).map(x => <li key={x.id}>{safeUrl(x.url) ? <a href={safeUrl(x.url)} target="_blank" rel="noopener noreferrer">{x.title}</a> : x.title}</li>)}</ul></> : null}
     </>}
@@ -83,7 +86,7 @@ function News() {
       </form>
       <p className="rd-muted rd-hint">لازم نیست RSS را بدانی؛ آدرس خود سایت کافی است. اگر سایت فید نداشته باشد، تیترها از خود صفحه خوانده می‌شوند (مثل ورزش سه).</p>
       {PRESETS.filter(([n, u]) => !sources.some(x => x.url === u || x.name === n)).length ? <div className="rd-presets"><small>پیشنهادی (یک کلیک):</small><button type="button" className="rd-all" disabled={busy === 'add'} onClick={addAll}>＋ همه را اضافه کن</button>{PRESETS.filter(([n, u]) => !sources.some(x => x.url === u || x.name === n)).map(([n, u, c]) => <button type="button" key={u} disabled={busy === 'add'} onClick={() => addFrom({ name: n, url: u, category: c })}>+ {n}</button>)}</div> : null}
-      {sources.length ? <ul className="rd-srclist">{sources.map(s => <li key={s.id}><span><b>{s.name}</b><small dir="ltr">{host(s.url)}</small>{s.lastError ? <small className="bad">⚠ {s.lastError}</small> : null}</span><button type="button" className="rd-x" onClick={() => delSrc(s)} aria-label={`حذف منبع ${s.name}`}><Trash2 size={15} /></button></li>)}</ul> : <p className="rd-muted">هنوز منبعی نداری. از پیشنهادها انتخاب کن یا آدرس یک سایت خبری را بنویس.</p>}
+      {sources.length ? <ul className="rd-srclist">{sources.map(s => <li key={s.id}><span><b title={s.name}>{cleanName(s.name)}</b><small dir="ltr">{host(s.url)}</small>{s.lastError ? <small className="bad">⚠ {s.lastError}</small> : null}</span><button type="button" className="rd-x" onClick={() => delSrc(s)} aria-label={`حذف منبع ${s.name}`}><Trash2 size={15} /></button></li>)}</ul> : <p className="rd-muted">هنوز منبعی نداری. از پیشنهادها انتخاب کن یا آدرس یک سایت خبری را بنویس.</p>}
     </div> : null}
     <div className="rd-filters" role="group" aria-label="فیلتر اخبار">
       <button type="button" className={!cat && !savedOnly ? 'on' : ''} onClick={() => { setCat(''); setSavedOnly(false); }}>همه</button>
@@ -96,7 +99,7 @@ function News() {
         <div className="rd-news-head">
           {safeUrl(x.url) ? <a href={safeUrl(x.url)} target="_blank" rel="noopener noreferrer"><b>{x.title}</b><ExternalLink size={13} /></a> : <b>{x.title}</b>}
         </div>
-        <small className="rd-meta">{[x.source, x.category, jLabel(x.date)].filter(Boolean).join(' · ')}</small>
+        <small className="rd-meta">{[cleanName(x.source), x.category, jLabel(x.date)].filter(Boolean).join(' · ')}</small>
         {x.summary ? <p className="rd-sum">{x.summary.length > 320 ? x.summary.slice(0, 320) + '…' : x.summary}</p> : null}
         {x.aiSummary ? <p className="rd-ai">✨ {x.aiSummary}</p> : null}
         <div className="rd-actions">
