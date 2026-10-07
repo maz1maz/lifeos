@@ -14,8 +14,9 @@ const cv = n => (U === 'toman' ? (Number(n) || 0) / 10 : Number(n) || 0);
 const f1 = v => v.toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : 1 });
 const parts = n => { const a = Math.abs(cv(n)); return a >= 1e9 ? [f1(a / 1e9), 'میلیارد'] : a >= 1e6 ? [f1(a / 1e6), 'میلیون'] : a >= 1e3 ? [f1(a / 1e3), 'هزار'] : [faN(a), '']; };
 const money = n => { const [v, w] = parts(n); return `${Number(n) < 0 ? '−' : ''}${v}${w ? ' ' + w : ''} ${UF()}`; };
-// green/red already tells gain from loss; only a loss keeps its sign
+// a loss keeps «−» where the number isn't coloured (tooltips); coloured numbers drop it (see `bare`)
 const sign = n => (n < 0 ? '−' : '');
+const bare = n => money(Math.abs(n));
 const signed = n => sign(n) + money(Math.abs(n)).replace(/^−/, '');
 const usdTxt = n => `${sign(n)}$${faN(Math.abs(n), 2)}`;
 const jKey = iso => { const j = isoToJ(iso); return `${j.jy}-${String(j.jm).padStart(2, '0')}`; };
@@ -105,7 +106,7 @@ function Locations({ poker, title = 'پوکر بر اساس مکان' }) {
     {rows.map(r => <div key={r.name} className="fu-loc">
       <span className="nm">{r.name}<em>{faN(r.n)} جلسه · وین‌ریت {faN(r.n ? (r.wins / r.n) * 100 : 0)}٪ · میانگین {signed(r.net / r.n)}</em></span>
       <span className="bar"><i className={r.net >= 0 ? 'pos' : 'neg'} style={{ width: `${Math.max(3, (Math.abs(r.net) / max) * 100)}%` }} /></span>
-      <b className={r.net > 0 ? 'pos' : r.net < 0 ? 'neg' : ''}>{signed(r.net)}</b>
+      <b className={r.net > 0 ? 'pos' : r.net < 0 ? 'neg' : ''}>{bare(r.net)}</b>
     </div>)}
   </div>;
 }
@@ -121,7 +122,7 @@ function NetBars({ items: all, mode, hasBet }) {
   return <div className="fu-nb" onMouseLeave={() => setHi(null)}>
     <div className="fu-bars" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((m, i) => { const t = tot(m), [v, w] = parts(t); return <div key={m.key} className={`fu-bar ${hi === i ? 'on' : ''}`} onMouseEnter={() => setHi(i)} onClick={() => setHi(i)}>
-        <div className="fu-bar-val"><b className={t > 0 ? 'pos' : t < 0 ? 'neg' : ''}>{t ? sign(t) + v : '—'}</b><em>{t ? w : ''}</em></div>
+        <div className="fu-bar-val"><b className={t > 0 ? 'pos' : t < 0 ? 'neg' : ''}>{t ? v : '—'}</b><em>{t ? w : ''}</em></div>
         <div className="fu-bar-half up">{keys.map(k => <i key={k} className={k} style={{ height: val(m, k) > 0 ? `${Math.max(3, (val(m, k) / max) * 100)}%` : 0 }} />)}</div>
         <div className="fu-bar-half down">{keys.map(k => <i key={k} className={k} style={{ height: val(m, k) < 0 ? `${Math.max(3, (-val(m, k) / max) * 100)}%` : 0 }} />)}</div>
         <span>{m.label}</span>
@@ -130,7 +131,7 @@ function NetBars({ items: all, mode, hasBet }) {
     {h ? <div className="fu-nb-tip"><b>{h.title || h.label}</b>
       <span><i className="poker" />پوکر: {signed(h.poker)}{h.sessions ? ` · ${faN(h.sessions)} جلسه` : ''}</span>
       {h.betUsd ? <span><i className="bet" />بت: {usdTxt(h.betUsd)}{hasBet ? ` ≈ ${signed(h.bet)}` : ''}</span> : null}
-      <span className="t"><i className="total" />جمع: <b className={h.net > 0 ? 'pos' : h.net < 0 ? 'neg' : ''}>{signed(h.net)}</b></span>
+      <span className="t"><i className="total" />جمع: <b className={h.net > 0 ? 'pos' : h.net < 0 ? 'neg' : ''}>{bare(h.net)}</b></span>
     </div> : <div className="fu-nb-tip muted">روی هر ستون برو تا جزئیات پوکر و بت آن را ببینی.</div>}
   </div>;
 }
@@ -146,7 +147,7 @@ function rangeFrom(r, today) {
   return '0000-00-00';
 }
 
-export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo }) {
+export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: modeProp }) {
   // The ranges count back from the month picked at the top of the finance page (not always from today):
   // «این ماه» = that month, «امسال» = its year, and nothing after its last day is included.
   const now = todayTeh(), anchor = monthTo && monthTo < now ? monthTo : now, past = anchor !== now;
@@ -154,7 +155,9 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo }) {
   const ranges = past ? [['m', mName], ['m2', `${mName} و ${prevName}`], ['q', 'آن فصل'], ['y', `سال ${faN(aj.jy)}`], ['all', `تا آخر ${mName}`]] : RANGES;
   const [range, setRange] = useState(() => { try { return localStorage.getItem('lifeos-fun-range') || 'm2'; } catch { return 'm2'; } });
   const pick = r => { setRange(r); try { localStorage.setItem('lifeos-fun-range', r); } catch {} };
-  const [mode, setModeS] = useState(() => { try { return localStorage.getItem('lifeos-fun-mode') || 'all'; } catch { return 'all'; } });
+  // mode (جمع/پوکر/بت) comes from the finance page's top bar when given
+  const [modeLocal, setModeS] = useState(() => { try { return localStorage.getItem('lifeos-fun-mode') || 'all'; } catch { return 'all'; } });
+  const mode = modeProp || modeLocal;
   const setMode = m => { setModeS(m); try { localStorage.setItem('lifeos-fun-mode', m); } catch {} };
   // Dollar rate of each bet day: the rate saved with the entry, else TGJU's daily close for that date (or the nearest earlier market day), else today's.
   const hist = useUsdHistory(bet.length > 0);
@@ -201,10 +204,10 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo }) {
       <div className="fu-seg fu-range">{ranges.map(([k, l]) => <button type="button" key={k} className={range === k ? 'on' : ''} onClick={() => pick(k)}>{l}</button>)}</div>
     </div>
     <div className="fu-kpis">
-      <div className={`fu-kpi main ${tone(data.totalR)}`}><small>جمع · {rLabel}</small><b>{signed(data.totalR)}</b><em>{data.countR ? `${faN(data.winsR)} برد · ${faN(data.lossesR)} باخت · وین‌ریت ${faN((data.winsR / data.countR) * 100)}٪` : 'در این بازه چیزی ثبت نشده'}</em></div>
-      <div className={`fu-kpi ${tone(data.totalAll)}`}><small>{past ? `جمع کل تا آخر ${mName}` : 'جمع کل از ابتدا'}</small><b>{signed(data.totalAll)}</b><em>پوکر {signed(data.pokerAll)} · بت {usdTxt(data.betUsdAll)}</em></div>
-      <div className={`fu-kpi ${tone(data.pokerR)}`}><small>پوکر · {rLabel}</small><b>{signed(data.pokerR)}</b><em>{faN(data.pR.length)} جلسه</em></div>
-      <div className={`fu-kpi ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{usdTxt(data.betUsdR)}</b><em>{data.hasBet ? `≈ ${signed(data.betRialR)}` : 'بدون نرخ دلار'}</em></div>
+      <div className={`fu-kpi main ${tone(data.totalR)}`}><small>جمع · {rLabel}</small><b>{bare(data.totalR)}</b><em>{data.countR ? `${faN(data.winsR)} برد · ${faN(data.lossesR)} باخت · وین‌ریت ${faN((data.winsR / data.countR) * 100)}٪` : 'در این بازه چیزی ثبت نشده'}</em></div>
+      <div className={`fu-kpi ${tone(data.totalAll)}`}><small>{past ? `جمع کل تا آخر ${mName}` : 'جمع کل از ابتدا'}</small><b>{bare(data.totalAll)}</b><em>پوکر {signed(data.pokerAll)} · بت {usdTxt(data.betUsdAll)}</em></div>
+      <div className={`fu-kpi ${tone(data.pokerR)}`}><small>پوکر · {rLabel}</small><b>{bare(data.pokerR)}</b><em>{faN(data.pR.length)} جلسه</em></div>
+      <div className={`fu-kpi ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{'$' + faN(Math.abs(data.betUsdR), 2)}</b><em>{data.hasBet ? `≈ ${signed(data.betRialR)}` : 'بدون نرخ دلار'}</em></div>
     </div>
     <LossLimit status={status} onSave={saveLimit} />
     <div className="fu-streaks">
@@ -213,7 +216,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo }) {
       <span className="neg"><small>بیشترین باخت پشت‌سرهم</small><b>{faN(data.st.worstLoss)}</b></span>
     </div>
     <div className="fu-grid">
-      <div className="fu-modebar"><div className="fu-seg">{[['all', 'جمع'], ['poker', 'پوکر'], ['bet', 'بت']].map(([k, l]) => <button type="button" key={k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}</div>{mode === 'bet' && !data.hasBet ? <small>بدون نرخ دلار، بت به ریال قابل‌نمایش نیست.</small> : null}</div>
+      <div className="fu-modebar">{modeProp ? null : <div className="fu-seg">{[['all', 'جمع'], ['poker', 'پوکر'], ['bet', 'بت']].map(([k, l]) => <button type="button" key={k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}</div>}{mode === 'bet' && !data.hasBet ? <small>بدون نرخ دلار، بت به ریال قابل‌نمایش نیست.</small> : null}</div>
       <div className="fu-panel"><div className="fu-ph"><h3>روند · {rLabel}</h3><div className="fu-legend">{mode === 'all' ? <span><i className="total" />جمع</span> : null}{mode !== 'bet' ? <span><i className="poker" />پوکر</span> : null}{data.hasBet && mode !== 'poker' ? <span><i className="bet" />بت</span> : null}</div></div><CumChart days={data.days} hasBet={data.hasBet} mode={mode} /><p className="fu-how">هر نقطه = جمع سود و زیان از ابتدای بازه تا آن روز (پوکر به {UF()}، بت × نرخ دلار همان روز).</p></div>
       <div className="fu-panel"><div className="fu-ph"><h3>{range === 'm' || range === 'm2' ? 'خالص هر روز بازی' : 'خالص هر ماه'}{mode === 'all' ? '' : mode === 'poker' ? ' · پوکر' : ' · بت'}</h3><div className="fu-legend">{mode !== 'bet' ? <span><i className="poker" />پوکر</span> : null}{data.hasBet && mode !== 'poker' ? <span><i className="bet" />بت</span> : null}{mode === 'all' ? <span>عدد بالای ستون = جمع روز</span> : null}</div></div><NetBars items={data.bars} mode={mode} hasBet={data.hasBet} /></div>
     </div>
@@ -240,7 +243,7 @@ export function PfTrend({ snaps, to }) {
   const h = hi != null ? pts[hi] : null;
   const move = e => { const r = e.currentTarget.getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * W; let best = 0; for (let i = 1; i < pts.length; i++) if (Math.abs(x(i) - px) < Math.abs(x(best) - px)) best = i; setHi(best); };
   return <div className="fu-panel fu-pf">{head}
-    <div className="fu-pf-kpis"><span><small>سود/زیان فعلی</small><b className={pnl >= 0 ? 'pos' : 'neg'}>{signed(pnl)}</b></span><span><small>تغییر سود در این بازه</small><b className={chg >= 0 ? 'pos' : 'neg'}>{signed(chg)}</b></span><span className="fu-legend"><span><i className="total" />ارزش</span><span><i className="cost" />بهای خرید</span></span></div>
+    <div className="fu-pf-kpis"><span><small>سود/زیان فعلی</small><b className={pnl >= 0 ? 'pos' : 'neg'}>{bare(pnl)}</b></span><span><small>تغییر سود در این بازه</small><b className={chg >= 0 ? 'pos' : 'neg'}>{bare(chg)}</b></span><span className="fu-legend"><span><i className="total" />ارزش</span><span><i className="cost" />بهای خرید</span></span></div>
       {pts.some(p => p.est) ? <p className="fu-est">تا {jLbl(pts.filter(p => p.est).pop().date)} برآورد از خرید و فروش‌ها (سهام با قیمت آخرین معامله، ارز و طلا با نرخ همان روز)؛ از آن به بعد ثبت روزانه.</p> : null}
     <div className="fu-chart">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" onMouseMove={move} onMouseLeave={() => setHi(null)} role="img" aria-label="روند ارزش سبد">

@@ -342,7 +342,7 @@ function AssetMore({ row, onChanged }) {
     <div className="xc-kv">
       <div><small>ارزش روز</small><b>{faMoney(row.value)}</b></div>
       <div><small>بهای خرید</small><b>{row.cost ? faMoney(row.cost) : '—'}</b></div>
-      <div><small>سود / زیان</small><b>{row.pnl ? `${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl))}` : '—'}{row.cost ? ` (${pct >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(pct * 10) / 10))}٪)` : ''}</b></div>
+      <div className={row.pnl > 0 ? 'pos' : row.pnl < 0 ? 'neg' : ''}><small>سود / زیان</small><b>{row.pnl ? short(Math.abs(row.pnl)) : '—'}{row.cost && row.pnl ? ` (${fa(Math.abs(Math.round(pct * 10) / 10))}٪)` : ''}</b></div>
       <div><small>مقدار</small><b>{fa(row.item.quantity)} واحد</b></div>
     </div>
     <AssetPrice row={row} onChanged={onChanged} />
@@ -385,6 +385,9 @@ export function FinanceReact({ Nav }) {
   const [pokerAll, setPokerAll] = useState([])
   const [pfSnaps, setPfSnaps] = useState(null)
   const [closedOpen, setClosedOpen] = useState(null)
+  // جمع / پوکر / بت: chosen in the top bar next to the month; drives the charts and which list shows below
+  const [funMode, setFunMode] = useState(() => { try { return localStorage.getItem('lifeos-fun-mode') || 'all' } catch { return 'all' } })
+  const pickFunMode = (m) => { setFunMode(m); try { localStorage.setItem('lifeos-fun-mode', m) } catch {} }
   const [pfTx, setPfTx] = useState(null), [pfHist, setPfHist] = useState({})
   const usdHist = useUsdHistory(tab === 'fun')
   const snapSent = useRef(false)
@@ -679,7 +682,7 @@ export function FinanceReact({ Nav }) {
 
         <section className="fn-glass" style={{ padding: 16 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
-            <MonthPicker value={month} onChange={setMonth} />
+            <div className="fn-mp-row"><MonthPicker value={month} onChange={setMonth} />{tab === 'fun' ? <span className="fn-unit fn-funmode" role="radiogroup" aria-label="نمایش">{[['all', 'جمع'], ['poker', 'پوکر'], ['bet', 'بت']].map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={funMode === k} className={funMode === k ? 'on' : ''} onClick={() => pickFunMode(k)}>{l}</button>)}</span> : null}</div>
             <div className="fn-chips">
               <span className="fn-unit" role="radiogroup" aria-label="واحد نمایش">{[['rial', 'ریال'], ['toman', 'تومان']].map(([k, l]) => <button key={k} type="button" className={unit === k ? 'on' : ''} onClick={() => switchUnit(k)}>{l}</button>)}</span>
               <span className="fn-chip">دارایی: {compact(netWorth)}</span>
@@ -1060,10 +1063,10 @@ export function FinanceReact({ Nav }) {
                 <div className="fn-pf-sum">
                   {pastMonth ? (endSnap ? <>
                     <div><small>ارزش سبد در پایان {monthFa(month)}</small><b title={faMoney(endSnap.value)}>{short(endSnap.value)}</b><em>{endSnap.est ? `برآورد از معاملات و نرخ ${jalaliShort(endSnap.date)}` : `ثبت‌شده در ${jalaliShort(endSnap.date)}`}</em></div>
-                    <div className={endSnap.value >= endSnap.cost ? 'pos' : 'neg'}><small>سود / زیان آن روز</small><b>{endSnap.value < endSnap.cost ? '−' : ''}{short(Math.abs(endSnap.value - endSnap.cost))}</b>{endSnap.cost ? <em>{endSnap.value < endSnap.cost ? '−' : ''}{fa(Math.abs(Math.round(((endSnap.value - endSnap.cost) / endSnap.cost) * 1000) / 10))}٪</em> : null}</div>
+                    <div className={endSnap.value >= endSnap.cost ? 'pos' : 'neg'}><small>سود / زیان آن روز</small><b>{short(Math.abs(endSnap.value - endSnap.cost))}</b>{endSnap.cost ? <em>{fa(Math.abs(Math.round(((endSnap.value - endSnap.cost) / endSnap.cost) * 1000) / 10))}٪</em> : null}</div>
                   </> : <p className="fn-note fn-pf-none">برای {monthFa(month)} ارزش سبد ثبت نشده؛ ثبت روزانهٔ سبد از {pfSnaps?.[0] ? jalaliShort(pfSnaps[0].date) : 'امروز'} شروع شده. پایین، سبد امروز را می‌بینی.</p>) : <>
                   <div><small>ارزش روز سبد</small><b title={faMoney(pf.total)}>{short(pf.total)}</b></div>
-                  <div className={pf.pnl >= 0 ? 'pos' : 'neg'}><small>سود / زیان</small><b>{pf.pnl < 0 ? '−' : ''}{short(Math.abs(pf.pnl))}</b>{pf.cost ? <em>{pf.pnl < 0 ? '−' : ''}{fa(Math.abs(Math.round((pf.pnl / pf.cost) * 1000) / 10))}٪</em> : null}</div>
+                  <div className={pf.pnl >= 0 ? 'pos' : 'neg'}><small>سود / زیان</small><b>{short(Math.abs(pf.pnl))}</b>{pf.cost ? <em>{fa(Math.abs(Math.round((pf.pnl / pf.cost) * 1000) / 10))}٪</em> : null}</div>
                   </>}
                   {pf.mix.length > 1 ? <div className="fn-mix"><small>ترکیب سبد امروز</small>
                     <div className="fn-mix-bar" role="img" aria-label={pf.mix.map((m) => `${m.label} ${fa(m.pct)}٪`).join('، ')}>{pf.mix.map((m) => <i key={m.type} className={`t-${m.type}`} style={{ flexGrow: m.value }} title={`${m.label}: ${short(m.value)}`} />)}</div>
@@ -1077,13 +1080,13 @@ export function FinanceReact({ Nav }) {
                 surface={(r) => r.item.assetType === 'gold' ? 'gold' : r.item.assetType === 'dollar' ? 'green' : r.item.assetType === 'euro' ? 'blue' : r.item.assetType === 'crypto' ? 'violet' : r.item.assetType === 'stock' ? 'cyan' : 'graphite'}
                 renderBody={(row) => <>
                   <div className="xc-top"><span className="xc-ic">{row.item.assetType === 'gold' ? '🪙' : row.item.assetType === 'dollar' ? '💵' : row.item.assetType === 'euro' ? '💶' : row.item.assetType === 'crypto' ? '₿' : row.item.assetType === 'stock' ? '📈' : '📦'}</span><span className="xc-name">{row.label}</span></div>
-                  <div><div className="xc-val" title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</div><div className="xc-sub">{fa(row.item.quantity)} واحد{row.pnl ? <> · <span className={row.pnl >= 0 ? 'pos' : 'neg'}>{row.pnl < 0 ? '−' : ''}{short(Math.abs(row.pnl), false)}</span></> : ''}</div></div>
+                  <div><div className="xc-val" title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</div><div className="xc-sub">{fa(row.item.quantity)} واحد{row.pnl ? <> · <span className={row.pnl >= 0 ? 'pos' : 'neg'}>{short(Math.abs(row.pnl), false)}</span></> : ''}</div></div>
                 </>}
                 renderMore={(row) => <AssetMore row={row} onChanged={load} />} /> : <p className="fn-empty">دارایی ثبت نشده.</p>}
               {pf.closed.length ? <div className="fn-closed">
                 <small>فروخته‌شده</small>
                 {pf.closed.map((r) => <button type="button" key={`${r.item.assetType}-${r.item.symbol}`} className={closedOpen === r.item.symbol ? 'on' : ''} aria-expanded={closedOpen === r.item.symbol} onClick={() => setClosedOpen((v) => v === r.item.symbol ? null : r.item.symbol)}>
-                  {r.label}{r.realized ? <em className={r.realized >= 0 ? 'pos' : 'neg'}>{r.realized < 0 ? '−' : ''}{short(Math.abs(r.realized), false)}</em> : null}
+                  {r.label}{r.realized ? <em className={r.realized >= 0 ? 'pos' : 'neg'}>{short(Math.abs(r.realized), false)}</em> : null}
                 </button>)}
                 {pf.closed.some((r) => r.item.symbol === closedOpen) ? <div className="fn-closed-more"><AssetMore row={pf.closed.find((r) => r.item.symbol === closedOpen)} onChanged={load} /></div> : null}
               </div> : null}
@@ -1117,9 +1120,9 @@ export function FinanceReact({ Nav }) {
         {tab === 'fun' ? (
           <>
           <p className="fn-note fn-fun-note">پوکر و بت جدا از درآمد و هزینه‌اند و در آمار ماه حساب نمی‌شوند.</p>
-          <FunOverview poker={pokerAll} bet={bet.items || []} usdRate={usdRate} monthFrom={mRange.from} monthTo={mRange.to} />
-          <div className="fn-2">
-            <section className="fn-glass fn-list">
+          <FunOverview poker={pokerAll} bet={bet.items || []} usdRate={usdRate} monthFrom={mRange.from} monthTo={mRange.to} mode={funMode} />
+          <div className={`fn-2 fun-${funMode}`}>
+            <section className="fn-glass fn-list fn-poker-sec">
               <div className="fn-head"><h2>پوکر</h2><Drawer label="جلسه" title="جلسهٔ پوکر">
 <form className="fn-form" onSubmit={submitPoker}>
                 <JalaliDateInput name="date" defaultValue={isoToday()} />
@@ -1155,7 +1158,7 @@ export function FinanceReact({ Nav }) {
                 )
               }) : <p className="fn-empty">جلسه‌ای در این ماه نیست.</p>}
             </section>
-            <section className="fn-glass fn-list">
+            <section className="fn-glass fn-list fn-bet-sec">
               <div className="fn-head"><h2>بت (دلاری)</h2><Drawer label="روز" title="روز بت">
 <form className="fn-form" onSubmit={submitBet} key={bet.suggestedStartDate || 'bet-form'}>
                 <JalaliDateInput name="date" defaultValue={isoToday()} />
