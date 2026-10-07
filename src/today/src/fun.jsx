@@ -155,7 +155,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
   // «این ماه» = that month, «امسال» = its year, and nothing after its last day is included.
   const now = todayTeh(), anchor = monthTo && monthTo < now ? monthTo : now, past = anchor !== now;
   const aj = isoToJ(anchor), mName = MONTHS[aj.jm - 1], prevName = MONTHS[(aj.jm + 10) % 12];
-  const ranges = past ? [['m', mName], ['m2', `${mName} و ${prevName}`], ['q', 'آن فصل'], ['y', `سال ${faN(aj.jy)}`], ['all', `تا آخر ${mName}`]] : RANGES;
+  const ranges = past ? [['m', mName], ['m2', `${mName} و ${prevName}`], ['q', 'آن فصل'], ['y', `سال ${String(aj.jy).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d])}`], ['all', `تا آخر ${mName}`]] : RANGES;
   const [range, setRange] = useState(() => { try { return localStorage.getItem('lifeos-fun-range') || 'm2'; } catch { return 'm2'; } });
   const pick = r => { setRange(r); try { localStorage.setItem('lifeos-fun-range', r); } catch {} };
   // mode (جمع/پوکر/بت) comes from the finance page's top bar when given
