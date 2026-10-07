@@ -165,6 +165,18 @@ async function main() {
     check('collection create strips id/userId', c1.status === 201 && c1.d.weight === 80.5 && c1.d.id !== 'hack');
     const c2 = await call(`/api/col/health/${c1.d.id}`, { method: 'PATCH', cookie, body: { weight: 80 } });
     check('collection patch', c2.status === 200 && c2.d.weight === 80);
+    {
+      // a contract's bill of quantities + measurement sheet + cover logos must survive whole (old limit cut JSON at 20k → 500)
+      const boq = Array.from({ length: 120 }, (_, i) => ({ id: 'b' + i, desc: 'آیتم قرارداد شمارهٔ ' + i + ' — تهیه و نصب', qty: 100 + i, unit: 'مترمربع', price: 299818766 }));
+      const measures = Array.from({ length: 300 }, (_, i) => ({ id: 'm' + i, statementNo: 1 + (i % 5), itemId: 'b' + (i % 120), date: '2026-06-16', qty: 1.5, note: 'ریزمتره' }));
+      const logo = 'data:image/png;base64,' + 'A'.repeat(40000);
+      const big = await call('/api/col/projectContracts', { method: 'POST', cookie, body: { projectId: 'p-boq', boq, measures, svBrand: { employerLogo: logo, note: 'x'.repeat(9000) } } });
+      check('contract with large boq/measures/logo saves whole', big.status === 201 && big.d.boq.length === 120 && big.d.measures.length === 300 && big.d.svBrand.employerLogo === logo && big.d.svBrand.note.length === 9000);
+      const huge = await call(`/api/col/projectContracts/${big.d.id}`, { method: 'PATCH', cookie, body: { measures: Array.from({ length: 5000 }, (_, i) => ({ id: 'm' + i, note: 'y'.repeat(100) })) } });
+      check('oversized nested data -> 413 (not a 500)', huge.status === 413 && /حجم/.test(huge.d.error || ''));
+      const plain = await call(`/api/col/projectContracts/${big.d.id}`, { method: 'PATCH', cookie, body: { note: 'z'.repeat(9000) } });
+      check('plain long strings still cut at 8000', plain.status === 200 && plain.d.note.length === 8000);
+    }
     check('unknown collection -> 404', (await call('/api/col/secrets', { cookie })).status === 404);
     const sh = await call('/api/shop/share', { method: 'POST', cookie, body: {} });
     const pub = await worker.fetch(new Request(`https://worker-smoke.local/api/s/${sh.d.code}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ add: 'نان، شیر' }) }), env, {});
