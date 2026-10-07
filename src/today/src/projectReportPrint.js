@@ -32,7 +32,7 @@ header.top .kicker{font-size:8.5pt;color:#475569}
 header.top h1{font-size:18pt;font-weight:800;line-height:1.35;margin:2px 0}
 header.top .meta{font-size:8pt;color:#475569}
 header.top .brand{text-align:left;max-width:60mm;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-header.top .brand img{max-height:16mm;max-width:45mm;object-fit:contain}
+header.top .brand img{max-height:22mm;max-width:60mm;object-fit:contain}
 header.top .brand b{font-size:10pt}
 .status{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:99px;font-size:8.5pt;font-weight:700;border:1px solid}
 .status.ok{color:#047857;border-color:#6ee7b7;background:#ecfdf5}.status.warn{color:#b45309;border-color:#fcd34d;background:#fffbeb}.status.bad{color:#be123c;border-color:#fda4af;background:#fff1f2}
@@ -221,9 +221,10 @@ async function inlineFonts(doc) {
 export function projectReportPdf(data) {
   return renderPdf(projectReportHtml(data), { running: `${data.project.name} – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: reportFileName(data.project).replace(/\.pdf$/, ''), subject: 'گزارش وضعیت پروژه' });
 }
-async function renderPdf(html, { running, footer, title, subject }) {
+async function renderPdf(html, { running, footer, title, subject, W = 695, landscape = false }) {
   const [{ jsPDF }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('html2canvas')]);
-  const W = 695, pageH = Math.floor(W * 261 / 184), MX = 13, MT = 16;
+  // same scale as the portrait report (695 px = 184 mm); a landscape page (the comparison) is just wider and shorter
+  const PW = landscape ? 297 : 210, PH = landscape ? 210 : 297, CW = W * 184 / 695, MX = (PW - CW) / 2, MT = landscape ? 12 : 16, pageH = Math.floor(W * (landscape ? 182 : 261) / CW);
   const frame = mountFrame('lf-report-pdf-frame', W, html);
   try {
     const doc = frame.contentDocument;
@@ -238,10 +239,9 @@ async function renderPdf(html, { running, footer, title, subject }) {
     const body = doc.body, total = Math.ceil(body.scrollHeight);
     frame.style.height = total + 'px';
     const top0 = body.getBoundingClientRect().top;
-    const breaks = [...doc.querySelectorAll('tr, h2, .kpis, .two, .sign, .summary, p.empty')].map(el => Math.round(el.getBoundingClientRect().top - top0)).filter(y => y > 0).sort((a, b) => a - b);
-    const p1 = doc.querySelector('.p1');
+    const breaks = [...doc.querySelectorAll('tr, h2, .kpis, .two, .sign, .summary, p.empty, .cr, .cmp-kpis, .cmp-top, .nx')].map(el => Math.round(el.getBoundingClientRect().top - top0)).filter(y => y > 0).sort((a, b) => a - b);
     const forced = [
-      ...(p1 ? [Math.round(p1.getBoundingClientRect().bottom - top0)] : []),
+      ...[...doc.querySelectorAll('.p1, .cover')].map(el => Math.round(el.getBoundingClientRect().bottom - top0)),
       ...[...doc.querySelectorAll('h2.pb')].map(el => Math.round(el.getBoundingClientRect().top - top0) - 8)
     ].filter(y => y > 0).sort((a, b) => a - b);
     const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: W, height: total, windowWidth: W, windowHeight: total, logging: false, foreignObjectRendering: true });
@@ -259,17 +259,17 @@ async function renderPdf(html, { running, footer, title, subject }) {
       if (end < total) end = snap(end, Math.max(start + 60, end - 90));
       pages.push([start, end]); start = end;
     }
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait', compress: true });
     const faNum = n => Number(n).toLocaleString('fa-IR');
     pages.forEach(([s, e], i) => {
       if (i) pdf.addPage();
       const c = doc.createElement('canvas'); c.width = canvas.width; c.height = Math.round((e - s) * k);
       const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(canvas, 0, Math.round(s * k), canvas.width, c.height, 0, 0, canvas.width, c.height);
-      pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', MX, MT, 184, (e - s) * 184 / W, undefined, 'FAST');
-      const stripH = 18 * 184 / W;
-      if (i) pdf.addImage(stripImage(doc, '', running, W), 'PNG', MX, 7, 184, stripH);
-      pdf.addImage(stripImage(doc, footer, `صفحهٔ ${faNum(i + 1)} از ${faNum(pages.length)}`, W), 'PNG', MX, 297 - 12, 184, stripH);
+      pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', MX, MT, CW, (e - s) * CW / W, undefined, 'FAST');
+      const stripH = 18 * CW / W;
+      if (i) pdf.addImage(stripImage(doc, '', running, W), 'PNG', MX, landscape ? 4 : 7, CW, stripH);
+      pdf.addImage(stripImage(doc, footer, `صفحهٔ ${faNum(i + 1)} از ${faNum(pages.length)}`, W), 'PNG', MX, PH - 12, CW, stripH);
     });
     pdf.setProperties({ title, subject, creator: 'LifeOS' });
     return pdf.output('blob');
@@ -337,14 +337,14 @@ export function compareReportHtml({ rows, brand = {} }) {
   const logo = /^data:image\/(?:png|jpeg|webp);base64,/i.test(String(brand.logo || '')) ? brand.logo : '';
   // graphic cover page: one ring per project (its progress), title, totals and who prepared the report
   const coverHtml = (() => {
-    const list = rows.slice(0, 14), cx = 160, cy = 160, gap = Math.min(11, 120 / Math.max(1, list.length)), sw = Math.max(3, gap - 3);
+    const list = rows.slice(0, 24), cx = 160, cy = 160, gap = Math.min(11, 120 / Math.max(1, list.length)), sw = Math.max(3, gap - 3);
     const rings = list.map(({ p, m }, i) => { const r = 140 - i * gap, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, m.progress || 0)); const col = /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1';
       return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#eef2f7" stroke-width="${sw}"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${(c * v / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})"/>`; }).join('');
     const inner = Math.max(30, 140 - list.length * gap - 6);
     const svg = `<svg viewBox="0 0 320 320" aria-hidden="true">${rings}<circle cx="${cx}" cy="${cy}" r="${inner}" fill="#fff"/><text x="${cx}" y="${cy - 2}" text-anchor="middle" font-size="${Math.min(34, inner * .7)}" font-weight="900" fill="#0f172a">${pct(avg)}</text><text x="${cx}" y="${cy + Math.min(20, inner * .45)}" text-anchor="middle" font-size="${Math.min(11, inner * .28)}" fill="#64748b">میانگین پیشرفت</text></svg>`;
     const preparer = String(brand.preparer || '').trim();
     return `<section class="cover"><div class="grid"></div><div class="glow"></div><div class="txt">
-<div class="brandc">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div>
+<div class="brandc">${logo ? `<img src="${logo}" alt="">` : ''}</div>
 <div class="kick">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="line"></div>
 <div class="sub">${esc(jl(today))}</div>
 <div class="stats"><div><b>${fa(rows.length)}</b><small>پروژه</small></div><div><b>${pct(avg)}</b><small>میانگین پیشرفت</small></div><div><b>${recPct == null ? '—' : pct(recPct)}</b><small>وصول از قراردادها</small></div><div><b>${fa(late)}</b><small>مرحلهٔ عقب‌افتاده</small></div></div>
@@ -370,18 +370,18 @@ html.capture body{width:${CMP_W}px}
 table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th{padding:5px 4px;vertical-align:middle}table.cmp .pg{display:flex;align-items:center;gap:6px}table.cmp .pg b{font-size:8.5pt;font-weight:800;min-width:26px}table.cmp .pg .bar{flex:1;height:5px;margin:0}.sm{font-size:6.8pt;color:#64748b}table.cmp .dot{margin-inline-end:4px}.num{font-weight:700}
 .nx{display:grid;grid-template-columns:1fr 1fr;gap:16px;break-inside:avoid}.nx ul{margin:4px 0 0;padding:0;list-style:none;font-size:8.5pt}.nx li{padding:3px 0;border-bottom:1px dashed #e2e8f0}
 .neg{color:#be123c}.pos{color:#047857}.st{display:inline-block;padding:0 6px;border:1px solid;border-radius:99px;font-size:7pt;font-weight:700;white-space:nowrap}
-.cover{position:relative;height:178mm;overflow:hidden;border:1px solid #e2e8f0;border-radius:6mm;background:#fff;color:#0f172a;break-after:page;page-break-after:always;display:grid;grid-template-columns:1.15fr 1fr;align-items:center;padding:0 14mm}
+.cover{position:relative;height:178mm;overflow:hidden;border:1px solid #e2e8f0;border-radius:6mm;background:#fff;color:#0f172a;break-after:page;page-break-after:always;display:grid;grid-template-columns:1.15fr 1fr;grid-template-rows:1fr auto;align-items:center;column-gap:8mm;padding:8mm 14mm 8mm}
 .cover .glow{position:absolute;top:0;right:0;width:5mm;height:100%;background:#d4a843}
 .cover .grid{position:absolute;inset:0;background-image:none;background-size:9mm 9mm}
 .cover .txt{position:relative;z-index:1}
-.cover .brandc{display:flex;align-items:center;gap:10px;margin-bottom:16mm}.cover .brandc img{max-height:16mm;max-width:46mm;object-fit:contain}.cover .brandc b{font-size:12pt;font-weight:800;color:#334155}
+.cover .brandc{display:flex;align-items:center;gap:10px;margin-bottom:16mm}.cover .brandc img{max-height:30mm;max-width:80mm;object-fit:contain}.cover .brandc b{font-size:12pt;font-weight:800;color:#334155}
 .cover .kick{font-size:10pt;letter-spacing:.5px;color:#a16207;font-weight:700}
 .cover h1{font-size:34pt;font-weight:900;line-height:1.25;margin:3mm 0 4mm}
 .cover .line{width:34mm;height:1.6mm;border-radius:1mm;background:linear-gradient(90deg,#d4a843,#f5d98a);margin-bottom:6mm}
 .cover .sub{font-size:11pt;color:#475569}
 .cover .stats{display:flex;gap:6mm;margin-top:10mm}.cover .stats div{display:flex;flex-direction:column;border-inline-start:2px solid #d4a843;padding-inline-start:3mm}.cover .stats b{font-size:17pt;font-weight:900}.cover .stats small{font-size:8pt;color:#64748b}
-.cover .prep{position:absolute;bottom:10mm;right:14mm;left:14mm;display:flex;justify-content:space-between;align-items:flex-end;font-size:9pt;color:#64748b;z-index:1;border-top:1px solid #e2e8f0;padding-top:3mm}.cover .prep b{display:block;font-size:12.5pt;color:#0f172a;font-weight:800}
-.cover .ringw{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3mm}.cover svg{width:100%;max-height:120mm}.cover .rleg{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5mm 4mm;font-size:7.5pt;color:#475569;max-width:120mm}.cover .rleg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:4px;vertical-align:middle}
+.cover .prep{grid-column:1 / -1;position:relative;display:flex;justify-content:space-between;align-items:flex-end;font-size:9pt;color:#64748b;z-index:1;border-top:1px solid #e2e8f0;padding-top:3mm}.cover .prep b{display:block;font-size:12.5pt;color:#0f172a;font-weight:800;white-space:nowrap}.cover .prep span,.cover .stats small,.cover .sub{white-space:nowrap}
+.cover .ringw{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3mm}.cover svg{width:100%;max-height:105mm}.cover .rleg{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5mm 4mm;font-size:7.5pt;color:#475569;max-width:120mm}.cover .rleg span{white-space:nowrap}.cover .rleg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:4px;vertical-align:middle}
 </style></head><body>
 ${coverHtml}
 <header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه${brand.preparer ? `  |  تهیه‌کننده: ${esc(brand.preparer)}` : ''}</div></div>
@@ -408,6 +408,7 @@ const compareFileName = () => { const j = isoToJ(todayIso()); return `${j.jy}-${
 
 // Print dialog (Save as PDF): the browser's own text engine shapes Persian correctly, unlike the canvas path
 export async function printCompareReport(data) {
+  if (isPhone()) { const j = compareFileName(); return savePdf(await renderPdf(compareReportHtml(data), { running: `مقایسهٔ پروژه‌ها – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: j.replace(/\.pdf$/, ''), subject: 'مقایسهٔ پروژه‌ها', W: CMP_W, landscape: true }), j); }
   const title = compareFileName().replace(/\.pdf$/, '');
   const frame = mountFrame('lf-compare-print-frame', CMP_W, compareReportHtml(data), false);
   const doc = frame.contentDocument;

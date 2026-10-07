@@ -925,6 +925,14 @@ async function main() {
     check('site cannot read finance collections without the projectFiles scope', (await ext('/api/ext/col/projectFinancials', { token })).status === 403);
     check('site cannot reach non-allowlisted collections', (await ext('/api/ext/col/health', { token })).status === 403);
     check('site cannot reach normal APIs with the token', (await ext('/api/transactions', { token })).status === 401);
+    { // the panel's report letterhead (logo) through the proxy: same fields as /api/report-brand, validated the same way
+      const png = 'data:image/png;base64,' + Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]).toString('base64');
+      const put = await ext('/api/ext/report-brand', { method: 'PATCH', token, body: { logo: png } });
+      check('site saves the report logo', put.status === 200 && put.d.logo === png && (await ext('/api/ext/report-brand', { token })).d.logo === png);
+      check('site logo must be an image data URL', (await ext('/api/ext/report-brand', { method: 'PATCH', token, body: { logo: 'javascript:alert(1)' } })).status === 400);
+      check('logo saved by the site shows in LifeOS too', (await call('/api/report-brand', { cookie })).d.logo === png);
+      await ext('/api/ext/report-brand', { method: 'PATCH', token, body: { logo: '' } });
+    }
     const card = await ext('/api/ext/col/cards', { method: 'POST', token, body: { projectId: proj.d.id, title: 'نقشه‌های اجرایی', col: 'todo' } });
     check('site adds a kanban card', card.status === 201);
     const pg = (await ext('/api/ext/col/cards?offset=0&limit=1', { token })).d;

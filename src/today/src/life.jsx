@@ -601,6 +601,30 @@ const PREPARER_KEY = 'lifeos-report-preparer';
 const readPreparer = () => { try { return localStorage.getItem(PREPARER_KEY) || ''; } catch { return ''; } };
 const writePreparer = v => { try { localStorage.setItem(PREPARER_KEY, v); } catch {} };
 function askPreparer() { let name = readPreparer().trim(); if (!name) { name = (window.prompt('نام تهیه‌کنندهٔ گزارش (روی گزارش‌ها می‌آید):', '') || '').trim(); if (name) writePreparer(name); } return name; }
+// letterhead logo picker (comparison page + each project's report tab); same store as Settings → report template,
+// the Melina panel saves it through its proxy. Resized so it also fits the proxy's 64 KB request limit.
+function ReportLogo({ logo, onChange }) {
+  const [msg, setMsg] = useState('');
+  const pick = async e => {
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return;
+    setMsg('در حال آماده‌سازی…');
+    try {
+      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('تصویر خوانده نشد.')); i.src = URL.createObjectURL(file); });
+      let side = 360, data = '';
+      for (let k = 0; k < 6; k++, side = Math.round(side * 0.8)) { const r = Math.min(1, side / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * r)); c.height = Math.max(1, Math.round(img.height * r)); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); data = c.toDataURL('image/png'); if (data.length > 45000) data = c.toDataURL('image/webp', 0.86); if (data.length <= 45000) break; }
+      const r = await api('/api/report-brand', { method: 'PATCH', body: JSON.stringify({ logo: data }) });
+      onChange(r?.logo || data); setMsg('');
+    } catch (x) { setMsg(x.message); }
+  };
+  const drop = async () => { try { await api('/api/report-brand', { method: 'PATCH', body: JSON.stringify({ logo: '' }) }); onChange(''); } catch (x) { setMsg(x.message); } };
+  return <span className="lf-compare-logo">{logo ? <img src={logo} alt="لوگوی گزارش" /> : null}<label className="lf-btn ghost">{logo ? 'تغییر لوگو' : '＋ لوگو'}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={pick} hidden /></label>{logo ? <button type="button" className="lf-link" onClick={drop}>حذف لوگو</button> : null}{msg ? <small>{msg}</small> : null}</span>;
+}
+// preparer name + logo for the comparison report, shown in the page's top bar next to «چاپ / PDF»
+function CompareBrandBar() {
+  const [preparer, setPreparer] = useState(readPreparer), [logo, setLogo] = useState('');
+  useEffect(() => { api('/api/report-brand').then(d => setLogo(d?.logo || '')).catch(() => {}); }, []);
+  return <span className="lf-compare-brand"><label className="lf-compare-prep">تهیه‌کننده<input value={preparer} onChange={e => { setPreparer(e.target.value); writePreparer(e.target.value); }} placeholder="نام روی گزارش" maxLength={60} /></label><ReportLogo logo={logo} onChange={setLogo} /></span>;
+}
 function ProjectsCompare({ projects, contracts, financials, processes, onOpen, printRef }) {
   const [sort, setSort] = useState('order');
   const rows = projects.map((p, i) => ({ p, i, m: projectMetrics(p, contracts.find(x => x.projectId === p.id), financials.filter(x => x.projectId === p.id), processes.filter(x => x.projectId === p.id)) }));
@@ -608,13 +632,11 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
   rows.sort((a, b) => key(a) - key(b));
   const sum = f => rows.reduce((a, r) => a + f(r.m), 0);
   // the «چاپ / PDF» button lives in the page actions, next to «بازگشت به پروژه»; it prints the rows in their current order
-  const [preparer, setPreparer] = useState(readPreparer);
-  const savePreparer = v => { setPreparer(v); writePreparer(v); };
-  if (printRef) printRef.current = async () => { const name = askPreparer(); setPreparer(name); const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer: name } }); };
+  if (printRef) printRef.current = async () => { const name = askPreparer(); const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer: name } }); };
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">
-    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div><label className="lf-compare-prep">تهیه‌کننده<input value={preparer} onChange={e => savePreparer(e.target.value)} placeholder="نام برای کاور گزارش" maxLength={60} /></label></div>
+    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
     <div className="lf-compare-wrap"><table>
       <thead><tr>{th('order', 'پروژه')}{th('progress', 'پیشرفت')}<th>زمان</th>{th('variance', 'انحراف')}{th('end', 'پایان قرارداد')}<th>مبلغ قرارداد</th><th>وصولی</th>{th('outstanding', 'معوق')}<th>مراحل عقب</th><th>وضعیت</th></tr></thead>
       <tbody>{rows.map(({ p, m }) => <tr key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}>
@@ -690,7 +712,7 @@ function ProjectReport({ project, contract, financials, processes }) {
       {hasReportBrand ? <aside className="lf-report-print-brand" aria-label="سربرگ گزارش">{reportLogo ? <img src={reportLogo} alt="لوگوی گزارش" /> : null}{reportHeaderText ? <b>{reportHeaderText}</b> : null}</aside> : null}
       <div><p>گزارش عملکرد پروژه</p><h2>{project.name}</h2><small>تهیه‌شده در {printedAt}</small></div>
       <div className={`lf-report-status ${timelineBehind ? 'attention' : progress === 100 ? 'complete' : ''}`}><b>{projectState}</b><span>{fa(progress)}٪ پیشرفت اجرایی</span></div>
-      <div className="lf-report-actions"><div className="lf-report-btns"><button type="button" className="lf-btn ghost lf-report-prep" title="نام تهیه‌کننده روی گزارش" onClick={() => { const v = window.prompt('نام تهیه‌کنندهٔ گزارش:', readPreparer()); if (v != null) { writePreparer(v.trim()); setPrepTick(t => t + 1); } }}>✎ تهیه‌کننده: {readPreparer() || '—'}</button><button type="button" className="lf-btn lf-report-print" onClick={printReport} disabled={printing}>{printing ? '⏳ در حال ساخت PDF…' : '🖨 چاپ / ذخیرهٔ PDF'}</button><button type="button" className="lf-btn ghost lf-report-print" onClick={sendReport} disabled={sendState.busy}>{sendState.busy ? '⏳ در حال ارسال…' : '✈ ارسال به تلگرام'}</button></div>{sendState.msg ? <small className={`lf-report-send ${sendState.error ? 'err' : ''}`} role="status">{sendState.msg}</small> : null}</div>
+      <div className="lf-report-actions"><div className="lf-report-btns"><button type="button" className="lf-btn lf-report-print" onClick={printReport} disabled={printing}>{printing ? '⏳ در حال ساخت PDF…' : '🖨 چاپ / ذخیرهٔ PDF'}</button><button type="button" className="lf-btn ghost lf-report-print" onClick={sendReport} disabled={sendState.busy}>{sendState.busy ? '⏳ در حال ارسال…' : '✈ ارسال به تلگرام'}</button></div><div className="lf-report-meta no-print"><button type="button" className="lf-report-prep" title="نام تهیه‌کننده روی گزارش" onClick={() => { const v = window.prompt('نام تهیه‌کنندهٔ گزارش:', readPreparer()); if (v != null) { writePreparer(v.trim()); setPrepTick(t => t + 1); } }}>✎ تهیه‌کننده: {readPreparer() || '—'}</button><ReportLogo logo={reportLogo} onChange={v => setReportBrand(b => ({ ...b, logo: v }))} /></div>{sendState.msg ? <small className={`lf-report-send ${sendState.error ? 'err' : ''}`} role="status">{sendState.msg}</small> : null}</div>
     </header>
     <section className="lf-report-metrics">
       <div className="lf-report-chart report-progress"><div className="lf-report-ring" style={{ '--progress': `${progress * 3.6}deg` }}><b>{fa(progress)}٪</b><small>اجرایی</small></div><div><small>پیشرفت مراحل</small><b>{fa(completed)} از {fa(stages.length)} مرحله</b><span>مراحل اجرایی تکمیل شده</span></div></div>
@@ -931,10 +953,10 @@ export function ProjectsPage({ Nav }) {
     const same = items.filter(p => !p.color || p.color === PCOLORS[0]); if (same.length < 2) return;
     same.slice(1).forEach((p, i) => projects.patch(p.id, { color: PCOLORS[(i + 1) % PCOLORS.length] }));
   }, [projects.items === null]);
-  return <Page Nav={Nav} className="wide" kicker="کار" title="پروژه‌ها" actions={<>{list.length > 1 ? <button className={`lf-btn ${compare ? '' : 'ghost'}`} onClick={() => setCompare(c => !c)}>{compare ? 'بازگشت به پروژه' : '⚖ مقایسهٔ پروژه‌ها'}</button> : null}{compare && list.length > 1 ? <button className="lf-btn ghost" disabled={printBusy} onClick={async () => { setPrintBusy(true); try { await comparePrint.current?.(); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPrintBusy(false); } }}>{printBusy ? '⏳ در حال آماده‌سازی…' : '🖨 چاپ / PDF'}</button> : null}<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button></>}>
+  return <Page Nav={Nav} className="wide" kicker="کار" title="پروژه‌ها" actions={<>{list.length > 1 ? <button className={`lf-btn ${compare ? '' : 'ghost'}`} onClick={() => setCompare(c => !c)}>{compare ? 'بازگشت به پروژه' : '⚖ مقایسهٔ پروژه‌ها'}</button> : null}{compare && list.length > 1 ? <CompareBrandBar /> : null}{compare && list.length > 1 ? <button className="lf-btn ghost" disabled={printBusy} onClick={async () => { setPrintBusy(true); try { await comparePrint.current?.(); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPrintBusy(false); } }}>{printBusy ? '⏳ در حال آماده‌سازی…' : '🖨 چاپ / PDF'}</button> : null}{!compare ? <button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button> : null}</>}>
     <SaveErrorBar />
     {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !(projects.items || []).length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. با «＋ پروژه» فقط نامش را وارد کن؛ سپس اطلاعات پروژه و قرارداد را کامل می‌کنی.</p> : <>
-      {compare && list.length > 1 ? <ProjectsCompare printRef={comparePrint} projects={ordered} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'آرشیو']]}
+      {compare && list.length > 1 ? <ProjectsCompare printRef={comparePrint} projects={ordered.filter(p => !isArchived(p))} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'آرشیو']]}
         onReorder={reorderProjects}
         items={ordered.map(p => { const stages = stagesOf(p), total = stages.length, done = stages.filter(x => x.status === 'done').length, pct = weightedProgress(stages);
           return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: isArchived(p) ? 'archived' : isFinished(p) ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>
