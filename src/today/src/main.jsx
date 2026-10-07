@@ -24,7 +24,7 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, ChevronsLeft, ChevronsRight, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Newspaper, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck, LogOut, Dumbbell
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Newspaper, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck, LogOut, Dumbbell, Bookmark
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
@@ -63,7 +63,7 @@ const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('mark
 const FinanceReact = lazyPage('finance', 'FinanceReact'), HabitsPage = lazyPage('habits', 'HabitsPage'), WeeklyPage = lazyPage('habits', 'WeeklyPage');
 const [HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, LifeStatsPage] =
   ['HealthPage', 'CarPage', 'TravelPage', 'ProjectsPage', 'CrmPage', 'LearningPage', 'JournalPage', 'GoalsPage', 'FocusPage', 'LifeStatsPage'].map(n => lazyPage('life', n));
-const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage'), ReadingPage = lazyPage('reading', 'ReadingPage');
+const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage'), ReadingPage = lazyPage('reading', 'ReadingPage'), BookmarksPage = lazyPage('reading', 'BookmarksPage');
 // Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
 const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
 function PageLoading() { return <div className="page-loading" role="status" aria-label="در حال بارگذاری"><i /></div>; }
@@ -178,7 +178,7 @@ function TopNav({ active, right }) {
       <FocusChip />
       <ThemeToggle />
       {right}
-      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['exercise', 'ورزش'], ['time', 'زمان کار و تایمر'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
+      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['exercise', 'ورزش'], ['time', 'زمان کار و تایمر'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['bookmarks', 'لینک‌ها (بعداً بخوانم)'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
@@ -231,7 +231,7 @@ const PLAN_TABS = [['list', 'لیست کارها', ListChecks, PlannerReact], ['
 const REVIEW_TABS = [['goals', 'اهداف سالانه', Target, GoalsPage], ['week', 'مرور هفته', ClipboardCheck, WeeklyPage], ['stats', 'آمار زندگی', BarChart3, LifeStatsPage], ['logbook', 'دفتر و مرور', BookMarked, LogbookPage]];
 const HEALTH_TABS = [['health', 'سلامت', HeartPulse, HealthPage], ['exercise', 'ورزش', Dumbbell, ExercisePage]];
 const LEARN_TABS = [['learning', 'کتاب و دوره', BookOpen, LearningPage], ['vocab', 'زبان', Languages, VocabPage]];
-const NOTES_TABS = [['notes', 'یادداشت‌ها', StickyNote, NotesReact], ['journal', 'روزنگار', BookOpen, JournalPage], ['shopping', 'لیست خرید', ShoppingCart, ShopView]];
+const NOTES_TABS = [['notes', 'یادداشت‌ها', StickyNote, NotesReact], ['journal', 'روزنگار', BookOpen, JournalPage], ['shopping', 'لیست خرید', ShoppingCart, ShopView], ['bookmarks', 'لینک‌ها', Bookmark, BookmarksPage]];
 
 // Something was saved from Ctrl+K: re-mount the current page so it fetches its data again (lazy chunks are
 // already loaded, so this is quick) — no full reload, the URL and tab stay as they are.
@@ -246,12 +246,12 @@ function Routes() {
   const page = new URLSearchParams(location.search).get('page');
   if (pageLocked(page)) return <><TopNav /><main className="locked-page" dir="rtl"><h1>🔒 این بخش بسته است</h1><p>مدیر سایت دسترسی حساب تو به این بخش را بسته است.</p><a href="/">بازگشت به امروز</a></main></>;
   if (['calendar', 'planner', 'habits', 'focus', 'time'].includes(page)) return <TabHub active="planner" label="نمای برنامه‌ریز" tabs={PLAN_TABS} initial={page === 'planner' ? 'list' : page} url={v => v === 'list' ? 'planner' : v} />;
-  if (page === 'reading' || page === 'news' || page === 'bookmarks') return <ReadingPage Nav={() => <TopNav active="reading" />} />;
+  if (page === 'reading' || page === 'news') return <ReadingPage Nav={() => <TopNav active="reading" />} />;
   if (page === 'insights') return <InsightsPage Nav={() => <TopNav active="insights" />} />;
   if (['review', 'goals', 'week', 'stats', 'logbook'].includes(page)) return <TabHub active="review" label="مرور و اهداف" tabs={REVIEW_TABS} initial={page} />;
   if (['health', 'exercise'].includes(page)) return <TabHub active="health" label="سلامت" tabs={HEALTH_TABS} initial={page} />;
   if (['learning', 'vocab'].includes(page)) return <TabHub active="learning" label="یادگیری" tabs={LEARN_TABS} initial={page} />;
-  if (['notes', 'journal', 'shopping'].includes(page)) return <TabHub active="notes" label="یادداشت‌ها" tabs={NOTES_TABS} initial={page} />;
+  if (['notes', 'journal', 'shopping', 'bookmarks'].includes(page)) return <TabHub active="notes" label="یادداشت‌ها" tabs={NOTES_TABS} initial={page} />;
   const LIFE = { courses: CoursesPage, health: HealthPage, car: CarPage, travel: TravelPage, projects: ProjectsPage, crm: CrmPage };
   if (LIFE[page]) { const P = LIFE[page]; return <P Nav={() => <TopNav active={page} />} />; }
   if (page === 'finance') return <FinanceReact Nav={TopNav} />;

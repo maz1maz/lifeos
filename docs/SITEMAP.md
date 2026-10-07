@@ -22,7 +22,8 @@
 | `/?page=logbook` دفتر و مرور | `logbook.jsx` (+ نوار روزانهٔ خرج/حال از reports) | life-review (period=jmonthly), wins, decisions, reports |
 | `/?page=time` زمان کار (تب برنامه‌ریز) | `timelog.jsx` | timer(+start/stop/cancel), time (+:id PATCH/DELETE), col/projects |
 | `/?page=exercise` ورزش (تب کنار سلامت) | `exercise.jsx` | exercise (type, minutes, date, km?, note?) |
-| `/?page=reading` خبر و خواندنی | `reading.jsx` | news(+sources, sync, :id/summarize, :id/translate), bookmarks |
+| `/?page=reading` اخبار | `reading.jsx` (تگ خودکار `autoTag`، خوانندهٔ درون‌برنامه `Reader`) | news(+sources با کشف فید/تیتر صفحه/rss2json، sync، :id/read، :id/summarize، :id/translate) |
+| `/?page=bookmarks` لینک‌ها (تب یادداشت‌ها) | `BookmarksPage` در `reading.jsx` | bookmarks |
 | دستیار (همهٔ صفحه‌ها) | `assistant.jsx` (lazy، دکمهٔ شناور فقط وقتی aiConfigured) | ai/chat با `page` → `pageContext` در api.js |
 | `/?page=admin` | `admin.jsx` (lazy) + `msgbar.jsx` (نوار پیام مدیر) | admin/overview, admin/users/:id/{logout,disable,locks}, admin/message |
 | `/?page=settings` | `SettingsReact` در main.jsx | me, integrations, google-calendar/sync, telegram/link-code, security/pin, backup/telegram (فقط Worker) |

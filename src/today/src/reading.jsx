@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, ExternalLink, Languages, Pencil, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
+import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, ExternalLink, Languages, Pencil, RefreshCw, Sparkles, Trash2, X } from 'lucide-react';
 import { Page, api, fa } from './life-core';
 import { jLabel } from './jdate';
 
@@ -9,6 +9,19 @@ const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } ca
 // Feed/page titles make clumsy names ("مرجع فوتبال و ورزش | ورزش سه", "Al Jazeera &#8211; Breaking News…"):
 // decode entities and keep the shortest meaningful part. Display only; the stored name stays the filter key.
 const cleanName = n => { const t = String(n || '').replace(/&#(\d+);/g, (_, c) => String.fromCharCode(c)).replace(/&amp;/g, '&').trim(); const parts = t.split(/\s+[|–—-]\s+/).map(x => x.trim()).filter(x => x.length >= 2 && !/^(world news|news|latest news|latest|home|homepage|اخبار)$/i.test(x)); return parts.length ? parts.reduce((a, b) => b.length < a.length ? b : a) : t; };
+// Automatic tags from the headline (+summary): first matching topic wins, else the source's own tag.
+const TOPICS = [
+  ['ورزش', /فوتبال|والیبال|کشتی|ورزش|لیگ|جام جهانی|بازیکن|سرمربی|استقلال|پرسپولیس|سپاهان|المپیک|تیم ملی|گل |football|soccer|nba|tennis|olympic|league|champions|fifa|premier/i],
+  ['اقتصاد', /اقتصاد|بورس|دلار|ارز|طلا|سکه|تورم|بانک|نفت|بنزین|قیمت|بازار|یارانه|مالیات|بودجه|کالابرگ|economy|inflation|stocks?|market|oil|bank|dollar|tariff|trade|gdp/i],
+  ['فناوری', /فناوری|هوش مصنوعی|اپل|گوگل|سامسونگ|گوشی|موبایل|اینترنت|نرم‌افزار|استارتاپ|ربات|تراشه|فیلترینگ|technology|tech|ai\b|apple|google|microsoft|iphone|android|software|chip|startup|openai|nvidia/i],
+  ['سیاست', /مجلس|دولت|وزیر|رئیس‌جمهور|انتخابات|سیاست|پارلمان|نماینده|دیپلمات|مذاکره|تحریم|سفیر|president|election|minister|parliament|senate|congress|sanction|diplomat|government|white house/i],
+  ['جهان', /آمریکا|اروپا|روسیه|اوکراین|چین|اسرائیل|غزه|لبنان|سوریه|عراق|افغانستان|ترکیه|سازمان ملل|ناتو|ukraine|russia|china|israel|gaza|europe|nato|united nations/i],
+  ['سلامت', /سلامت|بیمار|پزشک|درمان|دارو|بیمارستان|کرونا|ویروس|واکسن|سرطان|تغذیه|health|hospital|virus|vaccine|cancer|disease|medical/i],
+  ['علم', /علم|دانشمند|پژوهش|فضا|ناسا|ستاره|سیاره|اقلیم|زمین‌لرزه|science|research|space|nasa|planet|climate|scientists?/i],
+  ['فرهنگ', /سینما|فیلم|سریال|کتاب|موسیقی|هنر|جشنواره|بازیگر|خواننده|تئاتر|movie|film|music|book|art|festival|actor/i],
+  ['حوادث', /حادثه|تصادف|آتش‌سوزی|سیل|زلزله|قتل|دستگیر|انفجار|کشته|زخمی|accident|fire|flood|earthquake|killed|crash|shooting/i],
+];
+const autoTag = x => { const t = `${x.title || ''} ${x.summary || ''}`; for (const [tag, re] of TOPICS) if (re.test(t)) return tag; return x.category || 'عمومی'; };
 const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '';
 // One-tap sources; the server checks each feed when it's added (an unreachable one just shows an error).
 // A site address (no feed path) works too: the server finds its feed. Ecoiran was dropped: it refuses requests from Cloudflare.
@@ -37,14 +50,41 @@ function WeeklySummary({ onClose }) {
   </div>;
 }
 
+// In-app reader: the article's own text (fetched and cleaned by the Worker), large type, RTL/LTR by content.
+function Reader({ x, onClose, onSave }) {
+  const [d, setD] = useState(null), [err, setErr] = useState('');
+  useEffect(() => { setD(null); setErr(''); api(`/api/news/${x.id}/read`).then(setD).catch(e => setErr(e.message)); }, [x.id]);
+  useEffect(() => { const k = e => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', k); document.body.classList.add('nav-lock'); return () => { window.removeEventListener('keydown', k); document.body.classList.remove('nav-lock'); }; }, []);
+  const lat = /[a-z]{4,}/i.test(x.title) && !/[\u0600-\u06FF]/.test(x.title);
+  return <div className="rd-reader-bg" onMouseDown={onClose}>
+    <article className="rd-reader" dir={lat ? 'ltr' : 'rtl'} role="dialog" aria-label={x.title} onMouseDown={e => e.stopPropagation()}>
+      <header className="rd-rhead" dir="rtl">
+        <small>{[cleanName(x.source), x.tag, jLabel(x.date)].filter(Boolean).join(' · ')}</small>
+        <span className="rd-rops">
+          <button type="button" className={`rd-ic${x.saved ? ' on' : ''}`} onClick={onSave} aria-pressed={!!x.saved} aria-label="ذخیره">{x.saved ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}</button>
+          {safeUrl(x.url) ? <a className="rd-ic" href={safeUrl(x.url)} target="_blank" rel="noopener noreferrer" aria-label="باز کردن در سایت اصلی" title="سایت اصلی"><ExternalLink size={17} /></a> : null}
+          <button type="button" className="rd-ic" onClick={onClose} aria-label="بستن"><X size={18} /></button>
+        </span>
+      </header>
+      <h1>{x.title}</h1>
+      {d?.image ? <img className="rd-rimg" src={d.image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={e => { e.currentTarget.style.display = 'none'; }} /> : null}
+      {x.aiSummary ? <p className="rd-ai" dir="rtl">✨ {x.aiSummary}</p> : null}
+      {d ? d.paras.map((t, i) => t.startsWith('## ') ? <h2 key={i}>{t.slice(3)}</h2> : <p key={i}>{t}</p>)
+        : err ? <>{x.summary ? <p>{x.summary}</p> : null}<div className="rd-rerr" dir="rtl">⚠ {err}{safeUrl(x.url) ? <> — <a href={safeUrl(x.url)} target="_blank" rel="noopener noreferrer">خواندن در سایت اصلی</a></> : null}</div></>
+        : <><p className="rd-skel" /><p className="rd-skel" /><p className="rd-skel short" /></>}
+    </article>
+  </div>;
+}
+
 function News() {
   const [items, setItems] = useState(null), [sources, setSources] = useState([]), [cat, setCat] = useState(''), [savedOnly, setSavedOnly] = useState(false);
   const [busy, setBusy] = useState(''), [msg, setMsg] = useState(''), [showSrc, setShowSrc] = useState(false), [src, setSrc] = useState({ url: '', category: '' }), [week, setWeek] = useState(false);
-  const [srcF, setSrcF] = useState(''), [open, setOpen] = useState(null), [limit, setLimit] = useState(25), [edit, setEdit] = useState(null);
+  const [reading, setReading] = useState(null), [srcF, setSrcF] = useState(''), [open, setOpen] = useState(null), [limit, setLimit] = useState(25), [edit, setEdit] = useState(null);
   const load = () => Promise.all([api('/api/news').then(d => setItems(d.items || [])), api('/api/news/sources').then(d => setSources(d.items || []))]).catch(e => setMsg(e.message));
   useEffect(() => { load(); }, []);
-  const cats = useMemo(() => [...new Set((items || []).map(x => x.category).filter(Boolean))], [items]);
-  const list = (items || []).filter(x => (!cat || x.category === cat) && (!savedOnly || x.saved) && (!srcF || x.source === srcF));
+  const tagged = useMemo(() => (items || []).map(x => ({ ...x, tag: autoTag(x) })), [items]);
+  const cats = useMemo(() => { const n = {}; for (const x of tagged) n[x.tag] = (n[x.tag] || 0) + 1; return Object.keys(n).sort((a, b) => n[b] - n[a]); }, [tagged]);
+  const list = tagged.filter(x => (!cat || x.tag === cat) && (!savedOnly || x.saved) && (!srcF || x.source === srcF));
   useEffect(() => { setLimit(25); setOpen(null); }, [cat, savedOnly, srcF]);
   const saveSrc = async e => {
     e.preventDefault();
@@ -110,13 +150,13 @@ function News() {
     {items === null ? <p className="rd-muted">در حال بارگذاری…</p> : !list.length ? <p className="rd-muted">{items.length ? 'با این فیلتر خبری نیست.' : sources.length ? 'خبری نیست؛ «به‌روزرسانی» را بزن.' : 'برای دیدن اخبار، بالا یک منبع انتخاب کن.'}</p>
       : <><ul className="rd-news rd-compact">{list.slice(0, limit).map(x => { const on = open === x.id; return <li key={x.id} className={on ? 'open' : ''}>
         <div className="rd-row">
-          {safeUrl(x.url) ? <a className="rd-t" href={safeUrl(x.url)} target="_blank" rel="noopener noreferrer" dir="auto">{x.title}</a> : <span className="rd-t" dir="auto">{x.title}</span>}
+          <button type="button" className="rd-t" dir="auto" onClick={() => setReading(x)}>{x.title}</button>
           <small className="rd-sname">{cleanName(x.source)}</small>
           <button type="button" className={`rd-ic${x.saved ? ' on' : ''}`} onClick={() => patch(x, { saved: !x.saved })} aria-pressed={!!x.saved} aria-label={x.saved ? 'برداشتن از ذخیره‌شده‌ها' : 'ذخیره'}>{x.saved ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}</button>
           <button type="button" className="rd-ic" onClick={() => setOpen(on ? null : x.id)} aria-expanded={on} aria-label={on ? 'بستن جزئیات' : 'جزئیات'}>{on ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
         </div>
         {on ? <div className="rd-more">
-          <small className="rd-meta">{[cleanName(x.source), x.category, jLabel(x.date)].filter(Boolean).join(' · ')}</small>
+          <small className="rd-meta">{[cleanName(x.source), x.tag, jLabel(x.date)].filter(Boolean).join(' · ')}</small>
           {x.summary ? <p className="rd-sum" dir="auto">{x.summary.length > 400 ? x.summary.slice(0, 400) + '…' : x.summary}</p> : null}
           {x.aiSummary ? <p className="rd-ai">✨ {x.aiSummary}</p> : null}
           <div className="rd-actions">
@@ -128,6 +168,7 @@ function News() {
         </div> : null}
       </li>; })}</ul>
       {list.length > limit ? <button type="button" className="rd-btn ghost rd-moreall" onClick={() => setLimit(l => l + 25)}>نمایش بیشتر ({fa(list.length - limit)} خبر دیگر)</button> : null}</>}
+    {reading ? <Reader x={reading} onClose={() => setReading(null)} onSave={() => { patch(reading, { saved: !reading.saved }); setReading(r => ({ ...r, saved: !r.saved })); }} /> : null}
   </section>;
 }
 
@@ -162,7 +203,13 @@ function Bookmarks() {
 }
 
 export function ReadingPage({ Nav }) {
-  return <Page Nav={Nav} className="rd" kicker="خبر و خواندنی" title="خواندنی‌ها" sub="اخبار منابع دلخواهت و لینک‌هایی که می‌خواهی بعداً بخوانی">
-    <div className="rd-grid"><News /><Bookmarks /></div>
+  return <Page Nav={Nav} className="rd" kicker="خبر و خواندنی" title="اخبار" sub="تیتر منابع دلخواهت؛ روی هر تیتر بزن تا متن کاملش همین‌جا باز شود">
+    <div className="rd-solo"><News /></div>
+  </Page>;
+}
+
+export function BookmarksPage({ Nav }) {
+  return <Page Nav={Nav} className="rd" kicker="یادداشت‌ها" title="لینک‌ها" sub="لینک‌هایی که می‌خواهی بعداً بخوانی">
+    <div className="rd-solo"><Bookmarks /></div>
   </Page>;
 }
