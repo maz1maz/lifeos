@@ -447,6 +447,17 @@ async function main() {
       check('assistant: unknown page adds nothing', !/"currentPage"/.test(seen[1].messages[0].content));
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
   }
+  { // work-time log: manual entries, validation, edit, timer start/stop
+    const a = await call('/api/time', { method: 'POST', cookie, body: { title: 'گزارش پروژه', minutes: 95, date: '2026-02-03', projectId: 'p1' } });
+    check('time: manual entry', a.status === 201 && a.d.minutes === 95 && a.d.projectId === 'p1');
+    check('time: bad minutes/date refused', (await call('/api/time', { method: 'POST', cookie, body: { title: 'x', minutes: 3000 } })).status === 400 && (await call('/api/time', { method: 'POST', cookie, body: { title: 'x', minutes: 10, date: '3 feb' } })).status === 400);
+    check('time: edit minutes', (await call(`/api/time/${a.d.id}`, { method: 'PATCH', cookie, body: { minutes: 120 } })).d.minutes === 120 && (await call(`/api/time/${a.d.id}`, { method: 'PATCH', cookie, body: { minutes: -5 } })).status === 400);
+    const r = await call('/api/time?from=2026-02-01&to=2026-02-28', { cookie });
+    check('time: range read + total', r.d.items.some(x => x.id === a.d.id) && r.d.total >= 120);
+    await call('/api/timer/cancel', { method: 'POST', cookie });
+    check('timer: start -> running -> stop logs an entry', (await call('/api/timer/start', { method: 'POST', cookie, body: { title: 'تایمر تست' } })).status === 201 && !!(await call('/api/timer', { cookie })).d.timer && (await call('/api/timer/stop', { method: 'POST', cookie, body: {} })).d.minutes >= 1 && (await call('/api/timer', { cookie })).d.timer === null);
+    await call(`/api/time/${a.d.id}`, { method: 'DELETE', cookie });
+  }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
   check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');
