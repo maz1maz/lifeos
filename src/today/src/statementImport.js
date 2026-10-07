@@ -45,6 +45,7 @@ export async function parseStatementWorkbook(buffer) {
   const warnings = [];
   let items = null, info = {}, measuresRaw = null, prep = '', period = null, isFinalDoc = false;
   for (const name of wb.SheetNames) {
+    if (/نمونه/.test(name)) continue; // the template's filled example is never imported
     const g = grid(XLSX, wb.Sheets[name]);
     const h = findHeader(g, ['شماره آیتم قرارداد', 'شرح آیتم قرارداد', 'مقدار', 'واحد', 'فی']);
     if (h && !items) {
@@ -80,6 +81,7 @@ export async function parseStatementWorkbook(buffer) {
       const co = findHeader(g, ['نام پیمانکار', 'شرکت']); if (co) info.contractorName = norm(g.at(co.row + 1, co.col['شرکت']));
       for (let r = 0; r < Math.min(g.rows, 12); r++) for (let c = 0; c < g.cols; c++) if (/صورت وضعیت\s*قطعی/.test(norm(g.at(r, c)) + ' ' + norm(g.at(r, c + 1)))) isFinalDoc = true;
     }
+    if (items && !items.length) { items = null; info = {}; } // an empty form: keep looking (e.g. a filled «نمونه» sheet)
     const m = findHeader(g, ['آیتم قرارداد', 'شماره صورت وضعیت', 'تاریخ انجام']);
     if (m && !measuresRaw) {
       const qCol = (() => { for (let c = 0; c < g.cols; c++) if (/^مقدار\s*انجام\s*شده$/.test(norm(g.at(m.row, c)))) return c; return -1; })();

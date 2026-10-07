@@ -95,11 +95,26 @@ lines = [
     ('۵. «تخفیف»: مبلغ کل تخفیف قرارداد به ریال (اختیاری). درصد تخفیف خودکار از آن حساب می‌شود.', False),
     ('۶. برگهٔ «ریزمتر» اختیاری است: شمارهٔ آیتم (همان ستون اول برگهٔ قبل، مثل 3 یا «مازاد بر قرارداد (1)»)، شمارهٔ صورت وضعیت، تاریخ شمسی و مقدار انجام‌شده.', False),
     ('   اگر شمارهٔ صورت وضعیت را «قطعی» بنویسید، آن ردیف‌ها صورت وضعیت بعدی و قطعی می‌شوند.', False),
+    ('برگهٔ «نمونهٔ پرشده» فقط برای دیدن است و هیچ‌وقت وارد نمی‌شود.', False),
     ('۷. در LifeOS: پروژه › اطلاعات مالی › آیتم‌های قرارداد › «📥 ورود از اکسل» و همین فایل را انتخاب کنید.', False),
     ('نام برگه‌ها و عنوان ستون‌ها را تغییر ندهید؛ ستون‌ها از روی عنوانشان پیدا می‌شوند.', True),
 ]
 for i, (t, b) in enumerate(lines, start=1):
     c = g.cell(row=i * 2 - 1, column=1, value=t); c.font = Font(name='Tahoma', size=12 if b and i == 1 else 10.5, bold=b, color=NAVY if b else '0F172A'); c.alignment = right
+# ── filled example (generic names) — a copy of the items sheet; the importer reads the first sheet that has items ──
+ex = wb.copy_worksheet(ws); ex.title = 'نمونهٔ پرشده'; ex.sheet_view.rightToLeft = True
+ex['B1'] = 'نمونهٔ پرشده — فقط برای دیدن؛ فرم خودتان را در برگهٔ «صورت وضعیت پروژه» پر کنید'
+ex['B1'].font = Font(name='Tahoma', bold=True, size=12, color='8A6414')
+for cell, v in (('C3', 'پروژهٔ نمونه'), ('C4', 'تهیه و نصب نمای آلومینیومی ساختمان نمونه'), ('C5', 'شرکت کارفرمای نمونه'), ('G3', 'NM-1405-01'), ('G4', '1405/01/15'), ('G6', 'شرکت پیمانکار نمونه')): ex[cell] = v
+sample = [('تهیه و ساخت پنجره لولایی و فیکس', 'فروش / تأمین', 250, 'مترمربع', 30000000), ('فروش لوور آلومینیومی', 'فروش / تأمین', 400, 'مترطول', 16000000),
+          ('فروش زیرسازی آلومینیومی نمای سنگی', 'فروش / تأمین', 300, 'مترمربع', 22000000), ('نصب پنجره لولایی و فیکس', 'نصب (مشمول بیمه)', 250, 'مترمربع', 1000000),
+          ('نصب و اجرای لوور آلومینیومی', 'نصب (مشمول بیمه)', 400, 'مترطول', 1600000), ('نصب زیرسازی نمای سنگی', 'نصب (مشمول بیمه)', 300, 'مترمربع', 2200000)]
+extra = [('مازاد نصب زیرسازی نمای سنگی', 'نصب (مشمول بیمه)', 40, 'مترمربع', 2200000), ('جرثقیل', 'سایر', 1, 'عدد', 30000000)]
+for i, row in enumerate(sample): [ex.cell(row=first + i, column=3 + k, value=v) for k, v in enumerate(row)]
+for i, row in enumerate(extra): [ex.cell(row=first + 30 + i, column=3 + k, value=v) for k, v in enumerate(row)]
+ex.cell(row=disc, column=7, value=1200000000)
+ex.sheet_properties.tabColor = GOLD
+wb.move_sheet(ex, offset=-(len(wb.sheetnames) - 2))  # right after the blank form
 wb.active = 0
 wb.save(OUT)
 print('wrote', OUT)
