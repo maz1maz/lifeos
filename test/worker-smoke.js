@@ -458,6 +458,40 @@ async function main() {
     check('timer: start -> running -> stop logs an entry', (await call('/api/timer/start', { method: 'POST', cookie, body: { title: 'تایمر تست' } })).status === 201 && !!(await call('/api/timer', { cookie })).d.timer && (await call('/api/timer/stop', { method: 'POST', cookie, body: {} })).d.minutes >= 1 && (await call('/api/timer', { cookie })).d.timer === null);
     await call(`/api/time/${a.d.id}`, { method: 'DELETE', cookie });
   }
+  { // news sources from sites that block bots: known official feed (NYT), else Google News limited to the site
+    const rss = t => `<?xml version="1.0"?><rss><channel><title>${t}</title><item><title>${t} one</title><link>https://x.test/1</link><guid>${t}-1</guid></item><item><title>${t} two</title><link>https://x.test/2</link><guid>${t}-2</guid></item></channel></rss>`;
+    const realFetch = globalThis.fetch, asked = [];
+    globalThis.fetch = async (url) => { const u = String(url); asked.push(u);
+      if (u.startsWith('https://rss.nytimes.com/services/xml/rss/nyt/World.xml')) return new Response(rss('NYT > World News'));
+      if (u.startsWith('https://news.google.com/rss/search')) return new Response(rss('"site:reuters.com" - Google News'));
+      if (u.startsWith('https://news.google.com/rss/topics/')) return new Response(rss('World - Latest - Google News'));
+      if (/reuters\.com|nytimes\.com/.test(u)) return new Response('blocked', { status: 401 });
+      return new Response('nope', { status: 404 }); };
+    try {
+      const ny = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://www.nytimes.com/international/' } });
+      check('nytimes.com/international -> official World feed', ny.status === 201 && ny.d.url.includes('nyt/World.xml') && ny.d.added === 2, JSON.stringify(ny.d));
+      const rt = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://www.reuters.com' } });
+      check('reuters.com (401) -> Google News for site:reuters.com', rt.status === 201 && rt.d.url.includes('news.google.com/rss/search') && rt.d.url.includes('reuters.com') && rt.d.name === 'reuters.com (Google News)' && rt.d.added === 2, JSON.stringify(rt.d));
+      const gt = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://news.google.com/topics/CAAqJggKIiBDQkFT?hl=en-US&gl=US&ceid=US%3Aen' } });
+      { // Google never answers Cloudflare: the feed comes through rss2json and the source remembers that
+        const rf = globalThis.fetch;
+        globalThis.fetch = async (url) => { const u = String(url);
+          if (u.startsWith('https://api.rss2json.com/v1/api.json?rss_url=')) return new Response(JSON.stringify({ status: 'ok', feed: { title: 'Tech - Latest - Google News' }, items: [{ title: 'via proxy one', link: 'https://n.test/1', guid: 'p1', description: '<b>x</b>' }, { title: 'via proxy two', link: 'https://n.test/2', guid: 'p2' }] }));
+          if (u.startsWith('https://news.google.com/')) throw new DOMException('timeout', 'AbortError');
+          return new Response('nope', { status: 404 }); };
+        try {
+          const px = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://news.google.com/topics/TECHID?hl=en-US' } });
+          check('Google News through rss2json: proxy flag, items, readable name', px.status === 201 && px.d.proxy === 'rss2json' && px.d.added === 2 && px.d.name === 'Tech - Latest (Google News)', JSON.stringify(px.d));
+          const sy = await call('/api/news/sync', { method: 'POST', cookie });
+          check('proxy source syncs through the proxy too', sy.d.results.find(r => r.source === 'Tech - Latest (Google News)').ok === true);
+          if (px.d && px.d.id) await call(`/api/news/sources/${px.d.id}`, { method: 'DELETE', cookie });
+        } finally { globalThis.fetch = rf; }
+      }
+      check('a Google News topic page -> its /rss/topics feed', gt.status === 201 && gt.d.url.startsWith('https://news.google.com/rss/topics/CAAqJggKIiBDQkFT?hl=en-US'), JSON.stringify(gt.d));
+      if (gt.d && gt.d.id) await call(`/api/news/sources/${gt.d.id}`, { method: 'DELETE', cookie });
+      for (const x of [ny.d, rt.d]) if (x && x.id) await call(`/api/news/sources/${x.id}`, { method: 'DELETE', cookie });
+    } finally { globalThis.fetch = realFetch; }
+  }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
   check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');

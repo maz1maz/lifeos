@@ -232,3 +232,8 @@ html[data-mode="light"] select option,html[data-mode="light"] select optgroup{ba
 :where(input,textarea):focus-visible{outline:2px solid color-mix(in srgb,var(--g-accent) 70%,transparent);outline-offset:1px}
 .skip-link{position:fixed;top:8px;right:8px;z-index:100;padding:8px 14px;border-radius:10px;background:var(--g-accent);color:#111;font-weight:700;text-decoration:none;transform:translateY(-200%);transition:transform .15s}
 .skip-link:focus{transform:none}
+.wt-big{display:block;font-size:26px;margin:4px 0 6px;font-variant-numeric:tabular-nums}
+.wt-big small{font-size:13px;color:var(--g-muted);font-weight:400}
+.wt-sub{display:block;color:var(--g-muted);font-size:12.5px;line-height:1.8}
+.ew-bar{height:8px;border-radius:4px;background:color-mix(in srgb,var(--g-text) 10%,transparent);overflow:hidden;margin-bottom:8px}
+.ew-bar i{display:block;height:100%;background:var(--g-accent);border-radius:4px;transition:width .4s}

@@ -934,8 +934,8 @@ button,input,select,textarea{font-family:inherit}
 .st-table tr.st-group:first-child td{padding-top:4px}
 .fb-grp{font-size:11.5px;color:var(--g-muted);padding:6px 4px 2px;font-weight:700}
 /* v39 — small utility cards don't need the tall fixed row height */
-@media(min-width:1101px){.home-grid>.slot-focus>.card,.home-grid>.slot-bills>.card,.home-grid>.slot-vocab>.card{height:auto!important;min-height:0}}
-.home-grid>.slot-focus,.home-grid>.slot-bills,.home-grid>.slot-vocab{align-self:start}
+@media(min-width:1101px){.home-grid>.slot-focus>.card,.home-grid>.slot-bills>.card,.home-grid>.slot-vocab>.card,.home-grid>.slot-worktime>.card,.home-grid>.slot-exercise>.card,.home-grid>.slot-insights>.card{height:auto!important;min-height:0}}
+.home-grid>.slot-focus,.home-grid>.slot-bills,.home-grid>.slot-vocab,.home-grid>.slot-worktime,.home-grid>.slot-exercise,.home-grid>.slot-insights{align-self:start}
 .focus-card .lf-focus{padding:6px 0}
 /* v42 — the clock / quick-add bar is part of the top header: full width, flush under it, same inner edges */
 @media(min-width:1101px){

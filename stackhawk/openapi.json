@@ -2766,14 +2766,6 @@
       }
     },
     "/api/exercise": {
-      "delete": {
-        "operationId": "delete_api_exercise",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      },
       "get": {
         "operationId": "get_api_exercise",
         "responses": {
@@ -5891,6 +5883,27 @@
             }
           }
         }
+      }
+    },
+    "/api/news/{id}/read": {
+      "get": {
+        "operationId": "get_api_news_id_read",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "x"
+            }
+          }
+        ]
       }
     },
     "/api/news/{id}/related": {
