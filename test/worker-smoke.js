@@ -504,6 +504,25 @@ async function main() {
     check('investment buy editable', ed.d.quantity === 3000 && ed.d.price === 610000);
     for (const sym of ['عیارتست', 'AAPLT', 'XYZT']) for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent(sym)}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
   }
+  { // Tehran-exchange live price from TSETMC (symbol search → closing price), Persian Kaf/Yeh variants matched
+    const realFetch = globalThis.fetch, asked = [];
+    globalThis.fetch = async (url) => { const u = String(url); asked.push(u);
+      if (u.includes('/Instrument/GetInstrumentSearch/')) return new Response(JSON.stringify({ instrumentSearch: [{ insCode: '111', lVal18AFC: 'شكيميا', lVal30: 'شیمیایی' }, { insCode: '222', lVal18AFC: 'شکیمیاح', lVal30: 'حق' }] }));
+      if (u.includes('/ClosingPrice/GetClosingPriceInfo/111')) return new Response(JSON.stringify({ closingPriceInfo: { pDrCotVal: 6830, pClosing: 6830 } }));
+      return new Response('nope', { status: 404 }); };
+    try {
+      await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'شکیمیا', type: 'buy', quantity: 533, price: 5941 } });
+      const r = await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'شکیمیا', assetType: 'stock' } });
+      check('TSE price refresh: exact symbol (Kaf/Yeh-insensitive), rial', r.status === 200 && r.d.price === 6830 && r.d.currency === 'IRR' && asked.some(u => u.includes('GetClosingPriceInfo/111')), JSON.stringify(r.d));
+      const pf = await call('/api/portfolio', { cookie });
+      const h = (pf.d.items || pf.d.holdings || []).find(x => x.symbol === 'شکیمیا');
+      check('portfolio uses the live TSE price', !!h && h.currentPrice === 6830 && h.currency === 'IRR', JSON.stringify(h));
+      globalThis.fetch = async () => new Response(JSON.stringify({ instrumentSearch: [] }));
+      const miss = await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'ناموجود', assetType: 'stock' } });
+      check('TSE unknown symbol -> 502 with a Persian message', miss.status === 502 && /پیدا نشد/.test(miss.d.error));
+    } finally { globalThis.fetch = realFetch; }
+    for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent('شکیمیا')}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
   check('telegramUserId round-trips on /api/me', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');

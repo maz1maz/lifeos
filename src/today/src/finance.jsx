@@ -210,6 +210,58 @@ function AssetTxs({ row, onChanged }) {
   </div>
 }
 
+// Today's price of a holding: Tehran-exchange stocks fetch theirs from TSETMC, anything else can be typed in.
+function AssetPrice({ row, onChanged }) {
+  const it = row.item, tse = it.assetType === 'stock' && /[\u0600-\u06FF]/.test(it.symbol), live = it.assetType === 'crypto' || tse
+  const [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [val, setVal] = useState('')
+  if (it.assetType === 'dollar' || it.assetType === 'euro' || it.assetType === 'gold') return null
+  const ago = it.priceUpdatedAt ? Math.round((Date.now() - it.priceUpdatedAt) / 60000) : null
+  const refresh = async (e) => { e.stopPropagation(); setBusy(true); setMsg(''); try { const r = await api('/api/investments/price/refresh', { method: 'POST', body: JSON.stringify({ symbol: it.symbol, assetType: it.assetType }) }); setMsg(`قیمت روز: ${faMoney(r.price)}`); onChanged() } catch (x) { setMsg(x.message) } setBusy(false) }
+  const saveManual = async (e) => { e.preventDefault(); e.stopPropagation(); const price = Number(String(val).replace(/[,٬]/g, '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))); if (!(price > 0)) { setMsg('قیمت معتبر بنویس.'); return } try { await api('/api/investments/price', { method: 'POST', body: JSON.stringify({ symbol: it.symbol, assetType: it.assetType, price }) }); setVal(''); setMsg('قیمت ثبت شد.'); onChanged() } catch (x) { setMsg(x.message) } }
+  return <div className="xc-price" onClick={(e) => e.stopPropagation()}>
+    <span><small>قیمت روز</small><b>{faMoney(it.currentPrice)}</b><em>{it.priceSource === 'tsetmc' ? 'از بورس' : it.priceSource === 'live' ? 'خودکار' : 'دستی / قیمت خرید'}{ago != null ? ` · ${ago < 60 ? `${fa(ago)} دقیقه` : ago < 1440 ? `${fa(Math.round(ago / 60))} ساعت` : `${fa(Math.round(ago / 1440))} روز`} پیش` : ''}</em></span>
+    {live ? <button type="button" disabled={busy} onClick={refresh}>{busy ? '…' : tse ? 'قیمت از بورس' : 'قیمت روز'}</button> : null}
+    <form onSubmit={saveManual}><input value={val} onChange={(e) => setVal(e.target.value)} inputMode="decimal" data-raw="" placeholder="قیمت دستی" aria-label="قیمت روز دستی" /><button type="submit">ثبت</button></form>
+    {msg ? <small className="xc-pmsg">{msg}</small> : null}
+  </div>
+}
+
+// Paste a portfolio (one holding per line: «نماد تعداد میانگین‌قیمت», any separators, Persian digits ok) → buys.
+// With «جایگزین» the symbol's earlier buys/sells are removed first, so pasting again never double-counts.
+const toLatin = (v) => String(v).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+function parsePortfolio(text) {
+  return String(text || '').split(/\n+/).map((line) => {
+    const sym = (line.match(/[\u0621-\u064A\u067E-\u06D3][\u0621-\u064A\u067E-\u06D3\u200c]*/) || [])[0]?.trim()
+    const nums = (toLatin(line).replace(/\([^)]*\)/g, ' ').match(/\d[\d,٬]*(?:\.\d+)?/g) || []).map((n) => Number(n.replace(/[,٬]/g, ''))).filter((n) => n > 0)
+    return sym && nums.length >= 2 ? { symbol: sym, quantity: nums[0], price: nums[1] } : null
+  }).filter(Boolean)
+}
+function PortfolioImport({ onDone }) {
+  const [text, setText] = useState(''), [replace, setReplace] = useState(true), [busy, setBusy] = useState(false), [msg, setMsg] = useState('')
+  const rows = parsePortfolio(text)
+  const run = async (e) => {
+    e.preventDefault(); if (!rows.length) return; setBusy(true); let done = 0; const bad = []
+    for (const r of rows) {
+      setMsg(`در حال ثبت ${fa(done + 1)} از ${fa(rows.length)}: ${r.symbol}…`)
+      try {
+        if (replace) { const old = await api(`/api/investments/tx?symbol=${encodeURIComponent(r.symbol)}`); for (const t of old.items || []) if (t.assetType === 'stock') await api(`/api/investments/tx/${t.id}`, { method: 'DELETE' }) }
+        await api('/api/investments/tx', { method: 'POST', body: JSON.stringify({ assetType: 'stock', symbol: r.symbol, type: 'buy', quantity: r.quantity, price: r.price, currency: 'IRR', date: isoToday(), note: 'وارد شده از پرتفوی' }) })
+        await api('/api/investments/price/refresh', { method: 'POST', body: JSON.stringify({ symbol: r.symbol, assetType: 'stock' }) }).catch(() => {})
+        done++
+      } catch (x) { bad.push(`${r.symbol} (${x.message})`) }
+    }
+    setBusy(false); setMsg(`${fa(done)} نماد ثبت شد.${bad.length ? ` نشد: ${bad.join('، ')}` : ''}`); if (done) { setText(''); onDone() }
+  }
+  return <form className="fn-form fn-import" onSubmit={run}>
+    <p className="fn-note">هر سهم در یک خط: نماد، تعداد، میانگین قیمت خرید (ریال). مثلاً:<br /><span dir="rtl">عیار ۲۹۱۹ ۵۳۴٬۸۰۸</span></p>
+    <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder={'عیار 2919 534808\nسیلور 23532 13209\nشکیمیا 533 5941'} aria-label="متن پرتفوی" />
+    {rows.length ? <table className="fn-imp-t"><thead><tr><th>نماد</th><th>تعداد</th><th>میانگین خرید</th><th>بهای کل</th></tr></thead><tbody>{rows.map((r, i) => <tr key={i}><td>{r.symbol}</td><td>{fa(r.quantity)}</td><td>{fa(r.price)}</td><td>{short(r.quantity * r.price)}</td></tr>)}</tbody></table> : text.trim() ? <p className="fn-note">خطی پیدا نشد که نماد و دو عدد (تعداد و قیمت) داشته باشد.</p> : null}
+    <label className="fn-check"><input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> خرید و فروش‌های قبلی همین نمادها پاک شود (جلوگیری از تکرار)</label>
+    <button className="fn-save" disabled={busy || !rows.length}>{busy ? '…' : `ثبت ${rows.length ? fa(rows.length) + ' نماد' : ''}`}</button>
+    {msg ? <p className="fn-note" role="status">{msg}</p> : null}
+  </form>
+}
+
 function AssetMore({ row, onChanged }) {
   const key = row.item.assetType === 'gold' ? row.item.symbol : row.item.assetType === 'dollar' ? 'price_dollar_rl' : row.item.assetType === 'euro' ? 'price_eur' : null
   const [hist, setHist] = useState(null)
@@ -222,6 +274,7 @@ function AssetMore({ row, onChanged }) {
       <div><small>سود / زیان</small><b>{row.pnl ? `${row.pnl >= 0 ? '+' : '−'}${short(Math.abs(row.pnl))}` : '—'}{row.cost ? ` (${pct >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(pct * 10) / 10))}٪)` : ''}</b></div>
       <div><small>مقدار</small><b>{fa(row.item.quantity)} واحد</b></div>
     </div>
+    <AssetPrice row={row} onChanged={onChanged} />
     <AssetTxs row={row} onChanged={onChanged} />
     {key ? (hist === null ? <p className="xc-sub">در حال دریافت نمودار…</p> : hist.length > 1 ? <div><Spark data={hist} up={hist[hist.length - 1] >= hist[0]} /><p className="xc-sub">قیمت ۳۰ روز اخیر{ch != null ? ` · ${ch >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(ch * 10) / 10))}٪` : ''}</p></div> : <p className="xc-sub">تاریخچهٔ قیمت در دسترس نیست.</p>) : null}
   </>
@@ -877,7 +930,7 @@ export function FinanceReact({ Nav }) {
               ) : null)}
             </section>
             <section className="fn-glass fn-list">
-              <div className="fn-head"><h2>سبد سرمایه</h2><Drawer label="خرید / فروش" title="تراکنش سرمایه‌گذاری">
+              <div className="fn-head"><h2>سبد سرمایه</h2><Drawer label="وارد کردن پرتفوی" title="وارد کردن پرتفوی بورس"><PortfolioImport onDone={load} /></Drawer><Drawer label="خرید / فروش" title="تراکنش سرمایه‌گذاری">
 <form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const body = { assetType: holdAssetType, type: f.get('type'), quantity: Number(f.get('quantity')), fee: Number(f.get('fee') || 0), date: f.get('date'), note: f.get('note'), ...(f.get('currency') ? { currency: f.get('currency') } : {}) }; if (!face) { body.symbol = f.get('symbol'); body.price = Number(f.get('price')) } send('/api/investments/tx', body, 'تراکنش سرمایه‌گذاری ثبت شد.'); e.currentTarget.reset() }}>
                 <div>
                   <select value={holdAssetType} onChange={(e) => setHoldAssetType(e.target.value)}>
