@@ -473,6 +473,20 @@ async function main() {
       const rt = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://www.reuters.com' } });
       check('reuters.com (401) -> Google News for site:reuters.com', rt.status === 201 && rt.d.url.includes('news.google.com/rss/search') && rt.d.url.includes('reuters.com') && rt.d.name === 'reuters.com (Google News)' && rt.d.added === 2, JSON.stringify(rt.d));
       const gt = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://news.google.com/topics/CAAqJggKIiBDQkFT?hl=en-US&gl=US&ceid=US%3Aen' } });
+      { // Google never answers Cloudflare: the feed comes through rss2json and the source remembers that
+        const rf = globalThis.fetch;
+        globalThis.fetch = async (url) => { const u = String(url);
+          if (u.startsWith('https://api.rss2json.com/v1/api.json?rss_url=')) return new Response(JSON.stringify({ status: 'ok', feed: { title: 'Tech - Latest - Google News' }, items: [{ title: 'via proxy one', link: 'https://n.test/1', guid: 'p1', description: '<b>x</b>' }, { title: 'via proxy two', link: 'https://n.test/2', guid: 'p2' }] }));
+          if (u.startsWith('https://news.google.com/')) throw new DOMException('timeout', 'AbortError');
+          return new Response('nope', { status: 404 }); };
+        try {
+          const px = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://news.google.com/topics/TECHID?hl=en-US' } });
+          check('Google News through rss2json: proxy flag, items, readable name', px.status === 201 && px.d.proxy === 'rss2json' && px.d.added === 2 && px.d.name === 'Tech - Latest (Google News)', JSON.stringify(px.d));
+          const sy = await call('/api/news/sync', { method: 'POST', cookie });
+          check('proxy source syncs through the proxy too', sy.d.results.find(r => r.source === 'Tech - Latest (Google News)').ok === true);
+          if (px.d && px.d.id) await call(`/api/news/sources/${px.d.id}`, { method: 'DELETE', cookie });
+        } finally { globalThis.fetch = rf; }
+      }
       check('a Google News topic page -> its /rss/topics feed', gt.status === 201 && gt.d.url.startsWith('https://news.google.com/rss/topics/CAAqJggKIiBDQkFT?hl=en-US'), JSON.stringify(gt.d));
       if (gt.d && gt.d.id) await call(`/api/news/sources/${gt.d.id}`, { method: 'DELETE', cookie });
       for (const x of [ny.d, rt.d]) if (x && x.id) await call(`/api/news/sources/${x.id}`, { method: 'DELETE', cookie });
