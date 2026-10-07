@@ -344,7 +344,7 @@ export function compareReportHtml({ rows, brand = {} }) {
     const svg = `<svg viewBox="0 0 320 320" aria-hidden="true">${rings}<circle cx="${cx}" cy="${cy}" r="${inner}" fill="#fff"/><text x="${cx}" y="${cy - 2}" text-anchor="middle" font-size="${Math.min(34, inner * .7)}" font-weight="900" fill="#0f172a">${pct(avg)}</text><text x="${cx}" y="${cy + Math.min(20, inner * .45)}" text-anchor="middle" font-size="${Math.min(11, inner * .28)}" fill="#64748b">میانگین پیشرفت</text></svg>`;
     const preparer = String(brand.preparer || '').trim();
     return `<section class="cover"><div class="grid"></div><div class="glow"></div><div class="txt">
-<div class="brandc">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div>
+<div class="brandc">${logo ? `<img src="${logo}" alt="">` : ''}</div>
 <div class="kick">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="line"></div>
 <div class="sub">${esc(jl(today))}</div>
 <div class="stats"><div><b>${fa(rows.length)}</b><small>پروژه</small></div><div><b>${pct(avg)}</b><small>میانگین پیشرفت</small></div><div><b>${recPct == null ? '—' : pct(recPct)}</b><small>وصول از قراردادها</small></div><div><b>${fa(late)}</b><small>مرحلهٔ عقب‌افتاده</small></div></div>
