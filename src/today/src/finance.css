@@ -379,3 +379,9 @@
 .fn-xpf .xc.open .xc-more button { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #e2e8f0; }
 .fn-xpf .xc.open .xc-more input { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #f8fafc; }
 .fn-xpf .xc.open .xc-more .pos b { color: #34d399; } .fn-xpf .xc.open .xc-more .neg b { color: #fb7185; }
+/* trade list: buy green, sell red (a coloured edge + the word) */
+.xc-tx { border-inline-start: 3px solid transparent; }
+.xc-tx.t-buy { border-inline-start-color: #34d399; } .xc-tx.t-sell { border-inline-start-color: #fb7185; }
+.xc-tx .xc-side { font-style: normal; font-weight: 800; }
+.fn-xpf .xc.open .xc-more .xc-tx.t-buy .xc-side { color: #34d399; } .fn-xpf .xc.open .xc-more .xc-tx.t-sell .xc-side { color: #fb7185; }
+.xc-tx.t-buy .xc-side { color: #34d399; } .xc-tx.t-sell .xc-side { color: #fb7185; }

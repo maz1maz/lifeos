@@ -224,8 +224,8 @@ function AssetTxs({ row, onChanged }) {
       {face ? null : <input name="price" defaultValue={t.price} inputMode="decimal" aria-label="قیمت واحد" placeholder="قیمت واحد" />}
       <JalaliDateInput name="date" defaultValue={t.date} clearable={false} />
       <button className="fn-save">ذخیره</button><button type="button" className="fn-link" onClick={() => setEdit(null)}>انصراف</button>
-    </form> : <div key={t.id} className="xc-tx">
-      <span>{t.type === 'sell' ? 'فروش' : t.type === 'buy' ? 'خرید' : t.type === 'dividend' ? 'سود نقدی' : 'کارمزد'} · {jalaliShort(t.date)}</span>
+    </form> : <div key={t.id} className={`xc-tx t-${t.type}`}>
+      <span><em className="xc-side">{t.type === 'sell' ? 'فروش' : t.type === 'buy' ? 'خرید' : t.type === 'dividend' ? 'سود نقدی' : 'کارمزد'}</em> · {jalaliShort(t.date)}</span>
       <b>{t.quantity ? `${fa(t.quantity)} واحد` : ''}{t.price && !face ? ` × ${faMoney(t.price)}` : t.amount ? faMoney(t.amount) : ''}</b>
       <span className="xc-txops"><button type="button" onClick={(e) => { e.stopPropagation(); setEdit(t) }}>ویرایش</button><button type="button" className="del" onClick={(e) => { e.stopPropagation(); del(t) }}>حذف</button></span>
     </div>)}
