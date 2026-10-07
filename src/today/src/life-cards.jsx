@@ -66,3 +66,31 @@ export function BillsWeekCard({ Card, Icon }) {
     {items === null ? <p className="empty">در حال دریافت…</p> : !items.length ? <p className="empty">تا ۱۰ روز آینده موعدی نیست.</p> : <div className="mini-list">{items.map(x => <a key={x.id} className="mini-note" href="/?page=finance&tab=bills"><b>{x.name} {dueChip(x.nextDate)}</b><small>{money(x.amount)}</small></a>)}</div>}
   </Card>;
 }
+
+/* ───────────────────────── Work time today + exercise this week (Today page) ───────────────────────── */
+const hmShort = m => { m = Math.round(m || 0); const h = Math.floor(m / 60), r = m % 60; return h ? `${fa(h)}:${String(r).padStart(2, '0').replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d])}` : `${fa(r)} دقیقه`; };
+export function WorkTimeCard({ Card, Icon }) {
+  const [d, setD] = useState(null), [, tick] = useState(0);
+  useEffect(() => { const t = todayIso(); Promise.all([api(`/api/time?from=${t}&to=${t}`), api('/api/timer')]).then(([a, b]) => setD({ total: a.total || 0, n: (a.items || []).length, timer: b.timer })).catch(() => setD({ total: 0, n: 0, timer: null })); }, []);
+  useEffect(() => { if (!d?.timer) return; const h = setInterval(() => tick(x => x + 1), 30000); return () => clearInterval(h); }, [d?.timer]);
+  const running = d?.timer ? Math.round((Date.now() - d.timer.startedAt) / 60000) : 0;
+  return <Card className="mini-card wt-card" icon={Icon} title="زمان کار امروز" action={<a href="/?page=time">جزئیات ←</a>}>
+    {d === null ? <p className="empty">در حال دریافت…</p> : <>
+      <b className="wt-big">{hmShort(d.total + running)}</b>
+      <small className="wt-sub">{d.timer ? `⏱ در حال کار: ${d.timer.title} (${fa(running)} دقیقه)` : d.n ? `${fa(d.n)} ثبت امروز` : 'هنوز امروز ثبت نشده — تایمر را از صفحهٔ «زمان کار» بزن.'}</small>
+    </>}
+  </Card>;
+}
+export function ExerciseWeekCard({ Card, Icon }) {
+  const [m, setM] = useState(null);
+  const goal = (() => { try { return Number(localStorage.getItem('lifeos-exercise-goal')) || 150; } catch { return 150; } })();
+  useEffect(() => { const t = todayIso(), from = addDays(t, -((new Date(t + 'T12:00:00Z').getUTCDay() + 1) % 7)); api(`/api/exercise?from=${from}&to=${t}`).then(d => setM((d.items || []).reduce((a, x) => a + x.minutes, 0))).catch(() => setM(0)); }, []);
+  const pct = m === null ? 0 : Math.min(100, Math.round(m / goal * 100));
+  return <Card className="mini-card ew-card" icon={Icon} title="ورزش این هفته" action={<a href="/?page=exercise">ثبت ←</a>}>
+    {m === null ? <p className="empty">در حال دریافت…</p> : <>
+      <b className="wt-big">{fa(m)} <small>از {fa(goal)} دقیقه</small></b>
+      <div className="ew-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="پیشرفت هدف هفتگی ورزش"><i style={{ width: `${pct}%` }} /></div>
+      <small className="wt-sub">{pct >= 100 ? '🎉 هدف هفته کامل شد!' : m ? `${fa(goal - m)} دقیقهٔ دیگر تا هدف` : 'هنوز این هفته ورزشی ثبت نشده.'}</small>
+    </>}
+  </Card>;
+}

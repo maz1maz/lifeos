@@ -40,6 +40,18 @@ function startFixtureFeedServer(xml) {
     server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
   });
 }
+// A tiny "website": / is HTML that links its feed with <link rel="alternate">, /blog has no feed anywhere.
+function startFixtureSiteServer(xml) {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      if (req.url === '/news.xml') { res.writeHead(200, { 'Content-Type': 'application/rss+xml' }); return res.end(xml); }
+      if (req.url === '/') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html><head><title>سایت نمونه</title><link rel="alternate" type="application/rss+xml" title="RSS" href="/news.xml"></head><body>hi</body></html>'); }
+      if (req.url === '/blog') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html><head><title>بدون فید</title></head><body>no feed</body></html>'); }
+      res.writeHead(404); res.end('nope');
+    });
+    server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
+  });
+}
 function startGoogleCalendarFixtureServer() {
   return new Promise((resolve) => {
     const state = { calendarCreated: false, calendarId: 'lifeos-calendar@test', nextId: 1, events: new Map() };
@@ -606,9 +618,20 @@ async function main() {
     const fixture = await startFixtureFeedServer(fixtureRss);
     try {
       const source = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'فید تست', url: `http://127.0.0.1:${fixture.port}/feed.xml`, category: 'تکنولوژی' }) }).then(r => r.json());
+      check('adding a source checks the feed and fetches its items right away', source.added === 2 && source.url.endsWith('/feed.xml'));
       const sync1 = await fetch(`${BASE}/api/news/sync`, { method: 'POST', headers: authHeaders }).then(r => r.json());
-      check('sync against a real (local fixture) feed parses both RSS items', sync1.added === 2);
-      check('sync records a per-source success result', sync1.results[0].ok === true && sync1.results[0].found === 2);
+      check('sync records a per-source success result (items already there -> 0 new)', sync1.added === 0 && sync1.results[0].ok === true && sync1.results[0].found === 2);
+      const dup = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ url: `http://127.0.0.1:${fixture.port}/feed.xml` }) });
+      check('the same feed twice -> 409', dup.status === 409);
+      const site = await startFixtureSiteServer(fixtureRss.replace(/fixture-guid/g, 'site-guid'));
+      try {
+        const found = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ url: `http://127.0.0.1:${site.port}/` }) });
+        const fj = await found.json();
+        check('a plain site address finds its feed via <link rel=alternate> and takes the page title as name', found.status === 201 && fj.url.endsWith('/news.xml') && fj.name === 'سایت نمونه' && fj.added === 2, JSON.stringify(fj));
+        const none = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ url: `http://127.0.0.1:${site.port}/blog` }) });
+        check('a site with no feed -> 422 with a message', none.status === 422 && /RSS/.test((await none.json()).error));
+        await fetch(`${BASE}/api/news/sources/${fj.id}`, { method: 'DELETE', headers: authHeaders });
+      } finally { site.server.close(); }
 
       const newsItems = await fetch(`${BASE}/api/news?category=تکنولوژی`, { headers: authHeaders }).then(r => r.json());
       const item1 = newsItems.items.find(x => x.guid === 'fixture-guid-1');

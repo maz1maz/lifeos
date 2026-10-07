@@ -45,7 +45,7 @@ import { MsgBar } from './msgbar';
 import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import './life.css';
-import { FocusCard, ShoppingPanel, BillsWeekCard } from './life-cards';
+import { FocusCard, ShoppingPanel, BillsWeekCard, WorkTimeCard, ExerciseWeekCard } from './life-cards';
 import './mobile.css'; // phone/iPhone pass — keep last so it overrides page CSS
 
 // Pages the Today screen doesn't need are split into their own chunks, so the first load stays small.
@@ -468,6 +468,8 @@ function HomePage() {
         focus: (<FocusCard Card={Card} Icon={Timer} />),
         ...(modOn(mods, 'vocab') ? { vocab: (<VocabHomeCard Card={Card} Icon={Languages} />) } : {}),
         ...(modOn(mods, 'finance') ? { bills: (<BillsWeekCard Card={Card} Icon={Receipt} />) } : {}),
+        worktime: (<WorkTimeCard Card={Card} Icon={Clock} />),
+        ...(modOn(mods, 'health') ? { exercise: (<ExerciseWeekCard Card={Card} Icon={Dumbbell} />) } : {}),
         insights: (<InsightsHomeCard Card={Card} Icon={Sparkles} />),
       }} />
       <div className={`home-layout-bar ${layoutEdit ? 'on' : ''}`}>
@@ -952,7 +954,11 @@ const navOn = (m, page) => (NAV_HUB[page] || [page]).some(pg => pageOn(m, pg));
 function setModules(m, needsOnboard = false) { MODS_CACHE = m; writeLs('lifeos-modules', m); window.__needsOnboard = needsOnboard; window.dispatchEvent(new Event('lifeos:modules')); }
 // ── focus mode: during work hours (or when switched on) the leisure sections disappear from menu and Today ──
 const FOCUS_DEF = { mode: 'off', from: 9, to: 17, days: [6, 0, 1, 2, 3], hide: ['football', 'watch', 'media', 'market'], snooze: '' };
-const readFocus = () => ({ ...FOCUS_DEF, ...readLs('lifeos-focus', {}) });
+// own key: 'lifeos-focus' belongs to the pomodoro timer (life-cards.jsx). Settings saved there by the first
+// version of focus mode are moved over once (they're the ones with a `hide` list).
+const FOCUS_KEY = 'lifeos-focus-mode';
+(() => { const old = readLs('lifeos-focus', null); if (old && Array.isArray(old.hide)) { if (!readLs(FOCUS_KEY, null)) writeLs(FOCUS_KEY, old); try { localStorage.removeItem('lifeos-focus'); } catch {} } })();
+const readFocus = () => ({ ...FOCUS_DEF, ...readLs(FOCUS_KEY, {}) });
 const tehranNow = () => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tehran', hour: 'numeric', hourCycle: 'h23', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map(x => [x.type, x.value])); return { h: Number(p.hour), wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday), day: `${p.year}-${p.month}-${p.day}` }; };
 function focusActive(f = readFocus()) {
   if (f.mode === 'on') return true;
@@ -960,7 +966,7 @@ function focusActive(f = readFocus()) {
   const t = tehranNow();
   return f.snooze !== t.day && f.days.includes(t.wd) && t.h >= f.from && t.h < f.to;
 }
-function saveFocus(f) { writeLs('lifeos-focus', f); FOCUS_ON = focusActive(f); window.dispatchEvent(new Event('lifeos:modules')); }
+function saveFocus(f) { writeLs(FOCUS_KEY, f); FOCUS_ON = focusActive(f); window.dispatchEvent(new Event('lifeos:modules')); }
 let FOCUS_ON = focusActive();
 if (typeof window !== 'undefined') window.addEventListener('lifeos:focus-toggle', () => { const f = readFocus(); saveFocus(FOCUS_ON ? (f.mode === 'auto' ? { ...f, snooze: tehranNow().day } : { ...f, mode: 'off' }) : { ...f, mode: 'on' }); });
 if (typeof window !== 'undefined') setInterval(() => { const on = focusActive(); if (on !== FOCUS_ON) { FOCUS_ON = on; window.dispatchEvent(new Event('lifeos:modules')); } }, 60e3);

@@ -34,7 +34,7 @@
 
 ### قابلیت‌های سراسری (۲۰۲۶-۱۰)
 - قفل بخش‌ها توسط مدیر: `user.lockedModules` (کلیدهای «بخش‌های من») → در `/api/me` ماژول خاموش و API آن بخش ۴۰۳ (`MODULE_API` + `auth` سایه‌شده در `runRoutes`). صفحهٔ قفل: `pageLocked` در main.jsx.
-- حالت تمرکز: `lifeos-focus` در localStorage (off/auto/on، ساعت و روز، بخش‌های پنهان) → `withFocus` روی `useModules()`؛ تنظیمات با `useModules(true)` (خام) کار می‌کند.
+- حالت تمرکز: `lifeos-focus-mode` در localStorage (off/auto/on، ساعت و روز، بخش‌های پنهان) → `withFocus` روی `useModules()`؛ تنظیمات با `useModules(true)` (خام) کار می‌کند.
 - ورودی صوتی Ctrl+K (Web Speech، fa-IR). صف آفلاین ثبت سریع: `postOrQueue`/`flushOutbox` در palette.jsx. خروج از حساب در کشوی منو (`signOut`، پاک‌کردن کش داده‌ها).
 
 ### هاب‌های منو (`TabHub` در main.jsx) — ۲۰۲۶-۱۰-۰۶

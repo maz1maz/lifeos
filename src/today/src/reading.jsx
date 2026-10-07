@@ -7,10 +7,35 @@ import { jLabel } from './jdate';
 // and bookmarks with a read-later list. Backend: /api/news(+sources, sync, :id/summarize, :id/translate), /api/bookmarks.
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
 const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '';
+// One-tap sources; the server checks each feed when it's added (an unreachable one just shows an error).
+const PRESETS = [
+  ['بی‌بی‌سی فارسی', 'https://feeds.bbci.co.uk/persian/rss.xml', 'عمومی'], ['ایندیپندنت فارسی', 'https://www.independentpersian.com/rss.xml', 'عمومی'],
+  ['ایسنا', 'https://www.isna.ir/rss', 'عمومی'], ['خبرآنلاین', 'https://www.khabaronline.ir/rss', 'عمومی'],
+  ['زومیت', 'https://www.zoomit.ir/feed/', 'تکنولوژی'], ['دیجیاتو', 'https://digiato.com/feed', 'تکنولوژی'],
+  ['اکوایران', 'https://www.ecoiran.com/rss', 'اقتصاد'], ['The Verge', 'https://www.theverge.com/rss/index.xml', 'تکنولوژی'],
+];
+
+function WeeklySummary({ onClose }) {
+  const [d, setD] = useState(null), [err, setErr] = useState('');
+  useEffect(() => { api('/api/news/weekly-summary').then(setD).catch(e => setErr(e.message)); }, []);
+  const top = o => Object.entries(o || {}).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  return <div className="rd-week" role="region" aria-label="خلاصهٔ هفتهٔ اخبار">
+    <header><b>📊 خلاصهٔ ۷ روز اخیر</b><button type="button" className="rd-x" onClick={onClose} aria-label="بستن خلاصه">✕</button></header>
+    {err ? <p className="rd-msg">⚠ {err}</p> : !d ? <p className="rd-muted">در حال آماده‌سازی…</p> : <>
+      {d.narrative ? <p className="rd-ai">✨ {d.narrative}</p> : null}
+      <div className="rd-wstats"><span><b>{fa(d.stats.total)}</b> خبر</span><span><b>{fa(d.stats.savedCount)}</b> ذخیره‌شده</span></div>
+      {d.stats.total ? <div className="rd-wcols">
+        <div><small>دسته‌ها</small>{top(d.stats.byCategory).map(([k, n]) => <p key={k}>{k} <em>{fa(n)}</em></p>)}</div>
+        <div><small>منابع</small>{top(d.stats.bySource).map(([k, n]) => <p key={k}>{k} <em>{fa(n)}</em></p>)}</div>
+      </div> : <p className="rd-muted">این هفته خبری نیامده.</p>}
+      {(d.savedItems || []).length ? <><small className="rd-wsub">ذخیره‌های این هفته</small><ul className="rd-wsaved">{d.savedItems.slice(0, 8).map(x => <li key={x.id}>{safeUrl(x.url) ? <a href={safeUrl(x.url)} target="_blank" rel="noopener noreferrer">{x.title}</a> : x.title}</li>)}</ul></> : null}
+    </>}
+  </div>;
+}
 
 function News() {
   const [items, setItems] = useState(null), [sources, setSources] = useState([]), [cat, setCat] = useState(''), [savedOnly, setSavedOnly] = useState(false);
-  const [busy, setBusy] = useState(''), [msg, setMsg] = useState(''), [showSrc, setShowSrc] = useState(false), [src, setSrc] = useState({ name: '', url: '', category: '' });
+  const [busy, setBusy] = useState(''), [msg, setMsg] = useState(''), [showSrc, setShowSrc] = useState(false), [src, setSrc] = useState({ url: '', category: '' }), [week, setWeek] = useState(false);
   const load = () => Promise.all([api('/api/news').then(d => setItems(d.items || [])), api('/api/news/sources').then(d => setSources(d.items || []))]).catch(e => setMsg(e.message));
   useEffect(() => { load(); }, []);
   const cats = useMemo(() => [...new Set((items || []).map(x => x.category).filter(Boolean))], [items]);
@@ -19,24 +44,33 @@ function News() {
   const patch = async (x, body) => { setItems(xs => xs.map(y => y.id === x.id ? { ...y, ...body } : y)); await api(`/api/news/${x.id}`, { method: 'PATCH', body: JSON.stringify(body) }).catch(() => load()); };
   const del = async x => { setItems(xs => xs.filter(y => y.id !== x.id)); await api(`/api/news/${x.id}`, { method: 'DELETE' }).catch(() => load()); };
   const ai = async (x, kind) => { setBusy(kind + x.id); try { const r = await api(`/api/news/${x.id}/${kind}`, { method: 'POST' }); setItems(xs => xs.map(y => y.id !== x.id ? y : kind === 'summarize' ? { ...y, aiSummary: r.summary } : { ...y, title: r.title || y.title, summary: r.summary || y.summary })); } catch (e) { setMsg(e.message); } setBusy(''); };
-  const addSrc = async e => { e.preventDefault(); if (!src.name.trim() || !safeUrl(src.url)) { setMsg('نام و آدرس فید (https://…) لازم است.'); return; } try { await api('/api/news/sources', { method: 'POST', body: JSON.stringify({ ...src, category: src.category || 'عمومی' }) }); setSrc({ name: '', url: '', category: '' }); setMsg('منبع اضافه شد؛ «به‌روزرسانی» را بزن.'); load(); } catch (x) { setMsg(x.message); } };
+  const addFrom = async (body, done) => {
+    setBusy('add'); setMsg('در حال پیدا کردن فید…');
+    try { const r = await api('/api/news/sources', { method: 'POST', body: JSON.stringify(body) }); setMsg(`«${r.name}» اضافه شد${r.added ? ` و ${fa(r.added)} خبر آمد` : ''}.`); done?.(); await load(); }
+    catch (x) { setMsg(x.message); }
+    setBusy('');
+  };
+  const addSrc = e => { e.preventDefault(); if (!src.url.trim()) { setMsg('آدرس سایت را بنویس، مثلاً zoomit.ir'); return; } addFrom({ url: src.url.trim(), category: src.category || 'عمومی' }, () => setSrc({ url: '', category: '' })); };
   const delSrc = async s => { if (!window.confirm(`منبع «${s.name}» حذف شود؟`)) return; await api(`/api/news/sources/${s.id}`, { method: 'DELETE' }).catch(() => {}); load(); };
   return <section className="rd-card">
     <header>
       <h2>📰 اخبار</h2>
       <div className="rd-ops">
         <button type="button" className="rd-btn" onClick={sync} disabled={busy === 'sync' || !sources.length}><RefreshCw size={15} className={busy === 'sync' ? 'spin' : ''} />به‌روزرسانی</button>
+        <button type="button" className="rd-btn ghost" onClick={() => setWeek(v => !v)} aria-expanded={week}>خلاصهٔ هفته</button>
         <button type="button" className="rd-btn ghost" onClick={() => setShowSrc(v => !v)} aria-expanded={showSrc}>منابع ({fa(sources.length)})</button>
       </div>
     </header>
-    {showSrc ? <div className="rd-src">
-      <form className="rd-add" onSubmit={addSrc}>
-        <input value={src.name} onChange={e => setSrc(o => ({ ...o, name: e.target.value }))} placeholder="نام منبع" aria-label="نام منبع" />
-        <input value={src.url} onChange={e => setSrc(o => ({ ...o, url: e.target.value }))} placeholder="آدرس فید RSS (https://…)" aria-label="آدرس فید" dir="ltr" />
+    {week ? <WeeklySummary onClose={() => setWeek(false)} /> : null}
+    {showSrc || (sources !== null && !sources.length && items !== null && !items.length) ? <div className="rd-src">
+      <form className="rd-add rd-srcadd" onSubmit={addSrc}>
+        <input value={src.url} onChange={e => setSrc(o => ({ ...o, url: e.target.value }))} placeholder="آدرس سایت یا فید — مثلاً zoomit.ir" aria-label="آدرس سایت یا فید" dir="ltr" />
         <input value={src.category} onChange={e => setSrc(o => ({ ...o, category: e.target.value }))} placeholder="دسته (اختیاری)" aria-label="دستهٔ منبع" />
-        <button type="submit" className="rd-btn">افزودن</button>
+        <button type="submit" className="rd-btn" disabled={busy === 'add'}>{busy === 'add' ? '…' : 'افزودن'}</button>
       </form>
-      {sources.length ? <ul className="rd-srclist">{sources.map(s => <li key={s.id}><span><b>{s.name}</b><small dir="ltr">{host(s.url)}</small>{s.lastError ? <small className="bad">⚠ {s.lastError}</small> : null}</span><button type="button" className="rd-x" onClick={() => delSrc(s)} aria-label={`حذف منبع ${s.name}`}><Trash2 size={15} /></button></li>)}</ul> : <p className="rd-muted">هنوز منبعی نداری. آدرس RSS یک سایت خبری را اضافه کن.</p>}
+      <p className="rd-muted rd-hint">لازم نیست RSS را بدانی؛ آدرس خود سایت کافی است و فید خبری‌اش خودکار پیدا می‌شود.</p>
+      {PRESETS.filter(([, u]) => !sources.some(x => x.url === u)).length ? <div className="rd-presets"><small>پیشنهادی (یک کلیک):</small>{PRESETS.filter(([, u]) => !sources.some(x => x.url === u)).map(([n, u, c]) => <button type="button" key={u} disabled={busy === 'add'} onClick={() => addFrom({ name: n, url: u, category: c })}>+ {n}</button>)}</div> : null}
+      {sources.length ? <ul className="rd-srclist">{sources.map(s => <li key={s.id}><span><b>{s.name}</b><small dir="ltr">{host(s.url)}</small>{s.lastError ? <small className="bad">⚠ {s.lastError}</small> : null}</span><button type="button" className="rd-x" onClick={() => delSrc(s)} aria-label={`حذف منبع ${s.name}`}><Trash2 size={15} /></button></li>)}</ul> : <p className="rd-muted">هنوز منبعی نداری. از پیشنهادها انتخاب کن یا آدرس یک سایت خبری را بنویس.</p>}
     </div> : null}
     <div className="rd-filters" role="group" aria-label="فیلتر اخبار">
       <button type="button" className={!cat && !savedOnly ? 'on' : ''} onClick={() => { setCat(''); setSavedOnly(false); }}>همه</button>
@@ -44,7 +78,7 @@ function News() {
       {cats.map(c => <button type="button" key={c} className={cat === c ? 'on' : ''} onClick={() => setCat(cat === c ? '' : c)}>{c}</button>)}
     </div>
     {msg ? <p className="rd-msg" role="status">{msg}</p> : null}
-    {items === null ? <p className="rd-muted">در حال بارگذاری…</p> : !list.length ? <p className="rd-muted">{items.length ? 'با این فیلتر خبری نیست.' : sources.length ? 'خبری نیست؛ «به‌روزرسانی» را بزن.' : 'برای دیدن اخبار، اول یک منبع RSS اضافه کن.'}</p>
+    {items === null ? <p className="rd-muted">در حال بارگذاری…</p> : !list.length ? <p className="rd-muted">{items.length ? 'با این فیلتر خبری نیست.' : sources.length ? 'خبری نیست؛ «به‌روزرسانی» را بزن.' : 'برای دیدن اخبار، بالا یک منبع انتخاب کن.'}</p>
       : <ul className="rd-news">{list.slice(0, 60).map(x => <li key={x.id}>
         <div className="rd-news-head">
           {safeUrl(x.url) ? <a href={safeUrl(x.url)} target="_blank" rel="noopener noreferrer"><b>{x.title}</b><ExternalLink size={13} /></a> : <b>{x.title}</b>}
