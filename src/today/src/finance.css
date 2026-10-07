@@ -333,3 +333,9 @@
 .fn-toggle i::after{content:'';position:absolute;top:3px;inset-inline-start:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:inset-inline-start .15s}
 .fn-toggle.on i{background:var(--g-accent)}
 .fn-toggle.on i::after{inset-inline-start:19px}
+.fn-1{display:grid;gap:16px}
+.fn-invest{display:grid;gap:16px}
+.fn-imp-t input{width:100%;min-width:60px;border:1px solid var(--g-border-2);background:transparent;color:var(--g-text);border-radius:8px;padding:4px 6px;font:inherit;font-size:12.5px}
+.fn-imp-t input.need{border-color:#f87171}
+.fn-imp-t td.neg{color:#f87171;font-weight:700}
+.fn-or{margin-top:14px;padding-top:12px;border-top:1px solid var(--g-border)}

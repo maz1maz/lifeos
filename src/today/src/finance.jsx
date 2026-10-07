@@ -119,7 +119,8 @@ const TABS = [
   { id: 'ledger', label: 'تراکنش‌ها' },
   { id: 'budget', label: 'بودجه و حساب‌ها' },
   { id: 'bills', label: 'قبض و اشتراک' },
-  { id: 'wealth', label: 'بدهی و سرمایه' },
+  { id: 'wealth', label: 'بدهی و اهداف' },
+  { id: 'invest', label: 'سبد سرمایه' },
   { id: 'fun', label: 'بت و پوکر' },
 ]
 const FILTERS = [['all', 'همه'], ['expense', 'هزینه'], ['income', 'درآمد'], ['transfer', 'انتقال'], ['misc', 'بدون دسته']]
@@ -261,6 +262,54 @@ function PortfolioImport({ onDone }) {
     <button className="fn-save" disabled={busy || !rows.length}>{busy ? '…' : `ثبت ${rows.length ? fa(rows.length) + ' نماد' : ''}`}</button>
     {msg ? <p className="fn-note" role="status">{msg}</p> : null}
   </form>
+}
+
+// Broker order history (Excel/CSV «تاریخچه سفارشات» from easytrader / Mofid): every filled buy/sell with its real date.
+// When the file starts after shares were already bought (a sell bigger than the buys before it), those shares are
+// asked for as «موجودی قبل از فایل» (count + average price) so the holding and the realized profit come out right.
+function BrokerImport({ onDone }) {
+  const [pv, setPv] = useState(null), [open, setOpen] = useState({}), [replace, setReplace] = useState(true), [busy, setBusy] = useState(false), [msg, setMsg] = useState('')
+  const pick = async (e) => {
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
+    setBusy(true); setMsg('در حال خواندن فایل…'); setPv(null)
+    try {
+      const buf = new Uint8Array(await file.arrayBuffer()); let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000))
+      const r = await api('/api/investments/import-orders/preview', { method: 'POST', body: JSON.stringify({ fileBase64: btoa(bin), fileType: /\.csv$/i.test(file.name) ? 'csv' : 'xlsx' }) })
+      setPv(r); setOpen(Object.fromEntries(r.symbols.filter((x) => x.heldBefore > 0).map((x) => [x.symbol, { quantity: x.heldBefore, price: '' }]))); setMsg('')
+    } catch (x) { setMsg(x.message) }
+    setBusy(false)
+  }
+  const num = (v) => Number(String(v || '').replace(/[,٬]/g, '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+  // an opening without a price takes the symbol's first price in the file (only the realized profit depends on it)
+  const run = async () => {
+    setBusy(true)
+    try {
+      const day = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10) }
+      const openings = Object.entries(open).filter(([, o]) => num(o.quantity) > 0).map(([symbol, o]) => ({ symbol, quantity: num(o.quantity), price: num(o.price) || pv.symbols.find((x) => x.symbol === symbol).firstPrice, date: day(pv.symbols.find((x) => x.symbol === symbol).first) }))
+      const r = await api('/api/investments/import-orders', { method: 'POST', body: JSON.stringify({ trades: pv.trades, openings, replace }) })
+      setMsg(`${fa(r.added)} ردیف ثبت شد${r.skipped ? ` · ${fa(r.skipped)} تکراری رد شد` : ''}${r.removed ? ` · ${fa(r.removed)} ردیف قبلی جایگزین شد` : ''}.`); setPv(null); onDone()
+      for (const sym of pv.symbols.map((x) => x.symbol)) api('/api/investments/price/refresh', { method: 'POST', body: JSON.stringify({ symbol: sym, assetType: 'stock' }) }).catch(() => {})
+    } catch (x) { setMsg(x.message) }
+    setBusy(false)
+  }
+  return <div className="fn-form fn-import">
+    <label className="fn-file">📄 فایل تاریخچهٔ سفارشات کارگزاری (Excel)<input type="file" accept=".xlsx,.xls,.csv" onChange={pick} hidden disabled={busy} /></label>
+    {pv ? <>
+      <p className="fn-note">{fa(pv.count)} سفارش انجام‌شده از {pv.from} تا {pv.to}{pv.rows >= 100 ? ' — فایل فقط ۱۰۰ سفارش دارد؛ معمولاً خروجی کارگزاری محدود است، پس خریدهای قدیمی‌تر در آن نیستند.' : ''}</p>
+      <table className="fn-imp-t"><thead><tr><th>نماد</th><th>خرید</th><th>فروش</th><th>موجودی قبل از فایل</th><th>میانگین قیمت آن</th><th>مانده</th></tr></thead><tbody>
+        {pv.symbols.map((x) => { const o = open[x.symbol] || { quantity: '', price: '' }, left = num(o.quantity) + x.net; return <tr key={x.symbol}>
+          <td>{x.symbol}</td><td>{fa(x.buyQty)}</td><td>{fa(x.sellQty)}</td>
+          <td><input value={o.quantity} onChange={(e) => setOpen((v) => ({ ...v, [x.symbol]: { ...o, quantity: e.target.value } }))} inputMode="numeric" data-raw="" aria-label={`موجودی ${x.symbol} قبل از فایل`} placeholder="۰" /></td>
+          <td><input value={o.price} onChange={(e) => setOpen((v) => ({ ...v, [x.symbol]: { ...o, price: e.target.value } }))} inputMode="numeric" data-raw="" aria-label={`میانگین قیمت ${x.symbol}`} placeholder={num(o.quantity) > 0 ? fa(x.firstPrice) : '—'} /></td>
+          <td className={left < 0 ? 'neg' : ''}>{fa(left)}</td>
+        </tr> })}
+      </tbody></table>
+      <p className="fn-note">«مانده» باید با تعداد سهمت در کارگزاری یکی باشد (فروخته‌شده‌ها = ۰). میانگین قیمت موجودی قبلی اختیاری است و فقط روی «سود محقق‌شده» اثر دارد؛ خالی بماند، قیمت اولین معاملهٔ آن نماد در فایل حساب می‌شود.</p>
+      <button type="button" className={`fn-toggle${replace ? ' on' : ''}`} role="switch" aria-checked={replace} onClick={() => setReplace((v) => !v)}><i aria-hidden="true" /><span>جایگزین ثبت‌های قبلی همین نمادها</span></button>
+      <button type="button" className="fn-save" disabled={busy} onClick={run}>{busy ? '…' : `ثبت ${fa(pv.count)} سفارش`}</button>
+    </> : null}
+    {msg ? <p className="fn-note" role="status">{msg}</p> : null}
+  </div>
 }
 
 function AssetMore({ row, onChanged }) {
@@ -432,9 +481,9 @@ export function FinanceReact({ Nav }) {
     return { rows, total, cost, pnl }
   })()
   // Portfolio history: one snapshot per day (rial value + cost), taken when the wealth tab is opened with live rates.
-  useEffect(() => { if (tab === 'wealth' && pfSnaps === null) api('/api/portfolio/snapshots').then((d) => setPfSnaps(d.items || [])).catch(() => setPfSnaps([])) }, [tab])
+  useEffect(() => { if (tab === 'invest' && pfSnaps === null) api('/api/portfolio/snapshots').then((d) => setPfSnaps(d.items || [])).catch(() => setPfSnaps([])) }, [tab])
   useEffect(() => {
-    if (tab !== 'wealth' || snapSent.current || !pf.rows.length || !(pf.total > 0) || !Object.keys(rates).length || pfSnaps === null) return
+    if (tab !== 'invest' || snapSent.current || !pf.rows.length || !(pf.total > 0) || !Object.keys(rates).length || pfSnaps === null) return
     if (pf.rows.some((r) => r.item.assetType === 'dollar' || (r.item.currency || 'IRR') === 'USD') && !usdRate) return
     // today's point follows the portfolio: re-sent whenever value or cost moved more than 0.5% (an edited buy, a new price)
     const cur = (pfSnaps || []).find((x) => x.date === isoToday()), cost = Math.max(0, pf.total - pf.pnl), off = (a, b) => !b || Math.abs(a - b) / b > 0.005
@@ -882,7 +931,7 @@ export function FinanceReact({ Nav }) {
             })}</div> : <p className="fn-empty">هدفی ثبت نشده. برای خرید بزرگ یا سفر هدف بگذار تا ببینی ماهی چقدر باید کنار بگذاری.</p>}
           </section>
 
-          <div className="fn-2" id="debts">
+          <div className="fn-1" id="debts">
             <section className="fn-glass fn-list">
               <div className="fn-head"><h2>بدهی و طلب</h2><Drawer label="بدهی / طلب">
 <form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/debts', { person: f.get('person'), amount: Number(f.get('amount')), type: f.get('type'), currency: f.get('currency'), date: f.get('date') || isoToday(), note: f.get('note') }, 'ثبت شد.'); e.currentTarget.reset() }}>
@@ -933,8 +982,15 @@ export function FinanceReact({ Nav }) {
                 </div>
               ) : null)}
             </section>
+          </div>
+
+          </>
+        ) : null}
+
+        {tab === 'invest' ? (
+          <div className="fn-invest">
             <section className="fn-glass fn-list">
-              <div className="fn-head"><h2>سبد سرمایه</h2><Drawer label="وارد کردن پرتفوی" title="وارد کردن پرتفوی بورس"><PortfolioImport onDone={load} /></Drawer><Drawer label="خرید / فروش" title="تراکنش سرمایه‌گذاری">
+              <div className="fn-head"><h2>سبد سرمایه</h2><Drawer label="وارد کردن پرتفوی" title="وارد کردن پرتفوی بورس"><BrokerImport onDone={load} /><p className="fn-note fn-or">یا پرتفوی فعلی را دستی بنویس:</p><PortfolioImport onDone={load} /></Drawer><Drawer label="خرید / فروش" title="تراکنش سرمایه‌گذاری">
 <form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const body = { assetType: holdAssetType, type: f.get('type'), quantity: Number(f.get('quantity')), fee: Number(f.get('fee') || 0), date: f.get('date'), note: f.get('note'), ...(f.get('currency') ? { currency: f.get('currency') } : {}) }; if (!face) { body.symbol = f.get('symbol'); body.price = Number(f.get('price')) } send('/api/investments/tx', body, 'تراکنش سرمایه‌گذاری ثبت شد.'); e.currentTarget.reset() }}>
                 <div>
                   <select value={holdAssetType} onChange={(e) => setHoldAssetType(e.target.value)}>
@@ -995,8 +1051,6 @@ export function FinanceReact({ Nav }) {
               </div>
             </section>
           </div>
-
-          </>
         ) : null}
 
         {tab === 'fun' ? (

@@ -534,6 +534,26 @@ async function main() {
       check('shakhesban: exact symbol, live row, last price', r.price === 719038 && r.closing === 718739, JSON.stringify(r));
     } finally { globalThis.fetch = realFetch; }
   }
+  { // broker order-history import (easytrader «تاریخچه سفارشات»): filled orders only, Jalali dates, openings, dedupe
+    const XLSX = require('xlsx');
+    const ws = XLSX.utils.aoa_to_sheet([['تاریخ', 'ساعت', 'سمت سفارش', 'نماد', 'حجم کل', 'قیمت', 'حجم انجام شده', 'وضعیت'],
+      ['1405/07/12', '12:35:02', 'خرید', 'سیلورت', 6532, 13910, 6532, 'انجام شده'],
+      ['1405/07/08', '12:43:55', 'خرید', 'شكيمياتست', 1800, 5919, 533, 'بخشی انجام و مابقی منقضی شده'],
+      ['1405/07/06', '12:05:39', 'فروش', 'تابانت', 3696, 21150, 3696, 'انجام شده'],
+      ['1405/05/27', '11:54:36', 'خرید', 'سیلورت', 3294, 531110, 0, 'ویرایش']]);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'x');
+    const b64 = Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })).toString('base64');
+    const pv = await call('/api/investments/import-orders/preview', { method: 'POST', cookie, body: { fileBase64: b64, fileType: 'xlsx' } });
+    const tab = pv.d && pv.d.symbols && pv.d.symbols.find(x => x.symbol === 'تابانت');
+    check('broker preview: 3 filled orders, Jalali→ISO, Kaf/Yeh normalised, sold-before-bought noticed', pv.status === 200 && pv.d.count === 3 && pv.d.trades[0].date === '2026-09-28' && pv.d.trades.some(t => t.symbol === 'شکیمیاتست' && t.quantity === 533) && tab.heldBefore === 3696, JSON.stringify(pv.d).slice(0, 300));
+    const imp = await call('/api/investments/import-orders', { method: 'POST', cookie, body: { trades: pv.d.trades, openings: [{ symbol: 'تابانت', quantity: 3696, price: 20000, date: '2026-09-27' }], replace: true } });
+    check('broker import: trades + opening written', imp.status === 200 && imp.d.added === 4, JSON.stringify(imp.d));
+    const again = await call('/api/investments/import-orders', { method: 'POST', cookie, body: { trades: pv.d.trades } });
+    check('broker import again without replace: same orders skipped', again.d.added === 0 && again.d.skipped === 3);
+    const pf = (await call('/api/portfolio', { cookie })).d; const all = pf.items || pf.holdings || [];
+    check('holdings after import: bought kept, sold-out closed with realized P/L', all.find(h => h.symbol === 'سیلورت')?.quantity === 6532 && all.find(h => h.symbol === 'تابانت')?.realizedPnl === 3696 * 1150);
+    for (const sym of ['سیلورت', 'شکیمیاتست', 'تابانت']) for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent(sym)}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
   { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
     check('TSE hours: Sunday 10:00 Tehran open, 14:00 closed, Thursday closed', H.tseMarketOpen(at('2026-10-11T06:30:00Z')) && !H.tseMarketOpen(at('2026-10-11T10:30:00Z')) && !H.tseMarketOpen(at('2026-10-08T06:30:00Z')));
