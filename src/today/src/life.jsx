@@ -609,12 +609,29 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
   const sum = f => rows.reduce((a, r) => a + f(r.m), 0);
   // the «چاپ / PDF» button lives in the page actions, next to «بازگشت به پروژه»; it prints the rows in their current order
   const [preparer, setPreparer] = useState(readPreparer);
+  // letterhead logo, edited right here (same store as Settings → report template; the panel saves it through its proxy)
+  const [logo, setLogo] = useState(''), [logoMsg, setLogoMsg] = useState('');
+  useEffect(() => { api('/api/report-brand').then(d => setLogo(d?.logo || '')).catch(() => {}); }, []);
+  const pickLogo = async e => {
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return;
+    setLogoMsg('در حال آماده‌سازی…');
+    try {
+      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('تصویر خوانده نشد.')); i.src = URL.createObjectURL(file); });
+      let side = 360, data = '';
+      // small enough for the site proxy (64 KB per request) as well as the 160 KB server limit
+      for (let k = 0; k < 6; k++, side = Math.round(side * 0.8)) { const r = Math.min(1, side / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * r)); c.height = Math.max(1, Math.round(img.height * r)); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); data = c.toDataURL('image/png'); if (data.length > 45000) data = c.toDataURL('image/webp', 0.86); if (data.length <= 45000) break; }
+      const r = await api('/api/report-brand', { method: 'PATCH', body: JSON.stringify({ logo: data }) });
+      setLogo(r?.logo || data); setLogoMsg('');
+    } catch (x) { setLogoMsg(x.message); }
+  };
+  const dropLogo = async () => { try { await api('/api/report-brand', { method: 'PATCH', body: JSON.stringify({ logo: '' }) }); setLogo(''); } catch (x) { setLogoMsg(x.message); } };
   const savePreparer = v => { setPreparer(v); writePreparer(v); };
   if (printRef) printRef.current = async () => { const name = askPreparer(); setPreparer(name); const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer: name } }); };
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">
-    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div><label className="lf-compare-prep">تهیه‌کننده<input value={preparer} onChange={e => savePreparer(e.target.value)} placeholder="نام برای کاور گزارش" maxLength={60} /></label></div>
+    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div><div className="lf-compare-brand"><label className="lf-compare-prep">تهیه‌کننده<input value={preparer} onChange={e => savePreparer(e.target.value)} placeholder="نام روی گزارش" maxLength={60} /></label>
+      <span className="lf-compare-logo">{logo ? <img src={logo} alt="لوگوی گزارش" /> : null}<label className="lf-btn ghost">{logo ? 'تغییر لوگو' : '＋ لوگو'}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={pickLogo} hidden /></label>{logo ? <button type="button" className="lf-link" onClick={dropLogo}>حذف</button> : null}{logoMsg ? <small>{logoMsg}</small> : null}</span></div></div>
     <div className="lf-compare-wrap"><table>
       <thead><tr>{th('order', 'پروژه')}{th('progress', 'پیشرفت')}<th>زمان</th>{th('variance', 'انحراف')}{th('end', 'پایان قرارداد')}<th>مبلغ قرارداد</th><th>وصولی</th>{th('outstanding', 'معوق')}<th>مراحل عقب</th><th>وضعیت</th></tr></thead>
       <tbody>{rows.map(({ p, m }) => <tr key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}>
