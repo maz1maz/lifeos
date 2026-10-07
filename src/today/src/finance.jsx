@@ -134,7 +134,7 @@ const CATS = ['خوراک', 'حمل‌ونقل', 'قبض', 'مسکن', 'سلام
 const ICONS = { 'خوراک': '🍔', 'حمل‌ونقل': '🚕', 'قبض': '🧾', 'مسکن': '🏠', 'سلامت': '💊', 'تفریح': '🎮', 'آموزش': '📚', 'پوشاک': '👕', 'حقوق': '💼', 'سرمایه‌گذاری': '📈', 'هدیه': '🎁', 'سفر': '✈️', 'متفرقه': '📦', 'انتقال': '🔄' }
 const COLORS = ['#22d3ee', '#a78bfa', '#fbbf24', '#34d399', '#f472b6', '#60a5fa', '#fb7185', '#4ade80', '#f97316']
 const usd = (n) => `$${fa(Math.round(Math.abs(Number(n) || 0)))}` // whole dollars
-const signedUsd = (n) => `${Number(n) < 0 ? '−' : ''}${usd(n)}`
+const signedUsd = (n) => usd(n) // colour (pos/neg) carries the sign
 const ALERT_COND = { price_above: 'قیمت بالاتر از', price_below: 'قیمت پایین‌تر از', pnl_pct_above: 'سود٪ بالاتر از', pnl_pct_below: 'زیان٪ پایین‌تر از' }
 const TABS = [
   { id: 'dash', label: 'داشبورد' },
@@ -348,7 +348,7 @@ function AssetMore({ row, onChanged }) {
     </div>
     <AssetPrice row={row} onChanged={onChanged} />
     <AssetTxs row={row} onChanged={onChanged} />
-    {key ? (hist === null ? <p className="xc-sub">در حال دریافت نمودار…</p> : hist.length > 1 ? <div><Spark data={hist} up={hist[hist.length - 1] >= hist[0]} /><p className="xc-sub">قیمت ۳۰ روز اخیر{ch != null ? ` · ${ch >= 0 ? '+' : '−'}${fa(Math.abs(Math.round(ch * 10) / 10))}٪` : ''}</p></div> : <p className="xc-sub">تاریخچهٔ قیمت در دسترس نیست.</p>) : null}
+    {key ? (hist === null ? <p className="xc-sub">در حال دریافت نمودار…</p> : hist.length > 1 ? <div><Spark data={hist} up={hist[hist.length - 1] >= hist[0]} /><p className="xc-sub">قیمت ۳۰ روز اخیر{ch != null ? <> · <span className={ch >= 0 ? 'xc-in' : 'xc-out'}>{fa(Math.abs(Math.round(ch * 10) / 10))}٪</span></> : ''}</p></div> : <p className="xc-sub">تاریخچهٔ قیمت در دسترس نیست.</p>) : null}
   </>
 }
 
@@ -751,7 +751,7 @@ export function FinanceReact({ Nav }) {
               {txs.length ? txs.slice(0, 8).map((t) => (
                 <article key={t.id} className="fn-row">
                   <div><b>{t.title}</b><small>{jalaliShort(t.date)} · {t.category}{t.account ? ` · ${t.account}` : ''}</small></div>
-                  <span className={`amt ${t.kind === 'income' ? 'pos' : 'neg'}`}>{t.kind === 'income' ? '+' : t.kind === 'transfer' ? '↔' : '−'}{amt(t.amount)}</span>
+                  <span className={`amt ${t.kind === 'income' ? 'pos' : 'neg'}`}>{t.kind === 'transfer' ? '↔ ' : ''}{amt(t.amount)}</span>
                 </article>
               )) : <EmptyTx hint={emptyHint} onJump={(d) => setMonth(jKeyOf(d))} />}
             </section>
@@ -835,7 +835,7 @@ export function FinanceReact({ Nav }) {
                     <b>{item.title}</b>
                     <small>{jalaliShort(item.date)} · {isMisc(item) ? <select className="fn-catpick" value="" onChange={(e) => setCat(item, e.target.value)} aria-label="انتخاب دسته"><option value="">متفرقه — دسته؟</option>{CATS.filter((c) => c !== 'متفرقه' && c !== 'حقوق').map((c) => <option key={c} value={c}>{c}</option>)}<option value="انتقال">انتقال (هزینه نیست)</option></select> : item.category} · {item.account}{item.tags?.length ? ` · ${item.tags.map((t) => `#${t}`).join(' ')}` : ''}</small>
                   </div>
-                  <span className={`amt ${item.kind === 'income' ? 'pos' : 'neg'}`}>{item.kind === 'income' ? '+' : item.kind === 'transfer' ? '↔' : '−'}{amt(item.amount)}</span>
+                  <span className={`amt ${item.kind === 'income' ? 'pos' : 'neg'}`}>{item.kind === 'transfer' ? '↔ ' : ''}{amt(item.amount)}</span>
                   <div className="fn-ops">
                     <button type="button" onClick={() => setEditing({ type: 'transaction', item })}>ویرایش</button>
                     <button type="button" className="del" onClick={() => { if (window.confirm(`«${item.title}» حذف شود؟`)) send(`/api/transactions/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
@@ -881,7 +881,7 @@ export function FinanceReact({ Nav }) {
                   <div className="xc-kv"><div><small>موجودی دقیق</small><b>{faMoney(a.balance ?? a.openingBalance ?? 0)}</b></div><div><small>تراکنش‌های این ماه</small><b>{fa(txs.filter((t) => t.account === a.name || t.toAccount === a.name).length)}</b></div></div>
                   {a.cardNo ? <CopyBtn label="شماره کارت" text={a.cardNo} /> : null}
                   {a.sheba ? <CopyBtn label="شبا" text={a.sheba} /> : null}
-                  {mine.length ? <div className="xc-list">{mine.map((t) => <div key={t.id}><span>{t.title}<small> · {jalaliShort(t.date)}</small></span><b>{t.kind === 'income' || t.toAccount === a.name ? '+' : '−'}{short(t.amount)}</b></div>)}</div> : <p className="xc-sub">این ماه تراکنشی با این حساب نیست.</p>}
+                  {mine.length ? <div className="xc-list">{mine.map((t) => <div key={t.id}><span>{t.title}<small> · {jalaliShort(t.date)}</small></span><b className={t.kind === 'income' || t.toAccount === a.name ? 'xc-in' : 'xc-out'}>{short(t.amount)}</b></div>)}</div> : <p className="xc-sub">این ماه تراکنشی با این حساب نیست.</p>}
                   <div className="xc-row"><button type="button" className="xc-pill" onClick={() => setEditing({ type: 'account', item: a })}>ویرایش و شماره کارت</button></div>
                 </> }} />
               <div className="fn-head" style={{ marginTop: 18 }}><h2>🔁 پرداخت‌ها و دریافت‌های تکراری</h2></div>
@@ -1010,7 +1010,7 @@ export function FinanceReact({ Nav }) {
               <div className="fn-debt-sum">
                 <div className="pos"><small>طلب من</small><b title={faMoney(debtTot.rec)}>{short(debtTot.rec)}</b><em>{fa(debtGroups.receivable.length)} مورد</em></div>
                 <div className="neg"><small>بدهی من</small><b title={faMoney(debtTot.pay)}>{short(debtTot.pay)}</b><em>{fa(debtGroups.payable.length)} مورد</em></div>
-                <div className={debtTot.rec - debtTot.pay >= 0 ? 'pos net' : 'neg net'}><small>خالص</small><b title={faMoney(debtTot.rec - debtTot.pay)}>{debtTot.rec - debtTot.pay >= 0 ? '+' : '−'}{short(Math.abs(debtTot.rec - debtTot.pay))}</b><em>{debtTot.usdMissing ? 'دلاری‌ها بدون نرخ روز' : debtTot.hasUsd ? `دلار به نرخ ${short(rates.price_dollar_rl, false)}` : ' '}</em></div>
+                <div className={debtTot.rec - debtTot.pay >= 0 ? 'pos net' : 'neg net'}><small>خالص</small><b title={faMoney(debtTot.rec - debtTot.pay)}>{short(Math.abs(debtTot.rec - debtTot.pay))}</b><em>{debtTot.usdMissing ? 'دلاری‌ها بدون نرخ روز' : debtTot.hasUsd ? `دلار به نرخ ${short(rates.price_dollar_rl, false)}` : ' '}</em></div>
               </div>
               {!debts.length ? <p className="fn-empty">بدهی یا طلب بازی نیست.</p> : [['receivable', 'طلب‌های من'], ['payable', 'بدهی‌های من']].map(([k, title]) => debtGroups[k].length ? (
                 <div key={k} className={`fn-debt-group ${k}`}>
@@ -1162,7 +1162,7 @@ export function FinanceReact({ Nav }) {
                       <b>{item.location || 'جلسهٔ پوکر'}</b>
                       <small>{jalaliShort(item.date)} · ورود {amt(item.buyIn)} · خروج {amt(item.cashOut)}{item.note ? ` · ${item.note}` : ''}</small>
                     </div>
-                    <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : '−'}{amt(Math.abs(pnl))}</span>
+                    <span className={`amt ${pnl >= 0 ? 'pos' : 'neg'}`}>{amt(Math.abs(pnl))}</span>
                     <div className="fn-ops">
                       <button type="button" onClick={() => setEditing({ type: 'poker', item })}>ویرایش</button>
                       <button type="button" className="del" onClick={() => { if (window.confirm('این جلسه حذف شود؟')) send(`/api/poker/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
