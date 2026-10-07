@@ -354,3 +354,15 @@
 .fn-pf-none { grid-column: 1 / -1; }
 .fn-xpf .xc-sub .pos { color: #065f46; font-weight: 800; }
 .fn-xpf .xc-sub .neg { color: #9f1239; font-weight: 800; }
+
+/* holdings: smaller cards; sold-out symbols as one line of names */
+.fn-xpf .xc { min-height: 112px; border-radius: 18px; }
+.fn-xpf .xc-val { font-size: 19px; }
+.fn-xpf .xc.open { min-height: 140px; }
+.fn-closed { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 12px; }
+.fn-closed > small { color: var(--g-muted); font-size: 12px; margin-inline-end: 4px; }
+.fn-closed > button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--g-border); border-radius: 999px; background: rgba(255,255,255,.02); color: var(--g-text, inherit); font: inherit; font-size: 13px; cursor: pointer; }
+.fn-closed > button.on { border-color: var(--g-border-2); background: rgba(255,255,255,.06); }
+.fn-closed em { font-style: normal; font-size: 12px; font-weight: 800; }
+.fn-closed em.pos { color: var(--g-good, #34d399); } .fn-closed em.neg { color: #fb7185; }
+.fn-closed-more { flex-basis: 100%; border: 1px solid var(--g-border); border-radius: var(--g-radius-control); padding: 10px 12px; }

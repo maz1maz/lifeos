@@ -363,6 +363,7 @@ export function FinanceReact({ Nav }) {
   const [poker, setPoker] = useState([])
   const [pokerAll, setPokerAll] = useState([])
   const [pfSnaps, setPfSnaps] = useState(null)
+  const [closedOpen, setClosedOpen] = useState(null)
   const usdHist = useUsdHistory(tab === 'fun')
   const snapSent = useRef(false)
   const [pokerSummary, setPokerSummary] = useState({ sessions: 0, profit: 0, wins: 0, losses: 0, pushes: 0, totalBuyIn: 0, totalCashOut: 0 })
@@ -481,7 +482,9 @@ export function FinanceReact({ Nav }) {
     const TYPE_FA = { stock: 'سهام و صندوق', dollar: 'دلار', euro: 'یورو', gold: 'طلا و سکه', crypto: 'رمزارز', other: 'سایر' }, by = {}
     for (const r of rows) { const t = TYPE_FA[r.item.assetType] ? r.item.assetType : 'other'; by[t] = (by[t] || 0) + r.value }
     const mix = Object.entries(by).filter(([, v]) => v > 0).map(([type, value]) => ({ type, label: TYPE_FA[type], value, pct: total ? Math.round((value / total) * 1000) / 10 : 0 })).sort((a, b) => b.value - a.value)
-    return { rows, total, cost, pnl, mix }
+    // sold-out symbols: one compact line with their realized profit instead of a big empty card each
+    const closed = rows.filter((r) => !(Number(r.item.quantity) > 0)).map((r) => ({ ...r, realized: toRial(Number(r.item.realizedPnl || 0), r.item.currency || 'IRR') }))
+    return { rows, total, cost, pnl, mix, closed }
   })()
   // a past month shows the portfolio as recorded on its last day (daily snapshots); the current month shows it live
   const pastMonth = mRange.to < isoToday(), endSnap = pastMonth ? (pfSnaps || []).filter((x) => x.date >= mRange.from && x.date <= mRange.to).pop() : null
@@ -1033,13 +1036,20 @@ export function FinanceReact({ Nav }) {
                 </div>
               ) : null}
               {portfolio.items?.length ? <PfTrend snaps={pfSnaps || []} to={pastMonth ? mRange.to : undefined} /> : null}
-              {portfolio.items?.length ? <XCards className="fn-xpf" items={pf.rows} getKey={(r) => `${r.item.assetType}-${r.item.symbol}`}
+              {portfolio.items?.length ? <XCards className="fn-xpf" cols={3} items={pf.rows.filter((r) => Number(r.item.quantity) > 0)} getKey={(r) => `${r.item.assetType}-${r.item.symbol}`}
                 surface={(r) => r.item.assetType === 'gold' ? 'gold' : r.item.assetType === 'dollar' ? 'green' : r.item.assetType === 'euro' ? 'blue' : r.item.assetType === 'crypto' ? 'violet' : r.item.assetType === 'stock' ? 'cyan' : 'graphite'}
                 renderBody={(row) => <>
                   <div className="xc-top"><span className="xc-ic">{row.item.assetType === 'gold' ? '🪙' : row.item.assetType === 'dollar' ? '💵' : row.item.assetType === 'euro' ? '💶' : row.item.assetType === 'crypto' ? '₿' : row.item.assetType === 'stock' ? '📈' : '📦'}</span><span className="xc-name">{row.label}</span></div>
                   <div><div className="xc-val" title={faMoney(row.value)}>{row.value ? short(row.value) : '—'}</div><div className="xc-sub">{fa(row.item.quantity)} واحد{row.pnl ? <> · <span className={row.pnl >= 0 ? 'pos' : 'neg'}>{row.pnl < 0 ? '−' : ''}{short(Math.abs(row.pnl), false)}</span></> : ''}</div></div>
                 </>}
                 renderMore={(row) => <AssetMore row={row} onChanged={load} />} /> : <p className="fn-empty">دارایی ثبت نشده.</p>}
+              {pf.closed.length ? <div className="fn-closed">
+                <small>فروخته‌شده</small>
+                {pf.closed.map((r) => <button type="button" key={`${r.item.assetType}-${r.item.symbol}`} className={closedOpen === r.item.symbol ? 'on' : ''} aria-expanded={closedOpen === r.item.symbol} onClick={() => setClosedOpen((v) => v === r.item.symbol ? null : r.item.symbol)}>
+                  {r.label}{r.realized ? <em className={r.realized >= 0 ? 'pos' : 'neg'}>{r.realized < 0 ? '−' : ''}{short(Math.abs(r.realized), false)}</em> : null}
+                </button>)}
+                {pf.closed.some((r) => r.item.symbol === closedOpen) ? <div className="fn-closed-more"><AssetMore row={pf.closed.find((r) => r.item.symbol === closedOpen)} onChanged={load} /></div> : null}
+              </div> : null}
               <div className="fn-alerts">
                 <div className="fn-head"><h2>هشدار قیمت</h2><Drawer label="هشدار" title="هشدار قیمت">
 <form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/investments/alerts', { symbol: f.get('symbol'), condition: f.get('condition'), value: Number(f.get('value')) }, 'هشدار ثبت شد.'); e.currentTarget.reset() }}>
