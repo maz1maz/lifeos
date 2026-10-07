@@ -555,3 +555,11 @@
 .lf-pipe-row li:hover{background:var(--g-accent-soft)}.lf-pipe-row li i{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
 .lf-pipe-row li span{font-size:11px;border:1px solid var(--g-border-2);border-radius:99px;padding:0 7px;color:var(--g-muted)}
 @media(max-width:700px){.lf-pipe-row>button{grid-template-columns:minmax(0,1fr) 70px 28px}.lf-pipe-row .dept{display:none}.lf-pipe-row ul{padding:0}}
+/* contract bill of quantities (آیتم‌های قرارداد) */
+.lf-boq{margin:12px 0;padding:12px;border:1px solid var(--g-border);border-radius:12px;background:var(--g-panel-2)}.lf-boq h4{margin:0;font-size:13px}
+.lf-boq-table{display:grid;gap:6px}.lf-boq-row{display:grid;grid-template-columns:44px minmax(180px,3fr) minmax(80px,1fr) minmax(96px,1fr) minmax(120px,1.4fr) minmax(130px,1.5fr) 28px;gap:6px;align-items:center}
+.lf-boq-row.head{font-size:11.5px;color:var(--g-muted);font-weight:700}.lf-boq-row .no{text-align:center;color:var(--g-muted);font-size:12px}
+.lf-boq-row input,.lf-boq-row select,.lf-boq-row output{width:100%;min-height:38px;border:1px solid var(--g-border-2);border-radius:var(--g-radius-control);background:rgba(0,0,0,.24);color:var(--g-text);font:inherit;font-size:13px;padding:6px 9px;box-sizing:border-box}
+.lf-boq-row output{display:flex;align-items:center;font-weight:700;color:var(--g-accent-strong);background:transparent}
+.lf-boq-row.total{border-top:1px solid var(--g-border);padding-top:8px}.lf-boq-row.total b{font-size:13px}
+@media(max-width:760px){.lf-boq-row.head{display:none}.lf-boq-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 28px;padding:8px;border:1px solid var(--g-border);border-radius:10px}.lf-boq-row .no{grid-column:1/-1;text-align:start}.lf-boq-row input[aria-label="شرح آیتم"],.lf-boq-row input[aria-label="فی (ریال)"]{grid-column:1/-1}.lf-boq-row select{grid-column:2/-1}.lf-boq-row output.amount{grid-column:1/3}.lf-boq-row input,.lf-boq-row select,.lf-boq-row output{min-height:44px;font-size:14px}.lf-boq-row.total{grid-template-columns:auto 1fr;border:0}.lf-boq-row.total>span{display:none}.lf-boq-row.total output.amount{grid-column:auto}}
