@@ -448,6 +448,12 @@ async function main() {
       check('assistant: no ids/userIds leak into context', !/"userId"/.test(sys || ''));
       await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام', page: '<script>' } });
       check('assistant: unknown page adds nothing', !/"currentPage"/.test(seen[1].messages[0].content));
+      // bet/poker are visible from any page (the overview), e.g. «روندم در بت چطوره؟» asked on the finance page
+      await call('/api/bet', { method: 'POST', cookie, body: { date: new Date().toISOString().slice(0, 10), start: 100, deposit: 0, withdraw: 0, balance: 175 } });
+      await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'روندم در بت چطوره؟', page: 'planner' } });
+      const ov = seen[2].messages[0].content, j = JSON.parse(ov.slice(ov.indexOf('DATA: ') + 6));
+      check('assistant: overview has bet / poker / portfolio / projects from any page', j.overview && j.overview.bet && j.overview.bet.days >= 1 && j.overview.bet.recent.some(x => x.resultUsd === 75) && j.overview.poker && Array.isArray(j.overview.portfolio) && Array.isArray(j.overview.projects), JSON.stringify(j.overview || {}).slice(0, 300));
+      check('assistant: overview leaks no ids', !/"userId"|"id":/.test(JSON.stringify(j.overview)));
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
   }
   { // work-time log: manual entries, validation, edit, timer start/stop
