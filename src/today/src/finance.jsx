@@ -958,7 +958,7 @@ export function FinanceReact({ Nav }) {
                 {importPreview ? (
                   <form className="fn-form" style={{ padding: 0, marginTop: 10 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const items = (importPreview.items || []).filter((x) => !x.duplicate); send('/api/transactions/import-bank/commit', { items, account: f.get('account') }, `${fa(items.length)} تراکنش ارسال شد.`); setImportPreview(null) }}>
                     <p>{fa(importPreview.newCount || 0)} تازه · {fa(importPreview.duplicateCount || 0)} تکراری</p>
-                    <select name="account"><option value="بدون حساب">بدون حساب</option>{accounts.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}</select>
+                    <select name="account" defaultValue={(accounts.find((a) => a.sms) || accounts.find((a) => /بلو|blu/i.test(a.name)) || accounts[0] || {}).name || 'بدون حساب'}>{accounts.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}<option value="بدون حساب">بدون حساب</option></select>
                     <button className="fn-save">ورود تراکنش‌های تازه</button>
                     <button type="button" onClick={() => setImportPreview(null)}>لغو</button>
                   </form>
