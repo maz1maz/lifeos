@@ -289,6 +289,31 @@ export async function sendProjectReportToTelegram(data) {
 
 // Phones can't print a hidden iframe (nothing happens), so there the PDF file itself is built and shared/downloaded.
 const isPhone = () => typeof window !== 'undefined' && (window.matchMedia?.('(pointer: coarse)').matches || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent));
+// iPhone/iPad: Safari draws the captured report shifted (right edge cut off), so there the report opens as its own
+// page and Safari's print sheet makes the PDF (Share → Save to Files / Print). Its own engine lays Persian out right.
+export const isIOS = () => typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+function openPrintWindow(html, title, pre = null) {
+  // `pre`: a window opened earlier inside the tap (a window opened after an await is blocked as a pop-up)
+  const w = pre || window.open('', '_blank');
+  if (!w) return false;
+  w.document.open(); w.document.write(html); w.document.close();
+  w.document.title = title;
+  // show the whole A4 width on the phone screen (print uses @page anyway)
+  const vp = w.document.createElement('meta'); vp.name = 'viewport'; vp.content = `width=${/landscape/.test(html.slice(0, 4000)) ? 1060 : 760}`; w.document.head.prepend(vp);
+  // a slim bar with the print button (hidden on paper); the handler lives here, not inline (the page CSP forbids inline)
+  const bar = w.document.createElement('div');
+  bar.setAttribute('style', 'position:sticky;top:0;z-index:99;display:flex;gap:8px;justify-content:center;padding:10px;background:#0f172a');
+  const btn = w.document.createElement('button');
+  btn.textContent = '🖨 ذخیرهٔ PDF / چاپ';
+  btn.setAttribute('style', 'font:700 15px Vazirmatn,Tahoma,sans-serif;padding:10px 18px;border-radius:12px;border:0;background:#d4a843;color:#111');
+  btn.addEventListener('click', () => w.print());
+  bar.appendChild(btn);
+  w.document.documentElement.classList.add('capture'); // the same fixed page width as the PDF
+  const st = w.document.createElement('style'); st.textContent = '@media print{.lf-print-bar{display:none!important}}@media screen{body{margin:0 auto!important;box-shadow:0 0 0 1px #e2e8f0}}'; w.document.head.appendChild(st);
+  bar.className = 'lf-print-bar'; w.document.body.prepend(bar);
+  Promise.resolve(w.document.fonts?.ready).then(() => setTimeout(() => { try { w.print(); } catch { /* the button stays */ } }, 300));
+  return true;
+}
 // (the download fallback uses a Latin name: some browsers drop a Persian one and save «download» without .pdf)
 async function savePdf(blob, filename) {
   const file = typeof File === 'function' ? new File([blob], filename, { type: 'application/pdf' }) : null;
@@ -300,6 +325,7 @@ async function savePdf(blob, filename) {
 
 // Opens the browser print dialog (desktop) or saves the PDF file (phone); the file name is reportFileName.
 export async function printProjectReport(data) {
+  if (isIOS() && openPrintWindow(projectReportHtml(data), reportFileName(data.project).replace(/\.pdf$/, ''))) return;
   if (isPhone()) return savePdf(await projectReportPdf(data), reportFileName(data.project));
   const title = reportFileName(data.project).replace(/\.pdf$/, '');
   const frame = mountFrame('lf-report-print-frame', 695, projectReportHtml(data), false);
@@ -411,7 +437,8 @@ ${(() => { const pipe = pipelineOf(rows); if (!pipe.length) return ''; const max
 const compareFileName = () => { const j = isoToJ(todayIso()); return `${j.jy}-${pad2(j.jm)}-${pad2(j.jd)}_مقایسه-پروژه‌ها.pdf`; };
 
 // Print dialog (Save as PDF): the browser's own text engine shapes Persian correctly, unlike the canvas path
-export async function printCompareReport(data) {
+export async function printCompareReport(data, pre = null) {
+  if (isIOS() && openPrintWindow(compareReportHtml(data), compareFileName().replace(/\.pdf$/, ''), pre)) return;
   if (isPhone()) { const j = compareFileName(); return savePdf(await renderPdf(compareReportHtml(data), { running: `مقایسهٔ پروژه‌ها – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: j.replace(/\.pdf$/, ''), subject: 'مقایسهٔ پروژه‌ها', W: CMP_W, landscape: true }), j); }
   const title = compareFileName().replace(/\.pdf$/, '');
   const frame = mountFrame('lf-compare-print-frame', CMP_W, compareReportHtml(data), false);
