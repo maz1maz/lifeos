@@ -192,8 +192,10 @@ function mountFrame(id, width, html, hidden = true) {
   const frame = document.createElement('iframe');
   frame.id = id;
   frame.setAttribute('aria-hidden', 'true');
-  frame.style.cssText = `position:fixed;width:${width}px;height:10px;border:0;left:-10000px;top:0${hidden ? ';visibility:hidden' : ''}`;
-  document.body.appendChild(frame);
+  frame.style.cssText = `position:fixed;width:${width}px;height:10px;border:0;left:-10000px;top:0;zoom:1${hidden ? ';visibility:hidden' : ''}`;
+  // outside <body>: the app zooms the body on phones (--app-zoom, e.g. 1.1 on iPhone); inside it the captured page
+  // came out scaled and shifted, with the right edge of every line cut off in the phone PDF
+  document.documentElement.appendChild(frame);
   const doc = frame.contentDocument;
   doc.open(); doc.write(html); doc.close();
   return frame;
@@ -244,7 +246,7 @@ async function renderPdf(html, { running, footer, title, subject, W = 695, lands
       ...[...doc.querySelectorAll('.p1, .cover')].map(el => Math.round(el.getBoundingClientRect().bottom - top0)),
       ...[...doc.querySelectorAll('h2.pb')].map(el => Math.round(el.getBoundingClientRect().top - top0) - 8)
     ].filter(y => y > 0).sort((a, b) => a - b);
-    const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: W, height: total, windowWidth: W, windowHeight: total, logging: false, foreignObjectRendering: true });
+    const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', x: 0, y: 0, scrollX: 0, scrollY: 0, width: W, height: total, windowWidth: W, windowHeight: total, logging: false, foreignObjectRendering: true });
     const k = canvas.width / W, pages = [];
     // the drawn image can sit a few px off the measured layout, so every cut is snapped up to the nearest
     // pixel row of the image that is one flat colour (a gap between rows), never through a line of text
