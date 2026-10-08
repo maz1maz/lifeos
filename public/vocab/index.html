@@ -321,9 +321,20 @@ nav.tabs{gap:4px}
   .wrap{padding-bottom:16px}
   .stat{padding:6px 3px}
   .stat b{font-size:15px!important}
-  .stat span{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .stat{padding:4px 2px!important;border-radius:10px}
+  .stat b{font-size:14px!important}
+  .stat span{font-size:9.5px;white-space:normal;line-height:1.35;max-width:100%}
+  /* filters fold into one button (see renderFilters); opened, every chip wraps instead of scrolling sideways */
+  #filterCard{margin:6px 0!important;padding:8px 10px!important}
+  #filterCard>.between{margin-bottom:0!important}
+  #filterCard:not(.open) #levelBar,#filterCard:not(.open) #topicBar{display:none!important}
+  #filterCard.open>.between{margin-bottom:8px!important}
+  #filterCard.open #levelBar,#filterCard.open #topicBar{flex-wrap:wrap!important;overflow:visible!important}
+  #topicToggle{flex:1;text-align:center;font-size:12.5px!important;padding:6px 10px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fc{height:clamp(240px,40vh,360px)}
-  .ratebar{position:sticky;bottom:0;z-index:20;margin:8px -10px 0;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
+  /* fixed to the bottom of this frame (sticky never engaged inside the app's layout), the page keeps room for it */
+  .ratebar{position:fixed;left:0;right:0;bottom:0;z-index:20;margin:0!important;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
+  body:has(.ratebar) .wrap{padding-bottom:84px}
   .ratebar .btn{min-height:44px}
   .nt-top{gap:6px}
   .nt-top .btn{flex:0 0 auto;white-space:nowrap}

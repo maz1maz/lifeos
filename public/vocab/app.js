@@ -1315,14 +1315,14 @@ function renderFilters() {
   $$("#topicBar [data-t]").forEach(c => c.onclick = () => { FILTER.topic = c.dataset.t; cur = null; renderFilters(); render(); });
   const tg = $("#topicToggle");
   if (tg) {
-    // one scrolling row by default; «همه ▾» opens every topic as wrapped chips (all screen sizes)
-    const bar = $("#topicBar");
+    // wide screens: one scrolling row; «همه ▾» opens every topic as wrapped chips.
+    // phones: the whole filter folds into this one button showing the current choice (the card stays in view).
+    const bar = $("#topicBar"), card = $("#filterCard"), phone = matchMedia("(max-width:700px)").matches;
+    const summary = `${FILTER.lv === "all" ? "همهٔ سطوح" : FILTER.lv} · ${FILTER.topic === "all" ? "همهٔ موضوع‌ها" : FILTER.topic}`;
     tg.style.display = "";
-    tg.textContent = bar.classList.contains("exp") ? "بستن ▴" : "همهٔ موضوع‌ها ▾";
-    tg.onclick = () => {
-      const on = bar.classList.toggle("exp");
-      tg.textContent = on ? "بستن ▴" : "همهٔ موضوع‌ها ▾";
-    };
+    const label = () => phone ? (card.classList.contains("open") ? "بستن فیلتر ▴" : `فیلتر: ${summary} ▾`) : (bar.classList.contains("exp") ? "بستن ▴" : "همهٔ موضوع‌ها ▾");
+    tg.textContent = label();
+    tg.onclick = () => { if (phone) card.classList.toggle("open"); else bar.classList.toggle("exp"); tg.textContent = label(); };
   }
 }
 
