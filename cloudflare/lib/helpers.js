@@ -476,18 +476,22 @@ function betRollup(all,month){let items=[],prev=null,st={month:month||null,days:
   }
   // Cloudflare's own model (binding AI): used when both keyed providers are missing or refuse the Worker
   async function workersAiComplete(system,userMsg,maxTokens){if(!env.AI)return null;let r=await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast',{messages:[{role:'system',content:system},{role:'user',content:userMsg}],max_tokens:Math.min(maxTokens||800,2048)});return String(r&&(r.response??r.result?.response)||'').trim()}
+  // a keyed provider that refused (401/403) is skipped for an hour, so answers go straight to Workers AI instead of
+  // waiting on two doomed calls first (the keys stay set; they're tried again later in case access comes back)
+  const AI_DOWN=globalThis.__lifeosAiDown||(globalThis.__lifeosAiDown=new Map());
+  const aiSkip=n=>(AI_DOWN.get(n)||0)>Date.now(),aiMarkDown=(n,e)=>{if(/\((401|403)\)/.test(String(e&&e.message||'')))AI_DOWN.set(n,Date.now()+3600e3)};
   async function aiComplete(system,userMsg,maxTokens){
     // دو ارائه‌دهنده همزمان فعال: اول AI_PROVIDER_* (پیش‌فرض/اصلی) امتحان می‌شه؛
     // اگه خطا داد (سهمیه/ریت‌لیمیت/قطعی سرویس) و AI_PROVIDER2_* هم تنظیم باشه، خودکار سراغ اون می‌ره.
     // Technical details (status, provider body) go to the Worker log only; people see a short Persian message.
     const short=e=>String(e&&e.message||e).replace(/keyLen=\d+ ?/,'').slice(0,240);
     let first=null;
-    try{
+    if(!aiSkip(1))try{
       let out=await aiCompleteOne(AI_PROVIDER_API_KEY,AI_PROVIDER_BASE_URL,AI_MODEL,system,userMsg,maxTokens);
       if(out!=null)return out;
-    }catch(e){first=e;console.log('ai provider 1 failed:',short(e))}
+    }catch(e){first=e;aiMarkDown(1,e);console.log('ai provider 1 failed:',short(e))}
     let second=null;
-    if(AI_PROVIDER2_API_KEY){try{return await aiCompleteOne(AI_PROVIDER2_API_KEY,AI_PROVIDER2_BASE_URL,AI_MODEL2,system,userMsg,maxTokens)}catch(e){second=e;console.log('ai provider 2 failed:',short(e))}}
+    if(AI_PROVIDER2_API_KEY&&!aiSkip(2)){try{return await aiCompleteOne(AI_PROVIDER2_API_KEY,AI_PROVIDER2_BASE_URL,AI_MODEL2,system,userMsg,maxTokens)}catch(e){second=e;aiMarkDown(2,e);console.log('ai provider 2 failed:',short(e))}}
     if(env.AI){try{let out=await workersAiComplete(system,userMsg,maxTokens);if(out)return out}catch(e){console.log('workers ai failed:',short(e))}}
     if(first||second)throw new Error('سرویس هوش مصنوعی الان جواب نداد؛ کمی بعد دوباره امتحان کن.');
     return null

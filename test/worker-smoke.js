@@ -467,7 +467,8 @@ async function main() {
       delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL;
       const r2 = await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام' } });
       check('assistant works with no key at all when the AI binding exists', r2.status === 200 && r2.d.reply === 'پاسخ از Workers AI', JSON.stringify(r2.d));
-    } finally { globalThis.fetch = realFetch; delete env.AI; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
+      check('a refused provider is skipped for a while (no second 403 round trip)', globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.size >= 1);
+    } finally { globalThis.fetch = realFetch; delete env.AI; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.clear(); }
   }
   { // work-time log: manual entries, validation, edit, timer start/stop
     const a = await call('/api/time', { method: 'POST', cookie, body: { title: 'گزارش پروژه', minutes: 95, date: '2026-02-03', projectId: 'p1' } });
