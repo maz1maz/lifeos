@@ -1035,3 +1035,20 @@ button,input,select,textarea{font-family:inherit}
 .mkh-coin{width:24px;height:24px;border-radius:50%;object-fit:cover}
 .drawer-out{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;min-height:42px;border:0;border-radius:var(--g-radius-control);background:none;color:var(--g-muted);font:inherit;font-size:14px;cursor:pointer;text-align:right}
 .drawer-out:hover,.drawer-out:focus-visible{background:color-mix(in srgb,#f87171 10%,transparent);color:#f87171}
+
+/* date card: the date is a button; tapping it flips the panel to «امروز در تاریخ» */
+button.dc-main{all:unset;display:flex;align-items:center;gap:14px;cursor:pointer;border-radius:12px;position:relative}
+button.dc-main:focus-visible{outline:2px solid var(--g-gold,#d4a843);outline-offset:4px}
+.dc-otd-hint{font-size:15px;opacity:.75;margin-inline-start:4px;transition:transform .2s}
+button.dc-main:hover .dc-otd-hint{transform:rotate(-12deg) scale(1.15);opacity:1}
+.dc-panel.dc-anim{animation:dcFlip .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes dcFlip{from{transform:perspective(900px) rotateY(-80deg);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.dc-panel.dc-anim{animation:none}}
+.dc-otd{display:flex;flex-direction:column;gap:8px;max-height:340px}
+.dc-otd-head{all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.dc-otd-head b{font-size:15px}.dc-otd-head span{font-size:12px;opacity:.75}
+.dc-otd ul{list-style:none;margin:0;padding:0;overflow:auto;display:grid;gap:8px}
+.dc-otd li{display:grid;grid-template-columns:44px 1fr;gap:10px;font-size:13px;line-height:1.75}
+.dc-otd li i{font-style:normal;font-weight:800;color:var(--g-gold,#d4a843)}
+.dc-otd-wait{margin:0;font-size:13px;opacity:.8}.dc-otd-note{font-size:11px;opacity:.6}
+.dc2 .dc-panel.dc-otd{background:rgba(10,12,16,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:12px 14px;border-radius:16px}

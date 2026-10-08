@@ -1290,6 +1290,9 @@ function DayCard({ today, greeting, summary, streak }) {
   const [src, setSrc] = useState(photo.local);
   const [events, setEvents] = useState({});
   const [bdays, setBdays] = useState([]);
+  // tapping the date flips the panel to «امروز در تاریخ» (Wikipedia, translated to Persian); loaded on first flip
+  const [flip, setFlip] = useState(null), [otd, setOtd] = useState(null); // null = never flipped (no animation on load)
+  const toggleFlip = () => { setFlip(f => !f); if (!otd) api('/api/calendar/on-this-day?fa=1').then(setOtd).catch(e => setOtd({ error: e.message })); };
   useEffect(() => {
     api('/api/contacts').then(r => {
       setBdays((r.items || []).map(c => {
@@ -1323,14 +1326,20 @@ function DayCard({ today, greeting, summary, streak }) {
       {summary && <p>{summary}</p>}
       {streak > 0 && <span className="dc-streak"><Flame size={13} />{fa(streak)} روز پیوسته ثبت روزانه</span>}
     </div>
-    <div className="dc-panel">
-      <div className="dc-main">
+    {flip ? <div className="dc-panel dc-otd dc-anim" key="otd">
+      <button type="button" className="dc-otd-head" onClick={toggleFlip} aria-label="برگشت به تقویم"><b>امروز در تاریخ</b><span>{faDigits(j.jd)} {JALALI_MONTHS[j.jm - 1]} · برگرد ↩</span></button>
+      {!otd ? <p className="dc-otd-wait">در حال دریافت…</p> : otd.error ? <p className="dc-otd-wait">⚠ {otd.error}</p> : !(otd.events || []).length ? <p className="dc-otd-wait">رویدادی پیدا نشد.</p>
+        : <ul>{otd.events.map((e, i) => <li key={i}><i>{faDigits(e.year)}</i><span dir={otd.lang === 'en' || e.en ? 'ltr' : undefined}>{e.text}</span></li>)}</ul>}
+      {otd && otd.lang === 'en' ? <small className="dc-otd-note">ترجمه در دسترس نبود؛ متن اصلی ویکی‌پدیا.</small> : <small className="dc-otd-note">از ویکی‌پدیا</small>}
+    </div> : <div className={`dc-panel${flip === false ? ' dc-anim' : ''}`} key="cal">
+      <button type="button" className="dc-main" onClick={toggleFlip} title="امروز در تاریخ" aria-label="نمایش امروز در تاریخ">
         <div className="dc-num">{faDigits(j.jd)}</div>
         <div className="dc-dates">
           <b>{JALALI_MONTHS[j.jm - 1]} {faDigits(j.jy)}</b>
           <span dir="ltr" className="dc-greg">{greg}</span>
         </div>
-      </div>
+        <span className="dc-otd-hint" aria-hidden="true">📜</span>
+      </button>
       <div className="dc-progress">
         <div><span>{SEASONS[sIdx][0]} · روز {fa(sDay)} از {fa(sLen)}</span><i><em style={{ width: `${sDay / sLen * 100}%` }} /></i></div>
         <div><span>روز {fa(dayOfYear)} سال · هفتهٔ {fa(week)}</span><i><em style={{ width: `${dayOfYear / yearLen * 100}%` }} /></i></div>
@@ -1340,7 +1349,7 @@ function DayCard({ today, greeting, summary, streak }) {
         {todayEvents.slice(0, 3).map((e, i) => <span key={i} className={`dc-chip ${e.h ? 'off' : ''}`}>{e.t}</span>)}
         {!todayEvents.length && !bdays.length && nextOff && <span className="dc-chip muted">تعطیلی بعدی: {nextOff.days === 1 ? 'فردا' : `${fa(nextOff.days)} روز دیگه`} · {nextOff.t}</span>}
       </div>
-    </div>
+    </div>}
   </Card>;
 }
 
