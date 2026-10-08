@@ -1246,12 +1246,13 @@ function LiveCalendar({ today }) {
   // the card's back: «امروز در تاریخ» (Wikipedia, in Persian) — opened from the footer or by tapping today's cell
   const [flip, setFlip] = useState(null), [otd, setOtd] = useState(null); // null = never flipped (no animation on load)
   const toggleFlip = () => { setFlip(f => !f); if (!otd || otd.error) api('/api/calendar/on-this-day?fa=1').then(setOtd).catch(e => setOtd({ error: e.message })); };
-  if (flip) return <Card className="calendar live-cal lc-back" icon={CalendarDays} title="امروز در تاریخ" action={<button type="button" className="lc-flip" onClick={toggleFlip}>↩ تقویم</button>}>
+  if (flip) return <Card className="calendar live-cal lc-back" icon={CalendarDays} title="امروز در تاریخ">
     <div className="lc-otd dc-anim">
       {!otd ? <p className="lc-otd-wait">در حال دریافت و ترجمه…</p> : otd.error ? <p className="lc-otd-wait">⚠ {otd.error}</p> : !(otd.events || []).length ? <p className="lc-otd-wait">رویدادی پیدا نشد.</p>
         : <ul>{otd.events.map((e, i) => <li key={i}><i>{faDigits(e.year)}</i><span dir={otd.lang === 'en' || e.en ? 'ltr' : undefined}>{e.text}</span></li>)}</ul>}
-      {otd && !otd.error ? <small className="lc-otd-note">{otd.lang === 'en' ? 'ترجمه در دسترس نبود؛ متن اصلی ویکی‌پدیا.' : otd.mt ? 'از ویکی‌پدیا · ترجمهٔ ماشینی' : 'از ویکی‌پدیا'}</small> : null}
-    </div>
+          </div>
+    {/* same corner as the front's «امروز در تاریخ», so the flip button doesn't move */}
+    <div className="lc-foot"><small className="lc-otd-note">{!otd || otd.error ? '' : otd.lang === 'en' ? 'ترجمه در دسترس نبود؛ متن اصلی ویکی‌پدیا' : otd.mt ? 'از ویکی‌پدیا · ترجمهٔ ماشینی' : 'از ویکی‌پدیا'}</small><span className="lc-foot-links"><button type="button" className="lc-flip" onClick={toggleFlip}>📅 تقویم</button></span></div>
   </Card>;
   return <Card className={`calendar live-cal${flip === false ? ' dc-anim' : ''}`} icon={CalendarDays} title={`${JALALI_MONTHS[ym.jm - 1]} ${faDigits(ym.jy)}`} action={<div className="lc-nav"><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy - 1, jm }))} aria-label="سال قبل"><ChevronsRight size={15} /></button><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={15} /></button>{(ym.jy !== t.jy || ym.jm !== t.jm) && <button type="button" className="lc-today" onClick={goToday}>امروز</button>}<button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={15} /></button><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy + 1, jm }))} aria-label="سال بعد"><ChevronsLeft size={15} /></button></div>}>
     <div className="weekdays">{WEEKDAYS.map(x => <span key={x}>{x}</span>)}</div>
@@ -1260,7 +1261,7 @@ function LiveCalendar({ today }) {
       const tip = [...evs.map(e => e.t.replace(/\[.*?\]/g, '').trim()), ...dayItems(day).map(ev => `${ev.time ? faDigits(ev.time) + ' · ' : ''}${ev.title}`)].join('\n');
       return <button type="button" key={v} title={tip} className={`${v === today ? 'today' : ''} ${holiday ? 'holiday' : ''}`} onClick={() => { if (v === today) toggleFlip(); else location.href = '/?page=calendar'; }}>{faDigits(i + 1)}{n > 0 && <i className="dot" />}</button>;
     })}</div>
-    <div className="lc-foot"><span>{todayCount ? `امروز ${fa(todayCount)} برنامهٔ ساعت‌دار` : 'امروز برنامهٔ ساعت‌داری نداری'}</span><span className="lc-foot-links"><button type="button" className="lc-flip" onClick={toggleFlip}>📜 امروز در تاریخ</button><a href="/?page=calendar">تقویم کامل ←</a></span></div>
+    <div className="lc-foot"><span>{todayCount ? `امروز ${fa(todayCount)} برنامهٔ ساعت‌دار` : 'امروز برنامهٔ ساعت‌داری نداری'}</span><span className="lc-foot-links"><a href="/?page=calendar">تقویم کامل ←</a><button type="button" className="lc-flip" onClick={toggleFlip}>📜 امروز در تاریخ</button></span></div>
   </Card>;
 }
 

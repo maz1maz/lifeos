@@ -946,11 +946,14 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
   // Machine translation English → Persian without the AI keys (both AI providers can refuse the Worker):
   // Google's free endpoint first, then MyMemory. Returns one string per input ('' where both failed).
   async function translateToFa(texts){
+    const why=[];
     const one=async t=>{t=String(t||'').slice(0,480);if(!t)return'';
-      try{let r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=fa&dt=t&q='+encodeURIComponent(t));if(r.ok&&/json/.test(r.headers.get('content-type')||'')){let j=await r.json(),s=(j&&j[0]||[]).map(x=>x&&x[0]||'').join('').trim();if(s)return s}}catch(e){}
-      try{let r=await fetch('https://api.mymemory.translated.net/get?langpair=en|fa&q='+encodeURIComponent(t));if(r.ok){let j=await r.json(),s=String(j&&j.responseData&&j.responseData.translatedText||'').trim();if(s&&!/MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(s))return s}}catch(e){}
+      // Cloudflare's own translation model (binding AI in wrangler.jsonc): no outside service to block the Worker
+      if(env.AI)try{let r=await env.AI.run('@cf/meta/m2m100-1.2b',{text:t,source_lang:'en',target_lang:'fa'}),s=String(r&&r.translated_text||'').trim();if(s)return s}catch(e){why.push('workers-ai '+e.message)}
+      try{let r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=fa&dt=t&q='+encodeURIComponent(t));if(r.ok&&/json/.test(r.headers.get('content-type')||'')){let j=await r.json(),s=(j&&j[0]||[]).map(x=>x&&x[0]||'').join('').trim();if(s)return s}else why.push('google '+r.status)}catch(e){why.push('google '+e.message)}
+      try{let r=await fetch('https://api.mymemory.translated.net/get?langpair=en|fa&q='+encodeURIComponent(t));if(r.ok){let j=await r.json(),s=String(j&&j.responseData&&j.responseData.translatedText||'').trim();if(s&&!/MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(s))return s;why.push('mymemory '+s.slice(0,60))}else why.push('mymemory '+r.status)}catch(e){why.push('mymemory '+e.message)}
       return''};
-    return Promise.all((texts||[]).map(one))}
+    const out=await Promise.all((texts||[]).map(one));if(why.length)console.log('translateToFa',why.slice(0,6).join(' | '));return out}
   // Broker order history (easytrader / Mofid «تاریخچه سفارشات» export): columns found by header name. Only orders with
   // a filled volume count (edited/deleted/expired ones have 0); a partly filled order counts for what was filled.
   function brokerOrderRows(rows){
