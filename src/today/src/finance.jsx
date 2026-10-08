@@ -730,6 +730,18 @@ export function FinanceReact({ Nav }) {
               <button type="button" className="fn-save" onClick={() => { setTab('ledger'); setFilter('misc') }}>دسته‌بندی کن</button>
             </div>
           ) : null}
+          {accounts.filter((a) => Math.abs(Number(a.smsDiff) || 0) >= 1).map((a) => (
+            <div key={'gap' + a.id} className="fn-banner">
+              <span>⚠️ موجودی <b>{a.name}</b> با آخرین پیامک بانک <b>{faMoney(Math.abs(a.smsDiff))}</b> {a.smsDiff < 0 ? 'کمتر' : 'بیشتر'} است — یعنی تراکنشی ثبت نشده.</span>
+              <button type="button" className="fn-save" onClick={() => send(`/api/accounts/${a.id}/reconcile`, {}, 'اختلاف به‌صورت یک تراکنش ثبت شد؛ می‌توانی ویرایشش کنی.')}>همسان‌سازی</button>
+            </div>
+          ))}
+          {accounts.length && !accounts.some((a) => a.sms || /بلو|blu/i.test(a.name)) && txs.some((t) => t.source === 'sms') ? (
+            <div className="fn-banner">
+              <span>📩 پیامک‌های بانک به هیچ حسابی وصل نیستند و موجودی حساب‌ها به‌روز نمی‌شود.</span>
+              <button type="button" className="fn-save" onClick={() => setTab('budget')}>انتخاب حساب پیامک</button>
+            </div>
+          ) : null}
           {summary.transferCount ? <p className="fn-note">🔄 {fa(summary.transferCount)} انتقال ({short(summary.transferOut)}) جزو هزینه حساب نشده.</p> : null}
           </> : null}
         </section>
@@ -882,7 +894,10 @@ export function FinanceReact({ Nav }) {
                   {a.cardNo ? <CopyBtn label="شماره کارت" text={a.cardNo} /> : null}
                   {a.sheba ? <CopyBtn label="شبا" text={a.sheba} /> : null}
                   {mine.length ? <div className="xc-list">{mine.map((t) => <div key={t.id}><span>{t.title}<small> · {jalaliShort(t.date)}</small></span><b className={t.kind === 'income' || t.toAccount === a.name ? 'xc-in' : 'xc-out'}>{short(t.amount)}</b></div>)}</div> : <p className="xc-sub">این ماه تراکنشی با این حساب نیست.</p>}
-                  <div className="xc-row"><button type="button" className="xc-pill" onClick={() => setEditing({ type: 'account', item: a })}>ویرایش و شماره کارت</button></div>
+                  {a.smsBalance != null ? <div className="xc-kv"><div><small>آخرین موجودی پیامک</small><b>{faMoney(a.smsBalance)}</b></div><div><small>اختلاف</small><b className={Math.abs(a.smsDiff || 0) >= 1 ? 'xc-out' : 'xc-in'}>{Math.abs(a.smsDiff || 0) >= 1 ? faMoney(a.smsDiff) : 'هماهنگ ✓'}</b></div></div> : null}
+                  <div className="xc-row"><button type="button" className="xc-pill" onClick={() => setEditing({ type: 'account', item: a })}>ویرایش و شماره کارت</button>
+                    <button type="button" className="xc-pill" onClick={() => send(`/api/accounts/${a.id}`, { sms: !a.sms }, a.sms ? 'پیامک بانک دیگر به این حساب نمی‌نشیند.' : 'پیامک‌های بانک از این به بعد به این حساب می‌نشینند.', 'PATCH')}>{a.sms ? '📩 حساب پیامک ✓' : '📩 حساب پیامک کن'}</button>
+                    {Math.abs(a.smsDiff || 0) >= 1 ? <button type="button" className="xc-pill" onClick={() => send(`/api/accounts/${a.id}/reconcile`, {}, 'اختلاف ثبت شد.')}>همسان‌سازی</button> : null}</div>
                 </> }} />
               <div className="fn-head" style={{ marginTop: 18 }}><h2>🔁 پرداخت‌ها و دریافت‌های تکراری</h2></div>
               {recurring.length ? recurring.map((r) => {
