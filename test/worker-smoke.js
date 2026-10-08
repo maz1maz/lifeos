@@ -575,6 +575,17 @@ async function main() {
     check('holdings after import: bought kept, sold-out closed with realized P/L', all.find(h => h.symbol === 'سیلورت')?.quantity === 6532 && all.find(h => h.symbol === 'تابانت')?.realizedPnl === 3696 * 1150);
     for (const sym of ['سیلورت', 'شکیمیاتست', 'تابانت']) for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent(sym)}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
   }
+  { // Blu «انتقال به سپرده (بنام …)» = money to a person, not a transfer between own accounts
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+    const rows = [['تاریخ', 'شرح', 'نوع تراکنش', 'برداشت', 'واریز', 'شماره سند'], ['1405/07/14', 'انتقال به سپرده (بنام فاطمه صیفی خانی)', 'انتقال به سپرده', '500,000', '', 'D1'], ['1405/07/14', 'دریافت از سپرده (بنام شمسی ساکی)', 'دریافت از سپرده', '', '200,000', 'D2']];
+    let parsed = null; try { parsed = H.parseBankStatementRows(rows, 'IRR'); } catch (e) { parsed = e.message; }
+    const out = Array.isArray(parsed) && parsed.find(x => /فاطمه/.test(x.title)), inn = Array.isArray(parsed) && parsed.find(x => /شمسی/.test(x.title));
+    check('bank import: «انتقال به سپرده» → expense in «انتقال», «دریافت از سپرده» → income not counted as income', out && out.kind === 'expense' && out.category === 'انتقال' && inn && inn.kind === 'income' && inn.notIncome === true, JSON.stringify(parsed).slice(0, 300));
+    const db = { _meta: {}, transactions: [{ kind: 'transfer', account: 'بلو بانک', toAccount: 'سپرده‌های بانکی', amount: 5 }, { kind: 'transfer', account: 'سپرده‌های بانکی', toAccount: 'بلو بانک', amount: 7 }, { kind: 'transfer', account: 'بلو بانک', toAccount: 'کارت اصلی', amount: 9 }] };
+    H.fixDepositTransfers(db);
+    const [a, b, c] = db.transactions;
+    check('old deposit «transfers» fixed once: out → expense, in → income on the real account, real transfers untouched', a.kind === 'expense' && !a.toAccount && a.account === 'بلو بانک' && b.kind === 'income' && b.account === 'بلو بانک' && b.notIncome && c.kind === 'transfer' && db._meta.depositXferFixed && H.fixDepositTransfers(db) === false, JSON.stringify(db));
+  }
   { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
     check('TSE hours: Sunday 10:00 Tehran open, 14:00 closed, Thursday closed', H.tseMarketOpen(at('2026-10-11T06:30:00Z')) && !H.tseMarketOpen(at('2026-10-11T10:30:00Z')) && !H.tseMarketOpen(at('2026-10-08T06:30:00Z')));

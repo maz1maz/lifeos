@@ -385,3 +385,5 @@
 .xc-tx .xc-side { font-style: normal; font-weight: 800; }
 .fn-xpf .xc.open .xc-more .xc-tx.t-buy .xc-side { color: #34d399; } .fn-xpf .xc.open .xc-more .xc-tx.t-sell .xc-side { color: #fb7185; }
 .xc-tx.t-buy .xc-side { color: #34d399; } .xc-tx.t-sell .xc-side { color: #fb7185; }
+/* a transfer between own accounts is neither in nor out: neutral, no arrow */
+.amt.xfer { color: var(--g-muted, #94a3b8); }
