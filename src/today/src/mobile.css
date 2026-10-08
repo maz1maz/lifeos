@@ -65,5 +65,5 @@ button,a,[role=button],label{-webkit-tap-highlight-color:transparent}
   body:has(.bnav){padding-bottom:calc(58px + env(safe-area-inset-bottom,0px))}
   body:has(.bnav) :is(.strk-toast,.plnr-toast,.adm-inbox,.cs-receipt){bottom:calc(70px + env(safe-area-inset-bottom,0px))}
   /* vocab fills the screen with an iframe: leave room for the bar instead of hiding the frame's bottom */
-  body:has(.bnav) .vc-page:not(.vc-fixed){box-sizing:border-box;height:calc(100dvh / var(--app-zoom,1) - 58px - env(safe-area-inset-bottom,0px))}
+  body:has(.bnav) .vc-page{box-sizing:border-box;height:calc(100dvh / var(--app-zoom,1) - 58px - env(safe-area-inset-bottom,0px))}
 }

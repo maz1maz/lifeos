@@ -1346,7 +1346,6 @@ function pinToFrameWidth() {
     if (window.parent === window) return;
     const pw = window.parent.innerWidth, z = parseFloat(getComputedStyle(window.parent.document.body).zoom) || 1;
     const phone = pw <= 700;
-    document.documentElement.classList.toggle("embedded-phone", phone);
     if (!phone) { document.documentElement.style.width = document.body.style.width = ""; return; }
     const w = Math.floor(pw / z);
     document.documentElement.style.width = document.body.style.width = w + "px";
@@ -1355,7 +1354,7 @@ function pinToFrameWidth() {
 }
 function boot() {
   pinToFrameWidth(); addEventListener("resize", pinToFrameWidth);
-  $("#homeBtn") && ($("#homeBtn").onclick = () => { try { window.parent.location.href = "/"; } catch (e) { location.href = "/"; } });
+  $("#homeBtn") && ($("#homeBtn").onclick = () => { try { (window.parent !== window ? window.parent : window).location.href = "/"; } catch (e) { location.href = "/"; } });
   try { window.parent.addEventListener("resize", pinToFrameWidth); } catch (e) {}
   wheelScrollX($("#levelBar")); wheelScrollX($("#topicBar"));
   $("#deckSize").textContent = fa(DECK.length);

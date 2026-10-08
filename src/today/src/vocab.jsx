@@ -5,15 +5,12 @@ import { api, fa } from './life-core';
 import './vocab.css';
 
 export function VocabPage({ Nav }) {
-  // phones: the app takes the whole screen (no LifeOS top bar, tabs or bottom bar — they stole room and the page
-  // panned sideways while swiping a card). The vocab app shows its own «خانه» link to get back.
+  // phones: iPhone Safari sizes an iframe to its content (the app ended up wider than the screen and panned while
+  // swiping a card), so on a phone the app opens as its own full page; its «خانه» button leads back here.
   const phone = typeof matchMedia === 'function' && matchMedia('(max-width:700px)').matches;
-  useEffect(() => {
-    if (!phone) return;
-    document.documentElement.classList.add('vc-full'); document.body.classList.add('vc-full'); scrollTo(0, 0);
-    return () => { document.documentElement.classList.remove('vc-full'); document.body.classList.remove('vc-full'); };
-  }, [phone]);
-  return <main className={`vc-page${phone ? ' vc-fixed' : ''}`}>{phone ? null : <Nav />}<iframe className="vc-frame" src="/vocab/index.html" title="زبان — فلش‌کارت آیلتس" allow="autoplay" /></main>;
+  useEffect(() => { if (phone) location.replace('/vocab/index.html'); }, [phone]);
+  if (phone) return <main className="vc-page" />;
+  return <main className="vc-page"><Nav /><iframe className="vc-frame" src="/vocab/index.html" title="زبان — فلش‌کارت آیلتس" allow="autoplay" /></main>;
 }
 
 let SUM = null;
