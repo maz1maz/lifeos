@@ -760,7 +760,8 @@ async function main() {
   };
   const w9sms = await w9parse('۲۴بلو انتقال پل حمیدرضا عزیز 15,000,000 ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23');
   check('worker: reported SMS keeps 15,000,000 ریال as 15,000,000 rial (no divide)', w9sms.status === 200 && w9sms.actions.length === 1 && w9sms.actions[0].amount === 15_000_000, JSON.stringify(w9sms.actions));
-  check('worker: stored row carries the rial amount, never the balance', w9sms.created.length === 1 && w9sms.created[0].amount === 15_000_000);
+  const w9smsRows = ((await call('/api/transactions?month=2026-09', { cookie })).d.items || []).filter(x => x.source === 'sms' && x.date === '2026-09-14'); // the SMS's own date (1405.06.23), not today
+  check('worker: stored row carries the rial amount, never the balance', w9sms.created.length === 0 && w9smsRows.length === 1 && w9smsRows[0].amount === 15_000_000, JSON.stringify(w9smsRows));
   const w9bal = await w9parse('موجودی: 3,879,270,699 ریال');
   check('worker: balance-only text creates nothing (stripBalanceNotes must be exported)', w9bal.status === 200 && w9bal.actions.length === 0 && w9bal.created.length === 0);
   const w9ref = await w9parse('شناسه پرداخت ۱۲۳۴۵۶۷۸۹۰');
@@ -1070,6 +1071,34 @@ async function main() {
       const qtx = (await call('/api/transactions', { cookie })).d.items.filter(t => t.date === '2026-10-04' && t.kind === 'expense' && /برداشت/.test(t.title || ''));
       check('queue file: new SMS recorded, old one skipped as duplicate, welcome ignored', q.status === 200 && q.d.ok && q.d.recorded === 1 && q.d.duplicates === 1 && q.d.ignored === 1 && qtx.length === 1, JSON.stringify([q.d, qtx]));
       for (const t of [...qtx, tx[0]].filter(Boolean)) await call('/api/transactions/' + t.id, { method: 'DELETE', cookie });
+    }
+
+    // bank SMS → SMS account: Blu interest/piggy formats, first SMS syncs the balance, a missing SMS shows as a gap, reconcile books it
+    {
+      const smsTok = (await call('/api/site-tokens', { method: 'POST', cookie, body: { label: 'iPhone2', scopes: ['bankSms'] } })).d.token;
+      const acc = (await call('/api/accounts', { method: 'POST', cookie, body: { name: 'حساب پیامک تست', type: 'bank', openingBalance: 0 } })).d;
+      check('mark SMS account', (await call('/api/accounts/' + acc.id, { method: 'PATCH', cookie, body: { sms: true } })).d.sms === true);
+      const s1 = 'بلو\nخرید\nحمیدرضا عزیز، 1,000,000 ریال از حساب شما پرید.\nموجودی: 9,000,000 ریال\n۱۰:۰۰\n۱۴۰۵.۰۷.۱۴';
+      const s3 = 'بلو\nسود\nحمیدرضا عزیز، 50,000 ریال سود به حساب شما نشست.\nموجودی: 7,050,000 ریال\n۱۲:۰۰\n۱۴۰۵.۰۷.۱۵';
+      const r = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: s3 + '\n###\n' + s1 } });
+      const mine = (await call('/api/transactions', { cookie })).d.items.filter((t) => t.account === acc.name);
+      const sud = mine.find((t) => t.amount === 50000);
+      check('interest SMS is income on the SMS account', !!sud && sud.kind === 'income' && sud.title === 'سود' && sud.date === '2026-10-07', JSON.stringify([r.d, mine]));
+      let a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
+      check('first SMS syncs balance; skipped SMS (2,000,000) shows as gap', a1.smsBalance === 7050000 && a1.smsDiff === -2000000 && a1.balance === 9050000, JSON.stringify([r.d, a1]));
+      check('gap is reported back', (r.d.notes || []).some((n) => /جا افتاده/.test(n)), JSON.stringify(r.d));
+      const rc = await call('/api/accounts/' + acc.id + '/reconcile', { method: 'POST', cookie });
+      a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
+      check('reconcile books the gap as an expense', rc.status === 201 && rc.d.transaction.amount === 2000000 && rc.d.transaction.kind === 'expense' && a1.smsDiff === 0 && a1.balance === 7050000, JSON.stringify([rc.d, a1]));
+      const pig = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nحمیدرضا عزیز، 3,000,000 ریال از قلک شما به حساب شما منتقل شد.\nموجودی: 10,050,000 ریال\n۱۳:۰۰\n۱۴۰۵.۰۷.۱۵' } });
+      a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
+      const pt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.toAccount === acc.name && t.amount === 3000000);
+      check('piggy-bank SMS is a transfer into the account, balance stays in sync', pig.status === 201 && pt && pt.kind === 'transfer' && a1.smsDiff === 0, JSON.stringify([pig.d, pt, a1]));
+      const bad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بانک\nبرداشت وجه انجام شد' } });
+      const inb = (await call('/api/inbox', { cookie })).d;
+      check('unreadable bank SMS lands in Inbox', bad.status === 422 && JSON.stringify(inb).includes('برداشت وجه انجام شد'), JSON.stringify([bad.d]));
+      for (const t of (await call('/api/transactions', { cookie })).d.items.filter((t) => t.account === acc.name || t.toAccount === acc.name)) await call('/api/transactions/' + t.id, { method: 'DELETE', cookie });
+      await call('/api/accounts/' + acc.id, { method: 'PATCH', cookie, body: { archived: true, sms: false } });
     }
 
     // learn-by-title: generic bank titles must not spread one category to every store
