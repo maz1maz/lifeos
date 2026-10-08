@@ -1243,14 +1243,24 @@ function LiveCalendar({ today }) {
   const dayItems = d => items.filter(ev => (ev.source !== 'lifeos' || ev.time) && eventOnDate(ev, d));
   const todayCount = dayItems(fromIso(today)).length;
   const nowHm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
-  return <Card className="calendar live-cal" icon={CalendarDays} title={`${JALALI_MONTHS[ym.jm - 1]} ${faDigits(ym.jy)}`} action={<div className="lc-nav"><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy - 1, jm }))} aria-label="سال قبل"><ChevronsRight size={15} /></button><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={15} /></button>{(ym.jy !== t.jy || ym.jm !== t.jm) && <button type="button" className="lc-today" onClick={goToday}>امروز</button>}<button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={15} /></button><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy + 1, jm }))} aria-label="سال بعد"><ChevronsLeft size={15} /></button></div>}>
+  // the card's back: «امروز در تاریخ» (Wikipedia, in Persian) — opened from the footer or by tapping today's cell
+  const [flip, setFlip] = useState(null), [otd, setOtd] = useState(null); // null = never flipped (no animation on load)
+  const toggleFlip = () => { setFlip(f => !f); if (!otd || otd.error) api('/api/calendar/on-this-day?fa=1').then(setOtd).catch(e => setOtd({ error: e.message })); };
+  if (flip) return <Card className="calendar live-cal lc-back" icon={CalendarDays} title="امروز در تاریخ" action={<button type="button" className="lc-flip" onClick={toggleFlip}>↩ تقویم</button>}>
+    <div className="lc-otd dc-anim">
+      {!otd ? <p className="lc-otd-wait">در حال دریافت و ترجمه…</p> : otd.error ? <p className="lc-otd-wait">⚠ {otd.error}</p> : !(otd.events || []).length ? <p className="lc-otd-wait">رویدادی پیدا نشد.</p>
+        : <ul>{otd.events.map((e, i) => <li key={i}><i>{faDigits(e.year)}</i><span dir={otd.lang === 'en' || e.en ? 'ltr' : undefined}>{e.text}</span></li>)}</ul>}
+      {otd && !otd.error ? <small className="lc-otd-note">{otd.lang === 'en' ? 'ترجمه در دسترس نبود؛ متن اصلی ویکی‌پدیا.' : otd.mt ? 'از ویکی‌پدیا · ترجمهٔ ماشینی' : 'از ویکی‌پدیا'}</small> : null}
+    </div>
+  </Card>;
+  return <Card className={`calendar live-cal${flip === false ? ' dc-anim' : ''}`} icon={CalendarDays} title={`${JALALI_MONTHS[ym.jm - 1]} ${faDigits(ym.jy)}`} action={<div className="lc-nav"><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy - 1, jm }))} aria-label="سال قبل"><ChevronsRight size={15} /></button><button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={15} /></button>{(ym.jy !== t.jy || ym.jm !== t.jm) && <button type="button" className="lc-today" onClick={goToday}>امروز</button>}<button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={15} /></button><button type="button" onClick={() => setYm(({ jy, jm }) => ({ jy: jy + 1, jm }))} aria-label="سال بعد"><ChevronsLeft size={15} /></button></div>}>
     <div className="weekdays">{WEEKDAYS.map(x => <span key={x}>{x}</span>)}</div>
     <div className="calendar-days">{[...Array(lead)].map((_, i) => <span key={`blank${i}`} />)}{days.map((day, i) => {
       const v = iso(day), evs = events[jKey(ym.jy, ym.jm, i + 1)] || [], holiday = weekdayIndex(day) === 6 || evs.some(e => e.h), n = dayItems(day).length;
       const tip = [...evs.map(e => e.t.replace(/\[.*?\]/g, '').trim()), ...dayItems(day).map(ev => `${ev.time ? faDigits(ev.time) + ' · ' : ''}${ev.title}`)].join('\n');
-      return <button type="button" key={v} title={tip} className={`${v === today ? 'today' : ''} ${holiday ? 'holiday' : ''}`} onClick={() => { location.href = '/?page=calendar'; }}>{faDigits(i + 1)}{n > 0 && <i className="dot" />}</button>;
+      return <button type="button" key={v} title={tip} className={`${v === today ? 'today' : ''} ${holiday ? 'holiday' : ''}`} onClick={() => { if (v === today) toggleFlip(); else location.href = '/?page=calendar'; }}>{faDigits(i + 1)}{n > 0 && <i className="dot" />}</button>;
     })}</div>
-    <div className="lc-foot"><span>{todayCount ? `امروز ${fa(todayCount)} برنامهٔ ساعت‌دار` : 'امروز برنامهٔ ساعت‌داری نداری'}</span><a href="/?page=calendar">تقویم کامل ←</a></div>
+    <div className="lc-foot"><span>{todayCount ? `امروز ${fa(todayCount)} برنامهٔ ساعت‌دار` : 'امروز برنامهٔ ساعت‌داری نداری'}</span><span className="lc-foot-links"><button type="button" className="lc-flip" onClick={toggleFlip}>📜 امروز در تاریخ</button><a href="/?page=calendar">تقویم کامل ←</a></span></div>
   </Card>;
 }
 
@@ -1290,9 +1300,6 @@ function DayCard({ today, greeting, summary, streak }) {
   const [src, setSrc] = useState(photo.local);
   const [events, setEvents] = useState({});
   const [bdays, setBdays] = useState([]);
-  // tapping the date flips the panel to «امروز در تاریخ» (Wikipedia, translated to Persian); loaded on first flip
-  const [flip, setFlip] = useState(null), [otd, setOtd] = useState(null); // null = never flipped (no animation on load)
-  const toggleFlip = () => { setFlip(f => !f); if (!otd) api('/api/calendar/on-this-day?fa=1').then(setOtd).catch(e => setOtd({ error: e.message })); };
   useEffect(() => {
     api('/api/contacts').then(r => {
       setBdays((r.items || []).map(c => {
@@ -1326,20 +1333,14 @@ function DayCard({ today, greeting, summary, streak }) {
       {summary && <p>{summary}</p>}
       {streak > 0 && <span className="dc-streak"><Flame size={13} />{fa(streak)} روز پیوسته ثبت روزانه</span>}
     </div>
-    {flip ? <div className="dc-panel dc-otd dc-anim" key="otd">
-      <button type="button" className="dc-otd-head" onClick={toggleFlip} aria-label="برگشت به تقویم"><b>امروز در تاریخ</b><span>{faDigits(j.jd)} {JALALI_MONTHS[j.jm - 1]} · برگرد ↩</span></button>
-      {!otd ? <p className="dc-otd-wait">در حال دریافت…</p> : otd.error ? <p className="dc-otd-wait">⚠ {otd.error}</p> : !(otd.events || []).length ? <p className="dc-otd-wait">رویدادی پیدا نشد.</p>
-        : <ul>{otd.events.map((e, i) => <li key={i}><i>{faDigits(e.year)}</i><span dir={otd.lang === 'en' || e.en ? 'ltr' : undefined}>{e.text}</span></li>)}</ul>}
-      {otd && otd.lang === 'en' ? <small className="dc-otd-note">ترجمه در دسترس نبود؛ متن اصلی ویکی‌پدیا.</small> : <small className="dc-otd-note">از ویکی‌پدیا</small>}
-    </div> : <div className={`dc-panel${flip === false ? ' dc-anim' : ''}`} key="cal">
-      <button type="button" className="dc-main" onClick={toggleFlip} title="امروز در تاریخ" aria-label="نمایش امروز در تاریخ">
+    <div className="dc-panel">
+      <div className="dc-main">
         <div className="dc-num">{faDigits(j.jd)}</div>
         <div className="dc-dates">
           <b>{JALALI_MONTHS[j.jm - 1]} {faDigits(j.jy)}</b>
           <span dir="ltr" className="dc-greg">{greg}</span>
         </div>
-        <span className="dc-otd-hint" aria-hidden="true">📜</span>
-      </button>
+      </div>
       <div className="dc-progress">
         <div><span>{SEASONS[sIdx][0]} · روز {fa(sDay)} از {fa(sLen)}</span><i><em style={{ width: `${sDay / sLen * 100}%` }} /></i></div>
         <div><span>روز {fa(dayOfYear)} سال · هفتهٔ {fa(week)}</span><i><em style={{ width: `${dayOfYear / yearLen * 100}%` }} /></i></div>
@@ -1349,7 +1350,7 @@ function DayCard({ today, greeting, summary, streak }) {
         {todayEvents.slice(0, 3).map((e, i) => <span key={i} className={`dc-chip ${e.h ? 'off' : ''}`}>{e.t}</span>)}
         {!todayEvents.length && !bdays.length && nextOff && <span className="dc-chip muted">تعطیلی بعدی: {nextOff.days === 1 ? 'فردا' : `${fa(nextOff.days)} روز دیگه`} · {nextOff.t}</span>}
       </div>
-    </div>}
+    </div>
   </Card>;
 }
 

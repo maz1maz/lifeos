@@ -575,6 +575,18 @@ async function main() {
     check('holdings after import: bought kept, sold-out closed with realized P/L', all.find(h => h.symbol === 'سیلورت')?.quantity === 6532 && all.find(h => h.symbol === 'تابانت')?.realizedPnl === 3696 * 1150);
     for (const sym of ['سیلورت', 'شکیمیاتست', 'تابانت']) for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent(sym)}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
   }
+  { // «امروز در تاریخ» in Persian without AI keys: Google's free endpoint, else MyMemory
+    const realFetch = globalThis.fetch, hit = [];
+    globalThis.fetch = async (url, init) => { const u = String(url); hit.push(u.split('?')[0]);
+      if (u.includes('wikipedia.org')) return new Response(JSON.stringify({ events: [{ year: 2016, text: 'Hurricane Matthew kills nearly 900.' }, { year: 2001, text: 'Two planes collide in Milan.' }] }), { headers: { 'content-type': 'application/json' } });
+      if (u.includes('translate.googleapis.com')) return new Response('<html>sorry</html>', { status: 302 });
+      if (u.includes('mymemory')) { const q = new URL(u).searchParams.get('q'); return new Response(JSON.stringify({ responseData: { translatedText: /Matthew/.test(q) ? 'طوفان متیو نزدیک ۹۰۰ نفر را کشت.' : 'دو هواپیما در میلان برخورد کردند.' } }), { headers: { 'content-type': 'application/json' } }); }
+      return realFetch(url, init); };
+    try {
+      const r = await call('/api/calendar/on-this-day?fa=1&date=2026-10-09', { cookie });
+      check('on-this-day translated without AI (Google refused → MyMemory)', r.status === 200 && r.d.lang === 'fa' && r.d.events.length === 2 && /متیو/.test(r.d.events[0].text) && !r.d.events.some(e => e.en), JSON.stringify(r.d).slice(0, 300));
+    } finally { globalThis.fetch = realFetch; }
+  }
   { // Blu «انتقال به سپرده (بنام …)» = money to a person, not a transfer between own accounts
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
     const rows = [['تاریخ', 'شرح', 'نوع تراکنش', 'برداشت', 'واریز', 'شماره سند'], ['1405/07/14', 'انتقال به سپرده (بنام فاطمه صیفی خانی)', 'انتقال به سپرده', '500,000', '', 'D1'], ['1405/07/14', 'دریافت از سپرده (بنام شمسی ساکی)', 'دریافت از سپرده', '', '200,000', 'D2']];
