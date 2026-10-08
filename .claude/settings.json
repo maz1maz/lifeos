@@ -1,1 +1,2 @@
 { "permissions": { "allow": ["Bash(curl -sS -X POST https://api.cloudflare.com/client/v4/accounts/*/d1/database/*/query*)"] } }
+"Bash(python3 /tmp/claude-0/*/fix.py*)", "Bash(*npm run deploy*)"
