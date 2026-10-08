@@ -751,7 +751,7 @@ export function FinanceReact({ Nav }) {
               {txs.length ? txs.slice(0, 8).map((t) => (
                 <article key={t.id} className="fn-row">
                   <div><b>{t.title}</b><small>{jalaliShort(t.date)} · {t.category}{t.account ? ` · ${t.account}` : ''}</small></div>
-                  <span className={`amt ${t.kind === 'income' ? 'pos' : 'neg'}`}>{t.kind === 'transfer' ? '↔ ' : ''}{amt(t.amount)}</span>
+                  <span className={`amt ${t.kind === 'income' ? 'pos' : t.kind === 'transfer' ? 'xfer' : 'neg'}`} title={t.kind === 'transfer' ? 'انتقال بین حساب‌ها' : undefined}>{amt(t.amount)}</span>
                 </article>
               )) : <EmptyTx hint={emptyHint} onJump={(d) => setMonth(jKeyOf(d))} />}
             </section>
@@ -835,7 +835,7 @@ export function FinanceReact({ Nav }) {
                     <b>{item.title}</b>
                     <small>{jalaliShort(item.date)} · {isMisc(item) ? <select className="fn-catpick" value="" onChange={(e) => setCat(item, e.target.value)} aria-label="انتخاب دسته"><option value="">متفرقه — دسته؟</option>{CATS.filter((c) => c !== 'متفرقه' && c !== 'حقوق').map((c) => <option key={c} value={c}>{c}</option>)}<option value="انتقال">انتقال (هزینه نیست)</option></select> : item.category} · {item.account}{item.tags?.length ? ` · ${item.tags.map((t) => `#${t}`).join(' ')}` : ''}</small>
                   </div>
-                  <span className={`amt ${item.kind === 'income' ? 'pos' : 'neg'}`}>{item.kind === 'transfer' ? '↔ ' : ''}{amt(item.amount)}</span>
+                  <span className={`amt ${item.kind === 'income' ? 'pos' : item.kind === 'transfer' ? 'xfer' : 'neg'}`} title={item.kind === 'transfer' ? 'انتقال بین حساب‌ها' : undefined}>{amt(item.amount)}</span>
                   <div className="fn-ops">
                     <button type="button" onClick={() => setEditing({ type: 'transaction', item })}>ویرایش</button>
                     <button type="button" className="del" onClick={() => { if (window.confirm(`«${item.title}» حذف شود؟`)) send(`/api/transactions/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
