@@ -1036,19 +1036,19 @@ button,input,select,textarea{font-family:inherit}
 .drawer-out{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;min-height:42px;border:0;border-radius:var(--g-radius-control);background:none;color:var(--g-muted);font:inherit;font-size:14px;cursor:pointer;text-align:right}
 .drawer-out:hover,.drawer-out:focus-visible{background:color-mix(in srgb,#f87171 10%,transparent);color:#f87171}
 
-/* date card: the date is a button; tapping it flips the panel to «امروز در تاریخ» */
-button.dc-main{all:unset;display:flex;align-items:center;gap:14px;cursor:pointer;border-radius:12px;position:relative}
-button.dc-main:focus-visible{outline:2px solid var(--g-gold,#d4a843);outline-offset:4px}
-.dc-otd-hint{font-size:15px;opacity:.75;margin-inline-start:4px;transition:transform .2s}
-button.dc-main:hover .dc-otd-hint{transform:rotate(-12deg) scale(1.15);opacity:1}
-.dc-panel.dc-anim{animation:dcFlip .45s cubic-bezier(.2,.8,.2,1)}
+/* calendar card back: «امروز در تاریخ» (flip in from the side) */
+.dc-anim{animation:dcFlip .45s cubic-bezier(.2,.8,.2,1)}
 @keyframes dcFlip{from{transform:perspective(900px) rotateY(-80deg);opacity:0}to{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){.dc-panel.dc-anim{animation:none}}
-.dc-otd{display:flex;flex-direction:column;gap:8px;max-height:340px}
-.dc-otd-head{all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.dc-otd-head b{font-size:15px}.dc-otd-head span{font-size:12px;opacity:.75}
-.dc-otd ul{list-style:none;margin:0;padding:0;overflow:auto;display:grid;gap:8px}
-.dc-otd li{display:grid;grid-template-columns:44px 1fr;gap:10px;font-size:13px;line-height:1.75}
-.dc-otd li i{font-style:normal;font-weight:800;color:var(--g-gold,#d4a843)}
-.dc-otd-wait{margin:0;font-size:13px;opacity:.8}.dc-otd-note{font-size:11px;opacity:.6}
-.dc2 .dc-panel.dc-otd{background:rgba(10,12,16,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:12px 14px;border-radius:16px}
+@media (prefers-reduced-motion:reduce){.dc-anim{animation:none}}
+.lc-flip{all:unset;cursor:pointer;font-size:12.5px;color:var(--g-gold,#d4a843);font-weight:700}
+.lc-flip:hover{text-decoration:underline}.lc-flip:focus-visible{outline:2px solid var(--g-gold,#d4a843);outline-offset:3px;border-radius:4px}
+.lc-foot-links{display:inline-flex;gap:14px;align-items:center}
+.lc-otd{display:flex;flex-direction:column;gap:10px}
+.lc-otd ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-height:300px;overflow:auto}
+.lc-otd li{font-size:13.5px;line-height:1.8;border-radius:10px}
+.lc-otd-ev{all:unset;cursor:pointer;display:grid;grid-template-columns:44px 1fr;gap:10px;width:100%;box-sizing:border-box;padding:4px 6px;border-radius:10px}
+.lc-otd-ev:hover,.lc-otd li.open .lc-otd-ev{background:rgba(255,255,255,.05)}.lc-otd-ev:focus-visible{outline:2px solid var(--g-gold,#d4a843)}
+.lc-otd-ev i{font-style:normal;font-weight:800;color:var(--g-gold,#d4a843)}
+.lc-otd-more{margin:4px 54px 6px 6px;padding:8px 10px;border-inline-start:2px solid var(--g-gold,#d4a843);font-size:12.5px;color:var(--g-muted);display:grid;gap:6px}
+.lc-otd-more p{margin:0;color:var(--g-text,inherit);line-height:1.9}.lc-otd-more a{color:var(--g-gold,#d4a843);text-decoration:none;font-weight:700}
+.lc-otd-wait{margin:0;font-size:13px;color:var(--g-muted)}.lc-otd-note{font-size:11px;color:var(--g-muted)}

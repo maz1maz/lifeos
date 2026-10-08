@@ -456,6 +456,20 @@ async function main() {
       check('assistant: overview leaks no ids', !/"userId"|"id":/.test(JSON.stringify(j.overview)));
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
   }
+  { // AI without keys (or keys refused): Cloudflare's own model through the AI binding answers
+    const realFetch = globalThis.fetch, asked = [];
+    env.AI = { run: async (model, input) => { asked.push(model); if (/m2m100/.test(model)) return { translated_text: 'ترجمه' }; return { response: 'پاسخ از Workers AI' }; } };
+    env.AI_PROVIDER_API_KEY = 'k'; env.AI_PROVIDER_BASE_URL = 'https://ai.test/v1'; env.AI_MODEL = 'm';
+    globalThis.fetch = async (url, init) => String(url).startsWith('https://ai.test/') ? new Response('{"error":"Forbidden"}', { status: 403 }) : realFetch(url, init);
+    try {
+      const r = await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام', page: 'finance' } });
+      check('assistant falls back to Workers AI when the keyed provider refuses', r.status === 200 && r.d.reply === 'پاسخ از Workers AI' && asked.some(m => /llama/.test(m)), JSON.stringify(r.d));
+      delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL;
+      const r2 = await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام' } });
+      check('assistant works with no key at all when the AI binding exists', r2.status === 200 && r2.d.reply === 'پاسخ از Workers AI', JSON.stringify(r2.d));
+      check('a refused provider is skipped for a while (no second 403 round trip)', globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.size >= 1);
+    } finally { globalThis.fetch = realFetch; delete env.AI; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.clear(); }
+  }
   { // work-time log: manual entries, validation, edit, timer start/stop
     const a = await call('/api/time', { method: 'POST', cookie, body: { title: 'گزارش پروژه', minutes: 95, date: '2026-02-03', projectId: 'p1' } });
     check('time: manual entry', a.status === 201 && a.d.minutes === 95 && a.d.projectId === 'p1');
@@ -574,6 +588,18 @@ async function main() {
     const pf = (await call('/api/portfolio', { cookie })).d; const all = pf.items || pf.holdings || [];
     check('holdings after import: bought kept, sold-out closed with realized P/L', all.find(h => h.symbol === 'سیلورت')?.quantity === 6532 && all.find(h => h.symbol === 'تابانت')?.realizedPnl === 3696 * 1150);
     for (const sym of ['سیلورت', 'شکیمیاتست', 'تابانت']) for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent(sym)}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
+  { // «امروز در تاریخ» in Persian without AI keys: Google's free endpoint, else MyMemory
+    const realFetch = globalThis.fetch, hit = [];
+    globalThis.fetch = async (url, init) => { const u = String(url); hit.push(u.split('?')[0]);
+      if (u.includes('wikipedia.org')) return new Response(JSON.stringify({ events: [{ year: 2016, text: 'Hurricane Matthew kills nearly 900.' }, { year: 2001, text: 'Two planes collide in Milan.' }] }), { headers: { 'content-type': 'application/json' } });
+      if (u.includes('translate.googleapis.com')) return new Response('<html>sorry</html>', { status: 302 });
+      if (u.includes('mymemory')) { const q = new URL(u).searchParams.get('q'); return new Response(JSON.stringify({ responseData: { translatedText: /Matthew/.test(q) ? 'طوفان متیو نزدیک ۹۰۰ نفر را کشت.' : 'دو هواپیما در میلان برخورد کردند.' } }), { headers: { 'content-type': 'application/json' } }); }
+      return realFetch(url, init); };
+    try {
+      const r = await call('/api/calendar/on-this-day?fa=1&date=2026-10-09', { cookie });
+      check('on-this-day translated without AI (Google refused → MyMemory)', r.status === 200 && r.d.lang === 'fa' && r.d.events.length === 2 && /متیو/.test(r.d.events[0].text) && !r.d.events.some(e => e.en), JSON.stringify(r.d).slice(0, 300));
+    } finally { globalThis.fetch = realFetch; }
   }
   { // Blu «انتقال به سپرده (بنام …)» = money to a person, not a transfer between own accounts
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
