@@ -1,26 +1,19 @@
 // «زبان»: the IELTS flashcard app lives at /vocab/ (static, same origin) and syncs progress to /api/vocab.
 // This file wraps it in the LifeOS shell and adds the Today card + stats block.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, fa } from './life-core';
 import './vocab.css';
 
 export function VocabPage({ Nav }) {
-  // phones: the page ends exactly where the bottom tab bar starts (measured, not guessed: on an iPhone the bar is
-  // taller than the CSS estimate — safe area + body zoom — and covered the app's rating buttons)
-  const ref = useRef(null);
+  // phones: the app takes the whole screen (no LifeOS top bar, tabs or bottom bar — they stole room and the page
+  // panned sideways while swiping a card). The vocab app shows its own «خانه» link to get back.
+  const phone = typeof matchMedia === 'function' && matchMedia('(max-width:700px)').matches;
   useEffect(() => {
-    const fit = () => {
-      const m = ref.current; if (!m) return;
-      if (innerWidth > 700) { m.style.height = ''; return; }
-      const z = parseFloat(getComputedStyle(document.body).zoom) || 1, nav = document.querySelector('.bnav');
-      const bottom = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().top : (window.visualViewport ? visualViewport.height : innerHeight);
-      m.style.height = Math.max(320, Math.floor((bottom - m.getBoundingClientRect().top) / z)) + 'px';
-    };
-    fit(); const t = setTimeout(fit, 600);
-    addEventListener('resize', fit); window.visualViewport?.addEventListener('resize', fit);
-    return () => { clearTimeout(t); removeEventListener('resize', fit); window.visualViewport?.removeEventListener('resize', fit); };
-  }, []);
-  return <main className="vc-page" ref={ref}><Nav /><iframe className="vc-frame" src="/vocab/index.html" title="زبان — فلش‌کارت آیلتس" allow="autoplay" /></main>;
+    if (!phone) return;
+    document.documentElement.classList.add('vc-full'); document.body.classList.add('vc-full'); scrollTo(0, 0);
+    return () => { document.documentElement.classList.remove('vc-full'); document.body.classList.remove('vc-full'); };
+  }, [phone]);
+  return <main className={`vc-page${phone ? ' vc-fixed' : ''}`}>{phone ? null : <Nav />}<iframe className="vc-frame" src="/vocab/index.html" title="زبان — فلش‌کارت آیلتس" allow="autoplay" /></main>;
 }
 
 let SUM = null;

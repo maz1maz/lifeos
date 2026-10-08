@@ -503,7 +503,8 @@ function renderStudy() {
     if (Math.abs(e.touches[0].clientY - sy) > Math.abs(dx)) { dx = 0; fc.style.transform = ""; return; }
     fc.style.transform = `translateX(${dx}px) rotate(${dx / 30}deg)${flipped ? " rotateY(180deg)" : ""}`;
     fc.classList.toggle("sw-r", dx > 70); fc.classList.toggle("sw-l", dx < -70);
-  }, { passive: true });
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
   fc.addEventListener("touchend", () => {
     if (sx === null) return; sx = null;
     fc.style.transition = ""; fc.style.transform = ""; fc.classList.remove("sw-r", "sw-l");
@@ -1343,15 +1344,18 @@ function wheelScrollX(el) {
 function pinToFrameWidth() {
   try {
     if (window.parent === window) return;
-    const box = window.parent.document.querySelector(".vc-page");
-    const w = box && box.clientWidth;
-    if (!w || window.parent.innerWidth > 700) { document.documentElement.style.width = document.body.style.width = ""; return; }
+    const pw = window.parent.innerWidth, z = parseFloat(getComputedStyle(window.parent.document.body).zoom) || 1;
+    const phone = pw <= 700;
+    document.documentElement.classList.toggle("embedded-phone", phone);
+    if (!phone) { document.documentElement.style.width = document.body.style.width = ""; return; }
+    const w = Math.floor(pw / z);
     document.documentElement.style.width = document.body.style.width = w + "px";
     document.documentElement.style.overflowX = document.body.style.overflowX = "hidden";
   } catch (e) { /* different origin: nothing to pin */ }
 }
 function boot() {
   pinToFrameWidth(); addEventListener("resize", pinToFrameWidth);
+  $("#homeBtn") && ($("#homeBtn").onclick = () => { try { window.parent.location.href = "/"; } catch (e) { location.href = "/"; } });
   try { window.parent.addEventListener("resize", pinToFrameWidth); } catch (e) {}
   wheelScrollX($("#levelBar")); wheelScrollX($("#topicBar"));
   $("#deckSize").textContent = fa(DECK.length);
