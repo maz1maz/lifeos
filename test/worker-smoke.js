@@ -456,6 +456,19 @@ async function main() {
       check('assistant: overview leaks no ids', !/"userId"|"id":/.test(JSON.stringify(j.overview)));
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
   }
+  { // AI without keys (or keys refused): Cloudflare's own model through the AI binding answers
+    const realFetch = globalThis.fetch, asked = [];
+    env.AI = { run: async (model, input) => { asked.push(model); if (/m2m100/.test(model)) return { translated_text: 'ترجمه' }; return { response: 'پاسخ از Workers AI' }; } };
+    env.AI_PROVIDER_API_KEY = 'k'; env.AI_PROVIDER_BASE_URL = 'https://ai.test/v1'; env.AI_MODEL = 'm';
+    globalThis.fetch = async (url, init) => String(url).startsWith('https://ai.test/') ? new Response('{"error":"Forbidden"}', { status: 403 }) : realFetch(url, init);
+    try {
+      const r = await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام', page: 'finance' } });
+      check('assistant falls back to Workers AI when the keyed provider refuses', r.status === 200 && r.d.reply === 'پاسخ از Workers AI' && asked.some(m => /llama/.test(m)), JSON.stringify(r.d));
+      delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL;
+      const r2 = await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام' } });
+      check('assistant works with no key at all when the AI binding exists', r2.status === 200 && r2.d.reply === 'پاسخ از Workers AI', JSON.stringify(r2.d));
+    } finally { globalThis.fetch = realFetch; delete env.AI; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
+  }
   { // work-time log: manual entries, validation, edit, timer start/stop
     const a = await call('/api/time', { method: 'POST', cookie, body: { title: 'گزارش پروژه', minutes: 95, date: '2026-02-03', projectId: 'p1' } });
     check('time: manual entry', a.status === 201 && a.d.minutes === 95 && a.d.projectId === 'p1');

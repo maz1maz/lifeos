@@ -1045,6 +1045,10 @@ button,input,select,textarea{font-family:inherit}
 .lc-foot-links{display:inline-flex;gap:14px;align-items:center}
 .lc-otd{display:flex;flex-direction:column;gap:10px}
 .lc-otd ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-height:300px;overflow:auto}
-.lc-otd li{display:grid;grid-template-columns:44px 1fr;gap:10px;font-size:13.5px;line-height:1.8}
-.lc-otd li i{font-style:normal;font-weight:800;color:var(--g-gold,#d4a843)}
+.lc-otd li{font-size:13.5px;line-height:1.8;border-radius:10px}
+.lc-otd-ev{all:unset;cursor:pointer;display:grid;grid-template-columns:44px 1fr;gap:10px;width:100%;box-sizing:border-box;padding:4px 6px;border-radius:10px}
+.lc-otd-ev:hover,.lc-otd li.open .lc-otd-ev{background:rgba(255,255,255,.05)}.lc-otd-ev:focus-visible{outline:2px solid var(--g-gold,#d4a843)}
+.lc-otd-ev i{font-style:normal;font-weight:800;color:var(--g-gold,#d4a843)}
+.lc-otd-more{margin:4px 54px 6px 6px;padding:8px 10px;border-inline-start:2px solid var(--g-gold,#d4a843);font-size:12.5px;color:var(--g-muted);display:grid;gap:6px}
+.lc-otd-more p{margin:0;color:var(--g-text,inherit);line-height:1.9}.lc-otd-more a{color:var(--g-gold,#d4a843);text-decoration:none;font-weight:700}
 .lc-otd-wait{margin:0;font-size:13px;color:var(--g-muted)}.lc-otd-note{font-size:11px;color:var(--g-muted)}

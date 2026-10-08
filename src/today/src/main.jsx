@@ -1245,11 +1245,16 @@ function LiveCalendar({ today }) {
   const nowHm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
   // the card's back: «امروز در تاریخ» (Wikipedia, in Persian) — opened from the footer or by tapping today's cell
   const [flip, setFlip] = useState(null), [otd, setOtd] = useState(null); // null = never flipped (no animation on load)
+  const [openOtd, setOpenOtd] = useState(null);
   const toggleFlip = () => { setFlip(f => !f); if (!otd || otd.error) api('/api/calendar/on-this-day?fa=1').then(setOtd).catch(e => setOtd({ error: e.message })); };
   if (flip) return <Card className="calendar live-cal lc-back" icon={CalendarDays} title="امروز در تاریخ">
     <div className="lc-otd dc-anim">
       {!otd ? <p className="lc-otd-wait">در حال دریافت و ترجمه…</p> : otd.error ? <p className="lc-otd-wait">⚠ {otd.error}</p> : !(otd.events || []).length ? <p className="lc-otd-wait">رویدادی پیدا نشد.</p>
-        : <ul>{otd.events.map((e, i) => <li key={i}><i>{faDigits(e.year)}</i><span dir={otd.lang === 'en' || e.en ? 'ltr' : undefined}>{e.text}</span></li>)}</ul>}
+        : <ul>{otd.events.map((e, i) => <li key={i} className={openOtd === i ? 'open' : ''}>
+          {/* tap an event: its article's summary (translated) + a link to the full Wikipedia page */}
+          <button type="button" className="lc-otd-ev" onClick={() => setOpenOtd(o => o === i ? null : i)} aria-expanded={openOtd === i}><i>{faDigits(e.year)}</i><span dir={otd.lang === 'en' || e.en ? 'ltr' : undefined}>{e.text}</span></button>
+          {openOtd === i ? <div className="lc-otd-more">{e.more ? <p dir={otd.lang === 'en' || e.moreEn ? 'ltr' : undefined}>{e.more}</p> : null}{e.url ? <a href={e.url} target="_blank" rel="noopener noreferrer">{e.title ? `«${e.title}» در ویکی‌پدیا` : 'ویکی‌پدیا'} ↗</a> : null}</div> : null}
+        </li>)}</ul>}
           </div>
     {/* same corner as the front's «امروز در تاریخ», so the flip button doesn't move */}
     <div className="lc-foot"><small className="lc-otd-note">{!otd || otd.error ? '' : otd.lang === 'en' ? 'ترجمه در دسترس نبود؛ متن اصلی ویکی‌پدیا' : otd.mt ? 'از ویکی‌پدیا · ترجمهٔ ماشینی' : 'از ویکی‌پدیا'}</small><span className="lc-foot-links"><button type="button" className="lc-flip" onClick={toggleFlip}>📅 تقویم</button></span></div>
