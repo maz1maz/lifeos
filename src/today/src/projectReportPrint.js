@@ -291,6 +291,8 @@ export async function sendProjectReportToTelegram(data) {
 const isPhone = () => typeof window !== 'undefined' && (window.matchMedia?.('(pointer: coarse)').matches || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent));
 // iPhone/iPad: Safari draws the captured report shifted (right edge cut off), so there the report opens as its own
 // page and Safari's print sheet makes the PDF (Share → Save to Files / Print). Its own engine lays Persian out right.
+// installed on the home screen (no browser bar; window.print() is ignored there)
+const isStandalone = () => typeof window !== 'undefined' && (navigator.standalone === true || !!window.matchMedia?.('(display-mode: standalone)').matches);
 export const isIOS = () => typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 // iPhone: the report is shown inside this page (a shadow root keeps the app's CSS out) with «بستن» and «چاپ / PDF»;
 // the app itself is hidden meanwhile, so Safari's print sheet (and «Save to PDF» from it) gets only the report.
@@ -329,6 +331,19 @@ html.lf-rp-open,html.lf-rp-open body{zoom:1!important;padding:0!important;margin
   fit(); addEventListener('resize', fit);
   close.addEventListener('click', () => { removeEventListener('resize', fit); ov.remove(); gst.remove(); document.documentElement.classList.remove('lf-rp-open'); document.title = prevTitle; window.scrollTo(0, y); });
   prn.addEventListener('click', () => window.print());
+  // home-screen app: window.print() does nothing there, so the button becomes a link that opens the report in Safari
+  if (isStandalone()) {
+    prn.disabled = true; prn.textContent = '… آماده‌سازی چاپ';
+    const page = html.replace(/<html([^>]*)>/i, '<html$1 class="capture">')
+      .replace(/<head>/i, `<head><meta name="viewport" content="width=${W + 24}">`)
+      .replace(/<\/head>/i, '<style>@media screen{body{margin:0 auto!important}.lf-hint{margin:8px 0 12px;padding:10px 12px;border-radius:10px;background:#fef3c7;color:#78350f;font:600 13px/1.8 Vazirmatn,Tahoma,sans-serif}}@media print{.lf-hint{display:none!important}}</style></head>')
+      .replace(/<body>/i, '<body><div class="lf-hint">برای PDF یا چاپ: دکمهٔ اشتراک‌گذاری (⬆︎) را بزن و «Print» را انتخاب کن؛ در پیش‌نمایش چاپ دوباره اشتراک‌گذاری ← «Save to Files» فایل PDF می‌سازد.</div>');
+    api('/api/report-link', { method: 'POST', body: JSON.stringify({ html: page }) }).then(d => {
+      const a = document.createElement('a'); a.href = d.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '🖨 باز کردن برای چاپ / PDF';
+      a.setAttribute('style', 'font:700 15px Vazirmatn,Tahoma,sans-serif;padding:10px 18px;border-radius:12px;background:#d4a843;color:#111;text-decoration:none');
+      prn.replaceWith(a);
+    }).catch(e => { prn.textContent = 'ساخت لینک چاپ نشد'; window.alert(e.message || 'ساخت لینک چاپ نشد'); });
+  }
   Promise.resolve(document.fonts?.ready).then(() => fitFirstPage(root, W));
   return true;
 }

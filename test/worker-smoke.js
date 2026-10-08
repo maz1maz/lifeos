@@ -176,6 +176,14 @@ async function main() {
     check('me exposes backup/limit/project-report settings', await (async () => { const m = (await call('/api/me', { cookie })).d.user; return m.backupFreq === 'weekly' && m.funLossLimit === 0 && m.tgProjectsOn === true; })());
     const reportBrand = await call('/api/report-brand', { method: 'PATCH', cookie, body: { headerText: 'شرکت نما <b>', footerText: 'تهران · تلفن ۱۲۳', logo: 'data:image/png;base64,AA==' } });
     check('project PDF branding saves sanitized header, footer and logo', reportBrand.status === 200 && reportBrand.d.headerText === 'شرکت نما b' && reportBrand.d.footerText === 'تهران · تلفن ۱۲۳' && reportBrand.d.logo === 'data:image/png;base64,AA==');
+    { // iPhone home-screen app: the report is kept behind a 30-minute /r/<id> link where no script may run
+      const rl = await call('/api/report-link', { method: 'POST', cookie, body: { html: '<!doctype html><html><body><h1>گزارش</h1><script>alert(1)</script></body></html>' } });
+      const page = rl.d && rl.d.url ? await worker.fetch(new Request('https://worker-smoke.local' + rl.d.url), env, {}) : null;
+      const csp = page ? page.headers.get('content-security-policy') || '' : '';
+      check('report link opens without login and blocks scripts', rl.status === 200 && /^\/r\/[a-f0-9]{32}$/.test(rl.d.url) && page.status === 200 && /گزارش/.test(await page.text()) && /default-src 'none'/.test(csp) && !/script-src/.test(csp) && !page.headers.get('x-lifeos-csp'));
+      check('report link needs login and a whole page', (await call('/api/report-link', { method: 'POST', body: { html: '<!doctype html><p>x' } })).status === 401 && (await call('/api/report-link', { method: 'POST', cookie, body: { html: '<p>x' } })).status === 400);
+      check('unknown report link -> 404', (await worker.fetch(new Request('https://worker-smoke.local/r/' + 'a'.repeat(32)), env, {})).status === 404);
+    }
     check('project PDF branding rejects an oversized logo', (await call('/api/report-brand', { method: 'PATCH', cookie, body: { logo: 'data:image/png;base64,' + 'A'.repeat(230000) } })).status === 400);
     await call('/api/me', { method: 'PATCH', cookie, body: { funLossLimit: '100,000,000', backupFreq: 'daily' } });
     const me44 = (await call('/api/me', { cookie })).d.user;

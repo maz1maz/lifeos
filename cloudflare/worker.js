@@ -17,6 +17,15 @@ export default {
   },
 };
 
+// a printable report kept for 30 minutes (see /api/report-link); no scripts may run in it (security.js)
+async function reportLink(id, env) {
+  const row = await env.DB.prepare('SELECT value FROM kv WHERE key=?').bind('tmp:report:' + id).first().catch(() => null);
+  let rec = null; try { rec = row && JSON.parse(row.value); } catch (e) {}
+  const H = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'X-Lifeos-Csp': 'report' };
+  if (!rec || !(rec.exp > Date.now())) return new Response('<!doctype html><meta charset="utf-8"><p dir="rtl" style="font:16px Tahoma;padding:24px">این لینک گزارش منقضی شده است؛ دوباره از LifeOS بساز.</p>', { status: 404, headers: H });
+  return new Response(rec.html, { headers: H });
+}
+
 async function routeRequest(request, env, ctx) {
   {
     const url = new URL(request.url);
@@ -25,6 +34,7 @@ async function routeRequest(request, env, ctx) {
     if (url.pathname === '/api/tgju/history') return handleTgjuHistory(request, env);
     if (url.pathname.startsWith('/uploads/') && request.method === 'GET') return handleUploadGet(url.pathname, request, env);
     if (url.pathname.startsWith('/s/') || url.pathname.startsWith('/api/s/')) return handleSharedShop(url, request, env);
+    if (/^\/r\/[a-f0-9]{32}$/.test(url.pathname) && request.method === 'GET') return reportLink(url.pathname.slice(3), env);
     if (!url.pathname.startsWith('/api/')) {
       // 🚧 دروازه‌ی لاگین: بدون نشست معتبر، هیچ محتوایی سرو نمی‌شود — فقط صفحه‌ی ورود
       const isPublic = /^\/design\/login-page(\.html)?$/.test(url.pathname) || url.pathname === '/shared-theme.css' || url.pathname === '/shared-ui.js' || url.pathname === '/shared-shell.css' || /^\/assets\/fonts\/vazirmatn-(arabic|latin)\.woff2$/.test(url.pathname) || url.pathname === '/manifest.webmanifest' || /^\/assets\/img\/(icon-\d+|apple-touch-icon|favicon-32|logo|logo-[a-z]+)\.png$/.test(url.pathname) || url.pathname === '/favicon.ico';
