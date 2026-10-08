@@ -1,11 +1,26 @@
 // «زبان»: the IELTS flashcard app lives at /vocab/ (static, same origin) and syncs progress to /api/vocab.
 // This file wraps it in the LifeOS shell and adds the Today card + stats block.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, fa } from './life-core';
 import './vocab.css';
 
 export function VocabPage({ Nav }) {
-  return <main className="vc-page"><Nav /><iframe className="vc-frame" src="/vocab/index.html" title="زبان — فلش‌کارت آیلتس" allow="autoplay" /></main>;
+  // phones: the page ends exactly where the bottom tab bar starts (measured, not guessed: on an iPhone the bar is
+  // taller than the CSS estimate — safe area + body zoom — and covered the app's rating buttons)
+  const ref = useRef(null);
+  useEffect(() => {
+    const fit = () => {
+      const m = ref.current; if (!m) return;
+      if (innerWidth > 700) { m.style.height = ''; return; }
+      const z = parseFloat(getComputedStyle(document.body).zoom) || 1, nav = document.querySelector('.bnav');
+      const bottom = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().top : (window.visualViewport ? visualViewport.height : innerHeight);
+      m.style.height = Math.max(320, Math.floor((bottom - m.getBoundingClientRect().top) / z)) + 'px';
+    };
+    fit(); const t = setTimeout(fit, 600);
+    addEventListener('resize', fit); window.visualViewport?.addEventListener('resize', fit);
+    return () => { clearTimeout(t); removeEventListener('resize', fit); window.visualViewport?.removeEventListener('resize', fit); };
+  }, []);
+  return <main className="vc-page" ref={ref}><Nav /><iframe className="vc-frame" src="/vocab/index.html" title="زبان — فلش‌کارت آیلتس" allow="autoplay" /></main>;
 }
 
 let SUM = null;

@@ -295,7 +295,10 @@ nav.tabs{gap:4px}
 .ratebar{gap:6px;margin-top:10px}
 .ratebar .btn{padding:7px 8px!important;font-size:13.5px!important;border-radius:12px;min-height:0;line-height:1.5}
 .ratebar .btn .muted{font-size:11px!important}
-@media(max-width:560px){.ratebar{grid-template-columns:repeat(4,1fr)!important;gap:5px}.ratebar .btn{font-size:12px!important;padding:6px 4px!important}.ratebar .btn .muted,.ratebar .btn br{display:none}}
+@media(max-width:560px){.ratebar{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px}.ratebar .btn{font-size:12px!important;padding:6px 4px!important;min-width:0;white-space:normal;overflow-wrap:anywhere}.ratebar .btn .muted,.ratebar .btn br{display:none}}
+/* iOS sizes an iframe to its content: nothing in the app may be wider than the screen, or the right edge is cut off */
+html,body{max-width:100%;overflow-x:hidden}
+@media(max-width:700px){.wrap,.card,.fc,.grid,.row,.between{min-width:0;max-width:100%}.grid.g4>*{min-width:0}}
 
 /* desktop: title + tabs become a vertical sidebar (right, RTL), so the card and rating buttons fit on screen */
 @media(min-width:900px){

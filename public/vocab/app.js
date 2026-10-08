@@ -1338,7 +1338,21 @@ function wheelScrollX(el) {
 }
 
 /* ------------------------------------------------------------------- boot */
+/* inside LifeOS on an iPhone: Safari grows an iframe to its content's width, so the page was wider than the screen
+   and its right edge was cut off. Pin the document to the width of the frame's box in the parent page. */
+function pinToFrameWidth() {
+  try {
+    if (window.parent === window) return;
+    const box = window.parent.document.querySelector(".vc-page");
+    const w = box && box.clientWidth;
+    if (!w || window.parent.innerWidth > 700) { document.documentElement.style.width = document.body.style.width = ""; return; }
+    document.documentElement.style.width = document.body.style.width = w + "px";
+    document.documentElement.style.overflowX = document.body.style.overflowX = "hidden";
+  } catch (e) { /* different origin: nothing to pin */ }
+}
 function boot() {
+  pinToFrameWidth(); addEventListener("resize", pinToFrameWidth);
+  try { window.parent.addEventListener("resize", pinToFrameWidth); } catch (e) {}
   wheelScrollX($("#levelBar")); wheelScrollX($("#topicBar"));
   $("#deckSize").textContent = fa(DECK.length);
   $$(".tab").forEach(t => t.onclick = () => { if (VIEW !== t.dataset.v) stopSpeaking(); VIEW = t.dataset.v; render(); });
