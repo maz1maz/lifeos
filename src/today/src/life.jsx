@@ -8,7 +8,7 @@ import { JalaliDateInput, isoToJ, jToIso, MONTHS } from './jdate';
 import { SideLayout } from './sidelist';
 import './life.css';
 import { VocabStats } from './vocab';
-import { printProjectReport, sendProjectReportToTelegram, printCompareReport, isIOS } from './projectReportPrint';
+import { printProjectReport, sendProjectReportToTelegram, printCompareReport } from './projectReportPrint';
 
 import { api, todayIso, addDays, faD, fa, jl, jShort, money, daysTo, dueChip, SaveErrorBar, useCol, Page, FormDrawer, num } from './life-core';
 import { FocusControl } from './life-cards';
@@ -632,7 +632,7 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
   rows.sort((a, b) => key(a) - key(b));
   const sum = f => rows.reduce((a, r) => a + f(r.m), 0);
   // the «چاپ / PDF» button lives in the page actions, next to «بازگشت به پروژه»; it prints the rows in their current order
-  if (printRef) printRef.current = async () => { const pre = isIOS() ? window.open('', '_blank') : null; const name = askPreparer(); const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer: name } }, pre); };
+  if (printRef) printRef.current = async () => { const name = askPreparer(); const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer: name } }); };
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">

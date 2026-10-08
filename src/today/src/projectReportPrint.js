@@ -292,26 +292,44 @@ const isPhone = () => typeof window !== 'undefined' && (window.matchMedia?.('(po
 // iPhone/iPad: Safari draws the captured report shifted (right edge cut off), so there the report opens as its own
 // page and Safari's print sheet makes the PDF (Share → Save to Files / Print). Its own engine lays Persian out right.
 export const isIOS = () => typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
-function openPrintWindow(html, title, pre = null) {
-  // `pre`: a window opened earlier inside the tap (a window opened after an await is blocked as a pop-up)
-  const w = pre || window.open('', '_blank');
-  if (!w) return false;
-  w.document.open(); w.document.write(html); w.document.close();
-  w.document.title = title;
-  // show the whole A4 width on the phone screen (print uses @page anyway)
-  const vp = w.document.createElement('meta'); vp.name = 'viewport'; vp.content = `width=${/landscape/.test(html.slice(0, 4000)) ? 1060 : 760}`; w.document.head.prepend(vp);
-  // a slim bar with the print button (hidden on paper); the handler lives here, not inline (the page CSP forbids inline)
-  const bar = w.document.createElement('div');
-  bar.setAttribute('style', 'position:sticky;top:0;z-index:99;display:flex;gap:8px;justify-content:center;padding:10px;background:#0f172a');
-  const btn = w.document.createElement('button');
-  btn.textContent = '🖨 ذخیرهٔ PDF / چاپ';
-  btn.setAttribute('style', 'font:700 15px Vazirmatn,Tahoma,sans-serif;padding:10px 18px;border-radius:12px;border:0;background:#d4a843;color:#111');
-  btn.addEventListener('click', () => w.print());
-  bar.appendChild(btn);
-  w.document.documentElement.classList.add('capture'); // the same fixed page width as the PDF
-  const st = w.document.createElement('style'); st.textContent = '@media print{.lf-print-bar{display:none!important}}@media screen{body{margin:0 auto!important;box-shadow:0 0 0 1px #e2e8f0}}'; w.document.head.appendChild(st);
-  bar.className = 'lf-print-bar'; w.document.body.prepend(bar);
-  Promise.resolve(w.document.fonts?.ready).then(() => setTimeout(() => { try { w.print(); } catch { /* the button stays */ } }, 300));
+// iPhone: the report is shown inside this page (a shadow root keeps the app's CSS out) with «بستن» and «چاپ / PDF»;
+// the app itself is hidden meanwhile, so Safari's print sheet (and «Save to PDF» from it) gets only the report.
+// (A separate window had no way back in the home-screen app, and its print button did nothing.)
+function openPrintOverlay(html, title, W) {
+  document.querySelector('.lf-rp-ov')?.remove();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  let css = [...doc.querySelectorAll('style')].map(x => x.textContent).join('\n');
+  const global = [];
+  // @page and @font-face only work in the document itself; take them out (nested braces: @bottom-left{…} inside @page)
+  css = css.replace(/@(?:page|font-face)[^{]*\{(?:[^{}]|\{[^{}]*\})*\}/g, m => { global.push(m); return ''; });
+  css = css.replace(/html\.capture body/g, '.rp-body').replace(/html,\s*body/g, '.rp-body').replace(/(^|[}\s,])body(?=[\s{>,.:])/g, '$1.rp-body');
+  const gst = document.createElement('style'); gst.className = 'lf-rp-global';
+  gst.textContent = global.join('\n') + `
+html.lf-rp-open body>*:not(.lf-rp-ov){display:none!important}
+html.lf-rp-open,html.lf-rp-open body{zoom:1!important;padding:0!important;margin:0!important;background:#fff!important;overflow:auto!important;height:auto!important}
+.lf-rp-bar{position:sticky;top:0;z-index:5;display:flex;gap:8px;justify-content:center;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 8px;background:#0f172a}
+.lf-rp-bar button{font:700 15px Vazirmatn,Tahoma,sans-serif;padding:10px 18px;border-radius:12px;border:0;background:#d4a843;color:#111;cursor:pointer}
+.lf-rp-bar button.x{background:#334155;color:#fff}
+.lf-rp-ov{direction:ltr}.lf-rp-host{display:block;margin:0 auto}
+@media screen{.lf-rp-host{zoom:var(--rpz,1);padding:8px 0 24px}}
+@media print{.lf-rp-bar{display:none!important}.lf-rp-host{zoom:1!important;margin:0!important}html.lf-rp-open .lf-rp-ov,html.lf-rp-open .lf-rp-host{visibility:visible!important;position:static!important}}`;
+  document.head.appendChild(gst);
+  const ov = document.createElement('div'); ov.className = 'lf-rp-ov'; // ltr box: a report wider than the screen must not slide off to the left
+  const bar = document.createElement('div'); bar.className = 'lf-rp-bar';
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'x'; close.textContent = '✕ بستن';
+  const prn = document.createElement('button'); prn.type = 'button'; prn.textContent = '🖨 ذخیرهٔ PDF / چاپ';
+  bar.append(prn, close);
+  const host = document.createElement('div'); host.className = 'lf-rp-host'; host.style.width = `${W + 8}px`;
+  const root = host.attachShadow({ mode: 'open' });
+  root.innerHTML = `<style>${css}</style><div class="rp-body" dir="rtl" lang="fa">${doc.body.innerHTML}</div>`;
+  ov.append(bar, host); document.body.appendChild(ov);
+  const prevTitle = document.title, y = window.scrollY;
+  document.documentElement.classList.add('lf-rp-open'); document.title = title; window.scrollTo(0, 0);
+  const fit = () => host.style.setProperty('--rpz', String(Math.min(1, (document.documentElement.clientWidth - 12) / (W + 8))));
+  fit(); addEventListener('resize', fit);
+  close.addEventListener('click', () => { removeEventListener('resize', fit); ov.remove(); gst.remove(); document.documentElement.classList.remove('lf-rp-open'); document.title = prevTitle; window.scrollTo(0, y); });
+  prn.addEventListener('click', () => window.print());
+  Promise.resolve(document.fonts?.ready).then(() => fitFirstPage(root, W));
   return true;
 }
 // (the download fallback uses a Latin name: some browsers drop a Persian one and save «download» without .pdf)
@@ -325,7 +343,7 @@ async function savePdf(blob, filename) {
 
 // Opens the browser print dialog (desktop) or saves the PDF file (phone); the file name is reportFileName.
 export async function printProjectReport(data) {
-  if (isIOS() && openPrintWindow(projectReportHtml(data), reportFileName(data.project).replace(/\.pdf$/, ''))) return;
+  if (isIOS() && openPrintOverlay(projectReportHtml(data), reportFileName(data.project).replace(/\.pdf$/, ''), 695)) return;
   if (isPhone()) return savePdf(await projectReportPdf(data), reportFileName(data.project));
   const title = reportFileName(data.project).replace(/\.pdf$/, '');
   const frame = mountFrame('lf-report-print-frame', 695, projectReportHtml(data), false);
@@ -437,8 +455,8 @@ ${(() => { const pipe = pipelineOf(rows); if (!pipe.length) return ''; const max
 const compareFileName = () => { const j = isoToJ(todayIso()); return `${j.jy}-${pad2(j.jm)}-${pad2(j.jd)}_مقایسه-پروژه‌ها.pdf`; };
 
 // Print dialog (Save as PDF): the browser's own text engine shapes Persian correctly, unlike the canvas path
-export async function printCompareReport(data, pre = null) {
-  if (isIOS() && openPrintWindow(compareReportHtml(data), compareFileName().replace(/\.pdf$/, ''), pre)) return;
+export async function printCompareReport(data) {
+  if (isIOS() && openPrintOverlay(compareReportHtml(data), compareFileName().replace(/\.pdf$/, ''), CMP_W)) return;
   if (isPhone()) { const j = compareFileName(); return savePdf(await renderPdf(compareReportHtml(data), { running: `مقایسهٔ پروژه‌ها – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: j.replace(/\.pdf$/, ''), subject: 'مقایسهٔ پروژه‌ها', W: CMP_W, landscape: true }), j); }
   const title = compareFileName().replace(/\.pdf$/, '');
   const frame = mountFrame('lf-compare-print-frame', CMP_W, compareReportHtml(data), false);
