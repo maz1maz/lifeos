@@ -1094,6 +1094,10 @@ async function main() {
       a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
       const pt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.toAccount === acc.name && t.amount === 3000000);
       check('piggy-bank SMS is a transfer into the account, balance stays in sync', pig.status === 201 && pt && pt.kind === 'transfer' && a1.smsDiff === 0, JSON.stringify([pig.d, pt, a1]));
+      const bill = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: '###\nبلو\nپرداخت قبض\nحمیدرضا عزیز، 1,325,000 ریال بابت پرداخت قبض تلفن همراه از حساب شما پرید.\nموجودی: 8,725,000 ریال\n۱۴:۰۶\n۱۴۰۵.۰۷.۱۶' } });
+      const bt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.amount === 1325000);
+      a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
+      check('Blu bill SMS («ریال بابت … از حساب شما پرید»): SMS account, clean title, date, balance in sync', bill.status === 201 && bt && bt.account === acc.name && bt.kind === 'expense' && bt.title === 'پرداخت قبض تلفن همراه' && bt.date === '2026-10-08' && a1.smsDiff === 0, JSON.stringify([bill.d, bt, a1]));
       const bad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بانک\nبرداشت وجه انجام شد' } });
       const inb = (await call('/api/inbox', { cookie })).d;
       check('unreadable bank SMS lands in Inbox', bad.status === 422 && JSON.stringify(inb).includes('برداشت وجه انجام شد'), JSON.stringify([bad.d]));
