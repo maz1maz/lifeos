@@ -934,8 +934,8 @@ button,input,select,textarea{font-family:inherit}
 .st-table tr.st-group:first-child td{padding-top:4px}
 .fb-grp{font-size:11.5px;color:var(--g-muted);padding:6px 4px 2px;font-weight:700}
 /* v39 — small utility cards don't need the tall fixed row height */
-@media(min-width:1101px){.home-grid>.slot-focus>.card,.home-grid>.slot-bills>.card,.home-grid>.slot-vocab>.card{height:auto!important;min-height:0}}
-.home-grid>.slot-focus,.home-grid>.slot-bills,.home-grid>.slot-vocab{align-self:start}
+@media(min-width:1101px){.home-grid>.slot-focus>.card,.home-grid>.slot-bills>.card,.home-grid>.slot-vocab>.card,.home-grid>.slot-worktime>.card,.home-grid>.slot-exercise>.card,.home-grid>.slot-insights>.card{height:auto!important;min-height:0}}
+.home-grid>.slot-focus,.home-grid>.slot-bills,.home-grid>.slot-vocab,.home-grid>.slot-worktime,.home-grid>.slot-exercise,.home-grid>.slot-insights{align-self:start}
 .focus-card .lf-focus{padding:6px 0}
 /* v42 — the clock / quick-add bar is part of the top header: full width, flush under it, same inner edges */
 @media(min-width:1101px){
@@ -1035,3 +1035,20 @@ button,input,select,textarea{font-family:inherit}
 .mkh-coin{width:24px;height:24px;border-radius:50%;object-fit:cover}
 .drawer-out{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;min-height:42px;border:0;border-radius:var(--g-radius-control);background:none;color:var(--g-muted);font:inherit;font-size:14px;cursor:pointer;text-align:right}
 .drawer-out:hover,.drawer-out:focus-visible{background:color-mix(in srgb,#f87171 10%,transparent);color:#f87171}
+
+/* calendar card back: «امروز در تاریخ» (flip in from the side) */
+.dc-anim{animation:dcFlip .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes dcFlip{from{transform:perspective(900px) rotateY(-80deg);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.dc-anim{animation:none}}
+.lc-flip{all:unset;cursor:pointer;font-size:12.5px;color:var(--g-gold,#d4a843);font-weight:700}
+.lc-flip:hover{text-decoration:underline}.lc-flip:focus-visible{outline:2px solid var(--g-gold,#d4a843);outline-offset:3px;border-radius:4px}
+.lc-foot-links{display:inline-flex;gap:14px;align-items:center}
+.lc-otd{display:flex;flex-direction:column;gap:10px}
+.lc-otd ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-height:300px;overflow:auto}
+.lc-otd li{font-size:13.5px;line-height:1.8;border-radius:10px}
+.lc-otd-ev{all:unset;cursor:pointer;display:grid;grid-template-columns:44px 1fr;gap:10px;width:100%;box-sizing:border-box;padding:4px 6px;border-radius:10px}
+.lc-otd-ev:hover,.lc-otd li.open .lc-otd-ev{background:rgba(255,255,255,.05)}.lc-otd-ev:focus-visible{outline:2px solid var(--g-gold,#d4a843)}
+.lc-otd-ev i{font-style:normal;font-weight:800;color:var(--g-gold,#d4a843)}
+.lc-otd-more{margin:4px 54px 6px 6px;padding:8px 10px;border-inline-start:2px solid var(--g-gold,#d4a843);font-size:12.5px;color:var(--g-muted);display:grid;gap:6px}
+.lc-otd-more p{margin:0;color:var(--g-text,inherit);line-height:1.9}.lc-otd-more a{color:var(--g-gold,#d4a843);text-decoration:none;font-weight:700}
+.lc-otd-wait{margin:0;font-size:13px;color:var(--g-muted)}.lc-otd-note{font-size:11px;color:var(--g-muted)}

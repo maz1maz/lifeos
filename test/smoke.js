@@ -40,6 +40,20 @@ function startFixtureFeedServer(xml) {
     server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
   });
 }
+// A tiny "website": / is HTML that links its feed with <link rel="alternate">, /blog has no feed anywhere.
+function startFixtureSiteServer(xml) {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      if (req.url === '/news.xml') { res.writeHead(200, { 'Content-Type': 'application/rss+xml' }); return res.end(xml); }
+      if (req.url === '/') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html><head><title>سایت نمونه</title><link rel="alternate" type="application/rss+xml" title="RSS" href="/news.xml"></head><body>hi</body></html>'); }
+      if (req.url === '/sport') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html><head><title>ورزش نمونه</title></head><body><a href="/">خانه</a>' + [1, 2, 3, 4, 5, 6].map(i => `<a href="/news/${2000000 + i}/slug-${i}"><span>تیتر خبر ورزشی شماره ${i} دربارهٔ لیگ برتر</span></a>`).join('') + '<a href="https://other.example/news/123456">خبر سایت دیگری که نباید بیاید</a></body></html>'); }
+      if (req.url.startsWith('/news/2000001')) { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html><head><meta property="og:image" content="https://img.test/a.jpg"></head><body><nav><p>منوی سایت که نباید در متن خبر بیاید و طولانی هم هست</p></nav><article><h1>تیتر</h1><p>بند اول متن کامل خبر که به اندازهٔ کافی طولانی است تا خوانده شود.</p><script>var x=1</script><p>بند دوم متن کامل خبر، باز هم با طول کافی برای اینکه حساب شود.</p><p>کوتاه</p></article></body></html>'); }
+      if (req.url === '/blog') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html><head><title>بدون فید</title></head><body>no feed</body></html>'); }
+      res.writeHead(404); res.end('nope');
+    });
+    server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
+  });
+}
 function startGoogleCalendarFixtureServer() {
   return new Promise((resolve) => {
     const state = { calendarCreated: false, calendarId: 'lifeos-calendar@test', nextId: 1, events: new Map() };
@@ -606,9 +620,33 @@ async function main() {
     const fixture = await startFixtureFeedServer(fixtureRss);
     try {
       const source = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'فید تست', url: `http://127.0.0.1:${fixture.port}/feed.xml`, category: 'تکنولوژی' }) }).then(r => r.json());
+      check('adding a source checks the feed and fetches its items right away', source.added === 2 && source.url.endsWith('/feed.xml'));
       const sync1 = await fetch(`${BASE}/api/news/sync`, { method: 'POST', headers: authHeaders }).then(r => r.json());
-      check('sync against a real (local fixture) feed parses both RSS items', sync1.added === 2);
-      check('sync records a per-source success result', sync1.results[0].ok === true && sync1.results[0].found === 2);
+      check('sync records a per-source success result (items already there -> 0 new)', sync1.added === 0 && sync1.results[0].ok === true && sync1.results[0].found === 2);
+      const dup = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ url: `http://127.0.0.1:${fixture.port}/feed.xml` }) });
+      check('the same feed twice -> 409', dup.status === 409);
+      const site = await startFixtureSiteServer(fixtureRss.replace(/fixture-guid/g, 'site-guid'));
+      try {
+        const found = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ url: `http://127.0.0.1:${site.port}/` }) });
+        const fj = await found.json();
+        check('a plain site address finds its feed via <link rel=alternate> and takes the page title as name', found.status === 201 && fj.url.endsWith('/news.xml') && fj.name === 'سایت نمونه' && fj.added === 2, JSON.stringify(fj));
+        const none = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ url: `http://127.0.0.1:${site.port}/blog` }) });
+        check('a site with no feed -> 422 with a message', none.status === 422 && /RSS/.test((await none.json()).error));
+        await fetch(`${BASE}/api/news/sources/${fj.id}`, { method: 'DELETE', headers: authHeaders });
+        const html = await fetch(`${BASE}/api/news/sources`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ url: `http://127.0.0.1:${site.port}/sport` }) });
+        const hj = await html.json();
+        check('a site with no feed but headline links becomes an html source with its headlines', html.status === 201 && hj.kind === 'html' && hj.added === 6 && hj.name === 'ورزش نمونه', JSON.stringify(hj));
+        const hs = await fetch(`${BASE}/api/news?source=${encodeURIComponent('ورزش نمونه')}`, { headers: authHeaders }).then(r => r.json());
+        check('html headlines: same-site article links only, absolute urls', hs.items.length === 6 && hs.items.every(x => x.url.startsWith(`http://127.0.0.1:${site.port}/news/`)));
+        const rd = await fetch(`${BASE}/api/news/${hs.items.find(x => x.url.includes('/news/2000001')).id}/read`, { headers: authHeaders });
+        const rj = await rd.json();
+        check('reader: article paragraphs only (no menu/script/short lines) + og:image', rd.status === 200 && rj.paras.length === 2 && /بند اول/.test(rj.paras[0]) && rj.image === 'https://img.test/a.jpg', JSON.stringify(rj));
+        const rd2 = await fetch(`${BASE}/api/news/${hs.items.find(x => x.url.includes('/news/2000002')).id}/read`, { headers: authHeaders });
+        check('reader: page without article text -> 422 with a message', rd2.status === 422 && !!(await rd2.json()).error);
+        const hsync = await fetch(`${BASE}/api/news/sync`, { method: 'POST', headers: authHeaders }).then(r => r.json());
+        check('html source re-sync adds nothing new', hsync.results.find(r => r.source === 'ورزش نمونه').added === 0);
+        await fetch(`${BASE}/api/news/sources/${hj.id}`, { method: 'DELETE', headers: authHeaders });
+      } finally { site.server.close(); }
 
       const newsItems = await fetch(`${BASE}/api/news?category=تکنولوژی`, { headers: authHeaders }).then(r => r.json());
       const item1 = newsItems.items.find(x => x.guid === 'fixture-guid-1');
@@ -646,6 +684,9 @@ async function main() {
       const deleteNews = await fetch(`${BASE}/api/news/${item2.id}`, { method: 'DELETE', headers: authHeaders });
       check('delete a news item -> 200', deleteNews.status === 200);
 
+      const ren = await fetch(`${BASE}/api/news/sources/${source.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ name: 'فید تازه', category: 'علم' }) }).then(r => r.json());
+      const afterRen = await fetch(`${BASE}/api/news?source=${encodeURIComponent('فید تازه')}`, { headers: authHeaders }).then(r => r.json());
+      check('renaming a source / changing its tag carries over to its news items', ren.name === 'فید تازه' && ren.category === 'علم' && afterRen.items.length >= 1 && afterRen.items.every(x => x.category === 'علم'));
       const deleteSource = await fetch(`${BASE}/api/news/sources/${source.id}`, { method: 'DELETE', headers: authHeaders });
       check('delete a news source -> 200', deleteSource.status === 200);
       const sourcesAfterDelete = await fetch(`${BASE}/api/news/sources`, { headers: authHeaders }).then(r => r.json());

@@ -32,7 +32,7 @@ header.top .kicker{font-size:8.5pt;color:#475569}
 header.top h1{font-size:18pt;font-weight:800;line-height:1.35;margin:2px 0}
 header.top .meta{font-size:8pt;color:#475569}
 header.top .brand{text-align:left;max-width:60mm;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-header.top .brand img{max-height:16mm;max-width:45mm;object-fit:contain}
+header.top .brand img{max-height:22mm;max-width:60mm;object-fit:contain}
 header.top .brand b{font-size:10pt}
 .status{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:99px;font-size:8.5pt;font-weight:700;border:1px solid}
 .status.ok{color:#047857;border-color:#6ee7b7;background:#ecfdf5}.status.warn{color:#b45309;border-color:#fcd34d;background:#fffbeb}.status.bad{color:#be123c;border-color:#fda4af;background:#fff1f2}
@@ -64,7 +64,7 @@ tr.grp td{background:#f8fafc;font-weight:800;color:#0f172a;border-bottom:1px sol
 tr.done td{color:#475569}
 .muted{color:#94a3b8}
 .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px;break-inside:avoid}
-.sign div{border-top:1px solid #94a3b8;padding-top:5px;text-align:center;font-size:8.5pt;color:#475569;min-height:22mm}
+.sign div{border-top:1px solid #94a3b8;padding-top:5px;text-align:center;font-size:8.5pt;color:#475569;min-height:22mm}.sign .who{display:block;margin-top:3px;font-size:10pt;color:#0f172a}
 .empty{color:#94a3b8;font-size:8.5pt;padding:6px 0}
 .ring{display:block}
 .sharebar{display:flex;gap:2px;height:22px;margin:4px 0 6px;break-inside:avoid}
@@ -135,7 +135,7 @@ export function projectReportHtml(d) {
 
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${esc(reportNo)}</title><style>${CSS(brand, reportNo)}</style></head><body>
 <section class="p1"><div class="p1i">
-<header class="top"><div><div class="kicker">گزارش وضعیت پروژه</div><h1>${esc(project.name)}</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}${project.client ? `  |  کارفرما: ${esc(project.client)}` : ''}</div><span class="status ${state[0]}">${state[1]}</span></div>
+<header class="top"><div><div class="kicker">گزارش وضعیت پروژه</div><h1>${esc(project.name)}</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}${project.client ? `  |  کارفرما: ${esc(project.client)}` : ''}${brand?.preparer ? `  |  تهیه‌کننده: ${esc(brand.preparer)}` : ''}</div><span class="status ${state[0]}">${state[1]}</span></div>
 <div class="brand">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div></header>
 <div class="summary"><b>خلاصهٔ مدیریتی:</b> ${summary}</div>
 <div class="kpis">
@@ -158,7 +158,7 @@ ${itemsSection}
 <h2>صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">آخرین صورت‌وضعیت (تجمعی) / جمع واریزی / معوق</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
 ${next.length ? `<h2>اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
 <h2>وضعیت مراحل اجرایی</h2><table class="stages"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th class="note">توضیحات</th></tr></thead><tbody>${stageRows}</tbody></table>
-<div class="sign"><div>تهیه‌کننده</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
+<div class="sign"><div>تهیه‌کننده${brand?.preparer ? `<b class="who">${esc(brand.preparer)}</b>` : ''}</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
 </body></html>`;
 }
 
@@ -192,8 +192,10 @@ function mountFrame(id, width, html, hidden = true) {
   const frame = document.createElement('iframe');
   frame.id = id;
   frame.setAttribute('aria-hidden', 'true');
-  frame.style.cssText = `position:fixed;width:${width}px;height:10px;border:0;left:-10000px;top:0${hidden ? ';visibility:hidden' : ''}`;
-  document.body.appendChild(frame);
+  frame.style.cssText = `position:fixed;width:${width}px;height:10px;border:0;left:-10000px;top:0;zoom:1${hidden ? ';visibility:hidden' : ''}`;
+  // outside <body>: the app zooms the body on phones (--app-zoom, e.g. 1.1 on iPhone); inside it the captured page
+  // came out scaled and shifted, with the right edge of every line cut off in the phone PDF
+  document.documentElement.appendChild(frame);
   const doc = frame.contentDocument;
   doc.open(); doc.write(html); doc.close();
   return frame;
@@ -221,9 +223,10 @@ async function inlineFonts(doc) {
 export function projectReportPdf(data) {
   return renderPdf(projectReportHtml(data), { running: `${data.project.name} – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: reportFileName(data.project).replace(/\.pdf$/, ''), subject: 'گزارش وضعیت پروژه' });
 }
-async function renderPdf(html, { running, footer, title, subject }) {
+async function renderPdf(html, { running, footer, title, subject, W = 695, landscape = false }) {
   const [{ jsPDF }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('html2canvas')]);
-  const W = 695, pageH = Math.floor(W * 261 / 184), MX = 13, MT = 16;
+  // same scale as the portrait report (695 px = 184 mm); a landscape page (the comparison) is just wider and shorter
+  const PW = landscape ? 297 : 210, PH = landscape ? 210 : 297, CW = W * 184 / 695, MX = (PW - CW) / 2, MT = landscape ? 12 : 16, pageH = Math.floor(W * (landscape ? 182 : 261) / CW);
   const frame = mountFrame('lf-report-pdf-frame', W, html);
   try {
     const doc = frame.contentDocument;
@@ -238,13 +241,12 @@ async function renderPdf(html, { running, footer, title, subject }) {
     const body = doc.body, total = Math.ceil(body.scrollHeight);
     frame.style.height = total + 'px';
     const top0 = body.getBoundingClientRect().top;
-    const breaks = [...doc.querySelectorAll('tr, h2, .kpis, .two, .sign, .summary, p.empty')].map(el => Math.round(el.getBoundingClientRect().top - top0)).filter(y => y > 0).sort((a, b) => a - b);
-    const p1 = doc.querySelector('.p1');
+    const breaks = [...doc.querySelectorAll('tr, h2, .kpis, .two, .sign, .summary, p.empty, .cr, .cmp-kpis, .cmp-top, .nx')].map(el => Math.round(el.getBoundingClientRect().top - top0)).filter(y => y > 0).sort((a, b) => a - b);
     const forced = [
-      ...(p1 ? [Math.round(p1.getBoundingClientRect().bottom - top0)] : []),
+      ...[...doc.querySelectorAll('.p1, .cover')].map(el => Math.round(el.getBoundingClientRect().bottom - top0)),
       ...[...doc.querySelectorAll('h2.pb')].map(el => Math.round(el.getBoundingClientRect().top - top0) - 8)
     ].filter(y => y > 0).sort((a, b) => a - b);
-    const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: W, height: total, windowWidth: W, windowHeight: total, logging: false, foreignObjectRendering: true });
+    const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', x: 0, y: 0, scrollX: 0, scrollY: 0, width: W, height: total, windowWidth: W, windowHeight: total, logging: false, foreignObjectRendering: true });
     const k = canvas.width / W, pages = [];
     // the drawn image can sit a few px off the measured layout, so every cut is snapped up to the nearest
     // pixel row of the image that is one flat colour (a gap between rows), never through a line of text
@@ -259,17 +261,17 @@ async function renderPdf(html, { running, footer, title, subject }) {
       if (end < total) end = snap(end, Math.max(start + 60, end - 90));
       pages.push([start, end]); start = end;
     }
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait', compress: true });
     const faNum = n => Number(n).toLocaleString('fa-IR');
     pages.forEach(([s, e], i) => {
       if (i) pdf.addPage();
       const c = doc.createElement('canvas'); c.width = canvas.width; c.height = Math.round((e - s) * k);
       const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(canvas, 0, Math.round(s * k), canvas.width, c.height, 0, 0, canvas.width, c.height);
-      pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', MX, MT, 184, (e - s) * 184 / W, undefined, 'FAST');
-      const stripH = 18 * 184 / W;
-      if (i) pdf.addImage(stripImage(doc, '', running, W), 'PNG', MX, 7, 184, stripH);
-      pdf.addImage(stripImage(doc, footer, `صفحهٔ ${faNum(i + 1)} از ${faNum(pages.length)}`, W), 'PNG', MX, 297 - 12, 184, stripH);
+      pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', MX, MT, CW, (e - s) * CW / W, undefined, 'FAST');
+      const stripH = 18 * CW / W;
+      if (i) pdf.addImage(stripImage(doc, '', running, W), 'PNG', MX, landscape ? 4 : 7, CW, stripH);
+      pdf.addImage(stripImage(doc, footer, `صفحهٔ ${faNum(i + 1)} از ${faNum(pages.length)}`, W), 'PNG', MX, PH - 12, CW, stripH);
     });
     pdf.setProperties({ title, subject, creator: 'LifeOS' });
     return pdf.output('blob');
@@ -285,8 +287,79 @@ export async function sendProjectReportToTelegram(data) {
   return filename;
 }
 
-// Opens the browser print dialog; the suggested file name is reportFileName.
+// Phones can't print a hidden iframe (nothing happens), so there the PDF file itself is built and shared/downloaded.
+const isPhone = () => typeof window !== 'undefined' && (window.matchMedia?.('(pointer: coarse)').matches || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent));
+// iPhone/iPad: Safari draws the captured report shifted (right edge cut off), so there the report opens as its own
+// page and Safari's print sheet makes the PDF (Share → Save to Files / Print). Its own engine lays Persian out right.
+// installed on the home screen (no browser bar; window.print() is ignored there)
+const isStandalone = () => typeof window !== 'undefined' && (navigator.standalone === true || !!window.matchMedia?.('(display-mode: standalone)').matches);
+export const isIOS = () => typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+// iPhone: the report is shown inside this page (a shadow root keeps the app's CSS out) with «بستن» and «چاپ / PDF»;
+// the app itself is hidden meanwhile, so Safari's print sheet (and «Save to PDF» from it) gets only the report.
+// (A separate window had no way back in the home-screen app, and its print button did nothing.)
+function openPrintOverlay(html, title, W) {
+  document.querySelector('.lf-rp-ov')?.remove();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  let css = [...doc.querySelectorAll('style')].map(x => x.textContent).join('\n');
+  const global = [];
+  // @page and @font-face only work in the document itself; take them out (nested braces: @bottom-left{…} inside @page)
+  css = css.replace(/@(?:page|font-face)[^{]*\{(?:[^{}]|\{[^{}]*\})*\}/g, m => { global.push(m); return ''; });
+  css = css.replace(/html\.capture body/g, '.rp-body').replace(/html,\s*body/g, '.rp-body').replace(/(^|[}\s,])body(?=[\s{>,.:])/g, '$1.rp-body');
+  const gst = document.createElement('style'); gst.className = 'lf-rp-global';
+  gst.textContent = global.join('\n') + `
+html.lf-rp-open body>*:not(.lf-rp-ov){display:none!important}
+html.lf-rp-open,html.lf-rp-open body{zoom:1!important;padding:0!important;margin:0!important;background:#fff!important;overflow:auto!important;height:auto!important}
+.lf-rp-bar{position:sticky;top:0;z-index:5;display:flex;gap:8px;justify-content:center;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 8px;background:#0f172a}
+.lf-rp-bar button{font:700 15px Vazirmatn,Tahoma,sans-serif;padding:10px 18px;border-radius:12px;border:0;background:#d4a843;color:#111;cursor:pointer}
+.lf-rp-bar button.x{background:#334155;color:#fff}
+.lf-rp-ov{direction:ltr}.lf-rp-host{display:block;margin:0 auto}
+@media screen{.lf-rp-host{zoom:var(--rpz,1);padding:8px 0 24px}}
+@media print{.lf-rp-bar{display:none!important}.lf-rp-host{zoom:1!important;margin:0!important}html.lf-rp-open .lf-rp-ov,html.lf-rp-open .lf-rp-host{visibility:visible!important;position:static!important}}`;
+  document.head.appendChild(gst);
+  const ov = document.createElement('div'); ov.className = 'lf-rp-ov'; // ltr box: a report wider than the screen must not slide off to the left
+  const bar = document.createElement('div'); bar.className = 'lf-rp-bar';
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'x'; close.textContent = '✕ بستن';
+  const prn = document.createElement('button'); prn.type = 'button'; prn.textContent = '🖨 ذخیرهٔ PDF / چاپ';
+  bar.append(prn, close);
+  const host = document.createElement('div'); host.className = 'lf-rp-host'; host.style.width = `${W + 8}px`;
+  const root = host.attachShadow({ mode: 'open' });
+  root.innerHTML = `<style>${css}</style><div class="rp-body" dir="rtl" lang="fa">${doc.body.innerHTML}</div>`;
+  ov.append(bar, host); document.body.appendChild(ov);
+  const prevTitle = document.title, y = window.scrollY;
+  document.documentElement.classList.add('lf-rp-open'); document.title = title; window.scrollTo(0, 0);
+  const fit = () => host.style.setProperty('--rpz', String(Math.min(1, (document.documentElement.clientWidth - 12) / (W + 8))));
+  fit(); addEventListener('resize', fit);
+  close.addEventListener('click', () => { removeEventListener('resize', fit); ov.remove(); gst.remove(); document.documentElement.classList.remove('lf-rp-open'); document.title = prevTitle; window.scrollTo(0, y); });
+  prn.addEventListener('click', () => window.print());
+  // home-screen app: window.print() does nothing there, so the button becomes a link that opens the report in Safari
+  if (isStandalone()) {
+    prn.disabled = true; prn.textContent = '… آماده‌سازی چاپ';
+    const page = html.replace(/<html([^>]*)>/i, '<html$1 class="capture">')
+      .replace(/<head>/i, `<head><meta name="viewport" content="width=${W + 24}">`)
+      .replace(/<\/head>/i, '<style>@media screen{body{margin:0 auto!important}.lf-hint{margin:8px 0 12px;padding:10px 12px;border-radius:10px;background:#fef3c7;color:#78350f;font:600 13px/1.8 Vazirmatn,Tahoma,sans-serif}}@media print{.lf-hint{display:none!important}}</style></head>')
+      .replace(/<body>/i, '<body><div class="lf-hint">برای PDF یا چاپ: دکمهٔ اشتراک‌گذاری (⬆︎) را بزن و «Print» را انتخاب کن؛ در پیش‌نمایش چاپ دوباره اشتراک‌گذاری ← «Save to Files» فایل PDF می‌سازد.</div>');
+    api('/api/report-link', { method: 'POST', body: JSON.stringify({ html: page }) }).then(d => {
+      const a = document.createElement('a'); a.href = d.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '🖨 باز کردن برای چاپ / PDF';
+      a.setAttribute('style', 'font:700 15px Vazirmatn,Tahoma,sans-serif;padding:10px 18px;border-radius:12px;background:#d4a843;color:#111;text-decoration:none');
+      prn.replaceWith(a);
+    }).catch(e => { prn.textContent = 'ساخت لینک چاپ نشد'; window.alert(e.message || 'ساخت لینک چاپ نشد'); });
+  }
+  Promise.resolve(document.fonts?.ready).then(() => fitFirstPage(root, W));
+  return true;
+}
+// (the download fallback uses a Latin name: some browsers drop a Persian one and save «download» without .pdf)
+async function savePdf(blob, filename) {
+  const file = typeof File === 'function' ? new File([blob], filename, { type: 'application/pdf' }) : null;
+  if (file && navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: filename.replace(/\.pdf$/, '') }); return; } catch (e) { if (e?.name === 'AbortError') return; } }
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = /^[\x20-\x7e]+$/.test(filename) ? filename : `project-report-${todayIso()}.pdf`; a.rel = 'noopener'; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// Opens the browser print dialog (desktop) or saves the PDF file (phone); the file name is reportFileName.
 export async function printProjectReport(data) {
+  if (isIOS() && openPrintOverlay(projectReportHtml(data), reportFileName(data.project).replace(/\.pdf$/, ''), 695)) return;
+  if (isPhone()) return savePdf(await projectReportPdf(data), reportFileName(data.project));
   const title = reportFileName(data.project).replace(/\.pdf$/, '');
   const frame = mountFrame('lf-report-print-frame', 695, projectReportHtml(data), false);
   const doc = frame.contentDocument;
@@ -318,9 +391,29 @@ export function compareReportHtml({ rows, brand = {} }) {
   const title = `مقایسهٔ پروژه‌ها – ${jl(today)}`;
   const sum = f => rows.reduce((a, r) => a + (Number(f(r.m)) || 0), 0);
   const avg = rows.length ? Math.round(sum(m => m.progress) / rows.length) : 0;
+  // the same average without finished projects (their 100% hides how far the open work is)
+  const openRows = rows.filter(r => r.m.state !== 'done' && r.m.progress < 100), avgOpen = openRows.length ? Math.round(openRows.reduce((a, r) => a + (Number(r.m.progress) || 0), 0) / openRows.length) : null;
   const amount = sum(m => m.amount), received = sum(m => m.received), outstanding = sum(m => m.outstanding), late = sum(m => m.late);
+  // «وصول از قراردادها» only over projects that have a contract amount (payments on projects without one made it 130%)
+  const recPct = amount ? Math.round(sum(m => m.amount ? Math.min(m.received, m.amount) : 0) / amount * 100) : null;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   const logo = /^data:image\/(?:png|jpeg|webp);base64,/i.test(String(brand.logo || '')) ? brand.logo : '';
+  // graphic cover page: one ring per project (its progress), title, totals and who prepared the report
+  const coverHtml = (() => {
+    const list = rows.slice(0, 24), cx = 160, cy = 160, gap = Math.min(11, 120 / Math.max(1, list.length)), sw = Math.max(3, gap - 3);
+    const rings = list.map(({ p, m }, i) => { const r = 140 - i * gap, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, m.progress || 0)); const col = /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1';
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#eef2f7" stroke-width="${sw}"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${(c * v / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})"/>`; }).join('');
+    const inner = Math.max(30, 140 - list.length * gap - 6);
+    const svg = `<svg viewBox="0 0 320 320" aria-hidden="true">${rings}<circle cx="${cx}" cy="${cy}" r="${inner}" fill="#fff"/><text x="${cx}" y="${cy - 2}" text-anchor="middle" font-size="${Math.min(34, inner * .7)}" font-weight="900" fill="#0f172a">${pct(avg)}</text><text x="${cx}" y="${cy + Math.min(20, inner * .45)}" text-anchor="middle" font-size="${Math.min(11, inner * .28)}" fill="#64748b">میانگین پیشرفت</text></svg>`;
+    const preparer = String(brand.preparer || '').trim();
+    return `<section class="cover"><div class="grid"></div><div class="glow"></div><div class="txt">
+<div class="brandc">${logo ? `<img src="${logo}" alt="">` : ''}</div>
+<div class="kick">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="line"></div>
+<div class="sub">${esc(jl(today))}</div>
+<div class="stats"><div><b>${fa(rows.length)}</b><small>پروژه</small></div><div><b>${pct(avg)}</b><small>میانگین پیشرفت</small></div>${avgOpen != null && openRows.length < rows.length ? `<div><b>${pct(avgOpen)}</b><small>میانگین در جریان (${fa(openRows.length)})</small></div>` : ''}<div><b>${recPct == null ? '—' : pct(recPct)}</b><small>وصول از قراردادها</small></div><div><b>${fa(late)}</b><small>مرحلهٔ عقب‌افتاده</small></div></div>
+</div><div class="ringw">${svg}<div class="rleg">${list.map(({ p, m }) => `<span><i style="background:${/^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1'}"></i>${esc(p.name)} ${pct(m.progress)}</span>`).join('')}</div></div>
+<div class="prep"><span>${preparer ? `تهیه‌کننده<b>${esc(preparer)}</b>` : ''}</span><span>تاریخ تهیه: ${esc(printedAt)}</span></div></section>`;
+  })();
   const bar = (v, c) => `<div class="bar"><i style="width:${Math.max(0, Math.min(100, v || 0))}%;background:${c}"></i></div>`;
   // progress (filled bar) against elapsed contract time (dark tick): a bar left of its tick is behind schedule
   const pc = p => /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#6366f1';
@@ -340,13 +433,26 @@ html.capture body{width:${CMP_W}px}
 table.cmp{font-size:7.8pt;font-feature-settings:'tnum'}table.cmp td,table.cmp th{padding:5px 4px;vertical-align:middle}table.cmp .pg{display:flex;align-items:center;gap:6px}table.cmp .pg b{font-size:8.5pt;font-weight:800;min-width:26px}table.cmp .pg .bar{flex:1;height:5px;margin:0}.sm{font-size:6.8pt;color:#64748b}table.cmp .dot{margin-inline-end:4px}.num{font-weight:700}
 .nx{display:grid;grid-template-columns:1fr 1fr;gap:16px;break-inside:avoid}.nx ul{margin:4px 0 0;padding:0;list-style:none;font-size:8.5pt}.nx li{padding:3px 0;border-bottom:1px dashed #e2e8f0}
 .neg{color:#be123c}.pos{color:#047857}.st{display:inline-block;padding:0 6px;border:1px solid;border-radius:99px;font-size:7pt;font-weight:700;white-space:nowrap}
+.cover{position:relative;height:178mm;overflow:hidden;border:1px solid #e2e8f0;border-radius:6mm;background:#fff;color:#0f172a;break-after:page;page-break-after:always;display:grid;grid-template-columns:1.15fr 1fr;grid-template-rows:1fr auto;align-items:center;column-gap:8mm;padding:8mm 14mm 8mm}
+.cover .glow{position:absolute;top:0;right:0;width:5mm;height:100%;background:#d4a843}
+.cover .grid{position:absolute;inset:0;background-image:none;background-size:9mm 9mm}
+.cover .txt{position:relative;z-index:1}
+.cover .brandc{display:flex;align-items:center;gap:10px;margin-bottom:16mm}.cover .brandc img{max-height:30mm;max-width:80mm;object-fit:contain}.cover .brandc b{font-size:12pt;font-weight:800;color:#334155}
+.cover .kick{font-size:10pt;letter-spacing:.5px;color:#a16207;font-weight:700}
+.cover h1{font-size:34pt;font-weight:900;line-height:1.25;margin:3mm 0 4mm}
+.cover .line{width:34mm;height:1.6mm;border-radius:1mm;background:linear-gradient(90deg,#d4a843,#f5d98a);margin-bottom:6mm}
+.cover .sub{font-size:11pt;color:#475569}
+.cover .stats{display:flex;gap:6mm;margin-top:10mm}.cover .stats div{display:flex;flex-direction:column;border-inline-start:2px solid #d4a843;padding-inline-start:3mm}.cover .stats b{font-size:17pt;font-weight:900}.cover .stats small{font-size:8pt;color:#64748b}
+.cover .prep{grid-column:1 / -1;position:relative;display:flex;justify-content:space-between;align-items:flex-end;font-size:9pt;color:#64748b;z-index:1;border-top:1px solid #e2e8f0;padding-top:3mm}.cover .prep b{display:block;font-size:12.5pt;color:#0f172a;font-weight:800;white-space:nowrap}.cover .prep span,.cover .stats small,.cover .sub{white-space:nowrap}
+.cover .ringw{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3mm}.cover svg{width:100%;max-height:105mm}.cover .rleg{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5mm 4mm;font-size:7.5pt;color:#475569;max-width:120mm}.cover .rleg span{white-space:nowrap}.cover .rleg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:4px;vertical-align:middle}
 </style></head><body>
-<header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه</div></div>
+${coverHtml}
+<header class="top"><div><div class="kicker">گزارش پرتفوی پروژه‌ها</div><h1>مقایسهٔ پروژه‌ها</h1><div class="meta">تاریخ تهیه: ${esc(printedAt)}  |  ${fa(rows.length)} پروژه${brand.preparer ? `  |  تهیه‌کننده: ${esc(brand.preparer)}` : ''}</div></div>
 <div class="brand">${logo ? `<img src="${logo}" alt="">` : ''}${brand.headerText ? `<b>${esc(brand.headerText)}</b>` : ''}</div></header>
 <div class="cmp-kpis">
-<div class="kpi"><small>میانگین پیشرفت</small><b class="num">${pct(avg)}</b>${bar(avg, '#0f172a')}</div>
+<div class="kpi"><small>میانگین پیشرفت</small><b class="num">${pct(avg)}</b>${bar(avg, '#0f172a')}${avgOpen != null && openRows.length < rows.length ? `<span>در جریان: ${pct(avgOpen)} (${fa(openRows.length)} پروژه)</span>` : ''}</div>
 <div class="kpi"><small>جمع مبلغ قراردادها</small><b class="num">${money(amount)}</b></div>
-<div class="kpi"><small>جمع وصولی</small><b class="num">${money(received)}</b>${bar(amount ? received / amount * 100 : 0, '#059669')}<span>${amount ? pct(Math.round(received / amount * 100)) : '—'} از قراردادها</span></div>
+<div class="kpi"><small>جمع وصولی</small><b class="num">${money(received)}</b>${bar(recPct || 0, '#059669')}<span>${recPct == null ? '—' : pct(recPct)} از قراردادها</span></div>
 <div class="kpi ${outstanding ? 'bad' : ''}"><small>جمع مطالبات معوق</small><b class="num">${money(outstanding)}</b></div>
 <div class="kpi ${late ? 'bad' : ''}"><small>مراحل عقب‌افتاده</small><b class="num">${fa(late)}</b><span>در همهٔ پروژه‌ها</span></div>
 </div>
@@ -365,6 +471,8 @@ const compareFileName = () => { const j = isoToJ(todayIso()); return `${j.jy}-${
 
 // Print dialog (Save as PDF): the browser's own text engine shapes Persian correctly, unlike the canvas path
 export async function printCompareReport(data) {
+  if (isIOS() && openPrintOverlay(compareReportHtml(data), compareFileName().replace(/\.pdf$/, ''), CMP_W)) return;
+  if (isPhone()) { const j = compareFileName(); return savePdf(await renderPdf(compareReportHtml(data), { running: `مقایسهٔ پروژه‌ها – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: j.replace(/\.pdf$/, ''), subject: 'مقایسهٔ پروژه‌ها', W: CMP_W, landscape: true }), j); }
   const title = compareFileName().replace(/\.pdf$/, '');
   const frame = mountFrame('lf-compare-print-frame', CMP_W, compareReportHtml(data), false);
   const doc = frame.contentDocument;

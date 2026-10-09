@@ -235,6 +235,7 @@ if ($action === 'api') {
     $ID = '[A-Za-z0-9_-]{1,64}';
     $allowed = [
         "#^/api/ext/me$#" => ['GET'],
+        "#^/api/ext/report-brand$#" => ['GET', 'PATCH'],
         "#^/api/ext/col/(projects|cards|projectProcesses|projectContracts|projectFinancials|projectSupplies|courses|students)$#" => ['GET', 'POST'],
         "#^/api/ext/col/(projects|cards|projectProcesses|projectContracts|projectFinancials|projectSupplies|courses|students)/$ID$#" => ['GET', 'PATCH', 'DELETE'],
         "#^/api/ext/students/$ID/payments$#" => ['POST'],
@@ -277,7 +278,10 @@ if ($action === 'api') {
     }
     // Long lists are pulled in pages: this host's network cuts replies after ~64 KB.
     if ($method === 'GET' && preg_match('#^/api/ext/(col/[A-Za-z]+|reminders)$#', $path)) {
-        $items = []; $per = 25; $off = 0;
+        // ~1000+ checklist rows: 25 per call took 40+ s and the host stopped the script midway (empty progress).
+        // Pages of 150 (~45 KB raw, gzip on the wire); a page that comes back cut is retried at 25.
+        @set_time_limit(120);
+        $items = []; $per = 150; $off = 0;
         while (true) {
             $ch = curl_init(rtrim((string)$cfg['lifeos_url'], '/') . $path . '?offset=' . $off . '&limit=' . $per);
             curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 8, CURLOPT_FOLLOWLOCATION => false, CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, CURLOPT_ENCODING => '',
@@ -286,6 +290,7 @@ if ($action === 'api') {
             if ($b === false || $st === 0) out(502, ['error' => 'اتصال به LifeOS برقرار نشد — کد ' . $en . ($er ? ' (' . $er . ')' : '')]);
             if ($st === 401) out(502, ['error' => 'توکن LifeOS نامعتبر یا لغو شده است؛ در تنظیمات LifeOS توکن تازه بساز.']);
             $d = json_decode($b, true);
+            if ($st === 200 && !is_array($d) && $per > 25) { $per = 25; continue; }
             if ($st !== 200 || !is_array($d)) { http_response_code($st ?: 502); echo $b; exit; }
             $items = array_merge($items, $d['items'] ?? []);
             if (!isset($d['total']) || count($items) >= (int)$d['total'] || empty($d['items']) || $off > 20000) break;   // old Worker without paging returns everything at once

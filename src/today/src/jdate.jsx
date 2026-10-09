@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Shared Jalali (Shamsi) date input — stores/returns ISO Gregorian "YYYY-MM-DD" like <input type="date">,
 // but shows and picks dates in the Persian calendar.
@@ -82,9 +83,9 @@ function JPop({ value, onPick, clearable, min }) {
   return <div className="jdi-pop" ref={pop} role="dialog" aria-label="انتخاب تاریخ" onClick={e => e.preventDefault()}>
     <div className="jdi-head">
       <button type="button" dir="ltr" onClick={() => setYm(y => ({ ...y, jy: y.jy - 1 }))} aria-label="سال قبل">»</button>
-      <button type="button" dir="ltr" onClick={() => shift(-1)} aria-label="ماه قبل">›</button>
+      <button type="button" onClick={() => shift(-1)} aria-label="ماه قبل"><ChevronRight size={18} aria-hidden="true" /></button>
       <b>{MONTHS[ym.jm - 1]} {faD(ym.jy)}</b>
-      <button type="button" dir="ltr" onClick={() => shift(1)} aria-label="ماه بعد">‹</button>
+      <button type="button" onClick={() => shift(1)} aria-label="ماه بعد"><ChevronLeft size={18} aria-hidden="true" /></button>
       <button type="button" dir="ltr" onClick={() => setYm(y => ({ ...y, jy: y.jy + 1 }))} aria-label="سال بعد">«</button>
     </div>
     <div className="jdi-grid">

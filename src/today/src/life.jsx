@@ -1,6 +1,7 @@
 // Life & work modules: health, car, travel, projects (kanban), customers & sales, learning,
 // journal, yearly goals, focus timer, shopping list, bills and life statistics.
 // All of them sit on the generic per-user collections API (/api/col/<name>).
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { askMath } from './mathConfirm';
 import { JalaliDateInput, isoToJ, jToIso, MONTHS } from './jdate';
@@ -285,11 +286,11 @@ export function processTemplate(contract) {
   for (const [department, title] of FINAL_STAGES) out.push({ department, title, base: title, item: '', group: 'end' });
   return out.map((s, order) => ({ ...s, order }));
 }
-// Weighted progress. Each contract item is its own 0–100 (inside it: control 10, technical 15, supply 30,
-// execution 45; execution stages weighted by EXEC_BASE). The project = fixed stages (FIXED_WEIGHT, in %) +
+// Weighted progress. Each contract item is its own 0–100 (inside it: control 10, technical 15, supply 45,
+// execution 30; execution stages weighted by EXEC_BASE). The project = fixed stages (FIXED_WEIGHT, in %) +
 // the items, each item's share proportional to its contract area (items with no area count as the average;
 // no areas at all → equal shares).
-const DEPT_WEIGHT = { 'کنترل پروژه': 10, 'فنی': 15, 'تأمین': 30, 'اجرا': 45 };
+const DEPT_WEIGHT = { 'کنترل پروژه': 10, 'فنی': 15, 'تأمین': 45, 'اجرا': 30 };
 const EXEC_BASE = { 'ابعادبرداری برآوردی': 1, 'ابعادبرداری دقیق': 2, 'شروع نصب': 3, 'پایان نصب': 12 };
 const FIXED_WEIGHT = { 'ابلاغ قرارداد': 1, 'تأیید رنگ از کارفرما': 1, 'سفارش بیلت': 1, 'سفارش یراق‌آلات': 1, 'تحویل پروژه': 2 };
 const baseOf = s => s.base || String(s.title || '').split(ITEM_SEP)[0];
@@ -603,6 +604,35 @@ function PipelineReport({ rows, onOpen }) {
     </div>)}
   </div>;
 }
+// name printed on every report (cover, header, signature row); asked once, kept in this browser
+const PREPARER_KEY = 'lifeos-report-preparer';
+const readPreparer = () => { try { return localStorage.getItem(PREPARER_KEY) || ''; } catch { return ''; } };
+const writePreparer = v => { try { localStorage.setItem(PREPARER_KEY, v); } catch {} };
+function askPreparer() { let name = readPreparer().trim(); if (!name) { name = (window.prompt('نام تهیه‌کنندهٔ گزارش (روی گزارش‌ها می‌آید):', '') || '').trim(); if (name) writePreparer(name); } return name; }
+// letterhead logo picker (comparison page + each project's report tab); same store as Settings → report template,
+// the Melina panel saves it through its proxy. Resized so it also fits the proxy's 64 KB request limit.
+function ReportLogo({ logo, onChange }) {
+  const [msg, setMsg] = useState('');
+  const pick = async e => {
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return;
+    setMsg('در حال آماده‌سازی…');
+    try {
+      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('تصویر خوانده نشد.')); i.src = URL.createObjectURL(file); });
+      let side = 360, data = '';
+      for (let k = 0; k < 6; k++, side = Math.round(side * 0.8)) { const r = Math.min(1, side / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * r)); c.height = Math.max(1, Math.round(img.height * r)); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); data = c.toDataURL('image/png'); if (data.length > 45000) data = c.toDataURL('image/webp', 0.86); if (data.length <= 45000) break; }
+      const r = await api('/api/report-brand', { method: 'PATCH', body: JSON.stringify({ logo: data }) });
+      onChange(r?.logo || data); setMsg('');
+    } catch (x) { setMsg(x.message); }
+  };
+  const drop = async () => { try { await api('/api/report-brand', { method: 'PATCH', body: JSON.stringify({ logo: '' }) }); onChange(''); } catch (x) { setMsg(x.message); } };
+  return <span className="lf-compare-logo">{logo ? <img src={logo} alt="لوگوی گزارش" /> : null}<label className="lf-btn ghost">{logo ? 'تغییر لوگو' : '＋ لوگو'}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={pick} hidden /></label>{logo ? <button type="button" className="lf-link" onClick={drop}>حذف لوگو</button> : null}{msg ? <small>{msg}</small> : null}</span>;
+}
+// preparer name + logo for the comparison report, shown in the page's top bar next to «چاپ / PDF»
+function CompareBrandBar() {
+  const [preparer, setPreparer] = useState(readPreparer), [logo, setLogo] = useState('');
+  useEffect(() => { api('/api/report-brand').then(d => setLogo(d?.logo || '')).catch(() => {}); }, []);
+  return <span className="lf-compare-brand"><label className="lf-compare-prep">تهیه‌کننده<input value={preparer} onChange={e => { setPreparer(e.target.value); writePreparer(e.target.value); }} placeholder="نام روی گزارش" maxLength={60} /></label><ReportLogo logo={logo} onChange={setLogo} /></span>;
+}
 function ProjectsCompare({ projects, contracts, financials, processes, onOpen, printRef }) {
   const [sort, setSort] = useState('order');
   const rows = projects.map((p, i) => ({ p, i, m: projectMetrics(p, contracts.find(x => x.projectId === p.id), financials.filter(x => x.projectId === p.id), processes.filter(x => x.projectId === p.id)) }));
@@ -610,11 +640,11 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
   rows.sort((a, b) => key(a) - key(b));
   const sum = f => rows.reduce((a, r) => a + f(r.m), 0);
   // the «چاپ / PDF» button lives in the page actions, next to «بازگشت به پروژه»; it prints the rows in their current order
-  if (printRef) printRef.current = async () => { const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: brand || {} }); };
+  if (printRef) printRef.current = async () => { const name = askPreparer(); const brand = await api('/api/report-brand').catch(() => ({})); await printCompareReport({ rows, brand: { ...(brand || {}), preparer: name } }); };
   const th = (k, l) => <th><button type="button" className={sort === k ? 'on' : ''} onClick={() => setSort(k)}>{l}</button></th>;
   const counts = ['bad', 'warn', 'ok', 'done', 'none'].map(k => [k, rows.filter(r => r.m.state === k).length]).filter(([, n]) => n);
   return <section className="lf-card lf-compare">
-    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
+    <div className="lf-compare-head"><h2>مقایسهٔ پروژه‌ها</h2><div className="lf-compare-chips">{(() => { const open = rows.filter(r => r.m.state !== 'done' && r.m.progress < 100), avg = rows.length ? Math.round(sum(m => m.progress) / rows.length) : 0, avgOpen = open.length ? Math.round(open.reduce((a, r) => a + r.m.progress, 0) / open.length) : null; return <><span>میانگین: {fa(avg)}٪</span>{avgOpen != null && open.length < rows.length ? <span>در جریان: {fa(avgOpen)}٪</span> : null}</>; })()}{counts.map(([k, n]) => <span key={k} className={`st-${k}`}>{STATE_LABEL[k]}: {fa(n)}</span>)}</div></div>
     <div className="lf-compare-wrap"><table>
       <thead><tr>{th('order', 'پروژه')}{th('progress', 'پیشرفت')}<th>زمان</th>{th('variance', 'انحراف')}{th('end', 'پایان قرارداد')}<th>مبلغ قرارداد</th><th>وصولی</th>{th('outstanding', 'معوق')}<th>مراحل عقب</th><th>وضعیت</th></tr></thead>
       <tbody>{rows.map(({ p, m }) => <tr key={p.id} onClick={() => onOpen(p.id)} style={{ '--c': p.color || PCOLORS[0] }}>
@@ -673,8 +703,10 @@ function ProjectReport({ project, contract, financials, processes }) {
   const hasReportBrand = !!(reportHeaderText || reportLogo);
   const printedAt = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date());
   const [sendState, setSendState] = useState({ busy: false, msg: '', error: false });
-  const reportData = () => ({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo }, stages, departments, statements: statementRows, items: reportItems });
-  const printReport = () => printProjectReport(reportData());
+  const reportData = () => ({ project, contract, brand: { headerText: reportHeaderText, footerText: reportFooterText, logo: reportLogo, preparer: askPreparer() }, stages, departments, statements: statementRows, items: reportItems });
+  const [printing, setPrinting] = useState(false);
+  const [, setPrepTick] = useState(0);
+  const printReport = async () => { setPrinting(true); try { await printProjectReport(reportData()); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPrinting(false); } };
   const sendReport = async () => {
     if (sendState.busy) return;
     setSendState({ busy: true, msg: 'در حال ساخت PDF و ارسال…', error: false });
@@ -688,7 +720,7 @@ function ProjectReport({ project, contract, financials, processes }) {
       {hasReportBrand ? <aside className="lf-report-print-brand" aria-label="سربرگ گزارش">{reportLogo ? <img src={reportLogo} alt="لوگوی گزارش" /> : null}{reportHeaderText ? <b>{reportHeaderText}</b> : null}</aside> : null}
       <div><p>گزارش عملکرد پروژه</p><h2>{project.name}</h2><small>تهیه‌شده در {printedAt}</small></div>
       <div className={`lf-report-status ${timelineBehind ? 'attention' : progress === 100 ? 'complete' : ''}`}><b>{projectState}</b><span>{fa(progress)}٪ پیشرفت اجرایی</span></div>
-      <div className="lf-report-actions"><div className="lf-report-btns"><button type="button" className="lf-btn lf-report-print" onClick={printReport}>🖨 چاپ / ذخیرهٔ PDF</button><button type="button" className="lf-btn ghost lf-report-print" onClick={sendReport} disabled={sendState.busy}>{sendState.busy ? '⏳ در حال ارسال…' : '✈ ارسال به تلگرام'}</button></div>{sendState.msg ? <small className={`lf-report-send ${sendState.error ? 'err' : ''}`} role="status">{sendState.msg}</small> : null}</div>
+      <div className="lf-report-actions"><div className="lf-report-btns"><button type="button" className="lf-btn lf-report-print" onClick={printReport} disabled={printing}>{printing ? '⏳ در حال ساخت PDF…' : '🖨 چاپ / ذخیرهٔ PDF'}</button><button type="button" className="lf-btn ghost lf-report-print" onClick={sendReport} disabled={sendState.busy}>{sendState.busy ? '⏳ در حال ارسال…' : '✈ ارسال به تلگرام'}</button></div><div className="lf-report-meta no-print"><button type="button" className="lf-report-prep" title="نام تهیه‌کننده روی گزارش" onClick={() => { const v = window.prompt('نام تهیه‌کنندهٔ گزارش:', readPreparer()); if (v != null) { writePreparer(v.trim()); setPrepTick(t => t + 1); } }}>✎ تهیه‌کننده: {readPreparer() || '—'}</button><ReportLogo logo={reportLogo} onChange={v => setReportBrand(b => ({ ...b, logo: v }))} /></div>{sendState.msg ? <small className={`lf-report-send ${sendState.error ? 'err' : ''}`} role="status">{sendState.msg}</small> : null}</div>
     </header>
     <section className="lf-report-metrics">
       <div className="lf-report-chart report-progress"><div className="lf-report-ring" style={{ '--progress': `${progress * 3.6}deg` }}><b>{fa(progress)}٪</b><small>اجرایی</small></div><div><small>پیشرفت مراحل</small><b>{fa(completed)} از {fa(stages.length)} مرحله</b><span>مراحل اجرایی تکمیل شده</span></div></div>
@@ -810,7 +842,8 @@ export function ProjectsPage({ Nav }) {
   const contractOf = id => (contracts.items || []).find(x => x.projectId === id);
   const stagesOf = p => projectStages(contractOf(p.id), (processes.items || []).filter(x => x.projectId === p.id));
   const isArchived = p => !!p.archivedAt || p.status === 'archived';
-  const isFinished = p => { if (isArchived(p)) return true; if (p.status === 'done') return true; const st = stagesOf(p); return isDelivered(st) || st.every(x => x.status === 'done'); };
+  // the checklist decides: a project once marked done goes back to active when «تحویل پروژه» is unticked
+  const isFinished = p => { if (isArchived(p)) return true; const st = stagesOf(p); if (!st.length) return p.status === 'done'; return isDelivered(st) || st.every(x => x.status === 'done'); };
   // only archived projects can be deleted; asks a sum first, then removes the project and every row that belongs to it
   const deleteProject = async p => {
     if (!isArchived(p)) return;
@@ -832,7 +865,8 @@ export function ProjectsPage({ Nav }) {
     finally { setDeleting(''); }
   };
   const cur = (() => { const p = list.find(x => x.id === pid); if (p && (picked || !isFinished(p))) return p; return ordered.find(x => !isFinished(x)) || p || ordered.find(x => !isArchived(x)) || ordered[0] || null; })();
-  useEffect(() => { if (cur) try { localStorage.setItem('lifeos-project', cur.id); } catch {} }, [cur?.id]);
+  // the project on screen stays on screen: ticking «تحویل پروژه» finishes it, and without this the view jumped to the next active project
+  useEffect(() => { if (cur) { try { localStorage.setItem('lifeos-project', cur.id); } catch {} if (!picked && processes.items) { setPicked(true); setPidRaw(cur.id); } } }, [cur?.id, !!processes.items]);
   const mine = (cards.items || []).filter(c => cur && c.projectId === cur.id);
   // Creating a project deliberately asks for only its name. Everything else is
   // filled in the always-open project/contract sheet immediately afterwards.
@@ -848,8 +882,9 @@ export function ProjectsPage({ Nav }) {
   const toggleProcess = item => processes.patch(item.id, { status: item.status === 'done' ? 'todo' : 'done' });
   const patchProcess = async (id, body) => {
     const item = (processes.items || []).find(x => x.id === id);
-    await processes.patch(id, body);
-    if (!item || (!Object.prototype.hasOwnProperty.call(body, 'reminderDate') && !Object.prototype.hasOwnProperty.call(body, 'owner') && !Object.prototype.hasOwnProperty.call(body, 'note'))) return;
+    // the saved row is returned: the checklist waits for it before re-evaluating the project's done/active status
+    const saved = await processes.patch(id, body);
+    if (!item || (!Object.prototype.hasOwnProperty.call(body, 'reminderDate') && !Object.prototype.hasOwnProperty.call(body, 'owner') && !Object.prototype.hasOwnProperty.call(body, 'note'))) return saved;
     const next = { ...item, ...body };
     const title = `یادآوری پروژهٔ ${cur.name}: ${item.title}`;
     const notes = [`مسئول: ${next.owner || 'تعیین نشده'}`, `توضیحات: ${next.note || '—'}`].join('\n');
@@ -867,6 +902,7 @@ export function ProjectsPage({ Nav }) {
         await processes.patch(id, { reminderId: null });
       }
     } catch { /* the date remains visible locally even if notification sync is temporarily unavailable */ }
+    return saved;
   };
   useEffect(() => {
     if (!projects.items || !processes.items) return;
@@ -925,13 +961,13 @@ export function ProjectsPage({ Nav }) {
     const same = items.filter(p => !p.color || p.color === PCOLORS[0]); if (same.length < 2) return;
     same.slice(1).forEach((p, i) => projects.patch(p.id, { color: PCOLORS[(i + 1) % PCOLORS.length] }));
   }, [projects.items === null]);
-  return <Page Nav={Nav} className="wide" kicker="کار" title="پروژه‌ها" actions={<>{list.length > 1 ? <button className={`lf-btn ${compare ? '' : 'ghost'}`} onClick={() => setCompare(c => !c)}>{compare ? 'بازگشت به پروژه' : '⚖ مقایسهٔ پروژه‌ها'}</button> : null}{compare && list.length > 1 ? <button className="lf-btn ghost" disabled={printBusy} onClick={async () => { setPrintBusy(true); try { await comparePrint.current?.(); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPrintBusy(false); } }}>{printBusy ? '⏳ در حال آماده‌سازی…' : '🖨 چاپ / PDF'}</button> : null}<button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button></>}>
+  return <Page Nav={Nav} className="wide" kicker="کار" title="پروژه‌ها" actions={<>{list.length > 1 ? <button className={`lf-btn ${compare ? '' : 'ghost'}`} onClick={() => setCompare(c => !c)}>{compare ? 'بازگشت به پروژه' : '⚖ مقایسهٔ پروژه‌ها'}</button> : null}{compare && list.length > 1 ? <CompareBrandBar /> : null}{compare && list.length > 1 ? <button className="lf-btn ghost" disabled={printBusy} onClick={async () => { setPrintBusy(true); try { await comparePrint.current?.(); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPrintBusy(false); } }}>{printBusy ? '⏳ در حال آماده‌سازی…' : '🖨 چاپ / PDF'}</button> : null}{!compare ? <button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button> : null}</>}>
     <SaveErrorBar />
     {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !(projects.items || []).length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. با «＋ پروژه» فقط نامش را وارد کن؛ سپس اطلاعات پروژه و قرارداد را کامل می‌کنی.</p> : <>
-      {compare && list.length > 1 ? <ProjectsCompare printRef={comparePrint} projects={ordered} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'آرشیو']]}
+      {compare && list.length > 1 ? <ProjectsCompare printRef={comparePrint} projects={ordered.filter(p => !isArchived(p))} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'آرشیو']]}
         onReorder={reorderProjects}
         items={ordered.map(p => { const stages = stagesOf(p), total = stages.length, done = stages.filter(x => x.status === 'done').length, pct = weightedProgress(stages);
-          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: isArchived(p) ? 'archived' : (p.status === 'done' || done === total || isDelivered(stages)) ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>
+          return { id: p.id, name: p.name, color: p.color || PCOLORS[0], dim: false, group: isArchived(p) ? 'archived' : isFinished(p) ? 'done' : 'active', bar: [{ flex: pct, color: '#34d399' }, { flex: 100 - pct, color: '#334155' }], sub: `${fa(pct)}٪ پیشرفت · ${fa(done)} از ${fa(total)} مرحله` }; })}>
       {cur ? <section className="lf-card sl-top" style={{ '--c': cur.color || PCOLORS[0] }}>
         {(() => { const today = todayIso(), late = mine.filter(c => c.col !== 'done' && c.due && c.due < today).sort((a, b) => a.due.localeCompare(b.due)), soon = mine.filter(c => c.col !== 'done' && c.due && c.due >= today && c.due <= addDays(today, 7)).sort((a, b) => a.due.localeCompare(b.due));
           return <>
@@ -1077,7 +1113,7 @@ export function JournalPage({ Nav }) {
   const onThisDay = [...(col.items || []).filter(x => x.date !== date && x.text), ...daily.filter(x => x.note || x.bestMoment).map(x => ({ id: 'd' + x.date, date: x.date, text: [x.note, x.bestMoment && `بهترین لحظه: ${x.bestMoment}`].filter(Boolean).join(' · '), daily: true }))]
     .filter(x => { const k = isoToJ(x.date); return k.jm === j.jm && k.jd === j.jd && k.jy < j.jy; }).sort((a, b) => b.date.localeCompare(a.date));
   const list = (col.items || []).filter(x => x.date !== date && (!q || String(x.text || '').includes(q))).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
-  return <Page Nav={Nav} kicker="روزنگار" title={jl(date)} sub={date === today ? 'امروز' : ''} actions={<><button className="lf-btn ghost" onClick={() => setDate(addDays(date, -1))}>‹ دیروز</button>{date !== today ? <button className="lf-btn ghost" onClick={() => setDate(addDays(date, 1))}>فردا ›</button> : null}</>}>
+  return <Page Nav={Nav} kicker="روزنگار" title={jl(date)} sub={date === today ? 'امروز' : ''} actions={<><button className="lf-btn ghost" onClick={() => setDate(addDays(date, -1))}><ChevronRight size={18} aria-hidden="true" /> دیروز</button>{date !== today ? <button className="lf-btn ghost" onClick={() => setDate(addDays(date, 1))}>فردا <ChevronLeft size={18} aria-hidden="true" /></button> : null}</>}>
     <section className="lf-card lf-journal">
       <div className="lf-moods">{MOODS.map((m, i) => <button key={i} className={mood === i + 1 ? 'on' : ''} onClick={() => setMood(i + 1)}>{m}</button>)}</div>
       <textarea rows={8} value={text} onChange={e => setText(e.target.value)} placeholder="امروز چه گذشت؟ چی یاد گرفتی؟ بابت چی ممنونی؟" />
@@ -1101,7 +1137,7 @@ export function GoalsPage({ Nav }) {
   const pct = g => g.target ? Math.min(100, Math.round((g.current || 0) / g.target * 100)) : (g.milestones || []).length ? Math.round((g.milestones.filter(m => m.done).length / g.milestones.length) * 100) : (g.done ? 100 : 0);
   const avg = items.length ? Math.round(items.reduce((a, g) => a + pct(g), 0) / items.length) : 0;
   const AREA = { work: '💼', money: '💰', health: '💪', learn: '📚', family: '❤️', personal: '✨' };
-  return <Page Nav={Nav} kicker="اهداف سالانه" title={`سال ${faD(year)}`} sub={items.length ? `پیشرفت کلی ${fa(avg)}٪` : ''} actions={<><button dir="ltr" className="lf-btn ghost" onClick={() => setYear(year - 1)} aria-label="سال قبل">›</button><button dir="ltr" className="lf-btn ghost" onClick={() => setYear(year + 1)} aria-label="سال بعد">‹</button><button className="lf-btn" onClick={() => setEdit({ year })}>＋ هدف</button></>}>
+  return <Page Nav={Nav} kicker="اهداف سالانه" title={`سال ${faD(year)}`} sub={items.length ? `پیشرفت کلی ${fa(avg)}٪` : ''} actions={<><button className="lf-btn ghost" onClick={() => setYear(year - 1)} aria-label="سال قبل"><ChevronRight size={18} aria-hidden="true" /></button><button className="lf-btn ghost" onClick={() => setYear(year + 1)} aria-label="سال بعد"><ChevronLeft size={18} aria-hidden="true" /></button><button className="lf-btn" onClick={() => setEdit({ year })}>＋ هدف</button></>}>
     {col.items === null ? <p className="lf-empty">در حال دریافت…</p> : !items.length ? <p className="lf-empty">برای {faD(year)} هدفی تعریف نشده. هدف‌های بزرگ را بنویس و به گام‌های کوچک بشکن.</p> :
       <div className="lf-cards">{items.map(g => <article key={g.id} className={`lf-card lf-goal ${pct(g) >= 100 ? 'done' : ''}`}>
         <div className="lf-row-head"><div><b>{AREA[g.area] || '✨'} {g.title}</b>{g.why ? <small>{g.why}</small> : null}</div><strong>{fa(pct(g))}٪</strong></div>

@@ -19,6 +19,8 @@
       "database_id": "6f725d4a-9d22-43f4-a58f-297c8d2ece34"
     }
   ],
+  // Workers AI: on-device translation (m2m100) when the external AI keys are refused
+  "ai": { "binding": "AI" },
   "triggers": {
     "crons": ["*/5 * * * *"]
   }

@@ -503,7 +503,8 @@ function renderStudy() {
     if (Math.abs(e.touches[0].clientY - sy) > Math.abs(dx)) { dx = 0; fc.style.transform = ""; return; }
     fc.style.transform = `translateX(${dx}px) rotate(${dx / 30}deg)${flipped ? " rotateY(180deg)" : ""}`;
     fc.classList.toggle("sw-r", dx > 70); fc.classList.toggle("sw-l", dx < -70);
-  }, { passive: true });
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
   fc.addEventListener("touchend", () => {
     if (sx === null) return; sx = null;
     fc.style.transition = ""; fc.style.transform = ""; fc.classList.remove("sw-r", "sw-l");
@@ -1315,14 +1316,14 @@ function renderFilters() {
   $$("#topicBar [data-t]").forEach(c => c.onclick = () => { FILTER.topic = c.dataset.t; cur = null; renderFilters(); render(); });
   const tg = $("#topicToggle");
   if (tg) {
-    // one scrolling row by default; «همه ▾» opens every topic as wrapped chips (all screen sizes)
-    const bar = $("#topicBar");
+    // wide screens: one scrolling row; «همه ▾» opens every topic as wrapped chips.
+    // phones: the whole filter folds into this one button showing the current choice (the card stays in view).
+    const bar = $("#topicBar"), card = $("#filterCard"), phone = matchMedia("(max-width:700px)").matches;
+    const summary = `${FILTER.lv === "all" ? "همهٔ سطوح" : FILTER.lv} · ${FILTER.topic === "all" ? "همهٔ موضوع‌ها" : FILTER.topic}`;
     tg.style.display = "";
-    tg.textContent = bar.classList.contains("exp") ? "بستن ▴" : "همهٔ موضوع‌ها ▾";
-    tg.onclick = () => {
-      const on = bar.classList.toggle("exp");
-      tg.textContent = on ? "بستن ▴" : "همهٔ موضوع‌ها ▾";
-    };
+    const label = () => phone ? (card.classList.contains("open") ? "بستن فیلتر ▴" : `فیلتر: ${summary} ▾`) : (bar.classList.contains("exp") ? "بستن ▴" : "همهٔ موضوع‌ها ▾");
+    tg.textContent = label();
+    tg.onclick = () => { if (phone) card.classList.toggle("open"); else bar.classList.toggle("exp"); tg.textContent = label(); };
   }
 }
 
@@ -1338,7 +1339,23 @@ function wheelScrollX(el) {
 }
 
 /* ------------------------------------------------------------------- boot */
+/* inside LifeOS on an iPhone: Safari grows an iframe to its content's width, so the page was wider than the screen
+   and its right edge was cut off. Pin the document to the width of the frame's box in the parent page. */
+function pinToFrameWidth() {
+  try {
+    if (window.parent === window) return;
+    const pw = window.parent.innerWidth, z = parseFloat(getComputedStyle(window.parent.document.body).zoom) || 1;
+    const phone = pw <= 700;
+    if (!phone) { document.documentElement.style.width = document.body.style.width = ""; return; }
+    const w = Math.floor(pw / z);
+    document.documentElement.style.width = document.body.style.width = w + "px";
+    document.documentElement.style.overflowX = document.body.style.overflowX = "hidden";
+  } catch (e) { /* different origin: nothing to pin */ }
+}
 function boot() {
+  pinToFrameWidth(); addEventListener("resize", pinToFrameWidth);
+  $("#homeBtn") && ($("#homeBtn").onclick = () => { try { (window.parent !== window ? window.parent : window).location.href = "/"; } catch (e) { location.href = "/"; } });
+  try { window.parent.addEventListener("resize", pinToFrameWidth); } catch (e) {}
   wheelScrollX($("#levelBar")); wheelScrollX($("#topicBar"));
   $("#deckSize").textContent = fa(DECK.length);
   $$(".tab").forEach(t => t.onclick = () => { if (VIEW !== t.dataset.v) stopSpeaking(); VIEW = t.dataset.v; render(); });

@@ -69,7 +69,8 @@ function loadJson(key, fallback) {
 }
 
 // «پیشنهادهای مالی»: 2-year trend numbers per asset + an AI overview built from them and recent news (server: /api/finance/insights)
-const pctTxt = (v) => v == null ? '—' : `${v > 0 ? '+' : ''}${Number(v).toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪`
+// cells are coloured up/down, so no sign
+const pctTxt = (v) => v == null ? '—' : `${Math.abs(Number(v)).toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪`
 function MarketInsights() {
   const [d, setD] = useState(null), [busy, setBusy] = useState(false), [err, setErr] = useState('')
   const load = async (fresh = false) => {

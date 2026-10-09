@@ -1335,6 +1335,16 @@
         }
       }
     },
+    "/api/bundle": {
+      "get": {
+        "operationId": "get_api_bundle",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/calendar/feed": {
       "get": {
         "operationId": "get_api_calendar_feed",
@@ -2766,14 +2776,6 @@
       }
     },
     "/api/exercise": {
-      "delete": {
-        "operationId": "delete_api_exercise",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      },
       "get": {
         "operationId": "get_api_exercise",
         "responses": {
@@ -2913,6 +2915,14 @@
       }
     },
     "/api/finance/monthly-report": {
+      "get": {
+        "operationId": "get_api_finance_monthly_report",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
       "post": {
         "operationId": "post_api_finance_monthly_report",
         "responses": {
@@ -4463,6 +4473,124 @@
         ]
       }
     },
+    "/api/investments/import-orders": {
+      "post": {
+        "operationId": "post_api_investments_import_orders",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "text": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 10000
+                  },
+                  "date": {
+                    "type": "string",
+                    "example": "2026-10-06"
+                  },
+                  "note": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "example": "expense"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "خوراک"
+                  },
+                  "status": {
+                    "type": "string",
+                    "example": "active"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/investments/import-orders/preview": {
+      "post": {
+        "operationId": "post_api_investments_import_orders_preview",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "text": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 10000
+                  },
+                  "date": {
+                    "type": "string",
+                    "example": "2026-10-06"
+                  },
+                  "note": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "example": "expense"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "خوراک"
+                  },
+                  "status": {
+                    "type": "string",
+                    "example": "active"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/investments/price": {
       "post": {
         "operationId": "post_api_investments_price",
@@ -4518,6 +4646,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/investments/price-history": {
+      "get": {
+        "operationId": "get_api_investments_price_history",
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -5891,6 +6029,27 @@
             }
           }
         }
+      }
+    },
+    "/api/news/{id}/read": {
+      "get": {
+        "operationId": "get_api_news_id_read",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "x"
+            }
+          }
+        ]
       }
     },
     "/api/news/{id}/related": {
@@ -7273,6 +7432,65 @@
       },
       "patch": {
         "operationId": "patch_api_report_brand",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "text": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 10000
+                  },
+                  "date": {
+                    "type": "string",
+                    "example": "2026-10-06"
+                  },
+                  "note": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "example": "expense"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "خوراک"
+                  },
+                  "status": {
+                    "type": "string",
+                    "example": "active"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/report-link": {
+      "post": {
+        "operationId": "post_api_report_link",
         "responses": {
           "200": {
             "description": "OK"

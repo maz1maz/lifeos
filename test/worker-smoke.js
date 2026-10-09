@@ -188,6 +188,14 @@ async function main() {
     check('me exposes backup/limit/project-report settings', await (async () => { const m = (await call('/api/me', { cookie })).d.user; return m.backupFreq === 'weekly' && m.funLossLimit === 0 && m.tgProjectsOn === true; })());
     const reportBrand = await call('/api/report-brand', { method: 'PATCH', cookie, body: { headerText: 'شرکت نما <b>', footerText: 'تهران · تلفن ۱۲۳', logo: 'data:image/png;base64,AA==' } });
     check('project PDF branding saves sanitized header, footer and logo', reportBrand.status === 200 && reportBrand.d.headerText === 'شرکت نما b' && reportBrand.d.footerText === 'تهران · تلفن ۱۲۳' && reportBrand.d.logo === 'data:image/png;base64,AA==');
+    { // iPhone home-screen app: the report is kept behind a 30-minute /r/<id> link where no script may run
+      const rl = await call('/api/report-link', { method: 'POST', cookie, body: { html: '<!doctype html><html><body><h1>گزارش</h1><script>alert(1)</script></body></html>' } });
+      const page = rl.d && rl.d.url ? await worker.fetch(new Request('https://worker-smoke.local' + rl.d.url), env, {}) : null;
+      const csp = page ? page.headers.get('content-security-policy') || '' : '';
+      check('report link opens without login and blocks scripts', rl.status === 200 && /^\/r\/[a-f0-9]{32}$/.test(rl.d.url) && page.status === 200 && /گزارش/.test(await page.text()) && /default-src 'none'/.test(csp) && !/script-src/.test(csp) && !page.headers.get('x-lifeos-csp'));
+      check('report link needs login and a whole page', (await call('/api/report-link', { method: 'POST', body: { html: '<!doctype html><p>x' } })).status === 401 && (await call('/api/report-link', { method: 'POST', cookie, body: { html: '<p>x' } })).status === 400);
+      check('unknown report link -> 404', (await worker.fetch(new Request('https://worker-smoke.local/r/' + 'a'.repeat(32)), env, {})).status === 404);
+    }
     check('project PDF branding rejects an oversized logo', (await call('/api/report-brand', { method: 'PATCH', cookie, body: { logo: 'data:image/png;base64,' + 'A'.repeat(230000) } })).status === 400);
     await call('/api/me', { method: 'PATCH', cookie, body: { funLossLimit: '100,000,000', backupFreq: 'daily' } });
     const me44 = (await call('/api/me', { cookie })).d.user;
@@ -381,6 +389,9 @@ async function main() {
   check('accounts create -> 201', !!accA.id && !!accB.id);
   check('transfer -> 201', (await call('/api/transfers', { method: 'POST', cookie, body: { fromAccount: 'WA', toAccount: 'WB', amount: 400 } })).status === 201);
   check('budgets save -> 201', (await call('/api/budgets', { method: 'POST', cookie, body: { category: 'خوراک', limit: 500, month: today().slice(0, 7) } })).status === 201);
+  { const g = await call('/api/debts', { method: 'POST', cookie, body: { person: 'گرفته‌شده', amount: 300, type: 'payable', date: '2026-09-01' } });
+    check('debt keeps the lend/borrow date, defaults to today without one', g.d.date === '2026-09-01' && (await call('/api/debts', { method: 'POST', cookie, body: { person: 'بی‌تاریخ', amount: 1, type: 'payable', date: 'bad' } })).d.date === today());
+    check('debt date editable', (await call(`/api/debts/${g.d.id}`, { method: 'PATCH', cookie, body: { date: '2026-08-15' } })).d.date === '2026-08-15'); }
   const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
   check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
   const sub = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'Wsub', amount: 50, nextDate: daysAgo(-3) } })).d;
@@ -457,7 +468,27 @@ async function main() {
       check('assistant: no ids/userIds leak into context', !/"userId"/.test(sys || ''));
       await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام', page: '<script>' } });
       check('assistant: unknown page adds nothing', !/"currentPage"/.test(seen[1].messages[0].content));
+      // bet/poker are visible from any page (the overview), e.g. «روندم در بت چطوره؟» asked on the finance page
+      await call('/api/bet', { method: 'POST', cookie, body: { date: new Date().toISOString().slice(0, 10), start: 100, deposit: 0, withdraw: 0, balance: 175 } });
+      await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'روندم در بت چطوره؟', page: 'planner' } });
+      const ov = seen[2].messages[0].content, j = JSON.parse(ov.slice(ov.indexOf('DATA: ') + 6));
+      check('assistant: overview has bet / poker / portfolio / projects from any page', j.overview && j.overview.bet && j.overview.bet.days >= 1 && j.overview.bet.recent.some(x => x.resultUsd === 75) && j.overview.poker && Array.isArray(j.overview.portfolio) && Array.isArray(j.overview.projects), JSON.stringify(j.overview || {}).slice(0, 300));
+      check('assistant: overview leaks no ids', !/"userId"|"id":/.test(JSON.stringify(j.overview)));
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
+  }
+  { // AI without keys (or keys refused): Cloudflare's own model through the AI binding answers
+    const realFetch = globalThis.fetch, asked = [];
+    env.AI = { run: async (model, input) => { asked.push(model); if (/m2m100/.test(model)) return { translated_text: 'ترجمه' }; return { response: 'پاسخ از Workers AI' }; } };
+    env.AI_PROVIDER_API_KEY = 'k'; env.AI_PROVIDER_BASE_URL = 'https://ai.test/v1'; env.AI_MODEL = 'm';
+    globalThis.fetch = async (url, init) => String(url).startsWith('https://ai.test/') ? new Response('{"error":"Forbidden"}', { status: 403 }) : realFetch(url, init);
+    try {
+      const r = await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام', page: 'finance' } });
+      check('assistant falls back to Workers AI when the keyed provider refuses', r.status === 200 && r.d.reply === 'پاسخ از Workers AI' && asked.some(m => /llama/.test(m)), JSON.stringify(r.d));
+      delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL;
+      const r2 = await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'سلام' } });
+      check('assistant works with no key at all when the AI binding exists', r2.status === 200 && r2.d.reply === 'پاسخ از Workers AI', JSON.stringify(r2.d));
+      check('a refused provider is skipped for a while (no second 403 round trip)', globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.size >= 1);
+    } finally { globalThis.fetch = realFetch; delete env.AI; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.clear(); }
   }
   { // work-time log: manual entries, validation, edit, timer start/stop
     const a = await call('/api/time', { method: 'POST', cookie, body: { title: 'گزارش پروژه', minutes: 95, date: '2026-02-03', projectId: 'p1' } });
@@ -469,6 +500,152 @@ async function main() {
     await call('/api/timer/cancel', { method: 'POST', cookie });
     check('timer: start -> running -> stop logs an entry', (await call('/api/timer/start', { method: 'POST', cookie, body: { title: 'تایمر تست' } })).status === 201 && !!(await call('/api/timer', { cookie })).d.timer && (await call('/api/timer/stop', { method: 'POST', cookie, body: {} })).d.minutes >= 1 && (await call('/api/timer', { cookie })).d.timer === null);
     await call(`/api/time/${a.d.id}`, { method: 'DELETE', cookie });
+  }
+  { // news sources from sites that block bots: known official feed (NYT), else Google News limited to the site
+    const rss = t => `<?xml version="1.0"?><rss><channel><title>${t}</title><item><title>${t} one</title><link>https://x.test/1</link><guid>${t}-1</guid></item><item><title>${t} two</title><link>https://x.test/2</link><guid>${t}-2</guid></item></channel></rss>`;
+    const realFetch = globalThis.fetch, asked = [];
+    globalThis.fetch = async (url) => { const u = String(url); asked.push(u);
+      if (u.startsWith('https://rss.nytimes.com/services/xml/rss/nyt/World.xml')) return new Response(rss('NYT > World News'));
+      if (u.startsWith('https://news.google.com/rss/search')) return new Response(rss('"site:reuters.com" - Google News'));
+      if (u.startsWith('https://news.google.com/rss/topics/')) return new Response(rss('World - Latest - Google News'));
+      if (/reuters\.com|nytimes\.com/.test(u)) return new Response('blocked', { status: 401 });
+      return new Response('nope', { status: 404 }); };
+    try {
+      const ny = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://www.nytimes.com/international/' } });
+      check('nytimes.com/international -> official World feed', ny.status === 201 && ny.d.url.includes('nyt/World.xml') && ny.d.added === 2, JSON.stringify(ny.d));
+      const rt = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://www.reuters.com' } });
+      check('reuters.com (401) -> Google News for site:reuters.com', rt.status === 201 && rt.d.url.includes('news.google.com/rss/search') && rt.d.url.includes('reuters.com') && rt.d.name === 'reuters.com (Google News)' && rt.d.added === 2, JSON.stringify(rt.d));
+      const gt = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://news.google.com/topics/CAAqJggKIiBDQkFT?hl=en-US&gl=US&ceid=US%3Aen' } });
+      { // Google never answers Cloudflare: the feed comes through rss2json and the source remembers that
+        const rf = globalThis.fetch;
+        globalThis.fetch = async (url) => { const u = String(url);
+          if (u.startsWith('https://api.rss2json.com/v1/api.json?rss_url=')) return new Response(JSON.stringify({ status: 'ok', feed: { title: 'Tech - Latest - Google News' }, items: [{ title: 'via proxy one', link: 'https://n.test/1', guid: 'p1', description: '<b>x</b>' }, { title: 'via proxy two', link: 'https://n.test/2', guid: 'p2' }] }));
+          if (u.startsWith('https://news.google.com/')) throw new DOMException('timeout', 'AbortError');
+          return new Response('nope', { status: 404 }); };
+        try {
+          const px = await call('/api/news/sources', { method: 'POST', cookie, body: { url: 'https://news.google.com/topics/TECHID?hl=en-US' } });
+          check('Google News through rss2json: proxy flag, items, readable name', px.status === 201 && px.d.proxy === 'rss2json' && px.d.added === 2 && px.d.name === 'Tech - Latest (Google News)', JSON.stringify(px.d));
+          const sy = await call('/api/news/sync', { method: 'POST', cookie });
+          check('proxy source syncs through the proxy too', sy.d.results.find(r => r.source === 'Tech - Latest (Google News)').ok === true);
+          if (px.d && px.d.id) await call(`/api/news/sources/${px.d.id}`, { method: 'DELETE', cookie });
+        } finally { globalThis.fetch = rf; }
+      }
+      check('a Google News topic page -> its /rss/topics feed', gt.status === 201 && gt.d.url.startsWith('https://news.google.com/rss/topics/CAAqJggKIiBDQkFT?hl=en-US'), JSON.stringify(gt.d));
+      if (gt.d && gt.d.id) await call(`/api/news/sources/${gt.d.id}`, { method: 'DELETE', cookie });
+      for (const x of [ny.d, rt.d]) if (x && x.id) await call(`/api/news/sources/${x.id}`, { method: 'DELETE', cookie });
+    } finally { globalThis.fetch = realFetch; }
+  }
+  { // Tehran-exchange stock (Persian ticker) is priced in rial, not multiplied by the dollar rate; buys are editable
+    const t1 = await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'عیارتست', type: 'buy', quantity: 2919, price: 600000 } });
+    check('Persian stock ticker -> currency IRR', t1.status === 201 && t1.d.currency === 'IRR');
+    const us = await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'AAPLT', type: 'buy', quantity: 1, price: 200 } });
+    check('Latin stock ticker -> USD unless chosen', us.d.currency === 'USD' && (await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'XYZT', type: 'buy', quantity: 1, price: 5, currency: 'IRR' } })).d.currency === 'IRR');
+    const ed = await call(`/api/investments/tx/${t1.d.id}`, { method: 'PATCH', cookie, body: { quantity: 3000, price: 610000 } });
+    check('investment buy editable', ed.d.quantity === 3000 && ed.d.price === 610000);
+    for (const sym of ['عیارتست', 'AAPLT', 'XYZT']) for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent(sym)}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
+  { // Tehran-exchange live price from TSETMC (symbol search → closing price), Persian Kaf/Yeh variants matched
+    const realFetch = globalThis.fetch, asked = [];
+    globalThis.fetch = async (url) => { const u = String(url); asked.push(u);
+      if (u.startsWith('https://www.shakhesban.com/')) return new Response('down', { status: 503 }); // first source down -> TSETMC fallback
+      if (u.includes('/Instrument/GetInstrumentSearch/')) return new Response(JSON.stringify({ instrumentSearch: [{ insCode: '111', lVal18AFC: 'شكيميا', lVal30: 'شیمیایی' }, { insCode: '222', lVal18AFC: 'شکیمیاح', lVal30: 'حق' }] }));
+      if (u.includes('/ClosingPrice/GetClosingPriceInfo/111')) return new Response(JSON.stringify({ closingPriceInfo: { pDrCotVal: 6830, pClosing: 6830 } }));
+      return new Response('nope', { status: 404 }); };
+    try {
+      await call('/api/investments/tx', { method: 'POST', cookie, body: { assetType: 'stock', symbol: 'شکیمیا', type: 'buy', quantity: 533, price: 5941 } });
+      const r = await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'شکیمیا', assetType: 'stock' } });
+      check('TSE price refresh: exact symbol (Kaf/Yeh-insensitive), rial', r.status === 200 && r.d.price === 6830 && r.d.currency === 'IRR' && asked.some(u => u.includes('GetClosingPriceInfo/111')), JSON.stringify(r.d));
+      const pf = await call('/api/portfolio', { cookie });
+      const h = (pf.d.items || pf.d.holdings || []).find(x => x.symbol === 'شکیمیا');
+      check('portfolio uses the live TSE price', !!h && h.currentPrice === 6830 && h.currency === 'IRR', JSON.stringify(h));
+      globalThis.fetch = async () => new Response(JSON.stringify({ instrumentSearch: [] }));
+      const miss = await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'ناموجود', assetType: 'stock' } });
+      check('TSE unknown symbol -> 502 with a Persian message', miss.status === 502 && /پیدا نشد/.test(miss.d.error));
+    } finally { globalThis.fetch = realFetch; }
+    for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent('شکیمیا')}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
+  { // shakhesban.com row parsing: exact symbol, halted duplicate skipped, last price (5th cell) else closing (8th)
+    const realFetch = globalThis.fetch;
+    const row = (sym, kind, last, close) => `<tr data-symbol="${sym}"><td>${sym}</td><td><span>نام ${sym}</span></td><td>${kind}</td><td>بورس</td><td>${last}</td><td>x</td><td>x</td><td>${close}</td></tr>`;
+    globalThis.fetch = async () => new Response(`<table>${row('عیار', 'نمادهای متوقف شده', '-', '700,000')}${row('عیارx', 'صندوق ها', '1', '1')}${row('عیار', 'صندوق ها', '719,038', '718,739')}</table>`);
+    try {
+      const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+    { // Iran's office week: office errands on Thursday/Friday get a warning; other errands don't
+      const fri = '2026-10-09', thu = '2026-10-08', sat = '2026-10-10';
+      check('office errand on Friday/Thursday is flagged, not on Saturday or for a non-office errand', /جمعه/.test(H.officeDayWarning(fri, 'رفتن به بانک')) && /پنجشنبه/.test(H.officeDayWarning(thu, 'دفترخانه برای وکالت')) && !H.officeDayWarning(sat, 'رفتن به بانک') && !H.officeDayWarning(fri, 'خرید نان') && /شنبه تا چهارشنبه/.test(H.IRAN_WEEK_NOTE));
+    }
+      const r = await H.fetchTsePrice('عیار');
+      check('shakhesban: exact symbol, live row, last price', r.price === 719038 && r.closing === 718739, JSON.stringify(r));
+      const rf = await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'عیار', assetType: 'stock' } });
+      const ph = (await call('/api/investments/price-history', { cookie })).d.items.filter(x => x.symbol === 'عیار');
+      check('«قیمت از بورس» also saves the day\'s close (one row per day)', rf.status === 200 && ph.length === 1 && ph[0].price === 718739 && ph[0].date === today(), JSON.stringify({ rf: rf.d, ph }));
+      await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'عیار', assetType: 'stock' } });
+      check('a second fetch the same day updates that row instead of adding one', (await call('/api/investments/price-history', { cookie })).d.items.filter(x => x.symbol === 'عیار').length === 1);
+    } finally { globalThis.fetch = realFetch; }
+  }
+  { // broker order-history import (easytrader «تاریخچه سفارشات»): filled orders only, Jalali dates, openings, dedupe
+    const XLSX = require('xlsx');
+    const ws = XLSX.utils.aoa_to_sheet([['تاریخ', 'ساعت', 'سمت سفارش', 'نماد', 'حجم کل', 'قیمت', 'حجم انجام شده', 'وضعیت'],
+      ['1405/07/12', '12:35:02', 'خرید', 'سیلورت', 6532, 13910, 6532, 'انجام شده'],
+      ['1405/07/08', '12:43:55', 'خرید', 'شكيمياتست', 1800, 5919, 533, 'بخشی انجام و مابقی منقضی شده'],
+      ['1405/07/06', '12:05:39', 'فروش', 'تابانت', 3696, 21150, 3696, 'انجام شده'],
+      ['1405/05/27', '11:54:36', 'خرید', 'سیلورت', 3294, 531110, 0, 'ویرایش']]);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'x');
+    const b64 = Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })).toString('base64');
+    const pv = await call('/api/investments/import-orders/preview', { method: 'POST', cookie, body: { fileBase64: b64, fileType: 'xlsx' } });
+    const tab = pv.d && pv.d.symbols && pv.d.symbols.find(x => x.symbol === 'تابانت');
+    check('broker preview: 3 filled orders, Jalali→ISO, Kaf/Yeh normalised, sold-before-bought noticed', pv.status === 200 && pv.d.count === 3 && pv.d.trades[0].date === '2026-09-28' && pv.d.trades.some(t => t.symbol === 'شکیمیاتست' && t.quantity === 533) && tab.heldBefore === 3696, JSON.stringify(pv.d).slice(0, 300));
+    { // two capped exports: the older file adds earlier orders, the order in both counts once
+      const ws2 = XLSX.utils.aoa_to_sheet([['تاریخ', 'ساعت', 'سمت سفارش', 'نماد', 'حجم کل', 'قیمت', 'حجم انجام شده', 'وضعیت'],
+        ['1405/07/06', '12:05:39', 'فروش', 'تابانت', 3696, 21150, 3696, 'انجام شده'],
+        ['1405/06/01', '10:00:00', 'خرید', 'تابانت', 3696, 20000, 3696, 'انجام شده']]);
+      const wb2 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb2, ws2, 'x');
+      const b64b = Buffer.from(XLSX.write(wb2, { type: 'buffer', bookType: 'xlsx' })).toString('base64');
+      const m = await call('/api/investments/import-orders/preview', { method: 'POST', cookie, body: { files: [{ fileBase64: b64, fileType: 'xlsx' }, { fileBase64: b64b, fileType: 'xlsx' }] } });
+      const t2 = m.d.symbols && m.d.symbols.find(x => x.symbol === 'تابانت');
+      check('broker preview with 2 files: merged, overlap once, no opening needed', m.status === 200 && m.d.files === 2 && m.d.count === 4 && t2.heldBefore === 0 && m.d.trades[0].date === '2026-08-23', JSON.stringify(m.d).slice(0, 300));
+    }
+    const imp = await call('/api/investments/import-orders', { method: 'POST', cookie, body: { trades: pv.d.trades, openings: [{ symbol: 'تابانت', quantity: 3696, price: 20000, date: '2026-09-27' }], replace: true } });
+    check('broker import: trades + opening written', imp.status === 200 && imp.d.added === 4, JSON.stringify(imp.d));
+    const again = await call('/api/investments/import-orders', { method: 'POST', cookie, body: { trades: pv.d.trades } });
+    check('broker import again without replace: same orders skipped', again.d.added === 0 && again.d.skipped === 3);
+    const pf = (await call('/api/portfolio', { cookie })).d; const all = pf.items || pf.holdings || [];
+    check('holdings after import: bought kept, sold-out closed with realized P/L', all.find(h => h.symbol === 'سیلورت')?.quantity === 6532 && all.find(h => h.symbol === 'تابانت')?.realizedPnl === 3696 * 1150);
+    for (const sym of ['سیلورت', 'شکیمیاتست', 'تابانت']) for (const t of (await call(`/api/investments/tx?symbol=${encodeURIComponent(sym)}`, { cookie })).d.items) await call(`/api/investments/tx/${t.id}`, { method: 'DELETE', cookie });
+  }
+  { // «امروز در تاریخ» in Persian without AI keys: Google's free endpoint, else MyMemory
+    const realFetch = globalThis.fetch, hit = [];
+    globalThis.fetch = async (url, init) => { const u = String(url); hit.push(u.split('?')[0]);
+      if (u.includes('wikipedia.org')) return new Response(JSON.stringify({ events: [{ year: 2016, text: 'Hurricane Matthew kills nearly 900.' }, { year: 2001, text: 'Two planes collide in Milan.' }] }), { headers: { 'content-type': 'application/json' } });
+      if (u.includes('translate.googleapis.com')) return new Response('<html>sorry</html>', { status: 302 });
+      if (u.includes('mymemory')) { const q = new URL(u).searchParams.get('q'); return new Response(JSON.stringify({ responseData: { translatedText: /Matthew/.test(q) ? 'طوفان متیو نزدیک ۹۰۰ نفر را کشت.' : 'دو هواپیما در میلان برخورد کردند.' } }), { headers: { 'content-type': 'application/json' } }); }
+      return realFetch(url, init); };
+    try {
+      const r = await call('/api/calendar/on-this-day?fa=1&date=2026-10-09', { cookie });
+      check('on-this-day translated without AI (Google refused → MyMemory)', r.status === 200 && r.d.lang === 'fa' && r.d.events.length === 2 && /متیو/.test(r.d.events[0].text) && !r.d.events.some(e => e.en), JSON.stringify(r.d).slice(0, 300));
+    } finally { globalThis.fetch = realFetch; }
+  }
+  { // Blu «انتقال به سپرده (بنام …)» = money to a person, not a transfer between own accounts
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+    const rows = [['تاریخ', 'شرح', 'نوع تراکنش', 'برداشت', 'واریز', 'شماره سند'], ['1405/07/14', 'انتقال به سپرده (بنام فاطمه صیفی خانی)', 'انتقال به سپرده', '500,000', '', 'D1'], ['1405/07/14', 'دریافت از سپرده (بنام شمسی ساکی)', 'دریافت از سپرده', '', '200,000', 'D2']];
+    let parsed = null; try { parsed = H.parseBankStatementRows(rows, 'IRR'); } catch (e) { parsed = e.message; }
+    const out = Array.isArray(parsed) && parsed.find(x => /فاطمه/.test(x.title)), inn = Array.isArray(parsed) && parsed.find(x => /شمسی/.test(x.title));
+    check('bank import: «انتقال به سپرده» → expense in «انتقال», «دریافت از سپرده» → income not counted as income', out && out.kind === 'expense' && out.category === 'انتقال' && inn && inn.kind === 'income' && inn.notIncome === true, JSON.stringify(parsed).slice(0, 300));
+    const db = { _meta: {}, transactions: [{ kind: 'transfer', account: 'بلو بانک', toAccount: 'سپرده‌های بانکی', amount: 5 }, { kind: 'transfer', account: 'سپرده‌های بانکی', toAccount: 'بلو بانک', amount: 7 }, { kind: 'transfer', account: 'بلو بانک', toAccount: 'کارت اصلی', amount: 9 }] };
+    H.fixDepositTransfers(db);
+    const [a, b, c] = db.transactions;
+    check('old deposit «transfers» fixed once: out → expense, in → income on the real account, real transfers untouched', a.kind === 'expense' && !a.toAccount && a.account === 'بلو بانک' && b.kind === 'income' && b.account === 'بلو بانک' && b.notIncome && c.kind === 'transfer' && db._meta.depositXferFixed && H.fixDepositTransfers(db) === false, JSON.stringify(db));
+  }
+  { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
+    check('TSE hours: Sunday 10:00 Tehran open, 14:00 closed, Thursday closed', H.tseMarketOpen(at('2026-10-11T06:30:00Z')) && !H.tseMarketOpen(at('2026-10-11T10:30:00Z')) && !H.tseMarketOpen(at('2026-10-08T06:30:00Z')));
+  }
+  { // /api/bundle: several GETs in one round trip, same answers as asking one by one; bad paths refused per entry
+    const one = (await call('/api/accounts', { cookie })).d, b = await call('/api/bundle?p=' + encodeURIComponent('/api/accounts') + '&p=' + encodeURIComponent('/api/finance?from=2026-01-01&to=2026-12-31') + '&p=' + encodeURIComponent('/api/auth/logout') + '&p=' + encodeURIComponent('https://evil.example/x'), { cookie });
+    check('bundle -> 200 with one entry per path', b.status === 200 && b.d.items.length === 4, JSON.stringify(b.d).slice(0, 200));
+    check('bundle entry equals the single request', JSON.stringify(b.d.items[0].body) === JSON.stringify(one) && b.d.items[1].status === 200);
+    check('bundle refuses auth routes and outside URLs', b.d.items[2].status === 400 && b.d.items[3].status === 400);
+    check('bundle needs a session', (await call('/api/bundle?p=' + encodeURIComponent('/api/accounts'))).status === 401);
   }
   console.log('\n[W4] telegram link + spotify/youtube guards');
   check('link telegram id -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '123456789' } })).status === 200);
@@ -633,7 +810,8 @@ async function main() {
   };
   const w9sms = await w9parse('۲۴بلو انتقال پل حمیدرضا عزیز 15,000,000 ریال از حساب شما پرید. موجودی: 3,879,270,699 ریال 15:40 1405.06.23');
   check('worker: reported SMS keeps 15,000,000 ریال as 15,000,000 rial (no divide)', w9sms.status === 200 && w9sms.actions.length === 1 && w9sms.actions[0].amount === 15_000_000, JSON.stringify(w9sms.actions));
-  check('worker: stored row carries the rial amount, never the balance', w9sms.created.length === 1 && w9sms.created[0].amount === 15_000_000);
+  const w9smsRows = ((await call('/api/transactions?month=2026-09', { cookie })).d.items || []).filter(x => x.source === 'sms' && x.date === '2026-09-14'); // the SMS's own date (1405.06.23), not today
+  check('worker: stored row carries the rial amount, never the balance', w9sms.created.length === 0 && w9smsRows.length === 1 && w9smsRows[0].amount === 15_000_000, JSON.stringify(w9smsRows));
   const w9bal = await w9parse('موجودی: 3,879,270,699 ریال');
   check('worker: balance-only text creates nothing (stripBalanceNotes must be exported)', w9bal.status === 200 && w9bal.actions.length === 0 && w9bal.created.length === 0);
   const w9ref = await w9parse('شناسه پرداخت ۱۲۳۴۵۶۷۸۹۰');
@@ -827,6 +1005,14 @@ async function main() {
     check('site cannot read finance collections without the projectFiles scope', (await ext('/api/ext/col/projectFinancials', { token })).status === 403);
     check('site cannot reach non-allowlisted collections', (await ext('/api/ext/col/health', { token })).status === 403);
     check('site cannot reach normal APIs with the token', (await ext('/api/transactions', { token })).status === 401);
+    { // the panel's report letterhead (logo) through the proxy: same fields as /api/report-brand, validated the same way
+      const png = 'data:image/png;base64,' + Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]).toString('base64');
+      const put = await ext('/api/ext/report-brand', { method: 'PATCH', token, body: { logo: png } });
+      check('site saves the report logo', put.status === 200 && put.d.logo === png && (await ext('/api/ext/report-brand', { token })).d.logo === png);
+      check('site logo must be an image data URL', (await ext('/api/ext/report-brand', { method: 'PATCH', token, body: { logo: 'javascript:alert(1)' } })).status === 400);
+      check('logo saved by the site shows in LifeOS too', (await call('/api/report-brand', { cookie })).d.logo === png);
+      await ext('/api/ext/report-brand', { method: 'PATCH', token, body: { logo: '' } });
+    }
     const card = await ext('/api/ext/col/cards', { method: 'POST', token, body: { projectId: proj.d.id, title: 'نقشه‌های اجرایی', col: 'todo' } });
     check('site adds a kanban card', card.status === 201);
     const pg = (await ext('/api/ext/col/cards?offset=0&limit=1', { token })).d;
@@ -861,7 +1047,8 @@ async function main() {
     const rr = await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: proj.d.id, title: 'تماس با کارفرما', date: today(), time: tz, notes: 'از سایت' } });
     check('site reminder -> 201 and listed for the site', rr.status === 201 && (await ext('/api/ext/reminders', { token })).d.items.some(r => r.id === rr.d.id), JSON.stringify(rr.d));
     check('site reminder appears in LifeOS reminders', (await call('/api/reminders', { cookie })).d.items.some(r => r.id === rr.d.id));
-    if (tz > '00:05') {
+    // reminder set 2 min ago, skipped just after Tehran midnight (it would land on today's 23:58, still ahead)
+    if (tz < '23:55') {
       await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777001' } });
       const sent = [], realFetch = globalThis.fetch;
       env.TELEGRAM_BOT_TOKEN = 'TEST';
@@ -934,6 +1121,40 @@ async function main() {
       const qtx = (await call('/api/transactions', { cookie })).d.items.filter(t => t.date === '2026-10-04' && t.kind === 'expense' && /برداشت/.test(t.title || ''));
       check('queue file: new SMS recorded, old one skipped as duplicate, welcome ignored', q.status === 200 && q.d.ok && q.d.recorded === 1 && q.d.duplicates === 1 && q.d.ignored === 1 && qtx.length === 1, JSON.stringify([q.d, qtx]));
       for (const t of [...qtx, tx[0]].filter(Boolean)) await call('/api/transactions/' + t.id, { method: 'DELETE', cookie });
+    }
+
+    // bank SMS → SMS account: Blu interest/piggy formats, first SMS syncs the balance, a missing SMS shows as a gap, reconcile books it
+    {
+      const smsTok = (await call('/api/site-tokens', { method: 'POST', cookie, body: { label: 'iPhone2', scopes: ['bankSms'] } })).d.token;
+      const acc = (await call('/api/accounts', { method: 'POST', cookie, body: { name: 'حساب پیامک تست', type: 'bank', openingBalance: 0 } })).d;
+      check('mark SMS account', (await call('/api/accounts/' + acc.id, { method: 'PATCH', cookie, body: { sms: true } })).d.sms === true);
+      const s1 = 'بلو\nخرید\nحمیدرضا عزیز، 1,000,000 ریال از حساب شما پرید.\nموجودی: 9,000,000 ریال\n۱۰:۰۰\n۱۴۰۵.۰۷.۱۴';
+      const s3 = 'بلو\nسود\nحمیدرضا عزیز، 50,000 ریال سود به حساب شما نشست.\nموجودی: 7,050,000 ریال\n۱۲:۰۰\n۱۴۰۵.۰۷.۱۵';
+      const r = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: s3 + '\n###\n' + s1 } });
+      const mine = (await call('/api/transactions', { cookie })).d.items.filter((t) => t.account === acc.name);
+      const sud = mine.find((t) => t.amount === 50000);
+      check('interest SMS is income on the SMS account', !!sud && sud.kind === 'income' && sud.title === 'سود' && sud.date === '2026-10-07', JSON.stringify([r.d, mine]));
+      let a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
+      check('first SMS syncs balance; skipped SMS (2,000,000) shows as gap', a1.smsBalance === 7050000 && a1.smsDiff === -2000000 && a1.balance === 9050000, JSON.stringify([r.d, a1]));
+      check('gap is reported back', (r.d.notes || []).some((n) => /جا افتاده/.test(n)), JSON.stringify(r.d));
+      const rc = await call('/api/accounts/' + acc.id + '/reconcile', { method: 'POST', cookie });
+      a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
+      check('reconcile books the gap as an expense', rc.status === 201 && rc.d.transaction.amount === 2000000 && rc.d.transaction.kind === 'expense' && a1.smsDiff === 0 && a1.balance === 7050000, JSON.stringify([rc.d, a1]));
+      const pig = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nحمیدرضا عزیز، 3,000,000 ریال از قلک شما به حساب شما منتقل شد.\nموجودی: 10,050,000 ریال\n۱۳:۰۰\n۱۴۰۵.۰۷.۱۵' } });
+      a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
+      const pt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.toAccount === acc.name && t.amount === 3000000);
+      check('piggy-bank SMS is a transfer into the account, balance stays in sync', pig.status === 201 && pt && pt.kind === 'transfer' && a1.smsDiff === 0, JSON.stringify([pig.d, pt, a1]));
+      const bill = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: '###\nبلو\nپرداخت قبض\nحمیدرضا عزیز، 1,325,000 ریال بابت پرداخت قبض تلفن همراه از حساب شما پرید.\nموجودی: 8,725,000 ریال\n۱۴:۰۶\n۱۴۰۵.۰۷.۱۶' } });
+      const bt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.amount === 1325000);
+      a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
+      check('Blu bill SMS («ریال بابت … از حساب شما پرید»): SMS account, clean title, date, balance in sync', bill.status === 201 && bt && bt.account === acc.name && bt.kind === 'expense' && bt.title === 'پرداخت قبض تلفن همراه' && bt.date === '2026-10-08' && a1.smsDiff === 0, JSON.stringify([bill.d, bt, a1]));
+      const again = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nپرداخت قبض\nحمیدرضا عزیز،  1,325,000 ریال بابت پرداخت قبض تلفن همراه از حساب شما پرید.\nموجودی: 8,725,000 ریال\n۱۴:۰۶\n۱۴۰۵.۰۷.۱۶\n' } });
+      check('same SMS with slightly different text is a duplicate (amount+date+time+balance)', again.d.duplicate === true && (await call('/api/transactions', { cookie })).d.items.filter((t) => t.amount === 1325000).length === 1, JSON.stringify(again.d));
+      const bad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بانک\nبرداشت وجه انجام شد' } });
+      const inb = (await call('/api/inbox', { cookie })).d;
+      check('unreadable bank SMS lands in Inbox', bad.status === 422 && JSON.stringify(inb).includes('برداشت وجه انجام شد'), JSON.stringify([bad.d]));
+      for (const t of (await call('/api/transactions', { cookie })).d.items.filter((t) => t.account === acc.name || t.toAccount === acc.name)) await call('/api/transactions/' + t.id, { method: 'DELETE', cookie });
+      await call('/api/accounts/' + acc.id, { method: 'PATCH', cookie, body: { archived: true, sms: false } });
     }
 
     // learn-by-title: generic bank titles must not spread one category to every store

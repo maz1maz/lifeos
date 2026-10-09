@@ -34,6 +34,9 @@ export async function withSecurityHeaders(res) {
     body = await res.text();
     csp = `script-src 'self' ${await inlineScriptHashes(body)}`.trim() + '; ' + CSP_REST;
   }
+  // stored report pages (/r/<id>): their HTML was built in the browser, so nothing in them may run
+  const report = res.headers.get('X-Lifeos-Csp') === 'report';
+  if (report && isHtml) csp = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
   const out = new Response(body, res); // Response.redirect()/fetch() headers are immutable
   const h = out.headers;
   h.set('X-Content-Type-Options', 'nosniff');
@@ -42,6 +45,7 @@ export async function withSecurityHeaders(res) {
   h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   h.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(self), payment=()');
   if (csp) { h.set('Content-Security-Policy', csp); h.delete('content-length'); }
+  if (report) h.delete('X-Lifeos-Csp');
   return out;
 }
 

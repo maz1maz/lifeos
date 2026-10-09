@@ -17,7 +17,7 @@
   - فوتبال: منابع (varzesh3، footba11، ESPN، TheSportsDB، SofaScore) سقف ۸ ثانیه دارند (`fetch` سایه‌شده در بالای helpers.js) و نتیجهٔ هر لیگ ۱۰ دقیقه کش می‌شود (`cachedLeagueRange`). لاگ لایو: `api.cloudflare.com` … `workers/observability/telemetry/query` (اعتبار از پروکسی).
 - **فرانت = React 19 + Vite** در `src/today/` → build داخل `public/` (`index.html` و `assets/index-*.js` gitignore هستند).
   - یک SPA؛ روتینگ با `/?page=<name>` در `src/today/src/main.jsx` (تابع `Routes`؛ `App` با رویداد `lifeos:captured` صفحه را re-mount می‌کند تا بعد از ثبت در Ctrl+K داده تازه شود).
-  - هاب‌های تب‌دار با `TabHub`: برنامه‌ریز (`planner|calendar|habits|focus|time`)، «مرور و اهداف» (`review|goals|week|stats|logbook`)، یادگیری (`learning|vocab`)، یادداشت (`notes|journal|shopping`)، تماشا (`WatchHub`). صفحهٔ «بینش» = `insights`.
+  - هاب‌های تب‌دار با `TabHub`: برنامه‌ریز (`planner|calendar|habits|focus|time`)، «مرور و اهداف» (`review|goals|week|stats|logbook`)، یادگیری (`learning|vocab`)، یادداشت (`notes|journal|shopping|bookmarks`)، تماشا (`WatchHub`). صفحهٔ «بینش» = `insights`.
   - صفحه‌ها lazy هستند (`PAGE_CHUNKS` + `lazyPage` در main.jsx)؛ CSSشان در main.jsx قبل از `mobile.css` import می‌شود تا ترتیب cascade عوض نشود. صفحهٔ تازه = فایل `<page>.jsx` + یک ورودی در `PAGE_CHUNKS`.
   - `life.jsx` (صفحه‌های زندگی/پروژه، lazy) → helperهای مشترک در `life-core.jsx` (api, fa, Page, FormDrawer, useCol…) و کارت‌های صفحهٔ امروز در `life-cards.jsx`. ماژول کوچک از `life-core` import کند، نه `life` (وگرنه کل life به باندل اصلی برمی‌گردد). life.jsx همه را re-export می‌کند (پنل ملینا).
   - منو: `NAV_GROUPS` (۶ گروه) + `TopNav` + نوار پایین موبایل `BOTTOM_TABS` در main.jsx. `public/design/*-page.html` فقط ریدایرکت به `/?page=` هستند (به‌جز login-page.html که صفحهٔ واقعی ورود است). قفل PIN = `public/app-lock.js` (در `src/today/index.html` لود می‌شود).
@@ -29,7 +29,7 @@
 ```bash
 npm ci
 npm run build:today      # حتماً قبل از تست؛ بدون build، ui/verify تست‌ها قرمز می‌شوند
-npm test                 # smoke(۴۸۹، روی worker از طریق test/worker-host.js) + worker-smoke(~۳۰۳) + verify-script(۲۶) + ui-smoke(۴۷) — همه سبز
+npm test                 # smoke(۴۸۹، روی worker از طریق test/worker-host.js) + worker-smoke(~۳۰۳) + verify-script(۲۶) + ui-smoke(۴۷) + render-smoke(۱۲، رندر کامپوننت‌های React با داده؛ خطای صفحهٔ سیاه را قبل از deploy می‌گیرد) — همه سبز
                          # تست‌ها Worker را با test/load-worker.js لود می‌کنند (کپی cloudflare/ در پوشهٔ موقت)
 npm start                # Worker واقعی محلی روی :3000 (wrangler dev --local + جدول kv در D1 محلی؛ کلیدها از .dev.vars)
 PORT=3000 DB_PATH=/tmp/db.json node test/worker-host.js   # همان Worker بدون wrangler (D1 جعلی، state در DB_PATH؛ با TLS_CERT/TLS_KEY روی https)
