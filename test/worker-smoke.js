@@ -570,6 +570,11 @@ async function main() {
     globalThis.fetch = async () => new Response(`<table>${row('عیار', 'نمادهای متوقف شده', '-', '700,000')}${row('عیارx', 'صندوق ها', '1', '1')}${row('عیار', 'صندوق ها', '719,038', '718,739')}</table>`);
     try {
       const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+    { // varzesh3 table: a team playing now (extra live badge / extra cell in its row) must not drop out of the standings
+      const tr = (r, name, extra, pre) => `<tr class="x"><td>${r}</td><td></td><td><a href="/football/team/${r}/t"><img src="/l${r}.png" alt=""/><span>${name}</span>${extra}</a></td>${pre}<td>8</td><td>4</td><td>4</td><td>0</td><td>10<!-- -->-<!-- -->${r}</td><td>${10 - r}</td><td>${20 - r}</td></tr>`;
+      const st = H.parseVarzesh3Standings(`<table><caption>جدول</caption>${tr(1, 'تراکتور', '', '')}${tr(2, 'پرسپولیس', '<span class="live">زنده</span>', '')}${tr(3, 'استقلال', '', '<td><i class="live"></i></td>')}</table>`);
+      check('varzesh3 standings keep live-badged rows (Persepolis) with the right columns', st.length === 3 && st[1].team === 'پرسپولیس' && st[1].pts === 18 && st[1].ga === 2 && st[2].played === 8 && st[2].gd === 7, JSON.stringify(st));
+    }
     { // Iran's office week: office errands on Thursday/Friday get a warning; other errands don't
       const fri = '2026-10-09', thu = '2026-10-08', sat = '2026-10-10';
       check('office errand on Friday/Thursday is flagged, not on Saturday or for a non-office errand', /جمعه/.test(H.officeDayWarning(fri, 'رفتن به بانک')) && /پنجشنبه/.test(H.officeDayWarning(thu, 'دفترخانه برای وکالت')) && !H.officeDayWarning(sat, 'رفتن به بانک') && !H.officeDayWarning(fri, 'خرید نان') && /شنبه تا چهارشنبه/.test(H.IRAN_WEEK_NOTE));
@@ -1150,6 +1155,13 @@ async function main() {
       check('Blu bill SMS («ریال بابت … از حساب شما پرید»): SMS account, clean title, date, balance in sync', bill.status === 201 && bt && bt.account === acc.name && bt.kind === 'expense' && bt.title === 'پرداخت قبض تلفن همراه' && bt.date === '2026-10-08' && a1.smsDiff === 0, JSON.stringify([bill.d, bt, a1]));
       const again = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nپرداخت قبض\nحمیدرضا عزیز،  1,325,000 ریال بابت پرداخت قبض تلفن همراه از حساب شما پرید.\nموجودی: 8,725,000 ریال\n۱۴:۰۶\n۱۴۰۵.۰۷.۱۶\n' } });
       check('same SMS with slightly different text is a duplicate (amount+date+time+balance)', again.d.duplicate === true && (await call('/api/transactions', { cookie })).d.items.filter((t) => t.amount === 1325000).length === 1, JSON.stringify(again.d));
+      // Refah: «حساب۲۱۴۸۷۱۶۲۹ / کارت-۱٬۰۱۱٬۱۰۰ / مانده…» — the account number is not the amount; goes to a «رفاه» account when there is one
+      const refahAcc = (await call('/api/accounts', { method: 'POST', cookie, body: { name: 'بانک رفاه', type: 'bank', openingBalance: 0 } })).d;
+      const refah = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بانک رفاه\nحساب214871629\nکارت-1,011,100\nمانده75,356,163\n1405/07/17\n17:18' } });
+      const rt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.amount === 1011100);
+      check('Refah SMS: signed card line is the amount (not the account number), lands on the «رفاه» account', refah.status === 201 && rt && rt.kind === 'expense' && rt.account === 'بانک رفاه' && rt.date === '2026-10-09' && !(await call('/api/transactions', { cookie })).d.items.some((t) => t.amount === 214871629), JSON.stringify([refah.d, rt]));
+      if (rt) await call('/api/transactions/' + rt.id, { method: 'DELETE', cookie });
+      await call('/api/accounts/' + refahAcc.id, { method: 'PATCH', cookie, body: { archived: true } });
       const bad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بانک\nبرداشت وجه انجام شد' } });
       const inb = (await call('/api/inbox', { cookie })).d;
       check('unreadable bank SMS lands in Inbox', bad.status === 422 && JSON.stringify(inb).includes('برداشت وجه انجام شد'), JSON.stringify([bad.d]));
