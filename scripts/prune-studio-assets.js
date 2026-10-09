@@ -11,6 +11,9 @@ const pub = path.join(root, 'public', 'assets');
 const html = fs.readFileSync(path.join(dir, 'studio.html'), 'utf8');
 const keep = new Set([...html.matchAll(/studio-assets\/([^"')\s]+)/g)].map(m => m[1]));
 let copied = 0;
+// the statement workbook's blank Excel form («📄 فایل نمونه»), served next to the studio assets
+const tpl = path.join(root, 'public', 'templates', 'statement-template.xlsx');
+if (fs.existsSync(tpl)) { fs.copyFileSync(tpl, path.join(assets, 'statement-template.xlsx')); keep.add('statement-template.xlsx'); copied++; }
 for (const f of [...keep].filter(f => f.endsWith('.css'))) {
   const p = path.join(assets, f);
   const css = fs.readFileSync(p, 'utf8').replace(/url\((['"]?)\/assets\/(fonts|img)\/([\w.-]+)\1\)/g, (m, q, sub, name) => {

@@ -638,7 +638,7 @@ function ReportPrintSettings({ flash }) {
   };
   return <section className="planner-list report-print-settings" id="reportPrintSettings">
     <h2>قالب گزارش PDF پروژه‌ها</h2>
-    <p>متن و لوگوی این بخش در چاپ و «ذخیره به صورت PDF» همهٔ گزارش‌های پروژه استفاده می‌شود. شمارهٔ صفحه خودکار است.</p>
+    <p>متن و لوگوی این بخش در چاپ و «ذخیره به صورت PDF» همهٔ گزارش‌های پروژه استفاده می‌شود. شمارهٔ صفحه خودکار است. همین لوگو و متن سربرگ، لوگو و نام «پیمانکار» روی روکش صورت وضعیت‌های همهٔ پروژه‌هاست (کارفرما برای هر پروژه جداست).</p>
     <div className="report-print-grid">
       <label><span>متن سربرگ (بالا، سمت چپ)</span><input value={config.headerText} maxLength={140} onChange={e => set('headerText', e.target.value)} placeholder="مثال: شرکت نمای مدرن" /></label>
       <label><span>متن پابرگ</span><input value={config.footerText} maxLength={220} onChange={e => set('footerText', e.target.value)} placeholder="مثال: تلفن، آدرس یا متن محرمانه" /></label>

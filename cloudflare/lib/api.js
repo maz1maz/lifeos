@@ -675,6 +675,7 @@ if(p==='/api/bet'){let db=await read(),user=auth(req,res,db);if(req.method==='GE
     await runRoutes();
   } catch (e) {
     if (e instanceof AuthError) { /* auth() already wrote 401 onto res */ }
+    else if (e && e.httpStatus) json(res, e.httpStatus, { error: e.message });
     else { console.error(e); json(res, 500, { error: 'خطای داخلی سرور' }); }
   }
   return buildResponse(res);
