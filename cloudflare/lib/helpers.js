@@ -804,9 +804,21 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     for(const t of tables){let rows=parseVarzesh3StandingsTable(t.table);if(tables.length>1)rows.forEach(r=>{r.group=t.cap||null});all.push(...rows)}
     return all;
   }
+  // Cell by cell, not one strict regex: a team playing right now gets extra markup (live badge) in its row,
+  // and the old regex silently dropped those rows (Persepolis missing from the live table).
   function parseVarzesh3StandingsTable(table){
-    let rowRe=/<tr class="[^"]*"><td[^>]*>(\d+)<\/td><td[^>]*><\/td><td[^>]*><a[^>]*href="\/football\/team\/(\d+)\/[^"]*"><img[^>]*src="([^"]*)"[^>]*\/><span[^>]*>([^<]*)<\/span><\/a><\/td><td[^>]*>(\d+)<\/td><td[^>]*>(\d+)<\/td><td[^>]*>(\d+)<\/td><td[^>]*>(\d+)<\/td><td[^>]*>(\d+)<!--\s*-->-<!--\s*-->(\d+)<\/td><td[^>]*>(-?\d+)<\/td><td[^>]*>(-?\d+)<\/td>/g,out=[],m;
-    while((m=rowRe.exec(table)))out.push({rank:Number(m[1]),team:m[4],logo:m[3],played:Number(m[5]),win:Number(m[6]),draw:Number(m[7]),loss:Number(m[8]),gf:Number(m[9]),ga:Number(m[10]),gd:Number(m[11]),pts:Number(m[12])});
+    let out=[],txt=c=>c.replace(/<!--[\s\S]*?-->/g,'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim();
+    for(const row of table.match(/<tr[\s\S]*?<\/tr>/g)||[]){
+      let cells=[...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(m=>m[1]),ti=cells.findIndex(c=>/href="\/football\/team\/\d+\//.test(c));
+      if(ti<0)continue;
+      let tc=cells[ti],name=(tc.match(/<span[^>]*>([^<]+)<\/span>/)||[])[1]||txt(tc),logo=(tc.match(/<img[^>]*src="([^"]*)"/)||[])[1]||null;
+      let rank=Number(enNum(txt(cells[0]))),n=cells.slice(ti+1).map(c=>enNum(txt(c)));
+      // columns are anchored on the «زده-خورده» cell (played/win/draw/loss before it, diff/points after), so an extra cell can't shift them
+      let g=n.findIndex(c=>/^\d+\s*-\s*\d+$/.test(c)),goals=g>=4?n[g].match(/(\d+)\s*-\s*(\d+)/):null;
+      if(!rank||!goals||n.length<g+3)continue;
+      let num=v=>Number(String(v).replace(/[^\d-]/g,''))||0;
+      out.push({rank,team:name.trim(),logo,played:num(n[g-4]),win:num(n[g-3]),draw:num(n[g-2]),loss:num(n[g-1]),gf:Number(goals[1]),ga:Number(goals[2]),gd:num(n[g+1]),pts:num(n[g+2])});
+    }
     return out;
   }
   // صفحهٔ جدول ورزش۳ فقط جدوله؛ زیرصفحهٔ «بازی-ها»ی همون لیگ (همون Next.js، همون شناسهٔ لیگ)

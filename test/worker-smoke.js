@@ -570,6 +570,11 @@ async function main() {
     globalThis.fetch = async () => new Response(`<table>${row('عیار', 'نمادهای متوقف شده', '-', '700,000')}${row('عیارx', 'صندوق ها', '1', '1')}${row('عیار', 'صندوق ها', '719,038', '718,739')}</table>`);
     try {
       const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+    { // varzesh3 table: a team playing now (extra live badge / extra cell in its row) must not drop out of the standings
+      const tr = (r, name, extra, pre) => `<tr class="x"><td>${r}</td><td></td><td><a href="/football/team/${r}/t"><img src="/l${r}.png" alt=""/><span>${name}</span>${extra}</a></td>${pre}<td>8</td><td>4</td><td>4</td><td>0</td><td>10<!-- -->-<!-- -->${r}</td><td>${10 - r}</td><td>${20 - r}</td></tr>`;
+      const st = H.parseVarzesh3Standings(`<table><caption>جدول</caption>${tr(1, 'تراکتور', '', '')}${tr(2, 'پرسپولیس', '<span class="live">زنده</span>', '')}${tr(3, 'استقلال', '', '<td><i class="live"></i></td>')}</table>`);
+      check('varzesh3 standings keep live-badged rows (Persepolis) with the right columns', st.length === 3 && st[1].team === 'پرسپولیس' && st[1].pts === 18 && st[1].ga === 2 && st[2].played === 8 && st[2].gd === 7, JSON.stringify(st));
+    }
     { // Iran's office week: office errands on Thursday/Friday get a warning; other errands don't
       const fri = '2026-10-09', thu = '2026-10-08', sat = '2026-10-10';
       check('office errand on Friday/Thursday is flagged, not on Saturday or for a non-office errand', /جمعه/.test(H.officeDayWarning(fri, 'رفتن به بانک')) && /پنجشنبه/.test(H.officeDayWarning(thu, 'دفترخانه برای وکالت')) && !H.officeDayWarning(sat, 'رفتن به بانک') && !H.officeDayWarning(fri, 'خرید نان') && /شنبه تا چهارشنبه/.test(H.IRAN_WEEK_NOTE));

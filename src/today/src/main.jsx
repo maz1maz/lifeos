@@ -906,22 +906,27 @@ function Market() {
 const FOOT_LEAGUES = [['eng.1', 'لیگ برتر انگلیس', 'PL', '#a855f7'], ['esp.1', 'لالیگا', 'LL', '#ef4444'], ['ita.1', 'سری آ', 'A', '#3b82f6'], ['ger.1', 'بوندس‌لیگا', 'BL', '#dc2626'], ['fra.1', 'لیگ ۱', 'L1', '#94a3b8'], ['tur.1', 'سوپر لیگ ترکیه', 'TR', '#e11d48'], ['por.1', 'پریمیرا لیگا پرتغال', 'PT', '#16a34a'], ['uefa.champions', 'لیگ قهرمانان اروپا', 'UCL', '#6366f1'], ['uefa.europa', 'لیگ اروپا', 'UEL', '#f97316'], ['uefa.nations', 'لیگ ملت‌های اروپا', 'UNL', '#0ea5e9'], ['afc.champions', 'لیگ نخبگان آسیا', 'AFC', '#8b5cf6'], ['ksa.1', 'لیگ حرفه‌ای عربستان', 'KSA', '#22c55e'], ['irn.1', 'لیگ برتر خلیج فارس', 'ایران', '#0ea5e9']];
 const LEAGUE_CACHE = {};
 const fetchLeague = id => (LEAGUE_CACHE[id] ||= api(`/api/football/remote/free/matches?league=${id}`).then(d => d.items || []).catch(e => { delete LEAGUE_CACHE[id]; throw e; }));
-// The league whose next (or live) match is soonest within the coming week.
-async function pickNearestLeague() {
+// The league with a live match, else whose next match is soonest within the coming week.
+// A slow league (Iran: varzesh3) used to lose by the 10 s timeout and the wrong pick stuck for 3 h. Now the quick
+// answer comes after 10 s, and `onBetter` gets the final pick once every league has answered; only a pick made with
+// all leagues known is remembered, for 15 minutes (a live match must win soon after kick-off).
+const leagueScore = (items, now) => {
+  if (items.some(m => m.status === 'live')) return 0;
+  const next = items.filter(m => m.status === 'upcoming').map(m => Date.parse(m.date)).filter(t => t >= now - 3 * 3600000 && t <= now + 7 * 86400000).sort((a, b) => a - b)[0];
+  return next ?? Infinity;
+};
+async function pickNearestLeague(onBetter) {
   const cached = readLs('lifeos-home-league-auto2', null);
-  if (cached && Date.now() - cached.at < 3 * 3600000) return cached.league;
-  const now = Date.now(), week = now + 7 * 86400000;
-  // a league that hasn't answered within 10 s doesn't hold the card back (it keeps loading into LEAGUE_CACHE)
-  const timeout = new Promise(r => setTimeout(r, 10000));
-  const res = await Promise.all(FOOT_LEAGUES.map(([id]) => Promise.race([fetchLeague(id).then(items => {
-    if (items.some(m => m.status === 'live')) return [id, 0];
-    const next = items.filter(m => m.status === 'upcoming').map(m => Date.parse(m.date)).filter(t => t >= now - 3 * 3600000 && t <= week).sort((a, b) => a - b)[0];
-    return [id, next ?? Infinity];
-  }).catch(() => [id, Infinity]), timeout.then(() => [id, Infinity])])));
-  const best = res.sort((a, b) => a[1] - b[1])[0];
-  if (!best || best[1] === Infinity) return 'eng.1'; // nothing known yet: show the Premier League but don't remember it as the pick
-  writeLs('lifeos-home-league-auto2', { at: Date.now(), league: best[0] });
-  return best[0];
+  if (cached && Date.now() - cached.at < 15 * 60000) return cached.league;
+  const now = Date.now(), got = [];
+  const best = () => { const b = [...got].sort((a, c) => a[1] - c[1])[0]; return b && b[1] !== Infinity ? b[0] : null; };
+  const full = Promise.all(FOOT_LEAGUES.map(([id]) => fetchLeague(id).then(items => leagueScore(items, now)).catch(() => Infinity).then(v => { got.push([id, v]); })))
+    .then(() => { const b = best(); if (b) writeLs('lifeos-home-league-auto2', { at: Date.now(), league: b }); return b; });
+  const done = await Promise.race([full.then(() => true), new Promise(r => setTimeout(() => r(false), 10000))]);
+  const quick = best();
+  // onBetter(final, shown): the caller switches only if the user hasn't picked another league meanwhile
+  if (!done && onBetter) full.then(b => { if (b && b !== (quick || 'eng.1')) onBetter(b, quick || 'eng.1'); });
+  return quick || 'eng.1';
 }
 function LeaguePicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -1047,7 +1052,7 @@ function Football({ full = false, onLeague, only, league: ownerLeague, favOnly }
   const controlled = ownerLeague !== undefined;
   const [ownLeague, setOwnLeague] = useState(null);
   const league = controlled ? ownerLeague : ownLeague, setLeague = controlled ? (v => onLeague?.(v)) : setOwnLeague;
-  useEffect(() => { if (!controlled) pickNearestLeague().then(setOwnLeague); }, []);
+  useEffect(() => { if (!controlled) pickNearestLeague((b, shown) => setOwnLeague(cur => cur === shown ? b : cur)).then(setOwnLeague); }, []);
   useEffect(() => { if (!controlled && league && onLeague) onLeague(league); }, [league]);
   const [favs, setFavs] = useState(() => readLs('lifeos-fav-teams', []));
   const [onlyFavState, setOnlyFav] = useState(false);
@@ -1492,6 +1497,9 @@ function Standings({ league }) {
   const [lm, setLm] = useState([]);
   useEffect(() => { if (!league) return; fetchLeague(league).then(setLm).catch(() => setLm([])); }, [league]);
   useEffect(() => { if (!league) return; setRows(null); setErr(''); api(`/api/football/remote/free/standings?league=${league}`).then(d => setRows(d.items || [])).catch(e => { setErr(e.message); setRows([]); }); }, [league]);
+  // while a match of this league is live the table moves: refresh it (and the form dots) every minute
+  const live = lm.some(m => m.status === 'live');
+  useEffect(() => { if (!live || !league) return; const t = setInterval(() => { delete LEAGUE_CACHE[league]; fetchLeague(league).then(setLm).catch(() => {}); api(`/api/football/remote/free/standings?league=${league}`).then(d => { if (d.items?.length) setRows(d.items); }).catch(() => {}); }, 60000); return () => clearInterval(t); }, [live, league]);
   const n = rows?.length || 0;
   return <Card className="standings" icon={LineChart} title="جدول رده‌بندی" action={<small className="muted">{(FOOT_LEAGUES.find(l => l[0] === league) || [])[1] || ''}</small>}>
     {rows === null ? <p className="empty">در حال دریافت…</p> : !n ? <p className="empty">{err || 'جدول این رقابت در دسترس نیست (مثلاً برای مسابقات حذفی).'}</p> :
@@ -1512,7 +1520,7 @@ function Standings({ league }) {
 function FootballPage() {
   const [league, setLeague] = useState(null), [favOnly, setFavOnly] = useState(false);
   const [favCount, setFavCount] = useState(() => readLs('lifeos-fav-teams', []).length);
-  useEffect(() => { pickNearestLeague().then(setLeague); }, []);
+  useEffect(() => { pickNearestLeague((b, shown) => setLeague(cur => cur === shown ? b : cur)).then(setLeague); }, []);
   useEffect(() => { const t = setInterval(() => setFavCount(readLs('lifeos-fav-teams', []).length), 1500); return () => clearInterval(t); }, []);
   return <main>
     <TopNav active="football" />
