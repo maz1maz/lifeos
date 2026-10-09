@@ -1150,6 +1150,13 @@ async function main() {
       check('Blu bill SMS («ریال بابت … از حساب شما پرید»): SMS account, clean title, date, balance in sync', bill.status === 201 && bt && bt.account === acc.name && bt.kind === 'expense' && bt.title === 'پرداخت قبض تلفن همراه' && bt.date === '2026-10-08' && a1.smsDiff === 0, JSON.stringify([bill.d, bt, a1]));
       const again = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nپرداخت قبض\nحمیدرضا عزیز،  1,325,000 ریال بابت پرداخت قبض تلفن همراه از حساب شما پرید.\nموجودی: 8,725,000 ریال\n۱۴:۰۶\n۱۴۰۵.۰۷.۱۶\n' } });
       check('same SMS with slightly different text is a duplicate (amount+date+time+balance)', again.d.duplicate === true && (await call('/api/transactions', { cookie })).d.items.filter((t) => t.amount === 1325000).length === 1, JSON.stringify(again.d));
+      // Refah: «حساب۲۱۴۸۷۱۶۲۹ / کارت-۱٬۰۱۱٬۱۰۰ / مانده…» — the account number is not the amount; goes to a «رفاه» account when there is one
+      const refahAcc = (await call('/api/accounts', { method: 'POST', cookie, body: { name: 'بانک رفاه', type: 'bank', openingBalance: 0 } })).d;
+      const refah = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بانک رفاه\nحساب214871629\nکارت-1,011,100\nمانده75,356,163\n1405/07/17\n17:18' } });
+      const rt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.amount === 1011100);
+      check('Refah SMS: signed card line is the amount (not the account number), lands on the «رفاه» account', refah.status === 201 && rt && rt.kind === 'expense' && rt.account === 'بانک رفاه' && rt.date === '2026-10-09' && !(await call('/api/transactions', { cookie })).d.items.some((t) => t.amount === 214871629), JSON.stringify([refah.d, rt]));
+      if (rt) await call('/api/transactions/' + rt.id, { method: 'DELETE', cookie });
+      await call('/api/accounts/' + refahAcc.id, { method: 'PATCH', cookie, body: { archived: true } });
       const bad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بانک\nبرداشت وجه انجام شد' } });
       const inb = (await call('/api/inbox', { cookie })).d;
       check('unreadable bank SMS lands in Inbox', bad.status === 422 && JSON.stringify(inb).includes('برداشت وجه انجام شد'), JSON.stringify([bad.d]));
