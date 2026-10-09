@@ -291,12 +291,17 @@ export async function handleApi(request, env) {
        let actions=parseLifeText(text);
        if(!actions.length&&AI_PROVIDER_API_KEY){try{actions=(await aiExtractActions(text)).map(a=>a&&a.type==='transaction'?{...a,bank:true}:a)}catch(e){}}
        actions=actions.filter(a=>a&&a.type==='transaction');
-       let a0=actions[0]||{};parsed.push({text,sh,actions,at:(a0.date||'')+' '+(a0.time||'')});
+       let a0=actions[0]||{};
+       // The same SMS can arrive twice with slightly different text (Shortcut Input vs Content, edited queue file):
+       // amount + date + time + bank balance identify it, so a second copy is a duplicate too.
+       let ck=a0.amount&&(a0.balance!=null||a0.time)?(await extSha256(user.id+'\nsms:'+a0.amount+'|'+(a0.date||'')+'|'+(a0.time||'')+'|'+(a0.balance??''))).slice(0,24):null;
+       if(ck&&(db.bankSmsSeen.includes(ck)||parsed.some(x=>x.ck===ck))){dup++;continue}
+       parsed.push({text,sh,ck,actions,at:(a0.date||'')+' '+(a0.time||'')});
      }
      parsed.sort((x,y)=>x.at<y.at?-1:x.at>y.at?1:0);
-     for(const {text,sh,actions} of parsed){
+     for(const {text,sh,ck,actions} of parsed){
        let did=await applyParsedActions(db,user,actions,today());
-       if(did.length){db.bankSmsSeen.push(sh);wrote=true;rec++;all.push(...did)}
+       if(did.length){db.bankSmsSeen.push(sh);if(ck)db.bankSmsSeen.push(ck);wrote=true;rec++;all.push(...did)}
        // Unreadable bank SMS must not vanish: it goes to Inbox for a manual entry.
        else if(moneyRe.test(text)){miss.push(text);db.inbox??=[];db.inbox.push({id:id(),userId:user.id,text:'📩 پیامک بانک (ثبت نشد): '+text.slice(0,1000),archived:false,createdAt:Date.now()});db.bankSmsSeen.push(sh);wrote=true}
        else ign++;

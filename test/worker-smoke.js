@@ -1098,6 +1098,8 @@ async function main() {
       const bt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.amount === 1325000);
       a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
       check('Blu bill SMS («ریال بابت … از حساب شما پرید»): SMS account, clean title, date, balance in sync', bill.status === 201 && bt && bt.account === acc.name && bt.kind === 'expense' && bt.title === 'پرداخت قبض تلفن همراه' && bt.date === '2026-10-08' && a1.smsDiff === 0, JSON.stringify([bill.d, bt, a1]));
+      const again = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nپرداخت قبض\nحمیدرضا عزیز،  1,325,000 ریال بابت پرداخت قبض تلفن همراه از حساب شما پرید.\nموجودی: 8,725,000 ریال\n۱۴:۰۶\n۱۴۰۵.۰۷.۱۶\n' } });
+      check('same SMS with slightly different text is a duplicate (amount+date+time+balance)', again.d.duplicate === true && (await call('/api/transactions', { cookie })).d.items.filter((t) => t.amount === 1325000).length === 1, JSON.stringify(again.d));
       const bad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بانک\nبرداشت وجه انجام شد' } });
       const inb = (await call('/api/inbox', { cookie })).d;
       check('unreadable bank SMS lands in Inbox', bad.status === 422 && JSON.stringify(inb).includes('برداشت وجه انجام شد'), JSON.stringify([bad.d]));
