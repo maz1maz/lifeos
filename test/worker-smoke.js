@@ -558,6 +558,10 @@ async function main() {
     globalThis.fetch = async () => new Response(`<table>${row('عیار', 'نمادهای متوقف شده', '-', '700,000')}${row('عیارx', 'صندوق ها', '1', '1')}${row('عیار', 'صندوق ها', '719,038', '718,739')}</table>`);
     try {
       const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+    { // Iran's office week: office errands on Thursday/Friday get a warning; other errands don't
+      const fri = '2026-10-09', thu = '2026-10-08', sat = '2026-10-10';
+      check('office errand on Friday/Thursday is flagged, not on Saturday or for a non-office errand', /جمعه/.test(H.officeDayWarning(fri, 'رفتن به بانک')) && /پنجشنبه/.test(H.officeDayWarning(thu, 'دفترخانه برای وکالت')) && !H.officeDayWarning(sat, 'رفتن به بانک') && !H.officeDayWarning(fri, 'خرید نان') && /شنبه تا چهارشنبه/.test(H.IRAN_WEEK_NOTE));
+    }
       const r = await H.fetchTsePrice('عیار');
       check('shakhesban: exact symbol, live row, last price', r.price === 719038 && r.closing === 718739, JSON.stringify(r));
       const rf = await call('/api/investments/price/refresh', { method: 'POST', cookie, body: { symbol: 'عیار', assetType: 'stock' } });
