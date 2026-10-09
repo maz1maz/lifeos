@@ -192,8 +192,10 @@ function mountFrame(id, width, html, hidden = true) {
   const frame = document.createElement('iframe');
   frame.id = id;
   frame.setAttribute('aria-hidden', 'true');
-  frame.style.cssText = `position:fixed;width:${width}px;height:10px;border:0;left:-10000px;top:0${hidden ? ';visibility:hidden' : ''}`;
-  document.body.appendChild(frame);
+  frame.style.cssText = `position:fixed;width:${width}px;height:10px;border:0;left:-10000px;top:0;zoom:1${hidden ? ';visibility:hidden' : ''}`;
+  // outside <body>: the app zooms the body on phones (--app-zoom, e.g. 1.1 on iPhone); inside it the captured page
+  // came out scaled and shifted, with the right edge of every line cut off in the phone PDF
+  document.documentElement.appendChild(frame);
   const doc = frame.contentDocument;
   doc.open(); doc.write(html); doc.close();
   return frame;
@@ -244,7 +246,7 @@ async function renderPdf(html, { running, footer, title, subject, W = 695, lands
       ...[...doc.querySelectorAll('.p1, .cover')].map(el => Math.round(el.getBoundingClientRect().bottom - top0)),
       ...[...doc.querySelectorAll('h2.pb')].map(el => Math.round(el.getBoundingClientRect().top - top0) - 8)
     ].filter(y => y > 0).sort((a, b) => a - b);
-    const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: W, height: total, windowWidth: W, windowHeight: total, logging: false, foreignObjectRendering: true });
+    const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', x: 0, y: 0, scrollX: 0, scrollY: 0, width: W, height: total, windowWidth: W, windowHeight: total, logging: false, foreignObjectRendering: true });
     const k = canvas.width / W, pages = [];
     // the drawn image can sit a few px off the measured layout, so every cut is snapped up to the nearest
     // pixel row of the image that is one flat colour (a gap between rows), never through a line of text
@@ -287,6 +289,64 @@ export async function sendProjectReportToTelegram(data) {
 
 // Phones can't print a hidden iframe (nothing happens), so there the PDF file itself is built and shared/downloaded.
 const isPhone = () => typeof window !== 'undefined' && (window.matchMedia?.('(pointer: coarse)').matches || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent));
+// iPhone/iPad: Safari draws the captured report shifted (right edge cut off), so there the report opens as its own
+// page and Safari's print sheet makes the PDF (Share → Save to Files / Print). Its own engine lays Persian out right.
+// installed on the home screen (no browser bar; window.print() is ignored there)
+const isStandalone = () => typeof window !== 'undefined' && (navigator.standalone === true || !!window.matchMedia?.('(display-mode: standalone)').matches);
+export const isIOS = () => typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+// iPhone: the report is shown inside this page (a shadow root keeps the app's CSS out) with «بستن» and «چاپ / PDF»;
+// the app itself is hidden meanwhile, so Safari's print sheet (and «Save to PDF» from it) gets only the report.
+// (A separate window had no way back in the home-screen app, and its print button did nothing.)
+function openPrintOverlay(html, title, W) {
+  document.querySelector('.lf-rp-ov')?.remove();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  let css = [...doc.querySelectorAll('style')].map(x => x.textContent).join('\n');
+  const global = [];
+  // @page and @font-face only work in the document itself; take them out (nested braces: @bottom-left{…} inside @page)
+  css = css.replace(/@(?:page|font-face)[^{]*\{(?:[^{}]|\{[^{}]*\})*\}/g, m => { global.push(m); return ''; });
+  css = css.replace(/html\.capture body/g, '.rp-body').replace(/html,\s*body/g, '.rp-body').replace(/(^|[}\s,])body(?=[\s{>,.:])/g, '$1.rp-body');
+  const gst = document.createElement('style'); gst.className = 'lf-rp-global';
+  gst.textContent = global.join('\n') + `
+html.lf-rp-open body>*:not(.lf-rp-ov){display:none!important}
+html.lf-rp-open,html.lf-rp-open body{zoom:1!important;padding:0!important;margin:0!important;background:#fff!important;overflow:auto!important;height:auto!important}
+.lf-rp-bar{position:sticky;top:0;z-index:5;display:flex;gap:8px;justify-content:center;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 8px;background:#0f172a}
+.lf-rp-bar button{font:700 15px Vazirmatn,Tahoma,sans-serif;padding:10px 18px;border-radius:12px;border:0;background:#d4a843;color:#111;cursor:pointer}
+.lf-rp-bar button.x{background:#334155;color:#fff}
+.lf-rp-ov{direction:ltr}.lf-rp-host{display:block;margin:0 auto}
+@media screen{.lf-rp-host{zoom:var(--rpz,1);padding:8px 0 24px}}
+@media print{.lf-rp-bar{display:none!important}.lf-rp-host{zoom:1!important;margin:0!important}html.lf-rp-open .lf-rp-ov,html.lf-rp-open .lf-rp-host{visibility:visible!important;position:static!important}}`;
+  document.head.appendChild(gst);
+  const ov = document.createElement('div'); ov.className = 'lf-rp-ov'; // ltr box: a report wider than the screen must not slide off to the left
+  const bar = document.createElement('div'); bar.className = 'lf-rp-bar';
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'x'; close.textContent = '✕ بستن';
+  const prn = document.createElement('button'); prn.type = 'button'; prn.textContent = '🖨 ذخیرهٔ PDF / چاپ';
+  bar.append(prn, close);
+  const host = document.createElement('div'); host.className = 'lf-rp-host'; host.style.width = `${W + 8}px`;
+  const root = host.attachShadow({ mode: 'open' });
+  root.innerHTML = `<style>${css}</style><div class="rp-body" dir="rtl" lang="fa">${doc.body.innerHTML}</div>`;
+  ov.append(bar, host); document.body.appendChild(ov);
+  const prevTitle = document.title, y = window.scrollY;
+  document.documentElement.classList.add('lf-rp-open'); document.title = title; window.scrollTo(0, 0);
+  const fit = () => host.style.setProperty('--rpz', String(Math.min(1, (document.documentElement.clientWidth - 12) / (W + 8))));
+  fit(); addEventListener('resize', fit);
+  close.addEventListener('click', () => { removeEventListener('resize', fit); ov.remove(); gst.remove(); document.documentElement.classList.remove('lf-rp-open'); document.title = prevTitle; window.scrollTo(0, y); });
+  prn.addEventListener('click', () => window.print());
+  // home-screen app: window.print() does nothing there, so the button becomes a link that opens the report in Safari
+  if (isStandalone()) {
+    prn.disabled = true; prn.textContent = '… آماده‌سازی چاپ';
+    const page = html.replace(/<html([^>]*)>/i, '<html$1 class="capture">')
+      .replace(/<head>/i, `<head><meta name="viewport" content="width=${W + 24}">`)
+      .replace(/<\/head>/i, '<style>@media screen{body{margin:0 auto!important}.lf-hint{margin:8px 0 12px;padding:10px 12px;border-radius:10px;background:#fef3c7;color:#78350f;font:600 13px/1.8 Vazirmatn,Tahoma,sans-serif}}@media print{.lf-hint{display:none!important}}</style></head>')
+      .replace(/<body>/i, '<body><div class="lf-hint">برای PDF یا چاپ: دکمهٔ اشتراک‌گذاری (⬆︎) را بزن و «Print» را انتخاب کن؛ در پیش‌نمایش چاپ دوباره اشتراک‌گذاری ← «Save to Files» فایل PDF می‌سازد.</div>');
+    api('/api/report-link', { method: 'POST', body: JSON.stringify({ html: page }) }).then(d => {
+      const a = document.createElement('a'); a.href = d.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '🖨 باز کردن برای چاپ / PDF';
+      a.setAttribute('style', 'font:700 15px Vazirmatn,Tahoma,sans-serif;padding:10px 18px;border-radius:12px;background:#d4a843;color:#111;text-decoration:none');
+      prn.replaceWith(a);
+    }).catch(e => { prn.textContent = 'ساخت لینک چاپ نشد'; window.alert(e.message || 'ساخت لینک چاپ نشد'); });
+  }
+  Promise.resolve(document.fonts?.ready).then(() => fitFirstPage(root, W));
+  return true;
+}
 // (the download fallback uses a Latin name: some browsers drop a Persian one and save «download» without .pdf)
 async function savePdf(blob, filename) {
   const file = typeof File === 'function' ? new File([blob], filename, { type: 'application/pdf' }) : null;
@@ -298,6 +358,7 @@ async function savePdf(blob, filename) {
 
 // Opens the browser print dialog (desktop) or saves the PDF file (phone); the file name is reportFileName.
 export async function printProjectReport(data) {
+  if (isIOS() && openPrintOverlay(projectReportHtml(data), reportFileName(data.project).replace(/\.pdf$/, ''), 695)) return;
   if (isPhone()) return savePdf(await projectReportPdf(data), reportFileName(data.project));
   const title = reportFileName(data.project).replace(/\.pdf$/, '');
   const frame = mountFrame('lf-report-print-frame', 695, projectReportHtml(data), false);
@@ -410,6 +471,7 @@ const compareFileName = () => { const j = isoToJ(todayIso()); return `${j.jy}-${
 
 // Print dialog (Save as PDF): the browser's own text engine shapes Persian correctly, unlike the canvas path
 export async function printCompareReport(data) {
+  if (isIOS() && openPrintOverlay(compareReportHtml(data), compareFileName().replace(/\.pdf$/, ''), CMP_W)) return;
   if (isPhone()) { const j = compareFileName(); return savePdf(await renderPdf(compareReportHtml(data), { running: `مقایسهٔ پروژه‌ها – ${jl(todayIso())}`, footer: data.brand?.footerText || '', title: j.replace(/\.pdf$/, ''), subject: 'مقایسهٔ پروژه‌ها', W: CMP_W, landscape: true }), j); }
   const title = compareFileName().replace(/\.pdf$/, '');
   const frame = mountFrame('lf-compare-print-frame', CMP_W, compareReportHtml(data), false);

@@ -5,6 +5,11 @@ import { api, fa } from './life-core';
 import './vocab.css';
 
 export function VocabPage({ Nav }) {
+  // phones: iPhone Safari sizes an iframe to its content (the app ended up wider than the screen and panned while
+  // swiping a card), so on a phone the app opens as its own full page; its «خانه» button leads back here.
+  const phone = typeof matchMedia === 'function' && matchMedia('(max-width:700px)').matches;
+  useEffect(() => { if (phone) location.replace('/vocab/index.html'); }, [phone]);
+  if (phone) return <main className="vc-page" />;
   return <main className="vc-page"><Nav /><iframe className="vc-frame" src="/vocab/index.html" title="زبان — فلش‌کارت آیلتس" allow="autoplay" /></main>;
 }
 
