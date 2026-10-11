@@ -1,0 +1,12 @@
+/* Based on Uiverse.io by Li-Deheng (MIT) — pulse dots, gold theme */
+.uv-loader{display:flex;justify-content:center;align-items:center;gap:var(--uv-gap,12px);padding:18px 0;--uv-c:var(--g-accent,#d8a44c);--uv-s:14px;--uv-anim:2s ease-in-out infinite}
+.uv-loader.sm{--uv-s:10px;--uv-gap:8px;padding:6px 0}
+.uv-loader.page{min-height:60vh;padding:0}
+.uv-loader-c{display:flex;align-items:center;justify-content:center;position:relative;width:var(--uv-s);height:var(--uv-s);border:2px solid var(--uv-c);border-radius:50%;animation:uv-loader-c var(--uv-anim)}
+.uv-loader-d{position:absolute;width:calc(var(--uv-s) - 4px);height:calc(var(--uv-s) - 4px);border-radius:50%;background:var(--uv-c);animation:uv-loader-d var(--uv-anim)}
+.uv-loader-c:nth-child(2),.uv-loader-c:nth-child(2) .uv-loader-d{animation-delay:.3s}
+.uv-loader-c:nth-child(3),.uv-loader-c:nth-child(3) .uv-loader-d{animation-delay:.6s}
+.uv-loader-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@keyframes uv-loader-c{50%{transform:scale(1.5);opacity:.5}}
+@keyframes uv-loader-d{50%{transform:scale(0)}}
+@media (prefers-reduced-motion:reduce){.uv-loader-c,.uv-loader-d{animation-duration:4s}}

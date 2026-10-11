@@ -43,7 +43,7 @@ don't rely on fixed English text or huge fixed sizes.
 9. **Reuse**: put it in the project's shared UI folder and replace old usages only where the user asked.
 
 ## 3. Project notes
-- **LifeOS / «هسته»** (`maz1maz/lifeos`): React 19 in `src/today/src/`; put components in `src/today/src/ui/` with their CSS imported **before** `mobile.css` in `main.jsx`; colors from `shared-theme.css` (gold accent); theme = `lifeos-mode`; Persian text, `dir=rtl`; strict CSP (no inline handlers). Check with `npm run build:today && npm test` and a Playwright screenshot.
+- **LifeOS / «هسته»** (`maz1maz/lifeos`): React 19 in `src/today/src/`; put components as flat files in `src/today/src/` (e.g. `loader.jsx` + `loader.css` = shared `<Loader />`) with their CSS imported **before** `mobile.css` in `main.jsx`; colors from `shared-theme.css` (gold accent); theme = `lifeos-mode`; Persian text, `dir=rtl`; strict CSP (no inline handlers). Check with `npm run build:today && npm test` and a Playwright screenshot.
 - Other projects: read their CLAUDE.md / README first and add a line here.
 
 ## 4. Preview

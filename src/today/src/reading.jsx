@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, ExternalLink, Languages, Pencil, RefreshCw, Sparkles, Trash2, X } from 'lucide-react';
 import { Page, api, fa } from './life-core';
 import { jLabel } from './jdate';
+import { Loader } from './loader';
 
 // «خبر و خواندنی»: RSS news (sources you add, synced by the Worker; AI summary/translation when a key is set)
 // and bookmarks with a read-later list. Backend: /api/news(+sources, sync, :id/summarize, :id/translate), /api/bookmarks.
@@ -147,7 +148,7 @@ function News() {
       {sources.length > 1 ? <select className="rd-srcsel" value={srcF} onChange={e => setSrcF(e.target.value)} aria-label="فیلتر منبع"><option value="">همهٔ منابع</option>{sources.map(s => <option key={s.id} value={s.name}>{cleanName(s.name)}</option>)}</select> : null}
     </div>
     {msg ? <p className="rd-msg" role="status">{msg}</p> : null}
-    {items === null ? <p className="rd-muted">در حال بارگذاری…</p> : !list.length ? <p className="rd-muted">{items.length ? 'با این فیلتر خبری نیست.' : sources.length ? 'خبری نیست؛ «به‌روزرسانی» را بزن.' : 'برای دیدن اخبار، بالا یک منبع انتخاب کن.'}</p>
+    {items === null ? <Loader /> : !list.length ? <p className="rd-muted">{items.length ? 'با این فیلتر خبری نیست.' : sources.length ? 'خبری نیست؛ «به‌روزرسانی» را بزن.' : 'برای دیدن اخبار، بالا یک منبع انتخاب کن.'}</p>
       : <><ul className="rd-news rd-compact">{list.slice(0, limit).map(x => { const on = open === x.id; return <li key={x.id} className={on ? 'open' : ''}>
         <div className="rd-row">
           <button type="button" className="rd-t" dir="auto" onClick={() => setReading(x)}>{x.title}</button>
@@ -193,7 +194,7 @@ function Bookmarks() {
       <button type="button" role="tab" aria-selected={tab === 'later'} className={tab === 'later' ? 'on' : ''} onClick={() => setTab('later')}>بعداً می‌خوانم ({fa((items || []).filter(b => b.readLater).length)})</button>
       <button type="button" role="tab" aria-selected={tab === 'done'} className={tab === 'done' ? 'on' : ''} onClick={() => setTab('done')}>خوانده‌شده</button>
     </div>
-    {items === null ? <p className="rd-muted">در حال بارگذاری…</p> : !list.length ? <p className="rd-muted">{tab === 'later' ? 'فهرست «بعداً می‌خوانم» خالی است.' : 'هنوز لینکی را خوانده‌شده علامت نزده‌ای.'}</p>
+    {items === null ? <Loader /> : !list.length ? <p className="rd-muted">{tab === 'later' ? 'فهرست «بعداً می‌خوانم» خالی است.' : 'هنوز لینکی را خوانده‌شده علامت نزده‌ای.'}</p>
       : <ul className="rd-bm">{list.map(b => <li key={b.id}>
         <span>{safeUrl(b.url) ? <a href={safeUrl(b.url)} target="_blank" rel="noopener noreferrer"><b>{b.title || b.url}</b></a> : <b>{b.title}</b>}<small dir="ltr">{host(b.url)}</small>{b.tags ? <small>🏷 {b.tags}</small> : null}</span>
         <button type="button" className="rd-btn ghost sm" onClick={() => toggle(b)}>{b.readLater ? 'خواندم' : 'برگردان'}</button>

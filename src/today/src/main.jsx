@@ -46,6 +46,8 @@ import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import './life.css';
 import { FocusCard, ShoppingPanel, BillsWeekCard, WorkTimeCard, ExerciseWeekCard } from './life-cards';
+import './loader.css';
+import { Loader } from './loader';
 import './mobile.css'; // phone/iPhone pass — keep last so it overrides page CSS
 
 // Pages the Today screen doesn't need are split into their own chunks, so the first load stays small.
@@ -66,7 +68,7 @@ const [HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, Jou
 const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage'), ReadingPage = lazyPage('reading', 'ReadingPage'), BookmarksPage = lazyPage('reading', 'BookmarksPage');
 // Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
 const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
-function PageLoading() { return <div className="page-loading" role="status" aria-label="در حال بارگذاری"><i /></div>; }
+function PageLoading() { return <Loader size="page" />; }
 
 const shortRial = n => { const a = Math.abs(Number(n) || 0), f = v => v.toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : 1 }); return a >= 1e9 ? `${f(a / 1e9)} میلیارد ریال` : a >= 1e6 ? `${f(a / 1e6)} میلیون ریال` : `${fa(a)} ریال`; };
 const jalali = date => { const p = Object.fromEntries(new Intl.DateTimeFormat('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Tehran' }).formatToParts(date).map(x => [x.type, x.value])); return `${p.weekday} ${p.day} ${p.month} ${p.year}`; };

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Page, api, fa, todayIso } from './life-core';
 import { JalaliDateInput, isoToJ, MONTHS, jLabel } from './jdate';
+import { Loader } from './loader';
 
 
 // «دفتر و مرور»: a Jalali-month review (numbers + your own reflection + AI note when a key is set), the wins
@@ -63,7 +64,7 @@ function MonthReview() {
         <button type="button" onClick={() => shift(1)} disabled={isCur} aria-label="ماه بعد"><ChevronLeft size={16} /></button>
       </div>
     </header>
-    {!d ? <p className="lb-muted">در حال بارگذاری…</p> : d.error ? <p className="lb-muted">⚠ {d.error}</p> : <>
+    {!d ? <Loader /> : d.error ? <p className="lb-muted">⚠ {d.error}</p> : <>
       <div className="lb-tiles">
         <div><span>💸 خرج</span><b>{toman(s.expense)}</b></div>
         <div><span>✅ کار انجام‌شده</span><b>{fa(s.tasksDone)}</b></div>
@@ -93,7 +94,7 @@ function Wins() {
       <button type="submit" className="lb-btn">ثبت</button>
     </form>
     {err ? <p className="lb-muted">⚠ {err}</p> : null}
-    {items === null ? <p className="lb-muted">در حال بارگذاری…</p> : !items.length ? <p className="lb-muted">هنوز چیزی ثبت نشده. ثبت پیروزی‌ها در روزهای سخت یادت می‌آورد چقدر جلو آمده‌ای.</p>
+    {items === null ? <Loader /> : !items.length ? <p className="lb-muted">هنوز چیزی ثبت نشده. ثبت پیروزی‌ها در روزهای سخت یادت می‌آورد چقدر جلو آمده‌ای.</p>
       : <ul className="lb-list">{items.map(w => <li key={w.id}><span><b>{w.text}</b><small>{jLabel(w.date)}</small></span><button type="button" className="lb-x" onClick={() => del(w)} aria-label="حذف"><Trash2 size={15} /></button></li>)}</ul>}
   </section>;
 }
@@ -121,7 +122,7 @@ function Decisions() {
       <button type="submit" className="lb-btn">ثبت تصمیم</button>
     </form> : null}
     {err ? <p className="lb-muted">⚠ {err}</p> : null}
-    {items === null ? <p className="lb-muted">در حال بارگذاری…</p> : !items.length ? <p className="lb-muted">هنوز تصمیمی ثبت نشده.</p>
+    {items === null ? <Loader /> : !items.length ? <p className="lb-muted">هنوز تصمیمی ثبت نشده.</p>
       : <ul className="lb-dec">{items.map(x => {
         const isDue = x.reviewDate && x.reviewDate <= today && !x.outcome;
         return <li key={x.id} className={isDue ? 'due' : ''}>
