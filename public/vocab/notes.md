@@ -530,6 +530,41 @@ son/sun — dog/dug — feel/fill
 - منفی have to: **don't/doesn't have to** = لازم نیست (نه ممنوعیت): "You don't have to come." (اجباری نیست)
 - منفی must: **mustn't** = ممنوع است: "You mustn't smoke here."
 
+### must — ساختار کامل (الزام قوی از درون)
+
+**must** یعنی «باید». بعد از آن فعل بدون to می‌آید. الزام آن **درونی** است: خودِ گوینده احساس می‌کند باید کاری را انجام دهد (نه اینکه کسی او را مجبور کرده باشد).
+
+| حالت | ساختار | مثال | معنی | نکته |
+| --- | --- | --- | --- | --- |
+| مثبت (+) | subject + must + verb | I must clean my room. | باید اتاقم را تمیز کنم | الزام از احساس خودِ گوینده |
+| پیشنهاد قوی | You must + verb | You must go to the doctor. Your finger is bleeding. | حتماً باید بری دکتر؛ انگشتت خون میاد | توصیه‌ی جدی، نه دستور |
+| منفی (−) | subject + mustn't + verb | I mustn't pass the red light. | نباید از چراغ قرمز رد شوم | = ممنوع است (It's necessary not to do it) |
+| سؤالی (?) | Must + subject + verb? | Must I clean my room? | باید اتاقم را تمیز کنم؟ | رایج نیست؛ به‌جایش Do I have to…? |
+| گذشته | had to + verb | I had to clean my room yesterday. | دیروز مجبور شدم اتاقم را تمیز کنم | must شکل گذشته ندارد → had to |
+
+**مراقب باش:** گفتن "You must brush my shoes." مستبدانه و دستوری به‌نظر می‌رسد (مثل رئیس‌بازی!). برای درخواست از دیگران به‌جای must از **Could you…?** یا **Would you mind…?** استفاده کن.
+
+### have to / has to — ساختار کامل (الزام قوی از بیرون)
+
+**have to / has to** هم یعنی «باید»، ولی الزام آن **بیرونی** است: کسی یا چیزی (قانون، مدیر، شرایط) تو را مجبور می‌کند. اصطلاح مرتبط: **authority** /ɔːˈθɒrəti/ = قدرت، اختیار، مرجع قانونی. بعد از آن هم فعل بدون to می‌آید؛ برای he/she/it از **has to** استفاده می‌کنیم.
+
+| حالت | ساختار | مثال | معنی | پاسخ / نکته |
+| --- | --- | --- | --- | --- |
+| مثبت (+) | subject + have/has to + verb | I have to get up at 7:00. | باید ساعت ۷ بیدار شوم | — |
+| سؤالی (?) | Do/Does + subject + have to + verb? | Do you have to get up at 7:00? | مجبوری ساعت ۷ بیدار شی؟ | Yes, I do. / No, I don't. |
+| منفی (−) | subject + don't/doesn't have to + verb | You don't have to go to the bank. | لازم نیست به بانک بروی | = It's not necessary to do it. (اختیاری است) |
+| گذشته | had to + verb | She had to work late last night. | دیشب مجبور شد دیر وقت کار کند | سؤال/منفی: Did you have to…? / didn't have to |
+
+### must یا have to؟ — مقایسه سریع
+
+| مورد | must | have to / has to | تفاوت | مثال |
+| --- | --- | --- | --- | --- |
+| منبع الزام | inside (internal) | outside (external) | درونی در برابر بیرونی | I must call my mom. (I want to) / I have to wear a uniform. (the rule) |
+| منفی | mustn't | don't have to | ممنوع در برابر لازم نیست | You mustn't park here. / You don't have to park here. |
+| گذشته | — | had to | هر دو در گذشته → had to | I had to leave early. |
+
+**نکته آیلتس:** در Speaking، برای صحبت درباره قوانین و مسئولیت‌ها از **have to** استفاده کن: "In my country, students have to wear a uniform." در Writing Task 2 هم برای پیشنهاد راه‌حل، "The government must/should take action" طبیعی است.
+
 ### should — ساختار کامل (الزام ملایم / پیشنهاد)
 
 **should** الزامی ملایم‌تر از must/have to است و بیشتر برای **پیشنهاد و توصیه** به‌کار می‌رود؛ درست مثل سایر افعال وجهی، بعد از آن فعل بدون to (bare infinitive) می‌آید.
@@ -719,7 +754,7 @@ son/sun — dog/dug — feel/fill
 
 **روش تمرین:** هر روز یک موضوع را انتخاب کن، سه سوال را بدون آماده‌سازی قبلی جواب بده و ضبط کن؛ بعد گوش بده و ببین از کلمات جزوه و زمان حال ساده/گذشته ساده (بخش گرامر) درست استفاده کرده‌ای یا نه.
 
-## واژگان تکمیلی (جلسه ۲۳): سلامتی، بیماری و واژگان متفرقه
+## واژگان تکمیلی (جلسه ۲۳ و ۲۴): سلامتی، بیماری، داروخانه و واژگان متفرقه
 
 ### بیماری و علائم
 
@@ -765,3 +800,75 @@ son/sun — dog/dug — feel/fill
 | expect (v.) | /ɪkˈspekt/ | انتظار داشتن | I expect the bus to arrive soon. |
 | personal care | /ˈpɜrəsənəl keər/ | مراقبت و بهداشت شخصی | Personal care products include soap and shampoo. |
 | cosmetics (n.) | /kɒzˈmetɪks/ | لوازم آرایشی | She works in the cosmetics department. |
+
+### داروخانه — Voc 23 (جلسه ۲۴)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| in a chemist's shop | /ɪn ə ˈkemɪsts ʃɒp/ | در داروخانه | I'm in a chemist's shop to buy some medicine. |
+| chemist (n.) | /ˈkemɪst/ | داروساز؛ **شیمیدان** | The chemist gave me some advice. / He works as a chemist in a lab. |
+| customer (n.) | /ˈkʌstəmər/ | مشتری | The customer asked for cough medicine. |
+| cut (v./n.) — cut, cut, cut | /kʌt/ | بریدن؛ **(n.) بریدگی، زخم** | I cut my finger while cooking. / It's only a small cut. |
+| hurt – ache – pain | /hɜːrt, eɪk, peɪn/ | درد کردن / درد (ache: درد مداوم عضو؛ pain: درد کلی) | My foot hurts. / I have a pain in my chest. |
+| antiseptic cream (n.) | /ˌæntɪˈseptɪk kriːm/ | کرم ضدعفونی‌کننده | Put some antiseptic cream on the cut. |
+| plaster (n.) {Br.} | /ˈplɑːstər/ | چسب زخم؛ **گچ (ساختمانی)** | Can I have a plaster, please? / They put plaster on the wall. |
+| cotton wool (n.) | /ˈkɒtn wʊl/ | پنبه | Clean the cut with cotton wool. |
+| of course | /əv kɔːrs/ | البته | "Can I pay by card?" "Of course." |
+| need something for … | /niːd ˈsʌmθɪŋ fər/ | برای … به چیزی نیاز داشتن | I need something for a headache. |
+| try (v.) | /traɪ/ | امتحان کردن؛ **تلاش کردن** | Try these tablets, they work well. / I'll try to call you later. |
+| tablet = pill (n.) | /ˈtæblət, pɪl/ | قرص | Take two tablets every 4 hours with water. |
+| a box of tissues | /ə bɒks əv ˈtɪʃuːz/ | یک جعبه دستمال کاغذی | I need a box of tissues for my cold. |
+| cough medicine (n.) | /kɒf ˈmedsn/ | داروی سرفه (شربت) | Do you have any cough medicine? |
+
+**chemist's / drugstore / pharmacy:**
+
+- **chemist's / chemist** (انگلیسی بریتانیایی): هم خودِ داروخانه و هم داروساز.
+- **drugstore** (انگلیسی آمریکایی): علاوه بر دارو، لوازم آرایشی و بهداشتی هم می‌فروشد.
+- **pharmacy**: فقط دارو؛ مخصوص نسخه‌پیچی (prescription = نسخه).
+
+**مکالمه کاربردی:** "I cut my finger. Do you have any antiseptic cream and plasters?" — "Of course. Take two tablets every 4 hours with water." الگوی **I need something for …** برای Speaking Part 1 (موضوع Health) عالی است.
+
+## گرامر (جلسه ۲۴): زمان حال کامل ساده (Present Perfect Simple)
+
+### ساختار
+
+**Subject + have / has + past participle (p.p.)**
+
+فعل سوم (p.p.) یعنی صورت سوم فعل. مثال: go → gone، see → seen، have → had، be → been
+
+| حالت | ساختار | مثال | معنی | پاسخ کوتاه |
+| --- | --- | --- | --- | --- |
+| مثبت (+) | S + have/has + p.p. | I have just had breakfast. | تازه صبحانه خوردم | — |
+| منفی (−) | S + haven't/hasn't + p.p. | I haven't had breakfast yet. | هنوز صبحانه نخورده‌ام | — |
+| سؤالی (?) | Have/Has + S + p.p.? | Have you had breakfast yet? | هنوز صبحانه نخورده‌ای؟ | Yes, I have. / No, I haven't. |
+
+### since و for
+
+| کلمه | کاربرد | بعد از آن | مثال | معنی |
+| --- | --- | --- | --- | --- |
+| since | نقطه شروع (beginning) | a point in time | since 1382 / since Monday | از سال ۱۳۸۲ / از دوشنبه |
+| for | مدت زمان (duration) | a period of time | for two years / for a week | به‌مدت دو سال / یک هفته |
+
+### ۳ کاربرد اصلی
+
+**۱. گذشته‌ای که هنوز ادامه دارد (Unfinished past):** از گذشته شروع شده و تا «حالا» ادامه دارد.
+
+- "I have lived in Tehran since 1382." — از سال ۱۳۸۲ در تهران زندگی کرده‌ام (و هنوز می‌کنم).
+- "She has worked here for five years." — پنج سال است اینجا کار می‌کند.
+
+**۲. نتیجه تا حالا (Result):** با قیدهای just / yet / already.
+
+| قید | جایگاه | مثال | معنی | نکته |
+| --- | --- | --- | --- | --- |
+| just | مثبت (+) | I have just had breakfast. | همین الان / تازه | بین have و p.p. |
+| yet | منفی (−) و سؤالی (?) | I haven't had breakfast yet. / Have you had breakfast yet? | هنوز / تا حالا | آخر جمله |
+| already | مثبت (+) | Mahta has already arrived. | قبلاً / زودتر از انتظار | زودتر از زمان انتظار رخ داده |
+
+**۳. تجربه (Experience):** با ever و never — بدون ذکر زمان دقیق.
+
+- **ever** در سؤال: "Have you ever seen Japan?" — تا حالا ژاپن را دیده‌ای؟
+- **never** در جواب یا جمله مثبت (معنی منفی دارد): "No, never." / "I have never been to Japan." — هیچ‌وقت ژاپن نبوده‌ام.
+
+**یادآوری:** با **never** فعل را مثبت می‌آوریم (نه haven't never). و با زمان دقیق گذشته (yesterday, in 2010, last week) **نمی‌توان** present perfect به‌کار برد؛ آنجا گذشته ساده لازم است.
+
+**نکته آیلتس:** در Speaking Part 1 برای سؤال‌هایی مثل "How long have you lived here?" یا "Have you ever traveled abroad?" این زمان ضروری است. جمله‌های کامل مثل "I've lived here for ten years" و "I've never been to Japan, but I'd love to go" به نمره Grammatical Range کمک می‌کنند.
