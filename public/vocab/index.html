@@ -236,6 +236,9 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 .tu-comp textarea{flex:1;min-width:0;min-height:46px;max-height:180px;resize:vertical;background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px;line-height:1.7}
 .tu-comp textarea:focus{outline:none;border-color:var(--acc)}
 .tu-hint{font-size:12px;color:var(--tx3);margin:4px 0 0}
+.tu-mic.on{background:var(--bad);border-color:var(--bad);color:#fff;animation:tu-pulse 1.2s ease-in-out infinite}
+@keyframes tu-pulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--bad) 25%,transparent)}}
+.tu-hint label{cursor:pointer}
 /* «جزوه» tab: class notes (notes.md) by topic */
 .nt-top{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0 10px;display:flex;gap:8px;align-items:center}
 .nt-top input{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px}
