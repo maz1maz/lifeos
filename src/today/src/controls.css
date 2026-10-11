@@ -12,12 +12,12 @@
 @keyframes uv-tick-pop{0%{transform:scale(.7)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
 
 /* Switch — based on Uiverse.io by Galahhad (MIT, Material switch): slim track, big knob, press ripple. RTL: off = right. */
-.plnr-switch{--sw-w:40px;--sw-h:16px;--sw-k:22px;position:relative;flex:none;width:var(--sw-w);height:var(--sw-k);padding:0;border:0;background:transparent;cursor:pointer}
+.plnr-switch{display:inline-block;--sw-w:40px;--sw-h:16px;--sw-k:22px;position:relative;flex:none;width:var(--sw-w);height:var(--sw-k);padding:0;border:0;background:transparent;cursor:pointer}
 .plnr-switch::before{content:'';position:absolute;inset-inline:0;top:50%;height:var(--sw-h);margin-top:calc(var(--sw-h) / -2);border-radius:999px;background:color-mix(in srgb,var(--g-text,#f5f5f5) 22%,transparent);transition:background-color .2s}
 .plnr-switch i{position:absolute;top:0;inset-inline-start:0;width:var(--sw-k);height:var(--sw-k);box-sizing:border-box;border:1px solid color-mix(in srgb,var(--g-text,#1c1a17) 14%,transparent);border-radius:50%;background:#fff;box-shadow:0 2px 1px -1px #0003,0 1px 1px #0002,0 1px 3px #0002;transition:inset-inline-start .2s cubic-bezier(.4,0,.2,1),background-color .2s,transform .15s}
 .plnr-switch i::before{content:'';position:absolute;inset:-9px;border-radius:50%;background:currentColor;opacity:0;transform:scale(.6);transition:opacity .3s,transform .3s}
 .plnr-switch{color:var(--g-text,#f5f5f5)}
-.plnr-switch:hover i::before,.plnr-switch:focus-visible i::before{opacity:.08;transform:scale(1)}
+.plnr-switch:hover i::before,button:hover>.plnr-switch i::before,.plnr-switch:focus-visible i::before{opacity:.08;transform:scale(1)}
 .plnr-switch:active i::before{opacity:.18;transform:scale(1)}
 .plnr-switch:active i{transform:scale(.92)}
 .plnr-switch:focus-visible{outline:2px solid var(--g-accent,#d8a44c);outline-offset:3px;border-radius:999px}
