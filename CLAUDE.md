@@ -41,6 +41,7 @@ npm run build:studio     # پنل seyfikhani.ir (ProjectsPage+CoursesPage) → i
 ## قواعد کار
 - هر تغییر API: `cloudflare/lib/api.js` (+ helper در `lib/helpers.js`) + تست در `test/worker-smoke.js` یا `test/smoke.js` → `npm test`. بعد از افزودن مسیر: `node scripts/gen-openapi.js`.
 - تغییر UI را با مرورگر (Playwright، `test/worker-host.js` + کوکی sid) و اسکرین‌شات هم ببین، نه فقط تست.
+- اسکیل `uiverse` (`.claude/skills/uiverse/`): کامپوننت‌های Uiverse.io (MIT) را از ریپوی `uiverse-io/galaxy` پیدا و به پروژه پورت می‌کند (namespace، توکن تم، RTL، CSP). دکمه/لودر/سوییچ/چک‌باکس تازه → اول این اسکیل.
 - اپ زبان: `public/vocab/` (`words.json` = آرایهٔ فشرده) + `src/today/src/vocab.jsx` + `/api/vocab`.
 - **جهت فلش‌های قبل/بعد (RTL — کاربر بارها تذکر داده):** دکمهٔ «قبل» سمت راست است و فلشش به راست (`ChevronRight` / `›` / `»`)؛ «بعد» سمت چپ و فلشش به چپ (`ChevronLeft` / `‹` / `«`). یعنی در DOM اول «قبل» بیاید. ⚠️ نویسه‌های `‹ › « »` در متن RTL خودکار برعکس نمایش داده می‌شوند؛ دکمهٔ متنی حتماً `dir="ltr"` بگیرد (یا آیکون lucide). تست `ui-smoke` هر دو را چک می‌کند؛ ولی همیشه با اسکرین‌شات هم ببین.
 - متن UI فارسی، `dir=rtl`، اعداد با `fa()`/`toLocaleString('fa-IR')`. واحد پول ذخیره‌شده **ریال** است (`_meta.currencyUnit='IRR'`)، نمایش تومان = ÷۱۰.
