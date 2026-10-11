@@ -211,6 +211,31 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 #levelBar .chip small{opacity:.7;font-size:11px}
 @media(max-width:700px){#levelBar{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}#levelBar .chip{flex:0 0 auto}}
 
+/* «معلم» tab: AI English tutor (7 modes) */
+.tu-prof{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);font-size:13px;color:var(--tx2)}
+.tu-prof select,.tu-prof input{background:var(--bg3);border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:6px 8px;font:inherit;font-size:14px}
+.tu-prof select{width:auto;flex:0 0 auto}.tu-gap{display:block;height:6px}
+.tu-prof input[type=text]{flex:1;min-width:140px}.tu-prof input[type=number]{width:70px}
+.tu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.tu-mode{display:flex;flex-direction:column;gap:4px;text-align:start;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px;color:var(--tx);font:inherit;cursor:pointer;transition:border-color .2s,transform .2s}
+.tu-mode:hover,.tu-mode:focus-visible{border-color:var(--acc);transform:translateY(-2px)}
+.tu-mode b{font-size:15px}.tu-mode span{font-size:12.5px;color:var(--tx2);line-height:1.8}.tu-mode i{font-style:normal;font-size:22px}
+.tu-mode em{font-style:normal;font-size:11px;color:var(--acc)}
+.tu-head{display:flex;align-items:center;gap:8px;margin:0 0 10px}.tu-head h3{margin:0;font-size:16px;flex:1}
+.tu-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.tu-chips button{background:var(--bg3);border:1px solid var(--line);color:var(--tx);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+.tu-chips button:hover{border-color:var(--acc)}
+.tu-log{display:flex;flex-direction:column;gap:10px;margin:0 0 10px}
+.tu-msg{max-width:92%;padding:10px 14px;border-radius:14px;line-height:1.95;font-size:14px;white-space:normal;word-break:break-word}
+.tu-msg.u{align-self:flex-start;background:var(--soft,rgba(59,167,255,.14));border:1px solid var(--line)}
+.tu-msg.a{align-self:flex-end;background:var(--bg2);border:1px solid var(--line)}
+.tu-msg b{color:var(--acc)}.tu-msg b.tu-w{cursor:pointer;text-decoration:underline dotted;text-underline-offset:4px}
+.tu-msg .tu-say{float:left;margin:-2px 6px 0 -4px;background:none;border:0;cursor:pointer;font-size:15px;opacity:.75}
+.tu-msg.err{border-color:var(--bad);color:var(--bad)}
+.tu-comp{position:sticky;bottom:0;display:flex;gap:8px;align-items:flex-end;padding:8px 0;background:var(--bg)}
+.tu-comp textarea{flex:1;min-width:0;min-height:46px;max-height:180px;resize:vertical;background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px;line-height:1.7}
+.tu-comp textarea:focus{outline:none;border-color:var(--acc)}
+.tu-hint{font-size:12px;color:var(--tx3);margin:4px 0 0}
 /* «جزوه» tab: class notes (notes.md) by topic */
 .nt-top{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0 10px;display:flex;gap:8px;align-items:center}
 .nt-top input{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px}
@@ -377,6 +402,7 @@ html,body{max-width:100%;overflow-x:hidden}
       <button class="tab" data-v="quiz">آزمون</button>
       <button class="tab" data-v="browse">فهرست واژه‌ها</button>
       <button class="tab" data-v="notes">جزوه</button>
+      <button class="tab" data-v="tutor">معلم</button>
       <button class="tab" data-v="stats">پیشرفت</button>
       <button class="tab" data-v="settings">تنظیمات</button>
       <button class="tab" id="userBtn" title="حساب من">کاربر</button>
@@ -400,6 +426,7 @@ html,body{max-width:100%;overflow-x:hidden}
   <section class="view hide" id="v-quiz"><div id="quizMain"></div></section>
   <section class="view hide" id="v-browse"><div id="browseMain"></div></section>
   <section class="view hide" id="v-notes"><div id="notesMain"></div></section>
+  <section class="view hide" id="v-tutor"><div id="tutorMain"></div></section>
   <section class="view hide" id="v-stats"><div id="statsMain"></div></section>
   <section class="view hide" id="v-settings"><div id="setMain"></div></section>
 

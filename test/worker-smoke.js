@@ -490,6 +490,23 @@ async function main() {
       check('a refused provider is skipped for a while (no second 403 round trip)', globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.size >= 1);
     } finally { globalThis.fetch = realFetch; delete env.AI; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.clear(); }
   }
+  { // vocab tutor: 7 modes, learner profile + weak words in the prompt, validation
+    const seen = [], realFetch = globalThis.fetch;
+    const noKey = await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'chat', history: [{ r: 'u', t: 'hi' }] } });
+    check('tutor: 503 without any AI', noKey.status === 503, String(noKey.status));
+    env.AI_PROVIDER_API_KEY = 'k'; env.AI_PROVIDER_BASE_URL = 'https://ai.test/v1'; env.AI_MODEL = 'm';
+    globalThis.fetch = async (url, init) => { if (String(url).startsWith('https://ai.test/')) { seen.push(JSON.parse(init.body)); return new Response(JSON.stringify({ choices: [{ message: { content: 'Hello! How are you?' } }] })); } return realFetch(url, init); };
+    try {
+      const r = await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'roleplay', extra: 'restaurant', profile: { level: 'A2', goal: 'IELTS 6.5', minutes: 20 }, context: { weak: ['chemist', 'plaster'], notes: ['Present Perfect'] }, history: [{ r: 'u', t: 'start' }] } });
+      const sys = seen[0] && seen[0].messages[0].content, usr = seen[0] && seen[0].messages[1].content;
+      check('tutor: reply', r.status === 200 && r.d.reply === 'Hello! How are you?', JSON.stringify(r.d));
+      check('tutor: mode + profile + weak words + scenario in system prompt', /Role-play/.test(sys) && /level=A2/.test(sys) && /chemist, plaster/.test(sys) && /restaurant/.test(sys) && /Present Perfect/.test(sys), (sys || '').slice(0, 160));
+      check('tutor: conversation sent as transcript', /Learner: start/.test(usr || ''));
+      check('tutor: unknown mode -> 400', (await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'x', history: [{ r: 'u', t: 'hi' }] } })).status === 400);
+      check('tutor: last turn must be the learner -> 400', (await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'chat', history: [{ r: 'a', t: 'hi' }] } })).status === 400);
+      check('tutor: needs login', (await call('/api/vocab/tutor', { method: 'POST', body: { mode: 'chat', history: [{ r: 'u', t: 'hi' }] } })).status === 401);
+    } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
+  }
   { // work-time log: manual entries, validation, edit, timer start/stop
     const a = await call('/api/time', { method: 'POST', cookie, body: { title: 'گزارش پروژه', minutes: 95, date: '2026-02-03', projectId: 'p1' } });
     check('time: manual entry', a.status === 201 && a.d.minutes === 95 && a.d.projectId === 'p1');

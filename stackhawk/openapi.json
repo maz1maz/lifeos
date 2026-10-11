@@ -20,63 +20,6 @@
           }
         }
       },
-      "patch": {
-        "operationId": "patch_api_accounts",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true,
-                "properties": {
-                  "title": {
-                    "type": "string",
-                    "example": "test"
-                  },
-                  "text": {
-                    "type": "string",
-                    "example": "test"
-                  },
-                  "name": {
-                    "type": "string",
-                    "example": "test"
-                  },
-                  "amount": {
-                    "type": "number",
-                    "example": 10000
-                  },
-                  "date": {
-                    "type": "string",
-                    "example": "2026-10-06"
-                  },
-                  "note": {
-                    "type": "string",
-                    "example": "test"
-                  },
-                  "kind": {
-                    "type": "string",
-                    "example": "expense"
-                  },
-                  "category": {
-                    "type": "string",
-                    "example": "خوراک"
-                  },
-                  "status": {
-                    "type": "string",
-                    "example": "active"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
       "post": {
         "operationId": "post_api_accounts",
         "responses": {
@@ -10264,6 +10207,65 @@
         "responses": {
           "200": {
             "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vocab/tutor": {
+      "post": {
+        "operationId": "post_api_vocab_tutor",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "text": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 10000
+                  },
+                  "date": {
+                    "type": "string",
+                    "example": "2026-10-06"
+                  },
+                  "note": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "example": "expense"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "خوراک"
+                  },
+                  "status": {
+                    "type": "string",
+                    "example": "active"
+                  }
+                }
+              }
+            }
           }
         }
       }

@@ -225,17 +225,111 @@ function topics() {
   return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
 }
 
+/* ---------------------------------------------------------------- tutor
+   «معلم»: AI English tutor with 7 modes (/api/vocab/tutor). The server gets the learner profile
+   (S.settings.tutor), weak + recent words from S.cards and the notes topics, so lessons and quizzes
+   are about this learner. Conversations are kept per mode in this browser only. */
+const TU_MODES = [
+  { k: "plan", i: "🗺️", t: "برنامهٔ یادگیری", d: "سطح، هدف و وقتت را می‌پرسد و برنامهٔ گام‌به‌گام می‌سازد.", start: "برنامهٔ یادگیری انگلیسی‌ام را بساز." },
+  { k: "lesson", i: "📘", t: "درس امروز", d: "واژهٔ مفید، تمرین جمله، تلفظ، تمرین کوتاه و آزمون پایانی.", start: "درس امروزم را بده." },
+  { k: "grammar", i: "🧩", t: "توضیح گرامر", d: "قاعده را ساده و با مثال روزمره می‌گوید؛ بعد ۵ جمله برای کامل کردن.", ask: "کدام قاعده؟ مثلاً Present Perfect یا must / have to", chips: ["Present Perfect", "must / have to", "a / an / the", "Comparative & Superlative", "Relative Clauses", "Past Simple"] },
+  { k: "correct", i: "✍️", t: "تصحیح متن", d: "اشتباه‌ها و جمله‌های غیرطبیعی را تصحیح می‌کند و شکل native را نشان می‌دهد.", ask: "جمله یا پاراگراف انگلیسی‌ات را اینجا بچسبان…" },
+  { k: "chat", i: "💬", t: "مکالمه", d: "هر بار یک سؤال؛ اشتباه را کوتاه تصحیح می‌کند و کم‌کم سخت‌تر می‌شود.", start: "Hi! Let's talk." },
+  { k: "roleplay", i: "🎭", t: "نقش‌بازی", d: "یک موقعیت واقعی؛ با نوشتن «پایان» عبارت‌های مفید را می‌گیری.", ask: "موقعیت را انتخاب کن یا بنویس…", chips: ["رستوران", "فرودگاه", "مصاحبهٔ شغلی", "هتل", "جلسهٔ کاری", "سوپرمارکت", "داروخانه", "مطب پزشک"] },
+  { k: "review", i: "🔁", t: "مرور فراموش‌شده‌ها", d: "آزمون مخلوط از واژه‌های ضعیف، تازه و جزوه؛ آخرش می‌گوید چه چیزی را مرور کنی.", start: "از من آزمون مرور بگیر." },
+];
+const TU_KEY = "lifeos-vocab-tutor";
+let TU = { mode: null, busy: false, store: {} };
+try { TU.store = JSON.parse(localStorage.getItem(TU_KEY) || "{}") || {}; } catch (e) { TU.store = {}; }
+const tuSaveLocal = () => { try { localStorage.setItem(TU_KEY, JSON.stringify(TU.store)); } catch (e) {} };
+const tuConv = k => TU.store[k] || (TU.store[k] = { extra: "", hist: [] });
+const tuProf = () => (S.settings.tutor || (S.settings.tutor = { level: "", goal: "", minutes: 20 }));
+function tuContext() {
+  const cards = Object.entries(S.cards || {});
+  const weak = cards.filter(([, c]) => c && c.bad > 0).sort((a, b) => (b[1].bad - b[1].good) - (a[1].bad - a[1].good)).slice(0, 30).map(([w]) => w);
+  const recent = cards.filter(([, c]) => c && c.last).sort((a, b) => b[1].last - a[1].last).slice(0, 30).map(([w]) => w);
+  const notes = NOTES ? NOTES.sections.map(x => x.title).slice(0, 30) : [];
+  return { weak, recent, notes };
+}
+// tutor text → safe HTML: **bold** (deck words become ⭐-able), *em*, `code`, line breaks
+function tuHtml(t) {
+  return esc(t).replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, (m, w) => { const k = w.trim().toLowerCase(); return byWord(k) ? `<b class="tu-w" data-star="${esc(k)}" title="ستاره‌دار کردن در کارت‌ها">${w}${S.stars.includes(k) ? " ★" : ""}</b>` : `<b>${w}</b>`; })
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>").replace(/\n{2,}/g, "<br><span class=\"tu-gap\"></span>").replace(/\n/g, "<br>");
+}
+const tuEnglish = t => String(t).replace(/[؀-ۿ‌]+/g, " ").replace(/[*`#✏️✅❌]/g, "").replace(/\/[^/\n]{1,40}\//g, " ").replace(/\s+/g, " ").trim();
+async function renderTutor() {
+  const box = $("#tutorMain");
+  if (!NOTES) loadNotes().catch(() => {});
+  if (!TU.mode) {
+    const p = tuProf();
+    box.innerHTML = `<div class="tu-prof"><span>سطح:</span><select id="tuLv">${["", "A1", "A2", "B1", "B2", "C1", "C2"].map(l => `<option value="${l}"${p.level === l ? " selected" : ""}>${l || "نمی‌دانم"}</option>`).join("")}</select>
+      <span>هدف:</span><input type="text" id="tuGoal" placeholder="مثلاً آیلتس ۶٫۵ / سفر / کار" value="${esc(p.goal)}">
+      <span>دقیقه در روز:</span><input type="number" id="tuMin" min="5" max="240" value="${esc(p.minutes)}"></div>
+      <div class="tu-grid">${TU_MODES.map(m => { const n = (TU.store[m.k] || {}).hist?.length || 0; return `<button type="button" class="tu-mode" data-m="${m.k}"><i>${m.i}</i><b>${m.t}</b><span>${m.d}</span>${n ? `<em>ادامهٔ گفتگو (${fa(n)} پیام)</em>` : ""}</button>`; }).join("")}</div>
+      <p class="tu-hint">معلم واژه‌های ضعیف و تازه‌ات و موضوع‌های جزوه را می‌شناسد. روی واژهٔ پررنگ بزن تا در کارت‌ها ستاره بخورد.</p>`;
+    const up = () => { const p2 = tuProf(); p2.level = $("#tuLv").value; p2.goal = $("#tuGoal").value.trim().slice(0, 120); p2.minutes = Math.max(5, Math.min(240, +$("#tuMin").value || 20)); save(); };
+    $("#tuLv").onchange = up; $("#tuGoal").onchange = up; $("#tuMin").onchange = up;
+    box.onclick = e => { const b = e.target.closest(".tu-mode"); if (b) { TU.mode = b.dataset.m; renderTutor(); } };
+    return;
+  }
+  const m = TU_MODES.find(x => x.k === TU.mode), cv = tuConv(m.k);
+  const needsExtra = m.ask && !cv.hist.length;
+  box.innerHTML = `<div class="tu-head"><button type="button" class="btn sm ghost" id="tuBack">بازگشت</button><h3>${m.i} ${m.t}${cv.extra && m.k !== "correct" ? ` — <span dir="auto">${esc(cv.extra)}</span>` : ""}</h3>${cv.hist.length ? `<button type="button" class="btn sm ghost" id="tuNew">شروع تازه</button>` : ""}</div>
+    ${needsExtra && m.chips ? `<div class="tu-chips">${m.chips.map(c => `<button type="button" data-chip="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
+    <div class="tu-log" id="tuLog">${cv.hist.map(x => `<div class="tu-msg ${x.r === "a" ? "a" : "u"}" dir="auto">${x.r === "a" ? `<button type="button" class="tu-say" data-say-msg aria-label="تلفظ">🔊</button>${tuHtml(x.t)}` : esc(x.t).replace(/\n/g, "<br>")}</div>`).join("")}${TU.busy ? `<div class="tu-msg a"><span class="muted">معلم دارد می‌نویسد…</span></div>` : ""}</div>
+    <div class="tu-comp"><textarea id="tuIn" dir="auto" placeholder="${esc(needsExtra ? m.ask : m.k === "roleplay" ? "جوابت را بنویس… (برای پایان: «پایان»)" : "جوابت را بنویس…")}"></textarea><button type="button" class="btn" id="tuSend"${TU.busy ? " disabled" : ""}>فرستادن</button></div>
+    <p class="tu-hint">Enter = فرستادن · Shift+Enter = خط تازه</p>`;
+  $("#tuBack").onclick = () => { TU.mode = null; renderTutor(); };
+  if ($("#tuNew")) $("#tuNew").onclick = () => { if (confirm("گفتگوی این بخش پاک شود و از اول شروع شود؟")) { delete TU.store[m.k]; tuSaveLocal(); renderTutor(); } };
+  const inp = $("#tuIn");
+  $("#tuSend").onclick = () => tuSend(inp.value);
+  inp.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); tuSend(inp.value); } };
+  box.onclick = e => {
+    const c = e.target.closest("[data-chip]"); if (c) return tuSend(c.dataset.chip);
+    const s = e.target.closest("[data-star]"); if (s) { const w = s.dataset.star, i = S.stars.indexOf(w); i >= 0 ? S.stars.splice(i, 1) : S.stars.push(w); save(true); toast(i >= 0 ? "ستاره برداشته شد" : "ستاره‌دار شد ★ — در «کارت‌ها» با فیلتر ستاره‌دارها"); return renderTutor(); }
+    const sp = e.target.closest("[data-say-msg]"); if (sp) { const t = tuEnglish(sp.parentElement.textContent); if (t) speak(t); }
+  };
+  const log = $("#tuLog"); if (log.lastElementChild) log.lastElementChild.scrollIntoView({ block: "nearest" });
+  // modes that start on their own: send the opening line once
+  if (!cv.hist.length && m.start && !TU.busy) tuSend(m.start);
+  else if (!TU.busy) inp.focus({ preventScroll: true });
+}
+async function tuSend(text) {
+  text = String(text || "").trim(); if (!text || TU.busy) return;
+  const m = TU_MODES.find(x => x.k === TU.mode); if (!m) return;
+  const cv = tuConv(m.k);
+  if (m.ask && !cv.hist.length) {           // first message of grammar / correct / roleplay sets the topic
+    if (m.k === "grammar") { cv.extra = text.slice(0, 200); text = "این قاعده را یادم بده: " + text; }
+    else if (m.k === "roleplay") { cv.extra = text.slice(0, 200); text = "سناریو: " + text + " — شروع کن."; }
+  }
+  cv.hist.push({ r: "u", t: text.slice(0, 1800) }); TU.busy = true; tuSaveLocal(); renderTutor();
+  let reply = null, err = null;
+  try {
+    const r = await fetch("/api/vocab/tutor", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: m.k, extra: cv.extra, profile: tuProf(), context: tuContext(), history: cv.hist.slice(-14) }) });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.reply) reply = d.reply; else err = d.error || "معلم جواب نداد؛ دوباره امتحان کن.";
+  } catch (e) { err = "اتصال برقرار نشد؛ اینترنت را بررسی کن."; }
+  TU.busy = false;
+  if (reply) { cv.hist.push({ r: "a", t: reply }); cv.hist = cv.hist.slice(-40); }
+  else { cv.hist.pop(); toast(err); }
+  tuSaveLocal();
+  if (VIEW === "tutor" && TU.mode === m.k) { renderTutor(); if (!reply) { const i = $("#tuIn"); if (i) i.value = text; } }
+}
+
 /* ================================================================ VIEWS */
 let VIEW = "study";
 
 function render() {
   $$(".tab").forEach(t => t.classList.toggle("on", t.dataset.v === VIEW));
   $$(".view").forEach(v => v.classList.toggle("hide", v.id !== "v-" + VIEW));
-  const fc = $("#filterCard"); if (fc) fc.classList.toggle("hide", VIEW === "notes");   // level/topic filters do not apply to the notes
+  const fc = $("#filterCard"); if (fc) fc.classList.toggle("hide", VIEW === "notes" || VIEW === "tutor");   // level/topic filters do not apply to the notes
   if (VIEW === "study") renderStudy();
   if (VIEW === "quiz") renderQuizHome();
   if (VIEW === "browse") renderBrowse();
   if (VIEW === "notes") renderNotes();
+  if (VIEW === "tutor") renderTutor();
   if (VIEW === "stats") renderStats();
   if (VIEW === "settings") renderSettings();
 }
