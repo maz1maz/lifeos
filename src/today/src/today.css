@@ -350,9 +350,6 @@ input:focus,textarea:focus{outline:none}
 .plnr-list{list-style:none;margin:0;padding:0}
 .plnr-row{display:grid;grid-template-columns:auto 1fr auto;align-items:flex-start;gap:16px;padding:16px 0;border-bottom:1px solid rgba(216,164,76,.14);transition:background .16s}
 .plnr-row:hover{background:var(--g-panel-2)}
-.plnr-check{width:24px;height:24px;border-radius:99px;border:1px solid rgba(154,154,159,.45);display:flex;align-items:center;justify-content:center;background:none;color:transparent;cursor:pointer;flex:none;margin-top:2px;transition:border-color .16s}
-.plnr-check:hover{border-color:var(--firoozeh)}
-.plnr-check.on{border-color:var(--firoozeh);background:var(--g-accent-soft);color:var(--firoozeh-light)}
 .plnr-row-body{min-width:0}
 .plnr-row-body b{font-size:16.5px;font-weight:500;line-height:1.7;color:var(--paper)}
 .plnr-row-body b.done{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(216,164,76,.6)}
@@ -405,10 +402,6 @@ input:focus,textarea:focus{outline:none}
 .plnr-reminder-head b{display:block;font-size:12.5px;font-weight:500;color:var(--paper)}
 .plnr-reminder-head small{color:var(--muted);font-size:11px}
 .plnr-reminder-box .plnr-2col{margin-top:12px}
-.plnr-switch{position:relative;width:38px;height:21px;border-radius:99px;border:1px solid rgba(154,154,159,.3);background:rgba(255,255,255,.04);flex:none;cursor:pointer}
-.plnr-switch i{position:absolute;top:50%;transform:translateY(-50%);width:15px;height:15px;border-radius:99px;background:var(--paper);right:3px;transition:all .18s;font-style:normal}
-.plnr-switch.on{background:var(--firoozeh-deep);border-color:var(--firoozeh)}
-.plnr-switch.on i{right:19px;background:var(--firoozeh-light)}
 .plnr-drawer footer{display:flex;gap:10px;padding:16px 20px;border-top:1px solid rgba(216,164,76,.2);flex:none}
 .plnr-submit{flex:1;background:var(--firoozeh);color:var(--ink-deep);border:0;border-radius:var(--g-radius-control);padding:11px;font-weight:700;font-size:13px;cursor:pointer;transition:background var(--g-motion) var(--g-motion-ease)}
 .plnr-submit:hover{background:var(--firoozeh-light)}

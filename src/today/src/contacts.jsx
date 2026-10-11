@@ -210,7 +210,7 @@ function Composer({ editing, onCloseEdit, onSaved }) {
         </div>
         <button type="button" className={`pb-pin-toggle ${form.favorite ? 'on' : ''}`} onClick={() => set('favorite', !form.favorite)} aria-pressed={form.favorite}>
           <span><Star size={15} /> علاقه‌مندی — دسترسی سریع</span>
-          <span className={`pb-switch ${form.favorite ? 'on' : ''}`}><i /></span>
+          <span className={`plnr-switch${form.favorite ? ' on' : ''}`} aria-hidden="true"><i /></span>
         </button>
         <label className="pb-mono pb-mute">یادداشت</label>
         <textarea rows={4} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="نکتهٔ شخصی…" />

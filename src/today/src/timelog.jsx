@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download, Play, Square, Trash2, X } from 'lucide-react';
 import { Page, api, fa, jShort, todayIso, addDays } from './life-core';
 import { JalaliDateInput, isoToJ, jToIso } from './jdate';
+import { Loader } from './loader';
 
 // «زمان کار» (tab of the planner hub): live timer, manual entries, and a report for a chosen range
 // (total, per-day bars, per-project and per-title split, CSV). Backend: /api/timer(+start|stop|cancel), /api/time.
@@ -110,7 +111,7 @@ export function TimeLogPage({ Nav }) {
 
     <section className="lf-card">
       <h3>ثبت‌ها</h3>
-      {items === null ? <p className="tl-muted">در حال بارگذاری…</p> : !items.length ? <p className="tl-muted">در این بازه زمانی ثبت نشده. تایمر را بزن یا دستی ثبت کن (در Ctrl+K هم می‌شود نوشت «۲ ساعت کار روی گزارش»).</p>
+      {items === null ? <Loader /> : !items.length ? <p className="tl-muted">در این بازه زمانی ثبت نشده. تایمر را بزن یا دستی ثبت کن (در Ctrl+K هم می‌شود نوشت «۲ ساعت کار روی گزارش»).</p>
         : <ul className="tl-list">{items.slice(0, 80).map(x => <li key={x.id}><span className="tl-d">{x.date === today ? 'امروز' : jShort(x.date)}</span><span className="tl-t"><b>{x.title}</b>{pName(x.projectId) ? <small>{pName(x.projectId)}</small> : null}</span><b className="tl-m">{hm(x.minutes)}</b><button type="button" className="tl-x" onClick={() => del(x)} aria-label={`حذف ${x.title}`}><Trash2 size={15} /></button></li>)}</ul>}
     </section>
   </Page>;

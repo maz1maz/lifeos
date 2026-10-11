@@ -280,7 +280,7 @@ function PortfolioImport({ onDone }) {
     <p className="fn-note">هر سهم در یک خط: نماد، تعداد، میانگین قیمت خرید (ریال). مثلاً:<br /><span dir="rtl">عیار ۲۹۱۹ ۵۳۴٬۸۰۸</span></p>
     <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder={'عیار 2919 534808\nسیلور 23532 13209\nشکیمیا 533 5941'} aria-label="متن پرتفوی" />
     {rows.length ? <table className="fn-imp-t"><thead><tr><th>نماد</th><th>تعداد</th><th>میانگین خرید</th><th>بهای کل</th></tr></thead><tbody>{rows.map((r, i) => <tr key={i}><td>{r.symbol}</td><td>{fa(r.quantity)}</td><td>{fa(r.price)}</td><td>{short(r.quantity * r.price)}</td></tr>)}</tbody></table> : text.trim() ? <p className="fn-note">خطی پیدا نشد که نماد و دو عدد (تعداد و قیمت) داشته باشد.</p> : null}
-    <button type="button" className={`fn-toggle${replace ? ' on' : ''}`} role="switch" aria-checked={replace} onClick={() => setReplace((v) => !v)}><i aria-hidden="true" /><span>جایگزین ثبت‌های قبلی همین نمادها</span></button>
+    <button type="button" className={`fn-toggle${replace ? ' on' : ''}`} role="switch" aria-checked={replace} onClick={() => setReplace((v) => !v)}><span className={`plnr-switch${replace ? ' on' : ''}`} aria-hidden="true"><i /></span><span>جایگزین ثبت‌های قبلی همین نمادها</span></button>
     <button className="fn-save" disabled={busy || !rows.length}>{busy ? '…' : `ثبت ${rows.length ? fa(rows.length) + ' نماد' : ''}`}</button>
     {msg ? <p className="fn-note" role="status">{msg}</p> : null}
   </form>
@@ -327,7 +327,7 @@ function BrokerImport({ onDone }) {
         </tr> })}
       </tbody></table>
       <p className="fn-note">«مانده» باید با تعداد سهمت در کارگزاری یکی باشد (فروخته‌شده‌ها = ۰). میانگین قیمت موجودی قبلی اختیاری است و فقط روی «سود محقق‌شده» اثر دارد؛ خالی بماند، قیمت اولین معاملهٔ آن نماد در فایل حساب می‌شود.</p>
-      <button type="button" className={`fn-toggle${replace ? ' on' : ''}`} role="switch" aria-checked={replace} onClick={() => setReplace((v) => !v)}><i aria-hidden="true" /><span>جایگزین ثبت‌های قبلی همین نمادها</span></button>
+      <button type="button" className={`fn-toggle${replace ? ' on' : ''}`} role="switch" aria-checked={replace} onClick={() => setReplace((v) => !v)}><span className={`plnr-switch${replace ? ' on' : ''}`} aria-hidden="true"><i /></span><span>جایگزین ثبت‌های قبلی همین نمادها</span></button>
       <button type="button" className="fn-save" disabled={busy} onClick={run}>{busy ? '…' : `ثبت ${fa(pv.count)} سفارش`}</button>
     </> : null}
     {msg ? <p className="fn-note" role="status">{msg}</p> : null}

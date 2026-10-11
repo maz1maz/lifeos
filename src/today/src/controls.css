@@ -1,0 +1,40 @@
+/* Shared form controls — the single source for task ticks and switches (old per-page rules removed). */
+
+/* Task tick — based on Uiverse.io by LeonKohli (MIT): morphing box + drawn checkmark */
+.plnr-check,.cal-check{--uv-tk:var(--g-accent,#d8a44c);width:24px;height:24px;flex:none;display:grid;place-items:center;padding:0;margin-top:2px;cursor:pointer;background:transparent;color:var(--g-accent-fg,#221904);border:2px solid var(--g-border-2,rgba(154,154,159,.45));border-radius:50%;transition:border-color .25s,background-color .25s,border-radius .3s,box-shadow .25s}
+.cal-check{width:18px;height:18px;border-radius:6px;margin-top:1px}
+.plnr-check:hover,.cal-check:hover{border-color:var(--uv-tk);box-shadow:0 0 0 4px color-mix(in srgb,var(--uv-tk) 16%,transparent)}
+.plnr-check:focus-visible,.cal-check:focus-visible{outline:2px solid var(--uv-tk);outline-offset:2px}
+.plnr-check.on,.cal-check.on{border-color:var(--uv-tk);background:var(--uv-tk);border-radius:42% 58% 58% 42% / 42% 42% 58% 58%;animation:uv-tick-pop .35s cubic-bezier(.22,1,.36,1)}
+.cal-check.on{border-radius:6px}
+.uv-tick{width:72%;height:72%;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .4s cubic-bezier(.45,.05,.55,.95) .05s}
+.on>.uv-tick{stroke-dashoffset:0}
+@keyframes uv-tick-pop{0%{transform:scale(.7)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+/* Switch — based on Uiverse.io by Galahhad (MIT, Material switch): slim track, big knob, press ripple. RTL: off = right. */
+.plnr-switch{display:inline-block;--sw-w:40px;--sw-h:16px;--sw-k:22px;position:relative;flex:none;width:var(--sw-w);height:var(--sw-k);padding:0;border:0;background:transparent;cursor:pointer}
+.plnr-switch::before{content:'';position:absolute;inset-inline:0;top:50%;height:var(--sw-h);margin-top:calc(var(--sw-h) / -2);border-radius:999px;background:color-mix(in srgb,var(--g-text,#f5f5f5) 22%,transparent);transition:background-color .2s}
+.plnr-switch i{position:absolute;top:0;inset-inline-start:0;width:var(--sw-k);height:var(--sw-k);box-sizing:border-box;border:1px solid color-mix(in srgb,var(--g-text,#1c1a17) 14%,transparent);border-radius:50%;background:#fff;box-shadow:0 2px 1px -1px #0003,0 1px 1px #0002,0 1px 3px #0002;transition:inset-inline-start .2s cubic-bezier(.4,0,.2,1),background-color .2s,transform .15s}
+.plnr-switch i::before{content:'';position:absolute;inset:-9px;border-radius:50%;background:currentColor;opacity:0;transform:scale(.6);transition:opacity .3s,transform .3s}
+.plnr-switch{color:var(--g-text,#f5f5f5)}
+.plnr-switch:hover i::before,button:hover>.plnr-switch i::before,.plnr-switch:focus-visible i::before{opacity:.08;transform:scale(1)}
+.plnr-switch:active i::before{opacity:.18;transform:scale(1)}
+.plnr-switch:active i{transform:scale(.92)}
+.plnr-switch:focus-visible{outline:2px solid var(--g-accent,#d8a44c);outline-offset:3px;border-radius:999px}
+.plnr-switch.on{color:var(--g-accent,#d8a44c)}
+.plnr-switch.on::before{background:color-mix(in srgb,var(--g-accent,#d8a44c) 50%,transparent)}
+.plnr-switch.on i{inset-inline-start:calc(var(--sw-w) - var(--sw-k));background:var(--g-accent,#d8a44c)}
+.plnr-switch:disabled{opacity:.5;cursor:not-allowed}
+
+/* Habit check: same pop when ticked */
+.hb-check.on{animation:uv-tick-pop .35s cubic-bezier(.22,1,.36,1)}
+
+@media (max-width:700px){.plnr-switch{--sw-w:46px;--sw-h:18px;--sw-k:26px}}
+@media (prefers-reduced-motion:reduce){.plnr-check,.cal-check,.uv-tick,.plnr-switch i,.hb-check{transition:none!important;animation:none!important}}
+
+/* Logo shine — based on Uiverse.io by devkatyall (MIT): a light streak sweeps across «LifeOS» every few seconds */
+.topbar:not(.studio-bar) .brand>span{color:transparent;-webkit-background-clip:text;background-clip:text;background-repeat:no-repeat;
+  background-image:linear-gradient(-40deg,transparent 0 40%,var(--g-accent,#d8a44c) 50%,transparent 60% 100%),linear-gradient(var(--g-text,#f5f5f5),var(--g-text,#f5f5f5));
+  background-size:50px 100%,100% 100%;background-position:-60px 0,0 0;animation:uv-shine 5s linear infinite}
+@keyframes uv-shine{0%,10%{background-position:-60px 0,0 0}20%{background-position:-60px 0,0 0}100%{background-position:140px 0,0 0}}
+@media (prefers-reduced-motion:reduce){.topbar:not(.studio-bar) .brand>span{animation:none}}

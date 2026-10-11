@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Page, api, fa, faD, jShort, todayIso, addDays } from './life-core';
 import { JalaliDateInput } from './jdate';
+import { Loader } from './loader';
 
 // «ورزش» (tab next to «سلامت»): quick log, weekly goal (WHO: 150 min), streak, 12-week chart, by-type split.
 // Backend: GET /api/exercise?from&to, POST /api/exercise {type,minutes,date,km?,note?}, DELETE /api/exercise/:id.
@@ -91,7 +92,7 @@ export function ExercisePage({ Nav }) {
 
     <section className="lf-card">
       <h3>تمرین‌های اخیر</h3>
-      {items === null ? <p className="ex-muted">در حال بارگذاری…</p> : !groups.length ? <p className="ex-muted">هنوز تمرینی ثبت نکرده‌ای. اولین تمرین را بالا ثبت کن.</p>
+      {items === null ? <Loader /> : !groups.length ? <p className="ex-muted">هنوز تمرینی ثبت نکرده‌ای. اولین تمرین را بالا ثبت کن.</p>
         : groups.map(g => <div key={g.date} className="ex-day"><h4>{g.date === today ? 'امروز' : g.date === addDays(today, -1) ? 'دیروز' : jShort(g.date)}</h4>
           {g.list.map(x => <div key={x.id} className="ex-row"><span className="ex-ic" aria-hidden="true">{ICON[x.type] || '🏅'}</span><span className="ex-t"><b>{x.type}</b><small>{hm(x.minutes)}{x.km ? ` · ${fa(x.km, 2)} کیلومتر` : ''}{x.note ? ` · ${x.note}` : ''}</small></span><button type="button" className="ex-del" onClick={() => del(x)} aria-label={`حذف ${x.type}`}><Trash2 size={15} /></button></div>)}
         </div>)}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Page, api, fa } from './life-core';
 import { isoToJ, MONTHS } from './jdate';
+import { Loader } from './loader';
 
 // «بینش»: what the backend already knows about you, in one place — period report (AI text when a key is set),
 // tomorrow's priorities, spending insights, sleep/mood/exercise correlations and «a year ago today».
@@ -13,7 +14,7 @@ const load = (url, set) => api(url).then(set).catch(e => set({ error: e.message 
 function Section({ title, sub, children, className = '' }) {
   return <section className={`ins-card ${className}`}><header><h2>{title}</h2>{sub ? <small>{sub}</small> : null}</header>{children}</section>;
 }
-const Wait = ({ v }) => v === null ? <p className="ins-muted">در حال بارگذاری…</p> : v?.error ? <p className="ins-muted">⚠ {v.error}</p> : null;
+const Wait = ({ v }) => v === null ? <Loader /> : v?.error ? <p className="ins-muted">⚠ {v.error}</p> : null;
 
 function ReportCard() {
   const [period, setPeriod] = useState('weekly');

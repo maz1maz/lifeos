@@ -66,10 +66,6 @@
 .pb-tag-chip button { background: none; border: 0; color: inherit; cursor: pointer; display: grid; place-items: center; }
 .pb-pin-toggle { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--pb-line); color: var(--pb-ink); border-radius: var(--g-radius-control); padding: 10px 12px; cursor: pointer; }
 .pb-pin-toggle span:first-child { display: inline-flex; align-items: center; gap: 8px; }
-.pb-switch { width: 34px; height: 18px; border-radius: 999px; background: var(--g-panel-2); position: relative; }
-.pb-switch i { position: absolute; top: 2px; right: 2px; width: 14px; height: 14px; border-radius: 999px; background: var(--g-muted); transition: transform 0.18s ease, background 0.18s ease; }
-.pb-switch.on { background: var(--g-accent-soft); }
-.pb-switch.on i { transform: translateX(-16px); background: var(--g-accent-strong); }
 .pb-error { color: var(--g-bad); font-size: 13px; margin: 0; }
 .pb-composer-actions { display: flex; gap: 8px; }
 .pb-save { flex: 1; background: var(--g-accent); color: var(--g-accent-fg); border: 0; border-radius: var(--g-radius-control); padding: 11px 14px; font-weight: 700; cursor: pointer; display: inline-flex; justify-content: center; align-items: center; gap: 8px; transition: background var(--g-motion) var(--g-motion-ease); }
