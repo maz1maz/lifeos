@@ -10,7 +10,7 @@ export function VocabPage({ Nav }) {
   const phone = typeof matchMedia === 'function' && matchMedia('(max-width:700px)').matches;
   useEffect(() => { if (phone) location.replace('/vocab/index.html'); }, [phone]);
   if (phone) return <main className="vc-page" />;
-  return <main className="vc-page"><Nav /><iframe className="vc-frame" src="/vocab/index.html" title="زبان — فلش‌کارت آیلتس" allow="autoplay" /></main>;
+  return <main className="vc-page"><Nav /><iframe className="vc-frame" src="/vocab/index.html" title="زبان — فلش‌کارت آیلتس" allow="autoplay; microphone" /></main>;
 }
 
 let SUM = null;

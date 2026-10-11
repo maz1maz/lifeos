@@ -505,6 +505,11 @@ async function main() {
       check('tutor: unknown mode -> 400', (await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'x', history: [{ r: 'u', t: 'hi' }] } })).status === 400);
       check('tutor: last turn must be the learner -> 400', (await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'chat', history: [{ r: 'a', t: 'hi' }] } })).status === 400);
       check('tutor: needs login', (await call('/api/vocab/tutor', { method: 'POST', body: { mode: 'chat', history: [{ r: 'u', t: 'hi' }] } })).status === 401);
+      // conversations follow the user to another device
+      const put = await call('/api/vocab/tutor-log', { method: 'PUT', cookie, body: { modes: { chat: { extra: '', hist: [{ r: 'u', t: 'hi' }, { r: 'a', t: 'Hello!' }, { r: 'x', t: '' }] }, evil: { hist: [{ r: 'u', t: 'no' }] } } } });
+      const got = await call('/api/vocab/tutor-log', { cookie });
+      check('tutor-log: saved and read back (unknown modes / empty turns dropped)', put.status === 200 && put.d.savedAt > 0 && got.d.log && got.d.log.modes.chat.hist.length === 2 && !got.d.log.modes.evil && got.d.log.savedAt === put.d.savedAt, JSON.stringify(got.d));
+      check('tutor-log: bad body -> 400', (await call('/api/vocab/tutor-log', { method: 'PUT', cookie, body: { modes: [] } })).status === 400);
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
   }
   { // work-time log: manual entries, validation, edit, timer start/stop

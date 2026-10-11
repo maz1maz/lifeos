@@ -239,10 +239,39 @@ const TU_MODES = [
   { k: "review", i: "🔁", t: "مرور فراموش‌شده‌ها", d: "آزمون مخلوط از واژه‌های ضعیف، تازه و جزوه؛ آخرش می‌گوید چه چیزی را مرور کنی.", start: "از من آزمون مرور بگیر." },
 ];
 const TU_KEY = "lifeos-vocab-tutor";
-let TU = { mode: null, busy: false, store: {} };
-try { TU.store = JSON.parse(localStorage.getItem(TU_KEY) || "{}") || {}; } catch (e) { TU.store = {}; }
-const tuSaveLocal = () => { try { localStorage.setItem(TU_KEY, JSON.stringify(TU.store)); } catch (e) {} };
-const tuConv = k => TU.store[k] || (TU.store[k] = { extra: "", hist: [] });
+let TU = { mode: null, busy: false, store: { modes: {}, savedAt: 0 }, synced: false, rec: null };
+try { const o = JSON.parse(localStorage.getItem(TU_KEY) || "{}") || {}; TU.store = o.modes ? o : { modes: o, savedAt: 0 }; } catch (e) {}
+// local copy first, then the server row (/api/vocab/tutor-log) so a conversation continues on another device
+let tuPushTimer = null;
+const tuSaveLocal = () => {
+  TU.store.savedAt = Date.now();
+  try { localStorage.setItem(TU_KEY, JSON.stringify(TU.store)); } catch (e) {}
+  clearTimeout(tuPushTimer);
+  tuPushTimer = setTimeout(() => fetch("/api/vocab/tutor-log", { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modes: TU.store.modes }) })
+    .then(r => r.ok ? r.json() : null).then(d => { if (d && d.savedAt) { TU.store.savedAt = d.savedAt; try { localStorage.setItem(TU_KEY, JSON.stringify(TU.store)); } catch (e) {} } }).catch(() => {}), 800);
+};
+async function tuPull() {
+  if (TU.synced) return; TU.synced = true;
+  try {
+    const d = await fetch("/api/vocab/tutor-log", { credentials: "same-origin" }).then(r => r.ok ? r.json() : null);
+    const log = d && d.log;
+    if (log && log.modes && log.savedAt > (TU.store.savedAt || 0)) { TU.store = { modes: log.modes, savedAt: log.savedAt }; try { localStorage.setItem(TU_KEY, JSON.stringify(TU.store)); } catch (e) {} return true; }
+  } catch (e) {}
+  return false;
+}
+const tuConv = k => TU.store.modes[k] || (TU.store.modes[k] = { extra: "", hist: [] });
+// voice input (English) with the browser's speech recognition, where available
+const TU_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function tuMic(btn, inp) {
+  if (TU.rec) { TU.rec.stop(); return; }
+  const r = new TU_SR(); r.lang = "en-US"; r.interimResults = true; r.continuous = false;
+  const base = inp.value ? inp.value.replace(/\s*$/, " ") : "";
+  r.onresult = e => { let t = ""; for (const x of e.results) t += x[0].transcript; inp.value = base + t; };
+  r.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") toast("اجازهٔ میکروفون داده نشده است."); };
+  r.onend = () => { TU.rec = null; btn.classList.remove("on"); btn.setAttribute("aria-pressed", "false"); inp.focus({ preventScroll: true }); };
+  TU.rec = r; btn.classList.add("on"); btn.setAttribute("aria-pressed", "true");
+  try { r.start(); } catch (e) { TU.rec = null; btn.classList.remove("on"); }
+}
 const tuProf = () => (S.settings.tutor || (S.settings.tutor = { level: "", goal: "", minutes: 20 }));
 function tuContext() {
   const cards = Object.entries(S.cards || {});
@@ -261,12 +290,13 @@ const tuEnglish = t => String(t).replace(/[؀-ۿ‌]+/g, " ").replace(/[*`#✏�
 async function renderTutor() {
   const box = $("#tutorMain");
   if (!NOTES) loadNotes().catch(() => {});
+  if (!TU.synced) tuPull().then(changed => { if (changed && VIEW === "tutor" && !TU.busy) renderTutor(); });
   if (!TU.mode) {
     const p = tuProf();
     box.innerHTML = `<div class="tu-prof"><span>سطح:</span><select id="tuLv">${["", "A1", "A2", "B1", "B2", "C1", "C2"].map(l => `<option value="${l}"${p.level === l ? " selected" : ""}>${l || "نمی‌دانم"}</option>`).join("")}</select>
       <span>هدف:</span><input type="text" id="tuGoal" placeholder="مثلاً آیلتس ۶٫۵ / سفر / کار" value="${esc(p.goal)}">
       <span>دقیقه در روز:</span><input type="number" id="tuMin" min="5" max="240" value="${esc(p.minutes)}"></div>
-      <div class="tu-grid">${TU_MODES.map(m => { const n = (TU.store[m.k] || {}).hist?.length || 0; return `<button type="button" class="tu-mode" data-m="${m.k}"><i>${m.i}</i><b>${m.t}</b><span>${m.d}</span>${n ? `<em>ادامهٔ گفتگو (${fa(n)} پیام)</em>` : ""}</button>`; }).join("")}</div>
+      <div class="tu-grid">${TU_MODES.map(m => { const n = (TU.store.modes[m.k] || {}).hist?.length || 0; return `<button type="button" class="tu-mode" data-m="${m.k}"><i>${m.i}</i><b>${m.t}</b><span>${m.d}</span>${n ? `<em>ادامهٔ گفتگو (${fa(n)} پیام)</em>` : ""}</button>`; }).join("")}</div>
       <p class="tu-hint">معلم واژه‌های ضعیف و تازه‌ات و موضوع‌های جزوه را می‌شناسد. روی واژهٔ پررنگ بزن تا در کارت‌ها ستاره بخورد.</p>`;
     const up = () => { const p2 = tuProf(); p2.level = $("#tuLv").value; p2.goal = $("#tuGoal").value.trim().slice(0, 120); p2.minutes = Math.max(5, Math.min(240, +$("#tuMin").value || 20)); save(); };
     $("#tuLv").onchange = up; $("#tuGoal").onchange = up; $("#tuMin").onchange = up;
@@ -278,12 +308,14 @@ async function renderTutor() {
   box.innerHTML = `<div class="tu-head"><button type="button" class="btn sm ghost" id="tuBack">بازگشت</button><h3>${m.i} ${m.t}${cv.extra && m.k !== "correct" ? ` — <span dir="auto">${esc(cv.extra)}</span>` : ""}</h3>${cv.hist.length ? `<button type="button" class="btn sm ghost" id="tuNew">شروع تازه</button>` : ""}</div>
     ${needsExtra && m.chips ? `<div class="tu-chips">${m.chips.map(c => `<button type="button" data-chip="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
     <div class="tu-log" id="tuLog">${cv.hist.map(x => `<div class="tu-msg ${x.r === "a" ? "a" : "u"}" dir="auto">${x.r === "a" ? `<button type="button" class="tu-say" data-say-msg aria-label="تلفظ">🔊</button>${tuHtml(x.t)}` : esc(x.t).replace(/\n/g, "<br>")}</div>`).join("")}${TU.busy ? `<div class="tu-msg a"><span class="muted">معلم دارد می‌نویسد…</span></div>` : ""}</div>
-    <div class="tu-comp"><textarea id="tuIn" dir="auto" placeholder="${esc(needsExtra ? m.ask : m.k === "roleplay" ? "جوابت را بنویس… (برای پایان: «پایان»)" : "جوابت را بنویس…")}"></textarea><button type="button" class="btn" id="tuSend"${TU.busy ? " disabled" : ""}>فرستادن</button></div>
-    <p class="tu-hint">Enter = فرستادن · Shift+Enter = خط تازه</p>`;
+    <div class="tu-comp"><textarea id="tuIn" dir="auto" placeholder="${esc(needsExtra ? m.ask : m.k === "roleplay" ? "جوابت را بنویس… (برای پایان: «پایان»)" : "جوابت را بنویس…")}"></textarea>${TU_SR ? `<button type="button" class="btn tu-mic" id="tuMic" aria-pressed="false" aria-label="گفتن به انگلیسی" title="گفتن به انگلیسی">🎤</button>` : ""}<button type="button" class="btn" id="tuSend"${TU.busy ? " disabled" : ""}>فرستادن</button></div>
+    <p class="tu-hint">Enter = فرستادن · Shift+Enter = خط تازه${TU_SR ? " · 🎤 = به انگلیسی بگو" : ""}${m.k === "chat" || m.k === "roleplay" ? ` · <label><input type="checkbox" id="tuAuto"${tuProf().autoSay ? " checked" : ""}> خواندن خودکار جواب</label>` : ""}</p>`;
   $("#tuBack").onclick = () => { TU.mode = null; renderTutor(); };
-  if ($("#tuNew")) $("#tuNew").onclick = () => { if (confirm("گفتگوی این بخش پاک شود و از اول شروع شود؟")) { delete TU.store[m.k]; tuSaveLocal(); renderTutor(); } };
+  if ($("#tuNew")) $("#tuNew").onclick = () => { if (confirm("گفتگوی این بخش پاک شود و از اول شروع شود؟")) { delete TU.store.modes[m.k]; tuSaveLocal(); renderTutor(); } };
   const inp = $("#tuIn");
-  $("#tuSend").onclick = () => tuSend(inp.value);
+  $("#tuSend").onclick = () => { if (TU.rec) TU.rec.stop(); tuSend(inp.value); };
+  if ($("#tuMic")) $("#tuMic").onclick = () => tuMic($("#tuMic"), inp);
+  if ($("#tuAuto")) $("#tuAuto").onchange = e => { tuProf().autoSay = e.target.checked; save(); };
   inp.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); tuSend(inp.value); } };
   box.onclick = e => {
     const c = e.target.closest("[data-chip]"); if (c) return tuSend(c.dataset.chip);
@@ -312,7 +344,7 @@ async function tuSend(text) {
     if (r.ok && d.reply) reply = d.reply; else err = d.error || "معلم جواب نداد؛ دوباره امتحان کن.";
   } catch (e) { err = "اتصال برقرار نشد؛ اینترنت را بررسی کن."; }
   TU.busy = false;
-  if (reply) { cv.hist.push({ r: "a", t: reply }); cv.hist = cv.hist.slice(-40); }
+  if (reply) { cv.hist.push({ r: "a", t: reply }); cv.hist = cv.hist.slice(-40); if ((m.k === "chat" || m.k === "roleplay") && tuProf().autoSay) { const en = tuEnglish(reply.replace(/✏️[^\n]*/g, "")); if (en) speak(en); } }
   else { cv.hist.pop(); toast(err); }
   tuSaveLocal();
   if (VIEW === "tutor" && TU.mode === m.k) { renderTutor(); if (!reply) { const i = $("#tuIn"); if (i) i.value = text; } }
