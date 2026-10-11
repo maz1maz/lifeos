@@ -64,6 +64,28 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fb);font-
 .err.ok{background:color-mix(in srgb,var(--good,#34a853) 12%,transparent);color:var(--text);border-color:color-mix(in srgb,var(--good,#34a853) 45%,transparent)}
 /* phones: leave room for the theme button above the card */
 @media(max-width:560px){body{align-items:flex-start;padding:72px 14px calc(22px + env(safe-area-inset-bottom))}.card{padding:28px 20px 22px}.modebtn{top:max(16px,env(safe-area-inset-top))}}
+
+/* Glow card — based on Uiverse.io by Priyanshu02020 (MIT): spinning gold edge light, glass inner panel, bevelled buttons */
+.card{position:relative;isolation:isolate;overflow:hidden;border:0;background:transparent;backdrop-filter:none;
+  box-shadow:0 4px 8px rgba(0,0,0,.2),0 8px 16px rgba(0,0,0,.2),0 0 8px color-mix(in srgb,var(--acc) 12%,transparent),0 0 16px color-mix(in srgb,var(--acc) 8%,transparent)}
+.card::before{content:'';position:absolute;left:50%;top:50%;width:250%;aspect-ratio:1;z-index:-2;
+  background:conic-gradient(from 45deg,transparent 70%,var(--acc),transparent 100%);transform:translate(-50%,-50%);animation:lg-spin 4s ease-in-out infinite}
+.card::after{content:'';position:absolute;inset:2px;z-index:-1;border-radius:22px;background:var(--panel);
+  box-shadow:inset 0 40px 60px -8px rgba(255,255,255,.07),inset 4px 0 12px -6px rgba(255,255,255,.1),inset 0 0 12px -4px rgba(255,255,255,.08)}
+@keyframes lg-spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.mark{width:66px;height:66px;border-radius:20px;border:2px solid color-mix(in srgb,var(--acc) 70%,transparent);
+  background:url('/assets/img/logo.png?v=2') center/38px no-repeat,linear-gradient(135deg,rgba(255,255,255,.14),rgba(0,0,0,.14));
+  box-shadow:8px 8px 16px rgba(0,0,0,.2),-8px -8px 16px rgba(255,255,255,.05)}
+.frow input{background:var(--panel2);border-color:transparent}
+.frow input:focus{border-color:var(--acc)}
+.go,.gbtn{border-radius:20px;transition:.3s;box-shadow:inset 0 3px 6px -4px rgba(255,255,255,.6),inset 0 -3px 6px -2px rgba(0,0,0,.35)}
+.go:hover{filter:brightness(1.1);box-shadow:inset 0 3px 6px rgba(255,255,255,.5),inset 0 -3px 6px rgba(0,0,0,.35),0 0 12px color-mix(in srgb,var(--acc) 35%,transparent)}
+.gbtn{background:var(--panel2);border-color:transparent}
+.gbtn:hover{border-color:var(--acc)}
+.forgot{position:relative;width:max-content;text-decoration:none}
+.forgot::after{content:'';position:absolute;inset-inline-start:0;bottom:2px;width:0;height:1px;border-radius:6px;background:currentColor;transition:width .3s}
+.forgot:hover::after,.forgot:focus-visible::after{width:100%}
+@media(prefers-reduced-motion:reduce){.card::before{animation:none}}
 </style>
 <link rel="stylesheet" href="/shared-shell.css">
 </head>
