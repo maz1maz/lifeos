@@ -47,6 +47,7 @@ import { useProjectDue, cardHref, PChip } from './pcards';
 import './life.css';
 import { FocusCard, ShoppingPanel, BillsWeekCard, WorkTimeCard, ExerciseWeekCard } from './life-cards';
 import './loader.css';
+import './controls.css';
 import { Loader } from './loader';
 import './mobile.css'; // phone/iPhone pass — keep last so it overrides page CSS
 

@@ -84,11 +84,6 @@
 .cal-item.done b { text-decoration: line-through; opacity: .55; }
 .cal-item b { display: block; font-size: 13px; }
 .cal-item small { color: var(--muted); font-size: 11px; }
-.cal-check {
-  width: 18px; height: 18px; border: 1px solid var(--rule); background: transparent; color: var(--firoozeh);
-  border-radius: 3px; cursor: pointer; flex-shrink: 0; margin-top: 1px;
-}
-.cal-check.on { background: var(--firoozeh); color: #072018; }
 .cal-rail textarea {
   width: 100%; min-height: 88px; resize: vertical; background: rgba(0,0,0,0.35);
   border: 1px solid var(--rule); color: var(--fg); border-radius: var(--g-radius-control); padding: 8px; font: inherit;

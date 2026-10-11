@@ -45,7 +45,7 @@ function TaskCard({ task, index, reminder, onToggle, onEdit, onDelete }) {
   return (
     <li className="plnr-card plnr-line" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
       <button type="button" role="checkbox" aria-checked={task.done} className={`plnr-check ${task.done ? 'on' : ''}`} onClick={() => onToggle(task)} aria-label={task.done ? 'بازگرداندن کار به حالت باز' : 'انجام شد'}>
-        {task.done && <Check size={14} strokeWidth={3} />}
+        <svg className="uv-tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.1 12.7 9 17.6 20.3 6.3" /></svg>
       </button>
       {/* one row: title (+ notes, truncated) · chips · actions */}
       <div className="plnr-line-main" title={task.notes || task.title}>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Bell, CalendarDays, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Grid3x3, LayoutGrid, List, Plus, Search, Trash2
+  Bell, CalendarDays, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Grid3x3, LayoutGrid, List, Plus, Search, Trash2
 } from 'lucide-react'
 import './calendar.css'
 import { jalaliLabel } from './jalali.js'
@@ -416,7 +416,7 @@ export function CalendarReact({ Nav }) {
               {filters.occasion ? selOcc.map((o) => <div key={o.title} className="cal-item" style={{ borderRightColor: '#e2574c' }}><b>{o.title}</b><small>مناسبت</small></div>) : null}
               {selectedItems.map((ev) => (
                 <div key={`${ev.kind}-${ev.id}`} className={`cal-item ${ev.kind || 'google'}${ev.done ? ' done' : ''}`}>
-                  {ev.kind !== 'google' ? <button type="button" className={`cal-check${ev.done ? ' on' : ''}`} onClick={() => toggleItem(ev)}>{ev.done ? <Check size={12} /> : null}</button> : null}
+                  {ev.kind !== 'google' ? <button type="button" className={`cal-check${ev.done ? ' on' : ''}`} onClick={() => toggleItem(ev)}><svg className="uv-tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.1 12.7 9 17.6 20.3 6.3" /></svg></button> : null}
                   <button type="button" style={{ flex: 1, background: 'none', border: 0, color: 'inherit', textAlign: 'right', cursor: 'pointer' }} onClick={() => openEdit(ev)}>
                     <b>{ev.title}</b>
                     <small>{KIND_LABEL[ev.kind || 'google']}{ev.time ? ` · ${faNum(ev.time)}` : ' · تمام‌روز'}{ev.calendarName ? ` · ${ev.calendarName}` : ''}</small>

@@ -138,12 +138,6 @@
   animation: plnr-rise 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .plnr-card:hover { border-color: var(--line-strong); background: var(--night-750); }
-.plnr-check {
-  width: 24px; height: 24px; border-radius: 999px; border: 2px solid var(--g-border-2);
-  background: transparent; color: var(--night-950); cursor: pointer; display: grid; place-items: center; margin-top: 2px;
-}
-.plnr-check:hover { border-color: var(--teal-d); background: var(--g-accent-soft); }
-.plnr-check.on { border-color: var(--teal); background: var(--teal); animation: plnr-check 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .plnr-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .plnr-card-head b { font-size: 16px; font-weight: 600; line-height: 1.75; color: var(--fog-50); }
 .plnr-card-head b.done, .plnr-card p.done { color: var(--fog-400); text-decoration: line-through; text-decoration-color: rgba(100, 121, 127, 0.6); }
@@ -220,10 +214,6 @@
 .plnr-reminder-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .plnr-reminder-head b { font-size: 14px; color: var(--fog-100); }
 .plnr-reminder-head small { display: block; color: var(--fog-400); font-size: 12px; margin-top: 2px; }
-.plnr-switch { width: 44px; height: 24px; border-radius: 999px; background: var(--night-750); border: 1px solid var(--line-strong); position: relative; cursor: pointer; flex-shrink: 0; }
-.plnr-switch i { position: absolute; top: 50%; right: 4px; width: 16px; height: 16px; margin-top: -8px; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px #0004; transition: transform 0.18s ease; }
-.plnr-switch.on { background: var(--teal); border-color: var(--teal); }
-.plnr-switch.on i { transform: translateX(-20px); }
 .plnr-err { color: var(--g-bad); font-size: 12px; margin-top: 6px; display: block; }
 .plnr-drawer footer { display: flex; gap: 12px; padding: 16px 20px; border-top: 1px solid var(--line); background: var(--night-850); }
 .plnr-submit {
@@ -279,7 +269,6 @@
 @keyframes plnr-overlay { from { opacity: 0; } to { opacity: 1; } }
 @keyframes plnr-pop { from { transform: scale(0.94); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes plnr-toast { from { transform: translateY(14px) scale(0.97); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes plnr-check { 0% { transform: scale(0.5); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
 @keyframes plnr-pulse { 50% { opacity: 0.55; } }
 .plnr .notice {
   margin: 16px 0 0; background: rgba(248, 113, 113, 0.06); border: 1px solid rgba(248, 113, 113, 0.3);
