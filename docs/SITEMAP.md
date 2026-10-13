@@ -75,5 +75,6 @@
 ## آیلتس (`?page=ielts`، تب سوم هاب یادگیری؛ ماژول `vocab`)
 - `src/today/src/ielts.jsx` + `ielts.css`: دکمهٔ باز کردن تمرین، آمار بانک سؤال (`/ielts/lifeos-stats.json`)، تصحیح رایتینگ AI، لینک‌ها و منابع.
 - `public/ielts/`: IELTS Atlas فارسی‌شده (GPL-3.0، فقط شخصی، پشت لاگین — هرگز در `isPublic`). به‌روزرسانی: `node scripts/sync-ielts.js <IELTS-practice-fa>` (حذف پوشه‌های توسعه، اصلاح onclick برای CSP، ساخت آمار).
+- لیسنینگ (`ielts-listening.jsx` + `cloudflare/lib/ielts.js`): آزمون = JSON (سؤال + کلید + متن صوت) در ردیف kv جدا `ielts:lt:<uid>:<id>` (فهرست: `ielts:lt:<uid>`)، **هرگز در ریپو** (کتاب کپی‌رایت دارد و ریپو عمومی است)؛ صوت در چت تلگرام کاربر. API: `GET /api/ielts/listening`، `POST /api/ielts/listening/tests`، `GET|DELETE …/tests/:id` (بدون کلید)، `POST|GET …/tests/:id/audio`، `POST /api/ielts/listening/attempts` (تصحیح در سرور)، `GET|DELETE …/attempts/:id`. نتیجه‌ها در `db.ieltsListening`.
 - API: `GET|POST /api/ielts/writing`، `DELETE /api/ielts/writing/:id` (ذخیره در `db.ieltsWritings`، ۵۰ مورد آخر؛ نمرهٔ کل در سرور از میانگین ۴ معیار گرد به نیم‌باند).
 - دادهٔ برنامه در مرورگر: کلیدهای `exam_system_*` / `ielts-atlas-*` و IndexedDB؛ با کلیدهای `lifeos-*` تداخل ندارد.

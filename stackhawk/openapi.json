@@ -3718,6 +3718,27 @@
         }
       }
     },
+    "/api/ielts/listening/{id}": {
+      "get": {
+        "operationId": "get_api_ielts_listening_id",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "x"
+            }
+          }
+        ]
+      }
+    },
     "/api/ielts/writing": {
       "get": {
         "operationId": "get_api_ielts_writing",
