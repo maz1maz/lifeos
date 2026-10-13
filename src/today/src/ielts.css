@@ -61,3 +61,13 @@
 .ie-links small{color:var(--g-muted);font-size:12.5px}
 @media(max-width:900px){.ie-grid{grid-template-columns:1fr}.ie-crit{grid-template-columns:1fr}}
 @media(max-width:700px){.ie-card{padding:14px}.ie-parts{grid-template-columns:1fr}.ie-bars li{grid-template-columns:minmax(0,9rem) 1fr 2rem}}
+/* the app embedded under the menu (IeltsApp): exactly one screen tall, the iframe takes what the bars leave */
+/* body has zoom:var(--app-zoom) (text size setting): vh is scaled by it, and a zoomed iframe gets misplaced clicks in
+   Chrome (the app's buttons stop responding), so the frame undoes the zoom */
+.ielts-app{display:flex;flex-direction:column;height:calc(100dvh / var(--app-zoom,1));overflow:hidden}
+.ie-appbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 16px;flex:none}
+.ie-appbar .ie-btn.ghost{margin-top:0;padding:6px 12px}
+.ie-applink{display:inline-flex;align-items:center;gap:6px;color:var(--g-muted);font-size:13px;text-decoration:none}
+.ie-applink:hover{color:var(--g-accent)}
+.ie-frame{flex:1;min-height:0;width:100%;zoom:calc(1 / var(--app-zoom,1));border:0;border-top:1px solid var(--g-border);background:#fff;display:block}
+@media(max-width:700px){.ielts-app{height:calc(100dvh / var(--app-zoom,1) - 58px - env(safe-area-inset-bottom,0px))}}
