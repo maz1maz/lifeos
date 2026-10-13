@@ -12,7 +12,7 @@ const LOCKABLE = ['projects', 'courses', 'vocab', 'crmOn', 'health', 'car', 'tra
 const MODULE_API = [
   [/^\/api\/(projects|col\/(projects|cards|project[A-Z]\w*))(\/|$)/, 'projects'],
   [/^\/api\/(courses|col\/(courses|students))(\/|$)/, 'courses'],
-  [/^\/api\/vocab(\/|$)/, 'vocab'],
+  [/^\/api\/(vocab|ielts)(\/|$)/, 'vocab'],
   [/^\/api\/col\/(customers|deals)(\/|$)/, 'crmOn'],
   [/^\/api\/(exercise|col\/health)(\/|$)/, 'health'],
   [/^\/api\/col\/(vehicles|carlogs)(\/|$)/, 'car'],
@@ -549,6 +549,25 @@ let items=(Array.isArray(data)?data:[]).slice(0,15).map(x=>{let s=x.show||{};ret
  if(p==='/api/vocab'&&req.method==='GET'){let db=await read(),user=auth(req,res,db);return json(res,200,{state:await vocabRead(user.id)})}
  if(p==='/api/vocab/learned'&&req.method==='POST'){let db=await read(),user=auth(req,res,db),b=await body(req),w=String((b&&b.w)||'').slice(0,80);if(!w)return json(res,400,{error:'واژه لازم است.'});return (await vocabLearn(user.id,w))?json(res,200,{ok:true}):json(res,404,{error:'این واژه در پیشرفت تو نیست.'})}
  // tutor conversations: one row per user, {modes:{<mode>:{extra,hist}},savedAt}; the page merges by savedAt
+ // IELTS Writing marked by AI against the four official criteria; the overall band is computed here (mean rounded
+ // to the nearest half band, as IELTS does), not trusted from the model. Last 50 entries kept per user.
+ if(p==='/api/ielts/writing'&&req.method==='GET'){let db=await read(),user=auth(req,res,db);db.ieltsWritings??=[];return json(res,200,{items:db.ieltsWritings.filter(x=>x.userId===user.id).sort((a,b)=>b.createdAt-a.createdAt)})}
+ if(p.startsWith('/api/ielts/writing/')&&req.method==='DELETE'){let db=await read(),user=auth(req,res,db);db.ieltsWritings??=[];let wid=p.split('/')[4],i=db.ieltsWritings.findIndex(x=>x.id===wid&&x.userId===user.id);if(i<0)return json(res,404,{error:'پیدا نشد.'});db.ieltsWritings.splice(i,1);await write(db);return json(res,200,{ok:true})}
+ if(p==='/api/ielts/writing'&&req.method==='POST'){let db=await read(),user=auth(req,res,db);if(!AI_PROVIDER_API_KEY&&!(env&&env.AI_PROVIDER2_API_KEY)&&!(env&&env.AI))return json(res,503,{error:'تصحیح هوشمند هنوز روی سرور فعال نشده است.'});let d=await body(req);
+  let task=d.task==='task1'?'task1':'task2',question=String(d.question||'').trim().slice(0,2000),essay=String(d.essay||'').replace(/\r/g,'').trim();
+  if(essay.length>12000)return json(res,413,{error:'متن خیلی بلند است.'});let words=(essay.match(/[A-Za-z0-9'’-]+/g)||[]).length;if(words<50)return json(res,400,{error:'متن انگلیسی دست‌کم ۵۰ کلمه لازم دارد.'});
+  let rl=checkRateLimit('ielts-writing:'+user.id,20,60*60*1000);if(!rl.ok)return json(res,429,{error:'درخواست زیاد شد؛ '+rl.retrySec+' ثانیه صبر کن.'});
+  const CRIT=task==='task1'?['ta','cc','lr','gra']:['tr','cc','lr','gra'];
+  let sys='You are a strict, experienced IELTS Writing examiner. Mark the candidate\'s '+(task==='task1'?'Task 1 (report/letter, minimum 150 words)':'Task 2 essay (minimum 250 words)')+' using the official public band descriptors: '+(task==='task1'?'Task Achievement (ta)':'Task Response (tr)')+', Coherence and Cohesion (cc), Lexical Resource (lr), Grammatical Range and Accuracy (gra). Give each criterion a band 0-9 in steps of 0.5. Penalise under-length and off-topic answers as the descriptors say. Do not be generous. Write all feedback in Persian (fa); quote English words/phrases from the text as they are.\nReply ONLY with JSON: {"criteria":{"'+CRIT.join('":{"band":number,"feedback":"2-4 Persian sentences"},"')+'":{"band":number,"feedback":"..."}},"strengths":["Persian, max 4"],"improvements":["Persian, concrete, max 6"],"mistakes":[{"original":"exact English text","fix":"corrected English","why":"short Persian"}] (max 10),"improved":"the same essay rewritten at band 7.5-8 in English, keeping the candidate\'s ideas"}';
+  let out;try{out=await aiComplete(sys,(question?'TASK QUESTION:\n'+question+'\n\n':'')+'CANDIDATE ANSWER ('+words+' words):\n'+essay,3000)}catch(e){return json(res,502,{error:e.message||'خطای هوش مصنوعی'})}
+  let m=String(out||'').match(/\{[\s\S]*\}/),j=null;try{j=m?JSON.parse(m[0]):null}catch(e){}if(!j||!j.criteria)return json(res,502,{error:'پاسخ مدل قابل خواندن نبود؛ دوباره امتحان کن.'});
+  const half=v=>{let n=Number(v);return Number.isFinite(n)?Math.min(9,Math.max(0,Math.round(n*2)/2)):null},txt=(v,n)=>String(v==null?'':v).trim().slice(0,n),arr=(a,n,l)=>(Array.isArray(a)?a:[]).slice(0,n).map(x=>txt(x,l)).filter(Boolean);
+  let criteria={};for(const k of CRIT){let c=j.criteria[k]||{};criteria[k]={band:half(c.band),feedback:txt(c.feedback,1200)}}
+  let bands=CRIT.map(k=>criteria[k].band);if(bands.some(b=>b==null))return json(res,502,{error:'مدل برای همهٔ معیارها نمره نداد؛ دوباره امتحان کن.'});
+  let mean=bands.reduce((a,b)=>a+b,0)/4,overall=Math.floor(mean)+(mean%1>=0.75?1:mean%1>=0.25?0.5:0);
+  let rec={id:id(),userId:user.id,date:today(),createdAt:Date.now(),task,question,essay,words,overall,criteria,strengths:arr(j.strengths,4,300),improvements:arr(j.improvements,6,300),mistakes:(Array.isArray(j.mistakes)?j.mistakes:[]).slice(0,10).map(x=>({original:txt(x&&x.original,300),fix:txt(x&&x.fix,300),why:txt(x&&x.why,300)})).filter(x=>x.original&&x.fix),improved:txt(j.improved,8000)};
+  db.ieltsWritings??=[];db.ieltsWritings.push(rec);let mine=db.ieltsWritings.filter(x=>x.userId===user.id).sort((a,b)=>b.createdAt-a.createdAt);if(mine.length>50){let drop=new Set(mine.slice(50).map(x=>x.id));db.ieltsWritings=db.ieltsWritings.filter(x=>!drop.has(x.id))}
+  await write(db);return json(res,201,rec)}
  if(p==='/api/vocab/tutor-log'&&req.method==='GET'){let db=await read(),user=auth(req,res,db);return json(res,200,{log:await tutorLogRead(user.id)})}
  if(p==='/api/vocab/tutor-log'&&req.method==='PUT'){let db=await read(),user=auth(req,res,db),t=await req.text();if(t.length>400000)return json(res,413,{error:'گفتگوها خیلی بزرگ است.'});let d;try{d=JSON.parse(t)}catch(e){return json(res,400,{error:'دادهٔ نامعتبر'})}let m=d&&d.modes,ok={plan:1,lesson:1,grammar:1,correct:1,chat:1,roleplay:1,review:1},out={};if(!m||typeof m!=='object'||Array.isArray(m))return json(res,400,{error:'دادهٔ نامعتبر'});for(let k of Object.keys(m)){if(!ok[k]||!m[k]||typeof m[k]!=='object')continue;out[k]={extra:String(m[k].extra||'').slice(0,200),hist:(Array.isArray(m[k].hist)?m[k].hist:[]).slice(-40).map(x=>({r:x&&x.r==='a'?'a':'u',t:String(x&&x.t||'').slice(0,4000)})).filter(x=>x.t)}}let savedAt=Date.now();await tutorLogWrite(user.id,{modes:out,savedAt});return json(res,200,{ok:true,savedAt})}
  // English tutor (vocab app «معلم» tab): 7 modes; the page sends the learner profile, weak/recent words and notes topics
