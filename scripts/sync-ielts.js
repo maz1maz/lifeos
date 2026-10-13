@@ -42,6 +42,14 @@ if (html === before || / on[a-z]+="/.test(html)) { console.error('exam-placehold
 fs.writeFileSync(ph, html);
 console.log(`public/ielts: ${files} files, ${(bytes / 1048576).toFixed(1)} MB`);
 
+// Listening content (audio + questions) is not distributed with the app. Without a manifest every page load logs a
+// RESOURCE_LOAD_FAILED incident (the «سابقه‌ی عیب‌یابی» toast); an empty one keeps listening simply empty instead.
+const lman = path.join(dest, 'assets', 'generated', 'listening-exams', 'manifest.js');
+if (!fs.existsSync(lman)) fs.writeFileSync(lman, "(function registerListeningExamManifest(global) {\n  'use strict';\n  global.__LISTENING_EXAM_MANIFEST__ = {};\n})(typeof window !== \"undefined\" ? window : globalThis);\n");
+// js/i18n-fa.js got extra translations inside LifeOS (incident center). Copy the LifeOS one back to the source folder
+// before syncing, or they are lost.
+if (!fs.readFileSync(path.join(dest, 'js', 'i18n-fa.js'), 'utf8').includes('incident center')) console.warn('warning: source js/i18n-fa.js lacks the LifeOS incident-center translations — copy public/ielts/js/i18n-fa.js back to the source first');
+
 // Question-bank numbers for the «آیلتس» tab (src/today/src/ielts.jsx reads /ielts/lifeos-stats.json).
 const vm = require('vm');
 const rdir = path.join(dest, 'assets', 'generated', 'reading-exams');

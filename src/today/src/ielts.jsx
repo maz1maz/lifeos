@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpenCheck, ChevronDown, ChevronUp, ExternalLink, PenLine, Trash2 } from 'lucide-react';
+import { ArrowRight, BookOpenCheck, ChevronDown, ChevronUp, ExternalLink, PenLine, Trash2 } from 'lucide-react';
 import { Page, api, fa, jl } from './life-core';
 import { Loader } from './loader';
 
@@ -121,13 +121,31 @@ const LinkList = ({ items }) => <ul className="ie-links">{items.map(([href, t, d
   <a href={href} {...(href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}><b>{t}</b>{href.startsWith('http') ? <ExternalLink size={14} /> : null}</a><small>{d}</small>
 </li>)}</ul>;
 
+// The app runs inside LifeOS (iframe under the menu) instead of a separate tab; ?page=ielts&app=1 keeps it open on
+// reload. Its practice windows still open as popups (the app talks to them through window.opener).
+const appUrl = on => { try { const u = new URL(location.href); if (on) u.searchParams.set('app', '1'); else u.searchParams.delete('app'); history.replaceState(null, '', u.pathname + u.search); } catch {} };
+function IeltsApp({ Nav, onBack }) {
+  return <main className="lf ielts-app" dir="rtl">
+    <Nav />
+    <div className="ie-appbar">
+      <button type="button" className="ie-btn ghost" onClick={onBack}><ArrowRight size={16} />بازگشت به آیلتس</button>
+      <a className="ie-applink" href="/ielts/index.html" target="_blank" rel="noopener">باز کردن در پنجرهٔ جدا<ExternalLink size={14} /></a>
+    </div>
+    <iframe className="ie-frame" src="/ielts/index.html" title="تمرین آیلتس (IELTS Atlas)" />
+  </main>;
+}
+
 export function IeltsPage({ Nav }) {
+  const [app, setApp] = useState(() => new URLSearchParams(location.search).get('app') === '1');
+  const toggle = on => { appUrl(on); setApp(on); window.scrollTo(0, 0); };
+  const onOpen = () => toggle(true);
+  if (app) return <IeltsApp Nav={Nav} onBack={() => toggle(false)} />;
   return <Page Nav={Nav} className="ielts-page" kicker="یادگیری" title="آیلتس" sub="تمرین ریدینگ، تصحیح رایتینگ و منابع">
     <div className="ie-grid">
       <section className="ie-card ie-hero">
         <header><h2><BookOpenCheck size={18} />تمرین ریدینگ (IELTS Atlas)</h2></header>
         <p className="ie-muted">۲۴۲ متن واقعی ریدینگ با زمان‌سنج، توضیح جواب، دیکشنری و سابقهٔ تمرین. تمرین‌ها در پنجرهٔ جدا باز می‌شوند. سابقه فقط در همین مرورگر ذخیره می‌شود؛ از داخل خود برنامه پشتیبان بگیر.</p>
-        <a className="ie-btn" href="/ielts/index.html" target="_blank" rel="noopener">باز کردن تمرین آیلتس<ExternalLink size={15} /></a>
+        <button type="button" className="ie-btn" onClick={onOpen}>باز کردن تمرین آیلتس</button>
         <small className="ie-muted">برنامه متن‌باز (GPL-3.0) از sallowayma-git/IELTS-practice، فارسی‌شده؛ فقط برای استفادهٔ شخصی.</small>
       </section>
       <BankStats />
