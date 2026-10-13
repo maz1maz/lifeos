@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Headphones, Pause, Play, Trash2, Upload, XCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Headphones, Trash2, Upload, XCircle } from 'lucide-react';
 import { api, fa, jl } from './life-core';
 import { Loader } from './loader';
+import { CdShell, hasPersian, minutesLeft } from './ielts-cd';
 
 // «آزمون لیسنینگ» on the IELTS tab. Tests are imported as JSON (questions + key + tapescript, never in the repo: the
 // book is copyrighted and the repository is public) and their audio goes to the user's Telegram chat; the Worker
 // marks the answers (/api/ielts/listening, lib/ielts.js). Exam mode: audio plays once, no pause or seek, then 10
 // minutes to check answers. Practice mode: normal player.
 const TRANSFER_SEC = 10 * 60;
-const mmss = s => { s = Math.max(0, Math.floor(s || 0)); return `${fa(Math.floor(s / 60))}:${String(s % 60).padStart(2, '0').replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d])}`; };
 const draftKey = id => `lifeos-ielts-lt-${id}`;
 const loadDraft = id => { try { return JSON.parse(localStorage.getItem(draftKey(id)) || '{}') || {}; } catch { return {}; } };
 const saveDraft = (id, a) => { try { localStorage.setItem(draftKey(id), JSON.stringify(a)); } catch {} };
@@ -22,7 +22,7 @@ function GapLine({ line, answers, set, review }) {
     const m = /^\[(\d{1,3})\]$/.exec(x);
     if (!m) return <span key={i}>{x}</span>;
     const n = m[1], r = review?.[n];
-    return <label key={i} className={`lt-gap ${r ? (r.ok ? 'ok' : 'bad') : ''}`}><b>{n}</b>
+    return <label key={i} id={`q-${n}`} className={`lt-gap ${r ? (r.ok ? 'ok' : 'bad') : ''} ${hasPersian(answers[n]) ? 'fa' : ''}`}><b>{n}</b>
       <input value={answers[n] || ''} onChange={e => set(n, e.target.value)} readOnly={!!review} autoComplete="off" spellCheck="false" aria-label={`Question ${n}`} /></label>;
   })}</p>;
 }
@@ -45,7 +45,7 @@ function Group({ g, answers, set, review }) {
     <h4>{g.title}</h4>
     <p className="lt-instr">{g.instr}</p>
     {g.example ? <div className="lt-example"><i>Example</i> {g.example.q} <b>({g.example.answer})</b></div> : null}
-    {g.questions ? g.questions.map(q => <div key={q.n} className="lt-q">
+    {g.questions ? g.questions.map(q => <div key={q.n} id={`q-${q.n}`} className="lt-q">
       <p><b>{q.n}</b> {q.q}</p>
       {q.image ? <img src={q.image} alt={`Question ${q.n} pictures A–D`} loading="lazy" /> : null}
       <Choice n={q.n} options={q.options} answers={answers} set={set} review={review} image={!!q.image} />
@@ -53,7 +53,7 @@ function Group({ g, answers, set, review }) {
     {g.lines ? <div className="lt-box">{g.box ? <h5>{g.box}</h5> : null}{g.lines.map((l, i) => <GapLine key={i} line={l} answers={answers} set={set} review={review} />)}</div> : null}
     {g.pick ? <div className="lt-box">{g.box ? <h5>{g.box}</h5> : null}
       <ul className="lt-picklist">{g.options.map(o => <li key={o.k}><b>{o.k}</b> {o.t}</li>)}</ul>
-      <div className="lt-picks">{g.pick.map(n => <label key={n} className={`lt-gap ${review?.[n] ? (review[n].ok ? 'ok' : 'bad') : ''}`}><b>{n}</b>
+      <div className="lt-picks">{g.pick.map(n => <label key={n} id={`q-${n}`} className={`lt-gap ${review?.[n] ? (review[n].ok ? 'ok' : 'bad') : ''}`}><b>{n}</b>
         <select value={answers[n] || ''} onChange={e => set(String(n), e.target.value)} disabled={!!review} aria-label={`Question ${n}`}>
           <option value="">—</option>{g.options.map(o => <option key={o.k} value={o.k}>{o.k}</option>)}
         </select></label>)}</div>
@@ -107,14 +107,19 @@ function Review({ r, test, onBack }) {
   </div>;
 }
 
+// question numbers of a section, in paper order
+const sectionQs = s => s.groups.flatMap(g => [...(g.questions || []).map(q => q.n), ...(g.lines || []).flatMap(l => [...String(l).matchAll(/\[(\d{1,3})\]/g)].map(m => Number(m[1]))), ...(g.pick || [])]);
+const goTo = n => { const el = document.getElementById(`q-${n}`); if (!el) return; el.scrollIntoView({ block: 'center', behavior: 'smooth' }); const f = el.querySelector('input,select,button[aria-checked="true"],button'); f?.focus({ preventScroll: true }); };
+
 function Exam({ testId, mode, onDone, onBack }) {
   const [test, setTest] = useState(null), [err, setErr] = useState('');
   const [answers, setAnswers] = useState(() => loadDraft(testId));
-  const [phase, setPhase] = useState('ready'), [t, setT] = useState(0), [dur, setDur] = useState(0), [left, setLeft] = useState(TRANSFER_SEC);
-  const [result, setResult] = useState(null), [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState(mode === 'practice' ? 'practice' : 'ready'), [t, setT] = useState(0), [dur, setDur] = useState(0), [left, setLeft] = useState(TRANSFER_SEC);
+  const [result, setResult] = useState(null), [busy, setBusy] = useState(false), [part, setPart] = useState(0), [cur, setCur] = useState(null), [vol, setVol] = useState(1), [faWarn, setFaWarn] = useState(false);
   const audio = useRef(null), { src, err: aErr } = useAudio(testId);
   useEffect(() => { api(`/api/ielts/listening/tests/${testId}`).then(setTest).catch(e => setErr(e.message)); }, [testId]);
-  const set = (n, v) => setAnswers(a => { const x = { ...a, [n]: v }; saveDraft(testId, x); return x; });
+  useEffect(() => { if (audio.current) audio.current.volume = vol; }, [vol, src]);
+  const set = (n, v) => { setFaWarn(hasPersian(v)); setCur(String(n)); setAnswers(a => { const x = { ...a, [n]: v }; saveDraft(testId, x); return x; }); };
   const submit = async () => {
     if (busy) return; setBusy(true); setErr('');
     try { const r = await api('/api/ielts/listening/attempts', { method: 'POST', body: JSON.stringify({ testId, answers, mode }) }); dropDraft(testId); audio.current?.pause(); setResult(r); setPhase('done'); onDone?.(); window.scrollTo(0, 0); }
@@ -127,36 +132,39 @@ function Exam({ testId, mode, onDone, onBack }) {
     return () => clearInterval(id);
   }, [phase]);
   const start = () => { const a = audio.current; if (!a) return; a.play().then(() => setPhase('playing')).catch(e => setErr('پخش صوت شروع نشد: ' + e.message)); };
-  const toggle = () => { const a = audio.current; if (!a) return; if (a.paused) a.play(); else a.pause(); setPhase(a.paused ? 'paused' : 'playing'); };
   if (err && !test) return <p className="ie-err" role="alert">{err}</p>;
   if (!test) return <Loader />;
   if (result) return <Review r={result} test={test} onBack={onBack} />;
-  const answered = Object.values(answers).filter(v => String(v || '').trim()).length;
-  const askSubmit = () => { const miss = test.total - answered; if (miss > 0 && !window.confirm(`${fa(miss)} سؤال بی‌جواب مانده. تحویل بدهی؟`)) return; submit(); };
-  return <div className="lt-exam">
-    <div className="lt-bar">
-      <button type="button" className="ie-btn ghost" onClick={() => { audio.current?.pause(); onBack(); }}><ArrowRight size={16} />خروج</button>
-      <b className="lt-title" dir="ltr">{test.title}</b>
-      <span className="lt-mode">{mode === 'practice' ? 'تمرین' : 'آزمون'}</span>
-      {aErr ? <span className="ie-err">{aErr}</span> : !src ? <span className="ie-muted">در حال بارگذاری صوت…</span>
-        : mode === 'practice' ? <audio ref={audio} src={src} controls onEnded={() => setPhase('ended')} />
-        : <>
-          <audio ref={audio} src={src} onTimeUpdate={e => setT(e.currentTarget.currentTime)} onLoadedMetadata={e => setDur(e.currentTarget.duration)} onEnded={() => setPhase('transfer')} />
-          {phase === 'ready' ? <button type="button" className="ie-btn" onClick={start}><Play size={16} />شروع آزمون</button>
-            : phase === 'transfer' ? <span className="lt-transfer">زمان بازبینی جواب‌ها: <b>{mmss(left)}</b></span>
-            : <span className="lt-time"><i><em style={{ width: `${dur ? t / dur * 100 : 0}%` }} /></i>{mmss(t)} / {mmss(dur)}</span>}
-        </>}
-      {mode === 'practice' && src ? <button type="button" className="ie-x" onClick={toggle} aria-label="پخش/توقف">{phase === 'playing' ? <Pause size={15} /> : <Play size={15} />}</button> : null}
-      <span className="ie-muted">{fa(answered)} از {fa(test.total)}</span>
-      <button type="button" className="ie-btn" disabled={busy} onClick={askSubmit}>{busy ? 'در حال تصحیح…' : 'تحویل و تصحیح'}</button>
+  const order = test.sections.map(sectionQs), flat = order.flat();
+  const filled = n => !!String(answers[n] || '').trim();
+  const answered = flat.filter(filled).length;
+  const askSubmit = () => { const miss = flat.length - answered; if (busy) return; if (miss > 0 && !window.confirm(`${fa(miss)} سؤال بی‌جواب مانده. تحویل بدهی؟`)) return; submit(); };
+  const focusQ = n => { const i = order.findIndex(qs => qs.includes(Number(n))); if (i >= 0 && i !== part) setPart(i); setCur(String(n)); setTimeout(() => goTo(n), 30); };
+  const ci = flat.indexOf(Number(cur));
+  const sec = test.sections[part];
+  const status = phase === 'ready' ? `${flat.length} questions · about ${Math.round((dur || 0) / 60) || 30} minutes`
+    : phase === 'playing' ? minutesLeft(dur - t + TRANSFER_SEC)
+    : phase === 'transfer' ? `${minutesLeft(left)} · check your answers`
+    : `${answered} of ${flat.length} answered · practice`;
+  const exit = () => { audio.current?.pause(); onBack(); };
+  return <CdShell skill="Listening" status={status} partIndex={part} intro={`Listen and answer questions ${sec.range}.`}
+    parts={test.sections.map((s, i) => ({ n: s.n, info: `${order[i].filter(filled).length} of ${order[i].length}`, qs: order[i].map(n => ({ n, done: filled(n) })) }))}
+    onPart={i => { setPart(i); document.querySelector('.cd-body')?.scrollTo(0, 0); }} current={cur} onQuestion={focusQ}
+    onPrev={ci > 0 ? () => focusQ(flat[ci - 1]) : ci < 0 && part > 0 ? () => focusQ(order[part - 1][0]) : null}
+    onNext={ci < flat.length - 1 ? () => focusQ(flat[ci < 0 ? flat.indexOf(order[part][0]) : ci + 1]) : null}
+    onSubmit={askSubmit} onExit={exit} volume={vol} onVolume={setVol}
+    headerExtra={src && mode === 'practice' ? <audio ref={audio} src={src} controls className="cd-audio" /> : src ? <audio ref={audio} src={src} onTimeUpdate={e => setT(e.currentTarget.currentTime)} onLoadedMetadata={e => setDur(e.currentTarget.duration)} onEnded={() => setPhase('transfer')} /> : null}
+    notice={aErr ? aErr : !src ? 'در حال بارگذاری صوت آزمون…' : faWarn ? 'کیبورد فارسی است؛ جواب‌ها باید انگلیسی باشند — زبان کیبورد را عوض کن.' : busy ? 'در حال تصحیح…' : err || null}>
+    {phase === 'ready' ? <div className="cd-start">
+      <h2>IELTS Listening</h2>
+      <p>You will hear the recording <b>once only</b>. You cannot pause or replay it. Answer the questions as you listen. After the recording ends you have <b>10 minutes</b> to check your answers; then the test is handed in automatically.</p>
+      <p dir="rtl">صوت فقط یک بار پخش می‌شود و توقف ندارد. بعد از پایان صوت ۱۰ دقیقه برای بازبینی داری و بعد خودکار تحویل می‌شود. جواب‌ها روی همین مرورگر ذخیره می‌شوند.</p>
+      <button type="button" className="cd-play" disabled={!src} onClick={start}>{src ? 'Play — start the test' : 'Loading audio…'}</button>
+    </div> : null}
+    <div className="cd-paper" onFocus={e => { const q = e.target.closest('[id^="q-"]'); if (q) setCur(q.id.slice(2)); }}>
+      {sec.groups.map((g, i) => <Group key={`${part}-${i}`} g={g} answers={answers} set={set} />)}
     </div>
-    {mode !== 'practice' && phase === 'ready' ? <p className="lt-note">در حالت آزمون صوت فقط یک بار پخش می‌شود و توقف یا جلو بردن ندارد؛ بعد از پایان صوت ۱۰ دقیقه برای بازبینی داری و بعد خودکار تحویل می‌شود. جواب‌ها روی همین مرورگر نگه داشته می‌شوند.</p> : null}
-    {err ? <p className="ie-err" role="alert">{err}</p> : null}
-    <div className="lt-paper" dir="ltr">
-      {test.sections.map(s => <section key={s.n} className="lt-sec"><h3>{s.title} <small>Questions {s.range}</small></h3>
-        {s.groups.map((g, i) => <Group key={i} g={g} answers={answers} set={set} />)}</section>)}
-    </div>
-  </div>;
+  </CdShell>;
 }
 
 function AddTest({ onAdded }) {

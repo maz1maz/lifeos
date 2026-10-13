@@ -144,3 +144,75 @@
 .lt-tape{max-height:420px;overflow:auto;border:1px solid var(--g-border);border-radius:12px;padding:10px 14px;font-size:13.5px;line-height:1.8;text-align:left}
 .lt-tape p{margin:0 0 8px}
 @media(max-width:700px){.lt-paper{padding:14px;font-size:15px}.lt-gap input{width:130px}.lt-picklist{columns:1}.lt-bar{gap:6px;padding:8px 10px}.lt-title,.lt-mode{display:none}.lt-bar .ie-btn{padding:7px 10px;font-size:13px}.lt-time i{width:70px}.lt-bar audio{max-width:100%;flex-basis:100%}}
+/* computer-delivered exam shell (ielts-cd.jsx): the look of the real CD-IELTS / the reading app in /ielts/ */
+.cd{position:fixed;inset:0;z-index:200;display:grid;grid-template-rows:56px auto auto minmax(0,1fr) 54px;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;zoom:calc(1 / var(--app-zoom,1));color-scheme:light}
+.cd-head{display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid #e4e4e4}
+.cd-brand{font-size:22px;font-weight:900;color:#e31b23;letter-spacing:.02em}
+.cd-cand{display:flex;flex-direction:column;line-height:1.25}
+.cd-cand b{font-size:15px}
+.cd-cand small{font-size:13px;font-weight:600;color:#333}
+.cd-right{margin-left:auto;display:flex;align-items:center;gap:14px;position:relative}
+.cd-icon{display:grid;place-items:center;width:38px;height:38px;border:0;background:transparent;color:#222;cursor:pointer;border-radius:6px}
+.cd-icon:hover{background:#f2f2f2}
+.cd-vol{display:flex;align-items:center;gap:6px;color:#222}
+.cd-vol input{width:90px;accent-color:#418fc6}
+.cd-audio{height:34px;max-width:300px}
+.cd-menu{position:absolute;top:44px;right:0;z-index:5;min-width:260px;background:#fff;border:1px solid #d8d8d5;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:6px;display:flex;flex-direction:column;font-family:'Vazirmatn',Tahoma,sans-serif}
+.cd-menu button{border:0;background:transparent;text-align:right;padding:10px 12px;font:inherit;font-size:14px;color:#111;cursor:pointer;border-radius:6px}
+.cd-menu button:hover{background:#f2f3ef}
+.cd-sub{display:flex;gap:10px;align-items:center;padding:6px 18px;background:#f2f3ef;border-bottom:1px solid #e4e4e4;font-size:15px}
+.cd-sub span{color:#333}
+.cd-notice{padding:6px 18px;background:#fff6db;border-bottom:1px solid #f0dfa6;font-family:'Vazirmatn',Tahoma,sans-serif;font-size:13.5px;color:#5b4500}
+.cd-body{overflow:auto;min-height:0;padding:20px 28px 90px}
+.cd-paper{max-width:900px}
+.cd-start{max-width:640px;margin:10px 0 28px;padding:20px 24px;border:1px solid #d8d8d5;border-radius:6px;background:#fafaf8}
+.cd-start h2{margin:0 0 8px;font-size:20px}
+.cd-start p{margin:0 0 10px;color:#333}
+.cd-start p[dir=rtl]{font-family:'Vazirmatn',Tahoma,sans-serif;font-size:14px;line-height:1.9;text-align:right}
+.cd-play{border:0;background:#418fc6;color:#fff;font:inherit;font-weight:700;padding:10px 22px;border-radius:4px;cursor:pointer}
+.cd-play:disabled{background:#9db8cc;cursor:default}
+.cd-foot{display:flex;align-items:stretch;border-top:1px solid #e4e4e4;background:#fff;min-width:0}
+.cd-parts{display:flex;flex:1;min-width:0;overflow-x:auto}
+.cd-part{display:flex;align-items:center;gap:10px;padding:0 18px;border:0;border-right:1px solid #ececec;background:#fff;font:inherit;color:#111;cursor:pointer;white-space:nowrap}
+.cd-part small{font-size:12.5px;color:#565656}
+.cd-part:hover:not(.on){background:#efefef}
+.cd-part.on{cursor:default;position:relative;flex:1;min-width:0}
+.cd-part.on::before{content:'';position:absolute;top:0;left:18px;width:98px;height:3px;background:#d7d7d7}
+.cd-qs{display:flex;gap:4px;overflow-x:auto;padding:4px 0}
+.cd-qs button{min-width:30px;height:30px;padding:0 4px;border:1px solid #c9c9c9;background:#fff;font:inherit;font-size:13.5px;color:#111;cursor:pointer;border-radius:2px;position:relative}
+.cd-qs button.done{border-bottom:3px solid #418fc6}
+.cd-qs button.cur{outline:2px solid #1f6387;outline-offset:1px;background:#e9f2fa}
+.cd-submit{width:62px;border:0;background:#d7d7d7;color:#fff;cursor:pointer;display:grid;place-items:center}
+.cd-submit:hover{background:#418fc6}
+.cd-float{position:absolute;right:22px;bottom:70px;display:flex;gap:2px}
+.cd-float button{width:56px;height:55px;border:0;border-radius:3px;background:#3b3b3b;color:#fff;display:grid;place-items:center;cursor:pointer}
+.cd-float button:disabled{background:#ddd;cursor:default}
+/* the listening paper inside the shell */
+.cd .lt-group{margin:0 0 26px}
+.cd .lt-group h4{font-style:normal;font-size:16px;margin:0 0 2px}
+.cd .lt-instr{font-style:normal;color:#111;margin:0 0 10px}
+.cd .lt-example{background:#f2f3ef;border-radius:2px}
+.cd .lt-q{margin:0 0 18px;padding:2px 0}
+.cd .lt-q p b{margin-right:4px}
+.cd .lt-opts button{border:0;background:transparent;border-radius:2px;padding:7px 10px;font-size:15.5px}
+.cd .lt-opts button:hover{background:rgb(228,228,228)}
+.cd .lt-opts button.on{background:rgb(187,216,240)}
+.cd .lt-opts button b{border:1.5px solid #666;width:20px;height:20px;font-size:12px}
+.cd .lt-opts button.on b{background:#418fc6;border-color:#418fc6}
+.cd .lt-opts.pics button{border:1px solid #c9c9c9}
+.cd .lt-box{border:1px solid #333;border-radius:0;padding:12px 18px}
+.cd .lt-gap b{font-size:14px;color:#111;font-weight:700}
+.cd .lt-gap input,.cd .lt-gap select{border:1px solid #8a8a8a;border-radius:0;background:#fff;height:28px;width:190px;padding:0 6px;font:inherit;font-size:15px}
+.cd .lt-gap input:focus,.cd .lt-gap select:focus{outline:2px solid #1f6387;outline-offset:0;border-color:#1f6387}
+.cd .lt-gap.fa input{border-color:#c47a00;background:#fff6db}
+.cd .lt-picklist{font-size:15.5px}
+@media(max-width:700px){
+  .cd{grid-template-rows:auto auto auto minmax(0,1fr) 54px}
+  .cd-head{flex-wrap:wrap;gap:8px 12px;padding:6px 10px}
+  .cd-vol input{width:60px}.cd-audio{max-width:100%;order:9;flex-basis:100%}
+  .cd-right{flex-wrap:wrap;justify-content:flex-end}
+  .cd-body{padding:14px 12px 120px}
+  .cd-part{padding:0 10px}.cd-part.on::before{left:10px;width:60px}
+  .cd-float{right:10px;bottom:64px}.cd-float button{width:46px;height:46px}
+  .cd .lt-gap input{width:140px}
+}
