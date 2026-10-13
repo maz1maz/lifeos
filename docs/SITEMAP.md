@@ -39,7 +39,7 @@
 - ورودی صوتی Ctrl+K (Web Speech، fa-IR). صف آفلاین ثبت سریع: `postOrQueue`/`flushOutbox` در palette.jsx. خروج از حساب در کشوی منو (`signOut`، پاک‌کردن کش داده‌ها).
 
 ### هاب‌های منو (`TabHub` در main.jsx) — ۲۰۲۶-۱۰-۰۶
-- برنامه‌ریز: `planner|calendar|habits|focus|time` · مرور و اهداف: `review|goals|week|stats` · یادگیری: `learning|vocab` · یادداشت: `notes|journal|shopping` · تماشا: `series|movies|upcoming|discover` (WatchHub).
+- برنامه‌ریز: `planner|calendar|habits|focus|time` · مرور و اهداف: `review|goals|week|stats` · یادگیری: `learning|vocab|ielts` · یادداشت: `notes|journal|shopping` · تماشا: `series|movies|upcoming|discover` (WatchHub).
 - گروه‌های منو: روزانه، کار، مالی، زندگی، سرگرمی، یادگیری و آرشیو. موبایل (≤۷۰۰px): نوار پایین `.bnav` (امروز، برنامه، مالی، یادداشت، همه).
 - ماژول تازهٔ قابل خاموش‌کردن: `habits`؛ `vocab` و `habits` به whitelist ماژول‌ها در worker.js اضافه شدند.
 
@@ -71,3 +71,9 @@
 - (حل شد ۲۰۲۶-۱۰) `vite.config.js` و `@cloudflare/vite-plugin` حذف شدند؛ build فقط با `vite.today.config.mjs`. قبلاً: دو فایل vite config (`vite.today.config.mjs` که build واقعی از آن است).
 - `public/design/cards-v2.html` (۳۵۰KB) و `login-page.html` (۲۷۰KB) فونت base64 دارند.
 - ۲۰۲۶-۰۹-۳۰: `header.js` از `worker.js` عقب بود (fixهای فوتبال دستی در worker.js)؛ همگام شد و `port.js` دوباره سبز است.
+
+## آیلتس (`?page=ielts`، تب سوم هاب یادگیری؛ ماژول `vocab`)
+- `src/today/src/ielts.jsx` + `ielts.css`: دکمهٔ باز کردن تمرین، آمار بانک سؤال (`/ielts/lifeos-stats.json`)، تصحیح رایتینگ AI، لینک‌ها و منابع.
+- `public/ielts/`: IELTS Atlas فارسی‌شده (GPL-3.0، فقط شخصی، پشت لاگین — هرگز در `isPublic`). به‌روزرسانی: `node scripts/sync-ielts.js <IELTS-practice-fa>` (حذف پوشه‌های توسعه، اصلاح onclick برای CSP، ساخت آمار).
+- API: `GET|POST /api/ielts/writing`، `DELETE /api/ielts/writing/:id` (ذخیره در `db.ieltsWritings`، ۵۰ مورد آخر؛ نمرهٔ کل در سرور از میانگین ۴ معیار گرد به نیم‌باند).
+- دادهٔ برنامه در مرورگر: کلیدهای `exam_system_*` / `ielts-atlas-*` و IndexedDB؛ با کلیدهای `lifeos-*` تداخل ندارد.

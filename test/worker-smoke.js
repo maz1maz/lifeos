@@ -512,6 +512,28 @@ async function main() {
       check('tutor-log: bad body -> 400', (await call('/api/vocab/tutor-log', { method: 'PUT', cookie, body: { modes: [] } })).status === 400);
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
   }
+  { // IELTS Writing marked by AI: four criteria, overall band computed server-side, history + delete
+    const seen = [], realFetch = globalThis.fetch;
+    const essay = Array.from({ length: 70 }, (_, i) => 'word' + i).join(' ');
+    check('ielts writing: 503 without any AI', (await call('/api/ielts/writing', { method: 'POST', cookie, body: { task: 'task2', essay } })).status === 503);
+    env.AI_PROVIDER_API_KEY = 'k'; env.AI_PROVIDER_BASE_URL = 'https://ai.test/v1'; env.AI_MODEL = 'm';
+    const reply = { criteria: { tr: { band: 6.5, feedback: 'خوب' }, cc: { band: 6, feedback: 'x' }, lr: { band: 7.2, feedback: 'x' }, gra: { band: 6, feedback: 'x' } }, strengths: ['a'], improvements: ['b'], mistakes: [{ original: 'he go', fix: 'he goes', why: 'فعل' }, { original: '' }], improved: 'Better.' };
+    globalThis.fetch = async (url, init) => { if (String(url).startsWith('https://ai.test/')) { seen.push(JSON.parse(init.body)); return new Response(JSON.stringify({ choices: [{ message: { content: 'Here: ' + JSON.stringify(reply) } }] })); } return realFetch(url, init); };
+    try {
+      check('ielts writing: under 50 words -> 400', (await call('/api/ielts/writing', { method: 'POST', cookie, body: { task: 'task2', essay: 'too short' } })).status === 400);
+      const r = await call('/api/ielts/writing', { method: 'POST', cookie, body: { task: 'task2', question: 'Discuss both views.', essay } });
+      // 6.5+6+7(7.2→7)+6 = 25.5/4 = 6.375 → 6.5 (IELTS rounds .25 up to .5)
+      check('ielts writing: graded, bands rounded to halves, overall from the mean', r.status === 201 && r.d.overall === 6.5 && r.d.criteria.lr.band === 7 && r.d.words === 70 && r.d.mistakes.length === 1, JSON.stringify(r.d).slice(0, 200));
+      const sys = seen[0] && seen[0].messages[0].content, usr = seen[0] && seen[0].messages[1].content;
+      check('ielts writing: Task 2 criteria in prompt, question + essay sent', /Task Response/.test(sys) && /Discuss both views/.test(usr) && /word69/.test(usr));
+      const t1 = await call('/api/ielts/writing', { method: 'POST', cookie, body: { task: 'task1', essay } });
+      check('ielts writing: Task 1 asks for Task Achievement (missing ta -> 502)', t1.status === 502 && /Task Achievement/.test(seen[1].messages[0].content));
+      const list = await call('/api/ielts/writing', { cookie });
+      check('ielts writing: history', list.d.items.length === 1 && list.d.items[0].id === r.d.id);
+      check('ielts writing: delete', (await call(`/api/ielts/writing/${r.d.id}`, { method: 'DELETE', cookie })).status === 200 && (await call('/api/ielts/writing', { cookie })).d.items.length === 0);
+      check('ielts writing: needs login', (await call('/api/ielts/writing', { method: 'POST', body: { task: 'task2', essay } })).status === 401);
+    } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
+  }
   { // work-time log: manual entries, validation, edit, timer start/stop
     const a = await call('/api/time', { method: 'POST', cookie, body: { title: 'گزارش پروژه', minutes: 95, date: '2026-02-03', projectId: 'p1' } });
     check('time: manual entry', a.status === 201 && a.d.minutes === 95 && a.d.projectId === 'p1');
@@ -1301,6 +1323,15 @@ async function main() {
       !w16auth.looping && w16auth.status === 200 && /id="qIn"/.test(w16auth.text)
         && w16auth.chain.join(' ') === '/newtab.html /newtab',
       JSON.stringify({ chain: w16auth.chain, status: w16auth.status }));
+    // IELTS Atlas (public/ielts/) is a personal-use question bank: anonymous visitors must never reach it
+    for (const q of ['/ielts/index.html', '/ielts/lifeos-stats.json', '/ielts/assets/generated/reading-exams/manifest.js']) {
+      const an = await w16hop(worker, q, null);
+      check(`worker: anonymous ${q} -> login page`, !an.looping && an.chain[1] === '/design/login-page.html' && /id="fEmail"/.test(an.text), JSON.stringify(an.chain));
+    }
+    if (fs.existsSync(path.join(ROOT, 'public', 'ielts', 'index.html'))) {
+      const ie = await w16hop(worker, '/ielts/index.html', c16);
+      check('worker: with a session /ielts/ serves the Persian IELTS app', ie.status === 200 && /i18n-fa\.js/.test(ie.text), JSON.stringify({ chain: ie.chain, status: ie.status }));
+    }
     const w16gateLine = "const isPublic = /^\\/design\\/login-page(\\.html)?$/.test(url.pathname)";
     const srcs = require('./load-worker').workerSources();
     if (!srcs['worker.js'].includes(w16gateLine)) throw new Error('the isPublic line changed shape — update this guard');
