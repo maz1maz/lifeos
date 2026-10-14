@@ -119,3 +119,38 @@ node scripts/ielts-check.mjs --img chart.webp
 - [ ] متن‌ها از کتاب کپی شده‌اند، نه تایپ دستی. غلط OCR را تصحیح کن (`he`→`be`، `hank`→`bank`).
 - [ ] هر Task 1 آکادمیک `image` و `data` دارد.
 - [ ] صوت‌های لیسنینگ کنار فایل‌ها هستند، با نام `cam5-test2-listening.mp3`.
+
+## تبدیل PDF کتاب به این فایل‌ها (روش کار)
+ابزار: `scripts/ielts-pdf.py` (نیاز به poppler؛ برای `crop` به Pillow). دستورها:
+```bash
+python3 scripts/ielts-pdf.py map  book.pdf                      # هر صفحه چه چیزی دارد (پیدا کردن تست‌ها)
+python3 scripts/ielts-pdf.py png  book.pdf 16                   # عکس صفحه؛ کلید، جدول و نمودار را از عکس بخوان
+python3 scripts/ielts-pdf.py cols book.pdf 16 "90:332,334:556,590:818,826:1060"   # متن ستون‌ها
+python3 scripts/ielts-pdf.py crop book.pdf 6 "423:283,772:421" diagB.webp           # بریدن نمودار
+node    scripts/ielts-check.mjs --img diagB.webp                # data URL برای فیلد image
+```
+قواعد:
+- کتاب‌ها دو تا چهار ستونه‌اند؛ `pdftotext` ساده ستون‌ها را قاطی می‌کند. با `cols` هر ستون را جدا بگیر.
+- کلید جواب‌ها (چند صفحهٔ آخر) دو ستونه و پر از «in any order» است. **حتماً از عکس صفحه بخوان**، نه متن استخراج‌شده.
+- غلط‌های OCR را درست کن (`l50m` ← `150m`، `qoods` ← `goods`، `he` ← `be`). متنی را که در اسکن نیست اختراع نکن؛ در گزارش بنویس کجا ناقص بود.
+- هر فایل را با `ielts-check` بررسی کن (هر سؤال با کلید خودش باید نمرهٔ کامل بگیرد).
+
+### صوت لیسنینگ
+- سایت برای هر آزمون **یک** فایل mp3 می‌خواهد. اگر کتاب هر بخش را جدا داده (۴ فایل)، با ffmpeg به هم بچسبان:
+  ```bash
+  printf "file '001.mp3'\nfile '002.mp3'\nfile '003.mp3'\nfile '004.mp3'\n" > list.txt
+  ffmpeg -f concat -safe 0 -i list.txt -c copy cam2-test1-listening.mp3
+  ```
+- فایل JSON آزمون لیسنینگ (بدون صوت) را اول وارد کن، بعد در همان آزمون «آپلود صوت» را بزن. صوت در چت تلگرام مدیر ذخیره می‌شود (بات تلگرام باید وصل باشد).
+- `tape` از صفحه‌های tapescript کتاب ساخته می‌شود: `[{ "section": 1, "lines": ["R: …", "W: …"] }]`. `evidence` اختیاری است.
+
+### پرامپت آمادهٔ تحویل به یک هوش مصنوعی یا آدم
+```
+می‌خواهم از PDF کتاب «Cambridge IELTS N» فایل‌های آزمون برای LifeOS بسازی.
+قالب را از docs/IELTS-CONTENT.md بخوان و برای هر تست این فایل‌ها را بساز:
+cam<N>-test<T>-reading (آکادمیک)، cam<N>-test<T>-listening، cam<N>-writing-<T>، cam<N>-speaking (یک فایل برای کل کتاب)
+و برای تست‌های جنرال: cam<N>-gt-<A|B>-reading و cam<N>-writing-gt.
+ابزار کمکی: scripts/ielts-pdf.py. کلیدها را از عکس صفحه بخوان. متن را بازسازی کن ولی چیزی اختراع نکن.
+بعد از ساخت: node scripts/ielts-check.mjs <پوشه> باید همه را ✓ نشان بدهد.
+تحویل: پوشهٔ JSONها، یک فهرست از جاهایی که متن ناقص یا مشکوک بود، و mp3 هر لیسنینگ (یک فایل برای هر تست).
+```
