@@ -3718,6 +3718,16 @@
         }
       }
     },
+    "/api/ielts/exams": {
+      "get": {
+        "operationId": "get_api_ielts_exams",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/ielts/writing": {
       "get": {
         "operationId": "get_api_ielts_writing",

@@ -49,7 +49,7 @@ export function makeHelpers(env) {
     x=x&&typeof x==='object'?x:emptyState();
     x.investments ??= []; x.accounts ??= []; x.budgets ??= []; x.projects ??= []; x.timeEntries ??= []; x.habits ??= []; x.habitLogs ??= [];
     x.subscriptions ??= []; x.debts ??= []; x.footballTeams ??= []; x.matches ??= []; x.news ??= []; x.movies ??= []; x.timers ??= [];
-    x.exercise ??= []; x.weeklyNotes ??= []; x.mediaLog ??= []; x.investmentTx ??= []; x.assetPrices ??= []; x.priceAlerts ??= []; x.portfolioSnapshots ??= []; x.assetPriceHistory ??= []; x.newsSources ??= []; x.contacts ??= []; x.contactLogs ??= []; x.learning ??= []; x.bookmarks ??= []; x.shoppingItems ??= []; x.trips ??= []; x.tripChecklist ??= []; x.documents ??= []; x.betDays ??= []; x.goals ??= []; x.wins ??= []; x.ieltsWritings ??= []; x.decisions ??= []; x.lifeReviews ??= []; x.pokerSessions ??= []; x.reminders ??= []; x.telegramLinkCodes ??= []; x.daily ??= []; x.tasks ??= []; x.inbox ??= [];
+    x.exercise ??= []; x.weeklyNotes ??= []; x.mediaLog ??= []; x.investmentTx ??= []; x.assetPrices ??= []; x.priceAlerts ??= []; x.portfolioSnapshots ??= []; x.assetPriceHistory ??= []; x.newsSources ??= []; x.contacts ??= []; x.contactLogs ??= []; x.learning ??= []; x.bookmarks ??= []; x.shoppingItems ??= []; x.trips ??= []; x.tripChecklist ??= []; x.documents ??= []; x.betDays ??= []; x.goals ??= []; x.wins ??= []; x.ieltsWritings ??= []; x.ieltsAttempts ??= []; x.decisions ??= []; x.lifeReviews ??= []; x.pokerSessions ??= []; x.reminders ??= []; x.telegramLinkCodes ??= []; x.daily ??= []; x.tasks ??= []; x.inbox ??= [];
     x.col??={};
     return x;
   }
