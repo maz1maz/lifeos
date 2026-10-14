@@ -9,7 +9,7 @@ import { MarkedPassages, ReadingExam } from './ielts-reading';
 // «آزمون‌ها» on the IELTS tab: Reading and Listening tests imported as JSON (questions + key, passages or tapescript;
 // never in the repo — the books are copyrighted and the repository is public). Listening audio goes to the user's
 // Telegram chat. API: /api/ielts/exams (cloudflare/lib/api.js + lib/ielts.js).
-function AddTest({ onAdded, admin }) {
+export function AddTest({ onAdded, admin }) {
   const [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [shared, setShared] = useState(true);
   const pick = async e => {
     const files = [...(e.target.files || [])]; e.target.value = ''; if (!files.length) return;

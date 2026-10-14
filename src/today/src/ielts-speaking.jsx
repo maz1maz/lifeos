@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mic, RefreshCw, Square } from 'lucide-react';
 import { fa } from './life-core';
+import { SpeakingBook } from './ielts-book';
 
 // «اسپیکینگ» on the IELTS tab: the test format and criteria, Part 2 cue cards with the real timing (1 minute to
 // prepare, up to 2 to speak) and an optional recording that stays in this browser (MediaRecorder, nothing is sent),
@@ -34,7 +35,7 @@ const PART3 = [
 const CRITERIA = [['Fluency & Coherence', 'روانی و انسجام'], ['Lexical Resource', 'دامنهٔ واژگان'], ['Grammatical Range & Accuracy', 'دستور زبان'], ['Pronunciation', 'تلفظ']];
 const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-function CueCard() {
+function CueCard({ book, onClear }) {
   const [i, setI] = useState(() => Math.floor(Math.random() * CUES.length));
   const [phase, setPhase] = useState('idle'), [left, setLeft] = useState(0), [rec, setRec] = useState(null), [err, setErr] = useState('');
   const mr = useRef(null), chunks = useRef([]);
@@ -60,11 +61,17 @@ function CueCard() {
     } catch (e) { setErr('ضبط صدا ممکن نشد (اجازهٔ میکروفون را بده)؛ بدون ضبط هم می‌توانی تمرین کنی.'); }
   };
   const stop = () => { try { if (mr.current && mr.current.state !== 'inactive') mr.current.stop(); } catch {} setPhase('done'); };
-  const next = () => { stop(); setPhase('idle'); setI(x => (x + 1 + Math.floor(Math.random() * (CUES.length - 1))) % CUES.length); };
-  const [title, points] = CUES[i];
+  const next = () => { stop(); setPhase('idle'); onClear?.(); setI(x => (x + 1 + Math.floor(Math.random() * (CUES.length - 1))) % CUES.length); };
+  const [notes, setNotes] = useState(false);
+  useEffect(() => { setPhase('idle'); setNotes(false); }, [book]);
+  const [title, points] = book ? [book.title, book.ask || []] : CUES[i];
   return <section className="ie-card ie-wide">
-    <header><h2><Mic size={18} />Part 2 — کارت موضوع</h2><span className="ie-muted">۱ دقیقه آماده‌سازی، تا ۲ دقیقه صحبت؛ ضبط فقط روی همین مرورگر</span></header>
-    <div className="sp-cue" dir="ltr"><b>{title}</b><p>You should say:</p><ul>{points.map(x => <li key={x}>{x}</li>)}</ul></div>
+    <header><h2><Mic size={18} />{book ? 'کارت کتاب' : 'Part 2 — کارت موضوع'}</h2><span className="ie-muted">۱ دقیقه آماده‌سازی، تا ۲ دقیقه صحبت؛ ضبط فقط روی همین مرورگر</span></header>
+    <div className="sp-cue" dir="ltr"><b>{title}</b>{book ? <p>{book.text}</p> : null}{points.length ? <><p>{book ? 'Ask the examiner about:' : 'You should say:'}</p><ul>{points.map(x => <li key={x}>{x}</li>)}</ul></> : null}</div>
+    {book?.notes ? <>
+      <button type="button" className="ie-btn ghost" aria-expanded={notes} onClick={() => setNotes(v => !v)}>{notes ? 'پنهان کردن' : 'نمایش'} یادداشت ممتحن (بعد از تمرین ببین)</button>
+      {notes ? <p className="sp-notes" dir="ltr">{book.notes}</p> : null}
+    </> : null}
     <div className="ie-row">
       {phase === 'idle' || phase === 'done' ? <button type="button" className="ie-btn" onClick={() => { setPhase('prep'); setLeft(60); }}>شروع (۱ دقیقه آماده‌سازی)</button> : null}
       {phase === 'prep' ? <><span className="sp-time">آماده‌سازی {mmss(left)}</span><button type="button" className="ie-btn" onClick={startTalk}><Mic size={15} />همین الان شروع به صحبت</button></> : null}
@@ -82,6 +89,8 @@ const QSet = ({ title, sets }) => <section className="ie-card">
 </section>;
 
 export function SpeakingPanel() {
+  const [book, setBook] = useState(null);
+  const pick = c => { setBook(c); setTimeout(() => document.querySelector('.sp-cue')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); };
   return <>
     <section className="ie-card">
       <header><h2>ساختار آزمون اسپیکینگ</h2><span className="ie-muted">۱۱ تا ۱۴ دقیقه</span></header>
@@ -99,7 +108,8 @@ export function SpeakingPanel() {
       <a className="ie-btn" href="/?page=vocab">رفتن به معلم زبان</a>
       <p className="ie-muted">بانک سؤال Part 1 با واژگان کلاس هم در «جزوه» اپ زبان هست.</p>
     </section>
-    <CueCard />
+    <SpeakingBook onPick={pick} />
+    <CueCard book={book} onClear={() => setBook(null)} />
     <QSet title="Part 1 — سؤال‌های تمرینی" sets={PART1} />
     <QSet title="Part 3 — سؤال‌های بحث" sets={PART3} />
   </>;

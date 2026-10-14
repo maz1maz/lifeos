@@ -46,12 +46,38 @@ function askedNumbers(test, only) {
   return out;
 }
 
+// Writing and Speaking material from a book has no answer key: Writing = `tasks` [{task:'task1'|'task2', prompt,
+// image? (data URL), data? (the chart in words, for the AI marker), model? (the book's model answer)}], Speaking =
+// `cards` [{title, text, ask?: [points], notes? (the examiner's side), part?}].
+export const OPEN_SKILLS = ['writing', 'speaking'];
+const str = (v, max) => typeof v === 'string' && v.trim() && v.length <= max;
+const optStr = (v, max) => v == null || (typeof v === 'string' && v.length <= max);
+function validateOpen(t) {
+  if (t.skill === 'writing') {
+    if (!Array.isArray(t.tasks) || !t.tasks.length || t.tasks.length > 4) return 'تسک‌های رایتینگ (tasks) نامعتبر است.';
+    for (const k of t.tasks) {
+      if (!k || !['task1', 'task2'].includes(k.task) || !str(k.prompt, 4000)) return 'هر تسک باید task (task1|task2) و prompt داشته باشد.';
+      if (k.image != null && !/^data:image\/(png|jpeg|webp|gif);base64,/.test(String(k.image))) return 'تصویر تسک باید data URL باشد.';
+      if (!optStr(k.data, 4000) || !optStr(k.model, 8000)) return 'متن تسک خیلی بلند است.';
+    }
+    return null;
+  }
+  if (!Array.isArray(t.cards) || !t.cards.length || t.cards.length > 12) return 'کارت‌های اسپیکینگ (cards) نامعتبر است.';
+  for (const c of t.cards) {
+    if (!c || !str(c.title, 200) || !str(c.text, 3000)) return 'هر کارت اسپیکینگ باید title و text داشته باشد.';
+    if (c.ask != null && (!Array.isArray(c.ask) || c.ask.length > 12 || c.ask.some(a => !str(a, 300)))) return 'فهرست ask کارت نامعتبر است.';
+    if (!optStr(c.notes, 4000)) return 'یادداشت ممتحن خیلی بلند است.';
+  }
+  return null;
+}
+
 // Returns an error string, or null when the imported test can be stored.
 export function validateTest(t) {
   if (!t || typeof t !== 'object') return 'فایل آزمون نامعتبر است.';
   if (!/^[a-z0-9-]{3,40}$/.test(String(t.id || ''))) return 'شناسهٔ آزمون (id) فقط حروف کوچک انگلیسی، عدد و خط تیره.';
   if (!String(t.title || '').trim()) return 'عنوان آزمون لازم است.';
-  if (t.skill != null && !['listening', 'reading'].includes(t.skill)) return 'نوع آزمون (skill) باید listening یا reading باشد.';
+  if (t.skill != null && !['listening', 'reading', ...OPEN_SKILLS].includes(t.skill)) return 'نوع آزمون (skill) باید listening، reading، writing یا speaking باشد.';
+  if (OPEN_SKILLS.includes(t.skill)) return validateOpen(t);
   if (t.skill === 'reading' && t.sections && t.sections.some(s => !s.passage || !Array.isArray(s.passage.paragraphs) || !s.passage.paragraphs.length)) return 'هر بخش ریدینگ باید متن (passage.paragraphs) داشته باشد.';
   if (!Array.isArray(t.sections) || !t.sections.length || t.sections.length > 6) return 'بخش‌های آزمون (sections) نامعتبر است.';
   if (!t.key || typeof t.key !== 'object') return 'کلید جواب‌ها (key) لازم است.';
@@ -66,6 +92,7 @@ export function validateTest(t) {
 
 // What the browser gets before the attempt: no key, no tapescript, no evidence lines or answer explanations.
 export function publicTest(t) {
+  if (OPEN_SKILLS.includes(t.skill)) return { ...t, total: (t.tasks || t.cards).length, parts: [] };
   const { key, tape, evidence, explain, ...rest } = t;
   return { ...rest, skill: t.skill || 'listening', total: askedNumbers(t).size, parts: t.sections.map(s => sectionNumbers(s).size) };
 }

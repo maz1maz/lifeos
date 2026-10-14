@@ -314,3 +314,17 @@
 .lt-ex.ok{border-inline-start-color:var(--g-good,#34d399)}
 .lt-ex p{margin:0;border:0!important;padding:0!important;text-align:right!important}
 .lt-ex p[dir]:not(:first-of-type){unicode-bidi:plaintext}
+/* writing tasks / speaking cards from the books (ielts-book.jsx) */
+.bk-list li{display:grid;grid-template-columns:1fr auto;align-items:center}
+.bk-head{display:flex;align-items:center;justify-content:space-between;gap:10px;background:none;border:0;color:inherit;font:inherit;text-align:start;cursor:pointer;padding:0;min-width:0}
+.bk-head span{display:flex;flex-direction:column;min-width:0}
+.bk-head small{color:var(--g-muted);font-size:12.5px}
+.bk-tasks{grid-column:1/-1;display:flex;flex-direction:column;gap:14px;margin-top:8px}
+.bk-task{display:flex;flex-direction:column;gap:8px;border-top:1px dashed var(--g-border);padding-top:10px}
+.bk-task small{color:var(--g-muted);font-weight:400;font-size:12px;margin-inline-start:6px}
+.bk-prompt{margin:0;white-space:pre-line;line-height:1.7;text-align:left}
+.bk-img{max-width:100%;width:560px;border-radius:10px;background:#fff;padding:6px;border:1px solid var(--g-border)}
+.bk-sel{display:flex;flex-direction:column;gap:8px;border:1px solid var(--g-accent);background:var(--g-accent-soft);border-radius:12px;padding:10px 12px}
+.bk-sel .ie-row{justify-content:space-between}
+.bk-sel .bk-img{align-self:center}
+.sp-notes{margin:0;white-space:pre-line;color:var(--g-muted);font-size:13px;line-height:1.7}

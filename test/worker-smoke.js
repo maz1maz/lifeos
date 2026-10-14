@@ -623,6 +623,19 @@ async function main() {
     const back = await call('/api/ielts/exams/tests/shared-read', { method: 'PATCH', cookie, body: { shared: false } });
     check('shared: admin moves it back to their own list; others no longer see it', back.status === 200 && back.d.mine && !(await call('/api/ielts/exams', { cookie: ck })).d.tests.some(t => t.id === 'shared-read') && (await call('/api/ielts/exams/tests/shared-read', { cookie })).status === 200);
     await call('/api/ielts/exams/tests/shared-read', { method: 'DELETE', cookie });
+    // Writing tasks and Speaking cards from the books: no key, shared, no attempts or audio
+    const W = { id: 'book-w', skill: 'writing', module: 'academic', book: 1, test: 1, title: 'Book Writing', tasks: [{ task: 'task1', prompt: 'The chart shows…', image: 'data:image/webp;base64,AAAA', data: 'bars 40, 38', model: 'The chart shows…' }, { task: 'task2', prompt: 'Why do we need music?' }] };
+    check('writing: a task without prompt is refused', (await call('/api/ielts/exams/tests?shared=1', { method: 'POST', cookie, body: { ...W, tasks: [{ task: 'task1' }] } })).status === 400);
+    check('writing: an image that is not a data URL is refused', (await call('/api/ielts/exams/tests?shared=1', { method: 'POST', cookie, body: { ...W, tasks: [{ task: 'task1', prompt: 'x', image: 'https://evil.example/x.png' }] } })).status === 400);
+    const wa = await call('/api/ielts/exams/tests?shared=1', { method: 'POST', cookie, body: W });
+    const wg = await call('/api/ielts/exams/tests/book-w', { cookie: ck });
+    check('writing: admin adds book tasks; others read them with the chart and model answer', wa.status === 201 && wa.d.skill === 'writing' && wa.d.total === 2 && wa.d.module === 'academic' && wg.status === 200 && wg.d.tasks.length === 2 && wg.d.tasks[0].image && wg.d.tasks[0].model, JSON.stringify(wa.d).slice(0, 160));
+    check('writing: no keyed attempt and no audio', (await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'book-w', answers: {} } })).status === 400 && (await worker.fetch(new Request('https://worker-smoke.local/api/ielts/exams/tests/book-w/audio', { method: 'POST', headers: { cookie, 'content-type': 'audio/mpeg' }, body: new Uint8Array([1]) }), env, {})).status === 400);
+    const SP = { id: 'book-s', skill: 'speaking', book: 1, title: 'Book Speaking', cards: [{ title: 'The excursion', text: 'Ask about the trip.', ask: ['cost', 'meals'], notes: 'Bus provided.' }] };
+    check('speaking: a card without text is refused', (await call('/api/ielts/exams/tests?shared=1', { method: 'POST', cookie, body: { ...SP, cards: [{ title: 'x' }] } })).status === 400);
+    const sa = await call('/api/ielts/exams/tests?shared=1', { method: 'POST', cookie, body: SP });
+    check('speaking: admin adds cards; everyone sees them', sa.status === 201 && sa.d.skill === 'speaking' && sa.d.total === 1 && (await call('/api/ielts/exams', { cookie: ck })).d.tests.some(t => t.id === 'book-s' && t.skill === 'speaking'));
+    await call('/api/ielts/exams/tests/book-w', { method: 'DELETE', cookie }); await call('/api/ielts/exams/tests/book-s', { method: 'DELETE', cookie });
     env.ADMIN_EMAILS = em;
     check('listening: delete test removes its attempts', (await call('/api/ielts/exams/tests/mini-test', { method: 'DELETE', cookie: ck })).status === 200 && !(await call('/api/ielts/exams', { cookie: ck })).d.attempts.some(a => a.testId === 'mini-test'));
     delete env.ADMIN_EMAILS;
