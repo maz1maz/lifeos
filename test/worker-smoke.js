@@ -565,6 +565,13 @@ async function main() {
       check('listening: non-audio upload refused', (await up(new Uint8Array([1]), 'text/plain')).status === 400);
       const ok = await up(new Uint8Array([1, 2, 3, 4]), 'audio/mpeg');
       check('listening: audio stored in the user\'s Telegram chat', ok.status === 200 && sentTo === '880077');
+      // live Telegram answers an mp3 sendDocument with result.audio (no result.document)
+      const fakeTg = globalThis.fetch;
+      globalThis.fetch = async (url, init) => String(url).includes('/sendDocument') ? new Response(JSON.stringify({ ok: true, result: { audio: { file_id: 'FID-AUDIO' } } })) : fakeTg(url, init);
+      const asAudio = await up(new Uint8Array([5, 6]), 'audio/mpeg');
+      check('listening: an mp3 Telegram files as «audio» still counts as uploaded', asAudio.status === 200 && (await call('/api/ielts/exams', { cookie: ck })).d.tests.find(t => t.id === 'mini-test').audio.tgId === 'FID-AUDIO', String(asAudio.status));
+      globalThis.fetch = fakeTg;
+      await up(new Uint8Array([1, 2, 3, 4]), 'audio/mpeg');
       const get = await worker.fetch(new Request('https://worker-smoke.local/api/ielts/exams/tests/mini-test/audio', { headers: { cookie: ck } }), env, {});
       const bytes = new Uint8Array(await get.arrayBuffer());
       check('listening: audio streamed back from Telegram', get.status === 200 && /audio\/mpeg/.test(get.headers.get('content-type')) && bytes.join() === '9,8,7');
