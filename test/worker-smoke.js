@@ -502,6 +502,11 @@ async function main() {
       check('tutor: reply', r.status === 200 && r.d.reply === 'Hello! How are you?', JSON.stringify(r.d));
       check('tutor: mode + profile + weak words + scenario in system prompt', /Role-play/.test(sys) && /level=A2/.test(sys) && /chemist, plaster/.test(sys) && /restaurant/.test(sys) && /Present Perfect/.test(sys), (sys || '').slice(0, 160));
       check('tutor: conversation sent as transcript', /Learner: start/.test(usr || ''));
+      // earlier lessons go into the prompt so a new lesson doesn't repeat them
+      seen.length = 0;
+      await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'lesson', context: { lessonNo: 4, focus: 'Food and cooking', doneTopics: ['Daily routine', 'Travel and transport'], doneWords: ['commute', 'itinerary'] }, history: [{ r: 'u', t: 'lesson' }] } });
+      const ls = seen[0] && seen[0].messages[0].content;
+      check('tutor: lesson number, today\'s theme, earlier themes and taught words in the prompt', /LESSON #4/.test(ls) && /THEME: Food and cooking/.test(ls) && /Daily routine \| Travel and transport/.test(ls) && /commute, itinerary/.test(ls), (ls || '').slice(-300));
       check('tutor: unknown mode -> 400', (await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'x', history: [{ r: 'u', t: 'hi' }] } })).status === 400);
       check('tutor: last turn must be the learner -> 400', (await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'chat', history: [{ r: 'a', t: 'hi' }] } })).status === 400);
       check('tutor: needs login', (await call('/api/vocab/tutor', { method: 'POST', body: { mode: 'chat', history: [{ r: 'u', t: 'hi' }] } })).status === 401);
@@ -509,6 +514,9 @@ async function main() {
       const put = await call('/api/vocab/tutor-log', { method: 'PUT', cookie, body: { modes: { chat: { extra: '', hist: [{ r: 'u', t: 'hi' }, { r: 'a', t: 'Hello!' }, { r: 'x', t: '' }] }, evil: { hist: [{ r: 'u', t: 'no' }] } } } });
       const got = await call('/api/vocab/tutor-log', { cookie });
       check('tutor-log: saved and read back (unknown modes / empty turns dropped)', put.status === 200 && put.d.savedAt > 0 && got.d.log && got.d.log.modes.chat.hist.length === 2 && !got.d.log.modes.evil && got.d.log.savedAt === put.d.savedAt, JSON.stringify(got.d));
+      const pd = await call('/api/vocab/tutor-log', { method: 'PUT', cookie, body: { modes: { lesson: { day: '2026-10-14', focus: 'Sport', hist: [{ r: 'u', t: 'x' }] } }, done: { lesson: [{ d: '2026-10-13', topic: 'Food', words: ['recipe', 'bake'] }], evil: [{}] } } });
+      const gd = (await call('/api/vocab/tutor-log', { cookie })).d.log;
+      check('tutor-log: lesson archive (theme + taught words) and the lesson day kept', pd.status === 200 && gd.done.lesson[0].words.join() === 'recipe,bake' && !gd.done.evil && gd.modes.lesson.day === '2026-10-14' && gd.modes.lesson.focus === 'Sport', JSON.stringify(gd).slice(0, 200));
       check('tutor-log: bad body -> 400', (await call('/api/vocab/tutor-log', { method: 'PUT', cookie, body: { modes: [] } })).status === 400);
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
   }
@@ -539,6 +547,7 @@ async function main() {
     await call('/api/auth/signup', { method: 'POST', body: { name: 'L', email: em, password: 'secret123' } });
     const lg = await call('/api/auth/login', { method: 'POST', body: { email: em, password: 'secret123' } });
     const ck = String((typeof lg.headers.getSetCookie === 'function' ? lg.headers.getSetCookie()[0] : lg.headers.get('set-cookie')) || '').split(';')[0];
+    env.ADMIN_EMAILS = em; // this block's user manages tests; the shared-library part below switches back
     const T = { id: 'mini-test', title: 'Mini Test', sections: [{ n: 1, title: 'Section 1', range: '1–5', groups: [
       { title: 'Q1', instr: 'Choose', questions: [{ n: 1, q: 'Which?', options: [{ k: 'A', t: 'a' }, { k: 'B', t: 'b' }] }] },
       { title: 'Q2-3', instr: 'Complete', lines: ['Name: [2]', 'Cost: £ [3]'] },
@@ -569,7 +578,7 @@ async function main() {
       const fakeTg = globalThis.fetch;
       globalThis.fetch = async (url, init) => String(url).includes('/sendDocument') ? new Response(JSON.stringify({ ok: true, result: { audio: { file_id: 'FID-AUDIO' } } })) : fakeTg(url, init);
       const asAudio = await up(new Uint8Array([5, 6]), 'audio/mpeg');
-      check('listening: an mp3 Telegram files as «audio» still counts as uploaded', asAudio.status === 200 && (await call('/api/ielts/exams', { cookie: ck })).d.tests.find(t => t.id === 'mini-test').audio.tgId === 'FID-AUDIO', String(asAudio.status));
+      check('listening: an mp3 Telegram files as «audio» still counts as uploaded', asAudio.status === 200 && (await call('/api/ielts/exams', { cookie: ck })).d.tests.find(t => t.id === 'mini-test').audio.size === 2, String(asAudio.status));
       globalThis.fetch = fakeTg;
       await up(new Uint8Array([1, 2, 3, 4]), 'audio/mpeg');
       const get = await worker.fetch(new Request('https://worker-smoke.local/api/ielts/exams/tests/mini-test/audio', { headers: { cookie: ck } }), env, {});
@@ -581,7 +590,7 @@ async function main() {
     const at = await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'mini-test', answers: { 1: 'b', 2: 'prescott.', 3: 'sixty-five', 4: 'C', 5: 'C' } } });
     check('listening: marked on the server (case, number words, pick group counts a letter once)', at.status === 201 && at.d.raw === 4 && at.d.total === 5 && at.d.results.find(r => r.n === 5).ok === false && at.d.evidence[2] && at.d.tape.length === 1, JSON.stringify(at.d && at.d.results));
     const list = await call('/api/ielts/exams', { cookie: ck });
-    check('listening: overview has the test, best band and the attempt', list.d.tests[0].attempts === 1 && list.d.tests[0].best === at.d.band && list.d.attempts[0].id === at.d.id && list.d.tests[0].audio.tgId === 'FID1');
+    check('listening: overview has the test, best band and the attempt (Telegram file id not sent to the browser)', list.d.tests[0].attempts === 1 && list.d.tests[0].best === at.d.band && list.d.attempts[0].id === at.d.id && list.d.tests[0].audio && !list.d.tests[0].audio.tgId);
     const rv = await call(`/api/ielts/exams/attempts/${at.d.id}`, { cookie: ck });
     check('listening: review re-marks a past attempt', rv.status === 200 && rv.d.raw === 4 && rv.d.results.length === 5);
     check('listening: other users can\'t see it', (await call('/api/ielts/exams/tests/mini-test', { cookie })).status === 404 && (await call(`/api/ielts/exams/attempts/${at.d.id}`, { cookie })).status === 404);
@@ -599,7 +608,24 @@ async function main() {
     const rf = await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'mini-read', answers: { 1: 'TRUE', 2: 'NOT GIVEN', 3: 'Modernism' } } });
     const rl = await call('/api/ielts/exams', { cookie: ck });
     check('reading: full test 3/3 -> band 9; best band ignores single-passage practice', rf.d.raw === 3 && rf.d.band === 9 && rl.d.tests.find(t => t.id === 'mini-read').best === 9 && rl.d.tests.find(t => t.id === 'mini-read').attempts === 2);
+    delete env.ADMIN_EMAILS; // admin = the first account again (the main test user)
+    check('only the admin imports tests', (await call('/api/ielts/exams/tests', { method: 'POST', cookie: ck, body: { ...R, id: 'mine-x' } })).status === 403);
+    // shared library: only the admin adds/moves/deletes; every user sees and takes the test
+    const S = { ...R, id: 'shared-read', title: 'Shared Reading' };
+    check('shared: a normal user can\'t add for everyone', (await call('/api/ielts/exams/tests?shared=1', { method: 'POST', cookie: ck, body: S })).status === 403);
+    const sh = await call('/api/ielts/exams/tests?shared=1', { method: 'POST', cookie, body: S });
+    const seen = await call('/api/ielts/exams', { cookie: ck });
+    const st = seen.d.tests.find(t => t.id === 'shared-read');
+    check('shared: admin adds it, other users see it as shared', sh.status === 201 && sh.d.shared === true && st && st.shared && !st.mine && seen.d.admin === false, JSON.stringify(sh.d).slice(0, 120));
+    const sat = await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'shared-read', answers: { 1: 'TRUE' } } });
+    check('shared: other users take it, results are their own', sat.status === 201 && sat.d.raw === 1 && (await call('/api/ielts/exams', { cookie: ck })).d.tests.find(t => t.id === 'shared-read').attempts === 1 && (await call('/api/ielts/exams', { cookie })).d.tests.find(t => t.id === 'shared-read').attempts === 0);
+    check('shared: other users can\'t delete or move it', (await call('/api/ielts/exams/tests/shared-read', { method: 'DELETE', cookie: ck })).status === 403 && (await call('/api/ielts/exams/tests/shared-read', { method: 'PATCH', cookie: ck, body: { shared: false } })).status === 403);
+    const back = await call('/api/ielts/exams/tests/shared-read', { method: 'PATCH', cookie, body: { shared: false } });
+    check('shared: admin moves it back to their own list; others no longer see it', back.status === 200 && back.d.mine && !(await call('/api/ielts/exams', { cookie: ck })).d.tests.some(t => t.id === 'shared-read') && (await call('/api/ielts/exams/tests/shared-read', { cookie })).status === 200);
+    await call('/api/ielts/exams/tests/shared-read', { method: 'DELETE', cookie });
+    env.ADMIN_EMAILS = em;
     check('listening: delete test removes its attempts', (await call('/api/ielts/exams/tests/mini-test', { method: 'DELETE', cookie: ck })).status === 200 && !(await call('/api/ielts/exams', { cookie: ck })).d.attempts.some(a => a.testId === 'mini-test'));
+    delete env.ADMIN_EMAILS;
   }
   { // work-time log: manual entries, validation, edit, timer start/stop
     const a = await call('/api/time', { method: 'POST', cookie, body: { title: 'گزارش پروژه', minutes: 95, date: '2026-02-03', projectId: 'p1' } });

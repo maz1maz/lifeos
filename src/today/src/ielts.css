@@ -140,7 +140,7 @@
 .lt-table tr.bad td:last-child{color:var(--g-bad,#fb7185)}
 .lt-table tr.bad td:nth-child(2){color:var(--g-bad,#fb7185)}
 .lt-evid h4{margin:10px 0 4px;font-size:14px}
-.lt-evid p{margin:4px 0;font-size:13.5px;line-height:1.8;text-align:left;border-inline-start:3px solid var(--g-accent);padding-inline-start:10px}
+.lt-evid p{margin:4px 0;font-size:13.5px;line-height:1.8;text-align:start;border-inline-start:3px solid var(--g-accent);padding-inline-start:10px}
 .lt-tape{max-height:420px;overflow:auto;border:1px solid var(--g-border);border-radius:12px;padding:10px 14px;font-size:13.5px;line-height:1.8;text-align:left}
 .lt-tape p{margin:0 0 8px}
 @media(max-width:700px){.lt-paper{padding:14px;font-size:15px}.lt-gap input{width:130px}.lt-picklist{columns:1}.lt-bar{gap:6px;padding:8px 10px}.lt-title,.lt-mode{display:none}.lt-bar .ie-btn{padding:7px 10px;font-size:13px}.lt-time i{width:70px}.lt-bar audio{max-width:100%;flex-basis:100%}}
@@ -292,3 +292,42 @@
   .cd .lt-gap input{width:140px}
   .rd-drawer{top:auto;bottom:0;inset-inline:0;width:auto;max-width:none;max-height:60vh;border-radius:16px 16px 0 0}
 }
+/* shared IELTS library (ielts-exams.jsx) */
+.lt-add{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.lt-sharechk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--g-muted);cursor:pointer}
+.lt-sharechk input{accent-color:var(--g-accent);width:16px;height:16px}
+.lt-badge{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:3px 0;font-size:11.5px;padding:1px 8px;border-radius:99px;background:var(--g-accent-soft);color:var(--g-accent);vertical-align:middle}
+/* the four skills (ielts.jsx) */
+.ie-skills{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+.ie-skills button{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border:1px solid var(--g-border);border-radius:14px;background:var(--g-panel);color:var(--g-text);font:inherit;font-size:15px;font-weight:700;cursor:pointer}
+.ie-skills button:hover{border-color:var(--g-accent)}
+.ie-skills button.on{border-color:var(--g-accent);background:var(--g-accent-soft);color:var(--g-accent)}
+@media(max-width:700px){.ie-skills{grid-template-columns:repeat(2,minmax(0,1fr))}.ie-skills button{height:44px;font-size:14px}}
+/* speaking (ielts-speaking.jsx) */
+.sp-cue{border:1px dashed var(--g-border-2);border-radius:12px;padding:14px 18px;font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.7;text-align:left}
+.sp-cue b{font-size:17px}
+.sp-cue p{margin:6px 0 2px;color:var(--g-muted);font-style:italic}
+.sp-cue ul{margin:0;padding-left:22px}
+.sp-time{font-variant-numeric:tabular-nums;font-weight:800;padding:6px 14px;border-radius:99px;background:var(--g-accent-soft);color:var(--g-accent)}
+.sp-time.live{background:color-mix(in srgb,var(--g-bad,#fb7185) 18%,transparent);color:var(--g-bad,#fb7185)}
+.sp-rec{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.sp-rec audio{width:100%;max-width:480px}
+.sp-set ul{margin:0;padding-left:20px;line-height:1.9;text-align:left;font-size:14.5px}
+.ie-card>a.ie-btn{align-self:flex-start}
+.cd .lt-bankitems{margin:10px 0 0;padding-top:8px;border-top:1px dashed var(--g-border-2)}
+.lt-evid header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lt-evid header .ie-btn{margin:0;padding:4px 10px;font-size:12.5px}
+.lt-evid p{white-space:pre-wrap}
+.lt-evid p.ok{border-inline-start-color:var(--g-good,#34d399)}
+.lt-bankbox{border-top:1px dashed var(--g-border);margin-top:10px;padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.lt-bankbox>header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.lt-bankbox>header .ie-h3{margin:0}
+.lt-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lt-search{flex:1;min-width:160px;height:36px;border:1px solid var(--g-border-2);border-radius:10px;background:transparent;color:var(--g-text);font:inherit;font-size:13px;padding:0 10px}
+.lt-bank-list li{padding:8px 12px}
+.lt-pages{display:flex;align-items:center;justify-content:center;gap:10px;font-size:13px}
+.cd .lt-gimg{display:block;max-width:100%;width:auto;max-height:420px;margin:6px auto 10px}
+.lt-ex{border-inline-start:3px solid var(--g-accent);padding:2px 10px;margin:6px 0;font-size:13.5px;line-height:1.8}
+.lt-ex.ok{border-inline-start-color:var(--g-good,#34d399)}
+.lt-ex p{margin:0;border:0!important;padding:0!important;text-align:right!important}
+.lt-ex p[dir]:not(:first-of-type){unicode-bidi:plaintext}
