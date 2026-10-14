@@ -555,6 +555,23 @@ son/sun — dog/dug — feel/fill
 | منفی (−) | subject + don't/doesn't have to + verb | You don't have to go to the bank. | لازم نیست به بانک بروی | = It's not necessary to do it. (اختیاری است) |
 | گذشته | had to + verb | She had to work late last night. | دیشب مجبور شد دیر وقت کار کند | سؤال/منفی: Did you have to…? / didn't have to |
 
+### have to در حال و گذشته — تمرین کامل (جلسه ۲۵)
+
+| حالت | ساختار | مثال | معنی | پاسخ کوتاه |
+| --- | --- | --- | --- | --- |
+| حال (+) | have/has to + verb | You have to arrive at work at 7:00. | باید ساعت ۷ سرکار برسی | — |
+| حال (?) | Do/Does + S + have to + verb? | Do I have to arrive at work at 7:00? | باید ساعت ۷ سرکار برسم؟ | Yes, you do. / No, you don't. |
+| حال (−) | don't/doesn't have to + verb | You don't have to arrive at work at 7:00. | لازم نیست ساعت ۷ برسی | — |
+| گذشته (+) | had to + verb | You had to arrive at work at 7:00 yesterday. | دیروز باید ساعت ۷ می‌رسیدی | — |
+| گذشته (?) | Did + S + have to + verb? | Did I have to arrive at work at 7:00? | دیروز باید ساعت ۷ سرکار می‌رسیدم؟ | Yes, you did. / No, you didn't. |
+| گذشته (−) | didn't have to + verb | You didn't have to arrive at work at 7:00. | لازم نبود ساعت ۷ برسی | — |
+| he / she (+) | has to + verb | She has to go to school every day. | او هر روز باید به مدرسه برود | — |
+| he / she (?) | Does + S + have to + verb? | Does she have to go to school? | آیا او باید به مدرسه برود؟ | No, she doesn't. |
+| he / she (−) | doesn't have to + verb | She doesn't have to go to school. | لازم نیست به مدرسه برود | — |
+| گذشته با we | had to / did…have to / didn't have to | We had to wear uniforms. / Did you have to wear uniforms? / We didn't have to wear uniforms. | مجبور بودیم یونیفرم بپوشیم / مجبور بودید؟ / لازم نبود | Yes, we did. / No, we didn't. |
+
+**خطای رایج:** بعد از did / didn't شکل **have** می‌آید، نه had: "Did you have to…?" ✓ — "Did you had to…?" ✗
+
 ### must یا have to؟ — مقایسه سریع
 
 | مورد | must | have to / has to | تفاوت | مثال |
@@ -869,6 +886,120 @@ son/sun — dog/dug — feel/fill
 - **ever** در سؤال: "Have you ever seen Japan?" — تا حالا ژاپن را دیده‌ای؟
 - **never** در جواب یا جمله مثبت (معنی منفی دارد): "No, never." / "I have never been to Japan." — هیچ‌وقت ژاپن نبوده‌ام.
 
+### مثال‌های تمرینی (جلسه ۲۵)
+
+| کاربرد | قید | مثال | معنی | نکته |
+| --- | --- | --- | --- | --- |
+| نتیجه (−) | yet | I haven't done my homework yet. | هنوز تکلیفم را انجام نداده‌ام | آخر جمله |
+| نتیجه (+) | just | I have just done my homework. | همین الان تکلیفم را انجام دادم | بین have و p.p. |
+| نتیجه (+) | already | My aunt has already arrived. | عمه/خاله‌ام قبلاً رسیده است | زودتر از انتظار |
+| تجربه (+) | never | I have never visited / seen Tabriz. | هیچ‌وقت تبریز را ندیده‌ام | visited = بازدید کردن |
+| تجربه (?) | ever | Have you ever seen / been to Tabriz? | تا حالا تبریز را دیده‌ای / تبریز بوده‌ای؟ | been to = رفته و برگشته |
+
+**been to یا gone to؟** "I have been to Tabriz." = رفته‌ام و برگشته‌ام (تجربه). "He has gone to Tabriz." = رفته و هنوز آنجاست.
+
+### افعال بی‌قاعده جلسه ۲۵ (سه شکل فعل)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| hear – heard – heard | /hɪər, hɜːrd, hɜːrd/ | شنیدن | The officer heard a loud noise. / Have you heard the news? |
+| become – became – become | /bɪˈkʌm, bɪˈkeɪm, bɪˈkʌm/ | شدن | The officer became angry. / She has become a teacher. |
+| run – ran – run | /rʌn, ræn, rʌn/ | دویدن؛ **اداره کردن** | He ran to the bus stop. / She runs a small business. |
+| do – did – done | /duː, dɪd, dʌn/ | انجام دادن | I have just done my homework. |
+| see – saw – seen | /siː, sɔː, siːn/ | دیدن | I have never seen snow. |
+
 **یادآوری:** با **never** فعل را مثبت می‌آوریم (نه haven't never). و با زمان دقیق گذشته (yesterday, in 2010, last week) **نمی‌توان** present perfect به‌کار برد؛ آنجا گذشته ساده لازم است.
 
 **نکته آیلتس:** در Speaking Part 1 برای سؤال‌هایی مثل "How long have you lived here?" یا "Have you ever traveled abroad?" این زمان ضروری است. جمله‌های کامل مثل "I've lived here for ten years" و "I've never been to Japan, but I'd love to go" به نمره Grammatical Range کمک می‌کنند.
+
+## واژگان و تمرین (جلسه ۲۴ و ۲۵): غذا، گوشت، آشپزی ملل و تمرین گفتاری
+
+### گوشت و غذاهای دریایی (Voc 24)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| meat (n.) | /miːt/ | گوشت | I don't eat much meat. |
+| fish (n.) | /fɪʃ/ | ماهی | We often have fish on Fridays. |
+| cow (n.) | /kaʊ/ | گاو | The cows are in the field. |
+| beef (n.) | /biːf/ | گوشت گاو | I'd like a beef burger, please. |
+| lamb (n.) | /læm/ | گوشت بره / گوسفند | Roast lamb is my favourite. |
+| pork (n.) | /pɔːrk/ | گوشت خوک | Many people don't eat pork. |
+| duck (n.) | /dʌk/ | اردک | We had roast duck for dinner. |
+| ham (n.) | /hæm/ | ران خوک (گوشت ران خوک دودی/نمک‌سود) | I'd like a ham sandwich. |
+| bacon (n.) | /ˈbeɪkən/ | گوشت نمک‌زده و دودی پهلوی خوک (نوعی گوشت خوک) | Bacon and eggs for breakfast. |
+| sausage (n.) | /ˈsɒsɪdʒ/ (جمع: sausages /ˈsɒsɪdʒɪz/) | سوسیس | He grilled some sausages. |
+| salmon (n.) | /ˈsæmən/ | ماهی آزاد، سالمون | Grilled salmon with rice, please. |
+| tuna (n.) | /ˈtjuːnə/ , /ˈtuːnə/ | ماهی تن | I made a tuna salad. |
+| squid (n.) | /skwɪd/ | ماهی مرکب (هشت‌پای کوچک) | Fried squid is a popular starter. |
+| prawn (n.) | /prɔːn/ | میگو | We ordered prawn curry. |
+| mussel (n.) | /ˈmʌsl/ (جمع: mussels) | صدف خوراکی دریایی (دو کفه) | Mussels are cooked in white wine. |
+| crab (n.) | /kræb/ | خرچنگ | Crab is expensive here. |
+
+### کشورها و ملیت‌ها (Units — Student's Book)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| Thailand → Thai | /ˈtaɪlænd/ → /taɪ/ | تایلند → تایلندی | I love Thai food. |
+| America → American | /əˈmerɪkə/ → /əˈmerɪkən/ | آمریکا → آمریکایی | American breakfasts are big. |
+| China → Chinese | /ˈtʃaɪnə/ → /ˌtʃaɪˈniːz/ | چین → چینی | Chinese tea is popular here. |
+| Turkey → Turkish | /ˈtɜːrki/ → /ˈtɜːrkɪʃ/ | ترکیه → ترکی | I'd like a Turkish coffee. |
+| Italy → Italian | /ˈɪtəli/ → /ɪˈtæliən/ | ایتالیا → ایتالیایی | Italian pasta is delicious. |
+| India → Indian | /ˈɪndiə/ → /ˈɪndiən/ | هند → هندی | We went to an Indian restaurant. |
+| Vietnam → Vietnamese | /ˌviːetˈnɑːm/ → /ˌviːetnəˈmiːz/ | ویتنام → ویتنامی | Vietnamese noodle soup is famous. |
+| Mexico → Mexican | /ˈmeksɪkoʊ/ → /ˈmeksɪkən/ | مکزیک → مکزیکی | Mexican food is spicy. |
+| Korea → Korean | /kəˈriːə/ → /kəˈriːən/ | کره → کره‌ای | I want to try Korean barbecue. |
+| Japan → Japanese | /dʒəˈpæn/ → /ˌdʒæpəˈniːz/ | ژاپن → ژاپنی | Japanese cuisine is healthy. |
+| Morocco → Moroccan | /məˈrɒkoʊ/ → /məˈrɒkən/ | مراکش → مراکشی | A Moroccan dish with lamb. |
+| Brazil → Brazilian | /brəˈzɪl/ → /brəˈzɪliən/ | برزیل → برزیلی | Brazilian coffee is strong. |
+
+### آشپزی، طعم و مزه
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| cuisine (n.) | /kwɪˈziːn/ | سبک آشپزی، غذا و آشپزی یک ملت | Italian cuisine is famous worldwide. |
+| gumbo (n.) | /ˈɡʌmboʊ/ | گامبو — خورش غلیظ سنتی جنوب آمریکا | We tried gumbo in New Orleans. |
+| sushi (n.) | /ˈsuːʃi/ | سوشی | Do you like sushi? |
+| ramen (n.) | /ˈrɑːmən/ | سوپ رشته‌ای ژاپنی (با گوشت و سبزی) | I had a bowl of ramen for lunch. |
+| noodle (n.) | /ˈnuːdl/ | رشته (رشته‌فرنگی) | She cooked noodles with vegetables. |
+| cracker (n.) | /ˈkrækər/ | بیسکویت شور و ترد (کلوچه) | She ate cheese and crackers. |
+| taste (n.) | /teɪst/ | طعم؛ **سلیقه** | I love the taste of mint. / She has good taste in music. |
+| strong taste | /strɒŋ teɪst/ | مزه تند و غلیظ | Blue cheese has a strong taste. |
+| sour (adj.) | /ˈsaʊər/ | ترش | This lemon is very sour. |
+| salty (adj.) | /ˈsɔːlti/ | شور | The soup is too salty. |
+| bland (adj.) | /blænd/ | بی‌مزه، ملایم و کم‌طعم | Hospital food is often bland. |
+| raw (adj.) | /rɔː/ | خام | Sushi is made with raw fish. |
+| texture (n.) | /ˈtekstʃər/ | بافت | I like the creamy texture. |
+| recommend (v.) | /ˌrekəˈmend/ | توصیه کردن | Can you recommend a good restaurant? |
+| amazing (adj.) | /əˈmeɪzɪŋ/ | شگفت‌انگیز | The food was amazing! |
+| to die for {informal} | /tə daɪ fɔːr/ | عالی و وسوسه‌انگیز (عاشق چیزی بودن) | Their chocolate cake is to die for. |
+
+### عبارات و ترکیب‌های جلسه ۲۵
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| boring (adj.) | /ˈbɔːrɪŋ/ | کسل‌کننده | The long drive was boring. |
+| distance (n.) | /ˈdɪstəns/ | فاصله | The distance to work is 20 km. |
+| She has a class. | /ʃi hæz ə klɑːs/ | او کلاس دارد. | She has a class at nine. |
+| agree with (v.) | /əˈɡriː/ | موافقت کردن، هم‌نظر بودن | I agree with you. |
+| be honest with | /ˈɒnɪst/ | با کسی صادق بودن | Be honest with them. |
+| listen to | /ˈlɪsn tuː/ | به کسی گوش دادن | Listen to them and respect their opinion. |
+| respect (v./n.) | /rɪˈspekt/ | احترام گذاشتن؛ احترام | We should respect older people. |
+| times (n.) | /taɪmz/ | دفعات؛ **زمان‌ها** | I've seen this film three times. |
+| several (adj.) | /ˈsevrəl/ | چندین | I've been there several times. |
+| in mind | /ɪn maɪnd/ | در نظر داشتن، به یاد داشتن | Keep it in mind for next time. |
+
+**حروف اضافه مهم:** agree **with** someone — be honest **with** someone — listen **to** someone. بدون این حروف اضافه جمله اشتباه است: "listen them" ✗
+
+### تمرین گفتاری: Trust (اعتماد کردن)
+
+1. How can we trust people? — چطور می‌توانیم به مردم اعتماد کنیم؟
+2. How can we make people trust us? — چطور می‌توانیم کاری کنیم مردم به ما اعتماد کنند؟
+3. Why do we have to trust people? — چرا باید به مردم اعتماد کنیم؟
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| trust (v./n.) | /trʌst/ | اعتماد کردن؛ اعتماد | I trust my best friend. / Trust takes time to build. |
+| make people trust us | /meɪk ˈpiːpl trʌst ʌs/ | کاری کنیم مردم به ما اعتماد کنند | Honesty makes people trust us. |
+| reliable (adj.) | /rɪˈlaɪəbl/ | قابل اتکا | He is a reliable colleague. |
+
+**پاسخ نمونه (Speaking):** "We have to trust people because we can't do everything alone. To make people trust us, we should be honest with them, listen to them and keep our promises." — در این پاسخ از have to، should و حروف اضافه‌ی جلسه ۲۵ استفاده شده است.
