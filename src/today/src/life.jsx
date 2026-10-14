@@ -530,15 +530,15 @@ function ContractFinancials({ contract, onPatch, onAddStatement }) {
 export const nextStatementNo = rows => Math.max(0, ...(rows || []).map(r => Number(r.statementNo) || 0)) + 1;
 export const projectReceived = (contract, statements) => num(contract?.advancePayment) + (statements || []).reduce((total, row) => total + num(row.paidAmount), 0);
 // Statement amounts are entered cumulatively (each one = total work to date), payments are individual deposits.
-// So: total billed = the latest statement's amount; remaining = that − all payments; per statement,
-// remaining = its amount − payments up to and including it.
+// So: total billed = the latest statement's payable (net of the deposits up to it); remaining = that;
+// per statement (the rows without a workbook), remaining = its amount − payments up to and including it.
 export function latestStatementPayable(contract, rows) {
   if (!hasWorkbook(contract)) return null;
   const no = Math.max(0, ...(contract.measures || []).map(m => Number(m.statementNo) || 0));
   if (!no) return null;
+  // the statement's payable already has the employer's deposits up to this statement taken off (statementSummary)
   const amount = statementSummary(contract, no, rows).payableWithVat;
-  const paidCurrent = (rows || []).filter(r => (Number(r.statementNo) || 0) === no).reduce((sum, r) => sum + num(r.paidAmount), 0);
-  return { no, amount, remaining: Math.max(0, amount - paidCurrent) };
+  return { no, amount, remaining: Math.max(0, amount) };
 }
 export function statementLedger(rows, contract) {
   const sorted = (rows || []).slice().sort((a, b) => (Number(a.statementNo) || 0) - (Number(b.statementNo) || 0) || (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));

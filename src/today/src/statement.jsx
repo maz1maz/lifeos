@@ -51,7 +51,9 @@ export const svRatesOf = contract => {
 //   paid on top of the work (or, if the contract says so, deducted);
 // · retention 10% (the final statement keeps only 5%: half is released at provisional delivery);
 // · advance amortization 70% of the work, never above the advance paid;
-// · «paid before» = the employer's recorded deposits for earlier statements when there are any, else their computed payables.
+// · «paid before» = the employer's recorded deposits up to and including this statement (a deposit entered on a statement
+//   is taken off that statement's payable) when there are any, else the computed payables of earlier statements;
+// · VAT and retention are read from the cumulative gross work.
 export function statementSummary(contract, n, payments) {
   const boq = contract?.boq || [], measures = contract?.measures || [], rates = svRatesOf(contract), addInsurance = rates.insuranceMode !== 'deduct';
   const advanceCap = num(contract?.advancePayment), base = boqTotal(boq.filter(b => !b.extra)) || num(contract?.amount);
@@ -67,10 +69,11 @@ export function statementSummary(contract, n, payments) {
     const isFinal = Number(contract?.svFinal) === k, retentionRate = !rates.hasRetention ? 0 : isFinal ? num(rates.retentionFinal) : num(rates.retention);
     const retention = Math.round(gross * retentionRate / 100);
     let advance = Math.round(gross * num(rates.advance) / 100); if (advanceCap > 0) advance = Math.min(advance, advanceCap);
-    const paidRows = recorded.filter(x => (Number(x.statementNo) || 0) < k), paidBefore = paidRows.length ? paidRows.reduce((a, x) => a + num(x.paidAmount), 0) : computedBefore;
+    const paidRows = recorded.filter(x => (Number(x.statementNo) || 0) <= k), paidBefore = paidRows.length ? paidRows.reduce((a, x) => a + num(x.paidAmount), 0) : computedBefore;
     const insuranceAdded = addInsurance ? insurance : 0, insuranceDeducted = addInsurance ? 0 : insurance;
     const deductions = discount + retention + insuranceDeducted + advance + paidBefore;
-    const payable = gross + insuranceAdded - deductions, vat = Math.round(Math.max(0, payable) * num(rates.vat) / 100);
+    // VAT is read from the cumulative gross work (کارکرد ناخالص تجمعی), like the retention, not from the net payable
+    const payable = gross + insuranceAdded - deductions, vat = Math.round(Math.max(0, gross) * num(rates.vat) / 100);
     last = { n: k, gross, prevGross, current: gross - prevGross, contractGross, discount, insuranceBase, insurance, insuranceAdded, insuranceDeducted, retention, retentionRate, advance, paidBefore, paidFromRecords: paidRows.length > 0, deductions, payable, vat, payableWithVat: payable + vat, rates, addInsurance, isFinal };
     computedBefore += payable + vat;
   }
