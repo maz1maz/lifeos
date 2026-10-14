@@ -1045,7 +1045,9 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     fd.append('document',new Blob([bytes],{type:mime||'application/octet-stream'}),filename||'file');
     let r=await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`,{method:'POST',body:fd}),data=await r.json();
     if(!data.ok)throw new Error(data.description||'ارسال فایل به تلگرام ناموفق بود.');
-    return (data.result.document&&data.result.document.file_id)||null;
+    // Telegram files an mp3/m4a sent as a document under `audio` (a video under `video`), not `document`
+    let res=data.result||{},f=res.document||res.audio||res.video||res.voice||res.animation||(Array.isArray(res.photo)&&res.photo[res.photo.length-1]);
+    return (f&&f.file_id)||null;
   }
   // Strips live credentials before a DB snapshot leaves the server (Telegram
   // chat storage is not a vault): password hash, PIN hash and OAuth refresh
