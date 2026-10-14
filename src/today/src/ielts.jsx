@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { BookOpenCheck, ChevronDown, ChevronUp, ExternalLink, Headphones, Mic, PenLine, Trash2 } from 'lucide-react';
+import { BookOpenCheck, ChevronDown, ChevronUp, Dices, ExternalLink, Headphones, Mic, PenLine, Trash2 } from 'lucide-react';
+import { randomTopic } from './ielts-topics';
 import { api, fa, jl } from './life-core';
 import { Loader } from './loader';
 import { ExamsCard, ExamView } from './ielts-exams';
@@ -85,8 +86,9 @@ function Writing({ preset, onClear }) {
     <div className="ie-seg" role="radiogroup" aria-label="نوع تسک">
       {[['task1', 'Task 1 (گزارش/نامه)'], ['task2', 'Task 2 (انشا)']].map(([k, t]) => <button key={k} type="button" role="radio" aria-checked={task === k} className={task === k ? 'on' : ''} onClick={() => setTask(k)}>{t}</button>)}
     </div>
-    <label className="ie-label" htmlFor="ie-q">صورت سؤال (اختیاری ولی برای نمرهٔ دقیق لازم)</label>
-    <textarea id="ie-q" dir="ltr" rows={3} value={question} onChange={e => setQuestion(e.target.value)} placeholder="Some people believe that…" />
+    <div className="ie-qhead"><label className="ie-label" htmlFor="ie-q">صورت سؤال (اختیاری ولی برای نمرهٔ دقیق لازم)</label>
+      <button type="button" className="ie-btn ghost" onClick={() => { onClear?.(); setQuestion(q => randomTopic(task, q)); setCur(null); }} title={task === 'task1' ? 'نامهٔ جنرال؛ Task 1 آکادمیک (نمودار) در فهرست کتاب‌های بالاست' : 'یک موضوع انشای تازه'}><Dices size={15} />موضوع پیشنهادی</button>{!preset && question ? <Timer minutes={task === 'task1' ? 20 : 40} /> : null}</div>
+    <textarea id="ie-q" dir="ltr" rows={question.length > 180 ? 6 : 3} value={question} onChange={e => setQuestion(e.target.value)} placeholder="Some people believe that…" />
     <label className="ie-label" htmlFor="ie-e">متن تو</label>
     <textarea id="ie-e" dir="ltr" rows={12} value={essay} onChange={e => setEssay(e.target.value)} />
     <div className="ie-row">
