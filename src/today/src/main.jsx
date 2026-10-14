@@ -228,7 +228,9 @@ const ShopView = ({ Nav }) => <main className="lf" dir="rtl"><Nav /><div classNa
 const PLAN_TABS = [['list', 'لیست کارها', ListChecks, PlannerReact], ['calendar', 'تقویم', CalendarDays, CalendarReact], ['habits', 'عادت‌ها', Flame, HabitsPage], ['focus', 'تمرکز', Timer, FocusPage], ['time', 'زمان کار', Clock, TimeLogPage]];
 const REVIEW_TABS = [['goals', 'اهداف سالانه', Target, GoalsPage], ['week', 'مرور هفته', ClipboardCheck, WeeklyPage], ['stats', 'آمار زندگی', BarChart3, LifeStatsPage], ['logbook', 'دفتر و مرور', BookMarked, LogbookPage]];
 const HEALTH_TABS = [['health', 'سلامت', HeartPulse, HealthPage], ['exercise', 'ورزش', Dumbbell, ExercisePage]];
-const LEARN_TABS = [['learning', 'کتاب و دوره', BookOpen, LearningPage], ['vocab', 'زبان', Languages, VocabPage], ['ielts', 'آیلتس', GraduationCap, IeltsPage]];
+// IELTS first (the main focus); the menu's «یادگیری و زبان» opens it. Books/courses keep their own URL (?page=learning&t=books).
+const LEARN_TABS = [['ielts', 'آیلتس', GraduationCap, IeltsPage], ['vocab', 'زبان', Languages, VocabPage], ['learning', 'کتاب و دوره', BookOpen, LearningPage]];
+const learnUrl = v => v === 'learning' ? 'learning&t=books' : v;
 const NOTES_TABS = [['notes', 'یادداشت‌ها', StickyNote, NotesReact], ['journal', 'روزنگار', BookOpen, JournalPage], ['shopping', 'لیست خرید', ShoppingCart, ShopView], ['bookmarks', 'لینک‌ها', Bookmark, BookmarksPage]];
 
 // Something was saved from Ctrl+K: re-mount the current page so it fetches its data again (lazy chunks are
@@ -248,7 +250,7 @@ function Routes() {
   if (page === 'insights') return <InsightsPage Nav={() => <TopNav active="insights" />} />;
   if (['review', 'goals', 'week', 'stats', 'logbook'].includes(page)) return <TabHub active="review" label="مرور و اهداف" tabs={REVIEW_TABS} initial={page} />;
   if (['health', 'exercise'].includes(page)) return <TabHub active="health" label="سلامت" tabs={HEALTH_TABS} initial={page} />;
-  if (['learning', 'vocab', 'ielts'].includes(page)) return <TabHub active="learning" label="یادگیری" tabs={LEARN_TABS} initial={page} />;
+  if (['learning', 'vocab', 'ielts'].includes(page)) return <TabHub active="learning" label="یادگیری" tabs={LEARN_TABS} url={learnUrl} initial={page === 'learning' && new URLSearchParams(location.search).get('t') !== 'books' ? null : page} />;
   if (['notes', 'journal', 'shopping', 'bookmarks'].includes(page)) return <TabHub active="notes" label="یادداشت‌ها" tabs={NOTES_TABS} initial={page} />;
   const LIFE = { courses: CoursesPage, health: HealthPage, car: CarPage, travel: TravelPage, projects: ProjectsPage, crm: CrmPage };
   if (LIFE[page]) { const P = LIFE[page]; return <P Nav={() => <TopNav active={page} />} />; }
