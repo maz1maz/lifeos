@@ -1,22 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, BookOpenCheck, ChevronDown, ChevronUp, ExternalLink, Headphones, Mic, PenLine, Trash2 } from 'lucide-react';
+import { BookOpenCheck, ChevronDown, ChevronUp, ExternalLink, Headphones, Mic, PenLine, Trash2 } from 'lucide-react';
 import { Page, api, fa, jl } from './life-core';
 import { Loader } from './loader';
 import { ExamsCard, ExamView } from './ielts-exams';
 import { SpeakingPanel } from './ielts-speaking';
 
-// «آیلتس» tab of the learning hub: the Persian build of IELTS Atlas (static app in public/ielts/, behind the
-// login; synced with scripts/sync-ielts.js), question-bank numbers from /ielts/lifeos-stats.json, AI Writing
-// marking (/api/ielts/writing) and links to outside practice and resources.
-const PARTS = [['P1', 'پسیج ۱', 'آسان‌تر · ۲۰ دقیقه'], ['P2', 'پسیج ۲', 'متوسط · ۲۰ دقیقه'], ['P3', 'پسیج ۳', 'سخت‌تر · ۲۰ دقیقه']];
-const KINDS = [
-  ['تکمیل (جدول، خلاصه، جمله، یادداشت…)', /_completion$/],
-  ['تطبیق', /^matching$/],
-  ['True/False/Not Given و Yes/No', /_not_given$/],
-  ['چندگزینه‌ای', /choice$/],
-  ['جواب کوتاه', /^short_answer$/],
-  ['دسته‌بندی', /^classification$/],
-];
+// «آیلتس» tab of the learning hub, one tab per skill: Reading and Listening tests from the shared library
+// (/api/ielts/exams, run in ielts-reading.jsx / ielts-listening.jsx), AI Writing marking (/api/ielts/writing),
+// Speaking practice and links to outside practice and resources.
 const CRIT = { ta: 'Task Achievement', tr: 'Task Response', cc: 'Coherence & Cohesion', lr: 'Lexical Resource', gra: 'Grammar Range & Accuracy' };
 const CRIT_FA = { ta: 'پاسخ به خواستهٔ تسک', tr: 'پاسخ به سؤال', cc: 'انسجام و پیوستگی', lr: 'دامنهٔ واژگان', gra: 'دستور زبان' };
 // outside practice and resources, per skill
@@ -32,27 +23,6 @@ const VOCAB_RES = [
 ];
 const words = s => (String(s || '').match(/[A-Za-z0-9'’-]+/g) || []).length;
 const band = b => b == null ? '—' : fa(b, 1);
-
-function BankStats() {
-  const [s, setS] = useState(null);
-  useEffect(() => { fetch('/ielts/lifeos-stats.json', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(setS).catch(() => setS(null)); }, []);
-  if (!s) return null;
-  const kinds = KINDS.map(([label, re]) => [label, Object.entries(s.kinds || {}).filter(([k]) => re.test(k)).reduce((a, [, n]) => a + n, 0)]).filter(([, n]) => n);
-  const maxK = Math.max(1, ...kinds.map(([, n]) => n));
-  return <section className="ie-card">
-    <header><h2>بانک سؤال ریدینگ</h2><span className="ie-muted">{fa(s.passages)} متن · {fa(s.questions)} سؤال</span></header>
-    <div className="ie-parts">
-      {PARTS.map(([k, t, sub]) => { const p = s.parts?.[k]; if (!p) return null; return <div key={k}>
-        <b>{t}</b><small>{sub}</small>
-        <span className="ie-big">{fa(p.passages)} <small>متن</small></span>
-        <small>{fa(p.questions)} سؤال · سختی {p.difficulty ? `${fa(p.difficulty, 1)} از ۵` : '—'}</small>
-        <small>پرتکرار {fa(p.high + p.medium)} · کم‌تکرار {fa(p.low)}</small>
-      </div>; })}
-    </div>
-    <h3 className="ie-h3">بخش‌های سؤال</h3>
-    <ul className="ie-bars">{kinds.map(([label, n]) => <li key={label}><span>{label}</span><i><em style={{ width: `${Math.round(n / maxK * 100)}%` }} /></i><b>{fa(n)}</b></li>)}</ul>
-  </section>;
-}
 
 function Result({ r }) {
   const [open, setOpen] = useState(false);
@@ -121,31 +91,13 @@ const LinkList = ({ items }) => <ul className="ie-links">{items.map(([href, t, d
   <a href={href} {...(href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}><b>{t}</b>{href.startsWith('http') ? <ExternalLink size={14} /> : null}</a><small>{d}</small>
 </li>)}</ul>;
 
-// The app runs inside LifeOS (iframe under the menu) instead of a separate tab; ?page=ielts&app=1 keeps it open on
-// reload. Its practice windows still open as popups (the app talks to them through window.opener).
-const appUrl = on => { try { const u = new URL(location.href); if (on) u.searchParams.set('app', '1'); else u.searchParams.delete('app'); history.replaceState(null, '', u.pathname + u.search); } catch {} };
-function IeltsApp({ Nav, onBack }) {
-  return <main className="lf ielts-app" dir="rtl">
-    <Nav />
-    <div className="ie-appbar">
-      <button type="button" className="ie-btn ghost" onClick={onBack}><ArrowRight size={16} />بازگشت به آیلتس</button>
-      <a className="ie-applink" href="/ielts/index.html" target="_blank" rel="noopener">باز کردن در پنجرهٔ جدا<ExternalLink size={14} /></a>
-    </div>
-    <iframe className="ie-frame" src="/ielts/index.html" title="تمرین آیلتس (IELTS Atlas)" />
-  </main>;
-}
-
 const SKILL_TABS = [['reading', 'ریدینگ', BookOpenCheck], ['listening', 'لیسنینگ', Headphones], ['writing', 'رایتینگ', PenLine], ['speaking', 'اسپیکینگ', Mic]];
 const skillFromUrl = () => { const v = new URLSearchParams(location.search).get('s'); return SKILL_TABS.some(([k]) => k === v) ? v : 'reading'; };
 
 export function IeltsPage({ Nav }) {
-  const [app, setApp] = useState(() => new URLSearchParams(location.search).get('app') === '1');
-  const toggle = on => { appUrl(on); setApp(on); window.scrollTo(0, 0); };
-  const onOpen = () => toggle(true);
   const [lt, setLt] = useState(null), [skill, setSkill] = useState(skillFromUrl);
   const pick = k => { setSkill(k); try { const u = new URL(location.href); u.searchParams.set('s', k); history.replaceState(null, '', u.pathname + u.search); } catch {} };
   const openExam = o => { setLt(o); window.scrollTo(0, 0); };
-  if (app) return <IeltsApp Nav={Nav} onBack={() => toggle(false)} />;
   if (lt) return <main className="lf ielts-page" dir="rtl"><Nav /><div className="lf-page"><ExamView open={lt} onBack={() => { setLt(null); window.scrollTo(0, 0); }} /></div></main>;
   const links = <section className="ie-card"><header><h2>تمرین و منابع بیرونی</h2></header><LinkList items={LINKS[skill]} /></section>;
   return <Page Nav={Nav} className="ielts-page" kicker="یادگیری" title="آیلتس" sub="ریدینگ، لیسنینگ، رایتینگ و اسپیکینگ">
@@ -155,12 +107,6 @@ export function IeltsPage({ Nav }) {
     <div className="ie-grid" role="tabpanel">
       {skill === 'reading' ? <>
         <ExamsCard skill="reading" onOpen={openExam} />
-        <section className="ie-card ie-hero">
-          <header><h2><BookOpenCheck size={18} />بانک تمرین ریدینگ (IELTS Atlas)</h2></header>
-          <p className="ie-muted">۲۴۲ متن ریدینگ با زمان‌سنج، توضیح جواب و دیکشنری. سابقه فقط در همین مرورگر ذخیره می‌شود.</p>
-          <button type="button" className="ie-btn" onClick={onOpen}>باز کردن بانک تمرین</button>
-        </section>
-        <BankStats />
         <section className="ie-card"><header><h2>واژگان</h2></header><LinkList items={VOCAB_RES} /></section>
         {links}
       </> : null}
