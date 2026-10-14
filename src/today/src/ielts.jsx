@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, BookOpenCheck, ChevronDown, ChevronUp, ExternalLink, PenLine, Trash2 } from 'lucide-react';
 import { Page, api, fa, jl } from './life-core';
 import { Loader } from './loader';
-import { ListeningCard, ListeningView } from './ielts-listening';
+import { ExamsCard, ExamView } from './ielts-exams';
 
 // «آیلتس» tab of the learning hub: the Persian build of IELTS Atlas (static app in public/ielts/, behind the
 // login; synced with scripts/sync-ielts.js), question-bank numbers from /ielts/lifeos-stats.json, AI Writing
@@ -142,7 +142,7 @@ export function IeltsPage({ Nav }) {
   const onOpen = () => toggle(true);
   const [lt, setLt] = useState(null);
   if (app) return <IeltsApp Nav={Nav} onBack={() => toggle(false)} />;
-  if (lt) return <main className="lf ielts-page" dir="rtl"><Nav /><div className="lf-page"><ListeningView open={lt} onBack={() => { setLt(null); window.scrollTo(0, 0); }} /></div></main>;
+  if (lt) return <main className="lf ielts-page" dir="rtl"><Nav /><div className="lf-page"><ExamView open={lt} onBack={() => { setLt(null); window.scrollTo(0, 0); }} /></div></main>;
   return <Page Nav={Nav} className="ielts-page" kicker="یادگیری" title="آیلتس" sub="تمرین ریدینگ، آزمون لیسنینگ، تصحیح رایتینگ و منابع">
     <div className="ie-grid">
       <section className="ie-card ie-hero">
@@ -152,7 +152,7 @@ export function IeltsPage({ Nav }) {
         <small className="ie-muted">برنامه متن‌باز (GPL-3.0) از sallowayma-git/IELTS-practice، فارسی‌شده؛ فقط برای استفادهٔ شخصی.</small>
       </section>
       <BankStats />
-      <ListeningCard onOpen={o => { setLt(o); window.scrollTo(0, 0); }} />
+      <ExamsCard onOpen={o => { setLt(o); window.scrollTo(0, 0); }} />
       <Writing />
       <section className="ie-card"><header><h2>تمرین آنلاین</h2></header><LinkList items={LINKS} /></section>
       <section className="ie-card"><header><h2>منابع</h2></header><LinkList items={RES} /></section>

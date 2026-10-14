@@ -545,12 +545,12 @@ async function main() {
       { title: 'Q4-5', instr: 'Pick TWO', pick: [4, 5], options: [{ k: 'A', t: 'x' }, { k: 'B', t: 'y' }, { k: 'C', t: 'z' }] }] }],
       key: { 1: ['B'], 2: ['Prescott'], 3: ['65', 'sixty five'], 4: { anyOf: ['A', 'C'], group: [4, 5] }, 5: { anyOf: ['A', 'C'], group: [4, 5] } },
       tape: [{ section: 1, lines: ['W: My name is Prescott.'] }], evidence: { 2: 'W: My name is Prescott.' } };
-    check('listening: bad test refused (key misses a question)', (await call('/api/ielts/listening/tests', { method: 'POST', cookie: ck, body: { ...T, key: { 1: ['B'] } } })).status === 400);
-    const add = await call('/api/ielts/listening/tests', { method: 'POST', cookie: ck, body: T });
+    check('listening: bad test refused (key misses a question)', (await call('/api/ielts/exams/tests', { method: 'POST', cookie: ck, body: { ...T, key: { 1: ['B'] } } })).status === 400);
+    const add = await call('/api/ielts/exams/tests', { method: 'POST', cookie: ck, body: T });
     check('listening: test imported', add.status === 201 && add.d.total === 5 && add.d.audio === null, JSON.stringify(add.d));
-    const pub = await call('/api/ielts/listening/tests/mini-test', { cookie: ck });
+    const pub = await call('/api/ielts/exams/tests/mini-test', { cookie: ck });
     check('listening: browser copy has no key / tapescript / evidence', pub.status === 200 && !pub.d.key && !pub.d.tape && !pub.d.evidence && pub.d.hasAudio === false);
-    const up = (bytes, type) => worker.fetch(new Request('https://worker-smoke.local/api/ielts/listening/tests/mini-test/audio', { method: 'POST', headers: { cookie: ck, 'content-type': type }, body: bytes }), env, {});
+    const up = (bytes, type) => worker.fetch(new Request('https://worker-smoke.local/api/ielts/exams/tests/mini-test/audio', { method: 'POST', headers: { cookie: ck, 'content-type': type }, body: bytes }), env, {});
     check('listening: audio upload without a Telegram bot -> 503', (await up(new Uint8Array([1, 2, 3]), 'audio/mpeg')).status === 503);
     await call('/api/me', { method: 'PATCH', cookie: ck, body: { telegramUserId: '880077' } });
     const realFetch = globalThis.fetch; env.TELEGRAM_BOT_TOKEN = 'TEST'; let sentTo = null;
@@ -565,20 +565,34 @@ async function main() {
       check('listening: non-audio upload refused', (await up(new Uint8Array([1]), 'text/plain')).status === 400);
       const ok = await up(new Uint8Array([1, 2, 3, 4]), 'audio/mpeg');
       check('listening: audio stored in the user\'s Telegram chat', ok.status === 200 && sentTo === '880077');
-      const get = await worker.fetch(new Request('https://worker-smoke.local/api/ielts/listening/tests/mini-test/audio', { headers: { cookie: ck } }), env, {});
+      const get = await worker.fetch(new Request('https://worker-smoke.local/api/ielts/exams/tests/mini-test/audio', { headers: { cookie: ck } }), env, {});
       const bytes = new Uint8Array(await get.arrayBuffer());
       check('listening: audio streamed back from Telegram', get.status === 200 && /audio\/mpeg/.test(get.headers.get('content-type')) && bytes.join() === '9,8,7');
-      const anon = await worker.fetch(new Request('https://worker-smoke.local/api/ielts/listening/tests/mini-test/audio'), env, {});
+      const anon = await worker.fetch(new Request('https://worker-smoke.local/api/ielts/exams/tests/mini-test/audio'), env, {});
       check('listening: audio needs login', anon.status === 401);
     } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; }
-    const at = await call('/api/ielts/listening/attempts', { method: 'POST', cookie: ck, body: { testId: 'mini-test', answers: { 1: 'b', 2: 'prescott.', 3: 'sixty-five', 4: 'C', 5: 'C' } } });
+    const at = await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'mini-test', answers: { 1: 'b', 2: 'prescott.', 3: 'sixty-five', 4: 'C', 5: 'C' } } });
     check('listening: marked on the server (case, number words, pick group counts a letter once)', at.status === 201 && at.d.raw === 4 && at.d.total === 5 && at.d.results.find(r => r.n === 5).ok === false && at.d.evidence[2] && at.d.tape.length === 1, JSON.stringify(at.d && at.d.results));
-    const list = await call('/api/ielts/listening', { cookie: ck });
+    const list = await call('/api/ielts/exams', { cookie: ck });
     check('listening: overview has the test, best band and the attempt', list.d.tests[0].attempts === 1 && list.d.tests[0].best === at.d.band && list.d.attempts[0].id === at.d.id && list.d.tests[0].audio.tgId === 'FID1');
-    const rv = await call(`/api/ielts/listening/attempts/${at.d.id}`, { cookie: ck });
+    const rv = await call(`/api/ielts/exams/attempts/${at.d.id}`, { cookie: ck });
     check('listening: review re-marks a past attempt', rv.status === 200 && rv.d.raw === 4 && rv.d.results.length === 5);
-    check('listening: other users can\'t see it', (await call('/api/ielts/listening/tests/mini-test', { cookie })).status === 404 && (await call(`/api/ielts/listening/attempts/${at.d.id}`, { cookie })).status === 404);
-    check('listening: delete test removes its attempts', (await call('/api/ielts/listening/tests/mini-test', { method: 'DELETE', cookie: ck })).status === 200 && (await call('/api/ielts/listening', { cookie: ck })).d.attempts.length === 0);
+    check('listening: other users can\'t see it', (await call('/api/ielts/exams/tests/mini-test', { cookie })).status === 404 && (await call(`/api/ielts/exams/attempts/${at.d.id}`, { cookie })).status === 404);
+    // reading: passages required, single-passage practice grades only that passage, highlights kept with the attempt
+    const R = { id: 'mini-read', skill: 'reading', module: 'academic', title: 'Mini Reading', sections: [
+      { n: 1, title: 'Passage 1', range: '1–2', passage: { title: 'P1', paragraphs: [{ text: 'Fire was a gift.' }] }, groups: [{ title: 'Q1-2', choices: ['TRUE', 'FALSE', 'NOT GIVEN'], questions: [{ n: 1, q: 'a' }, { n: 2, q: 'b' }] }] },
+      { n: 2, title: 'Passage 2', range: '3', passage: { title: 'P2', paragraphs: [{ text: 'Zoos.' }] }, groups: [{ title: 'Q3', table: { rows: [['Style', '[3]']] } }] }],
+      key: { 1: ['TRUE'], 2: ['NOT GIVEN'], 3: ['Modernism'] } };
+    check('reading: a passage without text is refused', (await call('/api/ielts/exams/tests', { method: 'POST', cookie: ck, body: { ...R, sections: [{ ...R.sections[0], passage: null }, R.sections[1]] } })).status === 400);
+    const radd = await call('/api/ielts/exams/tests', { method: 'POST', cookie: ck, body: R });
+    check('reading: imported with skill, module and per-passage counts', radd.status === 201 && radd.d.skill === 'reading' && radd.d.module === 'academic' && radd.d.total === 3);
+    check('reading: no audio for a reading test', (await up(new Uint8Array([1]), 'audio/mpeg').then(() => worker.fetch(new Request('https://worker-smoke.local/api/ielts/exams/tests/mini-read/audio', { method: 'POST', headers: { cookie: ck, 'content-type': 'audio/mpeg' }, body: new Uint8Array([1]) }), env, {}))).status === 400);
+    const rp = await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'mini-read', parts: [1], answers: { 1: 'TRUE', 3: 'modernism' }, seconds: 600, marks: [{ s: 1, p: 0, a: 0, b: 4, note: 'zoo' }, { bad: 1 }] } });
+    check('reading: one passage marked alone (table gap, case-insensitive), highlights kept', rp.status === 201 && rp.d.total === 1 && rp.d.raw === 1 && rp.d.skill === 'reading' && rp.d.parts.join() === '1' && rp.d.marks.length === 1 && rp.d.seconds === 600, JSON.stringify(rp.d).slice(0, 200));
+    const rf = await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'mini-read', answers: { 1: 'TRUE', 2: 'NOT GIVEN', 3: 'Modernism' } } });
+    const rl = await call('/api/ielts/exams', { cookie: ck });
+    check('reading: full test 3/3 -> band 9; best band ignores single-passage practice', rf.d.raw === 3 && rf.d.band === 9 && rl.d.tests.find(t => t.id === 'mini-read').best === 9 && rl.d.tests.find(t => t.id === 'mini-read').attempts === 2);
+    check('listening: delete test removes its attempts', (await call('/api/ielts/exams/tests/mini-test', { method: 'DELETE', cookie: ck })).status === 200 && !(await call('/api/ielts/exams', { cookie: ck })).d.attempts.some(a => a.testId === 'mini-test'));
   }
   { // work-time log: manual entries, validation, edit, timer start/stop
     const a = await call('/api/time', { method: 'POST', cookie, body: { title: 'گزارش پروژه', minutes: 95, date: '2026-02-03', projectId: 'p1' } });

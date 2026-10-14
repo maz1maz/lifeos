@@ -3718,25 +3718,14 @@
         }
       }
     },
-    "/api/ielts/listening/{id}": {
+    "/api/ielts/exams": {
       "get": {
-        "operationId": "get_api_ielts_listening_id",
+        "operationId": "get_api_ielts_exams",
         "responses": {
           "200": {
             "description": "OK"
           }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "example": "x"
-            }
-          }
-        ]
+        }
       }
     },
     "/api/ielts/writing": {
