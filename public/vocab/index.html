@@ -344,7 +344,12 @@ html,body{max-width:100%;overflow-x:hidden}
   #appShell>header.top .tab:hover{background:var(--bg3)}
   #appShell>header.top .tab.on{border-color:transparent}
   #appShell>.wrap{width:100%;padding-top:14px}
+  #appShell>header.top .tabgrp{display:block;margin:10px 12px 2px;font-size:11.5px;color:var(--tx3);letter-spacing:.02em}
+  #appShell>header.top .tabgrp:first-child{margin-top:0}
 }
+/* group labels of the menu: only in the desktop sidebar */
+.tabgrp{display:none}
+.daybar{gap:10px;margin-bottom:4px}.daybar .bar{flex:1}.daybar small{font-size:11.5px;white-space:nowrap}
 /* phone: slim header that scrolls away, compact stats, rating bar pinned to the bottom of the screen */
 @media(max-width:700px){
   header.top{position:static;backdrop-filter:none}
@@ -401,11 +406,14 @@ html,body{max-width:100%;overflow-x:hidden}
     </div>
     <button type="button" class="homeBtn" id="homeBtn" title="بازگشت به LifeOS">خانه ↩</button>
     <nav class="tabs">
+      <span class="tabgrp">یادگیری</span>
       <button class="tab on" data-v="study">کارت‌ها</button>
       <button class="tab" data-v="quiz">آزمون</button>
       <button class="tab" data-v="browse">فهرست واژه‌ها</button>
+      <span class="tabgrp">تمرین</span>
       <button class="tab" data-v="notes">جزوه</button>
       <button class="tab" data-v="tutor">معلم</button>
+      <span class="tabgrp">حساب و پیشرفت</span>
       <button class="tab" data-v="stats">پیشرفت</button>
       <button class="tab" data-v="settings">تنظیمات</button>
       <button class="tab" id="userBtn" title="حساب من">کاربر</button>

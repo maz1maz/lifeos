@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, Highlighter, ListChecks, Minus, NotebookPen, Plus, StickyNote, Trash2, X } from 'lucide-react';
+import { BookOpen, BookmarkPlus, ChevronDown, ChevronUp, Highlighter, ListChecks, Minus, NotebookPen, Plus, StickyNote, Trash2, X } from 'lucide-react';
 import { api, fa } from './life-core';
 import { Loader } from './loader';
 import { CdShell, clock, hasPersian } from './ielts-cd';
@@ -101,8 +101,8 @@ export function ReadingExam({ testId, mode, parts: only, onDone, onBack }) {
       return { s: Number(el.dataset.s), p: Number(el.dataset.p), a, b };
     }).filter(x => x.b > x.a);
     if (!pieces.length) { setTip(null); return; }
-    const rc = range.getBoundingClientRect();
-    setTip({ pieces, x: rc.left + rc.width / 2, y: rc.top });
+    const rc = range.getBoundingClientRect(), txt = sel.toString().trim();
+    setTip({ pieces, x: rc.left + rc.width / 2, y: rc.top, word: /^[A-Za-z][A-Za-z'-]*( [A-Za-z][A-Za-z'-]*)?$/.test(txt) ? txt.replace(/'s$/, '') : null });
   };
   const highlight = note => {
     if (!tip) return;
@@ -118,6 +118,15 @@ export function ReadingExam({ testId, mode, parts: only, onDone, onBack }) {
     const m = next.find(x => x.s === first.s && x.p === first.p && x.a <= first.a && x.b >= first.b);
     upd(d => ({ ...d, marks: next }));
     window.getSelection()?.removeAllRanges(); setPop({ id: m.id, note: m.note || '', x: tip.x, y: tip.y + 30, fresh: true }); setTip(null);
+  };
+  // a selected word → starred in the language app's flashcards (/api/vocab/star)
+  const [wordMsg, setWordMsg] = useState('');
+  const addWord = async () => {
+    const w = tip?.word; if (!w) return;
+    window.getSelection()?.removeAllRanges(); setTip(null);
+    try { const r = await api('/api/vocab/star', { method: 'POST', body: JSON.stringify({ w }) }); setWordMsg(`«${r.w}»${r.fa ? ` (${r.fa})` : ''} ${r.added ? 'به واژه‌های ستاره‌دار اپ زبان اضافه شد.' : 'از قبل ستاره‌دار بود.'}`); }
+    catch (e) { setWordMsg(e.message); }
+    setTimeout(() => setWordMsg(''), 4000);
   };
   const startDrag = e => {
     const box = e.currentTarget.parentElement.getBoundingClientRect();
@@ -153,7 +162,7 @@ export function ReadingExam({ testId, mode, parts: only, onDone, onBack }) {
       <span className="cd-size" role="group" aria-label="اندازهٔ متن"><button type="button" onClick={() => size(-1)} aria-label="کوچک‌تر"><Minus size={15} /></button><b>Aa</b><button type="button" onClick={() => size(1)} aria-label="بزرگ‌تر"><Plus size={15} /></button></span>
       <button type="button" className={`cd-tool ${drawer ? 'on' : ''}`} onClick={() => setDrawer(v => !v)} aria-expanded={drawer}><StickyNote size={16} />یادداشت‌ها{notes.length ? ` (${fa(notes.length)})` : ''}</button>
     </>}
-    notice={faWarn ? 'کیبورد فارسی است؛ جواب‌ها باید انگلیسی باشند — زبان کیبورد را عوض کن.' : busy ? 'در حال تصحیح…' : err || null}>
+    notice={faWarn ? 'کیبورد فارسی است؛ جواب‌ها باید انگلیسی باشند — زبان کیبورد را عوض کن.' : busy ? 'در حال تصحیح…' : err || wordMsg || null}>
     <div className="rd-panes-switch" role="tablist" aria-label="نما">
       <button type="button" role="tab" aria-selected={pane === 'text'} className={pane === 'text' ? 'on' : ''} onClick={() => setPane('text')}><BookOpen size={15} />متن</button>
       <button type="button" role="tab" aria-selected={pane === 'qs'} className={pane === 'qs' ? 'on' : ''} onClick={() => setPane('qs')}><ListChecks size={15} />سؤال‌ها</button>
@@ -170,6 +179,7 @@ export function ReadingExam({ testId, mode, parts: only, onDone, onBack }) {
     {tip ? <div className="rd-tip" style={{ left: tip.x, top: tip.y }} dir="rtl" onMouseDown={e => e.preventDefault()}>
       <button type="button" onClick={() => highlight('')}><Highlighter size={15} />هایلایت</button>
       <button type="button" onClick={noteFromTip}><NotebookPen size={15} />یادداشت</button>
+      {tip.word ? <button type="button" onClick={addWord} title="ستاره‌دار در اپ زبان (فلش‌کارت)"><BookmarkPlus size={15} />واژه</button> : null}
     </div> : null}
     {pop ? <div className="rd-pop" style={{ left: pop.x, top: pop.y }} dir="rtl">
       <textarea autoFocus dir="auto" rows={3} value={pop.note} placeholder="یادداشت تو برای این قسمت…" onChange={e => setPop(p => ({ ...p, note: e.target.value }))} />

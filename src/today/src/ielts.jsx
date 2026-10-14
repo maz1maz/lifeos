@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { BookOpenCheck, ChevronDown, ChevronUp, ExternalLink, Headphones, Mic, PenLine, Trash2 } from 'lucide-react';
-import { Page, api, fa, jl } from './life-core';
+import { api, fa, jl } from './life-core';
 import { Loader } from './loader';
 import { ExamsCard, ExamView } from './ielts-exams';
 import { SpeakingPanel } from './ielts-speaking';
 import { WritingBook } from './ielts-book';
+import { IeltsStatus } from './ielts-status';
 import { clock } from './ielts-cd';
 
 // «آیلتس» tab of the learning hub, one tab per skill: Reading and Listening tests from the shared library
@@ -20,7 +21,7 @@ const LINKS = {
   speaking: [['https://ielts-up.com', 'IELTS-up', 'لغات و نمونه‌پاسخ اسپیکینگ'], ['https://ieltsliz.com', 'IELTS Liz', 'سؤال‌ها و نکته‌های اسپیکینگ (با VPN)'], ['https://ielts.org/take-a-test/preparation-resources/understanding-band-scores', 'معیارهای رسمی نمره', 'چهار معیار اسپیکینگ']],
 };
 const VOCAB_RES = [
-  ['/?page=vocab', 'اپ زبان هِسته', '۴۴۹۴ واژهٔ آیلتس با مرور فاصله‌دار، جزوه و معلم'],
+  ['/?page=vocab', 'اپ زبان هِسته', 'بیش از ۷۰۰۰ واژهٔ آیلتس با مرور فاصله‌دار، جزوه و معلم'],
   ['https://github.com/Ecattea/COCA-English-Anki-Deck', '۵۰۰۰ لغت پرکاربرد COCA برای Anki', 'فایل apkg را در Anki وارد کن؛ فقط استفادهٔ شخصی'],
 ];
 const words = s => (String(s || '').match(/[A-Za-z0-9'’-]+/g) || []).length;
@@ -121,11 +122,9 @@ export function IeltsPage({ Nav }) {
   const pick = k => { setSkill(k); try { const u = new URL(location.href); u.searchParams.set('s', k); history.replaceState(null, '', u.pathname + u.search); } catch {} };
   const openExam = o => { setLt(o); window.scrollTo(0, 0); };
   if (lt) return <main className="lf ielts-page" dir="rtl"><Nav /><div className="lf-page"><ExamView open={lt} onBack={() => { setLt(null); window.scrollTo(0, 0); }} /></div></main>;
-  const links = <section className="ie-card"><header><h2>تمرین و منابع بیرونی</h2></header><LinkList items={LINKS[skill]} /></section>;
-  return <Page Nav={Nav} className="ielts-page" kicker="یادگیری" title="آیلتس" sub="ریدینگ، لیسنینگ، رایتینگ و اسپیکینگ">
-    <nav className="ie-skills" role="tablist" aria-label="مهارت‌های آیلتس">
-      {SKILL_TABS.map(([k, t, I]) => <button key={k} type="button" role="tab" aria-selected={skill === k} className={skill === k ? 'on' : ''} onClick={() => pick(k)}><I size={18} />{t}</button>)}
-    </nav>
+  const links = <details className="ie-card ie-more"><summary>تمرین و منابع بیرونی</summary><LinkList items={LINKS[skill]} /></details>;
+  return <main className="lf ielts-page" dir="rtl"><Nav /><div className="lf-page">
+    <IeltsStatus tabs={SKILL_TABS} skill={skill} onPick={pick} />
     <div className="ie-grid" role="tabpanel">
       {skill === 'reading' ? <>
         <ExamsCard skill="reading" onOpen={openExam} />
@@ -136,5 +135,5 @@ export function IeltsPage({ Nav }) {
       {skill === 'writing' ? <><WritingBook onPick={k => { setWp(k); setTimeout(() => document.getElementById('ie-e')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); }} /><Writing preset={wp} onClear={() => setWp(null)} />{links}</> : null}
       {skill === 'speaking' ? <><SpeakingPanel />{links}</> : null}
     </div>
-  </Page>;
+  </div></main>;
 }

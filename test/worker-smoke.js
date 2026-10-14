@@ -351,6 +351,13 @@ async function main() {
         check('«یاد گرفتم» in Telegram masters the word and drops it from hard words', learned.b === 6 && learned.bad === 0 && (await call('/api/vocab/summary?hard=1', { cookie })).d.hard === null, JSON.stringify(learned));
         check('POST /api/vocab/learned: unknown word -> 404', (await call('/api/vocab/learned', { method: 'POST', cookie, body: { w: 'nope-xyz' } })).status === 404);
         check('POST /api/vocab/learned: known word -> 200', (await call('/api/vocab/learned', { method: 'POST', cookie, body: { w: 'apple' } })).status === 200 && (await call('/api/vocab', { cookie })).d.state.cards.apple.b === 6);
+        const realAssets2 = env.ASSETS;
+        env.ASSETS = { fetch: async r => new URL(r.url).pathname === '/vocab/words.json' ? new Response(JSON.stringify([['abandon', ['ترک کردن'], 0, 'B1']])) : new Response('', { status: 404 }) };
+        const st1 = await call('/api/vocab/star', { method: 'POST', cookie, body: { w: 'Abandon' } });
+        check('POST /api/vocab/star: a word from a reading passage is starred in the language app (case-insensitive)', st1.status === 200 && st1.d.w === 'abandon' && st1.d.added === true && (await call('/api/vocab', { cookie })).d.state.stars.includes('abandon'), JSON.stringify(st1.d));
+        check('POST /api/vocab/star: second time -> already starred', (await call('/api/vocab/star', { method: 'POST', cookie, body: { w: 'abandon' } })).d.added === false);
+        check('POST /api/vocab/star: not in the deck -> 404; not a word -> 400', (await call('/api/vocab/star', { method: 'POST', cookie, body: { w: 'zzqx' } })).status === 404 && (await call('/api/vocab/star', { method: 'POST', cookie, body: { w: '<b>x' } })).status === 400);
+        env.ASSETS = realAssets2;
       }
       check('vocab: bad payload refused', (await call('/api/vocab', { method: 'PUT', cookie, body: { state: { cards: [] } } })).status === 400);
       check('vocab: anonymous 401', (await call('/api/vocab')).status === 401);

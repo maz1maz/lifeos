@@ -205,6 +205,8 @@ function nextCard(list) {
   const up = list.filter(x => S.cards[x.w]).sort((a, b) => S.cards[a.w].due - S.cards[b.w].due);
   return up[0] || list[0] || null;
 }
+// new words still to learn today: the daily quota minus what was already started, capped by what the filter has left
+function newLeft(list) { return Math.min(Math.max(0, S.settings.dailyNew - dayRec().n), list.filter(x => !S.cards[x.w]).length); }
 function newCount(list) { return dayRec().n >= S.settings.dailyNew ? 0 : list.filter(x => !S.cards[x.w]).length; }
 function dueCount(list) { const n = Date.now(); return list.filter(x => S.cards[x.w] && S.cards[x.w].due <= n).length; }
 
@@ -589,11 +591,11 @@ function renderStudy() {
   $("#studyMain").innerHTML = `
   <div class="grid g4" style="margin-bottom:12px">
     <div class="stat"><b>${fa(dueCount(list))}</b><span>واژه آمادهٔ مرور</span></div>
-    <div class="stat"><b>${fa(newCount(list))}</b><span>واژهٔ نو (سهم امروز)</span></div>
+    <div class="stat"><b>${fa(newLeft(list))}</b><span>واژهٔ نو امروز (از ${fa(list.filter(x => !S.cards[x.w]).length)})</span></div>
     <div class="stat"><b>${fa(done)}</b><span>واژهٔ تسلط‌یافته</span></div>
     <div class="stat"><b>${fa(today_.r)}</b><span>مرور امروز (هدف: ${fa(goal)})</span></div>
   </div>
-  <div class="bar" title="پیشرفت هدف امروز"><i style="width:${pct}%"></i></div>
+  <div class="between daybar"><div class="bar" title="پیشرفت هدف امروز"><i style="width:${pct}%"></i></div><small class="muted">هدف امروز ${fa(pct)}٪</small></div>
 
   <div class="fcwrap"><div class="fc ${flipped ? "flip" : ""}" id="fc">
     <div class="face front">
