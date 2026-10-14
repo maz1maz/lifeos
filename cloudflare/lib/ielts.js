@@ -64,9 +64,9 @@ export function validateTest(t) {
   return null;
 }
 
-// What the browser gets before the attempt: no key, no tapescript, no evidence lines.
+// What the browser gets before the attempt: no key, no tapescript, no evidence lines or answer explanations.
 export function publicTest(t) {
-  const { key, tape, evidence, ...rest } = t;
+  const { key, tape, evidence, explain, ...rest } = t;
   return { ...rest, skill: t.skill || 'listening', total: askedNumbers(t).size, parts: t.sections.map(s => sectionNumbers(s).size) };
 }
 

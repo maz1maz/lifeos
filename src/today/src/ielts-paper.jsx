@@ -25,13 +25,15 @@ export const goTo = n => {
 const cls = (r, v) => `lt-gap ${r ? (r.ok ? 'ok' : 'bad') : ''} ${hasPersian(v) ? 'fa' : ''}`;
 
 // text with inline answer boxes for every [n]
-function Gaps({ text, answers, set, review, bank }) {
+function Gaps({ text, answers, set, review, bank, items }) {
   return String(text).split(GAP).map((x, i) => {
     const m = /^\[(\d{1,3})\]$/.exec(x);
     if (!m) return <span key={i}>{x}</span>;
     const n = m[1], r = review?.[n];
     return <label key={i} id={`q-${n}`} className={cls(r, answers[n])}><b>{n}</b>
-      {bank ? <select value={answers[n] || ''} onChange={e => set(n, e.target.value)} disabled={!!review} aria-label={`Question ${n}`}>
+      {items ? <select value={answers[n] || ''} onChange={e => set(n, e.target.value)} disabled={!!review} aria-label={`Question ${n}`}>
+        <option value="">—</option>{items.map(o => <option key={o.k} value={o.k}>{o.k}</option>)}</select>
+        : bank ? <select value={answers[n] || ''} onChange={e => set(n, e.target.value)} disabled={!!review} aria-label={`Question ${n}`}>
         <option value="">—</option>{bank.map(w => <option key={w} value={w}>{w}</option>)}</select>
         : <input value={answers[n] || ''} onChange={e => set(n, e.target.value)} readOnly={!!review} autoComplete="off" spellCheck="false" aria-label={`Question ${n}`} />}
     </label>;
@@ -73,7 +75,8 @@ export function Group({ g, answers, set, review, flags }) {
     </div>) : null}
     {g.lines ? <div className="lt-box">{g.box ? <h5>{g.box}</h5> : null}
       {g.bank ? <ul className="lt-bank">{g.bank.map(w => <li key={w}>{w}</li>)}</ul> : null}
-      {g.lines.map((l, i) => <p key={i} className="lt-line"><Gaps text={l} answers={answers} set={set} review={review} bank={g.bank} /></p>)}</div> : null}
+      {g.lines.map((l, i) => <p key={i} className="lt-line"><Gaps text={l} answers={answers} set={set} review={review} bank={g.bank} items={g.bankItems} /></p>)}
+      {g.bankItems ? <ul className="lt-picklist lt-bankitems">{g.bankItems.map(o => <li key={o.k}><b>{o.k}</b> {o.t}</li>)}</ul> : null}</div> : null}
     {g.table ? <div className="lt-tablewrap"><table className="lt-qtable">
       {g.table.head ? <thead><tr>{g.table.head.map((h, i) => <th key={i}>{h}</th>)}</tr></thead> : null}
       <tbody>{g.table.rows.map((row, i) => <tr key={i}>{row.map((c, j) => <td key={j}><Gaps text={c} answers={answers} set={set} review={review} /></td>)}</tr>)}</tbody>
@@ -91,7 +94,7 @@ export function Group({ g, answers, set, review, flags }) {
 const mins = s => !s ? '—' : s < 60 ? `${fa(s)} ثانیه` : `${fa(Math.floor(s / 60))} دقیقه${s % 60 ? ` و ${fa(s % 60)} ثانیه` : ''}`;
 
 export function Review({ r, test, onBack, extra }) {
-  const [open, setOpen] = useState({});
+  const [open, setOpen] = useState({}), [allEx, setAllEx] = useState(false);
   const reading = test.skill === 'reading';
   return <div className="lt-review">
     <div className="lt-score">
@@ -113,9 +116,10 @@ export function Review({ r, test, onBack, extra }) {
             <td>{x.n}</td><td>{x.given || <i>—</i>}</td><td>{x.accepted.slice(0, 3).join(' / ')}</td>
             <td>{x.ok ? <CheckCircle2 size={16} aria-label="درست" /> : <XCircle size={16} aria-label="غلط" />}</td>
           </tr>)}</tbody></table>
-        {rows.filter(x => !x.ok && r.evidence?.[x.n]).length ? <div className="lt-evid">
-          <h4>{reading ? 'جای جواب‌های غلط در متن' : 'جای جواب‌های غلط در متن صوت'}</h4>
-          {rows.filter(x => !x.ok && r.evidence?.[x.n]).map(x => <p key={x.n} dir="ltr"><b>Q{x.n}</b> {r.evidence[x.n]}</p>)}
+        {rows.some(x => r.evidence?.[x.n]) ? <div className="lt-evid">
+          <header><h4>{allEx ? 'توضیح همهٔ سؤال‌ها' : reading ? 'توضیح جواب‌های غلط' : 'جای جواب‌های غلط در متن صوت'}</h4>
+            <button type="button" className="ie-btn ghost" onClick={() => setAllEx(v => !v)}>{allEx ? 'فقط غلط‌ها' : 'همهٔ توضیح‌ها'}</button></header>
+          {rows.filter(x => (allEx || !x.ok) && r.evidence?.[x.n]).map(x => <div key={x.n} className={`lt-ex ${x.ok ? 'ok' : ''}`}><b dir="ltr">Q{x.n}</b>{String(r.evidence[x.n]).split('\n').filter(l => l.trim()).map((l, i) => <p key={i} dir="auto">{l}</p>)}</div>)}
         </div> : null}
         {tape ? <>
           <button type="button" className="ie-btn ghost" aria-expanded={!!open[s.n]} onClick={() => setOpen(o => ({ ...o, [s.n]: !o[s.n] }))}>{open[s.n] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}متن کامل صوت این بخش</button>
