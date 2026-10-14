@@ -539,6 +539,7 @@ async function main() {
     await call('/api/auth/signup', { method: 'POST', body: { name: 'L', email: em, password: 'secret123' } });
     const lg = await call('/api/auth/login', { method: 'POST', body: { email: em, password: 'secret123' } });
     const ck = String((typeof lg.headers.getSetCookie === 'function' ? lg.headers.getSetCookie()[0] : lg.headers.get('set-cookie')) || '').split(';')[0];
+    env.ADMIN_EMAILS = em; // this block's user manages tests; the shared-library part below switches back
     const T = { id: 'mini-test', title: 'Mini Test', sections: [{ n: 1, title: 'Section 1', range: '1–5', groups: [
       { title: 'Q1', instr: 'Choose', questions: [{ n: 1, q: 'Which?', options: [{ k: 'A', t: 'a' }, { k: 'B', t: 'b' }] }] },
       { title: 'Q2-3', instr: 'Complete', lines: ['Name: [2]', 'Cost: £ [3]'] },
@@ -599,6 +600,8 @@ async function main() {
     const rf = await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'mini-read', answers: { 1: 'TRUE', 2: 'NOT GIVEN', 3: 'Modernism' } } });
     const rl = await call('/api/ielts/exams', { cookie: ck });
     check('reading: full test 3/3 -> band 9; best band ignores single-passage practice', rf.d.raw === 3 && rf.d.band === 9 && rl.d.tests.find(t => t.id === 'mini-read').best === 9 && rl.d.tests.find(t => t.id === 'mini-read').attempts === 2);
+    delete env.ADMIN_EMAILS; // admin = the first account again (the main test user)
+    check('only the admin imports tests', (await call('/api/ielts/exams/tests', { method: 'POST', cookie: ck, body: { ...R, id: 'mine-x' } })).status === 403);
     // shared library: only the admin adds/moves/deletes; every user sees and takes the test
     const S = { ...R, id: 'shared-read', title: 'Shared Reading' };
     check('shared: a normal user can\'t add for everyone', (await call('/api/ielts/exams/tests?shared=1', { method: 'POST', cookie: ck, body: S })).status === 403);
@@ -612,7 +615,9 @@ async function main() {
     const back = await call('/api/ielts/exams/tests/shared-read', { method: 'PATCH', cookie, body: { shared: false } });
     check('shared: admin moves it back to their own list; others no longer see it', back.status === 200 && back.d.mine && !(await call('/api/ielts/exams', { cookie: ck })).d.tests.some(t => t.id === 'shared-read') && (await call('/api/ielts/exams/tests/shared-read', { cookie })).status === 200);
     await call('/api/ielts/exams/tests/shared-read', { method: 'DELETE', cookie });
+    env.ADMIN_EMAILS = em;
     check('listening: delete test removes its attempts', (await call('/api/ielts/exams/tests/mini-test', { method: 'DELETE', cookie: ck })).status === 200 && !(await call('/api/ielts/exams', { cookie: ck })).d.attempts.some(a => a.testId === 'mini-test'));
+    delete env.ADMIN_EMAILS;
   }
   { // work-time log: manual entries, validation, edit, timer start/stop
     const a = await call('/api/time', { method: 'POST', cookie, body: { title: 'گزارش پروژه', minutes: 95, date: '2026-02-03', projectId: 'p1' } });

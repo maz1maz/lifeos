@@ -553,7 +553,8 @@ let items=(Array.isArray(data)?data:[]).slice(0,15).map(x=>{let s=x.show||{};ret
  // IELTS Reading/Listening tests (lib/ielts.js). A test (questions + key + passages or tapescript, imported as JSON)
  // is its own kv row with an index row per scope: the user's own `ielts:ex:<uid>[:<id>]`, and the shared library
  // `ielts:ex:shared[:<id>]` that the site admin fills for every user (?shared=1 on import, PATCH {shared} to move a
- // test). A user's own copy wins over a shared one with the same id. Listening audio is a Telegram file (the
+ // test). Only the admin imports tests; older personal tests of other users still show. A user's own copy wins over a
+ // shared one with the same id. Listening audio is a Telegram file (the
  // uploader's chat; file ids work for the whole bot) streamed back here. Attempts live in db.ieltsAttempts.
  if(p==='/api/ielts/exams'||p.startsWith('/api/ielts/exams/')){
   let db=await read(),user=auth(req,res,db);db.ieltsAttempts??=[];
@@ -571,7 +572,7 @@ let items=(Array.isArray(data)?data:[]).slice(0,15).map(x=>{let s=x.show||{};ret
   const listed=(e,sc)=>{let at=mine.filter(x=>x.testId===e.id),full=at.filter(x=>!x.parts);return{...e,audio:e.audio?{size:e.audio.size||null}:null,shared:sc==='all',mine:sc==='me',attempts:at.length,best:full.length?Math.max(...full.map(x=>x.band)):null}};
   if(seg.length===0&&req.method==='GET'){let own=new Set(idx.me.map(x=>x.id));return json(res,200,{admin,tests:[...idx.me.map(e=>listed(e,'me')),...idx.all.filter(e=>!own.has(e.id)).map(e=>listed(e,'all'))],attempts:mine.sort((a,b)=>b.createdAt-a.createdAt).slice(0,30).map(summary)})}
   if(seg[0]==='tests'&&seg.length===1&&req.method==='POST'){
-   let sc=u.searchParams.get('shared')==='1'?'all':'me';if(sc==='all'&&!admin)return json(res,403,{error:'فقط مدیر سایت می‌تواند آزمون را برای همه اضافه کند.'});
+   if(!admin)return json(res,403,{error:'آزمون‌ها را مدیر سایت اضافه می‌کند.'});let sc=u.searchParams.get('shared')==='1'?'all':'me';
    let t=await req.text();if(t.length>1500000)return json(res,413,{error:'فایل آزمون خیلی بزرگ است.'});let d;try{d=JSON.parse(t)}catch(e){return json(res,400,{error:'فایل JSON نامعتبر است.'})}let err=validateTest(d);if(err)return json(res,400,{error:err});
    let old=idx[sc].find(x=>x.id===d.id);await kvPut(S[sc].row(d.id),d);let pt=publicTest(d),entry={id:d.id,skill:pt.skill,module:d.skill==='reading'?(d.module==='general'?'general':'academic'):null,book:Number(d.book)||null,test:Number(d.test)||null,title:String(d.title).slice(0,160),source:String(d.source||'').slice(0,200),total:pt.total,parts:pt.parts,audio:old?old.audio:null,createdAt:old?old.createdAt:Date.now()};
    idx[sc]=[...idx[sc].filter(x=>x.id!==d.id),entry];await saveIx(sc);

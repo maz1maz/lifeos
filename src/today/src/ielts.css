@@ -297,3 +297,20 @@
 .lt-sharechk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--g-muted);cursor:pointer}
 .lt-sharechk input{accent-color:var(--g-accent);width:16px;height:16px}
 .lt-badge{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:3px 0;font-size:11.5px;padding:1px 8px;border-radius:99px;background:var(--g-accent-soft);color:var(--g-accent);vertical-align:middle}
+/* the four skills (ielts.jsx) */
+.ie-skills{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+.ie-skills button{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border:1px solid var(--g-border);border-radius:14px;background:var(--g-panel);color:var(--g-text);font:inherit;font-size:15px;font-weight:700;cursor:pointer}
+.ie-skills button:hover{border-color:var(--g-accent)}
+.ie-skills button.on{border-color:var(--g-accent);background:var(--g-accent-soft);color:var(--g-accent)}
+@media(max-width:700px){.ie-skills{grid-template-columns:repeat(2,minmax(0,1fr))}.ie-skills button{height:44px;font-size:14px}}
+/* speaking (ielts-speaking.jsx) */
+.sp-cue{border:1px dashed var(--g-border-2);border-radius:12px;padding:14px 18px;font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.7;text-align:left}
+.sp-cue b{font-size:17px}
+.sp-cue p{margin:6px 0 2px;color:var(--g-muted);font-style:italic}
+.sp-cue ul{margin:0;padding-left:22px}
+.sp-time{font-variant-numeric:tabular-nums;font-weight:800;padding:6px 14px;border-radius:99px;background:var(--g-accent-soft);color:var(--g-accent)}
+.sp-time.live{background:color-mix(in srgb,var(--g-bad,#fb7185) 18%,transparent);color:var(--g-bad,#fb7185)}
+.sp-rec{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.sp-rec audio{width:100%;max-width:480px}
+.sp-set ul{margin:0;padding-left:20px;line-height:1.9;text-align:left;font-size:14.5px}
+.ie-card>a.ie-btn{align-self:flex-start}

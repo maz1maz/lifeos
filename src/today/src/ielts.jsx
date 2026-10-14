@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, BookOpenCheck, ChevronDown, ChevronUp, ExternalLink, PenLine, Trash2 } from 'lucide-react';
+import { ArrowRight, BookOpenCheck, ChevronDown, ChevronUp, ExternalLink, Headphones, Mic, PenLine, Trash2 } from 'lucide-react';
 import { Page, api, fa, jl } from './life-core';
 import { Loader } from './loader';
 import { ExamsCard, ExamView } from './ielts-exams';
+import { SpeakingPanel } from './ielts-speaking';
 
 // «آیلتس» tab of the learning hub: the Persian build of IELTS Atlas (static app in public/ielts/, behind the
 // login; synced with scripts/sync-ielts.js), question-bank numbers from /ielts/lifeos-stats.json, AI Writing
@@ -18,18 +19,16 @@ const KINDS = [
 ];
 const CRIT = { ta: 'Task Achievement', tr: 'Task Response', cc: 'Coherence & Cohesion', lr: 'Lexical Resource', gra: 'Grammar Range & Accuracy' };
 const CRIT_FA = { ta: 'پاسخ به خواستهٔ تسک', tr: 'پاسخ به سؤال', cc: 'انسجام و پیوستگی', lr: 'دامنهٔ واژگان', gra: 'دستور زبان' };
-const LINKS = [
-  ['https://ieltsonlinetests.com', 'IELTS Online Tests', 'آزمون آزمایشی کامل آکادمیک و جنرال'],
-  ['https://practicepteonline.com', 'Practice Online', '۱۸۴ لیسنینگ، ۲۲۵ ریدینگ آکادمیک، ۱۰۰ جنرال'],
-  ['https://ielts-up.com', 'IELTS-up', 'لیسنینگ، ریدینگ و لغات رایتینگ و اسپیکینگ'],
-  ['https://www.ieltsbuddy.com', 'IELTS Buddy', 'نمونه‌انشا و راهنمای تسک ۱'],
-  ['https://writing9.com', 'Writing9', 'موضوعات تسک ۲ و نمونه‌ها'],
-  ['https://ieltsliz.com', 'IELTS Liz', 'نکته و درس رایگان (با VPN)'],
-];
-const RES = [
-  ['https://ielts.org/take-a-test/preparation-resources/understanding-band-scores', 'معیارهای رسمی نمره (Band Descriptors)', 'همان چهار معیاری که تصحیح هوشمند پایین با آن نمره می‌دهد'],
+// outside practice and resources, per skill
+const LINKS = {
+  reading: [['https://ieltsonlinetests.com', 'IELTS Online Tests', 'آزمون آزمایشی کامل آکادمیک و جنرال'], ['https://practicepteonline.com', 'Practice Online', '۲۲۵ ریدینگ آکادمیک و ۱۰۰ جنرال'], ['https://ielts-up.com', 'IELTS-up', 'تمرین ریدینگ و لغات']],
+  listening: [['https://ieltsonlinetests.com', 'IELTS Online Tests', 'آزمون لیسنینگ کامل با صوت'], ['https://practicepteonline.com', 'Practice Online', '۱۸۴ آزمون لیسنینگ'], ['https://ielts-up.com', 'IELTS-up', 'تمرین لیسنینگ بخش به بخش']],
+  writing: [['https://www.ieltsbuddy.com', 'IELTS Buddy', 'نمونه‌انشا و راهنمای تسک ۱'], ['https://writing9.com', 'Writing9', 'موضوعات تسک ۲ و نمونه‌ها'], ['https://ieltsliz.com', 'IELTS Liz', 'نکته و درس رایگان (با VPN)'], ['https://ielts.org/take-a-test/preparation-resources/understanding-band-scores', 'معیارهای رسمی نمره (Band Descriptors)', 'همان چهار معیاری که تصحیح هوشمند با آن نمره می‌دهد']],
+  speaking: [['https://ielts-up.com', 'IELTS-up', 'لغات و نمونه‌پاسخ اسپیکینگ'], ['https://ieltsliz.com', 'IELTS Liz', 'سؤال‌ها و نکته‌های اسپیکینگ (با VPN)'], ['https://ielts.org/take-a-test/preparation-resources/understanding-band-scores', 'معیارهای رسمی نمره', 'چهار معیار اسپیکینگ']],
+};
+const VOCAB_RES = [
+  ['/?page=vocab', 'اپ زبان هِسته', '۴۴۹۴ واژهٔ آیلتس با مرور فاصله‌دار، جزوه و معلم'],
   ['https://github.com/Ecattea/COCA-English-Anki-Deck', '۵۰۰۰ لغت پرکاربرد COCA برای Anki', 'فایل apkg را در Anki وارد کن؛ فقط استفادهٔ شخصی'],
-  ['/?page=vocab', 'اپ زبان هِسته', '۴۴۹۴ واژهٔ آیلتس با مرور فاصله‌دار'],
 ];
 const words = s => (String(s || '').match(/[A-Za-z0-9'’-]+/g) || []).length;
 const band = b => b == null ? '—' : fa(b, 1);
@@ -136,26 +135,38 @@ function IeltsApp({ Nav, onBack }) {
   </main>;
 }
 
+const SKILL_TABS = [['reading', 'ریدینگ', BookOpenCheck], ['listening', 'لیسنینگ', Headphones], ['writing', 'رایتینگ', PenLine], ['speaking', 'اسپیکینگ', Mic]];
+const skillFromUrl = () => { const v = new URLSearchParams(location.search).get('s'); return SKILL_TABS.some(([k]) => k === v) ? v : 'reading'; };
+
 export function IeltsPage({ Nav }) {
   const [app, setApp] = useState(() => new URLSearchParams(location.search).get('app') === '1');
   const toggle = on => { appUrl(on); setApp(on); window.scrollTo(0, 0); };
   const onOpen = () => toggle(true);
-  const [lt, setLt] = useState(null);
+  const [lt, setLt] = useState(null), [skill, setSkill] = useState(skillFromUrl);
+  const pick = k => { setSkill(k); try { const u = new URL(location.href); u.searchParams.set('s', k); history.replaceState(null, '', u.pathname + u.search); } catch {} };
+  const openExam = o => { setLt(o); window.scrollTo(0, 0); };
   if (app) return <IeltsApp Nav={Nav} onBack={() => toggle(false)} />;
   if (lt) return <main className="lf ielts-page" dir="rtl"><Nav /><div className="lf-page"><ExamView open={lt} onBack={() => { setLt(null); window.scrollTo(0, 0); }} /></div></main>;
-  return <Page Nav={Nav} className="ielts-page" kicker="یادگیری" title="آیلتس" sub="تمرین ریدینگ، آزمون لیسنینگ، تصحیح رایتینگ و منابع">
-    <div className="ie-grid">
-      <section className="ie-card ie-hero">
-        <header><h2><BookOpenCheck size={18} />تمرین ریدینگ (IELTS Atlas)</h2></header>
-        <p className="ie-muted">۲۴۲ متن واقعی ریدینگ با زمان‌سنج، توضیح جواب، دیکشنری و سابقهٔ تمرین. تمرین‌ها در پنجرهٔ جدا باز می‌شوند. سابقه فقط در همین مرورگر ذخیره می‌شود؛ از داخل خود برنامه پشتیبان بگیر.</p>
-        <button type="button" className="ie-btn" onClick={onOpen}>باز کردن تمرین آیلتس</button>
-        <small className="ie-muted">برنامه متن‌باز (GPL-3.0) از sallowayma-git/IELTS-practice، فارسی‌شده؛ فقط برای استفادهٔ شخصی.</small>
-      </section>
-      <BankStats />
-      <ExamsCard onOpen={o => { setLt(o); window.scrollTo(0, 0); }} />
-      <Writing />
-      <section className="ie-card"><header><h2>تمرین آنلاین</h2></header><LinkList items={LINKS} /></section>
-      <section className="ie-card"><header><h2>منابع</h2></header><LinkList items={RES} /></section>
+  const links = <section className="ie-card"><header><h2>تمرین و منابع بیرونی</h2></header><LinkList items={LINKS[skill]} /></section>;
+  return <Page Nav={Nav} className="ielts-page" kicker="یادگیری" title="آیلتس" sub="ریدینگ، لیسنینگ، رایتینگ و اسپیکینگ">
+    <nav className="ie-skills" role="tablist" aria-label="مهارت‌های آیلتس">
+      {SKILL_TABS.map(([k, t, I]) => <button key={k} type="button" role="tab" aria-selected={skill === k} className={skill === k ? 'on' : ''} onClick={() => pick(k)}><I size={18} />{t}</button>)}
+    </nav>
+    <div className="ie-grid" role="tabpanel">
+      {skill === 'reading' ? <>
+        <ExamsCard skill="reading" onOpen={openExam} />
+        <section className="ie-card ie-hero">
+          <header><h2><BookOpenCheck size={18} />بانک تمرین ریدینگ (IELTS Atlas)</h2></header>
+          <p className="ie-muted">۲۴۲ متن ریدینگ با زمان‌سنج، توضیح جواب و دیکشنری. سابقه فقط در همین مرورگر ذخیره می‌شود.</p>
+          <button type="button" className="ie-btn" onClick={onOpen}>باز کردن بانک تمرین</button>
+        </section>
+        <BankStats />
+        <section className="ie-card"><header><h2>واژگان</h2></header><LinkList items={VOCAB_RES} /></section>
+        {links}
+      </> : null}
+      {skill === 'listening' ? <><ExamsCard skill="listening" onOpen={openExam} />{links}</> : null}
+      {skill === 'writing' ? <><Writing />{links}</> : null}
+      {skill === 'speaking' ? <><SpeakingPanel />{links}</> : null}
     </div>
   </Page>;
 }

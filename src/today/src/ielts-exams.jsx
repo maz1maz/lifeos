@@ -38,10 +38,8 @@ function AudioUpload({ test, onDone }) {
   return <label className="ie-btn ghost lt-file"><Upload size={15} />{busy ? 'در حال آپلود…' : test.audio ? 'تعویض صوت' : 'آپلود صوت'}<input type="file" accept="audio/*" onChange={pick} hidden />{msg ? <small className="ie-err">{msg}</small> : null}</label>;
 }
 
-const SKILLS = [['reading', 'ریدینگ', BookOpenCheck], ['listening', 'لیسنینگ', Headphones]];
-
-export function ExamsCard({ onOpen }) {
-  const [d, setD] = useState(null), [err, setErr] = useState(''), [skill, setSkill] = useState('reading');
+export function ExamsCard({ onOpen, skill = 'reading' }) {
+  const [d, setD] = useState(null), [err, setErr] = useState('');
   const load = () => api('/api/ielts/exams').then(setD).catch(e => setErr(e.message));
   useEffect(() => { load(); }, []);
   const share = async t => { await api(`/api/ielts/exams/tests/${t.id}`, { method: 'PATCH', body: JSON.stringify({ shared: !t.shared }) }).catch(e => setErr(e.message)); load(); };
@@ -50,8 +48,7 @@ export function ExamsCard({ onOpen }) {
   const tests = (d?.tests || []).filter(t => (t.skill || 'listening') === skill).sort((a, b) => (a.book || 99) - (b.book || 99) || (a.test || 0) - (b.test || 0) || a.title.localeCompare(b.title));
   const attempts = (d?.attempts || []).filter(a => (a.skill || 'listening') === skill);
   return <section className="ie-card ie-wide">
-    <header><h2><BookOpenCheck size={18} />آزمون‌ها</h2><span className="ie-muted">کمبریج و آزمون‌های خودت؛ تصحیح خودکار و نمرهٔ باند</span></header>
-    <div className="ie-seg" role="tablist" aria-label="مهارت">{SKILLS.map(([k, t, I]) => <button key={k} type="button" role="tab" aria-selected={skill === k} className={skill === k ? 'on' : ''} onClick={() => setSkill(k)}><I size={14} /> {t}</button>)}</div>
+    <header><h2>{skill === 'reading' ? <BookOpenCheck size={18} /> : <Headphones size={18} />}آزمون‌های {skill === 'reading' ? 'ریدینگ' : 'لیسنینگ'}</h2><span className="ie-muted">کمبریج؛ تصحیح خودکار و نمرهٔ باند</span></header>
     {err ? <p className="ie-err">{err}</p> : null}
     {!d ? <Loader /> : <>
       {tests.length ? <ul className="lt-tests">{tests.map(t => <li key={t.id}>
@@ -71,8 +68,8 @@ export function ExamsCard({ onOpen }) {
           {d.admin ? <button type="button" className="ie-btn ghost" onClick={() => share(t)} title={t.shared ? 'فقط برای من' : 'اشتراک با همهٔ کاربران'}><Users size={14} />{t.shared ? 'فقط برای من' : 'برای همه'}</button> : null}
           {t.mine || d.admin ? <button type="button" className="ie-x" aria-label="حذف آزمون" onClick={() => del(t)}><Trash2 size={15} /></button> : null}
         </div>
-      </li>)}</ul> : <p className="ie-muted">{skill === 'reading' ? 'هنوز آزمون ریدینگی اضافه نشده. فایل JSON آزمون‌ها را اضافه کن.' : 'هنوز آزمون لیسنینگی اضافه نشده. فایل JSON آزمون را اضافه کن و بعد صوتش را آپلود کن؛ صوت در چت تلگرام خودت نگه داشته می‌شود.'}</p>}
-      <AddTest onAdded={load} admin={d.admin} />
+      </li>)}</ul> : <p className="ie-muted">{!d.admin ? 'هنوز آزمونی اضافه نشده.' : skill === 'reading' ? 'هنوز آزمون ریدینگی اضافه نشده. فایل JSON آزمون‌ها را اضافه کن.' : 'هنوز آزمون لیسنینگی اضافه نشده. فایل JSON آزمون را اضافه کن و بعد صوتش را آپلود کن؛ صوت در چت تلگرام خودت نگه داشته می‌شود.'}</p>}
+      {d.admin ? <AddTest onAdded={load} admin /> : null}
       {attempts.length ? <><h3 className="ie-h3">نتیجه‌های اخیر</h3>
         <ul className="ie-hist">{attempts.slice(0, 8).map(a => <li key={a.id}>
           <button type="button" className="ie-hrow" onClick={() => onOpen({ testId: a.testId, skill, attemptId: a.id })}>
