@@ -350,3 +350,8 @@
 .ie-more summary{cursor:pointer;font-weight:700;font-size:15px;list-style-position:inside}
 .ie-more[open] summary{margin-bottom:8px}
 @media(max-width:700px){.ie-skills{grid-template-columns:repeat(2,minmax(0,1fr))}.ie-skills button{min-height:44px;font-size:14px}.ie-st-title h1{font-size:19px}}
+
+/* writing: question label + «موضوع پیشنهادی» + timer on one row */
+.ie-qhead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:4px}
+.ie-qhead .ie-btn{margin-top:0;padding:5px 12px;font-size:13px}
+.ie-qhead .ie-label{margin-top:0;margin-inline-end:auto}
