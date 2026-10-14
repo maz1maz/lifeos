@@ -4,6 +4,8 @@ import { Page, api, fa, jl } from './life-core';
 import { Loader } from './loader';
 import { ExamsCard, ExamView } from './ielts-exams';
 import { SpeakingPanel } from './ielts-speaking';
+import { WritingBook } from './ielts-book';
+import { clock } from './ielts-cd';
 
 // «آیلتس» tab of the learning hub, one tab per skill: Reading and Listening tests from the shared library
 // (/api/ielts/exams, run in ielts-reading.jsx / ielts-listening.jsx), AI Writing marking (/api/ielts/writing),
@@ -45,20 +47,40 @@ function Result({ r }) {
   </div>;
 }
 
-function Writing() {
+// A book task picked in WritingBook fills the form: its prompt, chart and a countdown (20 / 40 minutes, as in the test).
+function Timer({ minutes }) {
+  const [left, setLeft] = useState(null);
+  useEffect(() => { setLeft(null); }, [minutes]);
+  useEffect(() => {
+    if (left == null || left <= 0) return;
+    const id = setTimeout(() => setLeft(s => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [left]);
+  return left == null ? <button type="button" className="ie-btn ghost" onClick={() => setLeft(minutes * 60)}>شروع زمان ({fa(minutes)} دقیقه)</button>
+    : <span className={`sp-time ${left < 120 ? 'live' : ''}`}>{left > 0 ? `${clock(left)} مانده` : 'زمان تمام شد'}</span>;
+}
+
+function Writing({ preset, onClear }) {
   const [task, setTask] = useState('task2'), [question, setQuestion] = useState(''), [essay, setEssay] = useState('');
+  useEffect(() => { if (!preset) return; setTask(preset.task); setQuestion(preset.prompt); setCur(null); }, [preset]);
   const [busy, setBusy] = useState(false), [err, setErr] = useState(''), [cur, setCur] = useState(null), [hist, setHist] = useState(null), [openId, setOpenId] = useState(null);
   const load = () => api('/api/ielts/writing').then(x => setHist(x.items || [])).catch(() => setHist([]));
   useEffect(() => { load(); }, []);
   const n = words(essay), min = task === 'task1' ? 150 : 250;
   const send = async () => {
     setBusy(true); setErr(''); setCur(null);
-    try { const r = await api('/api/ielts/writing', { method: 'POST', body: JSON.stringify({ task, question, essay }) }); setCur(r); load(); }
+    // the marker can't see the chart: the task's chart in words goes with the question
+    const q = preset && preset.data && question === preset.prompt ? `${question}\n\n[The chart/diagram shows] ${preset.data}`.slice(0, 2000) : question;
+    try { const r = await api('/api/ielts/writing', { method: 'POST', body: JSON.stringify({ task, question: q, essay }) }); setCur(r); load(); }
     catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
   const del = async id => { setHist(h => h.filter(x => x.id !== id)); try { await api(`/api/ielts/writing/${id}`, { method: 'DELETE' }); } catch (e) { setErr(e.message); load(); } };
   return <section className="ie-card ie-wide">
     <header><h2><PenLine size={18} />تصحیح رایتینگ با هوش مصنوعی</h2><span className="ie-muted">با ۴ معیار رسمی؛ بازخورد به فارسی</span></header>
+    {preset ? <div className="bk-sel">
+      <div className="ie-row"><b dir="ltr">{preset.title} · {preset.task === 'task1' ? 'Task 1' : 'Task 2'}</b><span className="ie-row"><Timer minutes={preset.task === 'task1' ? 20 : 40} /><button type="button" className="ie-btn ghost" onClick={onClear}>سؤال آزاد</button></span></div>
+      {preset.image ? <img className="bk-img" src={preset.image} alt="Task chart" /> : null}
+    </div> : null}
     <div className="ie-seg" role="radiogroup" aria-label="نوع تسک">
       {[['task1', 'Task 1 (گزارش/نامه)'], ['task2', 'Task 2 (انشا)']].map(([k, t]) => <button key={k} type="button" role="radio" aria-checked={task === k} className={task === k ? 'on' : ''} onClick={() => setTask(k)}>{t}</button>)}
     </div>
@@ -95,7 +117,7 @@ const SKILL_TABS = [['reading', 'ریدینگ', BookOpenCheck], ['listening', '�
 const skillFromUrl = () => { const v = new URLSearchParams(location.search).get('s'); return SKILL_TABS.some(([k]) => k === v) ? v : 'reading'; };
 
 export function IeltsPage({ Nav }) {
-  const [lt, setLt] = useState(null), [skill, setSkill] = useState(skillFromUrl);
+  const [lt, setLt] = useState(null), [skill, setSkill] = useState(skillFromUrl), [wp, setWp] = useState(null);
   const pick = k => { setSkill(k); try { const u = new URL(location.href); u.searchParams.set('s', k); history.replaceState(null, '', u.pathname + u.search); } catch {} };
   const openExam = o => { setLt(o); window.scrollTo(0, 0); };
   if (lt) return <main className="lf ielts-page" dir="rtl"><Nav /><div className="lf-page"><ExamView open={lt} onBack={() => { setLt(null); window.scrollTo(0, 0); }} /></div></main>;
@@ -111,7 +133,7 @@ export function IeltsPage({ Nav }) {
         {links}
       </> : null}
       {skill === 'listening' ? <><ExamsCard skill="listening" onOpen={openExam} />{links}</> : null}
-      {skill === 'writing' ? <><Writing />{links}</> : null}
+      {skill === 'writing' ? <><WritingBook onPick={k => { setWp(k); setTimeout(() => document.getElementById('ie-e')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); }} /><Writing preset={wp} onClear={() => setWp(null)} />{links}</> : null}
       {skill === 'speaking' ? <><SpeakingPanel />{links}</> : null}
     </div>
   </Page>;
