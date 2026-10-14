@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Flag, Menu, Volume2, X } from 'lucide-react';
+import { ThemeToggle } from './theme-toggle';
 
 // Full-window exam shell for IELTS Reading/Listening in the LifeOS look (theme tokens, Persian chrome, RTL): a
 // header with the test and time left, a part bar, the paper (English, LTR) and a footer with one section per part
@@ -25,6 +26,7 @@ export function CdShell({ skill, title, status, urgent, partIndex, parts, intro,
       <span className={`cd-time ${urgent ? 'urgent' : ''}`} aria-live="polite">{status}</span>
       <div className="cd-right">
         {tools}
+        <ThemeToggle className="cd-icon" />
         {onVolume ? <label className="cd-vol" title="صدا"><Volume2 size={18} /><input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => onVolume(Number(e.target.value))} aria-label="صدا" /></label> : null}
         <button type="button" className="cd-icon" aria-label="منو" aria-expanded={menu} onClick={() => setMenu(v => !v)}>{menu ? <X size={20} /> : <Menu size={20} />}</button>
         {menu ? <div className="cd-menu">

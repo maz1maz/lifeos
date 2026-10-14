@@ -292,3 +292,8 @@
   .cd .lt-gap input{width:140px}
   .rd-drawer{top:auto;bottom:0;inset-inline:0;width:auto;max-width:none;max-height:60vh;border-radius:16px 16px 0 0}
 }
+/* shared IELTS library (ielts-exams.jsx) */
+.lt-add{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.lt-sharechk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--g-muted);cursor:pointer}
+.lt-sharechk input{accent-color:var(--g-accent);width:16px;height:16px}
+.lt-badge{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:3px 0;font-size:11.5px;padding:1px 8px;border-radius:99px;background:var(--g-accent-soft);color:var(--g-accent);vertical-align:middle}

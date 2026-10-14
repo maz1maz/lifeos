@@ -50,6 +50,7 @@ import { FocusCard, ShoppingPanel, BillsWeekCard, WorkTimeCard, ExerciseWeekCard
 import './loader.css';
 import './controls.css';
 import { Loader } from './loader';
+import { ThemeToggle } from './theme-toggle';
 import './mobile.css'; // phone/iPhone pass — keep last so it overrides page CSS
 
 // Pages the Today screen doesn't need are split into their own chunks, so the first load stays small.
@@ -131,14 +132,6 @@ const BOTTOM_TABS = [['', 'امروز', House], ['planner', 'برنامه', Cale
 const NAV_PAGES = [...NAV_GROUPS.flatMap(([, items]) => items), ['settings', 'تنظیمات', Settings], ['admin', 'مدیریت', ShieldCheck]];
 let ME_ONCE = null;
 const meOnce = () => (ME_ONCE ||= api('/api/me').then(d => d.user || null).catch(() => null));
-// Light/dark switch in the top bar of every page. Watches data-mode so the Ctrl+K «تغییر حالت» command updates the icon too.
-function ThemeToggle() {
-  const [, tick] = useState(0);
-  useEffect(() => { const mo = new MutationObserver(() => tick(t => t + 1)); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] }); return () => mo.disconnect(); }, []);
-  const light = document.documentElement.dataset.mode === 'light';
-  const flip = () => { const next = light ? 'dark' : 'light'; document.documentElement.dataset.mode = next; try { localStorage.setItem('lifeos-mode', next); } catch {} };
-  return <button type="button" className="nav-theme" onClick={flip} aria-label={light ? 'حالت تاریک' : 'حالت روشن'} title={light ? 'حالت تاریک' : 'حالت روشن'}>{light ? <Moon size={17} /> : <Sun size={17} />}</button>;
-}
 function TopNav({ active, right }) {
   const [open, setOpen] = useState(false);
   const mods = useModules();

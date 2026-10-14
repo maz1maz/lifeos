@@ -569,7 +569,7 @@ async function main() {
       const fakeTg = globalThis.fetch;
       globalThis.fetch = async (url, init) => String(url).includes('/sendDocument') ? new Response(JSON.stringify({ ok: true, result: { audio: { file_id: 'FID-AUDIO' } } })) : fakeTg(url, init);
       const asAudio = await up(new Uint8Array([5, 6]), 'audio/mpeg');
-      check('listening: an mp3 Telegram files as «audio» still counts as uploaded', asAudio.status === 200 && (await call('/api/ielts/exams', { cookie: ck })).d.tests.find(t => t.id === 'mini-test').audio.tgId === 'FID-AUDIO', String(asAudio.status));
+      check('listening: an mp3 Telegram files as «audio» still counts as uploaded', asAudio.status === 200 && (await call('/api/ielts/exams', { cookie: ck })).d.tests.find(t => t.id === 'mini-test').audio.size === 2, String(asAudio.status));
       globalThis.fetch = fakeTg;
       await up(new Uint8Array([1, 2, 3, 4]), 'audio/mpeg');
       const get = await worker.fetch(new Request('https://worker-smoke.local/api/ielts/exams/tests/mini-test/audio', { headers: { cookie: ck } }), env, {});
@@ -581,7 +581,7 @@ async function main() {
     const at = await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'mini-test', answers: { 1: 'b', 2: 'prescott.', 3: 'sixty-five', 4: 'C', 5: 'C' } } });
     check('listening: marked on the server (case, number words, pick group counts a letter once)', at.status === 201 && at.d.raw === 4 && at.d.total === 5 && at.d.results.find(r => r.n === 5).ok === false && at.d.evidence[2] && at.d.tape.length === 1, JSON.stringify(at.d && at.d.results));
     const list = await call('/api/ielts/exams', { cookie: ck });
-    check('listening: overview has the test, best band and the attempt', list.d.tests[0].attempts === 1 && list.d.tests[0].best === at.d.band && list.d.attempts[0].id === at.d.id && list.d.tests[0].audio.tgId === 'FID1');
+    check('listening: overview has the test, best band and the attempt (Telegram file id not sent to the browser)', list.d.tests[0].attempts === 1 && list.d.tests[0].best === at.d.band && list.d.attempts[0].id === at.d.id && list.d.tests[0].audio && !list.d.tests[0].audio.tgId);
     const rv = await call(`/api/ielts/exams/attempts/${at.d.id}`, { cookie: ck });
     check('listening: review re-marks a past attempt', rv.status === 200 && rv.d.raw === 4 && rv.d.results.length === 5);
     check('listening: other users can\'t see it', (await call('/api/ielts/exams/tests/mini-test', { cookie })).status === 404 && (await call(`/api/ielts/exams/attempts/${at.d.id}`, { cookie })).status === 404);
@@ -599,6 +599,19 @@ async function main() {
     const rf = await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'mini-read', answers: { 1: 'TRUE', 2: 'NOT GIVEN', 3: 'Modernism' } } });
     const rl = await call('/api/ielts/exams', { cookie: ck });
     check('reading: full test 3/3 -> band 9; best band ignores single-passage practice', rf.d.raw === 3 && rf.d.band === 9 && rl.d.tests.find(t => t.id === 'mini-read').best === 9 && rl.d.tests.find(t => t.id === 'mini-read').attempts === 2);
+    // shared library: only the admin adds/moves/deletes; every user sees and takes the test
+    const S = { ...R, id: 'shared-read', title: 'Shared Reading' };
+    check('shared: a normal user can\'t add for everyone', (await call('/api/ielts/exams/tests?shared=1', { method: 'POST', cookie: ck, body: S })).status === 403);
+    const sh = await call('/api/ielts/exams/tests?shared=1', { method: 'POST', cookie, body: S });
+    const seen = await call('/api/ielts/exams', { cookie: ck });
+    const st = seen.d.tests.find(t => t.id === 'shared-read');
+    check('shared: admin adds it, other users see it as shared', sh.status === 201 && sh.d.shared === true && st && st.shared && !st.mine && seen.d.admin === false, JSON.stringify(sh.d).slice(0, 120));
+    const sat = await call('/api/ielts/exams/attempts', { method: 'POST', cookie: ck, body: { testId: 'shared-read', answers: { 1: 'TRUE' } } });
+    check('shared: other users take it, results are their own', sat.status === 201 && sat.d.raw === 1 && (await call('/api/ielts/exams', { cookie: ck })).d.tests.find(t => t.id === 'shared-read').attempts === 1 && (await call('/api/ielts/exams', { cookie })).d.tests.find(t => t.id === 'shared-read').attempts === 0);
+    check('shared: other users can\'t delete or move it', (await call('/api/ielts/exams/tests/shared-read', { method: 'DELETE', cookie: ck })).status === 403 && (await call('/api/ielts/exams/tests/shared-read', { method: 'PATCH', cookie: ck, body: { shared: false } })).status === 403);
+    const back = await call('/api/ielts/exams/tests/shared-read', { method: 'PATCH', cookie, body: { shared: false } });
+    check('shared: admin moves it back to their own list; others no longer see it', back.status === 200 && back.d.mine && !(await call('/api/ielts/exams', { cookie: ck })).d.tests.some(t => t.id === 'shared-read') && (await call('/api/ielts/exams/tests/shared-read', { cookie })).status === 200);
+    await call('/api/ielts/exams/tests/shared-read', { method: 'DELETE', cookie });
     check('listening: delete test removes its attempts', (await call('/api/ielts/exams/tests/mini-test', { method: 'DELETE', cookie: ck })).status === 200 && !(await call('/api/ielts/exams', { cookie: ck })).d.attempts.some(a => a.testId === 'mini-test'));
   }
   { // work-time log: manual entries, validation, edit, timer start/stop
