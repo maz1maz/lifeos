@@ -502,6 +502,11 @@ async function main() {
       check('tutor: reply', r.status === 200 && r.d.reply === 'Hello! How are you?', JSON.stringify(r.d));
       check('tutor: mode + profile + weak words + scenario in system prompt', /Role-play/.test(sys) && /level=A2/.test(sys) && /chemist, plaster/.test(sys) && /restaurant/.test(sys) && /Present Perfect/.test(sys), (sys || '').slice(0, 160));
       check('tutor: conversation sent as transcript', /Learner: start/.test(usr || ''));
+      // earlier lessons go into the prompt so a new lesson doesn't repeat them
+      seen.length = 0;
+      await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'lesson', context: { lessonNo: 4, focus: 'Food and cooking', doneTopics: ['Daily routine', 'Travel and transport'], doneWords: ['commute', 'itinerary'] }, history: [{ r: 'u', t: 'lesson' }] } });
+      const ls = seen[0] && seen[0].messages[0].content;
+      check('tutor: lesson number, today\'s theme, earlier themes and taught words in the prompt', /LESSON #4/.test(ls) && /THEME: Food and cooking/.test(ls) && /Daily routine \| Travel and transport/.test(ls) && /commute, itinerary/.test(ls), (ls || '').slice(-300));
       check('tutor: unknown mode -> 400', (await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'x', history: [{ r: 'u', t: 'hi' }] } })).status === 400);
       check('tutor: last turn must be the learner -> 400', (await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'chat', history: [{ r: 'a', t: 'hi' }] } })).status === 400);
       check('tutor: needs login', (await call('/api/vocab/tutor', { method: 'POST', body: { mode: 'chat', history: [{ r: 'u', t: 'hi' }] } })).status === 401);
@@ -509,6 +514,9 @@ async function main() {
       const put = await call('/api/vocab/tutor-log', { method: 'PUT', cookie, body: { modes: { chat: { extra: '', hist: [{ r: 'u', t: 'hi' }, { r: 'a', t: 'Hello!' }, { r: 'x', t: '' }] }, evil: { hist: [{ r: 'u', t: 'no' }] } } } });
       const got = await call('/api/vocab/tutor-log', { cookie });
       check('tutor-log: saved and read back (unknown modes / empty turns dropped)', put.status === 200 && put.d.savedAt > 0 && got.d.log && got.d.log.modes.chat.hist.length === 2 && !got.d.log.modes.evil && got.d.log.savedAt === put.d.savedAt, JSON.stringify(got.d));
+      const pd = await call('/api/vocab/tutor-log', { method: 'PUT', cookie, body: { modes: { lesson: { day: '2026-10-14', focus: 'Sport', hist: [{ r: 'u', t: 'x' }] } }, done: { lesson: [{ d: '2026-10-13', topic: 'Food', words: ['recipe', 'bake'] }], evil: [{}] } } });
+      const gd = (await call('/api/vocab/tutor-log', { cookie })).d.log;
+      check('tutor-log: lesson archive (theme + taught words) and the lesson day kept', pd.status === 200 && gd.done.lesson[0].words.join() === 'recipe,bake' && !gd.done.evil && gd.modes.lesson.day === '2026-10-14' && gd.modes.lesson.focus === 'Sport', JSON.stringify(gd).slice(0, 200));
       check('tutor-log: bad body -> 400', (await call('/api/vocab/tutor-log', { method: 'PUT', cookie, body: { modes: [] } })).status === 400);
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
   }
