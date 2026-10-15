@@ -135,14 +135,19 @@ let tutorVoice = null;
 let speechTurn = 0;                  // invalidates queued repetitions on navigation
 const hasTTS = () => typeof window.speechSynthesis !== "undefined" && !!window.speechSynthesis &&
   typeof window.speechSynthesis.speak === "function" && typeof window.SpeechSynthesisUtterance === "function";
+// female English voices that ship with Windows (Hazel, Zira, Jenny, Aria…) and Chrome's Google voices
+const FEMALE_VOICE = /hazel|zira|jenny|aria|libby|sonia|ava|samantha|karen|serena|susan|female|woman|google (uk|us) english/i;
 function pickVoice() {
   if (!hasTTS() || typeof speechSynthesis.getVoices !== "function") return;
   const vs = speechSynthesis.getVoices() || [];
-  voice = vs.find(v => /en[-_]GB/i.test(v.lang)) || vs.find(v => /en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+  // a female voice first (British, then American), then any British or American voice
+  const enGB = vs.filter(v => /en[-_]GB/i.test(v.lang)), enUS = vs.filter(v => /en[-_]US/i.test(v.lang));
+  voice = enGB.find(v => FEMALE_VOICE.test(v.name)) || enUS.find(v => FEMALE_VOICE.test(v.name))
+    || enGB[0] || enUS[0] || vs.find(v => /^en/i.test(v.lang)) || null;
   // The first English voice is often an older synthetic one. Prefer an
   // available natural/enhanced voice for conversation, without changing cards.
   tutorVoice = vs.filter(v => /^en(?:[-_]|$)/i.test(v.lang)).sort((a, b) => {
-    const score = v => (/natural|neural|enhanced|premium/i.test(v.name) ? 100 : 0)
+    const score = v => (FEMALE_VOICE.test(v.name) ? 60 : 0) + (/natural|neural|enhanced|premium/i.test(v.name) ? 100 : 0)
       + (/google|microsoft|apple/i.test(v.name) ? 25 : 0)
       + (/en[-_]US/i.test(v.lang) ? 3 : 0);
     return score(b) - score(a);
