@@ -2,7 +2,8 @@
 // Merge the curated IELTS flashcard content into public/vocab/words.json.
 // Usage: unzip ielts-content-all-45-files-COMPLETE.zip -d <dir> && node scripts/import-ielts.js <dir>
 // Row format: [w, fa[], topic, level, pos, def, ex, syn[], score, exFa, defFa, senses?]
-// Only meaning/pos/definition/example fields are replaced; topic, level, synonyms and score stay.
+// Replaced senses must not inherit synonyms from a different, older sense.
+// Topic, level and score stay; synonyms are cleared unless curated separately.
 // senses (index 11) is added only when a word has more than one sense: [[pos, fa, d, df, e, ef], ...]
 const fs = require('fs');
 const path = require('path');
@@ -25,6 +26,7 @@ for (const f of files) {
     const s0 = senses[0];
     r[1] = [...new Set(senses.map(s => s.fa.trim()))];
     r[4] = s0.pos || ''; r[5] = s0.d || ''; r[6] = s0.e || ''; r[9] = s0.ef || ''; r[10] = s0.df || '';
+    r[7] = [];
     r.length = 11;
     if (senses.length > 1) r[11] = senses.map(s => [s.pos || '', s.fa.trim(), s.d || '', s.df || '', s.e || '', s.ef || '']);
     updated++;

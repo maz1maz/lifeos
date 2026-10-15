@@ -109,10 +109,10 @@ label.f{display:block;font-size:12.5px;color:var(--tx2);margin:0 0 5px}
 .word{font-size:clamp(32px,7vw,52px);font-weight:800;letter-spacing:-.5px;margin:0 0 6px}
 .phon{color:var(--tx3);font-size:14px}
 .meaning{font-size:clamp(22px,4.4vw,30px);font-weight:800;margin:6px 0 2px;line-height:1.7}
-.def{background:#0f1620;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:12px;font-size:15.5px;line-height:1.7}
+.def{background:var(--bg3);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:12px;font-size:15.5px;line-height:1.7}
 .def b{color:var(--acc)}
 .def b{display:block;color:var(--acc);font-size:14px;letter-spacing:.2px}
-.defen{display:block;direction:ltr;text-align:left;margin-top:5px;font-family:var(--fe);unicode-bidi:isolate;color:#d7e4f5;font-size:15px;line-height:1.75}
+.defen{display:block;direction:ltr;text-align:left;margin-top:5px;font-family:var(--fe);unicode-bidi:isolate;color:var(--en);font-size:15px;line-height:1.75}
 .ex{font-family:var(--fe);direction:ltr;text-align:left;font-size:15px;line-height:1.7;color:#d7e4f5;margin-top:10px;padding-inline-start:12px;border-inline-start:3px solid var(--pur)}
 .exfa{direction:rtl;text-align:right;font-size:14px;line-height:1.8;color:#9fb3cc;margin-top:2px;padding-left:12px;padding-right:12px;border-left:3px solid rgba(139,109,255,.35);border-right:none}
 .syn{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
@@ -222,6 +222,8 @@ input[type=password]:focus{outline:2px solid rgba(59,167,255,.35);border-color:v
 .tu-mode b{font-size:15px}.tu-mode span{font-size:12.5px;color:var(--tx2);line-height:1.8}.tu-mode i{font-style:normal;font-size:22px}
 .tu-mode em{font-style:normal;font-size:11px;color:var(--acc)}
 .tu-head{display:flex;align-items:center;gap:8px;margin:0 0 10px}.tu-head h3{margin:0;font-size:16px;flex:1}
+.tu-export{display:flex;flex-wrap:wrap;gap:6px}.tu-export .btn{white-space:nowrap}
+@media(max-width:650px){.tu-head{flex-wrap:wrap}.tu-head h3{flex-basis:calc(100% - 105px)}.tu-export{order:3;width:100%}.tu-export .btn{flex:1}}
 .tu-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .tu-chips button{background:var(--bg3);border:1px solid var(--line);color:var(--tx);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
 .tu-chips button:hover{border-color:var(--acc)}
@@ -283,6 +285,9 @@ header,.top{background:color-mix(in srgb,var(--bg) 88%,transparent)!important}
 .defen,.ex{color:var(--en)!important}
 .exfa,.deffa{color:var(--fa2)!important}
 .exfa{border-left-color:var(--soft)!important}
+html[data-mode="light"] .def{background:#f5f1e8!important;color:var(--tx)!important;border-color:var(--line2)!important}
+html[data-mode="light"] .def b{color:var(--acc2)!important}
+html[data-mode="light"] .defen,html[data-mode="light"] .ex{color:var(--en)!important}
 input:focus,select:focus,textarea:focus,input[type=password]:focus{outline-color:var(--soft)!important}
 .mask{background:rgba(0,0,0,.6)!important}
 .logo{background:var(--acc)!important;color:var(--accfg)!important}
@@ -379,8 +384,18 @@ html,body{max-width:100%;overflow-x:hidden}
 .bn-h .btn{margin-inline-start:auto}
 .bn table{width:100%;border-collapse:collapse;font-size:13px}.bn td{padding:7px 10px;border-top:1px solid var(--line);vertical-align:top}.bn tr:first-child td{border-top:0}
 .fc.sw-r{box-shadow:0 0 0 2px var(--ok)}.fc.sw-l{box-shadow:0 0 0 2px var(--bad)}
+/* Keep the whole answer on the page. A fixed-height back concealed examples and
+   made the browser's inner scrollbar appear bright in dark mode. */
+.fc{height:auto;min-height:380px}
+.fc>.face{overflow:visible;max-height:none;min-width:0}
+@media(max-width:700px){.fc{height:auto;min-height:clamp(280px,40vh,360px)}}
+/* All desktop topics remain discoverable without horizontal clipping. */
+@media(min-width:701px){#topicBar{flex-wrap:wrap!important;overflow:visible!important;-webkit-mask-image:none;mask-image:none;padding-inline-end:0}}
 .swhint{display:none;text-align:center;font-size:11.5px;color:var(--tx3);margin-top:6px}
 @media(hover:none) and (pointer:coarse){.swhint{display:block}}
+/* IELTS listening lab */
+.ielts-hero{padding:18px;background:linear-gradient(135deg,#162b42,#121b29);border-color:#294766}.ielts-kicker{color:#8ad3ff;font-size:12px;font-weight:800;letter-spacing:.2px}.ielts-hero h2{margin:6px 0}.ielts-hero p{margin:0;color:var(--tx2);font-size:14px;line-height:1.85}.ielts-status{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.ielts-status .pill{background:rgba(6,18,30,.35)}.ielts-roadmap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.ielts-set{display:grid;gap:3px;min-width:0;text-align:start;padding:12px;border:1px solid var(--line);border-radius:13px;background:var(--bg2);color:var(--tx);font:inherit;cursor:pointer}.ielts-set:hover,.ielts-set:focus-visible{border-color:var(--acc)}.ielts-set.on{border-color:var(--acc);background:#132537;box-shadow:inset 0 0 0 1px rgba(59,167,255,.18)}.ielts-set small,.ielts-set span{color:var(--tx3);font-size:11px}.ielts-set b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ielts-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(240px,.75fr);gap:12px;margin-top:12px}.ielts-drill h3{margin:4px 0 0}.ielts-instructions{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 0}.ielts-instructions span{border:1px solid var(--line);border-radius:999px;padding:4px 8px;color:var(--tx2);font-size:11.5px}.ielts-progress{display:flex;align-items:center;gap:9px;color:var(--tx3);font-size:12px;margin-top:16px}.ielts-progress i{height:6px;flex:1;border:1px solid var(--line);border-radius:99px;overflow:hidden}.ielts-progress b{height:100%;display:block;background:linear-gradient(90deg,var(--acc),var(--pur))}.ielts-question{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}.ielts-question h3{margin-bottom:10px}.ielts-options{display:grid;gap:7px}.ielts-option{text-align:start;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--bg3);font:inherit;color:var(--tx);cursor:pointer}.ielts-option:hover,.ielts-option:focus-visible{border-color:var(--acc)}.ielts-option.correct{border-color:var(--ok);background:#0f2c22;color:#b8f4d9}.ielts-option.wrong{border-color:var(--bad);background:#2c1119;color:#ffc9d2}.ielts-feedback{margin:10px 0 0;line-height:1.8;font-size:13px}.ielts-transcript{display:block;margin-top:7px;color:var(--tx3);font-size:12px;line-height:1.8}.ielts-plan{list-style:none;margin:0;padding:0;display:grid;gap:9px}.ielts-plan li{display:grid;grid-template-columns:60px 1fr;gap:8px;align-items:start;border-top:1px dashed var(--line);padding-top:9px;font-size:12.5px}.ielts-plan li:first-child{border-top:0;padding-top:0}.ielts-plan b{color:var(--acc);font-family:var(--fe)}.ielts-plan span{color:var(--tx2);line-height:1.65}.ielts-subhead{margin:18px 0 9px}.ielts-resources{display:grid;gap:8px}.ielts-resource{display:block;text-decoration:none;color:var(--tx);border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--bg3)}.ielts-resource:hover,.ielts-resource:focus-visible{border-color:var(--acc)}.ielts-resource b{display:block;font-size:13px}.ielts-resource small{display:block;color:var(--tx3);margin-top:3px;font-size:12px;line-height:1.65}.ielts-note{margin:12px 0 0;color:var(--tx3);font-size:12px;line-height:1.75}@media(max-width:700px){.ielts-grid{grid-template-columns:1fr}.ielts-roadmap{grid-template-columns:repeat(2,minmax(0,1fr))}.ielts-hero{padding:15px}}
+.ielts-skills{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}.ielts-skills button{border:1px solid var(--line);background:var(--bg2);color:var(--tx2);border-radius:10px;padding:8px 11px;font:inherit;font-size:12.5px;cursor:pointer}.ielts-skills button:hover,.ielts-skills button:focus-visible{border-color:var(--acc);color:var(--tx)}.ielts-skills button.on{background:var(--acc);border-color:var(--acc);color:#05121e;font-weight:800}.ielts-skills small{font-size:10px;opacity:.7}.ielts-passage{padding:15px;border:1px solid var(--line);border-radius:12px;background:#101720;color:#d7e4f5;font-family:var(--fe);font-size:15px;line-height:2;text-align:left}.ielts-draft{min-height:310px;margin:13px 0 8px;resize:vertical;font-family:var(--fe);line-height:1.9;text-align:left}.ielts-check{display:grid;gap:9px;margin:0;padding:0 19px 0 0;color:var(--tx2);font-size:13px;line-height:1.8}.ielts-check li::marker{color:var(--acc)}.ielts-record{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}#speakPlayback{width:100%;margin-top:12px}@media(max-width:700px){.ielts-skills{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.ielts-skills button{white-space:nowrap;flex:0 0 auto}}
 </style>
 </head>
 <body>
@@ -406,6 +421,7 @@ html,body{max-width:100%;overflow-x:hidden}
       <button class="tab" data-v="browse">فهرست واژه‌ها</button>
       <button class="tab" data-v="notes">جزوه</button>
       <button class="tab" data-v="tutor">معلم</button>
+      <button class="tab" data-v="ielts">IELTS · شنیداری</button>
       <button class="tab" data-v="stats">پیشرفت</button>
       <button class="tab" data-v="settings">تنظیمات</button>
       <button class="tab" id="userBtn" title="حساب من">کاربر</button>
@@ -430,6 +446,7 @@ html,body{max-width:100%;overflow-x:hidden}
   <section class="view hide" id="v-browse"><div id="browseMain"></div></section>
   <section class="view hide" id="v-notes"><div id="notesMain"></div></section>
   <section class="view hide" id="v-tutor"><div id="tutorMain"></div></section>
+  <section class="view hide" id="v-ielts"><div id="ieltsMain"></div></section>
   <section class="view hide" id="v-stats"><div id="statsMain"></div></section>
   <section class="view hide" id="v-settings"><div id="setMain"></div></section>
 
@@ -444,6 +461,6 @@ html,body{max-width:100%;overflow-x:hidden}
 <div class="toast" id="toast"></div>
 
 <script src="/app-lock.js?v=2"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
