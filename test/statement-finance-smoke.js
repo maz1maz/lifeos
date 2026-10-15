@@ -24,7 +24,8 @@ async function main() {
   assert.equal(statement.statementSummary(contract, 1, []).payableWithVat, 360);
   assert.equal(statement.statementSummary(contract, 2, []).payableWithVat, 270);
   const payments = [{ statementNo: 1, paidAmount: 360, amountSource: 'auto' }, { statementNo: 2, paidAmount: 100, amountSource: 'auto' }];
-  assert.deepEqual(life.latestStatementPayable(contract, payments), { no: 2, amount: 270, remaining: 170 });
+  // amount is the statement's payable net of the deposits up to it (statementSummary); remaining is what is still owed
+  assert.deepEqual(life.latestStatementPayable(contract, payments), { no: 2, amount: 170, remaining: 170 });
   assert.equal(life.statementLedger(payments, contract).remaining, 170);
   assert.equal(life.projectOutstanding(contract, payments), 170);
   const noStatement = { amount: 1000, advancePayment: 200, remainingAmount: 800 };

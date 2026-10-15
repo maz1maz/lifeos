@@ -219,6 +219,8 @@ function nextCard(list) {
   const up = list.filter(x => S.cards[x.w]).sort((a, b) => S.cards[a.w].due - S.cards[b.w].due);
   return up[0] || list[0] || null;
 }
+// new words still to learn today: the daily quota minus what was already started, capped by what the filter has left
+function newLeft(list) { return Math.min(Math.max(0, S.settings.dailyNew - dayRec().n), list.filter(x => !S.cards[x.w]).length); }
 function newCount(list) { return dayRec().n >= S.settings.dailyNew ? 0 : list.filter(x => !S.cards[x.w]).length; }
 function dueCount(list) { const n = Date.now(); return list.filter(x => S.cards[x.w] && S.cards[x.w].due <= n).length; }
 
@@ -253,15 +255,16 @@ const TU_MODES = [
   { k: "review", i: "🔁", t: "مرور فراموش‌شده‌ها", d: "آزمون مخلوط از واژه‌های ضعیف، تازه و جزوه؛ آخرش می‌گوید چه چیزی را مرور کنی.", start: "از من آزمون مرور بگیر." },
 ];
 const TU_KEY = "lifeos-vocab-tutor";
-let TU = { mode: null, busy: false, store: { modes: {}, savedAt: 0 }, synced: false, rec: null };
+let TU = { mode: null, busy: false, store: { modes: {}, done: {}, savedAt: 0 }, synced: false, rec: null };
 try { const o = JSON.parse(localStorage.getItem(TU_KEY) || "{}") || {}; TU.store = o.modes ? o : { modes: o, savedAt: 0 }; } catch (e) {}
+TU.store.done = TU.store.done || {};
 // local copy first, then the server row (/api/vocab/tutor-log) so a conversation continues on another device
 let tuPushTimer = null;
 const tuSaveLocal = () => {
   TU.store.savedAt = Date.now();
   try { localStorage.setItem(TU_KEY, JSON.stringify(TU.store)); } catch (e) {}
   clearTimeout(tuPushTimer);
-  tuPushTimer = setTimeout(() => fetch("/api/vocab/tutor-log", { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modes: TU.store.modes }) })
+  tuPushTimer = setTimeout(() => fetch("/api/vocab/tutor-log", { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modes: TU.store.modes, done: TU.store.done }) })
     .then(r => r.ok ? r.json() : null).then(d => { if (d && d.savedAt) { TU.store.savedAt = d.savedAt; try { localStorage.setItem(TU_KEY, JSON.stringify(TU.store)); } catch (e) {} } }).catch(() => {}), 800);
 };
 async function tuPull() {
@@ -269,11 +272,42 @@ async function tuPull() {
   try {
     const d = await fetch("/api/vocab/tutor-log", { credentials: "same-origin" }).then(r => r.ok ? r.json() : null);
     const log = d && d.log;
-    if (log && log.modes && log.savedAt > (TU.store.savedAt || 0)) { TU.store = { modes: log.modes, savedAt: log.savedAt }; try { localStorage.setItem(TU_KEY, JSON.stringify(TU.store)); } catch (e) {} return true; }
+    if (log && log.modes && log.savedAt > (TU.store.savedAt || 0)) { TU.store = { modes: log.modes, done: log.done || TU.store.done || {}, savedAt: log.savedAt }; try { localStorage.setItem(TU_KEY, JSON.stringify(TU.store)); } catch (e) {} return true; }
   } catch (e) {}
   return false;
 }
 const tuConv = k => TU.store.modes[k] || (TU.store.modes[k] = { extra: "", hist: [] });
+// Lessons and conversations used to repeat themselves after a few days: the tutor never knew what it had taught.
+// Each finished lesson/conversation is archived (theme + the **bold** words it taught) and sent with the next
+// one; a new lesson gets the next unused theme, and «درس امروز» starts a fresh lesson on a new day.
+const TU_THEMES = ["Daily routine", "Family and relationships", "Food and cooking", "Health and fitness", "Travel and transport", "Work and careers", "Education and studying",
+  "Technology and the internet", "The environment", "Shopping and money", "Housing and cities", "Weather and seasons", "Hobbies and free time", "Sport", "Media and news",
+  "Culture and traditions", "Science and discovery", "Art and music", "Crime and the law", "Tourism and holidays", "Animals and nature", "Communication and language",
+  "Government and society", "Business and the economy", "Childhood and memories", "Plans and ambitions", "Friendship", "Transport problems in cities", "Books and films", "Celebrations and festivals"];
+const tuToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran" }).format(new Date());
+const tuDone = k => TU.store.done[k] || (TU.store.done[k] = []);
+function tuTheme(k) {
+  const used = new Set(tuDone(k).slice(-TU_THEMES.length + 5).map(x => x.topic));
+  const free = TU_THEMES.filter(t => !used.has(t));
+  const pool = free.length ? free : TU_THEMES;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function tuArchive(k) {
+  const cv = TU.store.modes[k];
+  if (!cv || !cv.hist.some(x => x.r === "a")) return;
+  const words = [...new Set(cv.hist.filter(x => x.r === "a").flatMap(x => [...String(x.t).matchAll(/\*\*([^*]+)\*\*/g)].map(m => m[1].trim().toLowerCase())))]
+    .filter(w => /^[a-z][a-z '’-]{1,38}$/.test(w)).slice(0, 40);
+  const topic = cv.focus || cv.extra || (cv.hist.find(x => x.r === "a")?.t || "").split("\n")[0].replace(/[#*]/g, "").trim().slice(0, 80);
+  tuDone(k).push({ d: cv.day || tuToday(), topic, words });
+  TU.store.done[k] = tuDone(k).slice(-60);
+}
+// a new conversation in lesson / chat gets its day and theme
+function tuFresh(k) {
+  const cv = tuConv(k);
+  if (cv.hist.length) return;
+  cv.day = tuToday();
+  if (k === "lesson" || k === "chat") cv.focus = cv.focus || tuTheme(k);
+}
 // voice input (English) with the browser's speech recognition, where available
 const TU_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 function tuMic(btn, inp) {
@@ -287,12 +321,14 @@ function tuMic(btn, inp) {
   try { r.start(); } catch (e) { TU.rec = null; btn.classList.remove("on"); }
 }
 const tuProf = () => (S.settings.tutor || (S.settings.tutor = { level: "", goal: "", minutes: 20 }));
-function tuContext() {
+function tuContext(k) {
   const cards = Object.entries(S.cards || {});
   const weak = cards.filter(([, c]) => c && c.bad > 0).sort((a, b) => (b[1].bad - b[1].good) - (a[1].bad - a[1].good)).slice(0, 30).map(([w]) => w);
   const recent = cards.filter(([, c]) => c && c.last).sort((a, b) => b[1].last - a[1].last).slice(0, 30).map(([w]) => w);
   const notes = NOTES ? NOTES.sections.map(x => x.title).slice(0, 30) : [];
-  return { weak, recent, notes };
+  const cv = k ? TU.store.modes[k] : null, done = k ? tuDone(k) : [];
+  const doneWords = k === "lesson" ? [...new Set(done.slice().reverse().flatMap(x => x.words || []))].slice(0, 150) : [];
+  return { weak, recent, notes, focus: cv && cv.focus || "", lessonNo: k === "lesson" ? done.length + 1 : 0, doneTopics: done.slice(-30).map(x => x.topic).filter(Boolean), doneWords };
 }
 // tutor text → safe HTML: **bold** (deck words become ⭐-able), *em*, `code`, line breaks
 function tuHtml(t) {
@@ -382,9 +418,14 @@ async function renderTutor() {
     box.onclick = e => { const b = e.target.closest(".tu-mode"); if (b) { TU.mode = b.dataset.m; renderTutor(); } };
     return;
   }
-  const m = TU_MODES.find(x => x.k === TU.mode), cv = tuConv(m.k);
+  const m = TU_MODES.find(x => x.k === TU.mode);
+  // «درس امروز»: yesterday's lesson goes to the archive and today's starts fresh
+  const ls = TU.store.modes.lesson;
+  if (m.k === "lesson" && ls && ls.hist.length && !ls.day) { ls.day = tuToday(); tuSaveLocal(); }   // lessons from before the day stamp roll over tomorrow
+  if (m.k === "lesson" && ls && ls.hist.length && ls.day && ls.day !== tuToday() && !TU.busy) { tuArchive("lesson"); delete TU.store.modes.lesson; tuSaveLocal(); }
+  const cv = tuConv(m.k);
   const needsExtra = m.ask && !cv.hist.length;
-  box.innerHTML = `<div class="tu-head"><button type="button" class="btn sm ghost" id="tuBack">بازگشت</button><h3>${m.i} ${m.t}${cv.extra && m.k !== "correct" ? ` — <span dir="auto">${esc(cv.extra)}</span>` : ""}</h3>${m.k === "chat" && cv.hist.length ? `<div class="tu-export"><button type="button" class="btn sm ghost" id="tuPdf">دریافت PDF</button><button type="button" class="btn sm ghost" id="tuTelegram">ارسال به تلگرام</button></div>` : ""}${cv.hist.length ? `<button type="button" class="btn sm ghost" id="tuNew">شروع تازه</button>` : ""}</div>
+  box.innerHTML = `<div class="tu-head"><button type="button" class="btn sm ghost" id="tuBack">بازگشت</button><h3>${m.i} ${m.t}${cv.extra && m.k !== "correct" ? ` — <span dir="auto">${esc(cv.extra)}</span>` : cv.focus ? ` — <span dir="ltr">${esc(cv.focus)}</span>` : ""}${m.k === "lesson" ? ` <small class="tu-no">درس ${fa(tuDone("lesson").length + 1)}</small>` : ""}</h3>${m.k === "chat" && cv.hist.length ? `<div class="tu-export"><button type="button" class="btn sm ghost" id="tuPdf">دریافت PDF</button><button type="button" class="btn sm ghost" id="tuTelegram">ارسال به تلگرام</button></div>` : ""}${cv.hist.length ? `<button type="button" class="btn sm ghost" id="tuNew">شروع تازه</button>` : ""}</div>
     ${needsExtra && m.chips ? `<div class="tu-chips">${m.chips.map(c => `<button type="button" data-chip="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
     <div class="tu-log" id="tuLog">${cv.hist.map(x => `<div class="tu-msg ${x.r === "a" ? "a" : "u"}" dir="auto">${x.r === "a" ? `<button type="button" class="tu-say" data-say-msg aria-label="تلفظ">🔊</button>${tuHtml(x.t)}` : esc(x.t).replace(/\n/g, "<br>")}</div>`).join("")}${TU.busy ? `<div class="tu-msg a"><span class="muted">معلم دارد می‌نویسد…</span></div>` : ""}</div>
     <div class="tu-comp"><textarea id="tuIn" dir="auto" placeholder="${esc(needsExtra ? m.ask : m.k === "roleplay" ? "جوابت را بنویس… (برای پایان: «پایان»)" : "جوابت را بنویس…")}"></textarea>${TU_SR ? `<button type="button" class="btn tu-mic" id="tuMic" aria-pressed="false" aria-label="گفتن به انگلیسی" title="گفتن به انگلیسی">🎤</button>` : ""}<button type="button" class="btn" id="tuSend"${TU.busy ? " disabled" : ""}>فرستادن</button></div>
@@ -392,7 +433,7 @@ async function renderTutor() {
   $("#tuBack").onclick = () => { TU.mode = null; renderTutor(); };
   if ($("#tuPdf")) $("#tuPdf").onclick = e => tuPdfAction('download', cv.hist, e.currentTarget);
   if ($("#tuTelegram")) $("#tuTelegram").onclick = e => tuPdfAction('send', cv.hist, e.currentTarget);
-  if ($("#tuNew")) $("#tuNew").onclick = () => { if (confirm("گفتگوی این بخش پاک شود و از اول شروع شود؟")) { delete TU.store.modes[m.k]; tuSaveLocal(); renderTutor(); } };
+  if ($("#tuNew")) $("#tuNew").onclick = () => { if (confirm("این گفتگو بایگانی شود و یک گفتگوی تازه شروع شود؟ (معلم آنچه را یاد داده به خاطر می‌سپارد)")) { tuArchive(m.k); delete TU.store.modes[m.k]; tuSaveLocal(); renderTutor(); } };
   const inp = $("#tuIn");
   $("#tuSend").onclick = () => { if (TU.rec) TU.rec.stop(); tuSend(inp.value); };
   if ($("#tuMic")) $("#tuMic").onclick = () => tuMic($("#tuMic"), inp);
@@ -416,11 +457,12 @@ async function tuSend(text) {
     if (m.k === "grammar") { cv.extra = text.slice(0, 200); text = "این قاعده را یادم بده: " + text; }
     else if (m.k === "roleplay") { cv.extra = text.slice(0, 200); text = "سناریو: " + text + " — شروع کن."; }
   }
+  tuFresh(m.k);
   cv.hist.push({ r: "u", t: text.slice(0, 1800) }); TU.busy = true; tuSaveLocal(); renderTutor();
   let reply = null, err = null;
   try {
     const r = await fetch("/api/vocab/tutor", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: m.k, extra: cv.extra, profile: tuProf(), context: tuContext(), history: cv.hist.slice(-14) }) });
+      body: JSON.stringify({ mode: m.k, extra: cv.extra, profile: tuProf(), context: tuContext(m.k), history: cv.hist.slice(-14) }) });
     const d = await r.json().catch(() => ({}));
     if (r.ok && d.reply) reply = d.reply; else err = d.error || "معلم جواب نداد؛ دوباره امتحان کن.";
   } catch (e) { err = "اتصال برقرار نشد؛ اینترنت را بررسی کن."; }
@@ -749,11 +791,11 @@ function renderStudy() {
   $("#studyMain").innerHTML = `
   <div class="grid g4" style="margin-bottom:12px">
     <div class="stat"><b>${fa(dueCount(list))}</b><span>واژه آمادهٔ مرور</span></div>
-    <div class="stat"><b>${fa(newCount(list))}</b><span>واژهٔ نو (سهم امروز)</span></div>
+    <div class="stat"><b>${fa(newLeft(list))}</b><span>واژهٔ نو امروز (از ${fa(list.filter(x => !S.cards[x.w]).length)})</span></div>
     <div class="stat"><b>${fa(done)}</b><span>واژهٔ تسلط‌یافته</span></div>
     <div class="stat"><b>${fa(today_.r)}</b><span>مرور امروز (هدف: ${fa(goal)})</span></div>
   </div>
-  <div class="bar" title="پیشرفت هدف امروز"><i style="width:${pct}%"></i></div>
+  <div class="between daybar"><div class="bar" title="پیشرفت هدف امروز"><i style="width:${pct}%"></i></div><small class="muted">هدف امروز ${fa(pct)}٪</small></div>
 
   <div class="fcwrap"><div class="fc ${flipped ? "flip" : ""}" id="fc">
     <div class="face front">

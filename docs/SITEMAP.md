@@ -39,7 +39,7 @@
 - ورودی صوتی Ctrl+K (Web Speech، fa-IR). صف آفلاین ثبت سریع: `postOrQueue`/`flushOutbox` در palette.jsx. خروج از حساب در کشوی منو (`signOut`، پاک‌کردن کش داده‌ها).
 
 ### هاب‌های منو (`TabHub` در main.jsx) — ۲۰۲۶-۱۰-۰۶
-- برنامه‌ریز: `planner|calendar|habits|focus|time` · مرور و اهداف: `review|goals|week|stats` · یادگیری: `learning|vocab` · یادداشت: `notes|journal|shopping` · تماشا: `series|movies|upcoming|discover` (WatchHub).
+- برنامه‌ریز: `planner|calendar|habits|focus|time` · مرور و اهداف: `review|goals|week|stats` · یادگیری: `learning|vocab|ielts` · یادداشت: `notes|journal|shopping` · تماشا: `series|movies|upcoming|discover` (WatchHub).
 - گروه‌های منو: روزانه، کار، مالی، زندگی، سرگرمی، یادگیری و آرشیو. موبایل (≤۷۰۰px): نوار پایین `.bnav` (امروز، برنامه، مالی، یادداشت، همه).
 - ماژول تازهٔ قابل خاموش‌کردن: `habits`؛ `vocab` و `habits` به whitelist ماژول‌ها در worker.js اضافه شدند.
 
@@ -71,3 +71,14 @@
 - (حل شد ۲۰۲۶-۱۰) `vite.config.js` و `@cloudflare/vite-plugin` حذف شدند؛ build فقط با `vite.today.config.mjs`. قبلاً: دو فایل vite config (`vite.today.config.mjs` که build واقعی از آن است).
 - `public/design/cards-v2.html` (۳۵۰KB) و `login-page.html` (۲۷۰KB) فونت base64 دارند.
 - ۲۰۲۶-۰۹-۳۰: `header.js` از `worker.js` عقب بود (fixهای فوتبال دستی در worker.js)؛ همگام شد و `port.js` دوباره سبز است.
+
+## آیلتس (`?page=ielts&s=reading|listening|writing|speaking`، تب سوم هاب یادگیری؛ ماژول `vocab`)
+- چهار بخش با تب: ریدینگ (بانک آزمون با فیلتر پسیج/تکرار + واژگان)، لیسنینگ (آزمون‌ها)، رایتینگ (تصحیح AI)، اسپیکینگ (`ielts-speaking.jsx`: ساختار و معیارها، کارت Part 2 با تایمر و ضبط محلی، سؤال‌های Part 1/3، لینک معلم). آزمون‌ها را فقط مدیر اضافه می‌کند.
+- `src/today/src/ielts.jsx` + `ielts.css`: تب‌های مهارت، تصحیح رایتینگ AI (با تسک انتخابی از کتاب، تصویر نمودار و تایمر ۲۰/۴۰ دقیقه)، لینک‌ها و منابع.
+- بالای صفحه `ielts-status.jsx`: تب مهارت‌ها با آخرین باند هر مهارت، باند تخمینی کل، هدف و شمارش معکوس روز آزمون (localStorage `lifeos-ielts-goal`). هاب یادگیری: آیلتس اول؛ «کتاب و دوره» = `?page=learning&t=books`.
+- واژه از پسیج ریدینگ ← انتخاب ← «واژه»: `POST /api/vocab/star {w}` (ستاره‌دار در اپ زبان؛ `vocabStar` در helpers).
+- آماده‌سازی کتاب‌ها: `docs/IELTS-CONTENT.md` (قالب JSON) + `node scripts/ielts-check.mjs <پوشه>` (اعتبارسنجی + تصحیح با کلید خودش) و `--img` برای data URL تصویر.
+- رایتینگ و اسپیکینگ کتاب‌ها: `ielts-book.jsx` (`WritingBook`، `SpeakingBook`). همان کتابخانهٔ مشترک با `skill:'writing'` = `tasks[{task:'task1'|'task2', prompt, image? (data URL), data? (نمودار به متن برای مصحح AI), model? (نمونه‌پاسخ کتاب)}]` و `skill:'speaking'` = `cards[{title, text, ask?, notes? (یادداشت ممتحن)}]`؛ بدون کلید، بدون attempt و صوت.
+- بانک ریدینگ: ۲۴۲ پسیج IELTS Atlas (برنامهٔ جدا که در ۲۰۲۶-۱۰ حذف شد) به JSON همین قالب تبدیل و در کتابخانهٔ مشترک وارد شده‌اند (`id` = `atlas-<p1|p2|p3>-<freq>-<n>`، `bank:'atlas'`، `part`، `freq`، توضیح فارسی در `explain`).
+- آزمون‌ها (ریدینگ و لیسنینگ): `ielts-exams.jsx` (کارت + نما) → `ielts-reading.jsx` (متن | سؤال با جداکنندهٔ کشیدنی، هایلایت و یادداشت روی متن، علامت مرور، اندازهٔ متن، تایمر ۶۰ دقیقه / ۲۰ دقیقه برای یک پسیج، تحویل خودکار) و `ielts-listening.jsx` (صوت یک بار + ۱۰ دقیقه بازبینی)، پوستهٔ مشترک `ielts-cd.jsx`، برگهٔ سؤال و نتیجه `ielts-paper.jsx`، پیش‌نویس در `ielts-exams-store.js`. سرور: `cloudflare/lib/ielts.js` (اعتبارسنجی، نرمال‌سازی جواب، تصحیح، جدول باند listening/academic/general). آزمون = JSON (`skill`, `module`, `book`, `test`, `sections[{passage?, groups}]`, `key`، برای لیسنینگ `tape`/`evidence`) در ردیف kv جدا `ielts:ex:<uid>:<id>` (فهرست `ielts:ex:<uid>`) یا در کتابخانهٔ مشترک `ielts:ex:shared[:<id>]` که فقط مدیر سایت پر می‌کند و همه می‌بینند (`?shared=1` هنگام ورود، `PATCH {shared}` برای جابه‌جایی)، **هرگز در ریپو** (کتاب کپی‌رایت دارد و ریپو عمومی است)؛ صوت در چت تلگرام کاربر. انواع گروه سؤال: چندگزینه‌ای، `choices` (TFNG/YNNG)، `options` (تطبیق)، `lines` با [n] (+`bank` لیست کلمات)، `table`، `pick`. API: `GET /api/ielts/exams`، `POST …/tests`، `GET|DELETE …/tests/:id` (بدون کلید)، `POST|GET …/tests/:id/audio`، `POST …/attempts` (`parts` برای یک پسیج، `marks` هایلایت‌ها)، `GET|DELETE …/attempts/:id`. نتیجه‌ها در `db.ieltsAttempts`.
+- API: `GET|POST /api/ielts/writing`، `DELETE /api/ielts/writing/:id` (ذخیره در `db.ieltsWritings`، ۵۰ مورد آخر؛ نمرهٔ کل در سرور از میانگین ۴ معیار گرد به نیم‌باند).

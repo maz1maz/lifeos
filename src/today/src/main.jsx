@@ -38,6 +38,7 @@ import './exercise.css';
 import './timelog.css';
 import './admin.css';
 import './courses.css';
+import './ielts.css';
 import { InsightsHomeCard } from './insights-card';
 import { CommandPalette, flushOutbox } from './palette';
 import { api, isoToday, fa, faDigits, JALALI_MONTHS, WEEKDAYS, iso, fromIso, jdiv, jmod, jalCal, g2d, d2g, j2d, d2j, toJalali, toGregorian, jalaliMonthLength, addDays, sameDate, weekdayIndex, eventOnDate, eventLabel, seasonAiredCount, seasonTotalCount, seriesHasFresh, nextToWatch, watchLabel, waitingNewSeason, episodesWatchedCount, seriesAiredTotal, SERIES_TABS, seriesInTab, SHOW_STATUS_FA, readDataUrl, jalaliDayLabel } from './main-util';
@@ -49,13 +50,14 @@ import { FocusCard, ShoppingPanel, BillsWeekCard, WorkTimeCard, ExerciseWeekCard
 import './loader.css';
 import './controls.css';
 import { Loader } from './loader';
+import { ThemeToggle } from './theme-toggle';
 import './mobile.css'; // phone/iPhone pass — keep last so it overrides page CSS
 
 // Pages the Today screen doesn't need are split into their own chunks, so the first load stays small.
 const PAGE_CHUNKS = {
   notes: () => import('./notes'), contacts: () => import('./contacts'), documents: () => import('./documents'),
   media: () => import('./media'), market: () => import('./market'), calendar: () => import('./calendar'),
-  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), watch: () => import('./watch-pages'), exercise: () => import('./exercise'), timelog: () => import('./timelog'), admin: () => import('./admin'), courses: () => import('./courses'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook'), reading: () => import('./reading')
+  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), watch: () => import('./watch-pages'), exercise: () => import('./exercise'), timelog: () => import('./timelog'), admin: () => import('./admin'), courses: () => import('./courses'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook'), reading: () => import('./reading'), ielts: () => import('./ielts')
 };
 const lazyPage = (chunk, name) => React.lazy(() => PAGE_CHUNKS[chunk]().then(m => ({ default: m[name] })));
 const AdminPage = lazyPage('admin', 'AdminPage'), CoursesPage = lazyPage('courses', 'CoursesPage'), ClassTodayCardLazy = lazyPage('courses', 'ClassTodayCard');
@@ -66,6 +68,7 @@ const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('mark
 const FinanceReact = lazyPage('finance', 'FinanceReact'), HabitsPage = lazyPage('habits', 'HabitsPage'), WeeklyPage = lazyPage('habits', 'WeeklyPage');
 const [HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, LifeStatsPage] =
   ['HealthPage', 'CarPage', 'TravelPage', 'ProjectsPage', 'CrmPage', 'LearningPage', 'JournalPage', 'GoalsPage', 'FocusPage', 'LifeStatsPage'].map(n => lazyPage('life', n));
+const IeltsPage = lazyPage('ielts', 'IeltsPage');
 const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage'), ReadingPage = lazyPage('reading', 'ReadingPage'), BookmarksPage = lazyPage('reading', 'BookmarksPage');
 // Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
 const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
@@ -129,14 +132,6 @@ const BOTTOM_TABS = [['', 'امروز', House], ['planner', 'برنامه', Cale
 const NAV_PAGES = [...NAV_GROUPS.flatMap(([, items]) => items), ['settings', 'تنظیمات', Settings], ['admin', 'مدیریت', ShieldCheck]];
 let ME_ONCE = null;
 const meOnce = () => (ME_ONCE ||= api('/api/me').then(d => d.user || null).catch(() => null));
-// Light/dark switch in the top bar of every page. Watches data-mode so the Ctrl+K «تغییر حالت» command updates the icon too.
-function ThemeToggle() {
-  const [, tick] = useState(0);
-  useEffect(() => { const mo = new MutationObserver(() => tick(t => t + 1)); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] }); return () => mo.disconnect(); }, []);
-  const light = document.documentElement.dataset.mode === 'light';
-  const flip = () => { const next = light ? 'dark' : 'light'; document.documentElement.dataset.mode = next; try { localStorage.setItem('lifeos-mode', next); } catch {} };
-  return <button type="button" className="nav-theme" onClick={flip} aria-label={light ? 'حالت تاریک' : 'حالت روشن'} title={light ? 'حالت تاریک' : 'حالت روشن'}>{light ? <Moon size={17} /> : <Sun size={17} />}</button>;
-}
 function TopNav({ active, right }) {
   const [open, setOpen] = useState(false);
   const mods = useModules();
@@ -181,7 +176,7 @@ function TopNav({ active, right }) {
       <FocusChip />
       <ThemeToggle />
       {right}
-      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['exercise', 'ورزش'], ['time', 'زمان کار و تایمر'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['bookmarks', 'لینک‌ها (بعداً بخوانم)'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
+      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['exercise', 'ورزش'], ['time', 'زمان کار و تایمر'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['ielts', 'آیلتس'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['bookmarks', 'لینک‌ها (بعداً بخوانم)'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
@@ -233,7 +228,9 @@ const ShopView = ({ Nav }) => <main className="lf" dir="rtl"><Nav /><div classNa
 const PLAN_TABS = [['list', 'لیست کارها', ListChecks, PlannerReact], ['calendar', 'تقویم', CalendarDays, CalendarReact], ['habits', 'عادت‌ها', Flame, HabitsPage], ['focus', 'تمرکز', Timer, FocusPage], ['time', 'زمان کار', Clock, TimeLogPage]];
 const REVIEW_TABS = [['goals', 'اهداف سالانه', Target, GoalsPage], ['week', 'مرور هفته', ClipboardCheck, WeeklyPage], ['stats', 'آمار زندگی', BarChart3, LifeStatsPage], ['logbook', 'دفتر و مرور', BookMarked, LogbookPage]];
 const HEALTH_TABS = [['health', 'سلامت', HeartPulse, HealthPage], ['exercise', 'ورزش', Dumbbell, ExercisePage]];
-const LEARN_TABS = [['learning', 'کتاب و دوره', BookOpen, LearningPage], ['vocab', 'زبان', Languages, VocabPage]];
+// IELTS first (the main focus); the menu's «یادگیری و زبان» opens it. Books/courses keep their own URL (?page=learning&t=books).
+const LEARN_TABS = [['ielts', 'آیلتس', GraduationCap, IeltsPage], ['vocab', 'زبان', Languages, VocabPage], ['learning', 'کتاب و دوره', BookOpen, LearningPage]];
+const learnUrl = v => v === 'learning' ? 'learning&t=books' : v;
 const NOTES_TABS = [['notes', 'یادداشت‌ها', StickyNote, NotesReact], ['journal', 'روزنگار', BookOpen, JournalPage], ['shopping', 'لیست خرید', ShoppingCart, ShopView], ['bookmarks', 'لینک‌ها', Bookmark, BookmarksPage]];
 
 // Something was saved from Ctrl+K: re-mount the current page so it fetches its data again (lazy chunks are
@@ -253,7 +250,7 @@ function Routes() {
   if (page === 'insights') return <InsightsPage Nav={() => <TopNav active="insights" />} />;
   if (['review', 'goals', 'week', 'stats', 'logbook'].includes(page)) return <TabHub active="review" label="مرور و اهداف" tabs={REVIEW_TABS} initial={page} />;
   if (['health', 'exercise'].includes(page)) return <TabHub active="health" label="سلامت" tabs={HEALTH_TABS} initial={page} />;
-  if (['learning', 'vocab'].includes(page)) return <TabHub active="learning" label="یادگیری" tabs={LEARN_TABS} initial={page} />;
+  if (['learning', 'vocab', 'ielts'].includes(page)) return <TabHub active="learning" label="یادگیری" tabs={LEARN_TABS} url={learnUrl} initial={page === 'learning' && new URLSearchParams(location.search).get('t') !== 'books' ? null : page} />;
   if (['notes', 'journal', 'shopping', 'bookmarks'].includes(page)) return <TabHub active="notes" label="یادداشت‌ها" tabs={NOTES_TABS} initial={page} />;
   const LIFE = { courses: CoursesPage, health: HealthPage, car: CarPage, travel: TravelPage, projects: ProjectsPage, crm: CrmPage };
   if (LIFE[page]) { const P = LIFE[page]; return <P Nav={() => <TopNav active={page} />} />; }
@@ -949,7 +946,7 @@ const writeLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } 
 
 // ── per-user sections ("بخش‌های من"): hide what a user doesn't use, everywhere ──
 const MODULES = [['projects', 'پروژه‌ها', '🗂', 'تابلوی کانبان برای پروژه‌ها'], ['courses', 'دوره‌ها و دانشجوها', '🎓', 'شهریه، پرداخت‌ها و حضور و غیاب'], ['vocab', 'زبان', '📘', '۷۰۰۰ واژهٔ آیلتس با مرور فاصله‌دار'], ['crmOn', 'مشتری و فروش', '💼', 'مشتری، پیش‌فاکتور و پیگیری (پیش‌فرض خاموش)'], ['health', 'سلامت', '💪', 'وزن، خواب، ورزش و آب'], ['car', 'خودرو', '🚗', 'بیمه، معاینه، سرویس و هزینه‌ها'], ['travel', 'سفر', '✈️', 'برنامه، بودجه و لیست وسایل'], ['journal', 'روزنگار', '📔', 'نوشته و عکس روزانه'], ['habits', 'عادت‌ها', '🔥', 'عادت روزانه و زنجیرهٔ روزها'], ['learning', 'یادگیری', '🎓', 'کتاب‌ها و دوره‌ها'], ['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
-const PAGE_MODULE = { projects: 'projects', courses: 'courses', vocab: 'vocab', crm: 'crmOn', health: 'health', exercise: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', habits: 'habits', shopping: 'notes', finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
+const PAGE_MODULE = { projects: 'projects', courses: 'courses', vocab: 'vocab', ielts: 'vocab', crm: 'crmOn', health: 'health', exercise: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', habits: 'habits', shopping: 'notes', finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
 let MODS_CACHE = readLs('lifeos-modules', null);
 let LOCKS_CACHE = readLs('lifeos-locks', []); // sections the site admin closed for this account (server answers 403 too)
 const pageLocked = page => !!PAGE_MODULE[page] && LOCKS_CACHE.includes(PAGE_MODULE[page]);
