@@ -12,6 +12,7 @@ from urllib.parse import quote
 sys.dont_write_bytecode = True
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -195,6 +196,30 @@ def download(jid: str, fmt: str = "txt"):
         media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(stem)}.{fmt}"},
     )
+
+
+MAX_DICTATE_BYTES = 50 * 1024 * 1024
+
+
+@app.post("/api/dictate")
+async def dictate(request: Request):
+    """بدنهٔ خام صدای ضبط‌شده (webm/ogg/wav…) → متن. فایل موقت روی F ساخته و بلافاصله پاک می‌شود."""
+    body = await request.body()
+    if not body:
+        raise HTTPException(400, "صدایی دریافت نشد")
+    if len(body) > MAX_DICTATE_BYTES:
+        raise HTTPException(413)
+    tmp = DATA.parent / "tmp"
+    tmp.mkdir(exist_ok=True)
+    p = tmp / f"dict-{uuid.uuid4().hex[:10]}.bin"
+    p.write_bytes(body)
+    try:
+        text = await run_in_threadpool(engine.dictate_file, str(p))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(422, "خواندن صدا ممکن نشد (قالب نامعتبر؟)")
+    finally:
+        p.unlink(missing_ok=True)
+    return {"text": text}
 
 
 @app.get("/api/health")

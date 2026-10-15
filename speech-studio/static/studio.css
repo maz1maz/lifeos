@@ -41,4 +41,14 @@ main{padding:20px 24px;max-width:1200px;margin:auto}
 .segs{max-height:60vh;overflow:auto;margin-top:8px}
 .seg{display:flex;gap:12px;padding:6px 4px;border-bottom:1px solid var(--line)}
 .seg time{flex:none;color:var(--gold);font-variant-numeric:tabular-nums;direction:ltr;font-size:13px;padding-top:2px}
+.dctl{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.rec{display:flex;gap:10px;align-items:center;background:none;color:var(--text);border:1px solid var(--line);border-radius:99px;padding:10px 22px;font:inherit;cursor:pointer}
+.rec:hover{border-color:var(--gold)}
+.rec .dot{width:12px;height:12px;border-radius:50%;background:var(--red)}
+.rec.on{border-color:var(--red)}
+.rec.on .dot{animation:pulse 1s infinite}
+.rec:disabled{opacity:.5;cursor:wait}
+@keyframes pulse{50%{opacity:.25}}
+.timer{font-variant-numeric:tabular-nums;color:var(--gold)}
+.dtext{width:100%;margin:8px 0 12px;padding:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;font:inherit;line-height:2;resize:vertical}
 mark{background:rgba(212,168,75,.4);color:inherit;border-radius:3px}

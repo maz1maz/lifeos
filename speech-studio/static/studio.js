@@ -137,6 +137,70 @@
   $('search').addEventListener('input', renderSegs);
   $('cancel').addEventListener('click', async () => { await api(`/api/jobs/${sel}/cancel`, { method: 'POST' }); });
 
+  // ---- تب‌ها
+  document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
+    if (b.disabled) return;
+    document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.panel').forEach((p) => { p.hidden = p.id !== `tab-${b.dataset.tab}`; });
+  }));
+
+  // ---- دیکته
+  let mr = null, stream = null, chunks = [], t0 = 0, tick = null;
+  const setRec = (on) => {
+    $('rec').classList.toggle('on', on);
+    $('rectext').textContent = on ? 'پایان ضبط' : 'شروع ضبط';
+  };
+
+  async function startRec() {
+    $('dstatus').textContent = '';
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+    } catch (e) {
+      $('dstatus').textContent = 'دسترسی به میکروفون ممکن نشد: ' + (e.message || e.name);
+      return;
+    }
+    chunks = [];
+    mr = new MediaRecorder(stream);
+    mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    mr.onstop = onStopped;
+    mr.start();
+    t0 = Date.now();
+    setRec(true);
+    tick = setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      const p = (n) => String(n).padStart(2, '0').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+      $('rtimer').textContent = `${p(Math.floor(s / 60))}:${p(s % 60)}`;
+    }, 250);
+  }
+
+  async function onStopped() {
+    clearInterval(tick);
+    stream.getTracks().forEach((t) => t.stop());
+    setRec(false);
+    const blob = new Blob(chunks, { type: mr.mimeType });
+    $('rec').disabled = true;
+    $('dstatus').textContent = 'در حال تبدیل به متن…';
+    try {
+      const r = await fetch('/api/dictate', { method: 'POST', body: blob, headers: { 'Content-Type': 'application/octet-stream' } });
+      if (!r.ok) throw new Error(await r.text());
+      const { text } = await r.json();
+      const ta = $('dtext');
+      if (text) ta.value = (ta.value ? ta.value.trimEnd() + ' ' : '') + text;
+      $('dstatus').textContent = text ? '' : 'صدایی تشخیص داده نشد';
+    } catch (e) {
+      $('dstatus').textContent = 'خطا: ' + e.message;
+    }
+    $('rec').disabled = false;
+  }
+
+  $('rec').addEventListener('click', () => {
+    if (mr && mr.state === 'recording') mr.stop(); else startRec();
+  });
+  $('dcopy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('dtext').value); $('dstatus').textContent = 'کپی شد'; } catch { $('dtext').select(); }
+  });
+  $('dclear').addEventListener('click', () => { $('dtext').value = ''; });
+
   health();
   refreshJobs();
 })();

@@ -42,6 +42,22 @@ def decode(chunk):
         return s.result.text.strip()
 
 
+def dictate_file(path):
+    """یک ضبط کوتاه (تا چند دقیقه) → متن پیوسته."""
+    x = tr.load_audio(path, 0, 0)
+    if len(x) < SR * 0.4:
+        return ""
+    parts, start = [], 0
+    for end in tr.split_points(x):
+        chunk = x[start:end]
+        start = end
+        if len(chunk) >= SR * 0.4:
+            t = decode(chunk)
+            if t:
+                parts.append(t)
+    return " ".join(parts)
+
+
 def audio_duration(path):
     """مدت (ثانیه) با ffmpeg؛ بدون بار کردن کل صدا."""
     import re
