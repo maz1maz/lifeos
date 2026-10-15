@@ -293,6 +293,16 @@ input:focus,select:focus,textarea:focus,input[type=password]:focus{outline-color
 .mask{background:rgba(0,0,0,.6)!important}
 .logo{background:var(--acc)!important;color:var(--accfg)!important}
 html[data-mode="light"] .nt-body mark{background:rgba(196,138,44,.25)}
+/* hard-coded dark surfaces from the dark theme: give them light versions so their text stays readable */
+html[data-mode="light"] tr:hover td{background:#f3eedf}
+html[data-mode="light"] .toast{background:#ffffff;color:var(--tx);box-shadow:0 6px 22px rgba(28,26,23,.18)}
+html[data-mode="light"] .ielts-hero{background:linear-gradient(135deg,#eef6ff,#f6f9fc);border-color:#c9dcef}
+html[data-mode="light"] .ielts-kicker{color:#1d6fa5}
+html[data-mode="light"] .pill.b2{color:#1d5d8a;border-color:#a9d3ef;background:#e7f3fc}
+html[data-mode="light"] .pill.b3{color:#14684a;border-color:#9fdcc1;background:#e6f7ef}
+html[data-mode="light"] .pill.b4{color:#5b3fa0;border-color:#c9b8ee;background:#f1ecfc}
+html[data-mode="light"] .qopt.right{background:#e6f7ef;border-color:#7cc7a4;color:#14503a}
+html[data-mode="light"] mark{background:#fff3c4;color:#4a3a00}
 
 /* ── compact layout: one scrolling row per filter, slimmer stats and card ── */
 .wrap{max-width:940px;padding-top:10px}
