@@ -219,7 +219,14 @@ function chartText(spec) {
 const wTask = w => (w.task_type === 'task2' ? 'task2' : 'task1');
 const wModule = w => (w.task_type === 'gt_task1' ? 'general' : 'academic');
 function writingTask(w) {
-  const t = { task: wTask(w), prompt: w.prompt_text };
+  // general letters list their three points in letter_bullets, not in prompt_text: put them back into the prompt
+  const bullets = (w.letter_bullets || []).map(b => `- ${b}`).join('\n');
+  let prompt = w.prompt_text;
+  if (bullets) {
+    // the bullets belong right after «…cover the three points below.», before the word count and the opening line
+    prompt = /points below\./.test(prompt) ? prompt.replace('points below.', `points below:\n${bullets}`) : `${prompt}\n\n${bullets}`;
+  }
+  const t = { task: wTask(w), prompt };
   const data = chartText(w.chart_spec);
   if (data) t.data = data;
   return t;
