@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>استودیوی گفتار</title>
+<link rel="stylesheet" href="/static/studio.css">
+</head>
+<body>
+<header class="top">
+  <h1>استودیوی گفتار</h1>
+  <span class="badge" id="model-badge">در حال بارگذاری مدل…</span>
+  <span class="local">🔒 همه‌چیز محلی است؛ صدا از این سیستم بیرون نمی‌رود</span>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="file" role="tab">پیاده‌سازی فایل</button>
+  <button class="tab" data-tab="dictate" role="tab" disabled title="بعد از تأیید تب اول">دیکته</button>
+  <button class="tab" data-tab="meeting" role="tab" disabled title="بعد از تأیید تب قبلی">جلسه</button>
+  <button class="tab" data-tab="tts" role="tab" disabled title="بعد از تأیید تب قبلی">خوانش متن</button>
+</nav>
+
+<main>
+  <section id="tab-file" class="panel">
+    <div class="card">
+      <div id="drop" class="drop" tabindex="0">
+        <p>فایل صوتی یا ویدیویی را اینجا بکشید یا <button id="pick" class="link">انتخاب کنید</button></p>
+        <small>mp3 · wav · m4a · ogg · mp4 · mkv · webm … (هر چه ffmpeg بخواند)</small>
+        <input id="file" type="file" accept="audio/*,video/*" hidden>
+      </div>
+      <div id="upmsg" class="muted"></div>
+    </div>
+
+    <div class="layout">
+      <aside class="card jobs">
+        <h2>کارها</h2>
+        <ul id="joblist"></ul>
+        <p class="muted" id="nojobs">هنوز کاری نیست.</p>
+      </aside>
+
+      <div class="card result" id="result" hidden>
+        <div class="rhead">
+          <div>
+            <h2 id="rname"></h2>
+            <div class="muted" id="rstatus"></div>
+          </div>
+          <div class="actions">
+            <button id="cancel" class="btn danger" hidden>لغو</button>
+            <a id="dl-txt" class="btn" href="#">دانلود TXT</a>
+            <a id="dl-srt" class="btn" href="#">دانلود SRT</a>
+          </div>
+        </div>
+        <div class="progress" id="progwrap"><div class="bar" id="bar"></div></div>
+        <div class="muted" id="progtext"></div>
+        <input id="search" class="search" type="search" placeholder="جست‌وجو در متن…">
+        <div class="muted" id="hits"></div>
+        <div id="segs" class="segs"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="/static/studio.js"></script>
+</body>
+</html>
