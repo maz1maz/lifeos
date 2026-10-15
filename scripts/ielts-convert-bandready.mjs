@@ -5,10 +5,17 @@
 // Every output file is then checked with scripts/ielts-check.mjs.
 import fs from 'node:fs';
 import path from 'node:path';
+import sharp from 'sharp';
 
 const [srcDir, outDir] = process.argv.slice(2);
 if (!srcDir || !outDir) { console.log('usage: node scripts/ielts-convert-bandready.mjs <core-en/data dir> <out dir>'); process.exit(1); }
 fs.mkdirSync(outDir, { recursive: true });
+
+// SVG maps and diagrams are shipped as «media/…» next to «data/»; LifeOS takes them as WebP data URLs.
+const imageDataUrl = async rel => {
+  const buf = await sharp(path.join(srcDir, '..', rel)).resize({ width: 1000, withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+  return `data:image/webp;base64,${buf.toString('base64')}`;
+};
 
 const read = name => fs.readFileSync(path.join(srcDir, name + '.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
 const readingTests = read('reading_tests');
@@ -55,7 +62,7 @@ function fillLines(group, qs) {
 }
 
 // ---- reading -------------------------------------------------------------------------------------------
-function convertReadingGroup(testLabel, g, key, sectionNums) {
+async function convertReadingGroup(testLabel, g, key, sectionNums) {
   const qs = g.questions || [];
   const nums = qs.map(q => q.number);
   for (const q of qs) key[q.number] = flat(q.answers).map(v => v.toUpperCase() === v ? v : v);
@@ -80,6 +87,8 @@ function convertReadingGroup(testLabel, g, key, sectionNums) {
       const f = fillLines(g, qs);
       return { ...base, ...(f.lines ? { lines: f.lines } : { table: f.table }), bankItems: opts };
     }
+    case 'diagram_labelling':
+      return { ...base, image: await imageDataUrl(g.layout.image), lines: qs.map(q => `${q.prompt} → [${q.number}]`) };
     case 'sentence_completion':
     case 'short_answer':
     case 'summary_completion':
@@ -94,7 +103,7 @@ function convertReadingGroup(testLabel, g, key, sectionNums) {
   }
 }
 
-function convertReadingTest(rt, idx) {
+async function convertReadingTest(rt, idx) {
   const testLabel = rt.id;
   const module = rt.format === 'general' ? 'general' : 'academic';
   const key = {};
@@ -110,7 +119,7 @@ function convertReadingTest(rt, idx) {
     const groups = [];
     const nums = new Set();
     for (const g of pj.question_groups) {
-      const conv = convertReadingGroup(testLabel, g, key, nums);
+      const conv = await convertReadingGroup(testLabel, g, key, nums);
       if (conv) { groups.push({ id: g.id, ...conv }); g.questions.forEach(q => nums.add(q.number)); }
     }
     sections.push({ n: i + 1, title: pj.title || p.title, range: rangeOf(nums), passage: { title: p.title, paragraphs }, groups });
@@ -123,7 +132,7 @@ function convertReadingTest(rt, idx) {
 }
 
 // ---- listening -----------------------------------------------------------------------------------------
-function convertListeningPart(testLabel, s, key, partNo) {
+async function convertListeningPart(testLabel, s, key, partNo) {
   const groups = []; const nums = new Set();
   const names = Object.fromEntries((s.script_json.speakers || []).map(sp => [sp.id, sp.name]));
   const tape = { section: partNo, lines: (s.script_json.lines || []).map(l => `${names[l.speaker] || l.speaker}: ${l.text}`) };
@@ -132,7 +141,12 @@ function convertListeningPart(testLabel, s, key, partNo) {
     for (const q of qs) key[q.n] = flat(q.answers);
     const base = { title: titleOf(qs.map(q => q.n)), instr: g.instruction || '' };
     let conv = null;
-    if (g.type === 'map_labelling') { skip(testLabel, `part ${partNo} map ${g.id}`, 'map image'); for (const q of qs) delete key[q.n]; }
+    if (g.type === 'map_labelling') {
+      // each numbered position on the plan is one answer; the student names what is at that position
+      const withAsset = qs.find(q => q.asset);
+      if (withAsset) conv = { ...base, image: await imageDataUrl(withAsset.asset.src), lines: qs.map(q => `Position ${q.n}: [${q.n}]`) };
+      else { skip(testLabel, `part ${partNo} map ${g.id}`, 'map image missing'); for (const q of qs) delete key[q.n]; }
+    }
     else if (g.type === 'multiple_choice') {
       conv = { ...base, questions: qs.map(q => ({ n: q.n, q: q.prompt, options: Object.entries(q.options || {}).map(([k, t]) => ({ k, t })) })) };
     } else if (g.type === 'matching') {
@@ -178,14 +192,14 @@ function tableFromMarkdown(qs) {
   return ok ? { head, rows: fixed } : null;
 }
 
-function convertListeningTest(lt, idx) {
+async function convertListeningTest(lt, idx) {
   const key = {}; const sections = []; const tapes = [];
-  [lt.p1_id, lt.p2_id, lt.p3_id, lt.p4_id].forEach((sid, i) => {
+  for (const [i, sid] of [lt.p1_id, lt.p2_id, lt.p3_id, lt.p4_id].entries()) {
     const s = scripts[sid];
-    if (!s) { skip(lt.id, sid, 'script missing'); return; }
-    const { section, tape } = convertListeningPart(lt.id, s, key, i + 1);
+    if (!s) { skip(lt.id, sid, 'script missing'); continue; }
+    const { section, tape } = await convertListeningPart(lt.id, s, key, i + 1);
     sections.push(section); tapes.push(tape);
-  });
+  }
   return {
     id: `br-listen-${idx + 1}`, skill: 'listening',
     title: `BandReady Listening — Test ${idx + 1}`, source: 'BandReady Core (English)',
@@ -233,8 +247,8 @@ const save = obj => {
   report.files.push(path.basename(f));
 };
 
-readingTests.forEach((rt, i) => save(convertReadingTest(rt, i)));
-listeningTests.forEach((lt, i) => save(convertListeningTest(lt, i)));
+for (const [i, rt] of readingTests.entries()) save(await convertReadingTest(rt, i));
+for (const [i, lt] of listeningTests.entries()) save(await convertListeningTest(lt, i));
 writingTests(writingPrompts).forEach(save);
 
 // report sits next to the output folder, not inside it, so the checker does not read it as a test
