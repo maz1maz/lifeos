@@ -28,3 +28,4 @@ lifeos-studio-data/
 speech-studio/.venv/
 speech-studio/data/
 speech-studio/**/__pycache__/
+speech-studio/models/
