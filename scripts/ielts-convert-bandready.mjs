@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
+import { chartSvg } from './ielts-chart-svg.mjs';
 
 const [srcDir, outDir] = process.argv.slice(2);
 if (!srcDir || !outDir) { console.log('usage: node scripts/ielts-convert-bandready.mjs <core-en/data dir> <out dir>'); process.exit(1); }
@@ -218,7 +219,13 @@ function chartText(spec) {
 }
 const wTask = w => (w.task_type === 'task2' ? 'task2' : 'task1');
 const wModule = w => (w.task_type === 'gt_task1' ? 'general' : 'academic');
-function writingTask(w) {
+// academic Task 1 charts: drawn from chart_spec (ielts-chart-svg.mjs) so the student sees the chart, not only its numbers
+const chartImage = async spec => {
+  const { svg } = chartSvg(spec);
+  const buf = await sharp(Buffer.from(svg)).resize({ width: 1000, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
+  return `data:image/webp;base64,${buf.toString('base64')}`;
+};
+async function writingTask(w) {
   // general letters list their three points in letter_bullets, not in prompt_text: put them back into the prompt
   const bullets = (w.letter_bullets || []).map(b => `- ${b}`).join('\n');
   let prompt = w.prompt_text;
@@ -229,17 +236,18 @@ function writingTask(w) {
   const t = { task: wTask(w), prompt };
   const data = chartText(w.chart_spec);
   if (data) t.data = data;
+  if (w.chart_spec) t.image = await chartImage(w.chart_spec);
   return t;
 }
-function writingTests(list) {
+async function writingTests(list) {
   const ac1 = list.filter(w => w.task_type === 'ac_task1');
   const t2 = list.filter(w => w.task_type === 'task2');
   const gt = list.filter(w => w.task_type === 'gt_task1');
   const out = [];
   const pairs = Math.min(ac1.length, t2.length);
-  for (let i = 0; i < pairs; i++) out.push({ module: 'academic', tasks: [writingTask(ac1[i]), writingTask(t2[i])], ids: [ac1[i].id, t2[i].id] });
-  for (const w of [...ac1.slice(pairs), ...t2.slice(pairs)]) out.push({ module: 'academic', tasks: [writingTask(w)], ids: [w.id] });
-  for (const w of gt) out.push({ module: 'general', tasks: [writingTask(w)], ids: [w.id] });
+  for (let i = 0; i < pairs; i++) out.push({ module: 'academic', tasks: [await writingTask(ac1[i]), await writingTask(t2[i])], ids: [ac1[i].id, t2[i].id] });
+  for (const w of [...ac1.slice(pairs), ...t2.slice(pairs)]) out.push({ module: 'academic', tasks: [await writingTask(w)], ids: [w.id] });
+  for (const w of gt) out.push({ module: 'general', tasks: [await writingTask(w)], ids: [w.id] });
   return out.map((x, i) => ({
     id: `br-write-${String(i + 1).padStart(3, '0')}`, skill: 'writing', module: x.module,
     title: `BandReady Writing — ${x.module === 'general' ? 'General' : 'Academic'} ${String(i + 1).padStart(3, '0')}`,
@@ -256,7 +264,7 @@ const save = obj => {
 
 for (const [i, rt] of readingTests.entries()) save(await convertReadingTest(rt, i));
 for (const [i, lt] of listeningTests.entries()) save(await convertListeningTest(lt, i));
-writingTests(writingPrompts).forEach(save);
+for (const f of await writingTests(writingPrompts)) save(f);
 
 // report sits next to the output folder, not inside it, so the checker does not read it as a test
 const reportFile = outDir.replace(/[\\/]+$/, '') + '-report.json';
