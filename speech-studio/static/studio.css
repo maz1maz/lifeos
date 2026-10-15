@@ -51,4 +51,13 @@ main{padding:20px 24px;max-width:1200px;margin:auto}
 @keyframes pulse{50%{opacity:.25}}
 .timer{font-variant-numeric:tabular-nums;color:var(--gold)}
 .dtext{width:100%;margin:8px 0 12px;padding:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;font:inherit;line-height:2;resize:vertical}
+.warn{border-color:var(--red);margin-bottom:16px;font-size:13px;line-height:1.9}
+.spk-names{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.spk-names input{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font:inherit;font-size:13px;width:140px}
+.minutes{border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:8px 0;font-size:14px}
+.minutes h3{margin:8px 0 4px;font-size:14px;color:var(--gold)}
+.minutes ul{margin:0;padding-inline-start:20px}
+.spk{flex:none;min-width:70px;font-size:13px;padding-top:2px}
+.s0{color:#7fb4e8}.s1{color:#e8a27f}.s2{color:#9ad88f}.s3{color:#d79be8}
+.drop select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;font:inherit}
 mark{background:rgba(212,168,75,.4);color:inherit;border-radius:3px}

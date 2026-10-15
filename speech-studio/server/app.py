@@ -94,8 +94,25 @@ def run_job(jid):
             save_job(job)
 
     try:
-        ok = engine.transcribe_file(job["file"], on_progress, lambda: jid in CANCEL)
-        job["status"] = "done" if ok else "cancelled"
+        if job.get("kind") == "meeting":
+            import meeting
+            weights = {"diarize": (0.0, 0.9), "asr": (0.9, 0.1)}  # زمان واقعی: تفکیک ≈ ۹۰٪
+
+            def mprog(stage, f):
+                base, w = weights[stage]
+                job["stage"] = stage
+                job["done_s"] = (base + w * f) * job["total_s"]
+
+            res = meeting.run(job["file"], job["num_speakers"], mprog, lambda: jid in CANCEL)
+            if res is None:
+                job["status"] = "cancelled"
+            else:
+                job["segments"] = res["segments"]
+                job["minutes"] = res["minutes"]
+                job["status"] = "done"
+        else:
+            ok = engine.transcribe_file(job["file"], on_progress, lambda: jid in CANCEL)
+            job["status"] = "done" if ok else "cancelled"
     except Exception as e:  # noqa: BLE001
         job["status"] = "error"
         job["error"] = str(e)[:500]
@@ -111,8 +128,20 @@ def public(job, with_segments=True, after=0):
     return d
 
 
+@app.post("/api/meeting")
+async def upload_meeting(file: UploadFile = File(...), speakers: int = 2):
+    import meeting
+    if not meeting.models_ready():
+        raise HTTPException(503, "مدل‌های تفکیک گوینده در پوشهٔ models نیستند")
+    return await create_job(file, "meeting", min(max(speakers, 2), 8))
+
+
 @app.post("/api/transcribe")
 async def upload(file: UploadFile = File(...)):
+    return await create_job(file, "file", 2)
+
+
+async def create_job(file, kind, speakers):
     jid = uuid.uuid4().hex[:12]
     d = job_dir(jid)
     d.mkdir(parents=True)
@@ -124,7 +153,7 @@ async def upload(file: UploadFile = File(...)):
     job = {
         "id": jid, "name": file.filename or "audio", "file": str(dest),
         "status": "queued", "created": time.time(), "total_s": 0, "done_s": 0,
-        "segments": [],
+        "segments": [], "kind": kind, "num_speakers": speakers,
     }
     job["total_s"] = engine.audio_duration(dest)
     JOBS[jid] = job
@@ -175,12 +204,44 @@ def fmt_ts(t, srt=False):
     return f"{base},{ms:03d}" if srt else base
 
 
+def render_minutes(job, who):
+    m = job.get("minutes") or {}
+    lines = [f"# صورتجلسه — {job['name']}", "", f"مدت: {fmt_ts(m.get('duration', 0))}", "", "## سهم گفتار"]
+    for sp in m.get("speakers", []):
+        lines.append(f"- {who(sp['id'])}: {int(sp['seconds'] // 60)} دقیقه ({sp['share']:.0%})")
+    lines += ["", "## تصمیم‌ها"]
+    lines += [f"- [{fmt_ts(d['t'])}] {who_name(d, who)}: {d['text']}" for d in m.get("decisions", [])] or ["- (موردی یافت نشد)"]
+    lines += ["", "## کارهای باقی‌مانده / اقدام‌ها"]
+    lines += [f"- [{fmt_ts(d['t'])}] {who_name(d, who)}: {d['text']}" for d in m.get("actions", [])] or ["- (موردی یافت نشد)"]
+    lines += ["", f"> {m.get('note', '')}", ""]
+    return "\n".join(lines)
+
+
+def who_name(item, who):
+    return who(item["spk"])
+
+
 @app.get("/api/jobs/{jid}/download")
-def download(jid: str, fmt: str = "txt"):
+def download(jid: str, fmt: str = "txt", names: str = ""):
     job = JOBS.get(jid)
     if not job:
         raise HTTPException(404)
     segs = job["segments"]
+    if job.get("kind") == "meeting":
+        nm = [n.strip() for n in names.split(",")]
+        who = lambda k: (nm[k] if k < len(nm) and nm[k] else f"گوینده {k + 1}")
+        if fmt == "md":
+            body = render_minutes(job, who)
+        elif fmt == "txt":
+            body = "\n".join(f"[{fmt_ts(s['start'])}] {who(s['speaker'])}: {s['text']}" for s in segs) + "\n"
+        else:
+            raise HTTPException(400)
+        stem = Path(job["name"]).stem or "meeting"
+        ext = "md" if fmt == "md" else "txt"
+        return Response(
+            body.encode("utf-8"), media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(stem)}-{fmt}.{ext}"},
+        )
     if fmt == "srt":
         body = "\n".join(
             f"{i}\n{fmt_ts(s['start'], True)} --> {fmt_ts(s['end'], True)}\n{s['text']}\n"

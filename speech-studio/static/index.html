@@ -16,7 +16,7 @@
 <nav class="tabs" role="tablist">
   <button class="tab active" data-tab="file" role="tab">پیاده‌سازی فایل</button>
   <button class="tab" data-tab="dictate" role="tab">دیکته</button>
-  <button class="tab" data-tab="meeting" role="tab" disabled title="بعد از تأیید تب قبلی">جلسه</button>
+  <button class="tab" data-tab="meeting" role="tab">جلسه</button>
   <button class="tab" data-tab="tts" role="tab" disabled title="بعد از تأیید تب قبلی">خوانش متن</button>
 </nav>
 
@@ -33,6 +33,48 @@
       <div class="actions">
         <button id="dcopy" class="btn">کپی</button>
         <button id="dclear" class="btn danger">پاک کردن</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-meeting" class="panel" hidden>
+    <div class="card warn">
+      <strong>وضعیت دقت (آزمایشی):</strong>
+      در آزمون روی یک نمونهٔ ۱۵ دقیقه‌ای، تفکیک گوینده ضعیف بود و تقریباً همه را یک نفر حساب کرد (۹۹٫۶٪). آن نمونه یک‌نفره با چند جملهٔ کوتاه دانشجو بود، پس هنوز روی جلسهٔ واقعی دونفره سنجیده نشده. مدل embedding چینی/انگلیسی است نه فارسی. سرعت حدود ۰٫۴ برابر زمان واقعی است (۱۵ دقیقه ≈ ۷ دقیقه). صورتجلسه فقط الگوی کلیدواژه‌ای است و باید بازبینی شود.
+    </div>
+    <div class="card">
+      <div id="mdrop" class="drop" tabindex="0">
+        <p>فایل ضبط جلسه را اینجا بکشید یا <button id="mpick" class="link">انتخاب کنید</button></p>
+        <label class="muted">تعداد گویندگان:
+          <select id="mspk"><option value="2" selected>۲</option><option value="3">۳</option><option value="4">۴</option></select>
+        </label>
+        <input id="mfile" type="file" accept="audio/*,video/*" hidden>
+      </div>
+      <div id="mupmsg" class="muted"></div>
+    </div>
+    <div class="layout">
+      <aside class="card jobs">
+        <h2>جلسه‌ها</h2>
+        <ul id="mjoblist"></ul>
+        <p class="muted" id="mnojobs">هنوز جلسه‌ای نیست.</p>
+      </aside>
+      <div class="card result" id="mresult" hidden>
+        <div class="rhead">
+          <div>
+            <h2 id="mname"></h2>
+            <div class="muted" id="mstatus"></div>
+          </div>
+          <div class="actions">
+            <button id="mcancel" class="btn danger" hidden>لغو</button>
+            <a id="mdl-txt" class="btn" href="#">متن گوینده‌دار</a>
+            <a id="mdl-md" class="btn" href="#">صورتجلسه (MD)</a>
+          </div>
+        </div>
+        <div class="progress"><div class="bar" id="mbar"></div></div>
+        <div class="muted" id="mprog"></div>
+        <div id="mspeakers" class="spk-names"></div>
+        <div id="mminutes" class="minutes" hidden></div>
+        <div id="msegs" class="segs"></div>
       </div>
     </div>
   </section>
@@ -76,5 +118,6 @@
   </section>
 </main>
 <script src="/static/studio.js"></script>
+<script src="/static/meeting.js"></script>
 </body>
 </html>

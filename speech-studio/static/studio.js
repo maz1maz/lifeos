@@ -32,8 +32,8 @@
     const jobs = await api('/api/jobs');
     const ul = $('joblist');
     ul.textContent = '';
-    $('nojobs').hidden = jobs.length > 0;
-    for (const j of jobs) {
+    $('nojobs').hidden = jobs.some((x) => x.kind !== 'meeting');
+    for (const j of jobs.filter((x) => x.kind !== 'meeting')) {
       const li = document.createElement('li');
       if (j.id === sel) li.className = 'sel';
       const n = document.createElement('span');

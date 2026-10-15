@@ -41,14 +41,14 @@ def _make_diarizer(num_speakers):
     return so.OfflineSpeakerDiarization(cfg)
 
 
-def diarize(x, num_speakers=2, progress=None):
+def diarize(x, num_speakers=2, progress=None, cancelled=lambda: False):
     sd = _make_diarizer(num_speakers)
     assert sd.sample_rate == SR
 
     def cb(done, total):
         if progress:
             progress("diarize", done / max(total, 1))
-        return 0
+        return 1 if cancelled() else 0
 
     res = sd.process(x, callback=cb).sort_by_start_time()
     return [(r.start, r.end, r.speaker) for r in res]
@@ -111,15 +111,19 @@ def minutes(segments, names=None):
         "speakers": [
             {"id": k, "name": label(k), "seconds": v, "share": v / total} for k, v in sorted(talk.items())
         ],
-        "decisions": [{"t": s["start"], "who": label(s["speaker"]), "text": s["text"]} for s in decisions],
-        "actions": [{"t": s["start"], "who": label(s["speaker"]), "text": s["text"]} for s in actions],
+        "decisions": [{"t": s["start"], "spk": s["speaker"], "text": s["text"]} for s in decisions],
+        "actions": [{"t": s["start"], "spk": s["speaker"], "text": s["text"]} for s in actions],
         "note": "صورتجلسه بر پایهٔ الگوهای عبارتی (بدون هوش مصنوعی مولد) استخراج شده؛ فقط جمله‌های حاوی کلیدواژه را نشان می‌دهد و باید بازبینی شود.",
     }
 
 
 def run(path, num_speakers=2, progress=None, cancelled=lambda: False):
     x = engine.tr.load_audio(path, 0, 0)
-    raw = diarize(x, num_speakers, progress)
+    raw = diarize(x, num_speakers, progress, cancelled)
+    if cancelled():
+        return None
     turns = build_turns(raw)
     segs = transcribe_turns(x, turns, progress, cancelled)
+    if cancelled():
+        return None
     return {"turns_raw": len(raw), "segments": segs, "minutes": minutes(segs)}
