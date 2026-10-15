@@ -256,6 +256,45 @@ async function writingTests(list) {
 }
 
 // ---- write -----------------------------------------------------------------------------------------------
+// ---- speaking ------------------------------------------------------------------------------------------
+// A card set = Part 1 cards (questions), one Part 2 cue card, Part 3 themes. Whole sets are packed into files
+// of at most 12 cards (the LifeOS limit), so a set is never split across two files.
+const speakingCardById = Object.fromEntries(read('speaking_cards').map(c => [c.id, c.payload_json]));
+function speakingSetCards(set) {
+  const p = set.payload_json, cards = [];
+  for (const id of p.part1_card_ids || []) {
+    const c = speakingCardById[id];
+    if (!c) { skip(set.id, id, 'part 1 card missing'); continue; }
+    cards.push({ title: c.topic, part: 'Part 1', text: (c.questions || []).join('\n') });
+  }
+  const c2 = speakingCardById[p.part2_card_id];
+  if (c2 && c2.cue_card) {
+    cards.push({
+      title: c2.cue_card.topic, part: 'Part 2',
+      text: `${c2.cue_card.topic}\nYou should say:`,
+      ask: c2.cue_card.bullets,
+      ...((c2.cue_card.rounding_off || []).length ? { notes: c2.cue_card.rounding_off.join('\n') } : {}),
+    });
+  }
+  const c3 = speakingCardById[p.part3_card_id];
+  for (const th of (c3 && c3.part3_themes) || []) cards.push({ title: th.title, part: 'Part 3', text: th.questions.join('\n') });
+  return cards;
+}
+function speakingFiles() {
+  const files = []; let cur = null;
+  for (const set of read('card_sets')) {
+    const cards = speakingSetCards(set);
+    if (!cards.length) { skip(set.id, 'set', 'no cards'); continue; }
+    if (!cur || cur.cards.length + cards.length > 12) { cur = { cards: [], ids: [] }; files.push(cur); }
+    cur.cards.push(...cards); cur.ids.push(set.id);
+  }
+  return files.map((f, i) => ({
+    id: `br-speak-${String(i + 1).padStart(3, '0')}`, skill: 'speaking',
+    title: `BandReady Speaking — ${String(i + 1).padStart(3, '0')}`, source: 'BandReady Core (English)',
+    cards: f.cards, sourceIds: f.ids,
+  }));
+}
+
 const save = obj => {
   const f = path.join(outDir, obj.id + '.json');
   fs.writeFileSync(f, JSON.stringify(obj, null, 2));
@@ -265,6 +304,7 @@ const save = obj => {
 for (const [i, rt] of readingTests.entries()) save(await convertReadingTest(rt, i));
 for (const [i, lt] of listeningTests.entries()) save(await convertListeningTest(lt, i));
 for (const f of await writingTests(writingPrompts)) save(f);
+for (const f of speakingFiles()) save(f);
 
 // report sits next to the output folder, not inside it, so the checker does not read it as a test
 const reportFile = outDir.replace(/[\\/]+$/, '') + '-report.json';
