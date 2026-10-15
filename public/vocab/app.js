@@ -621,6 +621,15 @@ let NOTES = null, notesQ = "";
 const ntInline = t => esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
 // "colleague / co-worker (n.)" → "colleague"; "boss = manager" → "boss"
 const ntSay = t => String(t).replace(/\([^)]*\)/g, "").split(/\s[\/=]\s|\s*\/\s*|\s=\s/)[0].replace(/[*`]/g, "").trim();
+// recorded pronunciations of the notes words (audio/manifest.json, made offline); the browser voice is the fallback
+let NOTE_AUDIO = null;
+fetch("audio/manifest.json", { cache: "force-cache" }).then(r => (r.ok ? r.json() : [])).then(m => { NOTE_AUDIO = new Map(m.map(x => [x.word.toLowerCase(), x.file])); }).catch(() => { NOTE_AUDIO = new Map(); });
+function sayNote(text) {
+  const file = NOTE_AUDIO && NOTE_AUDIO.get(String(text).toLowerCase());
+  if (!file) return speak(text);
+  const a = new Audio("audio/" + file);
+  a.play().catch(() => speak(text));
+}
 function ntBlocks(lines) {
   let html = "", i = 0;
   const cells = l => l.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
@@ -669,7 +678,7 @@ async function renderNotes() {
   const q = $("#ntQ");
   q.oninput = () => { notesQ = q.value; ntFilter(); };
   $("#ntPdf").onclick = ntPdf;
-  box.onclick = e => { const b = e.target.closest("button[data-say]"); if (b) { e.preventDefault(); speak(b.dataset.say); } };
+  box.onclick = e => { const b = e.target.closest("button[data-say]"); if (b) { e.preventDefault(); sayNote(b.dataset.say); } };
   ntFilter();
 }
 /* Printable booklets (notes / starred words) → the browser's «Save as PDF». Always white for printing. */
