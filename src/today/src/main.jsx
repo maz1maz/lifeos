@@ -71,7 +71,7 @@ const [HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, Jou
 const IeltsPage = lazyPage('ielts', 'IeltsPage'), SpeechPage = lazyPage('speech', 'SpeechPage');
 const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage'), ReadingPage = lazyPage('reading', 'ReadingPage'), BookmarksPage = lazyPage('reading', 'BookmarksPage');
 // Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
-const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
+const prefetchPages = () => { for (const k of ['life', 'ielts']) PAGE_CHUNKS[k]().catch(() => {}); };  // پروژه‌ها (life) + آیلتس/یادگیری؛ زبان (vocab) داخل باندل اصلی است
 function PageLoading() { return <Loader size="page" />; }
 
 const shortRial = n => { const a = Math.abs(Number(n) || 0), f = v => v.toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : 1 }); return a >= 1e9 ? `${f(a / 1e9)} میلیارد ریال` : a >= 1e6 ? `${f(a / 1e6)} میلیون ریال` : `${fa(a)} ریال`; };
