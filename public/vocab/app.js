@@ -131,40 +131,59 @@ function levelClass(lv) { return ({ A1: "b3", A2: "b3", B1: "b2", B2: "b2", C1: 
 
 /* ------------------------------------------------------------------ speech */
 let voice = null;
+let tutorVoice = null;
 let speechTurn = 0;                  // invalidates queued repetitions on navigation
 const hasTTS = () => typeof window.speechSynthesis !== "undefined" && !!window.speechSynthesis &&
   typeof window.speechSynthesis.speak === "function" && typeof window.SpeechSynthesisUtterance === "function";
+// female English voices that ship with Windows (Hazel, Zira, Jenny, Aria…) and Chrome's Google voices
+const FEMALE_VOICE = /hazel|zira|jenny|aria|libby|sonia|ava|samantha|karen|serena|susan|female|woman|google (uk|us) english/i;
 function pickVoice() {
   if (!hasTTS() || typeof speechSynthesis.getVoices !== "function") return;
   const vs = speechSynthesis.getVoices() || [];
-  voice = vs.find(v => /en[-_]GB/i.test(v.lang)) || vs.find(v => /en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+  // a female voice first (British, then American), then any British or American voice
+  const enGB = vs.filter(v => /en[-_]GB/i.test(v.lang)), enUS = vs.filter(v => /en[-_]US/i.test(v.lang));
+  voice = enGB.find(v => FEMALE_VOICE.test(v.name)) || enUS.find(v => FEMALE_VOICE.test(v.name))
+    || enGB[0] || enUS[0] || vs.find(v => /^en/i.test(v.lang)) || null;
+  // The first English voice is often an older synthetic one. Prefer an
+  // available natural/enhanced voice for conversation, without changing cards.
+  tutorVoice = vs.filter(v => /^en(?:[-_]|$)/i.test(v.lang)).sort((a, b) => {
+    const score = v => (FEMALE_VOICE.test(v.name) ? 60 : 0) + (/natural|neural|enhanced|premium/i.test(v.name) ? 100 : 0)
+      + (/google|microsoft|apple/i.test(v.name) ? 25 : 0)
+      + (/en[-_]US/i.test(v.lang) ? 3 : 0);
+    return score(b) - score(a);
+  })[0] || voice;
 }
 if (hasTTS()) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
 function stopSpeaking() {
   speechTurn++;
   if (hasTTS()) try { speechSynthesis.cancel(); } catch (e) {}
 }
-function speak(text, repeats = 1, automatic = false) {
+function speak(text, repeats = 1, automatic = false, tutor = false) {
   // Auto-speech can be disabled without disabling the pronunciation buttons.
   if (automatic && !S.settings.autoSpeak) return;
   if (!hasTTS()) { if (!automatic) toast("تلفظ صوتی در این مرورگر پشتیبانی نمی‌شود"); return; }
   if (!text) return;
   const n = Math.max(1, Math.min(3, Math.round(Number(repeats) || 1)));
   stopSpeaking();
+  // Chromium can leave speech synthesis paused after an iframe/page resume.
+  // Resume both before and just after queuing the utterance; this keeps the
+  // listening drills usable in the LifeOS shell as well as on /vocab directly.
+  try { speechSynthesis.resume(); } catch (e) {}
   const turn = speechTurn;
   let played = 0;
   const playNext = () => {
     if (turn !== speechTurn || played >= n) return;
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = voice ? voice.lang : "en-GB";
-    utterance.rate = S.settings.rate;
-    if (voice) utterance.voice = voice;
+    const selectedVoice = tutor ? (tutorVoice || voice) : voice;
+    utterance.lang = selectedVoice ? selectedVoice.lang : "en-US";
+    utterance.rate = tutor ? Math.min(1, Math.max(.85, S.settings.rate)) : S.settings.rate;
+    if (selectedVoice) utterance.voice = selectedVoice;
     utterance.onend = () => {
       played++;
       if (played < n && turn === speechTurn) setTimeout(playNext, 260);
     };
     utterance.onerror = () => { /* do not repeat a failed voice endlessly */ };
-    try { speechSynthesis.speak(utterance); }
+    try { speechSynthesis.speak(utterance); setTimeout(() => { try { speechSynthesis.resume(); } catch (e) {} }, 80); }
     catch (e) { if (!automatic) toast("پخش تلفظ ممکن نشد"); }
   };
   playNext();
@@ -322,7 +341,72 @@ function tuHtml(t) {
     .replace(/\*\*([^*]+)\*\*/g, (m, w) => { const k = w.trim().toLowerCase(); return byWord(k) ? `<b class="tu-w" data-star="${esc(k)}" title="ستاره‌دار کردن در کارت‌ها">${w}${S.stars.includes(k) ? " ★" : ""}</b>` : `<b>${w}</b>`; })
     .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>").replace(/\n{2,}/g, "<br><span class=\"tu-gap\"></span>").replace(/\n/g, "<br>");
 }
-const tuEnglish = t => String(t).replace(/[؀-ۿ‌]+/g, " ").replace(/[*`#✏️✅❌]/g, "").replace(/\/[^/\n]{1,40}\//g, " ").replace(/\s+/g, " ").trim();
+const tuEnglish = t => String(t)
+  .replace(/\([^)]*\)|（[^）]*）/g, " ") // never read translations/notes in parentheses
+  .replace(/\/[^/\n]{1,40}\//g, " ") // skip IPA/transcription
+  .split(/\n+/).map(line => line.replace(/[؀-ۿ‌]+/g, " ").replace(/[*`#✏️✅❌🔊]/gu, " ").replace(/\s+/g, " ").trim())
+  .filter(line => /[A-Za-z]/.test(line)).join(" ").trim();
+let tuPdfModulePromise, tuPdfCache;
+async function tuPdfModule() {
+  if (!tuPdfModulePromise) tuPdfModulePromise = fetch('/today-manifest.json', { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('ابزار PDF در دسترس نیست.'); return r.json(); })
+    .then(manifest => {
+      const entry = Object.values(manifest).find(x => x && x.isEntry && x.name === 'vocabPdf');
+      if (!entry?.file) throw new Error('ابزار PDF در دسترس نیست.');
+      return import('/' + entry.file).then(mod => {
+        const buildTutorConversationPdf = mod.buildTutorConversationPdf || globalThis.lifeosBuildTutorConversationPdf;
+        if (typeof buildTutorConversationPdf !== 'function') throw new Error('ابزار PDF درست بارگذاری نشد.');
+        return { buildTutorConversationPdf };
+      });
+    }).catch(e => { tuPdfModulePromise = null; throw e; });
+  return tuPdfModulePromise;
+}
+async function tuConversationPdf(hist) {
+  const key = JSON.stringify(hist);
+  if (tuPdfCache?.key === key) return tuPdfCache.blob;
+  const { buildTutorConversationPdf } = await tuPdfModule();
+  const blob = await buildTutorConversationPdf(hist);
+  tuPdfCache = { key, blob };
+  return blob;
+}
+function tuPdfName() { return `lifeos-tutor-conversation-${new Date().toISOString().slice(0, 10)}.pdf`; }
+async function tuPdfAction(kind, hist, button) {
+  if (button.disabled) return;
+  const snapshot = hist.map(x => ({ r: x.r, t: x.t }));
+  const original = button.textContent;
+  button.disabled = true; button.textContent = kind === 'send' ? 'آماده‌سازی…' : 'ساخت PDF…';
+  try {
+    const blob = await tuConversationPdf(snapshot);
+    const filename = tuPdfName();
+    if (kind === 'download') {
+      const url = URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = url; link.download = filename; document.body.append(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      toast('PDF مکالمه آماده شد.');
+    } else {
+      button.textContent = 'در حال ارسال…';
+      const data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('خواندن PDF ناموفق بود.'));
+        reader.readAsDataURL(blob);
+      });
+      const response = await fetch('/api/vocab/tutor-pdf', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data, filename }) });
+      const result = await response.json().catch(() => ({}));
+      if (response.status === 503 && typeof navigator.canShare === 'function' && typeof navigator.share === 'function') {
+        const file = new File([blob], filename, { type: 'application/pdf' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'مکالمه با معلم زبان LifeOS' });
+          toast('فایل PDF برای اشتراک‌گذاری آماده شد.');
+          return;
+        }
+      }
+      if (!response.ok) throw new Error(result.error || 'ارسال PDF به تلگرام ناموفق بود.');
+      toast('همان PDF مکالمه به تلگرام فرستاده شد.');
+    }
+  } catch (e) { toast(e.message || 'ساخت PDF ناموفق بود.'); }
+  finally { button.disabled = false; button.textContent = original; }
+}
 async function renderTutor() {
   const box = $("#tutorMain");
   if (!NOTES) loadNotes().catch(() => {});
@@ -346,12 +430,14 @@ async function renderTutor() {
   if (m.k === "lesson" && ls && ls.hist.length && ls.day && ls.day !== tuToday() && !TU.busy) { tuArchive("lesson"); delete TU.store.modes.lesson; tuSaveLocal(); }
   const cv = tuConv(m.k);
   const needsExtra = m.ask && !cv.hist.length;
-  box.innerHTML = `<div class="tu-head"><button type="button" class="btn sm ghost" id="tuBack">بازگشت</button><h3>${m.i} ${m.t}${cv.extra && m.k !== "correct" ? ` — <span dir="auto">${esc(cv.extra)}</span>` : cv.focus ? ` — <span dir="ltr">${esc(cv.focus)}</span>` : ""}${m.k === "lesson" ? ` <small class="tu-no">درس ${fa(tuDone("lesson").length + 1)}</small>` : ""}</h3>${cv.hist.length ? `<button type="button" class="btn sm ghost" id="tuNew">شروع تازه</button>` : ""}</div>
+  box.innerHTML = `<div class="tu-head"><button type="button" class="btn sm ghost" id="tuBack">بازگشت</button><h3>${m.i} ${m.t}${cv.extra && m.k !== "correct" ? ` — <span dir="auto">${esc(cv.extra)}</span>` : cv.focus ? ` — <span dir="ltr">${esc(cv.focus)}</span>` : ""}${m.k === "lesson" ? ` <small class="tu-no">درس ${fa(tuDone("lesson").length + 1)}</small>` : ""}</h3>${m.k === "chat" && cv.hist.length ? `<div class="tu-export"><button type="button" class="btn sm ghost" id="tuPdf">دریافت PDF</button><button type="button" class="btn sm ghost" id="tuTelegram">ارسال به تلگرام</button></div>` : ""}${cv.hist.length ? `<button type="button" class="btn sm ghost" id="tuNew">شروع تازه</button>` : ""}</div>
     ${needsExtra && m.chips ? `<div class="tu-chips">${m.chips.map(c => `<button type="button" data-chip="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
     <div class="tu-log" id="tuLog">${cv.hist.map(x => `<div class="tu-msg ${x.r === "a" ? "a" : "u"}" dir="auto">${x.r === "a" ? `<button type="button" class="tu-say" data-say-msg aria-label="تلفظ">🔊</button>${tuHtml(x.t)}` : esc(x.t).replace(/\n/g, "<br>")}</div>`).join("")}${TU.busy ? `<div class="tu-msg a"><span class="muted">معلم دارد می‌نویسد…</span></div>` : ""}</div>
     <div class="tu-comp"><textarea id="tuIn" dir="auto" placeholder="${esc(needsExtra ? m.ask : m.k === "roleplay" ? "جوابت را بنویس… (برای پایان: «پایان»)" : "جوابت را بنویس…")}"></textarea>${TU_SR ? `<button type="button" class="btn tu-mic" id="tuMic" aria-pressed="false" aria-label="گفتن به انگلیسی" title="گفتن به انگلیسی">🎤</button>` : ""}<button type="button" class="btn" id="tuSend"${TU.busy ? " disabled" : ""}>فرستادن</button></div>
     <p class="tu-hint">Enter = فرستادن · Shift+Enter = خط تازه${TU_SR ? " · 🎤 = به انگلیسی بگو" : ""}${m.k === "chat" || m.k === "roleplay" ? ` · <label><input type="checkbox" id="tuAuto"${tuProf().autoSay ? " checked" : ""}> خواندن خودکار جواب</label>` : ""}</p>`;
   $("#tuBack").onclick = () => { TU.mode = null; renderTutor(); };
+  if ($("#tuPdf")) $("#tuPdf").onclick = e => tuPdfAction('download', cv.hist, e.currentTarget);
+  if ($("#tuTelegram")) $("#tuTelegram").onclick = e => tuPdfAction('send', cv.hist, e.currentTarget);
   if ($("#tuNew")) $("#tuNew").onclick = () => { if (confirm("این گفتگو بایگانی شود و یک گفتگوی تازه شروع شود؟ (معلم آنچه را یاد داده به خاطر می‌سپارد)")) { tuArchive(m.k); delete TU.store.modes[m.k]; tuSaveLocal(); renderTutor(); } };
   const inp = $("#tuIn");
   $("#tuSend").onclick = () => { if (TU.rec) TU.rec.stop(); tuSend(inp.value); };
@@ -361,7 +447,7 @@ async function renderTutor() {
   box.onclick = e => {
     const c = e.target.closest("[data-chip]"); if (c) return tuSend(c.dataset.chip);
     const s = e.target.closest("[data-star]"); if (s) { const w = s.dataset.star, i = S.stars.indexOf(w); i >= 0 ? S.stars.splice(i, 1) : S.stars.push(w); save(true); toast(i >= 0 ? "ستاره برداشته شد" : "ستاره‌دار شد ★ — در «کارت‌ها» با فیلتر ستاره‌دارها"); return renderTutor(); }
-    const sp = e.target.closest("[data-say-msg]"); if (sp) { const t = tuEnglish(sp.parentElement.textContent); if (t) speak(t); }
+    const sp = e.target.closest("[data-say-msg]"); if (sp) { const t = tuEnglish(sp.parentElement.textContent); if (t) speak(t, 1, false, true); }
   };
   const log = $("#tuLog"); if (log.lastElementChild) log.lastElementChild.scrollIntoView({ block: "nearest" });
   // modes that start on their own: send the opening line once
@@ -386,7 +472,7 @@ async function tuSend(text) {
     if (r.ok && d.reply) reply = d.reply; else err = d.error || "معلم جواب نداد؛ دوباره امتحان کن.";
   } catch (e) { err = "اتصال برقرار نشد؛ اینترنت را بررسی کن."; }
   TU.busy = false;
-  if (reply) { cv.hist.push({ r: "a", t: reply }); cv.hist = cv.hist.slice(-40); if ((m.k === "chat" || m.k === "roleplay") && tuProf().autoSay) { const en = tuEnglish(reply.replace(/✏️[^\n]*/g, "")); if (en) speak(en); } }
+  if (reply) { cv.hist.push({ r: "a", t: reply }); cv.hist = cv.hist.slice(-40); if ((m.k === "chat" || m.k === "roleplay") && tuProf().autoSay) { const en = tuEnglish(reply.replace(/✏️[^\n]*/g, "")); if (en) speak(en, 1, false, true); } }
   else { cv.hist.pop(); toast(err); }
   tuSaveLocal();
   if (VIEW === "tutor" && TU.mode === m.k) { renderTutor(); if (!reply) { const i = $("#tuIn"); if (i) i.value = text; } }
@@ -398,14 +484,133 @@ let VIEW = "study";
 function render() {
   $$(".tab").forEach(t => t.classList.toggle("on", t.dataset.v === VIEW));
   $$(".view").forEach(v => v.classList.toggle("hide", v.id !== "v-" + VIEW));
-  const fc = $("#filterCard"); if (fc) fc.classList.toggle("hide", VIEW === "notes" || VIEW === "tutor");   // level/topic filters do not apply to the notes
+  const fc = $("#filterCard"); if (fc) fc.classList.toggle("hide", VIEW === "notes" || VIEW === "tutor" || VIEW === "ielts");   // level/topic filters do not apply to these standalone views
   if (VIEW === "study") renderStudy();
   if (VIEW === "quiz") renderQuizHome();
   if (VIEW === "browse") renderBrowse();
   if (VIEW === "notes") renderNotes();
   if (VIEW === "tutor") renderTutor();
+  if (VIEW === "ielts") renderIeltsListening();
   if (VIEW === "stats") renderStats();
   if (VIEW === "settings") renderSettings();
+}
+
+/* ------------------------------------------------------ IELTS listening
+   Original mini-drills, designed for habit-building. Source links open the
+   original publishers; no third-party lesson or test is copied into LifeOS. */
+const IELTS_LISTENING_SETS = [
+  { section: "بخش ۱", title: "رزرو کلاس", level: "مکالمهٔ روزمره", script: "Hello. I would like to book a place on the Saturday photography class. The class starts at ten thirty, but registration closes at ten fifteen. It costs twenty-eight pounds, including materials.", qs: [
+    ["ثبت‌نام چه ساعتی بسته می‌شود؟", ["10:15", "10:30", "10:45"], 0], ["کلاس در چه روزی است؟", ["Friday", "Saturday", "Sunday"], 1], ["هزینه شامل چه چیزی است؟", ["materials", "lunch", "transport"], 0]
+  ] },
+  { section: "بخش ۲", title: "راهنمای بازدید پارک", level: "تک‌گویی موقعیت‌محور", script: "Welcome to Greenhill Park. The visitor centre is beside the lake, not near the main gate. Our guided walk leaves at eleven from the café terrace. Please collect a yellow map before you begin.", qs: [
+    ["مرکز بازدیدکنندگان کجاست؟", ["beside the lake", "at the main gate", "next to the café"], 0], ["پیاده‌روی راهنما چه ساعتی شروع می‌شود؟", ["10:00", "11:00", "12:00"], 1], ["باید چه نقشه‌ای بردارید؟", ["blue", "green", "yellow"], 2]
+  ] },
+  { section: "بخش ۳", title: "پروژهٔ گروهی دانشگاه", level: "گفت‌وگوی آموزشی", script: "Mina: Shall we meet on Tuesday to plan our research project? Ali: I cannot do Tuesday, but Wednesday afternoon is fine. Mina: Great. I will book a study room in the library and bring the survey results. Ali: Then I will prepare the presentation slides.", qs: [
+    ["آن‌ها چه روزی ملاقات می‌کنند؟", ["Monday", "Tuesday", "Wednesday"], 2], ["محل ملاقات کجاست؟", ["the library", "the café", "the lab"], 0], ["علی چه چیزی آماده می‌کند؟", ["survey results", "presentation slides", "a study room"], 1]
+  ] },
+  { section: "بخش ۴", title: "سخنرانی انرژی شهری", level: "سخنرانی دانشگاهی", script: "Today we are looking at urban energy use. Contrary to popular belief, office buildings consume most electricity in the afternoon, not in the morning. Our research focuses on insulation because it reduces heating demand during winter. Next week, we will compare three European cities.", qs: [
+    ["مصرف برق ساختمان‌های اداری بیشتر چه زمانی است؟", ["in the morning", "in the afternoon", "at night"], 1], ["پژوهش روی چه چیزی تمرکز دارد؟", ["solar panels", "insulation", "traffic"], 1], ["هفتهٔ بعد چه چیزی مقایسه می‌شود؟", ["three cities", "three universities", "three fuels"], 0]
+  ] },
+  { section: "بخش ۱", title: "نوبت درمانگاه", level: "مکالمهٔ روزمره", script: "Receptionist: The doctor is available on Thursday morning or Friday after two. Sara: Friday would be better. Receptionist: Your appointment is at two forty, and please arrive fifteen minutes early with your insurance card.", qs: [
+    ["قرار ملاقات چه روزی است؟", ["Thursday", "Friday", "Saturday"], 1], ["ساعت قرار ملاقات چند است؟", ["2:15", "2:40", "3:00"], 1], ["چه چیزی باید همراه داشته باشد؟", ["a passport", "an insurance card", "a prescription"], 1]
+  ] },
+  { section: "بخش ۱", title: "رزرو هتل", level: "مکالمهٔ روزمره", script: "Good evening. I need a double room for two nights, arriving on the twelfth of May. Breakfast is included, but parking costs an extra twelve pounds per day. The hotel is five minutes from the station.", qs: [
+    ["اقامت چند شب است؟", ["one", "two", "three"], 1], ["پارکینگ روزانه چقدر هزینه دارد؟", ["eight pounds", "twelve pounds", "twenty pounds"], 1], ["هتل نزدیک چیست؟", ["the airport", "the station", "the beach"], 1]
+  ] },
+  { section: "بخش ۲", title: "اعلامیهٔ موزه", level: "تک‌گویی موقعیت‌محور", script: "The City Museum opens at nine thirty every day except Monday. The ancient history gallery is on the first floor, while the café is downstairs near the entrance. Today’s family workshop begins at one o’clock in the education room.", qs: [
+    ["موزه چه روزی بسته است؟", ["Monday", "Tuesday", "Sunday"], 0], ["گالری تاریخ باستان کجاست؟", ["on the first floor", "downstairs", "next to the entrance"], 0], ["کارگاه خانواده چه ساعتی شروع می‌شود؟", ["12:00", "1:00", "1:30"], 1]
+  ] },
+  { section: "بخش ۲", title: "راهنمای باشگاه ورزشی", level: "تک‌گویی موقعیت‌محور", script: "Welcome to Riverside Sports Centre. Swimming lessons take place in the small pool, not the main pool. Members can borrow towels at reception. The gym closes at nine on weekdays, but at six on Sundays.", qs: [
+    ["درس شنا در کدام استخر برگزار می‌شود؟", ["the main pool", "the small pool", "the outdoor pool"], 1], ["حوله را از کجا می‌گیرند؟", ["the gym", "reception", "the café"], 1], ["باشگاه یکشنبه چه ساعتی بسته می‌شود؟", ["6:00", "8:00", "9:00"], 0]
+  ] },
+  { section: "بخش ۳", title: "انتخاب درس دانشگاه", level: "گفت‌وگوی آموزشی", script: "Nora: I am choosing between psychology and economics next term. David: Psychology has a weekly seminar on Wednesday, but economics has an exam in January. Nora: I prefer discussion classes, so psychology sounds better. David: Remember to register before the fifteenth.", qs: [
+    ["نورا کدام درس را ترجیح می‌دهد؟", ["psychology", "economics", "both"], 0], ["سمینار روان‌شناسی چه روزی است؟", ["Tuesday", "Wednesday", "Thursday"], 1], ["ثبت‌نام باید قبل از چه زمانی انجام شود؟", ["the tenth", "the fifteenth", "January"], 1]
+  ] },
+  { section: "بخش ۳", title: "برنامهٔ سفر گروهی", level: "گفت‌وگوی آموزشی", script: "Leila: The train leaves at seven forty-five, so we should meet at the station at seven twenty. Amir: I will buy the tickets online tonight. Leila: Good. I will bring sandwiches, and Roya is organising the museum booking.", qs: [
+    ["گروه چه ساعتی ملاقات می‌کند؟", ["7:20", "7:45", "8:00"], 0], ["چه کسی بلیت‌ها را می‌خرد؟", ["Leila", "Amir", "Roya"], 1], ["رویا چه کاری انجام می‌دهد؟", ["food", "tickets", "museum booking"], 2]
+  ] },
+  { section: "بخش ۴", title: "سخنرانی سلامت خواب", level: "سخنرانی دانشگاهی", script: "This lecture examines sleep and memory. Our experiment involved one hundred university students. Those who slept for seven to eight hours remembered more vocabulary than students who slept less than six hours. We did not study the effect of exercise in this project.", qs: [
+    ["چند دانشجو در آزمایش بودند؟", ["50", "100", "150"], 1], ["کدام گروه واژه‌های بیشتری به یاد آورد؟", ["under six hours", "seven to eight hours", "over ten hours"], 1], ["کدام موضوع بررسی نشد؟", ["memory", "sleep", "exercise"], 2]
+  ] },
+  { section: "بخش ۴", title: "سخنرانی معماری پایدار", level: "سخنرانی دانشگاهی", script: "Sustainable architecture is not only about solar panels. In this course, we first examine building orientation because it affects natural light and cooling costs. The final assignment is a design proposal for a small community centre, due in the last week of term.", qs: [
+    ["ابتدا چه چیزی بررسی می‌شود؟", ["solar panels", "building orientation", "community centres"], 1], ["جهت‌گیری ساختمان بر چه چیزی اثر می‌گذارد؟", ["natural light", "ticket prices", "road safety"], 0], ["تکلیف نهایی چیست؟", ["an exam", "a design proposal", "a group interview"], 1]
+  ] }
+];
+const IELTS_SKILLS = [["listening", "🎧", "شنیداری"], ["reading", "📖", "خواندن"], ["writing", "✍️", "نوشتن"], ["speaking", "🗣️", "گفتاری"]];
+const ieltsSkillNav = active => `<nav class="ielts-skills" aria-label="بخش‌های آیلتس">${IELTS_SKILLS.map(([id, icon, label]) => `<button type="button" data-ielts-skill="${id}" class="${active === id ? "on" : ""}"><span>${icon}</span>${label}${id !== "listening" ? " <small>تمرین</small>" : ""}</button>`).join("")}</nav>`;
+function bindIeltsSkillNav() { $$("[data-ielts-skill]").forEach(button => button.onclick = () => { S.settings.ieltsSkill = button.dataset.ieltsSkill; save(true); renderIeltsListening(); }); }
+
+function renderIeltsListening() {
+  const active = S.settings.ieltsSkill || "listening";
+  if (active === "reading") return renderIeltsReading();
+  if (active === "writing") return renderIeltsWriting();
+  if (active === "speaking") return renderIeltsSpeaking();
+  const main = $("#ieltsMain");
+  const stored = S.settings.ieltsListening || {};
+  const log = { sessions: Number(stored.sessions) || 0, correct: Number(stored.correct) || 0, total: Number(stored.total) || 0, last: stored.last || "", history: Array.isArray(stored.history) ? stored.history : [], set: Math.min(IELTS_LISTENING_SETS.length - 1, Math.max(0, Number(stored.set) || 0)) };
+  const set = IELTS_LISTENING_SETS[log.set], accuracy = log.total ? Math.round(log.correct / log.total * 100) : 0;
+  main.innerHTML = `${ieltsSkillNav("listening")}<section class="card ielts-hero">
+    <span class="ielts-kicker">IELTS HUB · LISTENING LAB</span><h2>شنیداری آیلتس، مرحله‌به‌مرحله</h2>
+    <p>چهار مدل تمرین برای بخش‌های Listening. تمرین‌ها کوتاه و تألیفی‌اند؛ برای آزمون‌های کامل از منابع رسمی پایین صفحه استفاده کن.</p>
+    <div class="ielts-status"><span class="pill">${fa(log.sessions)} تمرین کامل</span><span class="pill">دقت ${fa(accuracy)}٪</span><span class="pill">${log.last === today() ? "تمرین امروز ثبت شد ✓" : "یک تمرین برای امروز انتخاب کن"}</span></div>
+  </section>
+  <section class="ielts-roadmap" aria-label="بخش‌های شنیداری">${IELTS_LISTENING_SETS.map((item, index) => { const completed = log.history.some(h => h.id === index); return `<button type="button" class="ielts-set ${index === log.set ? "on" : ""}" data-set="${index}"><small>${item.section}${completed ? " · ✓" : ""}</small><b>${item.title}</b><span>${item.level}</span></button>`; }).join("")}</section>
+  <div class="ielts-grid">
+    <section class="card pad ielts-drill"><div class="between"><div><span class="ielts-kicker">${set.section} · ${set.level}</span><h3>${set.title}</h3></div><button type="button" class="btn pri sm" id="ieltsPlay">🔊 پخش دوباره</button></div>
+      <div class="ielts-instructions"><span>۱. ابتدا گوش بده</span><span>۲. جواب بده</span><span>۳. نتیجه را ببین</span></div>
+      <div id="ieltsQuestion"></div>
+    </section>
+    <aside class="card pad"><h3>برنامهٔ امروز · ۲۵ دقیقه</h3><ul class="ielts-plan"><li><b>۵ دقیقه</b><span>پخش و پاسخ به این تمرین</span></li><li><b>۱۰ دقیقه</b><span>یک درس سطح B1 یا B2</span></li><li><b>۱۰ دقیقه</b><span>مرور واژه‌های سخت در کارت‌ها</span></li></ul><h3 class="ielts-subhead">منابع کامل و معتبر</h3><div class="ielts-resources">
+      <a class="ielts-resource" target="_blank" rel="noopener noreferrer" href="https://learnenglish.britishcouncil.org/free-resources/listening/b1"><b>British Council · B1 Listening ↗</b><small>مکالمه‌ها، مصاحبه‌ها و تمرین تعاملی.</small></a>
+      <a class="ielts-resource" target="_blank" rel="noopener noreferrer" href="https://learnenglish.britishcouncil.org/free-resources/listening/b2"><b>British Council · B2 Listening ↗</b><small>ارائه‌ها و متن‌های طولانی‌تر.</small></a>
+      <a class="ielts-resource" target="_blank" rel="noopener noreferrer" href="https://learnenglish.britishcouncil.org/ielts-preparation"><b>آمادگی رسمی IELTS ↗</b><small>ابزارها و آزمون‌های تمرینی British Council.</small></a>
+    </div></aside>
+  </div>`;
+  bindIeltsSkillNav();
+  $$(".ielts-set").forEach(button => button.onclick = () => { S.settings.ieltsListening = { ...log, set: Number(button.dataset.set) }; save(true); renderIeltsListening(); });
+  $("#ieltsPlay").onclick = () => { speak(set.script, 1); $("#ieltsQuestion .ielts-feedback").textContent = "صوت پخش شد؛ به جزئیات دقت کن و سپس پاسخ بده."; };
+  let question = 0, score = 0, answered = false;
+  const drawQuestion = () => {
+    const q = set.qs[question], box = $("#ieltsQuestion");
+    box.innerHTML = `<div class="ielts-progress"><span>سؤال ${fa(question + 1)} از ${fa(set.qs.length)}</span><i><b style="width:${(question + 1) / set.qs.length * 100}%"></b></i></div><div class="ielts-question"><h3>${q[0]}</h3><div class="ielts-options">${q[1].map((answer, index) => `<button type="button" class="ielts-option" data-answer="${index}"><span dir="ltr">${esc(answer)}</span></button>`).join("")}</div><p class="ielts-feedback muted" id="ieltsFeedback">در صورت نیاز، صوت را دوباره پخش کن.</p></div>`;
+    answered = false;
+    $$("#ieltsQuestion .ielts-option").forEach(button => button.onclick = () => {
+      if (answered) return; answered = true;
+      const right = Number(button.dataset.answer) === q[2]; if (right) score++;
+      $$("#ieltsQuestion .ielts-option").forEach(option => { option.disabled = true; option.classList.toggle("correct", Number(option.dataset.answer) === q[2]); });
+      if (!right) button.classList.add("wrong");
+      const last = question === set.qs.length - 1;
+      $("#ieltsFeedback").innerHTML = `${right ? "<b>درست ✓</b>" : "<b>پاسخ درست مشخص شد.</b>"} ${last ? "" : "برای ادامه آماده‌ای؟"}<br><span class="ielts-transcript" dir="ltr">Transcript: ${esc(set.script)}</span>${last ? `<br><button type="button" class="btn ok sm" id="ieltsFinish">ثبت نتیجه</button>` : `<br><button type="button" class="btn pri sm" id="ieltsNext">سؤال بعد</button>`}`;
+      if (last) $("#ieltsFinish").onclick = () => {
+        const history = [{ id: log.set, at: Date.now(), score, total: set.qs.length }, ...log.history].slice(0, 20);
+        S.settings.ieltsListening = { ...log, sessions: log.sessions + 1, correct: log.correct + score, total: log.total + set.qs.length, last: today(), history };
+        save(true); renderIeltsListening(); toast(`نتیجه ثبت شد: ${score} از ${set.qs.length}`);
+      };
+      else $("#ieltsNext").onclick = () => { question++; drawQuestion(); };
+    });
+  };
+  drawQuestion();
+}
+
+function renderIeltsReading() {
+  const main = $("#ieltsMain"), passage = "City libraries are changing. In addition to lending books, many now provide quiet study areas, free computer access and workshops for job seekers. A recent survey found that visitors valued the study spaces most, while parents most often used the children’s activities. The library plans to extend its opening hours on Sundays next year.";
+  const qs = [["طبق نظرسنجی، بیشتر بازدیدکنندگان چه چیزی را باارزش می‌دانستند؟", ["study spaces", "children's activities", "computer access"], 0], ["کتابخانه چه برنامه‌ای برای سال بعد دارد؟", ["new books", "longer Sunday hours", "a new building"], 1], ["کارگاه‌ها برای چه کسانی است؟", ["job seekers", "tourists", "teachers"], 0]];
+  main.innerHTML = `${ieltsSkillNav("reading")}<section class="card ielts-hero"><span class="ielts-kicker">IELTS READING · تمرین زمان‌دار</span><h2>خواندن: متن کوتاه و سؤال‌های درک مطلب</h2><p>یک متن تألیفی را بخوان، سپس سه سؤال را پاسخ بده. در آزمون اصلی، زمان را از قبل برای هر متن تقسیم کن.</p></section><div class="ielts-grid"><section class="card pad"><div class="between"><div><h3>متن: کتابخانه‌های شهری</h3><span class="muted">۳ سؤال · تمرین زمان‌دار</span></div><button type="button" class="btn sm" id="readTimer">شروع ۴ دقیقه</button></div><p class="ielts-passage" dir="ltr">${esc(passage)}</p><div id="readQs"></div></section><aside class="card pad"><h3>روش پیشنهادی</h3><ol class="ielts-plan"><li><b>۳۰ ثانیه</b><span>عنوان و جملهٔ اول هر بند را بخوان.</span></li><li><b>۲ دقیقه</b><span>کلیدواژهٔ سؤال را در متن پیدا کن.</span></li><li><b>۹۰ ثانیه</b><span>پاسخ را با متن تطبیق بده؛ حدس نزن.</span></li></ol><h3 class="ielts-subhead">تمرین بیشتر</h3><div class="ielts-resources"><a class="ielts-resource" target="_blank" rel="noopener noreferrer" href="https://learnenglish.britishcouncil.org/free-resources/reading"><b>British Council · Reading ↗</b><small>تمرین خواندن بر اساس سطح CEFR.</small></a></div></aside></div>`;
+  bindIeltsSkillNav(); let answered = 0, score = 0;
+  const draw = () => { const q = qs[answered], box = $("#readQs"); if (!q) { box.innerHTML = `<p class="ielts-feedback"><b>نتیجه: ${fa(score)} از ${fa(qs.length)}</b> · پاسخ‌ها را دوباره با متن مقایسه کن.</p>`; return; } box.innerHTML = `<div class="ielts-question"><h3>سؤال ${fa(answered + 1)}: ${q[0]}</h3><div class="ielts-options">${q[1].map((x, i) => `<button type="button" class="ielts-option" data-a="${i}" dir="auto">${esc(x)}</button>`).join("")}</div></div>`; $$("#readQs .ielts-option").forEach(button => button.onclick = () => { const right = Number(button.dataset.a) === q[2]; if (right) score++; $$("#readQs .ielts-option").forEach(x => { x.disabled = true; x.classList.toggle("correct", Number(x.dataset.a) === q[2]); }); if (!right) button.classList.add("wrong"); setTimeout(() => { answered++; draw(); }, 500); }); }; draw();
+  $("#readTimer").onclick = () => { let left = 240, b = $("#readTimer"); b.disabled = true; const t = setInterval(() => { b.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`; if (!--left) { clearInterval(t); b.textContent = "زمان تمام شد"; } }, 1000); };
+}
+
+function renderIeltsWriting() {
+  const main = $("#ieltsMain"), draft = S.settings.ieltsWritingDraft || "";
+  main.innerHTML = `${ieltsSkillNav("writing")}<section class="card ielts-hero"><span class="ielts-kicker">IELTS WRITING · TASK 2</span><h2>نوشتن: استدلال و ساختار</h2><p>پاسخ خودت را بنویس؛ شمارش واژه، ذخیرهٔ پیش‌نویس و چک‌لیست ساختار همین‌جا در دسترس است.</p></section><div class="ielts-grid"><section class="card pad"><span class="ielts-kicker">موضوع تمرینی</span><h3>Some people believe governments should spend more money on public transport than on building new roads. To what extent do you agree or disagree?</h3><textarea id="writeDraft" class="ielts-draft" dir="ltr" placeholder="Write at least 250 words…">${esc(draft)}</textarea><div class="between"><span class="muted" id="writeCount">۰ واژه</span><button type="button" class="btn pri sm" id="writeSave">ذخیرهٔ پیش‌نویس</button></div></section><aside class="card pad"><h3>چک‌لیست قبل از پایان</h3><ul class="ielts-check"><li>موضع خودت را در مقدمه روشن گفته‌ای؟</li><li>دو دلیل با مثال مشخص داری؟</li><li>هر بند یک ایدهٔ اصلی دارد؟</li><li>نتیجه‌گیری، موضع تو را تکرار می‌کند؟</li><li>حداقل ۲۵۰ واژه نوشته‌ای؟</li></ul><h3 class="ielts-subhead">تمرین بیشتر</h3><div class="ielts-resources"><a class="ielts-resource" target="_blank" rel="noopener noreferrer" href="https://learnenglish.britishcouncil.org/free-resources/writing"><b>British Council · Writing ↗</b><small>تمرین نوشتن و نمونه‌فعالیت بر اساس سطح.</small></a></div></aside></div>`;
+  bindIeltsSkillNav(); const input = $("#writeDraft"), count = () => { const n = input.value.trim() ? input.value.trim().split(/\s+/).length : 0; $("#writeCount").textContent = `${fa(n)} واژه${n >= 250 ? " ✓" : " · هدف ۲۵۰"}`; }; input.oninput = count; count(); $("#writeSave").onclick = () => { S.settings.ieltsWritingDraft = input.value.slice(0, 20000); save(true); toast("پیش‌نویس ذخیره شد ✓"); };
+}
+
+function renderIeltsSpeaking() {
+  const main = $("#ieltsMain");
+  main.innerHTML = `${ieltsSkillNav("speaking")}<section class="card ielts-hero"><span class="ielts-kicker">IELTS SPEAKING · PART 2</span><h2>گفتاری: Cue Card و ضبط پاسخ</h2><p>یک دقیقه برای فکرکردن و تا دو دقیقه برای صحبت‌کردن. پاسخ خودت را ضبط و دوباره گوش کن.</p></section><div class="ielts-grid"><section class="card pad"><span class="ielts-kicker">CUE CARD</span><h3 dir="ltr">Describe a place in your city that you enjoy visiting.</h3><ul class="ielts-check" dir="ltr"><li>where it is</li><li>when you go there</li><li>what you do there</li><li>and explain why you enjoy it</li></ul><div class="ielts-record"><button type="button" class="btn pri" id="speakRecord">● شروع ضبط</button><span class="muted" id="speakStatus">برای ضبط، اجازهٔ میکروفون لازم است.</span></div><audio id="speakPlayback" controls class="hide"></audio></section><aside class="card pad"><h3>خودارزیابی بعد از ضبط</h3><ul class="ielts-check"><li>آیا بدون مکث طولانی صحبت کردی؟</li><li>آیا به همهٔ bulletها پاسخ دادی؟</li><li>آیا از زمان گذشته و حال درست استفاده کردی؟</li><li>سه واژه یا عبارت بهتر برای دفعهٔ بعد یادداشت کن.</li></ul><h3 class="ielts-subhead">تمرین بیشتر</h3><div class="ielts-resources"><a class="ielts-resource" target="_blank" rel="noopener noreferrer" href="https://learnenglish.britishcouncil.org/free-resources/speaking"><b>British Council · Speaking ↗</b><small>تمرین مکالمه و تلفظ بر اساس سطح.</small></a></div></aside></div>`;
+  bindIeltsSkillNav(); let recorder = null, chunks = []; const button = $("#speakRecord"), status = $("#speakStatus"), player = $("#speakPlayback"); button.onclick = async () => { if (recorder && recorder.state === "recording") { recorder.stop(); return; } try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); recorder = new MediaRecorder(stream); chunks = []; recorder.ondataavailable = e => chunks.push(e.data); recorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); player.src = URL.createObjectURL(new Blob(chunks, { type: recorder.mimeType || "audio/webm" })); player.classList.remove("hide"); button.textContent = "● شروع ضبط"; status.textContent = "ضبط آمادهٔ پخش است؛ به پاسخ خودت گوش کن."; }; recorder.start(); button.textContent = "■ پایان ضبط"; status.textContent = "در حال ضبط…"; } catch (e) { status.textContent = "دسترسی میکروفون داده نشد یا مرورگر ضبط را پشتیبانی نمی‌کند."; } };
 }
 
 
@@ -416,6 +621,15 @@ let NOTES = null, notesQ = "";
 const ntInline = t => esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
 // "colleague / co-worker (n.)" → "colleague"; "boss = manager" → "boss"
 const ntSay = t => String(t).replace(/\([^)]*\)/g, "").split(/\s[\/=]\s|\s*\/\s*|\s=\s/)[0].replace(/[*`]/g, "").trim();
+// recorded pronunciations of the notes words (audio/manifest.json, made offline); the browser voice is the fallback
+let NOTE_AUDIO = null;
+fetch("audio/manifest.json", { cache: "force-cache" }).then(r => (r.ok ? r.json() : [])).then(m => { NOTE_AUDIO = new Map(m.map(x => [x.word.toLowerCase(), x.file])); }).catch(() => { NOTE_AUDIO = new Map(); });
+function sayNote(text) {
+  const file = NOTE_AUDIO && NOTE_AUDIO.get(String(text).toLowerCase());
+  if (!file) return speak(text);
+  const a = new Audio("audio/" + file);
+  a.play().catch(() => speak(text));
+}
 function ntBlocks(lines) {
   let html = "", i = 0;
   const cells = l => l.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
@@ -464,7 +678,7 @@ async function renderNotes() {
   const q = $("#ntQ");
   q.oninput = () => { notesQ = q.value; ntFilter(); };
   $("#ntPdf").onclick = ntPdf;
-  box.onclick = e => { const b = e.target.closest("button[data-say]"); if (b) { e.preventDefault(); speak(b.dataset.say); } };
+  box.onclick = e => { const b = e.target.closest("button[data-say]"); if (b) { e.preventDefault(); sayNote(b.dataset.say); } };
   ntFilter();
 }
 /* Printable booklets (notes / starred words) → the browser's «Save as PDF». Always white for printing. */
@@ -632,7 +846,7 @@ function renderStudy() {
         <div class="meaning">${meaningsOf(cur).map(esc).join(" • ") || "—"}</div>
       </div>
       ${cur.d ? `<div class="def def-c"><span class="defen en">${esc(cur.d)}</span>${cur.df ? `<span class="deffa">${esc(cur.df)}</span>` : ""}</div>` : ""}
-      ${cur.e ? `<div class="exbox"><div class="ex">“${esc(cur.e)}”</div>${cur.ef ? `<div class="exfa">${esc(cur.ef)}</div>` : ""}</div>` : ""}
+      ${cur.e ? `<div class="exbox"><div class="ex">“${esc(String(cur.e).replace(/^[“”"']+|[“”"']+$/g, ""))}”</div>${cur.ef ? `<div class="exfa">${esc(cur.ef)}</div>` : ""}</div>` : ""}
       ${sensesHtml(cur)}
       ${(cur.s && cur.s.length) ? `<div class="syn"><span class="muted syn-l">هم‌معنی:</span>${cur.s.map(x => `<span class="pill en">${esc(x)}</span>`).join("")}</div>` : ""}
       <div class="row" style="margin-top:14px">
@@ -969,7 +1183,7 @@ function wordSheet(w) {
     </div>
     <div class="meaning" style="font-size:22px">${meaningsOf(x).map(esc).join(" • ")}</div>
     ${x.d ? `<div class="def"><b>تعریف</b><span class="defen en">${esc(x.d)}</span>${x.df ? `<span class="deffa">${esc(x.df)}</span>` : ""}</div>` : ""}
-    ${x.e ? `<div class="exbox"><div class="ex">“${esc(x.e)}”</div>${x.ef ? `<div class="exfa">${esc(x.ef)}</div>` : ""}</div>` : ""}
+    ${x.e ? `<div class="exbox"><div class="ex">“${esc(String(x.e).replace(/^[“”"']+|[“”"']+$/g, ""))}”</div>${x.ef ? `<div class="exfa">${esc(x.ef)}</div>` : ""}</div>` : ""}
     ${sensesHtml(x)}
     ${(x.s || []).length ? `<div class="syn">${x.s.map(s => `<span class="pill en">${esc(s)}</span>`).join("")}</div>` : ""}
     <div class="muted" style="margin-top:12px">

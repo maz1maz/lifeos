@@ -23,3 +23,9 @@ public/assets/index-*.css
 # personal-site bridge secrets (see integrations/seyfikhani/README.md)
 lifeos-studio-config.php
 lifeos-studio-data/
+
+# speech-studio (local)
+speech-studio/.venv/
+speech-studio/data/
+speech-studio/**/__pycache__/
+speech-studio/models/

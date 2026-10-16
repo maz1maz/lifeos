@@ -57,7 +57,7 @@ import './mobile.css'; // phone/iPhone pass — keep last so it overrides page C
 const PAGE_CHUNKS = {
   notes: () => import('./notes'), contacts: () => import('./contacts'), documents: () => import('./documents'),
   media: () => import('./media'), market: () => import('./market'), calendar: () => import('./calendar'),
-  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), watch: () => import('./watch-pages'), exercise: () => import('./exercise'), timelog: () => import('./timelog'), admin: () => import('./admin'), courses: () => import('./courses'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook'), reading: () => import('./reading'), ielts: () => import('./ielts')
+  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), watch: () => import('./watch-pages'), exercise: () => import('./exercise'), timelog: () => import('./timelog'), admin: () => import('./admin'), courses: () => import('./courses'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook'), reading: () => import('./reading'), ielts: () => import('./ielts'), speech: () => import('./speech')
 };
 const lazyPage = (chunk, name) => React.lazy(() => PAGE_CHUNKS[chunk]().then(m => ({ default: m[name] })));
 const AdminPage = lazyPage('admin', 'AdminPage'), CoursesPage = lazyPage('courses', 'CoursesPage'), ClassTodayCardLazy = lazyPage('courses', 'ClassTodayCard');
@@ -68,10 +68,10 @@ const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('mark
 const FinanceReact = lazyPage('finance', 'FinanceReact'), HabitsPage = lazyPage('habits', 'HabitsPage'), WeeklyPage = lazyPage('habits', 'WeeklyPage');
 const [HealthPage, CarPage, TravelPage, ProjectsPage, CrmPage, LearningPage, JournalPage, GoalsPage, FocusPage, LifeStatsPage] =
   ['HealthPage', 'CarPage', 'TravelPage', 'ProjectsPage', 'CrmPage', 'LearningPage', 'JournalPage', 'GoalsPage', 'FocusPage', 'LifeStatsPage'].map(n => lazyPage('life', n));
-const IeltsPage = lazyPage('ielts', 'IeltsPage');
+const IeltsPage = lazyPage('ielts', 'IeltsPage'), SpeechPage = lazyPage('speech', 'SpeechPage');
 const UpcomingPage = lazyPage('watchx', 'UpcomingPage'), DiscoverPage = lazyPage('watchx', 'DiscoverPage'), InsightsPage = lazyPage('insights', 'InsightsPage'), LogbookPage = lazyPage('logbook', 'LogbookPage'), ReadingPage = lazyPage('reading', 'ReadingPage'), BookmarksPage = lazyPage('reading', 'BookmarksPage');
 // Warm the most-used chunks once the current page is idle (also fills the service-worker cache for offline use).
-const prefetchPages = () => { for (const k of ['finance', 'calendar', 'notes', 'habits']) PAGE_CHUNKS[k]().catch(() => {}); };
+const prefetchPages = () => { for (const k of ['life', 'ielts']) PAGE_CHUNKS[k]().catch(() => {}); };  // پروژه‌ها (life) + آیلتس/یادگیری؛ زبان (vocab) داخل باندل اصلی است
 function PageLoading() { return <Loader size="page" />; }
 
 const shortRial = n => { const a = Math.abs(Number(n) || 0), f = v => v.toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : 1 }); return a >= 1e9 ? `${f(a / 1e9)} میلیارد ریال` : a >= 1e6 ? `${f(a / 1e6)} میلیون ریال` : `${fa(a)} ریال`; };
@@ -125,7 +125,7 @@ const NAV_GROUPS = [
   ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
   ['زندگی', [['health', 'سلامت', HeartPulse], ['car', 'خودرو', Car], ['travel', 'سفر', Plane]]],
   ['سرگرمی', [['series', 'فیلم و سریال', Clapperboard], ['media', 'موسیقی و یوتیوب', Music], ['football', 'فوتبال', Trophy]]],
-  ['یادگیری و آرشیو', [['learning', 'یادگیری و زبان', Library], ['notes', 'یادداشت و روزنگار', StickyNote], ['reading', 'خبر و خواندنی', Newspaper], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users]]]
+  ['یادگیری و آرشیو', [['learning', 'یادگیری و زبان', Library], ['notes', 'یادداشت و روزنگار', StickyNote], ['reading', 'خبر و خواندنی', Newspaper], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users], ['speech', 'استودیوی گفتار', Sparkles]]]
 ];
 // Phone-only bar at the bottom: the everyday pages within thumb reach; «همه» opens the full drawer.
 const BOTTOM_TABS = [['', 'امروز', House], ['planner', 'برنامه', CalendarDays], ['finance', 'مالی', Wallet], ['notes', 'یادداشت', StickyNote], ['series', 'تماشا', Clapperboard]];
@@ -261,6 +261,7 @@ function Routes() {
   if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;
   if (page === 'documents') return <DocumentsReact Nav={TopNav} />;
   if (page === 'contacts') return <ContactsReact Nav={TopNav} />;
+  if (page === 'speech') return <SpeechPage Nav={() => <TopNav active="speech" />} />;
   if (page === 'settings') return <SettingsReact />;
   if (page === 'admin') return <AdminPage Nav={() => <TopNav active="admin" />} />;
   return <HomePage />;

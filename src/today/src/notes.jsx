@@ -375,7 +375,6 @@ export function NotesReact({ Nav }) {
   const [colorFilter, setColorFilter] = useState(null);
   const [tagFilter, setTagFilter] = useState(null);
   const [sort, setSort] = useState('updated');
-  const [view, setView] = useState('list');
   const [selectedId, setSelectedId] = useState(null);
   const [editing, setEditing] = useState(null);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -411,8 +410,6 @@ export function NotesReact({ Nav }) {
     });
     return list;
   }, [notes, query, colorFilter, tagFilter, sort]);
-
-  const selected = notes.find(n => n.id === selectedId) || null;
 
   useEffect(() => {
     const onKey = e => {
@@ -465,7 +462,8 @@ export function NotesReact({ Nav }) {
     try { await api(`/api/inbox/${note.id}`, { method: 'PATCH', body: JSON.stringify({ text }) }); } catch (error) { setNotice(error.message); load(); }
   };
   const pinnedList = visible.filter(n => n.pinned), restList = visible.filter(n => !n.pinned);
-  const tileProps = { query, busyId, onOpen: n => setSelectedId(n.id), onEdit: handleEdit, onTogglePin: handleTogglePin, onDelete: handleDelete, onCheck: toggleCheck };
+  const tileProps = { query, busyId, selectedId, onOpen: n => setSelectedId(id => id === n.id ? null : n.id), onEdit: handleEdit, onTogglePin: handleTogglePin, onDelete: handleDelete, onCheck: toggleCheck,
+    onFocusTag: t => setTagFilter(t), onConvert: handleConvert, onSmartDone: msg => { setNotice(msg); setSelectedId(null); load(); } };
 
   return (
     <main className="nd nd2" dir="rtl">
@@ -507,23 +505,16 @@ export function NotesReact({ Nav }) {
         </div>
       )}
 
-      {selected && (
-        <div className="nd-drawer" onClick={() => setSelectedId(null)}>
-          <div onClick={e => e.stopPropagation()}>
-            <Inspector note={selected} allNotes={notes} query={query} onClose={() => setSelectedId(null)} onEdit={n => { setSelectedId(null); handleEdit(n); }} onTogglePin={handleTogglePin} onDelete={handleDelete}
-              onFocusTag={t => { setTagFilter(t); setSelectedId(null); }} onConvert={handleConvert} onSmartDone={msg => { setNotice(msg); setSelectedId(null); load(); }} />
-          </div>
-        </div>
-      )}
-
       <button type="button" className={`nd-fab ${composerOpen || selectedId ? 'hide' : ''}`} onClick={() => { setEditing(null); setComposerOpen(true); }} aria-label="یادداشت تازه"><Plus size={24} /></button>
     </main>
   );
 }
 
 const CHECK_RE = /^\s*[-*]\s*\[( |x|X)\]\s?(.*)$/;
-function NoteTile({ note, query, busyId, onOpen, onEdit, onTogglePin, onDelete, onCheck }) {
+function NoteTile({ note, query, busyId, selectedId, onOpen, onEdit, onTogglePin, onDelete, onCheck, onFocusTag, onConvert, onSmartDone }) {
   const c = colorOf(note.color);
+  const open = selectedId === note.id;
+  const panelId = `nd2-note-${note.id}`;
   const lines = note.body.split('\n');
   const checks = lines.map((l, i) => { const m = l.match(CHECK_RE); return m ? { i, done: m[1] !== ' ', text: m[2] } : null; }).filter(Boolean);
   const isList = checks.length > 0 && checks.length >= lines.filter(l => l.trim()).length - 1;
@@ -533,24 +524,40 @@ function NoteTile({ note, query, busyId, onOpen, onEdit, onTogglePin, onDelete, 
   const d = note.updatedAt ? new Date(note.updatedAt) : null;
   const dateLabel = d && !isNaN(d) ? new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Tehran' }).format(d) : '';
   return (
-    <article className="nd2-note" style={{ '--c': c.hex }} onClick={() => onOpen(note)} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') onOpen(note); }}>
-      <div className="nd2-acts" onClick={e => e.stopPropagation()}>
-        <button type="button" title="ویرایش" onClick={() => onEdit(note)}><Pencil size={13} /></button>
-        <button type="button" title={note.pinned ? 'برداشتن سنجاق' : 'سنجاق'} disabled={busyId === note.id} onClick={() => onTogglePin(note)}><Pin size={13} /></button>
-        <button type="button" title="حذف" disabled={busyId === note.id} onClick={() => onDelete(note.id)}><Trash2 size={13} /></button>
-      </div>
-      <div className="nd2-hd"><h3><Highlight text={note.title} query={query} /></h3>{note.pinned && <span className="nd2-pinned">سنجاق</span>}</div>
-      {isList ? (
-        <ul className="nd2-cl" onClick={e => e.stopPropagation()}>
-          {checks.slice(0, 7).map(x => <li key={x.i} className={x.done ? 'd' : ''}><button type="button" onClick={() => onCheck(note, x.i)} aria-pressed={x.done}><i />{x.text}</button></li>)}
-          {checks.length > 7 && <li className="more">و {faNum(checks.length - 7)} مورد دیگر…</li>}
-        </ul>
-      ) : bodyText ? <p><Highlight text={bodyText} query={query} /></p> : null}
-      {note.attachments.some(a => isImage(a.mime)) && <div className="nd2-thumb"><img src={note.attachments.find(a => isImage(a.mime)).data} alt="" loading="lazy" /></div>}
-      <div className="nd2-ft">
-        <span className="nd2-tags">{isList ? <span>{faNum(doneN)} از {faNum(checks.length)}</span> : null}{note.tags.slice(0, 2).map(t => <span key={t} className="nd2-tag">#{t}</span>)}</span>
-        <span>{note.attachments.length ? `📎 ${faNum(note.attachments.length)} · ` : ''}{dateLabel}</span>
-      </div>
+    <article className={`nd2-note nd2-row ${open ? 'is-open' : ''}`} style={{ '--c': c.hex }}>
+      <button type="button" className="nd2-row-toggle" onClick={() => onOpen(note)} aria-expanded={open} aria-controls={panelId}>
+        <span className="nd2-row-color" aria-hidden="true" />
+        <span className="nd2-row-title"><Highlight text={note.title} query={query} /></span>
+        {note.pinned && <Pin size={13} className="nd2-row-pin" aria-label="سنجاق‌شده" />}
+        {isList && <span className="nd2-row-count">{faNum(doneN)}/{faNum(checks.length)}</span>}
+        {note.attachments.length > 0 && <Paperclip size={13} className="nd2-row-attach" aria-label="دارای پیوست" />}
+        <span className="nd2-row-date">{dateLabel}</span>
+        <span className="nd2-row-chevron" aria-hidden="true">⌄</span>
+      </button>
+      {open && <div id={panelId} className="nd2-row-content">
+        {isList ? <ul className="nd2-cl">{lines.map((line, i) => {
+          const match = line.match(CHECK_RE);
+          return match ? <li key={i} className={match[1] !== ' ' ? 'd' : ''}><button type="button" onClick={() => onCheck(note, i)} aria-pressed={match[1] !== ' '}><i />{match[2]}</button></li>
+            : line.trim() && !(titleLine && i === 0) ? <li key={i} className="nd2-plain-line"><Highlight text={line} query={query} /></li> : null;
+        })}</ul> : <p className="nd2-row-text"><Highlight text={bodyText || 'بدون متن.'} query={query} /></p>}
+        {note.attachments.length > 0 && <div className="nd2-row-files">
+          {note.attachments.map((a, i) => <a key={a.id || i} href={a.data} download={a.name} className="nd2-row-file">
+            {isImage(a.mime) ? <img src={a.data} alt="" loading="lazy" /> : <FileText size={16} />}
+            <span>{a.name}</span><small>{bytes(a.size)}</small><Download size={14} />
+          </a>)}
+        </div>}
+        <div className="nd2-row-bottom">
+          <div className="nd2-row-info"><span>{dateLabel}</span>{note.tags.map(t => <button key={t} type="button" onClick={() => onFocusTag(t)}>#{t}</button>)}</div>
+          <div className="nd2-row-actions">
+            <button type="button" onClick={() => onEdit(note)}><Pencil size={14} /> ویرایش</button>
+            <button type="button" disabled={busyId === note.id} onClick={() => onTogglePin(note)}>{note.pinned ? <PinOff size={14} /> : <Pin size={14} />} {note.pinned ? 'برداشتن سنجاق' : 'سنجاق'}</button>
+            <button type="button" disabled={busyId === note.id} onClick={() => onDelete(note.id)}><Trash2 size={14} /> حذف</button>
+            <button type="button" onClick={() => onConvert(note, 'task')}>تبدیل به کار</button>
+            <button type="button" onClick={() => onConvert(note, 'reminder')}>تبدیل به یادآور</button>
+          </div>
+        </div>
+        <SmartSuggest note={note} onDone={onSmartDone} />
+      </div>}
     </article>
   );
 }
