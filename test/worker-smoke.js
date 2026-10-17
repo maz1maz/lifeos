@@ -490,18 +490,28 @@ async function main() {
       check('a refused provider is skipped for a while (no second 403 round trip)', globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.size >= 1);
     } finally { globalThis.fetch = realFetch; delete env.AI; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.clear(); }
   }
-  { // news is a feed cache: pruned to the newest 2500 per user (saved kept, duplicate links dropped, long summaries trimmed)
+  { // news lives outside the main state (own kv rows), pruned to the newest 2500 per user
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk({ ...env });
-    const news = [];
-    for (let i = 0; i < 3000; i++) news.push({ id: 'n' + i, userId: 'u1', url: 'https://x/' + i, createdAt: i, summary: i === 2999 ? 'x'.repeat(900) : 's', saved: i === 5 });
-    news.push({ id: 'dup', userId: 'u1', url: 'https://x/2999', createdAt: 1 });           // older copy of the newest link
-    news.push({ id: 'other', userId: 'u2', url: 'https://x/1', createdAt: 1 });             // another user's item is untouched
-    const db = { news };
-    const removed = H.pruneNews(db, 'u1'), mine = db.news.filter(x => x.userId === 'u1');
-    check('news prune: newest 2500 + saved kept, duplicate dropped, other users untouched',
-      removed > 0 && mine.length === 2501 && mine.some(x => x.id === 'n5') && mine.some(x => x.id === 'n2999') && !mine.some(x => x.id === 'dup') && !mine.some(x => x.id === 'n100') && db.news.some(x => x.id === 'other'), String(mine.length));
-    check('news prune: long summary trimmed', db.news.find(x => x.id === 'n2999').summary.length <= 300);
-    check('news prune: second run changes nothing', H.pruneNews(db, 'u1') === 0);
+    const list = [];
+    for (let i = 0; i < 3000; i++) list.push({ id: 'n' + i, userId: 'u1', source: 's', url: 'https://x/' + i, createdAt: i, summary: i === 2999 ? 'x'.repeat(900) : 's', saved: i === 5 });
+    list.push({ id: 'dup', userId: 'u1', source: 's', url: 'https://x/2999', createdAt: 1 });      // older copy of the newest link, same source
+    list.push({ id: 'other-src', userId: 'u1', source: 't', url: 'https://x/2998', createdAt: 2 }); // same link from another source stays
+    const { items, changed } = H.pruneNews(list);
+    check('news prune: newest 2500 + saved kept, duplicate (same source) dropped, other source kept',
+      changed && items.length === 2501 && items.some(x => x.id === 'n5') && items.some(x => x.id === 'n2999') && !items.some(x => x.id === 'dup') && !items.some(x => x.id === 'n100'), String(items.length));
+    check('news prune: long summary trimmed', items.find(x => x.id === 'n2999').summary.length <= 300);
+    check('news prune: second run changes nothing', H.pruneNews(items).changed === false);
+    // storage: chunked rows, read back in order, shrinking deletes the extra rows
+    await H.newsWrite('u9', list);
+    const back = await H.newsRead('u9'), rows = [...env.DB._store.keys()].filter(k => k.startsWith('news:u9:'));
+    check('news storage: written in chunks and read back', back.length === 2501 && rows.length === 5 && back[0].id === 'n2999', rows.length + '/' + back.length);
+    await H.newsWrite('u9', back.slice(0, 10));
+    check('news storage: shrinking removes extra rows', [...env.DB._store.keys()].filter(k => k.startsWith('news:u9:')).length === 1 && (await H.newsRead('u9')).length === 10);
+    // migration: news still inside the state moves out once
+    const db = { news: [{ id: 'm1', userId: 'u8', source: 's', url: 'https://m/1', createdAt: 5 }, { id: 'm2', userId: 'u7', source: 's', url: 'https://m/2', createdAt: 6 }] };
+    const moved = await H.migrateNewsOut(db);
+    check('news migration: moved to per-user rows and emptied in the state', moved && db.news.length === 0 && (await H.newsRead('u8'))[0].id === 'm1' && (await H.newsRead('u7'))[0].id === 'm2');
+    check('news migration: nothing to move -> false', (await H.migrateNewsOut(db)) === false);
   }
   { // vocab tutor: 7 modes, learner profile + weak words in the prompt, validation
     const seen = [], realFetch = globalThis.fetch;
