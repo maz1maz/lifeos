@@ -490,6 +490,19 @@ async function main() {
       check('a refused provider is skipped for a while (no second 403 round trip)', globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.size >= 1);
     } finally { globalThis.fetch = realFetch; delete env.AI; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.clear(); }
   }
+  { // news is a feed cache: pruned to the newest 2500 per user (saved kept, duplicate links dropped, long summaries trimmed)
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk({ ...env });
+    const news = [];
+    for (let i = 0; i < 3000; i++) news.push({ id: 'n' + i, userId: 'u1', url: 'https://x/' + i, createdAt: i, summary: i === 2999 ? 'x'.repeat(900) : 's', saved: i === 5 });
+    news.push({ id: 'dup', userId: 'u1', url: 'https://x/2999', createdAt: 1 });           // older copy of the newest link
+    news.push({ id: 'other', userId: 'u2', url: 'https://x/1', createdAt: 1 });             // another user's item is untouched
+    const db = { news };
+    const removed = H.pruneNews(db, 'u1'), mine = db.news.filter(x => x.userId === 'u1');
+    check('news prune: newest 2500 + saved kept, duplicate dropped, other users untouched',
+      removed > 0 && mine.length === 2501 && mine.some(x => x.id === 'n5') && mine.some(x => x.id === 'n2999') && !mine.some(x => x.id === 'dup') && !mine.some(x => x.id === 'n100') && db.news.some(x => x.id === 'other'), String(mine.length));
+    check('news prune: long summary trimmed', db.news.find(x => x.id === 'n2999').summary.length <= 300);
+    check('news prune: second run changes nothing', H.pruneNews(db, 'u1') === 0);
+  }
   { // vocab tutor: 7 modes, learner profile + weak words in the prompt, validation
     const seen = [], realFetch = globalThis.fetch;
     const noKey = await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'chat', history: [{ r: 'u', t: 'hi' }] } });
