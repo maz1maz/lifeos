@@ -265,10 +265,11 @@ export function PlannerReact({ Nav }) {
 
   const visible = useMemo(() => {
     let list = source;
-    if (filter === 'open') list = list.filter(x => !x.done);
-    else if (filter === 'today') list = list.filter(x => !x.done && (x.date === today || (x.date && x.date < today)));
-    else if (filter === 'upcoming') list = list.filter(x => !x.done && x.date > today && x.date <= weekAhead);
-    else if (filter === 'reminders') list = kind === 'reminder' ? list.filter(x => !x.done) : list.filter(x => !x.done && reminderByTask[x.id]);
+    // a row ticked in this visit stays in the open/today/upcoming lists (struck through) until the page is reopened
+    if (filter === 'open') list = list.filter(x => !stillDone(x));
+    else if (filter === 'today') list = list.filter(x => !stillDone(x) && (x.date === today || (x.date && x.date < today)));
+    else if (filter === 'upcoming') list = list.filter(x => !stillDone(x) && x.date > today && x.date <= weekAhead);
+    else if (filter === 'reminders') list = kind === 'reminder' ? list.filter(x => !stillDone(x)) : list.filter(x => !stillDone(x) && reminderByTask[x.id]);
     else if (filter === 'done') list = list.filter(x => x.done);
     const q = query.trim();
     if (q) list = list.filter(x => x.title.includes(q) || (x.notes || '').includes(q) || (x.tags || []).some(tag => tag.includes(q)));
