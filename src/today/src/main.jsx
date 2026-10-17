@@ -43,6 +43,7 @@ import { InsightsHomeCard } from './insights-card';
 import { CommandPalette, flushOutbox } from './palette';
 import { api, isoToday, fa, faDigits, JALALI_MONTHS, WEEKDAYS, iso, fromIso, jdiv, jmod, jalCal, g2d, d2g, j2d, d2j, toJalali, toGregorian, jalaliMonthLength, addDays, sameDate, weekdayIndex, eventOnDate, eventLabel, seasonAiredCount, seasonTotalCount, seriesHasFresh, nextToWatch, watchLabel, waitingNewSeason, episodesWatchedCount, seriesAiredTotal, SERIES_TABS, seriesInTab, SHOW_STATUS_FA, readDataUrl, jalaliDayLabel } from './main-util';
 import { MsgBar } from './msgbar';
+import { saveRow } from './rowsave';
 import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import './life.css';
@@ -299,20 +300,24 @@ function HomePage() {
 
   // saves in flight: a reload that lands while a tick is still saving (or a newer reload exists) is dropped,
   // so quick ticks never flicker back; the reload after the last save brings the server's truth
-  const saving = useRef(0), loadSeq = useRef(0), saveQueue = useRef(Promise.resolve());
+  const saving = useRef(0), loadSeq = useRef(0);
+  // each part shows as soon as it is in; a part that failed keeps what was there and is retried (up to 3×),
+  // so a slow or failed request never empties the page ("loaded" switches the empty messages from «منتظر داده‌ها»)
+  const [loaded, setLoaded] = useState(false), retries = useRef(0);
   const load = async () => {
     const seq = ++loadSeq.current;
-    try {
-      const [me, dashboard, tasks, reminders] = await Promise.all([
-        api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=${addDaysIso(today, -30)}&to=${addDaysIso(today, 7)}`)
-      ]);
-      if (seq !== loadSeq.current || saving.current) return;
-      setData({ ...dashboard, tasks: tasks.items || [], reminders: reminders.items || [], user: me.user || null });
-    } catch (error) { setNotice(error.message); }
+    const res = await Promise.allSettled([
+      api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=${addDaysIso(today, -30)}&to=${addDaysIso(today, 7)}`)
+    ]);
+    if (seq !== loadSeq.current || saving.current) return;
+    const [me, dashboard, tasks, reminders] = res.map(r => r.status === 'fulfilled' ? r.value : null);
+    setData(d => ({ ...d, ...(dashboard || {}), tasks: tasks ? tasks.items || [] : d.tasks, reminders: reminders ? reminders.items || [] : d.reminders, user: me ? me.user || null : d.user }));
+    if (tasks && reminders) setLoaded(true);
+    if (res.some(r => r.status === 'rejected') && retries.current < 3) { retries.current++; setTimeout(() => { if (!saving.current) load(); }, 2500 * retries.current); }
+    else if (res.every(r => r.status === 'fulfilled')) retries.current = 0;
   };
-  // saves go one at a time, in tap order: a tick and an untick of the same row sent together could land
-  // out of order on the server (the untick read the row before the tick was saved, so the tick won)
-  const saveThenLoad = send => { saving.current++; const done = () => { saving.current--; if (!saving.current) load(); }; saveQueue.current = saveQueue.current.then(send).then(done, done); };
+  // saves go through saveRow (same row in tap order, retried, survive a refresh); a save that still fails says so
+  const saveThenLoad = save => { saving.current++; const done = () => { saving.current--; if (!saving.current) load(); }; save.then(done, error => { setNotice('ذخیره نشد: ' + error.message); done(); }); };
   useEffect(() => { load(); }, []);
   const loadStreak = () => {
     const from = new Date(); from.setDate(from.getDate() - 60);
@@ -346,8 +351,8 @@ function HomePage() {
   const markTicked = id => setTicked(ids => { const next = ids.includes(id) ? ids : [...ids, id]; writeLs('lifeos-ticked', { date: isoToday(), ids: next }); return next; });
   // optimistic: the row flips at once; the save and the reload follow in the background (a failed save reloads the truth)
   const flipLocal = (kind, id, done) => setData(d => kind === 'task' ? { ...d, tasks: d.tasks.map(t => t.id === id ? { ...t, done } : t) } : { ...d, reminders: d.reminders.map(r => r.id === id ? { ...r, done } : r) });
-  const toggleTask = task => { markTicked('t' + task.id); flipLocal('task', task.id, !task.done); saveThenLoad(() => api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) })); };
-  const toggleReminder = reminder => { markTicked('r' + reminder.id); flipLocal('reminder', reminder.id, !reminder.done); saveThenLoad(() => api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) })); };
+  const toggleTask = task => { markTicked('t' + task.id); flipLocal('task', task.id, !task.done); saveThenLoad(saveRow('t' + task.id, `/api/tasks/${task.id}`, { done: !task.done })); };
+  const toggleReminder = reminder => { markTicked('r' + reminder.id); flipLocal('reminder', reminder.id, !reminder.done); saveThenLoad(saveRow('r' + reminder.id, `/api/reminders/${reminder.id}`, { done: !reminder.done })); };
   const quickDate = () => quick.when === 'tomorrow' ? addDaysIso(today, 1) : quick.when === 'pick' && quick.date ? quick.date : today;
   const submitQuick = async event => {
     event.preventDefault(); if (!quick.title.trim()) return;
@@ -377,7 +382,7 @@ function HomePage() {
     if (!on && mitList.length >= 3) { setNotice('فقط سه کار مهم برای هر روز — اول یکی را بردار.'); return; }
     // instant, like the ticks: the star flips now; the save joins the same queue and the reload follows
     setData(d => ({ ...d, tasks: d.tasks.map(t => t.id === task.id ? { ...t, mit: on ? '' : today } : t) }));
-    saveThenLoad(() => api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ mit: on ? '' : today }) }).catch(error => { setNotice(error.message); throw error; }));
+    saveThenLoad(saveRow('t' + task.id, `/api/tasks/${task.id}`, { mit: on ? '' : today }));
   };
   const saveEdit = async body => { try { await savePlannerItem(editItem.kind, body, editItem.initial); setEditItem(null); setNotice('تغییرات ذخیره شد ✓'); load(); } catch (error) { setNotice(error.message); } };
   const saveDrawer = async body => { try { await createPlannerItem(drawerKind, body); setDrawerKind(null); setNotice('ثبت شد ✓'); load(); } catch (error) { setNotice(error.message); } };
@@ -425,7 +430,7 @@ function HomePage() {
   const nextEvent = schedule.find(x => x.time && x.time >= nowHm);
   const nextAny = [nextRem, nextEvent].filter(Boolean).sort((a, b) => a.time.localeCompare(b.time))[0];
   const summary = [
-    todayAgenda.length ? `امروز ${fa(todayAgenda.length)} کار و یادآوری داری و ${fa(todayAgenda.length - openCount)} تا رو انجام دادی.` : 'برای امروز هنوز کاری ثبت نکردی.',
+    !loaded ? 'منتظر داده‌ها…' : todayAgenda.length ? `امروز ${fa(todayAgenda.length)} کار و یادآوری داری و ${fa(todayAgenda.length - openCount)} تا رو انجام دادی.` : 'برای امروز هنوز کاری ثبت نکردی.',
     overdueTasks.length ? `${fa(overdueTasks.length)} کار عقب‌افتاده منتظرته.` : '',
     nextAny ? `بعدی: ${nextAny.title}، ساعت ${faDigits(nextAny.time)}.` : ''
   ].filter(Boolean).join(' ');
@@ -473,7 +478,7 @@ function HomePage() {
                 return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = item.href || '/?page=finance&tab=wealth') : item.pcard ? (markTicked(item.id), pDue.done(item.raw)) : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
                   <i>{item.debt ? '⏰' : item.done ? '✓' : ''}</i><span>{item.pcard ? <><PChip c={item.raw} />{item.raw.prio === 'h' ? <em className="pc-hi">!</em> : null}</> : null}{item.title}</span><small>{when}</small>
                 </button>{item.kind === 'task' && !item.debt && !item.pcard ? <button type="button" className={`ag-star ${item.raw.mit === today ? 'on' : ''}`} onClick={() => toggleMit(item.raw)} aria-label={item.raw.mit === today ? 'حذف از سه کار مهم' : 'افزودن به سه کار مهم'} title="سه کار مهم امروز">{item.raw.mit === today ? '★' : '☆'}</button> : null}{item.debt ? null : <button type="button" className="ag-edit" onClick={() => item.pcard ? (location.href = cardHref(item.raw)) : openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}</div>;
-              })}{!items.length && <p className="empty">{kind === 'task' ? 'کاری برای امروز نداری.' : 'یادآوری‌ای برای امروز نداری.'}</p>}</div>
+              })}{!items.length && <p className="empty">{!loaded ? 'منتظر داده‌ها…' : kind === 'task' ? 'کاری برای امروز نداری.' : 'یادآوری‌ای برای امروز نداری.'}</p>}</div>
             </div>;
           })}
         </Card>),
@@ -1034,7 +1039,7 @@ function HabitsMini() {
   const [items, setItems] = useState(null);
   const load = () => api(`/api/habits?date=${isoToday()}`).then(d => setItems(d.items || [])).catch(() => setItems([]));
   useEffect(() => { load(); }, []);
-  const toggle = async h => { setItems(xs => xs.map(x => x.id === h.id ? { ...x, done: !x.done, streak: Math.max(0, (x.streak || 0) + (x.done ? -1 : 1)) } : x)); try { await api(`/api/habits/${h.id}/toggle`, { method: 'POST', body: JSON.stringify({ date: isoToday(), done: !h.done }) }); } catch { load(); } };
+  const toggle = h => { setItems(xs => xs.map(x => x.id === h.id ? { ...x, done: !x.done, streak: Math.max(0, (x.streak || 0) + (x.done ? -1 : 1)) } : x)); const date = isoToday(); saveRow('hab' + h.id + '|' + date, `/api/habits/${h.id}/toggle`, { date, done: !h.done }, 'POST').catch(() => load()); };
   const done = (items || []).filter(x => x.done).length;
   return <Card className="mini-card" icon={Flame} title="عادت‌های امروز" action={<a href="/?page=habits">همه ←</a>}>
     {items === null ? <p className="empty">در حال دریافت…</p> : !items.length ? <p className="empty">هنوز عادتی نساختی. <a href="/?page=habits">یکی بساز</a></p> : <>
@@ -1554,8 +1559,9 @@ function FootballPage() {
 }
 
 function SeriesCard() {
-  const [all, setAll] = useState(null);
-  const load = () => api('/api/movies').then(d => setAll((d.items || []).filter(x => x.type === 'series'))).catch(() => setAll([]));
+  const [all, setAll] = useState(null), tries = useRef(0);
+  // a failed request is retried; it never shows as «no series» (the list stays «منتظر داده‌ها…»)
+  const load = () => api('/api/movies').then(d => { tries.current = 0; setAll((d.items || []).filter(x => x.type === 'series')); }).catch(() => { if (tries.current++ < 3) setTimeout(load, 2500 * tries.current); });
   useEffect(() => { load(); }, []);
   const onChange = load;
   const unseen = x => { const cur = Number(x.currentSeason) || 1, ep = Number(x.currentEpisode) || 0; return Math.max(0, (seasonAiredCount(x, cur) || Number(x.airedInSeason) || 0) - ep) + (seriesHasFresh(x) ? 1 : 0); };
@@ -1589,7 +1595,7 @@ function SeriesCard() {
           </div>
         </div>
       </div>;
-    })}</div> : <p className="empty">سریالی در حال تماشا نیست.</p>}
+    })}</div> : <p className="empty">{all === null ? 'منتظر داده‌ها…' : 'سریالی در حال تماشا نیست.'}</p>}
     {msg && <small className="sr-msg">{msg}</small>}
   </Card>;
 }
