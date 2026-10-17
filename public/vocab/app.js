@@ -1130,7 +1130,7 @@ function renderBrowse() {
         <thead><tr><th>واژه</th><th>معنی</th><th>سطح</th><th>موضوع</th><th>وضعیت</th><th></th></tr></thead>
         <tbody>
           ${page.map(x => `<tr data-w="${esc(x.w)}" style="cursor:pointer">
-            <td class="en" style="font-weight:700">${esc(x.w)} ${ipaHtml(x)}</td>
+            <td class="en" style="font-weight:700">${esc(x.w)} ${ipaHtml(x)} <button type="button" class="hear" data-hear="${esc(x.w)}" aria-label="شنیدن تلفظ ${esc(x.w)}" title="شنیدن تلفظ">${SPK}</button></td>
             <td>${esc(meaningsOf(x).slice(0, 2).join("، "))}</td>
             <td><span class="pill ${levelClass(x.lv)}">${esc(x.lv)}</span></td>
             <td class="muted">${esc(x.t)}</td>
@@ -1153,6 +1153,8 @@ function renderBrowse() {
   if (q) browseNotes(q);
   const m = $("#more"); if (m) m.onclick = () => { shown += 60; renderBrowse(); };
   $$("tbody tr").forEach(tr => tr.onclick = () => wordSheet(tr.dataset.w));
+  // 🔊 in a row: say the word (same voice as the card) without opening the word sheet
+  $$("button[data-hear]").forEach(b => b.onclick = e => { e.stopPropagation(); speak(b.dataset.hear); });
 }
 let sortMode = "freq";
 // the search box of «فهرست واژه‌ها» also looks inside the class notes (جزوه)
