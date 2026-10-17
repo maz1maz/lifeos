@@ -336,8 +336,10 @@ function HomePage() {
   const pDue = useProjectDue(modOn(mods, 'projects'));
   const [ticked, setTicked] = useState(() => { const t = readLs('lifeos-ticked', null); return t && t.date === isoToday() ? t.ids : []; });
   const markTicked = id => setTicked(ids => { const next = ids.includes(id) ? ids : [...ids, id]; writeLs('lifeos-ticked', { date: isoToday(), ids: next }); return next; });
-  const toggleTask = async task => { markTicked('t' + task.id); await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }); load(); };
-  const toggleReminder = async reminder => { markTicked('r' + reminder.id); await api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) }); load(); };
+  // optimistic: the row flips at once; the save and the reload follow in the background (a failed save reloads the truth)
+  const flipLocal = (kind, id, done) => setData(d => kind === 'task' ? { ...d, tasks: d.tasks.map(t => t.id === id ? { ...t, done } : t) } : { ...d, reminders: d.reminders.map(r => r.id === id ? { ...r, done } : r) });
+  const toggleTask = task => { markTicked('t' + task.id); flipLocal('task', task.id, !task.done); api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }).then(load, load); };
+  const toggleReminder = reminder => { markTicked('r' + reminder.id); flipLocal('reminder', reminder.id, !reminder.done); api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) }).then(load, load); };
   const quickDate = () => quick.when === 'tomorrow' ? addDaysIso(today, 1) : quick.when === 'pick' && quick.date ? quick.date : today;
   const submitQuick = async event => {
     event.preventDefault(); if (!quick.title.trim()) return;

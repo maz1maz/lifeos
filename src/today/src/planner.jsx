@@ -290,7 +290,11 @@ export function PlannerReact({ Nav }) {
   };
 
   const toggle = async task => {
-    justTicked.current.add((task._reminder ? 'r' : 't') + task.id);
+    const key = (task._reminder ? 'r' : 't') + task.id, nextDone = !task.done;
+    justTicked.current.add(key);
+    // show the change at once; the server call and the reload follow in the background
+    if (task._reminder) setReminders(list => list.map(r => r.id === task.id ? { ...r, done: nextDone } : r));
+    else setTasks(list => list.map(t => t.id === task.id ? { ...t, done: nextDone } : t));
     try {
       if (task._reminder) await api(`/api/reminders/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
       else {
@@ -299,7 +303,7 @@ export function PlannerReact({ Nav }) {
       }
       flash(!task.done && task.recurrence ? 'انجام شد؛ نمونهٔ بعدی ساخته شد ✓' : !task.done ? 'انجام شد ✓' : 'دوباره باز شد');
       load();
-    } catch (error) { flash(error.message); }
+    } catch (error) { flash(error.message); load(); }
   };
 
   const remove = async task => {
