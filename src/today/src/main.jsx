@@ -336,8 +336,18 @@ function HomePage() {
   const pDue = useProjectDue(modOn(mods, 'projects'));
   const [ticked, setTicked] = useState(() => { const t = readLs('lifeos-ticked', null); return t && t.date === isoToday() ? t.ids : []; });
   const markTicked = id => setTicked(ids => { const next = ids.includes(id) ? ids : [...ids, id]; writeLs('lifeos-ticked', { date: isoToday(), ids: next }); return next; });
-  const toggleTask = async task => { markTicked('t' + task.id); await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }); load(); };
-  const toggleReminder = async reminder => { markTicked('r' + reminder.id); await api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) }); load(); };
+  // Optimistic tick: show it at once, PATCH in the background, reload only to roll back on failure.
+  const toggleItem = async (key, item) => {
+    const done = !item.done;
+    markTicked((key === 'tasks' ? 't' : 'r') + item.id);
+    setData(d => ({ ...d, [key]: (d[key] || []).map(x => x.id === item.id ? { ...x, done } : x) }));
+    try {
+      await api(`/api/${key}/${item.id}`, { method: 'PATCH', body: JSON.stringify({ done }) });
+      if (done && item.recurrence) load();   // the next copy of a recurring item
+    } catch { load(); }
+  };
+  const toggleTask = task => toggleItem('tasks', task);
+  const toggleReminder = reminder => toggleItem('reminders', reminder);
   const quickDate = () => quick.when === 'tomorrow' ? addDaysIso(today, 1) : quick.when === 'pick' && quick.date ? quick.date : today;
   const submitQuick = async event => {
     event.preventDefault(); if (!quick.title.trim()) return;
