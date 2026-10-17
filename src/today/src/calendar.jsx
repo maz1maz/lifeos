@@ -349,8 +349,10 @@ export function CalendarReact({ Nav }) {
             <b>تقویم شمسی و میلادی با یادداشت و یادآوری</b>
             <span>N رویداد تازه · T امروز · ← → جابه‌جایی</span>
           </div>
-          <h1>{titleLine}</h1>
-          <p className="sub">{subLine}</p>
+          <div className="cal-titles">
+            <h1>{titleLine}</h1>
+            <p className="sub">{subLine}</p>
+          </div>
           <dl className="cal-stats">
             <div><dt>رویداد این بازه</dt><dd className="c1">{faNum(monthStats.events)}</dd></div>
             <div><dt>کار ثبت‌شده</dt><dd className="c2">{faNum(monthStats.tasks)}</dd></div>
