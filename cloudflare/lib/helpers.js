@@ -756,6 +756,11 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
     if(!Array.isArray(db.news)||!db.news.length)return false;
     let by=new Map();for(const x of db.news){if(!by.has(x.userId))by.set(x.userId,[]);by.get(x.userId).push(x)}
     for(const [uid,list] of by){let cur=await newsRead(uid),ids=new Set(cur.map(x=>x.id));for(const x of list)if(!ids.has(x.id))cur.push(x);await newsWrite(uid,cur)}
+    // drop the old news shards directly, two per batch: a normal state write would carry their old ~20 MB in its
+    // concurrency guards and D1 refuses batches over 32 MB (the first cron run failed exactly there)
+    let chunks=db.__storageChunks,old=chunks?[...chunks.keys()].filter(k=>/^state:v2:u:[^:]+:news:\d+$/.test(k)):[];
+    for(let i=0;i<old.length;i+=2)await env.DB.batch(old.slice(i,i+2).map(k=>env.DB.prepare('DELETE FROM kv WHERE key=?').bind(k)));
+    for(const k of old)chunks.delete(k);
     db.news=[];return true
   }
   async function syncAllNewsSources(db){let results=[],changed=await migrateNewsOut(db);for(const user of db.users){let srcs=db.newsSources.filter(x=>x.userId===user.id&&x.active);if(!srcs.length)continue;let news=await newsRead(user.id),added=0;for(const src of srcs){let r=await syncOneNewsSource(db,user.id,src,news);added+=r.added||0;changed=true;results.push(r)}if(added||pruneNews(news).changed)await newsWrite(user.id,news)}return{changed,results}}
