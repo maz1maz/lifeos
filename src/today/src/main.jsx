@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './today.css';
 import './calendar.css';
@@ -297,14 +297,20 @@ function HomePage() {
   const [feed, setFeed] = useState([]);
   const [scheduleNote, setScheduleNote] = useState('');
 
+  // saves in flight: a reload that lands while a tick is still saving (or a newer reload exists) is dropped,
+  // so quick ticks never flicker back; the reload after the last save brings the server's truth
+  const saving = useRef(0), loadSeq = useRef(0);
   const load = async () => {
+    const seq = ++loadSeq.current;
     try {
       const [me, dashboard, tasks, reminders] = await Promise.all([
         api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=${addDaysIso(today, -30)}&to=${addDaysIso(today, 7)}`)
       ]);
+      if (seq !== loadSeq.current || saving.current) return;
       setData({ ...dashboard, tasks: tasks.items || [], reminders: reminders.items || [], user: me.user || null });
     } catch (error) { setNotice(error.message); }
   };
+  const saveThenLoad = promise => { saving.current++; const done = () => { saving.current--; if (!saving.current) load(); }; promise.then(done, done); };
   useEffect(() => { load(); }, []);
   const loadStreak = () => {
     const from = new Date(); from.setDate(from.getDate() - 60);
@@ -338,8 +344,8 @@ function HomePage() {
   const markTicked = id => setTicked(ids => { const next = ids.includes(id) ? ids : [...ids, id]; writeLs('lifeos-ticked', { date: isoToday(), ids: next }); return next; });
   // optimistic: the row flips at once; the save and the reload follow in the background (a failed save reloads the truth)
   const flipLocal = (kind, id, done) => setData(d => kind === 'task' ? { ...d, tasks: d.tasks.map(t => t.id === id ? { ...t, done } : t) } : { ...d, reminders: d.reminders.map(r => r.id === id ? { ...r, done } : r) });
-  const toggleTask = task => { markTicked('t' + task.id); flipLocal('task', task.id, !task.done); api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }).then(load, load); };
-  const toggleReminder = reminder => { markTicked('r' + reminder.id); flipLocal('reminder', reminder.id, !reminder.done); api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) }).then(load, load); };
+  const toggleTask = task => { markTicked('t' + task.id); flipLocal('task', task.id, !task.done); saveThenLoad(api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) })); };
+  const toggleReminder = reminder => { markTicked('r' + reminder.id); flipLocal('reminder', reminder.id, !reminder.done); saveThenLoad(api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) })); };
   const quickDate = () => quick.when === 'tomorrow' ? addDaysIso(today, 1) : quick.when === 'pick' && quick.date ? quick.date : today;
   const submitQuick = async event => {
     event.preventDefault(); if (!quick.title.trim()) return;
@@ -376,7 +382,7 @@ function HomePage() {
   const mitList = allTasks.filter(t => t.mit === today);
   const tasks = allTasks
     .filter(t => t.date === today || !t.done || ticked.includes('t' + t.id))
-    .sort((a, b) => ((a.done && !ticked.includes('t' + a.id) ? 1 : 0) - (b.done && !ticked.includes('t' + b.id) ? 1 : 0)) || String(a.date).localeCompare(String(b.date)) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
   const overdueTasks = [...allTasks.filter(t => !t.done && t.deadline && t.deadline < today), ...pDue.items.filter(c => !c._done && c.due < today)];
   const tomorrowIso = useMemo(() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }, [today]);
   const dueTomorrowTasks = allTasks.filter(t => !t.done && t.deadline === tomorrowIso);
@@ -397,11 +403,9 @@ function HomePage() {
     ...dueFees.map(x => ({ kind: 'reminder', debt: true, href: '/?page=courses', id: 'fee' + x.id, title: `🎓 شهریهٔ ${x.name}${x.course ? ' · ' + x.course : ''} · ${shortRial(x.remaining)}`, done: false, time: '', date: x.dueDate, raw: x })),
     ...dueDebts.map(x => ({ kind: 'reminder', debt: true, id: 'debt' + x.id, title: `${x.type === 'payable' ? 'سررسید بدهی به' : 'سررسید طلب از'} ${x.person} · ${x.currency === 'USD' ? fa(x.amount) + ' دلار' : shortRial(x.amount)}`, done: false, time: '', date: x.dueDate, raw: x }))
   ].map(x => ({ ...x, late: !x.done && !!x.date && x.date < today }))
-    .map(x => ({ ...x, tickedNow: ticked.includes(x.kind === 'reminder' ? 'r' + x.id : x.pcard ? x.id : 't' + x.id) }))
-    .map(x => ({ ...x, rank: x.late ? 0 : x.date === today ? 1 : x.date ? 2 : 3 }))
-    .map(x => ({ ...x, doneForSort: x.done && !x.tickedNow }))
-    // a row ticked in this visit keeps its place (it would jump to the bottom otherwise); the server order applies on the next visit
-    .sort((a, b) => ((a.doneForSort ? 1 : 0) - (b.doneForSort ? 1 : 0)) || (a.rank - b.rank) || String(a.date || '').localeCompare(String(b.date || '')) || String(a.time || '99').localeCompare(String(b.time || '99')));
+    .map(x => ({ ...x, rank: x.date && x.date < today ? 0 : x.date === today ? 1 : x.date ? 2 : 3 }))
+    // order by date/time only: ticking a row never moves it (a done row used to sink out of the scrolling list)
+    .sort((a, b) => (a.rank - b.rank) || String(a.date || '').localeCompare(String(b.date || '')) || String(a.time || '99').localeCompare(String(b.time || '99')));
   const agendaTasks = agenda.filter(x => x.kind === 'task'), agendaRems = agenda.filter(x => x.kind === 'reminder');
   const nextRem = agendaRems.find(x => !x.done && x.date === today && x.time && x.time >= nowHm);
   const lateLabel = date => { const days = Math.round((fromIso(today) - fromIso(date)) / 86400000); return days === 1 ? 'دیروز' : `${fa(days)} روز عقب`; };
