@@ -376,7 +376,7 @@ function HomePage() {
   const mitList = allTasks.filter(t => t.mit === today);
   const tasks = allTasks
     .filter(t => t.date === today || !t.done || ticked.includes('t' + t.id))
-    .sort((a, b) => (a.done - b.done) || String(a.date).localeCompare(String(b.date)) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
+    .sort((a, b) => ((a.done && !ticked.includes('t' + a.id) ? 1 : 0) - (b.done && !ticked.includes('t' + b.id) ? 1 : 0)) || String(a.date).localeCompare(String(b.date)) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
   const overdueTasks = [...allTasks.filter(t => !t.done && t.deadline && t.deadline < today), ...pDue.items.filter(c => !c._done && c.due < today)];
   const tomorrowIso = useMemo(() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }, [today]);
   const dueTomorrowTasks = allTasks.filter(t => !t.done && t.deadline === tomorrowIso);
@@ -397,8 +397,11 @@ function HomePage() {
     ...dueFees.map(x => ({ kind: 'reminder', debt: true, href: '/?page=courses', id: 'fee' + x.id, title: `🎓 شهریهٔ ${x.name}${x.course ? ' · ' + x.course : ''} · ${shortRial(x.remaining)}`, done: false, time: '', date: x.dueDate, raw: x })),
     ...dueDebts.map(x => ({ kind: 'reminder', debt: true, id: 'debt' + x.id, title: `${x.type === 'payable' ? 'سررسید بدهی به' : 'سررسید طلب از'} ${x.person} · ${x.currency === 'USD' ? fa(x.amount) + ' دلار' : shortRial(x.amount)}`, done: false, time: '', date: x.dueDate, raw: x }))
   ].map(x => ({ ...x, late: !x.done && !!x.date && x.date < today }))
+    .map(x => ({ ...x, tickedNow: ticked.includes(x.kind === 'reminder' ? 'r' + x.id : x.pcard ? x.id : 't' + x.id) }))
     .map(x => ({ ...x, rank: x.late ? 0 : x.date === today ? 1 : x.date ? 2 : 3 }))
-    .sort((a, b) => (a.done - b.done) || (a.rank - b.rank) || String(a.date || '').localeCompare(String(b.date || '')) || String(a.time || '99').localeCompare(String(b.time || '99')));
+    .map(x => ({ ...x, doneForSort: x.done && !x.tickedNow }))
+    // a row ticked in this visit keeps its place (it would jump to the bottom otherwise); the server order applies on the next visit
+    .sort((a, b) => ((a.doneForSort ? 1 : 0) - (b.doneForSort ? 1 : 0)) || (a.rank - b.rank) || String(a.date || '').localeCompare(String(b.date || '')) || String(a.time || '99').localeCompare(String(b.time || '99')));
   const agendaTasks = agenda.filter(x => x.kind === 'task'), agendaRems = agenda.filter(x => x.kind === 'reminder');
   const nextRem = agendaRems.find(x => !x.done && x.date === today && x.time && x.time >= nowHm);
   const lateLabel = date => { const days = Math.round((fromIso(today) - fromIso(date)) / 86400000); return days === 1 ? 'دیروز' : `${fa(days)} روز عقب`; };
@@ -459,7 +462,7 @@ function HomePage() {
                 const late = !item.done && item.late;
                 const later = item.date && item.date > today, tmr = item.date === addDaysIso(today, 1);
                 const when = late ? `⛔ ${lateLabel(item.date)}` : later ? `${tmr ? 'فردا' : jalaliDayLabel(item.date)}${item.time ? ' · ' + faDigits(item.time) : ''}` : item.time ? faDigits(item.time) : !item.date ? 'بی‌تاریخ' : 'امروز';
-                return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = item.href || '/?page=finance&tab=wealth') : item.pcard ? pDue.done(item.raw) : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
+                return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = item.href || '/?page=finance&tab=wealth') : item.pcard ? (markTicked(item.id), pDue.done(item.raw)) : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
                   <i>{item.debt ? '⏰' : item.done ? '✓' : ''}</i><span>{item.pcard ? <><PChip c={item.raw} />{item.raw.prio === 'h' ? <em className="pc-hi">!</em> : null}</> : null}{item.title}</span><small>{when}</small>
                 </button>{item.kind === 'task' && !item.debt && !item.pcard ? <button type="button" className={`ag-star ${item.raw.mit === today ? 'on' : ''}`} onClick={() => toggleMit(item.raw)} aria-label={item.raw.mit === today ? 'حذف از سه کار مهم' : 'افزودن به سه کار مهم'} title="سه کار مهم امروز">{item.raw.mit === today ? '★' : '☆'}</button> : null}{item.debt ? null : <button type="button" className="ag-edit" onClick={() => item.pcard ? (location.href = cardHref(item.raw)) : openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}</div>;
               })}{!items.length && <p className="empty">{kind === 'task' ? 'کاری برای امروز نداری.' : 'یادآوری‌ای برای امروز نداری.'}</p>}</div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell, CalendarDays, Check, ChevronDown, CircleAlert, CircleDot, ClipboardList,
   Clock, Hash, Inbox, ListChecks, Pencil, Plus, Repeat, Search, Sun, Trash2, X
@@ -233,6 +233,8 @@ export function PlannerReact({ Nav }) {
   const [loading, setLoading] = useState(true);
 
   const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2600); };
+  const justTicked = useRef(new Set());   // ids ticked in this visit: they keep their row until the page is reopened
+  const stillDone = x => x.done && !justTicked.current.has((x._reminder ? 'r' : 't') + x.id);
   const load = () => Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')])
     .then(([taskData, reminderData]) => { setTasks(taskData.items || []); setReminders(reminderData.items || []); })
     .catch(error => setNotice(error.message)).finally(() => setLoading(false));
@@ -275,7 +277,7 @@ export function PlannerReact({ Nav }) {
     const sorted = [...list];
     if (sort === 'created') sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     else if (sort === 'priority') sorted.sort((a, b) => (rank[a.priority] ?? 9) - (rank[b.priority] ?? 9) || (dueVal(a) - dueVal(b)));
-    else sorted.sort((a, b) => (Number(a.done) - Number(b.done)) || (dueVal(a) - dueVal(b)));
+    else sorted.sort((a, b) => (Number(stillDone(a)) - Number(stillDone(b))) || (dueVal(a) - dueVal(b)));   // a row ticked in this visit keeps its place
     return sorted;
   }, [source, filter, sort, query, reminderByTask, kind]);
 
@@ -287,6 +289,7 @@ export function PlannerReact({ Nav }) {
   };
 
   const toggle = async task => {
+    justTicked.current.add((task._reminder ? 'r' : 't') + task.id);
     try {
       if (task._reminder) await api(`/api/reminders/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
       else {
