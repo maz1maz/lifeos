@@ -5,11 +5,10 @@
 .cal-check{width:18px;height:18px;border-radius:6px;margin-top:1px}
 .plnr-check:hover,.cal-check:hover{border-color:var(--uv-tk);box-shadow:0 0 0 4px color-mix(in srgb,var(--uv-tk) 16%,transparent)}
 .plnr-check:focus-visible,.cal-check:focus-visible{outline:2px solid var(--uv-tk);outline-offset:2px}
-.plnr-check.on,.cal-check.on{border-color:var(--uv-tk);background:var(--uv-tk);border-radius:42% 58% 58% 42% / 42% 42% 58% 58%;animation:uv-tick-pop .35s cubic-bezier(.22,1,.36,1)}
+.plnr-check.on,.cal-check.on{border-color:var(--uv-tk);background:var(--uv-tk);border-radius:42% 58% 58% 42% / 42% 42% 58% 58%}
 .cal-check.on{border-radius:6px}
 .uv-tick{width:72%;height:72%;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .4s cubic-bezier(.45,.05,.55,.95) .05s}
 .on>.uv-tick{stroke-dashoffset:0}
-@keyframes uv-tick-pop{0%{transform:scale(.7)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
 
 /* Switch — based on Uiverse.io by Galahhad (MIT, Material switch): slim track, big knob, press ripple. RTL: off = right. */
 .plnr-switch{display:inline-block;--sw-w:40px;--sw-h:16px;--sw-k:22px;position:relative;flex:none;width:var(--sw-w);height:var(--sw-k);padding:0;border:0;background:transparent;cursor:pointer}
@@ -26,11 +25,9 @@
 .plnr-switch.on i{inset-inline-start:calc(var(--sw-w) - var(--sw-k));background:var(--g-accent,#d8a44c)}
 .plnr-switch:disabled{opacity:.5;cursor:not-allowed}
 
-/* Habit check: same pop when ticked */
-.hb-check.on{animation:uv-tick-pop .35s cubic-bezier(.22,1,.36,1)}
 
 @media (max-width:700px){.plnr-switch{--sw-w:46px;--sw-h:18px;--sw-k:26px}}
-@media (prefers-reduced-motion:reduce){.plnr-check,.cal-check,.uv-tick,.plnr-switch i,.hb-check{transition:none!important;animation:none!important}}
+@media (prefers-reduced-motion:reduce){.plnr-check,.cal-check,.uv-tick,.plnr-switch i,.hb-check{transition:none!important}}
 
 /* Logo shine — based on Uiverse.io by devkatyall (MIT): a light streak sweeps across «LifeOS» every few seconds */
 .topbar:not(.studio-bar) .brand>span{color:transparent;-webkit-background-clip:text;background-clip:text;background-repeat:no-repeat;
