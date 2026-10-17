@@ -299,7 +299,7 @@ function HomePage() {
 
   // saves in flight: a reload that lands while a tick is still saving (or a newer reload exists) is dropped,
   // so quick ticks never flicker back; the reload after the last save brings the server's truth
-  const saving = useRef(0), loadSeq = useRef(0);
+  const saving = useRef(0), loadSeq = useRef(0), saveQueue = useRef(Promise.resolve());
   const load = async () => {
     const seq = ++loadSeq.current;
     try {
@@ -310,7 +310,9 @@ function HomePage() {
       setData({ ...dashboard, tasks: tasks.items || [], reminders: reminders.items || [], user: me.user || null });
     } catch (error) { setNotice(error.message); }
   };
-  const saveThenLoad = promise => { saving.current++; const done = () => { saving.current--; if (!saving.current) load(); }; promise.then(done, done); };
+  // saves go one at a time, in tap order: a tick and an untick of the same row sent together could land
+  // out of order on the server (the untick read the row before the tick was saved, so the tick won)
+  const saveThenLoad = send => { saving.current++; const done = () => { saving.current--; if (!saving.current) load(); }; saveQueue.current = saveQueue.current.then(send).then(done, done); };
   useEffect(() => { load(); }, []);
   const loadStreak = () => {
     const from = new Date(); from.setDate(from.getDate() - 60);
@@ -344,8 +346,8 @@ function HomePage() {
   const markTicked = id => setTicked(ids => { const next = ids.includes(id) ? ids : [...ids, id]; writeLs('lifeos-ticked', { date: isoToday(), ids: next }); return next; });
   // optimistic: the row flips at once; the save and the reload follow in the background (a failed save reloads the truth)
   const flipLocal = (kind, id, done) => setData(d => kind === 'task' ? { ...d, tasks: d.tasks.map(t => t.id === id ? { ...t, done } : t) } : { ...d, reminders: d.reminders.map(r => r.id === id ? { ...r, done } : r) });
-  const toggleTask = task => { markTicked('t' + task.id); flipLocal('task', task.id, !task.done); saveThenLoad(api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) })); };
-  const toggleReminder = reminder => { markTicked('r' + reminder.id); flipLocal('reminder', reminder.id, !reminder.done); saveThenLoad(api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) })); };
+  const toggleTask = task => { markTicked('t' + task.id); flipLocal('task', task.id, !task.done); saveThenLoad(() => api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) })); };
+  const toggleReminder = reminder => { markTicked('r' + reminder.id); flipLocal('reminder', reminder.id, !reminder.done); saveThenLoad(() => api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) })); };
   const quickDate = () => quick.when === 'tomorrow' ? addDaysIso(today, 1) : quick.when === 'pick' && quick.date ? quick.date : today;
   const submitQuick = async event => {
     event.preventDefault(); if (!quick.title.trim()) return;
@@ -370,10 +372,12 @@ function HomePage() {
     if (linked) { setEditItem({ kind: 'task', initial: { task: linked, reminder: r } }); return; }
     setEditItem({ kind: 'reminder', initial: { task: { id: r.id, title: r.title, notes: '', date: r.date, startTime: r.time || '', priority: 'medium', recurrence: r.recurrence || null, leadMinutes: r.leadMinutes || 0, tags: [], done: !!r.done, _reminder: true }, reminder: null } });
   };
-  const toggleMit = async task => {
+  const toggleMit = task => {
     const on = task.mit === today;
     if (!on && mitList.length >= 3) { setNotice('فقط سه کار مهم برای هر روز — اول یکی را بردار.'); return; }
-    try { await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ mit: on ? '' : today }) }); load(); } catch (error) { setNotice(error.message); }
+    // instant, like the ticks: the star flips now; the save joins the same queue and the reload follows
+    setData(d => ({ ...d, tasks: d.tasks.map(t => t.id === task.id ? { ...t, mit: on ? '' : today } : t) }));
+    saveThenLoad(() => api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ mit: on ? '' : today }) }).catch(error => { setNotice(error.message); throw error; }));
   };
   const saveEdit = async body => { try { await savePlannerItem(editItem.kind, body, editItem.initial); setEditItem(null); setNotice('تغییرات ذخیره شد ✓'); load(); } catch (error) { setNotice(error.message); } };
   const saveDrawer = async body => { try { await createPlannerItem(drawerKind, body); setDrawerKind(null); setNotice('ثبت شد ✓'); load(); } catch (error) { setNotice(error.message); } };
