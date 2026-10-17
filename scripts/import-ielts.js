@@ -27,8 +27,10 @@ for (const f of files) {
     r[1] = [...new Set(senses.map(s => s.fa.trim()))];
     r[4] = s0.pos || ''; r[5] = s0.d || ''; r[6] = s0.e || ''; r[9] = s0.ef || ''; r[10] = s0.df || '';
     r[7] = [];
+    const ipa = r[12];   // column 12 = pronunciation (scripts/add-ipa.mjs): kept across imports
     r.length = 11;
     if (senses.length > 1) r[11] = senses.map(s => [s.pos || '', s.fa.trim(), s.d || '', s.df || '', s.e || '', s.ef || '']);
+    if (ipa) { if (r.length < 12) r[11] = null; r[12] = ipa; }
     updated++;
   }
 }

@@ -48,7 +48,7 @@ npm run build:studio     # پنل seyfikhani.ir (ProjectsPage+CoursesPage) → i
 - متن UI فارسی، `dir=rtl`، اعداد با `fa()`/`toLocaleString('fa-IR')`. واحد پول ذخیره‌شده **ریال** است (`_meta.currencyUnit='IRR'`)، نمایش تومان = ÷۱۰.
 - تاریخ‌ها ISO با منطقهٔ `Asia/Tehran`؛ نمایش جلالی با `Intl` (`fa-IR-u-ca-persian`).
 - کلیدهای API: محلی در `.dev.vars` (نمونه: `.env.example`)، لایو با `wrangler secret`. هرگز commit نکن.
-- بستهٔ IELTS (zip، از ریپو حذف شد — در تاریخچهٔ git پیش از این کامیت هست) = دادهٔ واژگان IELTS (۴۵ فایل JSON، ۴۴۹۴ واژه) واردشده با `node scripts/import-ielts.js <dir>` (بعد از unzip). ستون ۱۱ اختیاری `words.json` = معنی‌های اضافه `[[pos,fa,d,df,e,ef],…]`.
+- بستهٔ IELTS (zip، از ریپو حذف شد — در تاریخچهٔ git پیش از این کامیت هست) = دادهٔ واژگان IELTS (۴۵ فایل JSON، ۴۴۹۴ واژه) واردشده با `node scripts/import-ielts.js <dir>` (بعد از unzip). ستون ۱۱ اختیاری `words.json` = معنی‌های اضافه `[[pos,fa,d,df,e,ef],…]`. ستون ۱۲ = تلفظ IPA آمریکایی (از CMU Pronouncing Dictionary، با `node scripts/add-ipa.mjs <cmu/index.js>`؛ `import-ielts.js` آن را نگه می‌دارد).
 
 ## روال کار با کاربر (مهم)
 - تغییرات جزئی زیادند: همه را پشت سر هم انجام بده، تست کن، و پیش‌نمایش (عکس/توضیح) بفرست.

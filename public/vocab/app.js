@@ -122,6 +122,8 @@ const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const SPK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-2px"><path d="M4 9v6h3.5L12 19V5L7.5 9H4zm11.5-.9v7.8a4 4 0 0 0 0-7.8zm0-3.6v2.1a6 6 0 0 1 0 10.8v2.1a8 8 0 0 0 0-15z"/></svg>';
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// pronunciation (IPA, US — CMU dictionary, column 12 of words.json) shown as /…/ next to the word
+const ipaHtml = (x, cls = "ipa") => x && x.ipa ? `<span class="${cls}" dir="ltr" title="تلفظ (آمریکایی)">/${esc(x.ipa)}/</span>` : "";
 const fa = n => typeof n === "number" && Number.isFinite(n) ? n.toLocaleString("fa-IR", { maximumFractionDigits: 2 }) : String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
 function toast(msg) {
   const t = $("#toast"); t.textContent = msg; t.classList.add("on");
@@ -771,7 +773,7 @@ function starsPdf() {
   const byLv = {};
   words.forEach(x => (byLv[x.lv] ||= []).push(x));
   const body = Object.keys(byLv).sort().map((lv, k) => `<section style="margin-top:${k ? 18 : 0}px"><div class="kick">واژه‌های ستاره‌دار</div><h2>سطح ${esc(lv)} <small style="font-size:13px;font-weight:400;color:#6e6455">(${fa(byLv[lv].length)} واژه)</small></h2>
-    <table><thead><tr><th>English</th><th>معنی</th><th>مثال</th></tr></thead><tbody>${byLv[lv].sort((a, b) => a.w.localeCompare(b.w)).map(x => `<tr><td class="en">${esc(x.w)}${x.p ? `<br><small style="font-weight:400">${esc(x.p)}</small>` : ""}</td><td>${esc(meaningsOf(x).slice(0, 3).join("، "))}</td><td class="ex">${esc(x.e || "")}${x.ef ? `<div dir="rtl" style="text-align:right">${esc(x.ef)}</div>` : ""}</td></tr>`).join("")}</tbody></table></section>`).join("");
+    <table><thead><tr><th>English</th><th>معنی</th><th>مثال</th></tr></thead><tbody>${byLv[lv].sort((a, b) => a.w.localeCompare(b.w)).map(x => `<tr><td class="en">${esc(x.w)}${x.ipa ? ` <span dir="ltr" style="font-weight:400;color:#666">/${esc(x.ipa)}/</span>` : ""}${x.p ? `<br><small style="font-weight:400">${esc(x.p)}</small>` : ""}</td><td>${esc(meaningsOf(x).slice(0, 3).join("، "))}</td><td class="ex">${esc(x.e || "")}${x.ef ? `<div dir="rtl" style="text-align:right">${esc(x.ef)}</div>` : ""}</td></tr>`).join("")}</tbody></table></section>`).join("");
   printBook({ title: "واژه‌های ستاره‌دار", kicker: "۷۰۰۰ واژهٔ آیلتس", heading: "واژه‌های<br>ستاره‌دار من", sub: `${fa(words.length)} واژه · مرتب بر اساس سطح`, toc: "", body: `<div style="page-break-before:auto">${body}</div>` });
 }
 function ntFilter() {
@@ -822,6 +824,7 @@ function renderStudy() {
       </div>
       <div style="text-align:center;margin-top:26px">
         <h1 class="word en">${esc(cur.w)}</h1>
+        ${ipaHtml(cur, "ipa big")}
         <div class="row" style="justify-content:center;margin-top:16px">
           <button class="btn sm" id="speakBtn" title="هر بار برای شنیدن دوباره بزن">${SPK} تلفظ</button>
           <button class="btn sm" id="repeatBtn" title="سه بار پشت‌سرهم پخش کن">↻ ۳ بار</button>
@@ -843,6 +846,7 @@ function renderStudy() {
       </div>
       <div style="text-align:center;margin-top:10px">
         <div class="en muted" style="font-size:20px;font-weight:700">${esc(cur.w)}</div>
+        ${ipaHtml(cur)}
         <div class="meaning">${meaningsOf(cur).map(esc).join(" • ") || "—"}</div>
       </div>
       ${cur.d ? `<div class="def def-c"><span class="defen en">${esc(cur.d)}</span>${cur.df ? `<span class="deffa">${esc(cur.df)}</span>` : ""}</div>` : ""}
@@ -1126,7 +1130,7 @@ function renderBrowse() {
         <thead><tr><th>واژه</th><th>معنی</th><th>سطح</th><th>موضوع</th><th>وضعیت</th><th></th></tr></thead>
         <tbody>
           ${page.map(x => `<tr data-w="${esc(x.w)}" style="cursor:pointer">
-            <td class="en" style="font-weight:700">${esc(x.w)}</td>
+            <td class="en" style="font-weight:700">${esc(x.w)} ${ipaHtml(x)}</td>
             <td>${esc(meaningsOf(x).slice(0, 2).join("، "))}</td>
             <td><span class="pill ${levelClass(x.lv)}">${esc(x.lv)}</span></td>
             <td class="muted">${esc(x.t)}</td>
@@ -1178,7 +1182,7 @@ function wordSheet(w) {
   m.className = "mask";
   m.innerHTML = `<div class="card pad modal">
     <div class="between">
-      <h2 class="en" style="margin:0">${esc(w)}</h2>
+      <h2 class="en" style="margin:0">${esc(w)} ${ipaHtml(x)}</h2>
       <span class="row" style="gap:6px">${x.p ? `<span class="pill">${esc(x.p)}</span>` : ""}<span class="pill ${levelClass(x.lv)}">${esc(x.lv)}</span><span class="pill">${esc(x.t)}</span></span>
     </div>
     <div class="meaning" style="font-size:22px">${meaningsOf(x).map(esc).join(" • ")}</div>
@@ -1657,7 +1661,7 @@ function printHandout(list) {
   if (list.length > 1500 && !confirm(`${fa(list.length)} واژه است و جزوه طولانی می‌شود. با فیلتر سطح یا موضوع کوتاهش کن، یا برای ادامه «تأیید» بزن.`)) return;
   const title = ["جزوهٔ واژگان", FILTER.lv !== "all" ? `سطح ${FILTER.lv}` : "", FILTER.topic !== "all" ? FILTER.topic : "", FILTER.starsOnly ? "ستاره‌دارها" : ""].filter(Boolean).join(" · ");
   const date = new Intl.DateTimeFormat("fa-IR", { dateStyle: "long", timeZone: "Asia/Tehran" }).format(new Date());
-  const rows = list.map((x, i) => `<tr><td class="n">${fa(i + 1)}</td><td class="w"><b>${esc(x.w)}</b>${x.lv ? `<small>${esc(x.lv)}</small>` : ""}</td><td class="p">${esc(x.p || "")}</td><td class="m">${esc(meaningsOf(x).join("، "))}${x.df ? `<div class="df">${esc(x.df)}</div>` : ""}</td><td class="e">${x.e ? `<div class="en">${esc(x.e)}</div>` : ""}${x.ef ? `<div class="ef">${esc(x.ef)}</div>` : ""}</td></tr>`).join("");
+  const rows = list.map((x, i) => `<tr><td class="n">${fa(i + 1)}</td><td class="w"><b>${esc(x.w)}</b>${x.ipa ? `<i class="ipa" dir="ltr">/${esc(x.ipa)}/</i>` : ""}${x.lv ? `<small>${esc(x.lv)}</small>` : ""}</td><td class="p">${esc(x.p || "")}</td><td class="m">${esc(meaningsOf(x).join("، "))}${x.df ? `<div class="df">${esc(x.df)}</div>` : ""}</td><td class="e">${x.e ? `<div class="en">${esc(x.e)}</div>` : ""}${x.ef ? `<div class="ef">${esc(x.ef)}</div>` : ""}</td></tr>`).join("");
   const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
 @font-face{font-family:Vazirmatn;font-weight:100 900;src:url('/assets/fonts/vazirmatn-arabic.woff2') format('woff2');unicode-range:U+0600-06FF,U+200C-200E,U+FB50-FDFF,U+FE70-FEFC}
 @font-face{font-family:Vazirmatn;font-weight:100 900;src:url('/assets/fonts/vazirmatn-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+2000-206F}
@@ -1667,7 +1671,7 @@ h1{font-size:15pt;margin:0 0 2px}.meta{color:#444;font-size:9pt;margin-bottom:8p
 table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{break-inside:avoid}
 th{text-align:right;font-weight:700;border-bottom:1.5pt solid #000;padding:4px 5px;font-size:9pt}
 td{border-bottom:.5pt solid #999;padding:4px 5px;vertical-align:top}
-td.n{width:6%;color:#555;font-size:8.5pt}td.w{width:15%;direction:ltr;text-align:left}td.w b{font-size:11pt}td.w small{display:block;color:#555;font-size:8pt}
+td.n{width:6%;color:#555;font-size:8.5pt}td.w{width:15%;direction:ltr;text-align:left}td.w b{font-size:11pt}td.w i.ipa{display:block;font-style:normal;color:#666;font-size:8.5pt}td.w small{display:block;color:#555;font-size:8pt}
 td.p{width:8%;font-size:8.5pt;color:#333}td.m{width:30%}td.e{width:41%}
 .df{color:#444;font-size:8.5pt;margin-top:2px}.en{direction:ltr;text-align:left;font-size:9pt}.ef{color:#333;font-size:8.5pt}
 </style></head><body><h1>${esc(title)}</h1><div class="meta">${fa(list.length)} واژه · ${esc(date)} · LifeOS</div>
@@ -1759,7 +1763,7 @@ function boot() {
     fetch("words.json").then(r => r.json()),
     fetch("/api/vocab", { credentials: "same-origin" }).then(r => r.ok ? r.json() : { state: null })
   ]).then(([rows, remote]) => {
-    DECK = rows.map(r => ({ w: r[0], fa: r[1], t: r[2], lv: r[3], p: r[4], d: r[5], e: r[6], s: r[7], z: r[8], ef: r[9], df: r[10] || '', x: r[11] || [] }));
+    DECK = rows.map(r => ({ w: r[0], fa: r[1], t: r[2], lv: r[3], p: r[4], d: r[5], e: r[6], s: r[7], z: r[8], ef: r[9], df: r[10] || '', x: r[11] || [], ipa: r[12] || '' }));
     USER = "lifeos";
     const o = remote && remote.state;
     const d = DEF();
