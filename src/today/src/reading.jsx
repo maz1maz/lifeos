@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, ExternalLink, Languages, Pencil, RefreshCw, Sparkles, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Bookmark, BookmarkCheck, ChevronDown, ChevronUp, ExternalLink, Languages, Pencil, RefreshCw, Sparkles, Trash2, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { Page, api, fa } from './life-core';
 import { jLabel } from './jdate';
 import { Loader } from './loader';
@@ -78,6 +78,63 @@ function Reader({ x, onClose, onSave }) {
   </div>;
 }
 
+const monitorCategories = ['همه', 'جهان', 'اقتصاد', 'فناوری', 'انرژی', 'بلایا'];
+const monitorTime = value => {
+  const ms = Date.now() - Date.parse(value || '');
+  if (!Number.isFinite(ms) || ms < 0) return 'همین حالا';
+  const minutes = Math.floor(ms / 60000);
+  if (minutes < 1) return 'همین حالا';
+  if (minutes < 60) return `${fa(minutes)} دقیقه پیش`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${fa(hours)} ساعت پیش`;
+  return `${fa(Math.floor(hours / 24))} روز پیش`;
+};
+const monitorUpdated = value => value ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date(value)) : '—';
+
+function LiveMonitor() {
+  const [data, setData] = useState(null), [error, setError] = useState(''), [category, setCategory] = useState('همه');
+  const [translating, setTranslating] = useState(''), [translations, setTranslations] = useState({});
+  const load = async () => { setError(''); try { setData(await api('/api/news/live-monitor')); } catch (e) { setError(e.message); setData(null); } };
+  useEffect(() => { load(); }, []);
+  const translate = async item => {
+    setTranslating(item.id);
+    try { const result = await api('/api/news/live-monitor/translate', { method: 'POST', body: JSON.stringify({ title: item.title, summary: item.summary }) }); setTranslations(old => ({ ...old, [item.id]: result })); }
+    catch (e) { setError(e.message); }
+    setTranslating('');
+  };
+  const list = (data?.items || []).filter(item => category === 'همه' || item.category === category);
+  return <section className="lm" aria-label="رصد زنده">
+    <header className="lm-head">
+      <div><span className="lm-kicker">پیگیری چندزبانهٔ جهان</span><h2>رصد زنده</h2><small>آخرین به‌روزرسانی: {data ? monitorUpdated(data.updatedAt) : '—'}</small></div>
+      <button type="button" className="rd-btn" onClick={load} disabled={!data && !error} aria-label="تازه‌سازی رصد زنده"><RefreshCw size={15} className={!data && !error ? 'spin' : ''} />تازه‌سازی</button>
+    </header>
+    <div className="lm-filters" role="group" aria-label="دستهٔ رصد زنده">{monitorCategories.map(item => <button type="button" key={item} className={category === item ? 'on' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
+    {data?.mode === 'sample' ? <p className="lm-sample" role="status">نمونه — هنوز provider زنده متصل نشده است؛ هیچ‌یک از داده‌های این نما برای تصمیم‌گیری لحظه‌ای نیست.</p> : null}
+    {data?.providerError ? <p className="lm-error" role="status">⚠ {data.providerError}</p> : null}
+    {error ? <div className="lm-empty error" role="alert"><AlertTriangle size={22} /><b>رصد زنده در دسترس نیست</b><span>{error}</span><button type="button" className="rd-btn ghost" onClick={load}>تلاش دوباره</button></div> : !data ? <div className="lm-loading" aria-label="در حال بارگذاری رصد زنده"><Loader /></div> : <div className="lm-layout">
+      <div className="lm-feed" aria-live="polite">
+        {!list.length ? <div className="lm-empty"><b>خبری برای این دسته نیست</b><span>دستهٔ دیگری را انتخاب کن یا دوباره تازه‌سازی کن.</span></div> : list.map(item => {
+          const translated = translations[item.id];
+          return <article className={`lm-card${Date.now() - Date.parse(item.publishedAt || '') > 6 * 3600000 ? ' lm-old' : ''}`} key={item.id}>
+            <div className="lm-meta"><span className="lm-category">{item.category}</span><span>{item.source}</span><span dir="ltr">{item.language || 'und'}</span><time dateTime={item.publishedAt}>{monitorTime(item.publishedAt)}</time></div>
+            <h3 dir="auto">{item.title}</h3>
+            {item.summary || item.summaryFa ? <p>{item.summaryFa || item.summary}</p> : null}
+            {translated ? <div className="lm-translation"><b>ترجمهٔ اختیاری</b><strong>{translated.title}</strong>{translated.summary ? <span>{translated.summary}</span> : null}</div> : null}
+            <div className="lm-actions">
+              <button type="button" onClick={() => translate(item)} disabled={translating === item.id || !!translated}><Languages size={15} />{translated ? 'ترجمه شد' : translating === item.id ? 'در حال ترجمه…' : 'ترجمهٔ اختیاری'}</button>
+              {safeUrl(item.url) ? <a className="rd-open" href={safeUrl(item.url)} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} />مشاهدهٔ منبع</a> : null}
+            </div>
+          </article>;
+        })}
+      </div>
+      <aside className="lm-side" aria-label="بازار و هشدارها">
+        <section className="lm-panel"><header><h3>بازار</h3><small>تغییر ۲۴ ساعت</small></header>{(data.markets || []).length ? <ul className="lm-market">{data.markets.map(item => <li key={item.key}><span><b>{item.name}</b><small>{item.unit}</small></span><strong dir="ltr">{item.value}</strong><em className={item.change24h < 0 ? 'down' : 'up'} dir="ltr">{item.change24h < 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}{item.change24h > 0 ? '+' : ''}{item.change24h.toLocaleString('en-US', { maximumFractionDigits: 2 })}%</em></li>)}</ul> : <p className="lm-muted">دادهٔ بازار در دسترس نیست.</p>}</section>
+        <section className="lm-panel lm-alerts"><header><h3>هشدار مهم</h3></header>{(data.alerts || []).length ? data.alerts.map(item => <article className={`lm-alert ${item.severity}`} key={item.id}><AlertTriangle size={17} /><div><b>{item.title}</b><p>{item.detail}</p><small>{item.source} · {monitorTime(item.publishedAt)}</small></div></article>) : <p className="lm-muted">هشدار فوری فعالی نیست.</p>}</section>
+      </aside>
+    </div>}
+  </section>;
+}
+
 function News() {
   const [items, setItems] = useState(null), [sources, setSources] = useState([]), [cat, setCat] = useState(''), [savedOnly, setSavedOnly] = useState(false);
   const [busy, setBusy] = useState(''), [msg, setMsg] = useState(''), [showSrc, setShowSrc] = useState(false), [src, setSrc] = useState({ url: '', category: '' }), [week, setWeek] = useState(false);
@@ -150,7 +207,7 @@ function News() {
     </div>
     {msg ? <p className="rd-msg" role="status">{msg}</p> : null}
     {items === null ? <Loader /> : !list.length ? <p className="rd-muted">{items.length ? 'با این فیلتر خبری نیست.' : sources.length ? 'خبری نیست؛ «به‌روزرسانی» را بزن.' : 'برای دیدن اخبار، بالا یک منبع انتخاب کن.'}</p>
-      : <><ul className="rd-news rd-compact">{list.slice(0, limit).map(x => { const on = open === x.id; return <li key={x.id} className={on ? 'open' : ''}>
+      : <><ul className="rd-news rd-compact">{list.slice(0, limit).map(x => { const on = open === x.id, old = Date.now() - Number(x.createdAt || 0) > 6 * 3600000; return <li key={x.id} className={`${on ? 'open ' : ''}${old ? 'rd-stale' : ''}`}>
         <div className="rd-row">
           <button type="button" className="rd-t" dir="auto" onClick={() => setReading(x)}>{x.title}</button>
           <small className="rd-sname">{cleanName(x.source)}</small>
@@ -205,8 +262,10 @@ function Bookmarks() {
 }
 
 export function ReadingPage({ Nav }) {
-  return <Page Nav={Nav} className="rd" kicker="خبر و خواندنی" title="اخبار" sub="تیتر منابع دلخواهت؛ روی هر تیتر بزن تا متن کاملش همین‌جا باز شود">
-    <div className="rd-solo"><News /></div>
+  const [tab, setTab] = useState('news');
+  return <Page Nav={Nav} className="rd wide" kicker="خبر و خواندنی" title="اخبار" sub="تیتر منابع دلخواهت؛ روی هر تیتر بزن تا متن کاملش همین‌جا باز شود">
+    <nav className="rd-tabs" role="tablist" aria-label="نماهای اخبار"><button type="button" role="tab" aria-selected={tab === 'news'} className={tab === 'news' ? 'on' : ''} onClick={() => setTab('news')}>اخبار من</button><button type="button" role="tab" aria-selected={tab === 'live'} className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>رصد زنده</button></nav>
+    <div className="rd-live-wide">{tab === 'news' ? <News /> : <LiveMonitor />}</div>
   </Page>;
 }
 

@@ -12,7 +12,7 @@ import { printProjectReport, sendProjectReportToTelegram, printCompareReport } f
 
 import { api, todayIso, addDays, faD, fa, jl, jShort, money, daysTo, dueChip, SaveErrorBar, useCol, Page, FormDrawer, num } from './life-core';
 import { FocusControl } from './life-cards';
-import { StatementWorkbook, hasWorkbook, grossUpTo } from './statement';
+import { StatementWorkbook, hasWorkbook, statementSummary } from './statement';
 export { api, todayIso, addDays, faD, fa, jl, jShort, money, daysTo, dueChip, SaveErrorBar, useCol, Page, FormDrawer } from './life-core';
 export { FocusControl, FocusCard, ShoppingPanel, BillsWeekCard } from './life-cards';
 
@@ -528,31 +528,71 @@ function ContractFinancials({ contract, onPatch, onAddStatement }) {
   return <section className="lf-contract-financials"><header className="lf-contract-financials-head"><h4>اطلاعات مالی قرارداد</h4><button type="button" className="lf-btn ghost" onClick={onAddStatement}>＋ صورت‌وضعیت</button></header><div><label><span>مبلغ کل قرارداد</span><input defaultValue={contract?.amount || ''} inputMode="numeric" onBlur={e => save('amount', e.target.value)} /></label><label><span>مبلغ پیش‌پرداخت</span><input defaultValue={contract?.advancePayment || ''} inputMode="numeric" onBlur={e => save('advancePayment', e.target.value)} /></label><label><span>مانده از قرارداد (مبلغ کل − پیش‌پرداخت)</span><output>{fa(contract?.remainingAmount ?? Math.max(0, num(contract?.amount) - num(contract?.advancePayment)), 0)} ریال</output></label></div></section>;
 }
 export const nextStatementNo = rows => Math.max(0, ...(rows || []).map(r => Number(r.statementNo) || 0)) + 1;
+export const projectReceived = (contract, statements) => num(contract?.advancePayment) + (statements || []).reduce((total, row) => total + num(row.paidAmount), 0);
 // Statement amounts are entered cumulatively (each one = total work to date), payments are individual deposits.
-// So: total billed = the latest statement's amount; remaining = that − all payments; per statement,
-// remaining = its amount − payments up to and including it.
-export function statementLedger(rows) {
+// So: total billed = the latest statement's payable (net of the deposits up to it); remaining = that;
+// per statement (the rows without a workbook), remaining = its amount − payments up to and including it.
+export function latestStatementPayable(contract, rows) {
+  if (!hasWorkbook(contract)) return null;
+  const no = Math.max(0, ...(contract.measures || []).map(m => Number(m.statementNo) || 0));
+  if (!no) return null;
+  // the statement's payable already has the employer's deposits up to this statement taken off (statementSummary)
+  const amount = statementSummary(contract, no, rows).payableWithVat;
+  return { no, amount, remaining: Math.max(0, amount) };
+}
+export function statementLedger(rows, contract) {
   const sorted = (rows || []).slice().sort((a, b) => (Number(a.statementNo) || 0) - (Number(b.statementNo) || 0) || (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
   let paidSoFar = 0;
-  const list = sorted.map(r => { paidSoFar += num(r.paidAmount); return { ...r, paidToDate: paidSoFar, remaining: Math.max(0, num(r.amount) - paidSoFar) }; });
-  const billed = num([...sorted].reverse().find(r => num(r.amount) > 0)?.amount);
-  return { list, billed, paid: paidSoFar, remaining: Math.max(0, billed - paidSoFar) };
+  const list = sorted.map(r => { paidSoFar += num(r.paidAmount); return { ...r, paidToDate: paidSoFar, remaining: Math.max(0, num(r.amount) - (r.amountSource === 'auto' ? num(r.paidAmount) : paidSoFar)) }; });
+  const net = latestStatementPayable(contract, rows);
+  const billed = net ? net.amount : num([...sorted].reverse().find(r => num(r.amount) > 0)?.amount);
+  return { list, billed, paid: paidSoFar, remaining: net ? net.remaining : Math.max(0, billed - paidSoFar), fromWorkbook: !!net };
+}
+export function projectOutstanding(contract, statements) {
+  const ledger = statementLedger(statements, contract);
+  if (ledger.fromWorkbook || (statements || []).some(row => num(row.amount) > 0)) return ledger.remaining;
+  return Math.max(0, num(contract?.remainingAmount ?? (num(contract?.amount) - num(contract?.advancePayment))));
 }
 function StatementCards({ items, project, contract, onPatchContract, onPatch, onRemove, onAddStatement, onCreateStatement }) {
-  const ledger = statementLedger(items);
+  const ledger = statementLedger(items, contract);
   // older versions numbered statements per item, leaving duplicates (two «شماره ۱»): renumber 1…n in the current order
   const nos = ledger.list.map(x => Number(x.statementNo) || 0), dup = nos.some((x, i) => !x || nos.indexOf(x) !== i);
   const renumber = () => ledger.list.forEach((x, i) => { if ((Number(x.statementNo) || 0) !== i + 1) onPatch(x.id, { statementNo: i + 1 }); });
   const save = (item, key, value) => { if (value !== (item[key] || '')) onPatch(item.id, { [key]: value }); };
-  // the card's (cumulative) amount follows the statement workbook unless typed by hand; a hand-typed one that differs is flagged
-  const autoOf = item => { const no = Number(item.statementNo) || 0; return no && hasWorkbook(contract) && (contract.measures || []).some(m => Number(m.statementNo) === no) ? grossUpTo(contract.boq, contract.measures, no) : null; };
-  const syncKey = items.map(x => `${x.id}:${x.statementNo}:${x.amount}:${x.amountSource || ''}`).join() + '|' + JSON.stringify([contract?.boq, contract?.measures]);
+  // The compact card follows the net payable of its numbered statement, not gross measurements.
+  const autoOf = item => { const no = Number(item.statementNo) || 0; return no && hasWorkbook(contract) && (contract.measures || []).some(m => Number(m.statementNo) === no) ? statementSummary(contract, no, items).payableWithVat : null; };
+  const syncKey = items.map(x => `${x.id}:${x.statementNo}:${x.amount}:${x.amountSource || ''}:${x.paidAmount || 0}`).join() + '|' + JSON.stringify([contract?.boq, contract?.measures, contract?.svRates, contract?.svFinal, contract?.advancePayment]);
   // every statement in the workbook gets its card (once per number, so a deleted card is not recreated in this session)
   const madeCards = useRef(new Set());
   useEffect(() => { if (!onCreateStatement) return; const have = new Set(items.map(x => Number(x.statementNo) || 0)); const want = [...new Set((contract?.measures || []).map(m => Number(m.statementNo) || 0))].filter(no => no > 0 && !have.has(no) && !madeCards.current.has(no)).sort((a, b) => a - b); for (const no of want) { madeCards.current.add(no); onCreateStatement(no); } }, [JSON.stringify((contract?.measures || []).map(m => m.statementNo)), items.length]);
   useEffect(() => { for (const x of items) { const a = autoOf(x); if (a != null && x.amountSource !== 'manual' && num(x.amount) !== a) onPatch(x.id, { amount: a, amountSource: 'auto' }); } }, [syncKey]);
   const stage = (item, check, date, label) => <div className="lf-statement-stage"><label><input type="checkbox" checked={!!item[check]} onChange={e => onPatch(item.id, { [check]: e.target.checked })} />{label}</label><JalaliDateInput value={item[date] || ''} onChange={value => onPatch(item.id, { [date]: value })} /></div>;
-  return <><ContractFinancials contract={contract} onPatch={onPatchContract} onAddStatement={onAddStatement} /><StatementWorkbook contract={contract} project={project} payments={items} onPatchContract={onPatchContract} /><div className="lf-finance-summary"><div><small>آخرین صورت‌وضعیت (تجمعی)</small><b>{money(ledger.billed)}</b></div><div><small>جمع واریزی کارفرما</small><b>{money(ledger.paid)}</b></div><div><small>مطالبات معوق (آخرین صورت‌وضعیت − واریزی‌ها)</small><b>{money(ledger.remaining)}</b></div></div>{dup ? <div className="lf-statement-dup"><span>شمارهٔ چند صورت‌وضعیت تکراری است.</span><button type="button" className="lf-btn ghost" onClick={renumber}>مرتب‌سازی شماره‌ها (۱ تا {fa(ledger.list.length)})</button></div> : null}<div className="lf-statement-cards">{ledger.list.map(item => <article className="lf-statement-card" key={item.id}><header><b>صورت‌وضعیت شماره {item.statementNo ? fa(item.statementNo) : '—'}</b><button type="button" className="lf-link del" onClick={() => window.confirm('این صورت‌وضعیت حذف شود؟') && onRemove(item.id)}>حذف</button></header><div className="lf-statement-stages">{stage(item, 'noticeSent', 'noticeSentDate', 'ارسال اعلام وضعیت')}{stage(item, 'noticeApproved', 'noticeApprovedDate', 'تأیید اعلام وضعیت')}{stage(item, 'statementSent', 'statementSentDate', 'ارسال صورت‌وضعیت')}</div><div className="lf-statement-money"><label>مبلغ صورت‌وضعیت<input key={`amt-${item.amount}`} defaultValue={item.amount || ''} inputMode="numeric" placeholder="مبلغ" onBlur={e => { const v = num(e.target.value); if (v !== num(item.amount)) onPatch(item.id, { amount: v, amountSource: 'manual' }); }} />{autoOf(item) == null ? null : item.amountSource === 'manual' && num(item.amount) !== autoOf(item) ? <span className="lf-statement-auto warn">با ریزمتره ({money(autoOf(item))}) فرق دارد <button type="button" className="lf-link" onClick={() => onPatch(item.id, { amount: autoOf(item), amountSource: 'auto' })}>استفاده از ریزمتره</button></span> : <span className="lf-statement-auto">✓ از ریزمتره</span>}</label><label>تاریخ واریز<JalaliDateInput value={item.paymentDate || ''} onChange={value => onPatch(item.id, { paymentDate: value })} /></label><label>واریزی کارفرما<input defaultValue={item.paidAmount || ''} inputMode="numeric" placeholder="مبلغ واریزی" onBlur={e => save(item, 'paidAmount', num(e.target.value))} /></label><div><small>باقی‌مانده تا این صورت‌وضعیت</small><b>{money(item.remaining)}</b></div></div><input className="lf-statement-note" defaultValue={item.note || ''} placeholder="توضیحات صورت‌وضعیت" onBlur={e => save(item, 'note', e.target.value.trim())} /></article>)}</div></>;
+  return <>
+    <ContractFinancials contract={contract} onPatch={onPatchContract} onAddStatement={onAddStatement} />
+    <StatementWorkbook contract={contract} project={project} payments={items} onPatchContract={onPatchContract} onCreateStatement={onCreateStatement} />
+    <div className="lf-finance-summary">
+      <div><small>{ledger.fromWorkbook ? 'خالص قابل پرداخت آخرین صورت‌وضعیت' : 'آخرین صورت‌وضعیت (تجمعی)'}</small><b>{money(ledger.billed)}</b></div>
+      <div><small>جمع واریزی کارفرما</small><b>{money(ledger.paid)}</b></div>
+      <div><small>مطالبات معوق</small><b>{money(ledger.remaining)}</b></div>
+    </div>
+    {dup ? <div className="lf-statement-dup"><span>شمارهٔ چند صورت‌وضعیت تکراری است.</span><button type="button" className="lf-btn ghost" onClick={renumber}>مرتب‌سازی شماره‌ها (۱ تا {fa(ledger.list.length)})</button></div> : null}
+    <div className="lf-statement-cards">{ledger.list.map(item => {
+      const suggested = autoOf(item);
+      return <article className="lf-statement-card" key={item.id}>
+        <header><b>صورت‌وضعیت شماره {item.statementNo ? fa(item.statementNo) : '—'}</b><button type="button" className="lf-link del" onClick={() => window.confirm('این صورت‌وضعیت حذف شود؟') && onRemove(item.id)}>حذف</button></header>
+        <div className="lf-statement-stages">{stage(item, 'noticeSent', 'noticeSentDate', 'ارسال اعلام وضعیت')}{stage(item, 'noticeApproved', 'noticeApprovedDate', 'تأیید اعلام وضعیت')}{stage(item, 'statementSent', 'statementSentDate', 'ارسال صورت‌وضعیت')}</div>
+        <div className="lf-statement-money">
+          <label>مبلغ صورت‌وضعیت<input key={`amt-${item.amount}`} defaultValue={item.amount || ''} inputMode="numeric" placeholder="مبلغ" onBlur={e => { const v = num(e.target.value); if (v !== num(item.amount)) onPatch(item.id, { amount: v, amountSource: 'manual' }); }} />
+            {suggested == null ? null : item.amountSource === 'manual' && num(item.amount) !== suggested ? <span className="lf-statement-auto warn">با خالص قابل پرداخت ({money(suggested)}) فرق دارد <button type="button" className="lf-link" onClick={() => onPatch(item.id, { amount: suggested, amountSource: 'auto' })}>استفاده از خالص قابل پرداخت</button></span> : <span className="lf-statement-auto">✓ از خالص قابل پرداخت</span>}
+          </label>
+          <label>تاریخ واریز<JalaliDateInput value={item.paymentDate || ''} onChange={value => onPatch(item.id, { paymentDate: value })} /></label>
+          <label>واریزی کارفرما<input defaultValue={item.paidAmount || ''} inputMode="numeric" placeholder="مبلغ واریزی" onBlur={e => save(item, 'paidAmount', num(e.target.value))} /></label>
+          <div><small>باقی‌مانده تا این صورت‌وضعیت</small><b>{money(item.remaining)}</b></div>
+        </div>
+        <input className="lf-statement-note" defaultValue={item.note || ''} placeholder="توضیحات صورت‌وضعیت" onBlur={e => save(item, 'note', e.target.value.trim())} />
+      </article>;
+    })}</div>
+  </>;
 }
 function projectMetrics(project, contract, financials, processes) {
   const stages = projectStages(contract, processes);
@@ -563,11 +603,10 @@ function projectMetrics(project, contract, financials, processes) {
   const days = valid(start) && valid(end) ? Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 864e5)) : 0;
   const timePct = days ? Math.round(Math.max(0, Math.min(days, Math.round((Date.parse(today) - Date.parse(start)) / 864e5))) / days * 100) : null;
   const daysLeft = valid(end) ? Math.round((Date.parse(end) - Date.parse(today)) / 864e5) : null;
-  const amount = num(contract?.amount), advance = num(contract?.advancePayment);
-  const ledger = statementLedger(financials), stTotal = ledger.billed, paid = ledger.paid;
-  const received = advance + paid, variance = timePct == null ? null : progress - timePct;
+  const amount = num(contract?.amount);
+  const received = projectReceived(contract, financials), variance = timePct == null ? null : progress - timePct;
   const state = progress === 100 || isDelivered(stages) ? 'done' : (variance != null && variance < -15) || late ? 'bad' : variance != null && variance < 0 ? 'warn' : !contract || (!days && !amount) ? 'none' : 'ok';
-  return { done, total: stages.length, progress, late, timePct, variance, daysLeft, end, amount, received, receivedPct: amount ? Math.min(100, Math.round(received / amount * 100)) : null, outstanding: Math.max(0, stTotal - paid), state, nextSteps: nextStepsOf(stages) };
+  return { done, total: stages.length, progress, late, timePct, variance, daysLeft, end, amount, received, receivedPct: amount ? Math.min(100, Math.round(received / amount * 100)) : null, outstanding: projectOutstanding(contract, financials), state, nextSteps: nextStepsOf(stages) };
 }
 // per contract item: its next action = the first stage not done after the item's last done stage (stages skipped
 // earlier don't count) → [{ item, base }]
@@ -654,7 +693,7 @@ function ProjectsCompare({ projects, contracts, financials, processes, onOpen, p
         <td className={m.variance == null ? '' : m.variance < 0 ? 'neg' : 'pos'}>{m.variance == null ? '—' : m.variance === 0 ? 'منطبق' : `${fa(Math.abs(m.variance))}٪ ${m.variance < 0 ? 'عقب' : 'جلو'}`}</td>
         <td>{m.end ? jShort(m.end) : '—'}{m.daysLeft != null ? <small>{m.daysLeft >= 0 ? `${fa(m.daysLeft)} روز مانده` : `${fa(-m.daysLeft)} روز گذشته`}</small> : null}</td>
         <td>{m.amount ? money(m.amount) : '—'}</td>
-        <td>{m.amount ? money(m.received) : '—'}{m.receivedPct != null ? <small>{fa(m.receivedPct)}٪</small> : null}</td>
+        <td>{money(m.received)}{m.receivedPct != null ? <small>{fa(m.receivedPct)}٪</small> : null}</td>
         <td className={m.outstanding ? 'neg' : ''}>{m.outstanding ? money(m.outstanding) : '—'}</td>
         <td className={m.late ? 'neg' : ''}>{m.late ? fa(m.late) : '—'}</td>
         <td><span className={`lf-compare-state st-${m.state}`}>{STATE_LABEL[m.state]}</span></td>
@@ -684,7 +723,7 @@ function ProjectReport({ project, contract, financials, processes }) {
     return { department, done, total: rows.length, progress: weightedProgress(stages, department) };
   });
   const reportItems = (() => { const its = [...new Set(stages.filter(x => x.item).map(x => x.item))], sh = itemShares(its, contract?.itemAreas); return its.map(item => ({ item, progress: itemProgress(stages, item), share: Math.round(sh[item] * 100) })); })();
-  const ledger = statementLedger(financials);
+  const ledger = statementLedger(financials, contract);
   const statementRows = ledger.list, statementTotal = ledger.billed, paidTotal = ledger.paid;
   const contractTotal = num(contract?.amount), advance = num(contract?.advancePayment);
   const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
@@ -692,7 +731,7 @@ function ProjectReport({ project, contract, financials, processes }) {
   const contractDays = validDate(start) && validDate(end) ? Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 864e5)) : 0;
   const elapsed = contractDays ? Math.max(0, Math.min(contractDays, Math.round((Date.parse(todayIso()) - Date.parse(start)) / 864e5))) : 0;
   const timeProgress = contractDays ? Math.round(elapsed / contractDays * 100) : null;
-  const received = advance + paidTotal;
+  const received = projectReceived(contract, financials);
   const receivedProgress = contractTotal ? Math.max(0, Math.min(100, Math.round(received / contractTotal * 100))) : 0;
   const timelineBehind = timeProgress != null && timeProgress > progress + 15;
   const projectState = progress === 100 ? 'تکمیل شده' : timelineBehind ? 'نیازمند پیگیری' : 'در جریان';
@@ -732,7 +771,7 @@ function ProjectReport({ project, contract, financials, processes }) {
       <div><dt>کد پروژه</dt><dd>{value(project.projectCode)}</dd></div><div><dt>کارفرما</dt><dd>{value(project.client)}</dd></div><div><dt>شماره تماس کارفرما</dt><dd dir="ltr">{value(project.clientPhone)}</dd></div><div><dt>مسئول ارتباط پروژه</dt><dd>{value(project.owner)}</dd></div><div><dt>شماره تماس مسئول</dt><dd dir="ltr">{value(project.contactPhone)}</dd></div><div><dt>شماره قرارداد</dt><dd>{value(contract?.contractNo)}</dd></div><div><dt>آیتم‌های قرارداد</dt><dd>{value(contract?.subject)}</dd></div><div><dt>متراژ قرارداد</dt><dd>{contractAreaText(contract) || '—'}</dd></div>{contractScope(contract).filter(optionsKey).map(it => <div key={`opt-${it}`}><dt>گزینه‌های {it}</dt><dd>{itemOptionsText(contract, it)}</dd></div>)}<div><dt>نوع تسویه</dt><dd>{{ cash: 'نقدی', check: 'چک', statement: 'صورت‌وضعیتی', barter: 'تهاتری', other: 'سایر' }[contract?.settlementType] || '—'}</dd></div><div><dt>شروع قرارداد</dt><dd>{validDate(start) ? jl(start) : '—'}</dd></div><div><dt>اتمام قرارداد</dt><dd>{validDate(end) ? jl(end) : '—'}</dd></div>
     </dl>{project.note || contract?.note ? <div className="lf-report-notes">{project.note ? <p><b>توضیحات پروژه:</b> {project.note}</p> : null}{contract?.note ? <p><b>توضیحات قرارداد:</b> {contract.note}</p> : null}</div> : null}</section>
     <section className="lf-report-section"><h3>نمودار پیشرفت واحدها</h3><div className="lf-report-departments">{departments.map(item => <div key={item.department} className={`dept-${item.department.replaceAll(' ', '-')}`}><div><b>{item.department}</b><span>{fa(item.done)} از {fa(item.total)}</span></div><i><em style={{ width: `${item.progress}%` }} /></i><small>{fa(item.progress)}٪ تکمیل</small></div>)}</div>{reportItems.length ? <ItemsPanel items={reportItems.map(x => x.item)} stages={stages} shares={Object.fromEntries(reportItems.map(x => [x.item, x.share / 100]))} /> : null}</section>
-    <section className="lf-report-section"><h3>خلاصهٔ مالی و صورت‌وضعیت‌ها</h3><div className="lf-report-finance"><div><small>آخرین صورت‌وضعیت (تجمعی)</small><b>{money(statementTotal)}</b></div><div><small>جمع واریزی‌ها</small><b>{money(paidTotal)}</b></div><div><small>مطالبات معوق</small><b>{money(Math.max(0, statementTotal - paidTotal))}</b></div></div>
+    <section className="lf-report-section"><h3>خلاصهٔ مالی و صورت‌وضعیت‌ها</h3><div className="lf-report-finance"><div><small>{ledger.fromWorkbook ? 'خالص قابل پرداخت آخرین صورت‌وضعیت' : 'آخرین صورت‌وضعیت (تجمعی)'}</small><b>{money(statementTotal)}</b></div><div><small>جمع واریزی‌ها</small><b>{money(paidTotal)}</b></div><div><small>مطالبات معوق</small><b>{money(ledger.remaining)}</b></div></div>
       {statementRows.length ? <div className="lf-report-table-wrap"><table><thead><tr><th>شماره</th><th>اعلام وضعیت</th><th>تأیید</th><th>ارسال صورت‌وضعیت</th><th>مبلغ</th><th>واریزی</th><th>مانده</th></tr></thead><tbody>{statementRows.map(item => <tr key={item.id}><td>{fa(item.statementNo)}</td><td>{item.noticeSent ? '✓' : '—'} {item.noticeSentDate ? jShort(item.noticeSentDate) : ''}</td><td>{item.noticeApproved ? '✓' : '—'} {item.noticeApprovedDate ? jShort(item.noticeApprovedDate) : ''}</td><td>{item.statementSent ? '✓' : '—'} {item.statementSentDate ? jShort(item.statementSentDate) : ''}</td><td>{money(item.amount)}</td><td>{money(item.paidAmount)}</td><td>{money(item.remaining)}</td></tr>)}{statementRows.filter(x => x.note).map(item => <tr key={`n-${item.id}`} className="lf-report-note-row"><td colSpan={7}>توضیحات صورت‌وضعیت {fa(item.statementNo)}: {item.note}</td></tr>)}</tbody></table></div> : <p className="lf-empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>}
     </section>
     <section className="lf-report-section lf-report-stages"><h3>وضعیت مراحل اجرایی</h3><div className="lf-report-table-wrap"><table className="lf-report-stage-table"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th>توضیحات</th></tr></thead><tbody>{(() => { let n = 0; const groups = []; for (const st of stages) { const g = st.group || (st.item ? `item:${st.item}` : 'start'); let G = groups.find(x => x.key === g); if (!G) groups.push(G = { key: g, item: st.item || '', rows: [] }); G.rows.push(st); }

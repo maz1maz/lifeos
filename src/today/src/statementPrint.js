@@ -101,17 +101,18 @@ function partyBox(role, name, logo) {
   return `<div class="party"><div class="logo">${img ? `<img src="${img}" alt="">` : `<i>${esc((name || role).trim().charAt(0) || '؟')}</i>`}</div><small>${esc(role)}</small><b>${esc(name || '—')}</b></div>`;
 }
 function coverHtml(d) {
-  const s = d.summary, real = d.contractAmount ? Math.round(s.gross / d.contractAmount * 100) : 0, pct = Math.max(0, Math.min(100, real));
+  const s = d.summary;
   const scope = d.scope && d.scope !== 'all' ? ` — ${SCOPES.find(x => x[0] === d.scope)?.[1] || ''}` : '';
   return `<section class="cover">
   <div class="hero">${''}<div class="parties">${partyBox('کارفرما', d.employerName, d.employerLogo)}${partyBox('پیمانکار', d.contractorName, d.contractorLogo)}</div>
     <div class="titles"><span class="kicker">صورت وضعیت${esc(scope)}</span><h1>${esc(d.title)}</h1><h2>${esc(d.projectName || '')}</h2></div><div class="stripe"></div></div>
   <div class="kpis"><div class="kpi"><small>کارکرد ناخالص تجمعی</small><b class="n">${rial(s.gross)}</b><span>ریال · این دوره: ${rial(s.current)}</span></div>
     <div class="kpi main"><small>خالص قابل پرداخت</small><b class="n">${rial(s.payableWithVat)}</b><span>ریال${num(s.rates.vat) ? ' · با مالیات بر ارزش افزوده' : ''}</span></div>
-    <div class="kpi"><small>پیشرفت مالی نسبت به قرارداد</small><b class="n">${fa(real)}٪</b><div class="bar"><i style="width:${pct}%"></i></div></div></div>
+    <div class="kpi"><small>مبلغ قرارداد</small><b class="n">${rial(d.contractAmount)}</b><span>ریال</span></div></div>
   <div class="info"><div class="wide"><small>موضوع قرارداد</small><b>${esc(d.subject || '—')}</b></div>
     <div><small>شماره قرارداد</small><b class="n"><span class="ltr">${esc(d.contractNo || '—')}</span></b></div><div><small>تاریخ قرارداد</small><b>${date(d.contractDate)}</b></div>
-    <div><small>مبلغ قرارداد</small><b class="n">${rial(d.contractAmount)} ریال</b></div><div><small>دورهٔ کارکرد</small><b>${d.from || d.to ? `${date(d.from)} تا ${date(d.to)}` : '—'}</b></div>
+    <div><small>مبلغ قرارداد</small><b class="n">${rial(d.contractAmount)} ریال</b></div><div><small>مبلغ پیش‌پرداخت</small><b class="n">${rial(d.advancePayment)} ریال</b></div>
+    <div class="wide"><small>دورهٔ کارکرد</small><b>${d.from || d.to ? `${date(d.from)} تا ${date(d.to)}` : '—'}</b></div>
     <div><small>تاریخ تهیهٔ صورت وضعیت</small><b>${date(d.prep)}</b></div><div><small>شمارهٔ صورت وضعیت</small><b>${d.isFinal ? 'قطعی' : fa(d.n)}</b></div></div>
   <div class="signs"><div><b>نمایندهٔ کارفرما</b>نام، مهر و امضا</div><div><b>نمایندهٔ پیمانکار</b>نام، مهر و امضا</div></div>
   <div class="foot"><span>${esc(d.contractorName || '')}</span><span>${esc(d.title)} · ${esc(d.projectName || '')}</span></div>
@@ -128,9 +129,9 @@ function summaryHtml(d) {
   <table class="sum"><tbody>
     <tr class="g"><td colspan="2">کارکرد</td></tr>
     ${r('کارکرد ناخالص تجمعی تا کنون', s.gross)}${r('کارکرد ناخالص تا صورت وضعیت قبلی', s.prevGross)}${r('کارکرد ناخالص این دوره', s.current)}
-    ${s.addInsurance ? r(`سپرده بیمه (${fa(s.rates.insurance, 2)}٪ مبنای ${rial(s.insuranceBase)})`, s.insuranceAdded) : ''}
+    ${s.rates.hasInsurance && s.addInsurance ? r(`سپرده بیمه (${fa(s.rates.insurance, 2)}٪ مبنای ${rial(s.insuranceBase)})`, s.insuranceAdded) : ''}
     <tr class="g"><td colspan="2">کسورات</td></tr>
-    ${r(`تخفیف (${fa(s.rates.discount, 3)}٪ اقلام قرارداد)`, s.discount)}${r(`سپرده حسن انجام کار (${fa(s.retentionRate)}٪)`, s.retention)}${s.addInsurance ? '' : r(`سپرده بیمه (${fa(s.rates.insurance, 2)}٪)`, s.insuranceDeducted)}${r(`استهلاک پیش‌پرداخت (${fa(s.rates.advance)}٪)`, s.advance)}${r('مجموع پرداخت صورت وضعیت‌های قبلی', s.paidBefore)}
+    ${r('تخفیف قرارداد', s.discount)}${s.rates.hasRetention ? r(`سپرده حسن انجام کار (${fa(s.retentionRate)}٪)`, s.retention) : ''}${s.rates.hasInsurance && !s.addInsurance ? r(`سپرده بیمه (${fa(s.rates.insurance, 2)}٪)`, s.insuranceDeducted) : ''}${r(`استهلاک پیش‌پرداخت (${fa(s.rates.advance)}٪)`, s.advance)}${r('مجموع پرداخت صورت وضعیت‌های قبلی', s.paidBefore)}
     ${r('جمع کسورات', s.deductions, 's')}
     ${r('مبلغ خالص قابل پرداخت (بدون مالیات بر ارزش افزوده)', s.payable, 's')}
     ${num(s.rates.vat) ? r(`مالیات بر ارزش افزوده (${fa(s.rates.vat)}٪)`, s.vat) : ''}
@@ -144,7 +145,7 @@ function workHtml(d) {
   let g = 0, pg = 0;
   const rows = items.map(it => { const t = d.now[it.id] || 0, p = d.before[it.id] || 0, price = num(it.price), over = !it.extra && num(it.qty) > 0 && t > num(it.qty) + 1e-9; g += t * price; pg += p * price;
     return `<tr class="${it.extra ? 'extra' : ''} ${over ? 'over' : ''}"><td>${esc(d.labels[it.id])}</td><td class="d">${esc(it.desc)}</td><td class="n">${qty(it.qty)}</td><td class="n">${qty(t - p)}</td><td class="n">${qty(p)}</td><td class="n"><b>${qty(t)}</b></td><td>${esc(it.unit)}</td><td class="n">${rial(price)}</td><td class="n"><b>${rial(t * price)}</b></td></tr>`; }).join('');
-  const s = d.summary, ins = d.scope === 'install' ? `<tr class="tot"><td class="l" colspan="8">سپرده بیمه (${fa(s.rates.insurance, 2)}٪ مبنای ${rial(s.insuranceBase)})</td><td class="n">${rial(s.insurance)}</td></tr>` : '';
+  const s = d.summary, ins = d.scope === 'install' && s.rates.hasInsurance ? `<tr class="tot"><td class="l" colspan="8">سپرده بیمه (${fa(s.rates.insurance, 2)}٪ مبنای ${rial(s.insuranceBase)})</td><td class="n">${rial(s.insurance)}</td></tr>` : '';
   return `<section class="sheet wide">${headHtml(d, d.scope === 'install' ? 'صورت کارکرد نصب' : d.scope === 'supply' ? 'صورت کارکرد فروش' : 'صورت کارکرد', true)}
   <table><thead><tr><th>ردیف</th><th>شرح آیتم قرارداد</th><th>مقدار قرارداد</th><th>مقدار این صورت وضعیت</th><th>تا صورت وضعیت قبلی</th><th>کل تا کنون</th><th>واحد</th><th>فی (ریال)</th><th>مبلغ تجمعی (ریال)</th></tr></thead>
   <tbody>${rows}<tr class="tot"><td class="l" colspan="8">جمع کل صورت کارکرد ناخالص تجمعی تا کنون</td><td class="n">${rial(g)}</td></tr><tr class="tot"><td class="l" colspan="8">جمع کل صورت کارکرد ناخالص تا صورت وضعیت قبلی</td><td class="n">${rial(pg)}</td></tr><tr class="tot"><td class="l" colspan="8">جمع کل صورت کارکرد ناخالص فعلی</td><td class="n">${rial(g - pg)}</td></tr>${ins}</tbody></table>
@@ -187,11 +188,11 @@ export async function exportStatementExcel(d) {
   XLSX.utils.book_append_sheet(wb, sheet([
     [d.title], [],
     ['نام پروژه', d.projectName], ['موضوع قرارداد', d.subject], ['کارفرما', d.employerName], ['پیمانکار', d.contractorName],
-    ['شماره قرارداد', d.contractNo], ['تاریخ قرارداد', jl(d.contractDate)], ['مبلغ قرارداد (ریال)', d.contractAmount],
+    ['شماره قرارداد', d.contractNo], ['تاریخ قرارداد', jl(d.contractDate)], ['مبلغ قرارداد (ریال)', d.contractAmount], ['مبلغ پیش‌پرداخت (ریال)', d.advancePayment],
     ['دورهٔ کارکرد', d.from || d.to ? `${jl(d.from)} تا ${jl(d.to)}` : ''], ['تاریخ تهیه', jl(d.prep)], [],
     ['کارکرد', 'مبلغ (ریال)'], ['کارکرد ناخالص تجمعی تا کنون', s.gross], ['کارکرد ناخالص تا صورت وضعیت قبلی', s.prevGross], ['کارکرد ناخالص این دوره', s.current],
-    ...(s.addInsurance ? [[`سپرده بیمه (${s.rates.insurance}٪)`, s.insuranceAdded]] : []), [],
-    ['کسورات', ''], [`تخفیف (${s.rates.discount}٪)`, s.discount], [`سپرده حسن انجام کار (${s.retentionRate}٪)`, s.retention], ...(s.addInsurance ? [] : [[`سپرده بیمه (${s.rates.insurance}٪)`, s.insuranceDeducted]]),
+    ...(s.rates.hasInsurance && s.addInsurance ? [[`سپرده بیمه (${s.rates.insurance}٪)`, s.insuranceAdded]] : []), [],
+    ['کسورات', ''], ['تخفیف قرارداد', s.discount], ...(s.rates.hasRetention ? [[`سپرده حسن انجام کار (${s.retentionRate}٪)`, s.retention]] : []), ...(s.rates.hasInsurance && !s.addInsurance ? [[`سپرده بیمه (${s.rates.insurance}٪)`, s.insuranceDeducted]] : []),
     [`استهلاک پیش‌پرداخت (${s.rates.advance}٪)`, s.advance], ['مجموع پرداخت صورت وضعیت‌های قبلی', s.paidBefore], ['جمع کسورات', s.deductions], [],
     ['مبلغ خالص قابل پرداخت (بدون مالیات)', s.payable], [`مالیات بر ارزش افزوده (${s.rates.vat}٪)`, s.vat], ['مبلغ خالص قابل پرداخت', s.payableWithVat], ['به حروف', toPersianWords(s.payableWithVat) + ' ریال']
   ], [42, 60]), 'صورت وضعیت');

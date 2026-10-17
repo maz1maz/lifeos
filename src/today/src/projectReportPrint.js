@@ -1,6 +1,6 @@
 // Printable A4 project report. Rendered as a standalone document inside a hidden
 // iframe so the app's dark theme, layout and fixed headers never leak into the PDF.
-import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, contractAreaText, statementLedger, itemProgress, itemOptionsText, contractScope } from './life';
+import { api, fa, jl, jShort, money, todayIso, weightedProgress, isInstallStage, contractAreaText, statementLedger, projectReceived, itemProgress, itemOptionsText, contractScope } from './life';
 import { isoToJ } from './jdate';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -83,9 +83,9 @@ export function projectReportHtml(d) {
   const done = stages.filter(s => s.status === 'done').length;
   const progress = weightedProgress(stages);
   const contractTotal = Number(contract?.amount) || 0, advance = Number(contract?.advancePayment) || 0;
-  const ledger = statementLedger(statements), stTotal = ledger.billed;
-  const paid = statements.reduce((s, x) => s + (Number(x.paidAmount) || 0), 0);
-  const received = advance + paid, receivedPct = contractTotal ? Math.min(100, Math.round(received / contractTotal * 100)) : 0;
+  const ledger = statementLedger(statements, contract), stTotal = ledger.billed;
+  const paid = ledger.paid;
+  const received = projectReceived(contract, statements), receivedPct = contractTotal ? Math.min(100, Math.round(received / contractTotal * 100)) : 0;
   const valid = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
   const start = contract?.contractStartDate, end = contract?.contractEndDate;
   const totalDays = valid(start) && valid(end) ? Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / 864e5)) : 0;
@@ -112,7 +112,7 @@ export function projectReportHtml(d) {
     `پیشرفت اجرایی پروژه <b>${pct(progress)}</b> است (${fa(done)} از ${fa(stages.length)} مرحله)`,
     timePct != null ? `در حالی که <b>${pct(timePct)}</b> از زمان قرارداد سپری شده${variance < 0 ? `؛ یعنی <b>${fa(-variance)} واحد درصد عقب‌تر</b> از برنامهٔ خطی` : variance > 0 ? `؛ یعنی ${fa(variance)} واحد درصد جلوتر از برنامهٔ خطی` : ''}` : 'تاریخ شروع/پایان قرارداد ثبت نشده است',
     daysLeft != null ? (daysLeft >= 0 ? `${fa(daysLeft)} روز تا پایان قرارداد باقی مانده است` : `${fa(-daysLeft)} روز از پایان قرارداد گذشته است`) : '',
-    contractTotal ? `تاکنون ${pct(receivedPct)} از مبلغ قرارداد دریافت شده و ${money(Math.max(0, stTotal - paid))} از صورت‌وضعیت‌ها معوق است` : '',
+    contractTotal ? `تاکنون ${pct(receivedPct)} از مبلغ قرارداد دریافت شده و ${money(ledger.remaining)} از صورت‌وضعیت‌ها معوق است` : '',
     late.length ? `<b>${fa(late.length)} مرحله</b> از تاریخ برنامه‌ریزی‌شده عقب افتاده است` : ''
   ].filter(Boolean).join('؛ ') + '.';
 
@@ -149,13 +149,13 @@ export function projectReportHtml(d) {
 <div><h2>خلاصهٔ مالی</h2><table><tbody>
 <tr><td>مبلغ کل قرارداد</td><td class="n">${rial(contractTotal)}</td></tr>
 <tr><td>پیش‌پرداخت</td><td class="n">${rial(advance)}</td></tr>
-<tr><td>آخرین صورت‌وضعیت (تجمعی)</td><td class="n">${rial(stTotal)}</td></tr>
+<tr><td>${ledger.fromWorkbook ? 'خالص قابل پرداخت آخرین صورت‌وضعیت' : 'آخرین صورت‌وضعیت (تجمعی)'}</td><td class="n">${rial(stTotal)}</td></tr>
 <tr><td>جمع واریزی‌ها</td><td class="n">${rial(paid)}</td></tr>
-<tr><td>مطالبات معوق صورت‌وضعیت</td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr>
+<tr><td>مطالبات معوق صورت‌وضعیت</td><td class="n">${rial(ledger.remaining)}</td></tr>
 </tbody></table></div></div>
 </div></section>
 ${itemsSection}
-<h2>صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">آخرین صورت‌وضعیت (تجمعی) / جمع واریزی / معوق</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(Math.max(0, stTotal - paid))}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
+<h2>صورت‌وضعیت‌ها</h2>${statements.length ? `<table><thead><tr><th>شماره</th><th>آخرین مرحله</th><th>مبلغ</th><th>واریزی</th><th>تاریخ واریز</th><th>مانده</th></tr></thead><tbody>${stRows}</tbody><tfoot><tr><td colspan="2">${ledger.fromWorkbook ? 'خالص قابل پرداخت آخرین صورت‌وضعیت' : 'آخرین صورت‌وضعیت (تجمعی)'} / جمع واریزی / معوق</td><td class="n">${rial(stTotal)}</td><td class="n">${rial(paid)}</td><td></td><td class="n">${rial(ledger.remaining)}</td></tr></tfoot></table>` : '<p class="empty">هنوز صورت‌وضعیتی ثبت نشده است.</p>'}
 ${next.length ? `<h2>اقدامات بعدی</h2><table><thead><tr><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ برنامه</th><th>مسئول</th></tr></thead><tbody>${next.map(s => `<tr><td>${esc(s.title)}</td><td>${esc(s.department)}</td><td>${statusBadge(s)}</td><td class="n">${valid(s.date) ? jShort(s.date) : '<span class="muted">—</span>'}</td><td>${s.owner ? esc(s.owner) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : ''}
 <h2>وضعیت مراحل اجرایی</h2><table class="stages"><thead><tr><th>ردیف</th><th>مرحله</th><th>واحد</th><th>وضعیت</th><th>تاریخ انجام</th><th>مسئول</th><th class="note">توضیحات</th></tr></thead><tbody>${stageRows}</tbody></table>
 <div class="sign"><div>تهیه‌کننده${brand?.preparer ? `<b class="who">${esc(brand.preparer)}</b>` : ''}</div><div>تأیید مدیر پروژه</div><div>رؤیت کارفرما</div></div>
@@ -420,7 +420,7 @@ export function compareReportHtml({ rows, brand = {} }) {
   const chart = rows.map(({ p, m }) => `<div class="cr"><b><span class="dot" style="background:${pc(p)}"></span>${esc(p.name)}</b><div class="track" style="background:${pc(p)}1f"><i style="width:${Math.max(m.progress, m.progress ? 2 : 0)}%;background:${pc(p)}"></i>${m.timePct != null ? `<u style="right:${Math.min(100, m.timePct)}%"></u>` : ''}</div><span class="vals"><b class="num">${pct(m.progress)}</b>${m.timePct != null ? `<small>زمان ${pct(m.timePct)}</small>` : '<small>بدون تاریخ</small>'}</span></div>`).join('');
   const mix = counts.map(([k, n]) => `<span style="flex:${n};background:${STATE_CLR[k]}"></span>`).join('');
   const varTxt = v => v == null ? '—' : v === 0 ? 'منطبق' : `${pct(Math.abs(v))} ${v < 0 ? 'عقب' : 'جلو'}`;
-  const tr = rows.map(({ p, m }, i) => `<tr><td class="n">${fa(i + 1)}</td><td><span class="dot" style="background:${pc(p)}"></span><b>${esc(p.name)}</b>${p.client ? `<div class="muted">${esc(p.client)}</div>` : ''}</td><td><div class="pg"><b class="num">${pct(m.progress)}</b>${bar(m.progress, pc(p))}</div><span class="sm">${fa(m.done)} از ${fa(m.total)} مرحله</span></td><td class="n">${m.timePct == null ? '—' : pct(m.timePct)}</td><td class="n ${m.variance < 0 ? 'neg' : m.variance > 0 ? 'pos' : ''}">${varTxt(m.variance)}</td><td class="n">${m.end ? jShort(m.end) : '—'}${m.daysLeft != null ? `<div class="muted">${m.daysLeft >= 0 ? `${fa(m.daysLeft)} روز مانده` : `${fa(-m.daysLeft)} روز گذشته`}</div>` : ''}</td><td class="n">${m.amount ? money(m.amount) : '—'}</td><td class="n">${m.amount ? money(m.received) : '—'}${m.receivedPct != null ? `<div class="muted">${pct(m.receivedPct)}</div>` : ''}</td><td class="n ${m.outstanding ? 'neg' : ''}">${m.outstanding ? money(m.outstanding) : '—'}</td><td class="n ${m.late ? 'neg' : ''}">${m.late ? fa(m.late) : '—'}</td><td><span class="st" style="color:${STATE_TXT[m.state]};background:${STATE_CLR[m.state]}22;border-color:${STATE_CLR[m.state]}">${STATE_FA[m.state] || '—'}</span></td></tr>`).join('');
+  const tr = rows.map(({ p, m }, i) => `<tr><td class="n">${fa(i + 1)}</td><td><span class="dot" style="background:${pc(p)}"></span><b>${esc(p.name)}</b>${p.client ? `<div class="muted">${esc(p.client)}</div>` : ''}</td><td><div class="pg"><b class="num">${pct(m.progress)}</b>${bar(m.progress, pc(p))}</div><span class="sm">${fa(m.done)} از ${fa(m.total)} مرحله</span></td><td class="n">${m.timePct == null ? '—' : pct(m.timePct)}</td><td class="n ${m.variance < 0 ? 'neg' : m.variance > 0 ? 'pos' : ''}">${varTxt(m.variance)}</td><td class="n">${m.end ? jShort(m.end) : '—'}${m.daysLeft != null ? `<div class="muted">${m.daysLeft >= 0 ? `${fa(m.daysLeft)} روز مانده` : `${fa(-m.daysLeft)} روز گذشته`}</div>` : ''}</td><td class="n">${m.amount ? money(m.amount) : '—'}</td><td class="n">${money(m.received)}${m.receivedPct != null ? `<div class="muted">${pct(m.receivedPct)}</div>` : ''}</td><td class="n ${m.outstanding ? 'neg' : ''}">${m.outstanding ? money(m.outstanding) : '—'}</td><td class="n ${m.late ? 'neg' : ''}">${m.late ? fa(m.late) : '—'}</td><td><span class="st" style="color:${STATE_TXT[m.state]};background:${STATE_CLR[m.state]}22;border-color:${STATE_CLR[m.state]}">${STATE_FA[m.state] || '—'}</span></td></tr>`).join('');
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${CSS(brand, title)}
 @page{size:A4 landscape;margin:12mm 12mm 14mm}
 html.capture body{width:${CMP_W}px}
