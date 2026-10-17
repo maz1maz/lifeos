@@ -235,9 +235,10 @@ export function PlannerReact({ Nav }) {
   const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2600); };
   const justTicked = useRef(new Set());   // ids ticked in this visit: they keep their row until the page is reopened
   const stillDone = x => x.done && !justTicked.current.has((x._reminder ? 'r' : 't') + x.id);
-  const load = () => Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')])
-    .then(([taskData, reminderData]) => { setTasks(taskData.items || []); setReminders(reminderData.items || []); })
-    .catch(error => setNotice(error.message)).finally(() => setLoading(false));
+  const saving = useRef(0), loadSeq = useRef(0);   // a reload landing during a save (or superseded) is dropped: quick ticks never flicker back
+  const load = () => { const seq = ++loadSeq.current; return Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')])
+    .then(([taskData, reminderData]) => { if (seq !== loadSeq.current || saving.current) return; setTasks(taskData.items || []); setReminders(reminderData.items || []); })
+    .catch(error => setNotice(error.message)).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);
 
   const reminderByTask = useMemo(() => Object.fromEntries(reminders.filter(r => r.taskId).map(r => [r.taskId, r])), [reminders]);
@@ -295,6 +296,7 @@ export function PlannerReact({ Nav }) {
     // show the change at once; the server call and the reload follow in the background
     if (task._reminder) setReminders(list => list.map(r => r.id === task.id ? { ...r, done: nextDone } : r));
     else setTasks(list => list.map(t => t.id === task.id ? { ...t, done: nextDone } : t));
+    saving.current++;
     try {
       if (task._reminder) await api(`/api/reminders/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
       else {
@@ -302,8 +304,8 @@ export function PlannerReact({ Nav }) {
         const r = reminderByTask[task.id]; if (r) await api(`/api/reminders/${r.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
       }
       flash(!task.done && task.recurrence ? 'انجام شد؛ نمونهٔ بعدی ساخته شد ✓' : !task.done ? 'انجام شد ✓' : 'دوباره باز شد');
-      load();
-    } catch (error) { flash(error.message); load(); }
+    } catch (error) { flash(error.message); }
+    finally { saving.current--; if (!saving.current) load(); }
   };
 
   const remove = async task => {
