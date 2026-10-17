@@ -286,16 +286,22 @@ export function PlannerReact({ Nav }) {
     } catch (error) { flash(error.message); }
   };
 
+  // Optimistic: flip the tick at once (the Worker round-trip is slow), send both PATCHes in parallel, and
+  // only reload afterwards if a recurring task spawned its next copy — or to roll back when a call failed.
   const toggle = async task => {
+    const done = !task.done;
+    const r = task._reminder ? null : reminderByTask[task.id];
+    const flip = (list, id) => list.map(x => x.id === id ? { ...x, done } : x);
+    if (task._reminder) setReminders(list => flip(list, task.id));
+    else { setTasks(list => flip(list, task.id)); if (r) setReminders(list => flip(list, r.id)); }
+    flash(done && task.recurrence ? 'انجام شد؛ نمونهٔ بعدی ساخته شد ✓' : done ? 'انجام شد ✓' : 'دوباره باز شد');
     try {
-      if (task._reminder) await api(`/api/reminders/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
-      else {
-        await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
-        const r = reminderByTask[task.id]; if (r) await api(`/api/reminders/${r.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
-      }
-      flash(!task.done && task.recurrence ? 'انجام شد؛ نمونهٔ بعدی ساخته شد ✓' : !task.done ? 'انجام شد ✓' : 'دوباره باز شد');
-      load();
-    } catch (error) { flash(error.message); }
+      const body = JSON.stringify({ done });
+      await Promise.all(task._reminder
+        ? [api(`/api/reminders/${task.id}`, { method: 'PATCH', body })]
+        : [api(`/api/tasks/${task.id}`, { method: 'PATCH', body }), ...(r ? [api(`/api/reminders/${r.id}`, { method: 'PATCH', body })] : [])]);
+      if (done && task.recurrence) load();
+    } catch (error) { flash(error.message); load(); }
   };
 
   const remove = async task => {
