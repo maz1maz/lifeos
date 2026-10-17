@@ -40,8 +40,9 @@ import './admin.css';
 import './courses.css';
 import { InsightsHomeCard } from './insights-card';
 import { CommandPalette, flushOutbox } from './palette';
-import { api, saveRow, isoToday, fa, faDigits, JALALI_MONTHS, WEEKDAYS, iso, fromIso, jdiv, jmod, jalCal, g2d, d2g, j2d, d2j, toJalali, toGregorian, jalaliMonthLength, addDays, sameDate, weekdayIndex, eventOnDate, eventLabel, seasonAiredCount, seasonTotalCount, seriesHasFresh, nextToWatch, watchLabel, waitingNewSeason, episodesWatchedCount, seriesAiredTotal, SERIES_TABS, seriesInTab, SHOW_STATUS_FA, readDataUrl, jalaliDayLabel } from './main-util';
+import { api, isoToday, fa, faDigits, JALALI_MONTHS, WEEKDAYS, iso, fromIso, jdiv, jmod, jalCal, g2d, d2g, j2d, d2j, toJalali, toGregorian, jalaliMonthLength, addDays, sameDate, weekdayIndex, eventOnDate, eventLabel, seasonAiredCount, seasonTotalCount, seriesHasFresh, nextToWatch, watchLabel, waitingNewSeason, episodesWatchedCount, seriesAiredTotal, SERIES_TABS, seriesInTab, SHOW_STATUS_FA, readDataUrl, jalaliDayLabel } from './main-util';
 import { MsgBar } from './msgbar';
+import { saveRow } from './rowsave';
 import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import './life.css';
@@ -1040,7 +1041,7 @@ function HabitsMini() {
   const [items, setItems] = useState(null);
   const load = () => api(`/api/habits?date=${isoToday()}`).then(d => setItems(d.items || [])).catch(() => setItems([]));
   useEffect(() => { load(); }, []);
-  const toggle = async h => { setItems(xs => xs.map(x => x.id === h.id ? { ...x, done: !x.done, streak: Math.max(0, (x.streak || 0) + (x.done ? -1 : 1)) } : x)); try { await api(`/api/habits/${h.id}/toggle`, { method: 'POST', body: JSON.stringify({ date: isoToday(), done: !h.done }) }); } catch { load(); } };
+  const toggle = h => { setItems(xs => xs.map(x => x.id === h.id ? { ...x, done: !x.done, streak: Math.max(0, (x.streak || 0) + (x.done ? -1 : 1)) } : x)); const date = isoToday(); saveRow('hab' + h.id + '|' + date, `/api/habits/${h.id}/toggle`, { date, done: !h.done }, 'POST').catch(() => load()); };
   const done = (items || []).filter(x => x.done).length;
   return <Card className="mini-card" icon={Flame} title="عادت‌های امروز" action={<a href="/?page=habits">همه ←</a>}>
     {items === null ? <p className="empty">در حال دریافت…</p> : !items.length ? <p className="empty">هنوز عادتی نساختی. <a href="/?page=habits">یکی بساز</a></p> : <>

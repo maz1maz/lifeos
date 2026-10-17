@@ -3,6 +3,7 @@ import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, ExternalLink, Language
 import { Page, api, fa } from './life-core';
 import { jLabel } from './jdate';
 import { Loader } from './loader';
+import { saveRow } from './rowsave';
 
 // «خبر و خواندنی»: RSS news (sources you add, synced by the Worker; AI summary/translation when a key is set)
 // and bookmarks with a read-later list. Backend: /api/news(+sources, sync, :id/summarize, :id/translate), /api/bookmarks.
@@ -178,7 +179,7 @@ function Bookmarks() {
   const load = () => api('/api/bookmarks').then(d => setItems(d.items || [])).catch(e => setErr(e.message));
   useEffect(() => { load(); }, []);
   const add = async e => { e.preventDefault(); if (!safeUrl(f.url.trim())) { setErr('لینک باید با https:// یا http:// شروع شود.'); return; } try { await api('/api/bookmarks', { method: 'POST', body: JSON.stringify({ ...f, url: f.url.trim(), readLater: true }) }); setF({ url: '', title: '', tags: '' }); setErr(''); load(); } catch (x) { setErr(x.message); } };
-  const toggle = async b => { setItems(xs => xs.map(y => y.id === b.id ? { ...y, readLater: !b.readLater } : y)); await api(`/api/bookmarks/${b.id}`, { method: 'PATCH', body: JSON.stringify({ readLater: !b.readLater }) }).catch(() => load()); };
+  const toggle = async b => { setItems(xs => xs.map(y => y.id === b.id ? { ...y, readLater: !b.readLater } : y)); await saveRow('bm' + b.id, `/api/bookmarks/${b.id}`, { readLater: !b.readLater }).catch(() => load()); };
   const del = async b => { if (!window.confirm('این لینک حذف شود؟')) return; setItems(xs => xs.filter(y => y.id !== b.id)); await api(`/api/bookmarks/${b.id}`, { method: 'DELETE' }).catch(() => load()); };
   const list = (items || []).filter(b => tab === 'later' ? b.readLater : !b.readLater);
   return <section className="rd-card">

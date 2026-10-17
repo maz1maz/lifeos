@@ -6,6 +6,7 @@ import { JalaliDateInput } from './jdate';
 import './courses.css';
 import { CopyBtn, xcAuto } from './xcards';
 import { SideLayout } from './sidelist';
+import { saveRow } from './rowsave';
 import { WEEKDAYS, courseSessions, daysLabel } from './sessions';
 const CS_HEX = { violet: '#9f47f0', graphite: '#3a3a42', cyan: '#17bcd6', blue: '#3478f6', gold: '#e0a93c', green: '#22b884', rose: '#f04466' };
 
@@ -329,7 +330,7 @@ export function ClassTodayCard() {
   const today = todayIso();
   const todays = (cs || []).filter(c => c.status !== 'done').flatMap(c => courseSessions(c).filter(x => x.date === today).map(x => ({ c, x })));
   if (!todays.length) return null;
-  const toggle = async (st, n) => { const a = new Set(st.attendance || []); a.has(n) ? a.delete(n) : a.add(n); const attendance = [...a].sort((x, y) => x - y); setSts(xs => xs.map(s => s.id === st.id ? { ...s, attendance } : s)); try { await api(`/api/col/students/${st.id}`, { method: 'PATCH', body: JSON.stringify({ attendance }) }); } catch {} };
+  const toggle = async (st, n) => { const a = new Set(st.attendance || []); a.has(n) ? a.delete(n) : a.add(n); const attendance = [...a].sort((x, y) => x - y); setSts(xs => xs.map(s => s.id === st.id ? { ...s, attendance } : s)); try { await saveRow('att' + st.id, `/api/col/students/${st.id}`, { attendance }); } catch { api('/api/col/students').then(b => setSts(b.items || [])).catch(() => {}); } };
   return <section className="cs-today">{todays.map(({ c, x }) => { const list = sts.filter(s => s.courseId === c.id && s.status !== 'withdrawn'), here = list.filter(s => (s.attendance || []).includes(x.n)).length;
     return <div key={c.id + x.n} className="cs-tcard" style={{ '--c': CS_HEX[c.color || xcAuto(c.id)] || CS_HEX.graphite }}>
       <div className="cs-thead"><b>🎓 کلاس امروز · {c.name}</b><span>جلسهٔ {fa(x.n)}{x.time ? ` · ساعت ${faD(x.time)}` : ''}</span><em>{fa(here)} از {fa(list.length)} حاضر</em><a href="/?page=courses">دوره ←</a></div>

@@ -4,6 +4,7 @@ import {
 } from 'lucide-react'
 import './calendar.css'
 import { jalaliLabel } from './jalali.js'
+import { saveRow } from './rowsave'
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -240,11 +241,10 @@ export function CalendarReact({ Nav }) {
     if (ev.kind === 'google') return
     if (ev.kind === 'session') { location.href = '/?page=courses'; return }
     if (ev.kind === 'card') { try { await api(`/api/col/cards/${ev.id}`, { method: 'PATCH', body: JSON.stringify({ col: 'done', doneAt: Date.now() }) }); load() } catch (e) { setStatus(e.message) } return }
-    try {
-      const path = ev.kind === 'reminder' ? `/api/reminders/${rawId(ev.id)}` : `/api/tasks/${rawId(ev.id)}`
-      await api(path, { method: 'PATCH', body: JSON.stringify({ done: !ev.done }) })
-      load()
-    } catch (e) { setStatus(e.message) }
+    // instant: the row flips now; the save goes in tap order (same keys as the today page) and the reload follows
+    const path = ev.kind === 'reminder' ? `/api/reminders/${rawId(ev.id)}` : `/api/tasks/${rawId(ev.id)}`
+    setFeed(f => ({ ...f, items: (f.items || []).map(x => x.id === ev.id ? { ...x, done: !ev.done } : x) }))
+    saveRow((ev.kind === 'reminder' ? 'r' : 't') + rawId(ev.id), path, { done: !ev.done }).then(() => load(), e => { setStatus('ذخیره نشد: ' + e.message); load() })
   }
 
   async function saveDialog(draft) {

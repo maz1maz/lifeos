@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import './notes.css';
 import { describe } from './palette';
+import { saveRow } from './rowsave';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -462,7 +463,8 @@ export function NotesReact({ Nav }) {
     lines[lineIdx] = `${m[1]}[${m[2] === ' ' ? 'x' : ' '}]${m[3]}`;
     const text = lines.join('\n');
     setNotes(ns => ns.map(n => n.id === note.id ? { ...n, body: text } : n));
-    try { await api(`/api/inbox/${note.id}`, { method: 'PATCH', body: JSON.stringify({ text }) }); } catch (error) { setNotice(error.message); load(); }
+    // the whole text is sent: saves for one note go in tap order, so an older text can never land last
+    try { await saveRow('note' + note.id, `/api/inbox/${note.id}`, { text }); } catch (error) { setNotice('ذخیره نشد: ' + error.message); load(); }
   };
   const pinnedList = visible.filter(n => n.pinned), restList = visible.filter(n => !n.pinned);
   const tileProps = { query, busyId, onOpen: n => setSelectedId(n.id), onEdit: handleEdit, onTogglePin: handleTogglePin, onDelete: handleDelete, onCheck: toggleCheck };

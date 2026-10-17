@@ -6,21 +6,6 @@ export const api = async (url, options) => {
   if (!response.ok) throw new Error(body.error || 'دریافت اطلاعات ناموفق بود.');
   return body;
 };
-// Row saves (tick, star): the same row in tap order (a tick+untick sent together could land out of order),
-// different rows in parallel; keepalive so a refresh does not cancel a save already sent; a failed save is
-// retried twice before the caller hears about it.
-const rowChains = new Map();
-export function saveRow(key, url, body) {
-  const send = async () => {
-    for (let i = 0; ; i++) {
-      try { return await api(url, { method: 'PATCH', body: JSON.stringify(body), keepalive: true }); }
-      catch (error) { if (i >= 2) throw error; await new Promise(r => setTimeout(r, 700 * (i + 1))); }
-    }
-  };
-  const run = (rowChains.get(key) || Promise.resolve()).then(send);
-  rowChains.set(key, run.catch(() => {}));
-  return run;
-}
 export const isoToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 export const fa = value => Number(value || 0).toLocaleString('fa-IR');
 export const faDigits = value => String(value ?? '').replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
