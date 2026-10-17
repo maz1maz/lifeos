@@ -520,6 +520,21 @@ async function main() {
     check('news migration: moved to per-user rows and emptied in the state', moved && db.news.length === 0 && (await H.newsRead('u8'))[0].id === 'm1' && (await H.newsRead('u7'))[0].id === 'm2');
     check('news migration: nothing to move -> false', (await H.migrateNewsOut(db)) === false);
   }
+  { // migration of news still inside the state: old shards removed directly (a state write would exceed D1's 32 MB batch)
+    const em = 'newsmig' + Date.now() + '@x.io';
+    const su = await call('/api/auth/signup', { method: 'POST', body: { name: 'NewsMig', email: em, password: 'secret123' } });
+    const sc = (typeof su.headers.getSetCookie === 'function' ? su.headers.getSetCookie() : [su.headers.get('set-cookie')])[0].split(';')[0];
+    const before = new Set(env.DB._store.keys());
+    await call('/api/tasks', { method: 'POST', cookie: sc, body: { title: 'x', date: '2026-10-17' } });
+    const key = [...env.DB._store.keys()].find(k => !before.has(k) && /^state:v2:u:[^:]+:tasks:\d+$/.test(k)) || [...env.DB._store.keys()].find(k => /^state:v2:u:[^:]+:tasks:\d+$/.test(k) && env.DB._store.get(k).includes('"title":"x"'));
+    const uid = key.split(':')[3], shard = `state:v2:u:${uid}:news:0`;
+    env.DB._store.set(shard, JSON.stringify([{ id: 'old1', userId: uid, title: 'خبر قدیمی', source: 's', category: 'عمومی', url: 'https://o/1', date: '2026-10-16', createdAt: 1 }]));
+    const r = await call('/api/news', { cookie: sc });
+    check('news migration (state shard): GET /api/news still returns the old item', r.status === 200 && r.d.items.some(x => x.id === 'old1'), JSON.stringify(r.d).slice(0, 160));
+    check('news migration (state shard): old shard removed, item in its own rows', !env.DB._store.has(shard) && [...env.DB._store.keys()].some(k => k === `news:${uid}:0`));
+    const r2 = await call('/api/news', { cookie: sc });
+    check('news migration (state shard): next read serves from the new rows', r2.status === 200 && r2.d.items.length === 1 && !env.DB._store.has(shard));
+  }
   { // vocab tutor: 7 modes, learner profile + weak words in the prompt, validation
     const seen = [], realFetch = globalThis.fetch;
     const noKey = await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'chat', history: [{ r: 'u', t: 'hi' }] } });
