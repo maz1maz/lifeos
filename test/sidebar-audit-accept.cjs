@@ -1,4 +1,4 @@
-// Diagnostic characterizations of bugs at 5aafb40, not regression assertions.
+// Acceptance checks for the sidebar audit (docs/SIDEBAR-TECHNICAL-AUDIT.md): each line asserts the FIXED behaviour.
 // Runs only against an isolated in-memory DB. No network or production data.
 const assert = require('node:assert/strict');
 const { makeKvD1 } = require('./d1-kv-fake');
@@ -23,38 +23,33 @@ const { loadWorkerModule } = require('./load-worker');
     await call('col/' + name + '/' + row.id, 'DELETE');
   }
   const rem = await post('reminders', { title: 'notes proof', date: '2026-10-20', notes: 'details must survive' });
-  ok(rem.notes === undefined, 'BUG: reminder POST silently discards notes');
+  ok(rem.notes === 'details must survive', 'A06: reminder POST keeps notes');
   const patched = await call('reminders/' + rem.id, 'PATCH', { notes: 'edited details' });
-  ok(patched.data.notes === undefined, 'BUG: reminder PATCH silently discards notes');
+  ok(patched.data.notes === 'edited details', 'A06: reminder PATCH keeps notes');
   await post('reminders', { title: 'old overdue', date: '2026-08-01' });
-  const home = await call('reminders?from=2026-09-20&to=2026-10-27');
   const planner = await call('reminders?from=0000-01-01&to=9999-12-31');
-  ok(!home.data.items.some(x => x.title === 'old overdue') && planner.data.items.some(x => x.title === 'old overdue'), 'BUG: Home query hides open reminders older than 30 days');
-  await post('col/health', { date: '2026-10-20', water: 1 });
-  await post('col/health', { date: '2026-10-20', water: 2 });
-  ok((await call('col/health')).data.items.filter(x => x.date === '2026-10-20').length === 2, 'BUG: first health saves can create duplicate rows for one day');
+  ok(planner.data.items.some(x => x.title === 'old overdue') && require('node:fs').readFileSync('src/today/src/main.jsx', 'utf8').includes('/api/reminders?from=0000-01-01'), 'A05: Home loads open reminders of any age');
+  // A14 (one health row per day) is client-side: the health page waits for the first POST (covered by the browser run).
   const vehicle = await post('col/vehicles', { name: 'audit vehicle' });
   const log = await post('col/carlogs', { vehicleId: vehicle.id, amount: 100, date: '2026-10-20' });
-  await call('col/vehicles/' + vehicle.id, 'DELETE');
-  ok((await call('col/carlogs')).data.items.some(x => x.id === log.id), 'BUG: deleting a vehicle leaves inaccessible cost records');
+  ok((await call('col/vehicles/' + vehicle.id, 'DELETE')).status === 409 && (await call('col/carlogs')).data.items.some(x => x.id === log.id), 'A15: a vehicle with cost records cannot be deleted');
   const customer = await post('col/customers', { name: 'audit customer' });
   const deal = await post('col/deals', { customerId: customer.id, title: 'audit deal' });
-  await call('col/customers/' + customer.id, 'DELETE');
-  ok((await call('col/deals')).data.items.some(x => x.id === deal.id && x.customerId === customer.id), 'BUG: deleting a customer leaves deals pointing to missing customer');
+  ok((await call('col/customers/' + customer.id, 'DELETE')).status === 409 && (await call('col/deals')).data.items.some(x => x.id === deal.id && x.customerId === customer.id), 'A10: a customer with deals cannot be deleted');
   const account = await post('accounts', { name: 'audit old', openingBalance: 1000 });
   await post('transactions', { title: 'audit expense', amount: 200, kind: 'expense', account: 'audit old', date: '2026-10-20' });
   ok((await call('accounts')).data.accounts.find(x => x.id === account.id).balance === 800, 'CONTROL: account balance includes its expense before rename');
   await call('accounts/' + account.id, 'PATCH', { name: 'audit new' });
-  ok((await call('accounts')).data.accounts.find(x => x.id === account.id).balance === 1000, 'BUG: renaming account detaches historical transactions from balance');
+  ok((await call('accounts')).data.accounts.find(x => x.id === account.id).balance === 800, 'A02: renaming an account keeps its balance');
   const neg = await call('transactions', 'POST', { title: 'negative expense', amount: -100, kind: 'expense', date: '2026-10-20' });
-  ok(neg.status === 201 && neg.data.amount === -100, 'BUG: negative expense is accepted and reverses balance direction');
+  ok(neg.status === 400, 'A11: a negative amount is rejected');
   const project = await post('col/projects', { name: 'cascade control' });
   const card = await post('col/cards', { projectId: project.id, title: 'child' });
   await call('col/projects/' + project.id, 'DELETE');
   ok(!(await call('col/cards')).data.items.some(x => x.id === card.id), 'CONTROL: deleting project removes its cards');
   await call('daily', 'PUT', { date: '2026-10-20', userId: 'audit-b', note: 'injected from audit-a' });
   const foreignDaily = await call('daily?date=2026-10-20', 'GET', undefined, 'other-session');
-  ok(foreignDaily.data.item?.note === 'injected from audit-a', 'BUG: daily PUT trusts body.userId and injects a record into another account');
+  ok(!foreignDaily.data.item, 'A01: daily PUT ignores body.userId');
   const media = await post('media-log', { source: 'youtube', title: 'audit media' });
   ok((await call('media-log/' + media.entry.id, 'DELETE', undefined, 'other-session')).status === 404, 'CONTROL: media log rejects foreign deletion');
   ok((await call('media-log/' + media.entry.id, 'DELETE')).status === 200, 'CONTROL: media log deletes own entry');
@@ -72,25 +67,26 @@ const { loadWorkerModule } = require('./load-worker');
     between(watchDetail, '  const markSeason = async season =>', '  const clearSeason =') + '; return markSeason;')(
       async () => { throw new Error('503 test failure'); }, { id: 'fake' }, () => {}, x => watchMessages.push(x), [{ season: 1, number: 1, aired: true }], () => 1, String);
   await markSeason(1);
-  ok(watchMessages.length === 2 && watchMessages[0].includes('503') && watchMessages[1].includes('✓'), 'BUG: marking a season announces success after failed PATCH');
+  ok(watchMessages.length === 1 && watchMessages[0].includes('503'), 'A18: marking a season announces success only after a successful PATCH');
   const mediaSource = fs.readFileSync('src/today/src/media.jsx', 'utf8');
   const mediaMessages = [];
-  const disconnect = new Function('setBusy', 'fetch', 'loadInteg', 'note', between(mediaSource, '  async function disconnect(kind)', '  async function search(e)') + '; return disconnect;')(
-    () => {}, async () => new Response('{}', { status: 503 }), async () => {}, (level, message) => mediaMessages.push({ level, message }));
+  const notices = [];
+  const disconnect = new Function('setBusy', 'fetch', 'loadInteg', 'note', 'setNotice', between(mediaSource, '  async function disconnect(kind)', '  async function search(e)') + '; return disconnect;')(
+    () => {}, async () => new Response('{}', { status: 503 }), async () => {}, (level, message) => mediaMessages.push({ level, message }), x => notices.push(x));
   await disconnect('youtube');
-  ok(mediaMessages[0].message.includes('قطع شد'), 'BUG: media disconnect claims success after HTTP 503');
+  ok(!mediaMessages.length && notices.length === 1, 'A19: media disconnect reports failure on HTTP 503');
   const marketSource = fs.readFileSync('src/today/src/market.jsx', 'utf8');
-  const marketHours = new Function(between(marketSource, 'function marketHours(now)', '// TGJU free-market') + '; return marketHours;')();
-  ok(marketHours({ getDay: () => 0, getHours: () => 19 }).us && !marketHours({ getDay: () => 5, getHours: () => 19 }).us, 'BUG: US market weekday filter includes Sunday and excludes Friday');
+  const marketHours = new Function(between(marketSource, 'function zoneParts(now, timeZone)', '// TGJU free-market') + '; return marketHours;')();
+  ok(!marketHours(new Date('2026-10-18T15:00:00Z')).us && marketHours(new Date('2026-10-19T15:00:00Z')).us && marketHours(new Date('2026-10-23T15:00:00Z')).us, 'A13: US market is open Mon-Fri and closed on Sunday (New York time)');
   const marketMessages = [];
-  const saveAlert = new Function('alertTarget', 'showAlert', 'setAlerts', 'setShowAlert', 'setAlertTarget', 'flash',
-    between(marketSource, '  const saveAlert = () =>', '  const convOut =') + '; return saveAlert;')('۱۲۳', { id: 'audit', price: 100 }, () => marketMessages.push('saved'), () => {}, () => {}, x => marketMessages.push(x));
+  const saveAlert = new Function('alertTarget', 'showAlert', 'setAlerts', 'setShowAlert', 'setAlertTarget', 'flash', 'setAlertErr',
+    between(marketSource, '  const saveAlert = () =>', '  const convOut =') + '; return saveAlert;')('۱۲۳', { id: 'audit', price: 100 }, () => marketMessages.push('saved'), () => {}, () => {}, x => marketMessages.push(x), () => {});
   saveAlert();
-  ok(!marketMessages.length, 'BUG: Persian digits silently prevent saving a market alert');
+  ok(marketMessages.includes('saved'), 'A12: Persian digits are accepted for a market alert');
   const lifeSource = fs.readFileSync('src/today/src/life.jsx', 'utf8');
-  const consumptionExpression = lifeSource.match(/const cons = ([^;]+);/)[1];
-  const consumption = new Function('fuel', 'return (' + consumptionExpression + ')')([{ liters: 20, odometer: 1000 }, { liters: 30, odometer: 1000 }]);
-  ok(consumption === Infinity, 'BUG: equal odometers produce infinite fuel consumption');
+  const kmSpanExpr = lifeSource.match(/const kmSpan = ([^,]+), cons = ([^;]+);/);
+  const consumption = new Function('fuel', 'const kmSpan = ' + kmSpanExpr[1] + '; return (' + kmSpanExpr[2] + ')')([{ liters: 20, odometer: 1000 }, { liters: 30, odometer: 1000 }]);
+  ok(consumption === null, 'A16: equal odometers give no fuel consumption instead of Infinity');
   const courseSource = fs.readFileSync('src/today/src/courses.jsx', 'utf8');
   const receipts = [], paymentMessages = [];
   const addPayment = new Function('api', 'cur', 'KIND', 'rid', 'students', 'setReceipt', 'flash', 'rial',
@@ -99,6 +95,6 @@ const { loadWorkerModule } = require('./load-worker');
       { patch: async () => undefined }, // useCol.patch resolves undefined after a failed save
       x => receipts.push(x), x => paymentMessages.push(x), String);
   await addPayment({ id: 'fake-student', name: 'audit', payments: [] }, { kind: 'deposit', amount: 100, date: '2026-10-20', toFinance: true });
-  ok(receipts[0]?.p.txId === 'finance-created' && paymentMessages.length === 1, 'BUG: payment receipt and success are shown even when student patch did not save');
-  console.log('Completed ' + checks + ' isolated diagnostic checks. BUG lines confirm existing defects; they do not mean fixes passed.');
+  ok(!receipts.length && !paymentMessages.length, 'A04: no receipt or success message when the student save failed');
+  console.log('Sidebar audit acceptance: ' + checks + ' checks passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
