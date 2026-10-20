@@ -1,3 +1,4 @@
+import { createTaskRequestState } from './task-request-state.mjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bell, CalendarDays, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Grid3x3, LayoutGrid, List, Plus, Search, Trash2
@@ -142,13 +143,15 @@ export function CalendarReact({ Nav }) {
     return { from: days[0], to: days[41] }
   }, [view, cursor, days])
 
+  const [taskRequests] = useState(createTaskRequestState)
   const load = useCallback(async () => {
+    const request = taskRequests.beginRead()
     setLoading(true)
     try {
       const data = await api(`/api/calendar/feed?from=${range.from}&to=${range.to}`)
-      setFeed(data)
-    } catch (e) { setStatus(e.message) }
-    finally { setLoading(false) }
+      if (taskRequests.isCurrent(request)) setFeed(data)
+    } catch (e) { if (taskRequests.isCurrent(request)) setStatus(e.message) }
+    finally { if (taskRequests.isCurrent(request)) setLoading(false) }
   }, [range.from, range.to])
 
   useEffect(() => { load() }, [load])
@@ -236,18 +239,18 @@ export function CalendarReact({ Nav }) {
     } catch (e) { setStatus(e.message) }
   }
 
-  async function toggleItem(ev) {
+  const toggleItem = ev => taskRequests.run(`tick:${ev.id}`, async () => {
     if (ev.kind === 'google') return
     if (ev.kind === 'session') { location.href = '/?page=courses'; return }
-    if (ev.kind === 'card') { try { await api(`/api/col/cards/${ev.id}`, { method: 'PATCH', body: JSON.stringify({ col: 'done', doneAt: Date.now() }) }); load() } catch (e) { setStatus(e.message) } return }
+    if (ev.kind === 'card') { try { await api(`/api/col/cards/${ev.id}`, { method: 'PATCH', body: JSON.stringify({ col: 'done', doneAt: Date.now() }) }); await load() } catch (e) { setStatus(e.message) } return }
     try {
       const path = ev.kind === 'reminder' ? `/api/reminders/${rawId(ev.id)}` : `/api/tasks/${rawId(ev.id)}`
       await api(path, { method: 'PATCH', body: JSON.stringify({ done: !ev.done }) })
-      load()
+      await load()
     } catch (e) { setStatus(e.message) }
-  }
+  })
 
-  async function saveDialog(draft) {
+  const saveDialog = draft => taskRequests.run('dialog-save', async () => {
     if (!draft.title.trim()) { setStatus('عنوان را وارد کنید'); return }
     try {
       if (draft.kind === 'reminder') {
@@ -260,19 +263,19 @@ export function CalendarReact({ Nav }) {
         else await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) })
       }
       setDialog(null)
-      load()
+      await load()
     } catch (e) { setStatus(e.message) }
-  }
+  })
 
-  async function deleteDialog(draft) {
+  const deleteDialog = draft => taskRequests.run('dialog-save', async () => {
     if (!draft?.id || draft.kind === 'google') return
     try {
       const path = draft.kind === 'reminder' ? `/api/reminders/${rawId(draft.id)}` : `/api/tasks/${rawId(draft.id)}`
       await api(path, { method: 'DELETE' })
       setDialog(null)
-      load()
+      await load()
     } catch (e) { setStatus(e.message) }
-  }
+  })
 
   const openNew = (day = selected, time = '') => setDialog({ id: 'new', title: '', date: day, time, kind: 'task', priority: 'medium', recurrence: '', notes: '' })
   const openEdit = (ev) => {

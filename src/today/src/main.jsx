@@ -1,3 +1,4 @@
+import { createTaskRequestState } from './task-request-state.mjs';
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './today.css';
@@ -297,13 +298,16 @@ function HomePage() {
   const [feed, setFeed] = useState([]);
   const [scheduleNote, setScheduleNote] = useState('');
 
+  const [taskRequests] = useState(createTaskRequestState);
   const load = async () => {
+    const request = taskRequests.beginRead();
     try {
       const [me, dashboard, tasks, reminders] = await Promise.all([
         api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=${addDaysIso(today, -30)}&to=${addDaysIso(today, 7)}`)
       ]);
+      if (!taskRequests.isCurrent(request)) return;
       setData({ ...dashboard, tasks: tasks.items || [], reminders: reminders.items || [], user: me.user || null });
-    } catch (error) { setNotice(error.message); }
+    } catch (error) { if (taskRequests.isCurrent(request)) setNotice(error.message); }
   };
   useEffect(() => { load(); }, []);
   const loadStreak = () => {
@@ -336,19 +340,27 @@ function HomePage() {
   const pDue = useProjectDue(modOn(mods, 'projects'));
   const [ticked, setTicked] = useState(() => { const t = readLs('lifeos-ticked', null); return t && t.date === isoToday() ? t.ids : []; });
   const markTicked = id => setTicked(ids => { const next = ids.includes(id) ? ids : [...ids, id]; writeLs('lifeos-ticked', { date: isoToday(), ids: next }); return next; });
-  const toggleTask = async task => { markTicked('t' + task.id); await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }); load(); };
-  const toggleReminder = async reminder => { markTicked('r' + reminder.id); await api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) }); load(); };
+  const toggleAgendaItem = (kind, item) => taskRequests.run(`task:${kind === 'reminders' && item.taskId ? item.taskId : item.id}`, async () => {
+    try {
+      await api(`/api/${kind}/${item.id}`, { method: 'PATCH', body: JSON.stringify({ done: !item.done }) });
+      markTicked((kind === 'tasks' ? 't' : 'r') + item.id);
+      // Keep the linked row visible too when an old task/reminder was checked today.
+      if (kind === 'tasks') for (const r of data.reminders.filter(r => r.taskId === item.id)) markTicked('r' + r.id);
+      else if (item.taskId) markTicked('t' + item.taskId);
+      await load();
+    } catch (error) { setNotice(error.message); }
+  });
+  const toggleTask = task => toggleAgendaItem('tasks', task);
+  const toggleReminder = reminder => toggleAgendaItem('reminders', reminder);
   const removeAgendaItem = async item => {
     const label = item.kind === 'task' ? 'کار' : 'یادآوری';
     if (!window.confirm(`حذف ${label} «${item.title}»؟`)) return;
-    try {
-      await api(`/api/${item.kind === 'task' ? 'tasks' : 'reminders'}/${item.id}`, { method: 'DELETE' });
-      if (item.kind === 'task') {
-        const linked = data.reminders.filter(r => r.taskId === item.id);
-        for (const r of linked) await api(`/api/reminders/${r.id}`, { method: 'DELETE' });
-      }
-      await load();
-    } catch (error) { setNotice(error.message); await load(); }
+    await taskRequests.run(`task:${item.kind === 'reminder' && item.raw.taskId ? item.raw.taskId : item.id}`, async () => {
+      try {
+        await api(`/api/${item.kind === 'task' ? 'tasks' : 'reminders'}/${item.id}`, { method: 'DELETE' });
+        await load();
+      } catch (error) { setNotice(error.message); await load(); }
+    });
   };
   const quickDate = () => quick.when === 'tomorrow' ? addDaysIso(today, 1) : quick.when === 'pick' && quick.date ? quick.date : today;
   const submitQuick = async event => {
@@ -362,7 +374,10 @@ function HomePage() {
       : quick.type === 'reminder' ? { title, date, time, whenLabel: date } : { title, date, startTime: time, priority: 'medium' };
     const endpoint = quick.type === 'transaction' ? '/api/transactions' : quick.type === 'reminder' ? '/api/reminders' : '/api/tasks';
     try {
-      await api(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+      await taskRequests.run('quick-create', async () => {
+        await api(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+        await load();
+      });
       setQuick(q => ({ ...q, title: '', amount: '', time: '' }));
       setNotice(date === today ? 'با موفقیت ثبت شد.' : `برای ${jalaliDayLabel(date)} ثبت شد.`); load();
     } catch (error) { setNotice(error.message); }
@@ -379,8 +394,8 @@ function HomePage() {
     if (!on && mitList.length >= 3) { setNotice('فقط سه کار مهم برای هر روز — اول یکی را بردار.'); return; }
     try { await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ mit: on ? '' : today }) }); load(); } catch (error) { setNotice(error.message); }
   };
-  const saveEdit = async body => { try { await savePlannerItem(editItem.kind, body, editItem.initial); setEditItem(null); setNotice('تغییرات ذخیره شد ✓'); load(); } catch (error) { setNotice(error.message); } };
-  const saveDrawer = async body => { try { await createPlannerItem(drawerKind, body); setDrawerKind(null); setNotice('ثبت شد ✓'); load(); } catch (error) { setNotice(error.message); } };
+  const saveEdit = body => taskRequests.run('drawer-save', async () => { try { await savePlannerItem(editItem.kind, body, editItem.initial); setEditItem(null); setNotice('تغییرات ذخیره شد ✓'); await load(); } catch (error) { if (error.recordSaved) { setEditItem(null); await load(); } setNotice(error.message); } });
+  const saveDrawer = body => taskRequests.run('drawer-save', async () => { try { await createPlannerItem(drawerKind, body); setDrawerKind(null); setNotice('ثبت شد ✓'); await load(); } catch (error) { if (error.recordSaved) { setDrawerKind(null); await load(); } setNotice(error.message); } });
   const saveDaily = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api('/api/daily', { method: 'PUT', body: JSON.stringify({ date: today, mood: Number(form.get('mood')), sleep: form.get('sleep'), note: form.get('note'), bestMoment: form.get('bestMoment'), gratitude: form.get('gratitude'), tomorrowPlan: data.daily?.tomorrowPlan || '' }) }); setNotice('ثبت روزانه ذخیره شد.'); loadStreak(); load(); } catch (error) { setNotice(error.message); } };
   const allTasks = data.tasks.filter(t => !t.isReminder);
   const mitList = allTasks.filter(t => t.mit === today);
@@ -468,7 +483,8 @@ function HomePage() {
               <div className="list">{items.map(item => {
                 const late = !item.done && item.late;
                 const later = item.date && item.date > today, tmr = item.date === addDaysIso(today, 1);
-                const when = late ? `⛔ ${lateLabel(item.date)}` : later ? `${tmr ? 'فردا' : jalaliDayLabel(item.date)}${item.time ? ' · ' + faDigits(item.time) : ''}` : item.time ? faDigits(item.time) : !item.date ? 'بی‌تاریخ' : item.date === today ? 'امروز' : jalaliDayLabel(item.date);
+                const dateLabel = late ? `⛔ ${lateLabel(item.date)}` : later ? (tmr ? 'فردا' : jalaliDayLabel(item.date)) : !item.date ? 'بی‌تاریخ' : item.date === today ? 'امروز' : jalaliDayLabel(item.date);
+                const when = `${dateLabel}${item.time ? ' · ' + faDigits(item.time) : ''}`;
                 return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = item.href || '/?page=finance&tab=wealth') : item.pcard ? pDue.done(item.raw) : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
                   <i>{item.debt ? '⏰' : item.done ? '✓' : ''}</i><span>{item.pcard ? <><PChip c={item.raw} />{item.raw.prio === 'h' ? <em className="pc-hi">!</em> : null}</> : null}{item.title}{item.raw.recurrence ? <em className="ag-repeat" title={`تکرار ${{ daily: 'روزانه', weekly: 'هفتگی', monthly: 'ماهانه' }[item.raw.recurrence] || item.raw.recurrence}`}><Repeat size={12} />{{ daily: 'روزانه', weekly: 'هفتگی', monthly: 'ماهانه' }[item.raw.recurrence] || item.raw.recurrence}</em> : null}</span><small>{when}</small>
                 </button>{item.kind === 'task' && !item.debt && !item.pcard ? <button type="button" className={`ag-star ${item.raw.mit === today ? 'on' : ''}`} onClick={() => toggleMit(item.raw)} aria-label={item.raw.mit === today ? 'حذف از سه کار مهم' : 'افزودن به سه کار مهم'} title="سه کار مهم امروز">{item.raw.mit === today ? '★' : '☆'}</button> : null}{item.debt ? null : <button type="button" className="ag-edit" onClick={() => item.pcard ? (location.href = cardHref(item.raw)) : openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}{!item.debt && !item.pcard ? <button type="button" className="ag-edit ag-delete" onClick={() => removeAgendaItem(item)} aria-label={`حذف ${item.kind === 'task' ? 'کار' : 'یادآوری'} ${item.title}`} title="حذف"><Trash2 size={14} /></button> : null}</div>;

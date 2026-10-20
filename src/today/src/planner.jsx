@@ -1,3 +1,4 @@
+import { createTaskRequestState } from './task-request-state.mjs';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Bell, CalendarDays, Check, ChevronDown, CircleAlert, CircleDot, ClipboardList,
@@ -89,7 +90,7 @@ export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
     if (!open) return;
     if (initial) {
       setForm({
-        title: initial.task.title, notes: initial.task.notes || '', date: initial.task.date || today,
+        title: initial.task.title, notes: initial.task.notes || '', date: initial.task.date || '',
         startTime: initial.task.startTime || '', priority: initial.task.priority || 'medium',
         recurrence: initial.task.recurrence || '', tags: (initial.task.tags || []).join('، '),
         reminderOn: !!initial.reminder, reminderDate: initial.reminder?.date || initial.task.date || today, leadMinutes: Number(initial.reminder?.leadMinutes ?? initial.task.leadMinutes ?? 0),
@@ -114,10 +115,10 @@ export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
     setBusy(true);
     try {
       await onSubmit({
-        title: form.title.trim(), notes: form.notes, date: form.date || today,
+        title: form.title.trim(), notes: form.notes, date: form.date || '',
         startTime: form.startTime || null, priority: form.priority,
         recurrence: form.recurrence || null, tags: form.tags, reminderOn: form.reminderOn,
-        reminderDate: form.reminderDate, reminderTime: form.reminderTime, leadMinutes: Number(form.leadMinutes) || 0, loose: false, kind, files
+        reminderDate: form.reminderDate, reminderTime: form.reminderTime, leadMinutes: Number(form.leadMinutes) || 0, loose: kind === 'task' && !form.date, kind, files
       });
     } finally { setBusy(false); }
   };
@@ -135,7 +136,7 @@ export function TaskDrawer({ open, initial, kind, onClose, onSubmit }) {
           <div><label>عنوان <span className="req">*</span></label><input value={form.title} onChange={e => set('title', e.target.value)} placeholder="مثلاً ارسال گزارش هفتگی" autoFocus maxLength={220} />{err && <small className="plnr-err">{err}</small>}</div>
           <div><label>توضیحات</label><textarea rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="جزئیات بیشتر (اختیاری)" /></div>
           <div className="plnr-2col">
-            <div><label>سررسید <span>(خالی = امروز)</span></label><JalaliDateInput value={form.date} onChange={v => set('date', v)} /></div>
+            <div><label>سررسید <span>{kind === 'task' ? '(خالی = بی‌تاریخ)' : '(خالی = امروز)'}</span></label><JalaliDateInput value={form.date} onChange={v => set('date', v)} /></div>
             <div><label>ساعت</label><input type="time" value={form.startTime} onChange={e => set('startTime', e.target.value)} /></div>
           </div>
           <div className="plnr-att">
@@ -182,32 +183,45 @@ export async function uploadAttachments(ownerType, ownerId, files) {
 // Create a new task or reminder from TaskDrawer's body (used by the Today page too).
 export async function createPlannerItem(kind, body) {
   const today = isoToday();
+  let recordSaved = false;
+  try {
   if (kind === 'reminder') {
     const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+    recordSaved = true;
     if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
     return r;
   }
   const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
   const saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+  recordSaved = true;
   if (body.reminderOn && body.reminderDate) await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 }) });
   if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
   return saved;
+  } catch (error) {
+    if (recordSaved) { error.recordSaved = true; error.message = 'کار یا یادآوری ذخیره شد، اما بخشی از جزئیات ذخیره نشد: ' + error.message; }
+    throw error;
+  }
 }
 
 // Create or update a task / reminder (used by the planner and the home agenda card).
 export async function savePlannerItem(kind, body, editing) {
   const today = isoToday();
+  let recordSaved = false;
+  try {
   if (kind === 'reminder' && !editing) {
     const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+    recordSaved = true;
     if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
   } else if (kind === 'reminder' && editing?.task?._reminder) {
     await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+    recordSaved = true;
     if (body.files?.length) await uploadAttachments('reminder', editing.task.id, body.files);
   } else {
     const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
     let saved;
     if (editing) saved = await api(`/api/tasks/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
     else saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+    recordSaved = true;
     const existingReminder = editing?.reminder;
     if (body.reminderOn && body.reminderDate) {
       const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 };
@@ -215,6 +229,10 @@ export async function savePlannerItem(kind, body, editing) {
       else await api('/api/reminders', { method: 'POST', body: JSON.stringify(rBody) });
     } else if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'DELETE' });
     if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
+  }
+  } catch (error) {
+    if (recordSaved) { error.recordSaved = true; error.message = 'کار یا یادآوری ذخیره شد، اما بخشی از جزئیات ذخیره نشد: ' + error.message; }
+    throw error;
   }
 }
 
@@ -233,9 +251,13 @@ export function PlannerReact({ Nav }) {
   const [loading, setLoading] = useState(true);
 
   const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2600); };
-  const load = () => Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')])
-    .then(([taskData, reminderData]) => { setTasks(taskData.items || []); setReminders(reminderData.items || []); })
-    .catch(error => setNotice(error.message)).finally(() => setLoading(false));
+  const [taskRequests] = useState(createTaskRequestState);
+  const load = () => {
+    const request = taskRequests.beginRead();
+    return Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')])
+    .then(([taskData, reminderData]) => { if (!taskRequests.isCurrent(request)) return; setTasks(taskData.items || []); setReminders(reminderData.items || []); })
+    .catch(error => { if (taskRequests.isCurrent(request)) setNotice(error.message); }).finally(() => { if (taskRequests.isCurrent(request)) setLoading(false); });
+  };
   useEffect(() => { load(); }, []);
 
   const reminderByTask = useMemo(() => Object.fromEntries(reminders.filter(r => r.taskId).map(r => [r.taskId, r])), [reminders]);
@@ -279,35 +301,33 @@ export function PlannerReact({ Nav }) {
     return sorted;
   }, [source, filter, sort, query, reminderByTask, kind]);
 
-  const submit = async body => {
+  const submit = body => taskRequests.run('drawer-save', async () => {
     try {
       await savePlannerItem(kind, body, editing);
       setDrawerOpen(false); setEditing(null); flash(editing ? 'تغییرات ذخیره شد ✓' : 'ثبت شد ✓'); load();
-    } catch (error) { flash(error.message); }
-  };
+    } catch (error) { if (error.recordSaved) { setDrawerOpen(false); setEditing(null); await load(); } flash(error.message); }
+  });
 
-  const toggle = async task => {
+  const toggle = task => taskRequests.run(`tick:${task.id}`, async () => {
     try {
       if (task._reminder) await api(`/api/reminders/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
       else {
         await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
-        const r = reminderByTask[task.id]; if (r) await api(`/api/reminders/${r.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
       }
-      flash(!task.done && task.recurrence ? 'انجام شد؛ نمونهٔ بعدی ساخته شد ✓' : !task.done ? 'انجام شد ✓' : 'دوباره باز شد');
-      load();
+      flash(!task.done && task.recurrence ? 'انجام شد؛ تکرار فعال است ✓' : !task.done ? 'انجام شد ✓' : 'دوباره باز شد');
+      await load();
     } catch (error) { flash(error.message); }
-  };
+  });
 
-  const remove = async task => {
+  const remove = task => taskRequests.run(`tick:${task.id}`, async () => {
     try {
       if (task._reminder) await api(`/api/reminders/${task.id}`, { method: 'DELETE' });
       else {
         await api(`/api/tasks/${task.id}`, { method: 'DELETE' });
-        const r = reminderByTask[task.id]; if (r) await api(`/api/reminders/${r.id}`, { method: 'DELETE' });
       }
-      setDeleting(null); flash('حذف شد.'); load();
+      setDeleting(null); flash('حذف شد.'); await load();
     } catch (error) { flash(error.message); }
-  };
+  });
 
   const openCreate = () => { setEditing(null); setDrawerOpen(true); };
   const openEdit = task => { setEditing({ task, reminder: reminderByTask[task.id] || null }); setDrawerOpen(true); };
