@@ -87,14 +87,22 @@ const { loadWorkerModule } = require('./load-worker');
   const kmSpanExpr = lifeSource.match(/const kmSpan = ([^,]+), cons = ([^;]+);/);
   const consumption = new Function('fuel', 'const kmSpan = ' + kmSpanExpr[1] + '; return (' + kmSpanExpr[2] + ')')([{ liters: 20, odometer: 1000 }, { liters: 30, odometer: 1000 }]);
   ok(consumption === null, 'A16: equal odometers give no fuel consumption instead of Infinity');
-  const courseSource = fs.readFileSync('src/today/src/courses.jsx', 'utf8');
-  const receipts = [], paymentMessages = [];
-  const addPayment = new Function('api', 'cur', 'KIND', 'rid', 'students', 'setReceipt', 'flash', 'rial',
-    between(courseSource, '  const finTx = async (st, p) =>', '  const editPayment =') + '; return addPayment;')(
-      async () => ({ id: 'finance-created' }), { name: 'audit' }, { deposit: 'deposit' }, () => 'fake-payment',
-      { patch: async () => undefined }, // useCol.patch resolves undefined after a failed save
-      x => receipts.push(x), x => paymentMessages.push(x), String);
-  await addPayment({ id: 'fake-student', name: 'audit', payments: [] }, { kind: 'deposit', amount: 100, date: '2026-10-20', toFinance: true });
-  ok(!receipts.length && !paymentMessages.length, 'A04: no receipt or success message when the student save failed');
+  // A04: student payment and its finance row change in one server write; add is idempotent by payment id.
+  const stu = await post('col/students', { name: 'audit student', fee: 1000 });
+  const txCount = async () => (await call('transactions?from=2026-01-01&to=2026-12-31')).data.items.filter(x => x.title === 'audit payment').length;
+  const pay = { id: 'pay-audit-1', kind: 'deposit', amount: 100, date: '2026-10-20', toFinance: true };
+  const r1 = await call('courses/payment', 'POST', { op: 'add', studentId: stu.id, payment: pay, financeTitle: 'audit payment' });
+  const r2 = await call('courses/payment', 'POST', { op: 'add', studentId: stu.id, payment: pay, financeTitle: 'audit payment' });
+  ok(r1.status === 200 && r1.data.payment.txId && r2.data.duplicate === true && await txCount() === 1, 'A04: a retried payment does not create a second finance row');
+  ok((await call('col/students')).data.items.find(x => x.id === stu.id).payments.length === 1, 'A04: the student has exactly one payment after a retry');
+  const r3 = await call('courses/payment', 'POST', { op: 'edit', studentId: stu.id, payment: { ...pay, amount: 250 }, financeTitle: 'audit payment' });
+  ok(r3.data.payment.amount === 250 && r3.data.payment.txId === r1.data.payment.txId, 'A04: editing updates the same finance row');
+  ok((await call('courses/payment', 'POST', { op: 'add', studentId: stu.id, payment: { ...pay, id: 'x2', amount: -5 } })).status === 400, 'A04: an invalid amount is rejected before anything is written');
+  ok((await call('courses/payment', 'POST', { op: 'add', studentId: stu.id, payment: { ...pay, id: 'x3' } }, 'other-session')).status === 404, 'A04: another user cannot add a payment');
+  await call('courses/payment', 'POST', { op: 'delete', studentId: stu.id, payment: { id: pay.id } });
+  ok(await txCount() === 0 && !(await call('col/students')).data.items.find(x => x.id === stu.id).payments.length, 'A04: deleting removes the payment and its finance row together');
+  // A14 (server side): a second create for the same health day merges into the existing row.
+  const h1 = await call('col/health', 'POST', { date: '2026-11-01', water: 1 }), h2 = await call('col/health', 'POST', { date: '2026-11-01', water: 2 });
+  ok(h1.status === 201 && h2.status === 200 && h2.data.id === h1.data.id && (await call('col/health')).data.items.filter(x => x.date === '2026-11-01').length === 1, 'A14: only one health row per day, even for two creates');
   console.log('Sidebar audit acceptance: ' + checks + ' checks passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

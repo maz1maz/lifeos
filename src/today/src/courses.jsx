@@ -171,33 +171,25 @@ export function CoursesPage({ Nav }) {
   const inst = v => (v.plan || 'installment') === 'installment';
   const sFields = [{ k: 'name', l: 'نام و نام خانوادگی', req: true }, { k: 'phone', l: 'شماره تماس', half: true, ph: '۰۹۱۲…' }, { k: 'fee', l: 'شهریه (ریال)', t: 'money', half: true, hint: 'برای تخفیف تغییر بده' }, { k: 'plan', l: 'نوع پرداخت', t: 'sel', o: PLAN, def: 'installment', half: true }, ...(sEdit && !sEdit.id ? [{ k: 'deposit', l: 'بیعانه (ریال)', t: 'money', half: true, hint: 'اختیاری', show: inst }] : []), { k: 'dueDate', l: 'سررسید باقی‌مانده', t: 'date', half: true, show: inst }, { k: 'status', l: 'وضعیت', t: 'sel', o: [['active', 'فعال'], ['withdrawn', 'انصراف']], def: 'active', half: true }, { k: 'notes', l: 'توضیحات', t: 'area' }];
 
-  const finTx = async (st, p) => {
-    if (!p.toFinance) return null;
-    try { const r = await api('/api/transactions', { method: 'POST', body: JSON.stringify({ title: `${p.kind === 'refund' ? 'بازپرداخت' : KIND[p.kind]} شهریه · ${st.name} · ${cur.name}`, amount: p.amount, kind: p.kind === 'refund' ? 'expense' : 'income', category: 'آموزش', account: 'بدون حساب', date: p.date }) }); return r.id || null; } catch (e) { throw new Error('ثبت در مالی انجام نشد، پرداخت ذخیره نشد: ' + (e.message || 'خطای شبکه')); }
-  };
-  // a finance row that is already gone (404) counts as dropped; any other failure aborts so the two sides never diverge
-  const dropTx = async txId => { try { await api(`/api/transactions/${txId}`, { method: 'DELETE' }); } catch (e) { if (!/پیدا نشد/.test(e.message || '')) throw new Error('حذف از مالی انجام نشد، پرداخت تغییر نکرد: ' + (e.message || 'خطای شبکه')); } };
+  // one server call changes the student's payment list and its finance row together (add is idempotent by payment id)
+  const payTitle = (st, p) => `${p.kind === 'refund' ? 'بازپرداخت' : KIND[p.kind]} شهریه · ${st.name} · ${cur.name}`;
+  const payCall = (op, st, payment, p) => api('/api/courses/payment', { method: 'POST', body: JSON.stringify({ op, studentId: st.id, payment, financeTitle: p ? payTitle(st, p) : '' }) });
   const addPayment = async (st, p) => {
-    const txId = await finTx(st, p);
-    const payment = { id: rid(), kind: p.kind, amount: p.amount, date: p.date, method: p.method || '', note: p.note || '', txId };
-    const saved = await students.patch(st.id, { payments: [...(st.payments || []), payment] });
-    if (!saved) return; // the failed save stays in the retry bar (it carries txId, so a retry cannot duplicate the finance row)
-    setReceipt({ st: { ...st, payments: [...(st.payments || []), payment] }, p: payment });
-    flash(`${KIND[p.kind]} ${rial(p.amount)} برای ${st.name} ثبت شد${txId ? ' و در مالی هم آمد' : ''}.`);
+    const payment = { id: rid(), kind: p.kind, amount: p.amount, date: p.date, method: p.method || '', note: p.note || '', toFinance: !!p.toFinance };
+    let r;
+    try { r = await payCall('add', st, payment, p); } catch (e) { try { r = await payCall('add', st, payment, p); } catch (e2) { throw new Error('پرداخت ذخیره نشد: ' + (e2.message || 'خطای شبکه')); } }
+    await students.reload();
+    setReceipt({ st: r.student, p: r.payment });
+    flash(`${KIND[p.kind]} ${rial(p.amount)} برای ${st.name} ثبت شد${r.payment.txId ? ' و در مالی هم آمد' : ''}.`);
   };
   const editPayment = async (st, old, p) => {
-    let txId = old.txId || null;
-    const title = `${p.kind === 'refund' ? 'بازپرداخت' : KIND[p.kind]} شهریه · ${st.name} · ${cur.name}`;
-    if (txId && !p.toFinance) { await dropTx(txId); txId = null; }
-    else if (txId) { try { await api(`/api/transactions/${txId}`, { method: 'PATCH', body: JSON.stringify({ title, amount: p.amount, kind: p.kind === 'refund' ? 'expense' : 'income', date: p.date }) }); } catch (e) { if (!/پیدا نشد/.test(e.message || '')) throw new Error('ویرایش در مالی انجام نشد، پرداخت تغییر نکرد: ' + (e.message || 'خطای شبکه')); } }
-    else if (p.toFinance) txId = await finTx(st, p);
-    const saved = await students.patch(st.id, { payments: (st.payments || []).map(x => x.id === old.id ? { ...x, kind: p.kind, amount: p.amount, date: p.date, method: p.method || '', note: p.note || '', txId } : x) });
-    if (saved) flash('پرداخت ویرایش شد.');
+    await payCall('edit', st, { id: old.id, kind: p.kind, amount: p.amount, date: p.date, method: p.method || '', note: p.note || '', toFinance: !!p.toFinance }, p);
+    await students.reload();
+    flash('پرداخت ویرایش شد.');
   };
   const delPayment = async (st, p) => {
     if (!window.confirm(`این ${KIND[p.kind]} (${rial(p.amount)}) حذف شود؟${p.txId ? '\nتراکنش مربوط در مالی هم حذف می‌شود.' : ''}`)) return;
-    if (p.txId) { try { await dropTx(p.txId); } catch (e) { flash(e.message); return; } }
-    await students.patch(st.id, { payments: (st.payments || []).filter(x => x.id !== p.id) });
+    try { await payCall('delete', st, { id: p.id }); await students.reload(); } catch (e) { flash('حذف انجام نشد: ' + (e.message || 'خطای شبکه')); }
   };
   const saveStudent = async b => {
     const { deposit, ...body } = b, full = body.plan === 'full';
