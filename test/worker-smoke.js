@@ -409,6 +409,16 @@ async function main() {
   check('inbox -> 201 then convert -> 200', !!inbox.id && (await call(`/api/inbox/${inbox.id}/convert`, { method: 'POST', cookie, body: { type: 'task' } })).status === 200);
   check('daily PUT/GET round-trip', (await call('/api/daily', { method: 'PUT', cookie, body: { date: today(), mood: 8, water: 500 } })).status === 200
     && (await call(`/api/daily?date=${today()}`, { cookie })).d.item.mood === 8);
+  {
+    const dd = '2026-01-05';
+    await call('/api/daily', { method: 'PUT', cookie, body: { date: dd, mood: 6, userId: 'evil', id: 'evil-id', hacked: 'x' } });
+    const it = (await call(`/api/daily?date=${dd}`, { cookie })).d.item;
+    check('daily PUT ignores userId/id/unknown fields', it && it.userId !== 'evil' && it.id !== 'evil-id' && it.hacked === undefined && it.mood === 6);
+    await call('/api/daily', { method: 'PUT', cookie, body: { date: dd, userId: 'evil', id: 'evil-id' } });
+    const it2 = (await call(`/api/daily?date=${dd}`, { cookie })).d.item;
+    check('daily PUT update keeps owner and id', it2 && it2.userId === it.userId && it2.id === it.id);
+    check('daily PUT rejects a bad date -> 400', (await call('/api/daily', { method: 'PUT', cookie, body: { date: 'zzz', mood: 1 } })).status === 400);
+  }
   const t0 = await call('/api/timer/start', { method: 'POST', cookie, body: { title: 'w' } });
   check('timer start/stop', t0.status === 201 && (await call('/api/timer/stop', { method: 'POST', cookie, body: {} })).status === 200);
   const ex = (await call('/api/exercise', { method: 'POST', cookie, body: { type: 'run', minutes: 20 } })).d;
@@ -853,6 +863,14 @@ async function main() {
   const integ = await call('/api/integrations', { cookie });
   check('integrations shows telegram connected', integ.d.telegram.connected === true && integ.d.telegram.userId === '123456789');
   check('project report PDF -> 503 without bot token (no network)', (await call('/api/projects/report-pdf', { method: 'POST', cookie, body: { filename: 'r.pdf', data: 'data:application/pdf;base64,JVBERi0=' } })).status === 503);
+  {
+    const em2 = 'tg-steal-' + Date.now() + '@example.com';
+    const su2 = await call('/api/auth/signup', { method: 'POST', body: { name: 'Thief', email: em2, password: 'secret123' } });
+    const ck2 = (typeof su2.headers.getSetCookie === 'function' ? su2.headers.getSetCookie() : [su2.headers.get('set-cookie')])[0].split(';')[0];
+    const steal = await call('/api/me', { method: 'PATCH', cookie: ck2, body: { telegramUserId: '123456789' } });
+    check('telegram id of another account cannot be taken over -> 409', steal.status === 409);
+    check('victim stays linked after takeover attempt', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');
+  }
   check('unlink telegram -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } })).status === 200);
   check('spotify connect -> 503 (no creds, pre-network)', (await call('/api/integrations/spotify/connect', { cookie })).status === 503);
   check('youtube connect -> 503 (no creds, pre-network)', (await call('/api/integrations/youtube/connect', { cookie })).status === 503);
