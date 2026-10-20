@@ -9,6 +9,7 @@ export function validTaskDate(value) {
 export function taskInputError(data, { creating = false, reminder = false } = {}) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return 'اطلاعات معتبر نیست.';
   if ((creating || data.title !== undefined) && (typeof data.title !== 'string' || !data.title.trim())) return 'عنوان را وارد کنید.';
+  if (data._rowSave !== undefined && (!data._rowSave || !/^[a-zA-Z0-9-]{8,80}$/.test(data._rowSave.client || '') || !Number.isSafeInteger(data._rowSave.seq) || data._rowSave.seq < 1)) return 'شناسهٔ ذخیره معتبر نیست.';
   if (data.done !== undefined && typeof data.done !== 'boolean') return 'وضعیت انجام باید درست یا نادرست باشد.';
   if (data.recurrence !== undefined && data.recurrence !== null && data.recurrence !== '' && !['daily', 'weekly', 'monthly'].includes(data.recurrence)) return 'تکرار نامعتبر است.';
   if (data.date !== undefined && !(!reminder && data.date === '') && !validTaskDate(data.date)) return 'تاریخ معتبر نیست.';
@@ -94,4 +95,40 @@ export function deleteTaskTree(db, userId, taskId) {
 export function deleteReminder(db, userId, reminderId) {
   db.reminders = db.reminders.filter(r => !(r.userId === userId && r.id === reminderId));
   db.attachments = (db.attachments || []).filter(a => !(a.userId === userId && a.ownerType === 'reminder' && a.ownerId === reminderId));
+}
+// A replayed browser queue can overlap the old document's keepalive request.
+// Compare sequence numbers per browser tab, including during storage conflict merges.
+export function acceptRowSave(db, userId, row, kind, data) {
+  const meta = data._rowSave;
+  if (!meta) return true;
+  const task = kind === 'reminder' && row.taskId ? db.tasks.find(t => t.id === row.taskId && t.userId === userId) : kind === 'task' ? row : null;
+  const canonical = task || row;
+  if (Math.max(canonical._saveVersions?.[meta.client] || 0, row._saveVersions?.[meta.client] || 0) >= meta.seq) return false;
+  const fields = ['done', 'mit'].filter(k => data[k] !== undefined);
+  if (!fields.length) return true;
+  const stamp = (target, changed) => {
+    const versions = { ...(target._saveVersions || {}) };
+    delete versions[meta.client]; versions[meta.client] = meta.seq;
+    const keys = Object.keys(versions); for (const key of keys.slice(0, Math.max(0, keys.length - 32))) delete versions[key];
+    target._saveVersions = versions;
+    target._saveIntent = { ...meta, fields: changed };
+  };
+  stamp(canonical, fields);
+  if (task && data.done !== undefined) {
+    for (const r of db.reminders) if (r.userId === userId && r.taskId === task.id) stamp(r, ['done']);
+  } else if (row !== canonical) stamp(row, fields);
+  return true;
+}
+
+export function mergeRowSave(base, ours, theirs, out) {
+  const intent = ours._saveIntent;
+  if (!ours.id || !ours.userId || !intent || intent.seq <= (base._saveVersions?.[intent.client] || 0)) return out;
+  const source = (theirs._saveVersions?.[intent.client] || 0) >= intent.seq ? theirs : ours;
+  const fields = new Set(intent.fields || []);
+  if (fields.has('done')) for (const key of ['doneAt', 'notifiedAt', 'leadSentAt']) fields.add(key);
+  for (const key of fields) { if (source[key] === undefined) delete out[key]; else out[key] = source[key]; }
+  out._saveVersions = { ...(out._saveVersions || {}) };
+  for (const [client, seq] of Object.entries(theirs._saveVersions || {})) out._saveVersions[client] = Math.max(seq, out._saveVersions[client] || 0);
+  out._saveIntent = source._saveIntent;
+  return out;
 }

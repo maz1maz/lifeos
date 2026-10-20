@@ -1,4 +1,4 @@
-import { saveRow } from './rowsave';
+import { saveRow, recoverRowSaves } from './rowsave';
 import { createTaskRequestState } from './task-request-state.mjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -150,6 +150,8 @@ export function CalendarReact({ Nav }) {
     const request = taskRequests.beginRead()
     setLoading(true)
     try {
+      const recoveryErrors = await recoverRowSaves()
+      if (recoveryErrors.length) setStatus('بعضی تغییرها هنوز ذخیره نشده‌اند؛ اتصال را بررسی کن.')
       const data = await api(`/api/calendar/feed?from=${range.from}&to=${range.to}`)
       if (taskRequests.isCurrent(request) && !saving.current) setFeed(data)
     } catch (e) { if (taskRequests.isCurrent(request)) setStatus(e.message) }

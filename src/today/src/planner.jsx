@@ -7,7 +7,7 @@ import {
 import './planner.css';
 import { JalaliDateInput } from './jdate';
 import { useProjectDue, cardHref, PChip } from './pcards';
-import { saveRow } from './rowsave';
+import { saveRow, recoverRowSaves } from './rowsave';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -256,7 +256,7 @@ export function PlannerReact({ Nav }) {
   const justTicked = useRef(new Set());   // ids ticked in this visit: they keep their row until the page is reopened
   const stillDone = x => x.done && !justTicked.current.has((x._reminder ? 'r' : 't') + x.id);
   const saving = useRef(0), loadSeq = useRef(0);   // a reload landing during a save (or superseded) is dropped: quick ticks never flicker back
-  const load = () => { const seq = ++loadSeq.current; return Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')])
+  const load = () => { const seq = ++loadSeq.current; return recoverRowSaves().then(errors => { if (errors.length) setNotice('بعضی تغییرها هنوز ذخیره نشده‌اند؛ اتصال را بررسی کن.'); return Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')]); })
     .then(([taskData, reminderData]) => { if (seq !== loadSeq.current || saving.current) return; setTasks(taskData.items || []); setReminders(reminderData.items || []); })
     .catch(error => setNotice(error.message)).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);

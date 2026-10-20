@@ -1,4 +1,4 @@
-import { setReminderCompletion } from './task-state.js';
+import { setReminderCompletion, mergeRowSave } from './task-state.js';
 // makeHelpers(env): every helper the API routes use (auth/PBKDF2, Tehran/Jalali dates, bank-SMS and free-text
 // parsers, storage v2 on D1, Google Calendar, football, bets/poker, Telegram, AI…), closed over the Worker env.
 // Split out of worker.js in 2026-10; the code itself is unchanged.
@@ -152,7 +152,7 @@ export function makeHelpers(env) {
     }
     if(isObj(base)&&isObj(ours)&&isObj(theirs)){
       let out={};for(const k of new Set([...Object.keys(theirs),...Object.keys(ours),...Object.keys(base)])){let v=mergeState(base[k],ours[k],theirs[k]);if(v!==undefined)out[k]=v}
-      return out;
+      return mergeRowSave(base,ours,theirs,out);
     }
     return ours;
   }

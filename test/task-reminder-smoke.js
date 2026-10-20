@@ -230,6 +230,69 @@ async function main() {
     const rows = (await items('tasks')).filter(x => x.title === 'legacy daily');
     assert.equal(rows.length, 3); assert.equal(rows.find(x => x.id === 'legacy-original').recurrenceNextId, 'legacy-next-a');
   });
+  await test('queued unsent taps recover after reload and an older keepalive cannot undo the last tap', async () => {
+    const fs = require('node:fs'), path = require('node:path');
+    const source = fs.readFileSync(path.join(__dirname, '../src/today/src/rowsave.js'), 'utf8');
+    const state = new Map(), oldStorage = global.sessionStorage, originalFetch = global.fetch;
+    global.sessionStorage = { getItem: k => state.get(k) || null, setItem: (k, v) => state.set(k, v), removeItem: k => state.delete(k) };
+    const t = await create('tasks', { title: 'reload queue' });
+    const r = await create('reminders', { title: 'reload linked', taskId: t.id });
+    let oldResolve, oldRequest, entered;
+    const started = new Promise(resolve => { entered = resolve; });
+    let blockFirst = true;
+    global.fetch = async (url, options) => {
+      if (blockFirst) { blockFirst = false; oldRequest = { url, options }; entered(); return new Promise(resolve => { oldResolve = resolve; }); }
+      const res = await call(url.slice(5), options.method, JSON.parse(options.body));
+      return new Response(JSON.stringify(res.data), { status: res.status });
+    };
+    try {
+      const original = await import('data:text/javascript;base64,' + Buffer.from(source + '\n// document 1').toString('base64'));
+      const a = original.saveRow('t' + t.id, '/api/tasks/' + t.id, { done: true });
+      const b = original.saveRow('t' + t.id, '/api/tasks/' + t.id, { done: false });
+      await started;
+      assert.equal(JSON.parse(state.get('lifeos-row-outbox-v1')).length, 2);
+      const reloaded = await import('data:text/javascript;base64,' + Buffer.from(source + '\n// document 2').toString('base64'));
+      assert.deepEqual(await reloaded.recoverRowSaves(), []);
+      assert.equal((await items('tasks')).find(x => x.id === t.id).done, false);
+      assert.equal((await items('reminders')).find(x => x.id === r.id).done, false);
+      // The old document's request arrives after both recovered saves.
+      const late = await call(oldRequest.url.slice(5), 'PATCH', JSON.parse(oldRequest.options.body));
+      oldResolve(new Response(JSON.stringify(late.data), { status: late.status }));
+      await Promise.all([a, b]);
+      assert.equal((await items('tasks')).find(x => x.id === t.id).done, false);
+      assert.equal(state.has('lifeos-row-outbox-v1'), false);
+    } finally { global.fetch = originalFetch; if (oldStorage === undefined) delete global.sessionStorage; else global.sessionStorage = oldStorage; }
+  });
+  await test('save clocks preserve last intent during D1 conflicts even when its value equals the original', async () => {
+    const fs = require('node:fs'), path = require('node:path');
+    const source = fs.readFileSync(path.join(__dirname, '../cloudflare/lib/task-state.js'), 'utf8');
+    const { acceptRowSave, setTaskCompletion } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+    for (const olderFirst of [true, false]) {
+      const t = await create('tasks', { title: 'merge clock ' + olderFirst });
+      const r = await create('reminders', { title: 'merge clock reminder', taskId: t.id });
+      const a = makeHelpers(env), b = makeHelpers(env), db1 = await a.read(), db2 = await b.read();
+      for (const [db, seq, done] of [[db1, 1, true], [db2, 2, false]]) {
+        const row = db.tasks.find(x => x.id === t.id);
+        assert.ok(acceptRowSave(db, 'u1', row, 'task', { done, _rowSave: { client: 'merge-client', seq } }));
+        setTaskCompletion(db, 'u1', row, done, { today: () => '2026-10-20', label: d => d });
+      }
+      if (olderFirst) { await a.write(db1); await b.write(db2); } else { await b.write(db2); await a.write(db1); }
+      const loaded = await makeHelpers(env).read();
+      assert.equal(loaded.tasks.find(x => x.id === t.id).done, false);
+      assert.equal(loaded.reminders.find(x => x.id === r.id).done, false);
+      assert.equal(loaded.tasks.find(x => x.id === t.id)._saveVersions['merge-client'], 2);
+    }
+  });
+  await test('stale linked-reminder writes are ignored while another browser can still save', async () => {
+    const t = await create('tasks', { title: 'linked save clock' });
+    const r = await create('reminders', { title: 'linked save clock reminder', taskId: t.id });
+    await patch('tasks', t, { done: true, _rowSave: { client: 'browser-one', seq: 2 } });
+    await patch('reminders', r, { done: false, _rowSave: { client: 'browser-one', seq: 1 } });
+    assert.ok((await items('tasks')).find(x => x.id === t.id).done);
+    await patch('reminders', r, { done: false, _rowSave: { client: 'browser-two', seq: 1 } });
+    assert.equal((await items('tasks')).find(x => x.id === t.id).done, false);
+    assert.equal((await call('tasks/' + t.id, 'PATCH', { done: true, _rowSave: { client: 'x', seq: '2' } })).status, 400);
+  });
   console.log(`Task/reminder audit: ${pass} passed, ${fail} failed`);
   process.exitCode = fail ? 1 : 0;
 }

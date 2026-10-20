@@ -44,7 +44,7 @@ import { InsightsHomeCard } from './insights-card';
 import { CommandPalette, flushOutbox } from './palette';
 import { api, isoToday, fa, faDigits, JALALI_MONTHS, WEEKDAYS, iso, fromIso, jdiv, jmod, jalCal, g2d, d2g, j2d, d2j, toJalali, toGregorian, jalaliMonthLength, addDays, sameDate, weekdayIndex, eventOnDate, eventLabel, seasonAiredCount, seasonTotalCount, seriesHasFresh, nextToWatch, watchLabel, waitingNewSeason, episodesWatchedCount, seriesAiredTotal, SERIES_TABS, seriesInTab, SHOW_STATUS_FA, readDataUrl, jalaliDayLabel } from './main-util';
 import { MsgBar } from './msgbar';
-import { saveRow } from './rowsave';
+import { saveRow, recoverRowSaves, clearPendingRowSaves } from './rowsave';
 import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import './life.css';
@@ -308,6 +308,8 @@ function HomePage() {
   const [loaded, setLoaded] = useState(false), retries = useRef(0);
   const load = async () => {
     const seq = ++loadSeq.current;
+    const recoveryErrors = await recoverRowSaves();
+    if (recoveryErrors.length) setNotice('بعضی تغییرها هنوز ذخیره نشده‌اند؛ اتصال را بررسی کن.');
     const res = await Promise.allSettled([
       api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=${addDaysIso(today, -30)}&to=${addDaysIso(today, 7)}`)
     ]);
@@ -1808,6 +1810,7 @@ setTimeout(() => flushOutbox(), 1500); // captures queued offline in an earlier 
 
 // Sign out: end the session, then drop this device's cached API data and per-account preferences.
 async function signOut() {
+  clearPendingRowSaves();
   try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
   try { const keys = await caches.keys(); await Promise.all(keys.filter(k => k.endsWith('-data')).map(k => caches.delete(k))); } catch {}
   try { ['lifeos-modules', 'lifeos-locks', 'lifeos-is-admin', 'lifeos-outbox'].forEach(k => localStorage.removeItem(k)); sessionStorage.clear(); } catch {}
