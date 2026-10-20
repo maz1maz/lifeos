@@ -222,7 +222,6 @@ export function CoursesPage({ Nav }) {
   const sesList = cur ? courseSessions(cur) : [];
   const nextSes = sesList.find(x => x.date >= todayIso());
   return <Page Nav={Nav} className="wide" kicker="کار" title="دوره‌ها و دانشجوها" sub="شهریه، پرداخت‌ها، سررسیدها و حضور و غیاب هر دوره" actions={<button className="lf-btn" onClick={() => setCEdit({})}>＋ دورهٔ تازه</button>}>
-    <SaveErrorBar />
     {courses.items === null ? <p className="lf-empty">در حال دریافت…</p> : !list.length ? <p className="lf-empty">هنوز دوره‌ای نساختی. با «＋ دورهٔ تازه» شروع کن؛ هر دوره لیست دانشجوها و حساب شهریهٔ خودش را دارد.</p> : <>
       <SideLayout storageKey="lifeos-course-side" title="دوره‌ها" selected={cur?.id} onPick={pick} tabs={[['active', 'فعال'], ['done', 'تمام‌شده']]}
         items={list.map(c => { const sm = courseSum(c), pct = sm.fee ? Math.round(sm.paid / sm.fee * 100) : 0, col = c.color || xcAuto(c.id); return { id: c.id, name: c.name, color: CS_HEX[col] || CS_HEX.graphite, dim: !sm.n, group: c.status === 'done' ? 'done' : 'active', bar: [{ flex: Math.max(pct, 0.001), color: '#34d399' }, { flex: Math.max(100 - pct, 0.001), color: 'transparent' }], sub: `${fa(pct)}٪ وصول · ${fa(sm.n)} نفر${c.startDate ? ` · ${jShort(c.startDate)}` : ''}` }; })}>
