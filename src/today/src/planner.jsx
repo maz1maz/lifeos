@@ -187,7 +187,7 @@ export async function createPlannerItem(kind, body) {
   let recordSaved = false;
   try {
     if (kind === 'reminder') {
-      const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+      const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0, notes: body.notes || '' }) });
       recordSaved = true;
       if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
       return r;
@@ -210,11 +210,11 @@ export async function savePlannerItem(kind, body, editing) {
   let recordSaved = false;
   try {
     if (kind === 'reminder' && !editing) {
-      const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+      const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0, notes: body.notes || '' }) });
       recordSaved = true;
       if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
     } else if (kind === 'reminder' && editing?.task?._reminder) {
-      await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+      await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0, notes: body.notes || '' }) });
       recordSaved = true;
       if (body.files?.length) await uploadAttachments('reminder', editing.task.id, body.files);
     } else {

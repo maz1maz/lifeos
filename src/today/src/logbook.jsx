@@ -18,9 +18,11 @@ function DayStrip({ from, to }) {
   const [days, setDays] = useState(null), [hover, setHover] = useState(null);
   useEffect(() => {
     if (!from || !to) return;
+    let live = true;
     const months = [...new Set([from.slice(0, 7), to.slice(0, 7)])];
     Promise.all(months.map(m => api(`/api/reports?month=${m}`).then(x => x.days || []).catch(() => [])))
-      .then(all => setDays(all.flat().filter(x => x.date >= from && x.date <= to)));
+      .then(all => { if (live) setDays(all.flat().filter(x => x.date >= from && x.date <= to)); });
+    return () => { live = false; };
   }, [from, to]);
   if (!days) return null;
   if (!days.some(x => x.expense || x.mood)) return <p className="lb-muted">برای نمودار روزانه هنوز خرج یا حالی در این ماه ثبت نشده.</p>;
@@ -47,8 +49,10 @@ function MonthReview() {
   const [d, setD] = useState(null), [text, setText] = useState(''), [saved, setSaved] = useState('');
   const key = mKey(ym.jy, ym.jm);
   useEffect(() => {
+    let live = true;
     setD(null); setSaved('');
-    api(`/api/life-review?period=jmonthly&key=${key}`).then(x => { setD(x); setText(x.reflection || ''); }).catch(e => setD({ error: e.message }));
+    api(`/api/life-review?period=jmonthly&key=${key}`).then(x => { if (live) { setD(x); setText(x.reflection || ''); } }).catch(e => { if (live) setD({ error: e.message }); });
+    return () => { live = false; };
   }, [key]);
   const shift = n => setYm(({ jy, jm }) => { let m = jm + n, y = jy; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; } return { jy: y, jm: m }; });
   const isCur = ym.jy === t.jy && ym.jm === t.jm;

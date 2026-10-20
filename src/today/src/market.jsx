@@ -146,11 +146,15 @@ function ChangeBadge({ n }) {
   )
 }
 
+// Market clocks are read in each exchange's own time zone, not the browser's (holidays are not modelled).
+function zoneParts(now, timeZone) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now).map((x) => [x.type, x.value]))
+  return { day: p.weekday, minutes: Number(p.hour) * 60 + Number(p.minute) }
+}
 function marketHours(now) {
-  const hour = now.getHours()
-  const day = now.getDay()
-  const tehran = day !== 4 && day !== 5 && hour >= 9 && hour < 16
-  const us = day !== 5 && day !== 6 && (hour >= 18 || hour < 1)
+  const t = zoneParts(now, 'Asia/Tehran'), n = zoneParts(now, 'America/New_York')
+  const tehran = t.day !== 'Thu' && t.day !== 'Fri' && t.minutes >= 9 * 60 && t.minutes < 16 * 60
+  const us = n.day !== 'Sat' && n.day !== 'Sun' && n.minutes >= 9 * 60 + 30 && n.minutes < 16 * 60
   return { tehran, us }
 }
 
@@ -185,6 +189,7 @@ export function MarketReact({ Nav }) {
   const convAmt = Math.max(0, Number(ungroup(convIn)) || 0)
   const [convFrom, setConvFrom] = useState('USDT')
   const [alertTarget, setAlertTarget] = useState('')
+  const [alertErr, setAlertErr] = useState('')
 
   const flash = (m) => { setToast(m); window.setTimeout(() => setToast(''), 4200) }
 
@@ -295,8 +300,11 @@ export function MarketReact({ Nav }) {
   const openHist = (item) => { if (item.market === 'tehran') setSelected(item) }
 
   const saveAlert = () => {
-    const target = Number(String(alertTarget).replace(/,/g, ''))
-    if (!showAlert || !target) return
+    const latin = String(alertTarget).replace(/[۰-۹]/g, (c) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)).replace(/[٠-٩]/g, (c) => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/[,٬،\s]/g, '').replace(/[٫]/g, '.')
+    const target = Number(latin)
+    if (!showAlert) return
+    if (!(target > 0) || !isFinite(target)) { setAlertErr('قیمت هدف را به صورت عدد مثبت بنویس.'); return }
+    setAlertErr('')
     setAlerts((xs) => [...xs.filter((a) => a.id !== showAlert.id), { id: showAlert.id, name: showAlert.name, target, above: target >= (showAlert.price || 0) }])
     setShowAlert(null)
     setAlertTarget('')
@@ -459,7 +467,8 @@ export function MarketReact({ Nav }) {
             </header>
             <p style={{ margin: '0 0 10px', color: '#94a3b8', fontSize: 12 }}>وقتی قیمت به این عدد برسد در همین صفحه خبر می‌دهیم. روی سرور ذخیره نمی‌شود.</p>
             <label>قیمت هدف</label>
-            <input value={alertTarget} onChange={(e) => setAlertTarget(e.target.value)} />
+            <input value={alertTarget} onChange={(e) => { setAlertTarget(e.target.value); setAlertErr('') }} inputMode="decimal" />
+            {alertErr ? <p role="alert" style={{ margin: '6px 0 0', color: '#f87171', fontSize: 12 }}>{alertErr}</p> : null}
             <button type="button" className="mk-btn primary" style={{ width: '100%', marginTop: 14 }} onClick={saveAlert}>ثبت هشدار</button>
           </div>
         </div>
