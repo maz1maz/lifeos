@@ -1,10 +1,11 @@
+import { saveRow, recoverRowSaves } from './rowsave';
+import { createTaskRequestState } from './task-request-state.mjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bell, CalendarDays, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Grid3x3, LayoutGrid, List, Plus, Search, Trash2
 } from 'lucide-react'
 import './calendar.css'
 import { jalaliLabel } from './jalali.js'
-import { saveRow } from './rowsave'
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -143,13 +144,18 @@ export function CalendarReact({ Nav }) {
     return { from: days[0], to: days[41] }
   }, [view, cursor, days])
 
+  const [taskRequests] = useState(createTaskRequestState)
+  const saving = useRef(0)
   const load = useCallback(async () => {
+    const request = taskRequests.beginRead()
     setLoading(true)
     try {
+      const recoveryErrors = await recoverRowSaves()
+      if (recoveryErrors.length) setStatus('بعضی تغییرها هنوز ذخیره نشده‌اند؛ اتصال را بررسی کن.')
       const data = await api(`/api/calendar/feed?from=${range.from}&to=${range.to}`)
-      setFeed(data)
-    } catch (e) { setStatus(e.message) }
-    finally { setLoading(false) }
+      if (taskRequests.isCurrent(request) && !saving.current) setFeed(data)
+    } catch (e) { if (taskRequests.isCurrent(request)) setStatus(e.message) }
+    finally { if (taskRequests.isCurrent(request)) setLoading(false) }
   }, [range.from, range.to])
 
   useEffect(() => { load() }, [load])
@@ -240,14 +246,17 @@ export function CalendarReact({ Nav }) {
   async function toggleItem(ev) {
     if (ev.kind === 'google') return
     if (ev.kind === 'session') { location.href = '/?page=courses'; return }
-    if (ev.kind === 'card') { try { await api(`/api/col/cards/${ev.id}`, { method: 'PATCH', body: JSON.stringify({ col: 'done', doneAt: Date.now() }) }); load() } catch (e) { setStatus(e.message) } return }
-    // instant: the row flips now; the save goes in tap order (same keys as the today page) and the reload follows
+    if (ev.kind === 'card') { try { await api(`/api/col/cards/${ev.id}`, { method: 'PATCH', body: JSON.stringify({ col: 'done', doneAt: Date.now() }) }); await load() } catch (e) { setStatus(e.message) } return }
     const path = ev.kind === 'reminder' ? `/api/reminders/${rawId(ev.id)}` : `/api/tasks/${rawId(ev.id)}`
-    setFeed(f => ({ ...f, items: (f.items || []).map(x => x.id === ev.id ? { ...x, done: !ev.done } : x) }))
-    saveRow((ev.kind === 'reminder' ? 'r' : 't') + rawId(ev.id), path, { done: !ev.done }).then(() => load(), e => { setStatus('ذخیره نشد: ' + e.message); load() })
+    const taskId = ev.kind === 'task' ? rawId(ev.id) : ev.taskId
+    setFeed(f => ({ ...f, items: (f.items || []).map(x => x.id === ev.id || (taskId && (x.id === 'task:' + taskId || x.taskId === taskId)) ? { ...x, done: !ev.done } : x) }))
+    saving.current++
+    saveRow(taskId ? 't' + taskId : 'r' + rawId(ev.id), path, { done: !ev.done })
+      .catch(e => setStatus('ذخیره نشد: ' + e.message))
+      .finally(() => { saving.current--; if (!saving.current) load() })
   }
 
-  async function saveDialog(draft) {
+  const saveDialog = draft => taskRequests.run('dialog-save', async () => {
     if (!draft.title.trim()) { setStatus('عنوان را وارد کنید'); return }
     try {
       if (draft.kind === 'reminder') {
@@ -260,19 +269,19 @@ export function CalendarReact({ Nav }) {
         else await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) })
       }
       setDialog(null)
-      load()
+      await load()
     } catch (e) { setStatus(e.message) }
-  }
+  })
 
-  async function deleteDialog(draft) {
+  const deleteDialog = draft => taskRequests.run('dialog-save', async () => {
     if (!draft?.id || draft.kind === 'google') return
     try {
       const path = draft.kind === 'reminder' ? `/api/reminders/${rawId(draft.id)}` : `/api/tasks/${rawId(draft.id)}`
       await api(path, { method: 'DELETE' })
       setDialog(null)
-      load()
+      await load()
     } catch (e) { setStatus(e.message) }
-  }
+  })
 
   const openNew = (day = selected, time = '') => setDialog({ id: 'new', title: '', date: day, time, kind: 'task', priority: 'medium', recurrence: '', notes: '' })
   const openEdit = (ev) => {
@@ -349,8 +358,10 @@ export function CalendarReact({ Nav }) {
             <b>تقویم شمسی و میلادی با یادداشت و یادآوری</b>
             <span>N رویداد تازه · T امروز · ← → جابه‌جایی</span>
           </div>
-          <h1>{titleLine}</h1>
-          <p className="sub">{subLine}</p>
+          <div className="cal-titles">
+            <h1>{titleLine}</h1>
+            <p className="sub">{subLine}</p>
+          </div>
           <dl className="cal-stats">
             <div><dt>رویداد این بازه</dt><dd className="c1">{faNum(monthStats.events)}</dd></div>
             <div><dt>کار ثبت‌شده</dt><dd className="c2">{faNum(monthStats.tasks)}</dd></div>
@@ -416,7 +427,7 @@ export function CalendarReact({ Nav }) {
               {filters.occasion ? selOcc.map((o) => <div key={o.title} className="cal-item" style={{ borderRightColor: '#e2574c' }}><b>{o.title}</b><small>مناسبت</small></div>) : null}
               {selectedItems.map((ev) => (
                 <div key={`${ev.kind}-${ev.id}`} className={`cal-item ${ev.kind || 'google'}${ev.done ? ' done' : ''}`}>
-                  {ev.kind !== 'google' ? <button type="button" className={`cal-check${ev.done ? ' on' : ''}`} onClick={() => toggleItem(ev)}><svg className="uv-tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.1 12.7 9 17.6 20.3 6.3" /></svg></button> : null}
+                  {ev.kind !== 'google' ? <button type="button" role="checkbox" aria-checked={!!ev.done} aria-label={`${ev.done ? 'بازکردن دوباره' : 'انجام شد'}: ${ev.title}`} className={`cal-check${ev.done ? ' on' : ''}`} onClick={() => toggleItem(ev)}><svg className="uv-tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.1 12.7 9 17.6 20.3 6.3" /></svg></button> : null}
                   <button type="button" style={{ flex: 1, background: 'none', border: 0, color: 'inherit', textAlign: 'right', cursor: 'pointer' }} onClick={() => openEdit(ev)}>
                     <b>{ev.title}</b>
                     <small>{KIND_LABEL[ev.kind || 'google']}{ev.time ? ` · ${faNum(ev.time)}` : ' · تمام‌روز'}{ev.calendarName ? ` · ${ev.calendarName}` : ''}</small>

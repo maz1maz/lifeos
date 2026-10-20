@@ -230,3 +230,15 @@ html[data-mode="light"] select option,html[data-mode="light"] select optgroup{ba
 .wt-sub{display:block;color:var(--g-muted);font-size:12.5px;line-height:1.8}
 .ew-bar{height:8px;border-radius:4px;background:color-mix(in srgb,var(--g-text) 10%,transparent);overflow:hidden;margin-bottom:8px}
 .ew-bar i{display:block;height:100%;background:var(--g-accent);border-radius:4px;transition:width .4s}
+
+/* calendar header: one compact row (title + subtitle on the right, stat chips on the left) instead of a tall half-empty card */
+.cal-hero{padding:0!important}
+.cal-hero .cal-wrap{display:flex;align-items:center;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;padding:14px 22px!important}
+.cal-hero .cal-titles{min-width:0}
+.cal-hero h1{margin:0!important;font-size:clamp(22px,2vw,28px)!important}
+.cal-hero .sub{margin:2px 0 0!important;font-style:normal!important;font-size:13px!important}
+.cal-stats{margin:0!important;gap:8px!important;flex-wrap:wrap}
+.cal-stats>div{display:flex;align-items:baseline;gap:8px;padding:6px 14px;border:1px solid var(--g-border);border-radius:999px;background:rgba(255,255,255,.03)}
+.cal-stats dt{font-size:12px!important;letter-spacing:0!important;color:var(--g-muted)!important}
+.cal-stats dd{margin:0!important;font-size:18px!important;line-height:1}
+@media (max-width:640px){.cal-hero .cal-wrap{padding:12px 14px!important}.cal-stats>div{padding:5px 10px}}
