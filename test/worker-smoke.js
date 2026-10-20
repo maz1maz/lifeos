@@ -419,6 +419,30 @@ async function main() {
     check('daily PUT update keeps owner and id', it2 && it2.userId === it.userId && it2.id === it.id);
     check('daily PUT rejects a bad date -> 400', (await call('/api/daily', { method: 'PUT', cookie, body: { date: 'zzz', mood: 1 } })).status === 400);
   }
+  {
+    const acN = 'حساب-تغییرنام-' + Date.now();
+    const acc = (await call('/api/accounts', { method: 'POST', cookie, body: { name: acN, openingBalance: 1000 } })).d;
+    await call('/api/transactions', { method: 'POST', cookie, body: { title: 'x', amount: 200, kind: 'expense', account: acN } });
+    const bal = async n => ((await call('/api/accounts', { cookie })).d.accounts.find(a => a.name === n) || {}).balance;
+    check('account balance before rename', await bal(acN) === 800);
+    await call(`/api/accounts/${acc.id}`, { method: 'PATCH', cookie, body: { name: acN + '-نو' } });
+    check('rename keeps the balance (transactions follow the new name)', await bal(acN + '-نو') === 800);
+    check('rename to empty -> 400', (await call(`/api/accounts/${acc.id}`, { method: 'PATCH', cookie, body: { name: '  ' } })).status === 400);
+    check('negative expense amount -> 400', (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'neg', amount: -50, kind: 'expense' } })).status === 400);
+    check('bad date -> 400', (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'd', amount: 5, date: 'abc' } })).status === 400);
+    const rm = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'rn', date: today(), notes: 'توضیح ۱' } })).d;
+    check('reminder keeps notes on create', rm.notes === 'توضیح ۱');
+    await call(`/api/reminders/${rm.id}`, { method: 'PATCH', cookie, body: { notes: 'توضیح ۲' } });
+    check('reminder notes update', (await call(`/api/reminders?date=${today()}`, { cookie })).d.items.find(x => x.id === rm.id).notes === 'توضیح ۲');
+    const cu = (await call('/api/col/customers', { method: 'POST', cookie, body: { name: 'مشتری' } })).d;
+    await call('/api/col/deals', { method: 'POST', cookie, body: { title: 'معامله', customerId: cu.id } });
+    check('customer with deals cannot be deleted -> 409', (await call(`/api/col/customers/${cu.id}`, { method: 'DELETE', cookie })).status === 409);
+    const ve = (await call('/api/col/vehicles', { method: 'POST', cookie, body: { name: 'خودرو' } })).d;
+    await call('/api/col/carlogs', { method: 'POST', cookie, body: { vehicleId: ve.id, type: 'fuel', amount: 10 } });
+    check('vehicle with logs cannot be deleted -> 409', (await call(`/api/col/vehicles/${ve.id}`, { method: 'DELETE', cookie })).status === 409);
+    const ve2 = (await call('/api/col/vehicles', { method: 'POST', cookie, body: { name: 'خودرو۲' } })).d;
+    check('vehicle without logs deletes fine', (await call(`/api/col/vehicles/${ve2.id}`, { method: 'DELETE', cookie })).status === 200);
+  }
   const t0 = await call('/api/timer/start', { method: 'POST', cookie, body: { title: 'w' } });
   check('timer start/stop', t0.status === 201 && (await call('/api/timer/stop', { method: 'POST', cookie, body: {} })).status === 200);
   const ex = (await call('/api/exercise', { method: 'POST', cookie, body: { type: 'run', minutes: 20 } })).d;
