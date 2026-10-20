@@ -311,7 +311,7 @@ function HomePage() {
     const recoveryErrors = await recoverRowSaves();
     if (recoveryErrors.length) setNotice('بعضی تغییرها هنوز ذخیره نشده‌اند؛ اتصال را بررسی کن.');
     const res = await Promise.allSettled([
-      api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=${addDaysIso(today, -30)}&to=${addDaysIso(today, 7)}`)
+      api('/api/me'), api(`/api/dashboard?date=${today}`), api('/api/tasks'), api(`/api/reminders?from=0000-01-01&to=${addDaysIso(today, 7)}`)
     ]);
     if (seq !== loadSeq.current || saving.current) return;
     const [me, dashboard, tasks, reminders] = res.map(r => r.status === 'fulfilled' ? r.value : null);

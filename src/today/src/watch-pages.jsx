@@ -340,12 +340,10 @@ function SeriesDetail({ item, onClose, flash }) {
   const markSeason = async season => {
     const aired = (episodes || []).filter(e => e.season === season && e.aired);
     const maxNum = aired.length ? Math.max(...aired.map(e => e.number)) : seasonAiredCount(row, season);
-    await patch({ currentSeason: season, currentEpisode: maxNum });
-    flash(`فصل ${fa(season)} دیده شد ✓`);
+    if (await patch({ currentSeason: season, currentEpisode: maxNum })) flash(`فصل ${fa(season)} دیده شد ✓`);
   };
   const clearSeason = async season => {
-    await patch({ currentSeason: season, currentEpisode: 0 });
-    flash(`فصل ${fa(season)} پاک شد`);
+    if (await patch({ currentSeason: season, currentEpisode: 0 })) flash(`فصل ${fa(season)} پاک شد`);
   };
 
   const del = async () => {

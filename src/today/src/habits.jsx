@@ -124,8 +124,10 @@ export function WeeklyPage({ Nav }) {
   const [data, setData] = useState(null), [prio, setPrio] = useState(''), [saved, setSaved] = useState('');
   const we = addDays(ws, 6);
   useEffect(() => {
+    let live = true;
     setData(null);
-    api(`/api/weekly-review?from=${ws}&to=${we}`).then(d => { setData(d); setPrio(d.priority || ''); }).catch(e => setData({ error: e.message }));
+    api(`/api/weekly-review?from=${ws}&to=${we}`).then(d => { if (live) { setData(d); setPrio(d.priority || ''); } }).catch(e => { if (live) setData({ error: e.message }); });
+    return () => { live = false; };
   }, [ws]);
   const save = async () => { try { await api('/api/weekly-review', { method: 'PUT', body: JSON.stringify({ weekStart: ws, priority: prio }) }); setSaved('ذخیره شد ✓'); setTimeout(() => setSaved(''), 1800); } catch (e) { setSaved(e.message); } };
   const isCur = ws === weekStart(today);
