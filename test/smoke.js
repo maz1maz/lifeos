@@ -235,6 +235,15 @@ async function main() {
     const dashboard3 = JSON.parse(fs.readFileSync(DB_PATH, 'utf8')).tasks.filter(t => t.title === 'daily standup');
     check('re-patching an already-done recurring task does not duplicate it', dashboard3.length === 2);
 
+    for (const done of [false, true, false, true]) await fetch(`${BASE}/api/tasks/${recurring.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ done }) });
+    const repeated = JSON.parse(fs.readFileSync(DB_PATH, 'utf8')).tasks.filter(t => t.title === 'daily standup');
+    check('unchecking and rechecking a recurring task reuses its next occurrence', repeated.length === 2 && repeated.find(t => t.id === recurring.id).done);
+    const nextOccurrence = repeated.find(t => t.id !== recurring.id);
+    await fetch(`${BASE}/api/tasks/${nextOccurrence.id}`, { method: 'DELETE', headers: authHeaders });
+    for (const done of [false, true]) await fetch(`${BASE}/api/tasks/${recurring.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ done }) });
+    const afterDelete = JSON.parse(fs.readFileSync(DB_PATH, 'utf8')).tasks.filter(t => t.title === 'daily standup');
+    check('deleting the next occurrence does not resurrect it on rechecking the original', afterDelete.length === 1);
+
     console.log('\n[6] time entry edit');
     const timeEntry = await fetch(`${BASE}/api/time`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ title: 'writing', minutes: 30 }) }).then(r => r.json());
     const timeEdit = await fetch(`${BASE}/api/time/${timeEntry.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ minutes: 90 }) });

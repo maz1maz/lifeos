@@ -338,6 +338,18 @@ function HomePage() {
   const markTicked = id => setTicked(ids => { const next = ids.includes(id) ? ids : [...ids, id]; writeLs('lifeos-ticked', { date: isoToday(), ids: next }); return next; });
   const toggleTask = async task => { markTicked('t' + task.id); await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) }); load(); };
   const toggleReminder = async reminder => { markTicked('r' + reminder.id); await api(`/api/reminders/${reminder.id}`, { method: 'PATCH', body: JSON.stringify({ done: !reminder.done }) }); load(); };
+  const removeAgendaItem = async item => {
+    const label = item.kind === 'task' ? 'کار' : 'یادآوری';
+    if (!window.confirm(`حذف ${label} «${item.title}»؟`)) return;
+    try {
+      await api(`/api/${item.kind === 'task' ? 'tasks' : 'reminders'}/${item.id}`, { method: 'DELETE' });
+      if (item.kind === 'task') {
+        const linked = data.reminders.filter(r => r.taskId === item.id);
+        for (const r of linked) await api(`/api/reminders/${r.id}`, { method: 'DELETE' });
+      }
+      await load();
+    } catch (error) { setNotice(error.message); await load(); }
+  };
   const quickDate = () => quick.when === 'tomorrow' ? addDaysIso(today, 1) : quick.when === 'pick' && quick.date ? quick.date : today;
   const submitQuick = async event => {
     event.preventDefault(); if (!quick.title.trim()) return;
@@ -459,7 +471,7 @@ function HomePage() {
                 const when = late ? `⛔ ${lateLabel(item.date)}` : later ? `${tmr ? 'فردا' : jalaliDayLabel(item.date)}${item.time ? ' · ' + faDigits(item.time) : ''}` : item.time ? faDigits(item.time) : !item.date ? 'بی‌تاریخ' : 'امروز';
                 return <div className="ag-row" key={item.kind + item.id}><button className={`line ${item.debt ? 'debt' : ''} ${item.done ? 'done' : ''} ${late ? 'overdue' : ''} ${later ? 'later' : ''} ${item.kind}`} onClick={() => item.debt ? (location.href = item.href || '/?page=finance&tab=wealth') : item.pcard ? pDue.done(item.raw) : item.kind === 'task' ? toggleTask(item.raw) : toggleReminder(item.raw)}>
                   <i>{item.debt ? '⏰' : item.done ? '✓' : ''}</i><span>{item.pcard ? <><PChip c={item.raw} />{item.raw.prio === 'h' ? <em className="pc-hi">!</em> : null}</> : null}{item.title}</span><small>{when}</small>
-                </button>{item.kind === 'task' && !item.debt && !item.pcard ? <button type="button" className={`ag-star ${item.raw.mit === today ? 'on' : ''}`} onClick={() => toggleMit(item.raw)} aria-label={item.raw.mit === today ? 'حذف از سه کار مهم' : 'افزودن به سه کار مهم'} title="سه کار مهم امروز">{item.raw.mit === today ? '★' : '☆'}</button> : null}{item.debt ? null : <button type="button" className="ag-edit" onClick={() => item.pcard ? (location.href = cardHref(item.raw)) : openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}</div>;
+                </button>{item.kind === 'task' && !item.debt && !item.pcard ? <button type="button" className={`ag-star ${item.raw.mit === today ? 'on' : ''}`} onClick={() => toggleMit(item.raw)} aria-label={item.raw.mit === today ? 'حذف از سه کار مهم' : 'افزودن به سه کار مهم'} title="سه کار مهم امروز">{item.raw.mit === today ? '★' : '☆'}</button> : null}{item.debt ? null : <button type="button" className="ag-edit" onClick={() => item.pcard ? (location.href = cardHref(item.raw)) : openEdit(item)} aria-label={`ویرایش ${item.title}`} title="ویرایش"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>}{!item.debt && !item.pcard ? <button type="button" className="ag-edit ag-delete" onClick={() => removeAgendaItem(item)} aria-label={`حذف ${item.kind === 'task' ? 'کار' : 'یادآوری'} ${item.title}`} title="حذف"><Trash2 size={14} /></button> : null}</div>;
               })}{!items.length && <p className="empty">{kind === 'task' ? 'کاری برای امروز نداری.' : 'یادآوری‌ای برای امروز نداری.'}</p>}</div>
             </div>;
           })}
