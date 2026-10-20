@@ -1055,3 +1055,5 @@ button,input,select,textarea{font-family:inherit}
 
 .agenda .ag-delete{opacity:1;color:var(--g-muted)}
 .agenda .ag-delete:hover,.agenda .ag-delete:focus-visible{color:var(--g-danger,#e16b6b);border-color:currentColor}
+
+.agenda .ag-repeat{display:inline-flex;align-items:center;gap:3px;margin-inline-start:6px;font-size:10px;font-style:normal;color:var(--g-accent-strong);white-space:nowrap;text-decoration:none}
