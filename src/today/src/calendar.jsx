@@ -1,3 +1,4 @@
+import { saveRow } from './rowsave';
 import { createTaskRequestState } from './task-request-state.mjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -144,12 +145,13 @@ export function CalendarReact({ Nav }) {
   }, [view, cursor, days])
 
   const [taskRequests] = useState(createTaskRequestState)
+  const saving = useRef(0)
   const load = useCallback(async () => {
     const request = taskRequests.beginRead()
     setLoading(true)
     try {
       const data = await api(`/api/calendar/feed?from=${range.from}&to=${range.to}`)
-      if (taskRequests.isCurrent(request)) setFeed(data)
+      if (taskRequests.isCurrent(request) && !saving.current) setFeed(data)
     } catch (e) { if (taskRequests.isCurrent(request)) setStatus(e.message) }
     finally { if (taskRequests.isCurrent(request)) setLoading(false) }
   }, [range.from, range.to])
@@ -239,16 +241,18 @@ export function CalendarReact({ Nav }) {
     } catch (e) { setStatus(e.message) }
   }
 
-  const toggleItem = ev => taskRequests.run(`tick:${ev.id}`, async () => {
+  async function toggleItem(ev) {
     if (ev.kind === 'google') return
     if (ev.kind === 'session') { location.href = '/?page=courses'; return }
     if (ev.kind === 'card') { try { await api(`/api/col/cards/${ev.id}`, { method: 'PATCH', body: JSON.stringify({ col: 'done', doneAt: Date.now() }) }); await load() } catch (e) { setStatus(e.message) } return }
-    try {
-      const path = ev.kind === 'reminder' ? `/api/reminders/${rawId(ev.id)}` : `/api/tasks/${rawId(ev.id)}`
-      await api(path, { method: 'PATCH', body: JSON.stringify({ done: !ev.done }) })
-      await load()
-    } catch (e) { setStatus(e.message) }
-  })
+    const path = ev.kind === 'reminder' ? `/api/reminders/${rawId(ev.id)}` : `/api/tasks/${rawId(ev.id)}`
+    const taskId = ev.kind === 'task' ? rawId(ev.id) : ev.taskId
+    setFeed(f => ({ ...f, items: (f.items || []).map(x => x.id === ev.id || (taskId && (x.id === 'task:' + taskId || x.taskId === taskId)) ? { ...x, done: !ev.done } : x) }))
+    saving.current++
+    saveRow(taskId ? 't' + taskId : 'r' + rawId(ev.id), path, { done: !ev.done })
+      .catch(e => setStatus('ذخیره نشد: ' + e.message))
+      .finally(() => { saving.current--; if (!saving.current) load() })
+  }
 
   const saveDialog = draft => taskRequests.run('dialog-save', async () => {
     if (!draft.title.trim()) { setStatus('عنوان را وارد کنید'); return }
@@ -421,7 +425,7 @@ export function CalendarReact({ Nav }) {
               {filters.occasion ? selOcc.map((o) => <div key={o.title} className="cal-item" style={{ borderRightColor: '#e2574c' }}><b>{o.title}</b><small>مناسبت</small></div>) : null}
               {selectedItems.map((ev) => (
                 <div key={`${ev.kind}-${ev.id}`} className={`cal-item ${ev.kind || 'google'}${ev.done ? ' done' : ''}`}>
-                  {ev.kind !== 'google' ? <button type="button" className={`cal-check${ev.done ? ' on' : ''}`} onClick={() => toggleItem(ev)}><svg className="uv-tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.1 12.7 9 17.6 20.3 6.3" /></svg></button> : null}
+                  {ev.kind !== 'google' ? <button type="button" role="checkbox" aria-checked={!!ev.done} aria-label={`${ev.done ? 'بازکردن دوباره' : 'انجام شد'}: ${ev.title}`} className={`cal-check${ev.done ? ' on' : ''}`} onClick={() => toggleItem(ev)}><svg className="uv-tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.1 12.7 9 17.6 20.3 6.3" /></svg></button> : null}
                   <button type="button" style={{ flex: 1, background: 'none', border: 0, color: 'inherit', textAlign: 'right', cursor: 'pointer' }} onClick={() => openEdit(ev)}>
                     <b>{ev.title}</b>
                     <small>{KIND_LABEL[ev.kind || 'google']}{ev.time ? ` · ${faNum(ev.time)}` : ' · تمام‌روز'}{ev.calendarName ? ` · ${ev.calendarName}` : ''}</small>

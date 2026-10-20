@@ -103,7 +103,7 @@ async function main() {
     for (const kind of ['tasks', 'reminders']) {
       assert.equal((await call(kind, 'POST', { title: '   ' })).status, 400);
       const r = await create(kind, { title: 'validation' });
-      for (const body of [{ done: 'false' }, { recurrence: 'garbage' }, { date: '2026-02-31' }]) assert.equal((await call(`${kind}/${r.id}`, 'PATCH', body)).status, 400);
+      for (const body of [null, [], { done: 'false' }, { recurrence: false }, { recurrence: 'garbage' }, { date: '2026-02-31' }]) assert.equal((await call(`${kind}/${r.id}`, 'PATCH', body)).status, 400);
       assert.equal((await call(`${kind}/${r.id}`, 'PATCH', { done: true }, 's2')).status, 404);
     }
     const other = (await call('tasks', 'POST', { title: 'foreign link' }, 's2')).data;
@@ -168,6 +168,67 @@ async function main() {
     await state.run('tick:1', async () => { saves++; }); assert.equal(saves, 2);
     await assert.rejects(state.run('error', async () => { throw new Error('offline'); }));
     await state.run('error', async () => { saves++; }); assert.equal(saves, 3);
+  });
+  await test('current saveRow keeps tap order, retries transient errors, and uses keepalive', async () => {
+    const fs = require('node:fs'), path = require('node:path');
+    const source = fs.readFileSync(path.join(__dirname, '../src/today/src/rowsave.js'), 'utf8');
+    const { saveRow } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+    const originalFetch = global.fetch;
+    let release, entered;
+    const blocked = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { entered = resolve; });
+    const sent = []; let transient = 0, badRequest = 0;
+    global.fetch = async (url, options) => {
+      sent.push({ url, done: JSON.parse(options.body).done, keepalive: options.keepalive });
+      if (url === '/slow' && sent.filter(x => x.url === '/slow').length === 1) { entered(); await blocked; }
+      if (url === '/transient' && transient++ === 0) return new Response('{}', { status: 503 });
+      if (url === '/invalid') { badRequest++; return new Response('{}', { status: 400 }); }
+      return new Response('{}');
+    };
+    try {
+      const a = saveRow('one', '/slow', { done: true });
+      const b = saveRow('one', '/slow', { done: false });
+      const other = saveRow('two', '/other', { done: true });
+      await started; await other;
+      assert.equal(sent.filter(x => x.url === '/slow').length, 1);
+      release(); await Promise.all([a, b]);
+      assert.deepEqual(sent.filter(x => x.url === '/slow').map(x => x.done), [true, false]);
+      assert.ok(sent.every(x => x.keepalive));
+      await saveRow('retry', '/transient', { done: true }); assert.equal(transient, 2);
+      await assert.rejects(saveRow('bad', '/invalid', { done: false })); assert.equal(badRequest, 1);
+    } finally { release(); global.fetch = originalFetch; }
+  });
+  await test('calendar edit data retains notes, priority and recurrence', async () => {
+    const t = await create('tasks', { title: 'calendar details', date: '2026-10-20', notes: 'keep notes', priority: 'high', recurrence: 'weekly' });
+    const r = await create('reminders', { title: 'calendar linked', date: t.date, taskId: t.id, recurrence: 'weekly', leadMinutes: 30 });
+    const feed = (await call('calendar/feed?from=2026-10-20&to=2026-10-20')).data.items;
+    const task = feed.find(x => x.id === 'task:' + t.id), rem = feed.find(x => x.id === 'reminder:' + r.id);
+    assert.equal(task.notes, 'keep notes'); assert.equal(task.priority, 'high'); assert.equal(task.recurrence, 'weekly');
+    assert.equal(rem.taskId, t.id); assert.equal(rem.leadMinutes, 30); assert.equal(rem.recurrence, 'weekly');
+  });
+  await test('a failed linked-reminder save reports the already-saved task so the drawer cannot create it twice', async () => {
+    const esbuild = require('esbuild'), path = require('node:path');
+    const compiled = await esbuild.build({ stdin: { contents: "export { createPlannerItem } from './src/today/src/planner.jsx';", resolveDir: path.resolve(__dirname, '..'), loader: 'jsx' }, bundle: true, platform: 'node', format: 'cjs', write: false, loader: { '.css': 'empty' }, logLevel: 'silent' });
+    const exported = { exports: {} };
+    new Function('require', 'module', 'exports', compiled.outputFiles[0].text)(require, exported, exported.exports);
+    const originalFetch = global.fetch; const requests = [];
+    global.fetch = async (url, options) => { requests.push(url); return url === '/api/tasks' ? new Response(JSON.stringify({ id: 'already-saved', title: 'saved task' }), { status: 201 }) : new Response(JSON.stringify({ error: 'reminder refused' }), { status: 400 }); };
+    try {
+      await assert.rejects(exported.exports.createPlannerItem('task', { title: 'saved task', date: '2026-10-20', reminderOn: true, reminderDate: '2026-10-20' }), e => e.recordSaved === true && e.message.includes('reminder refused'));
+      assert.deepEqual(requests, ['/api/tasks', '/api/reminders']);
+      global.fetch = async () => new Response(JSON.stringify({ error: 'task refused' }), { status: 400 });
+      await assert.rejects(exported.exports.createPlannerItem('task', { title: 'new task' }), e => !e.recordSaved);
+    } finally { global.fetch = originalFetch; }
+  });
+  await test('legacy repeated rows are reused without silently deleting existing duplicates', async () => {
+    const h = makeHelpers(env), db = await h.read();
+    db.tasks.push({ id: 'legacy-original', userId: 'u1', title: 'legacy daily', date: '2026-10-20', done: false, recurrence: 'daily' },
+      { id: 'legacy-next-a', userId: 'u1', title: 'legacy daily', date: '2026-10-21', done: false, recurrence: 'daily', createdAt: 1 },
+      { id: 'legacy-next-b', userId: 'u1', title: 'legacy daily', date: '2026-10-21', done: false, recurrence: 'daily', createdAt: 2 });
+    await h.write(db);
+    await patch('tasks', { id: 'legacy-original' }, { done: true });
+    const rows = (await items('tasks')).filter(x => x.title === 'legacy daily');
+    assert.equal(rows.length, 3); assert.equal(rows.find(x => x.id === 'legacy-original').recurrenceNextId, 'legacy-next-a');
   });
   console.log(`Task/reminder audit: ${pass} passed, ${fail} failed`);
   process.exitCode = fail ? 1 : 0;

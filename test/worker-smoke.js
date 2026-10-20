@@ -497,6 +497,44 @@ async function main() {
       check('a refused provider is skipped for a while (no second 403 round trip)', globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.size >= 1);
     } finally { globalThis.fetch = realFetch; delete env.AI; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; globalThis.__lifeosAiDown && globalThis.__lifeosAiDown.clear(); }
   }
+  { // news lives outside the main state (own kv rows), pruned to the newest 2500 per user
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk({ ...env });
+    const list = [];
+    for (let i = 0; i < 3000; i++) list.push({ id: 'n' + i, userId: 'u1', source: 's', url: 'https://x/' + i, createdAt: i, summary: i === 2999 ? 'x'.repeat(900) : 's', saved: i === 5 });
+    list.push({ id: 'dup', userId: 'u1', source: 's', url: 'https://x/2999', createdAt: 1 });      // older copy of the newest link, same source
+    list.push({ id: 'other-src', userId: 'u1', source: 't', url: 'https://x/2998', createdAt: 2 }); // same link from another source stays
+    const { items, changed } = H.pruneNews(list);
+    check('news prune: newest 2500 + saved kept, duplicate (same source) dropped, other source kept',
+      changed && items.length === 2501 && items.some(x => x.id === 'n5') && items.some(x => x.id === 'n2999') && !items.some(x => x.id === 'dup') && !items.some(x => x.id === 'n100'), String(items.length));
+    check('news prune: long summary trimmed', items.find(x => x.id === 'n2999').summary.length <= 300);
+    check('news prune: second run changes nothing', H.pruneNews(items).changed === false);
+    // storage: chunked rows, read back in order, shrinking deletes the extra rows
+    await H.newsWrite('u9', list);
+    const back = await H.newsRead('u9'), rows = [...env.DB._store.keys()].filter(k => k.startsWith('news:u9:'));
+    check('news storage: written in chunks and read back', back.length === 2501 && rows.length === 5 && back[0].id === 'n2999', rows.length + '/' + back.length);
+    await H.newsWrite('u9', back.slice(0, 10));
+    check('news storage: shrinking removes extra rows', [...env.DB._store.keys()].filter(k => k.startsWith('news:u9:')).length === 1 && (await H.newsRead('u9')).length === 10);
+    // migration: news still inside the state moves out once
+    const db = { news: [{ id: 'm1', userId: 'u8', source: 's', url: 'https://m/1', createdAt: 5 }, { id: 'm2', userId: 'u7', source: 's', url: 'https://m/2', createdAt: 6 }] };
+    const moved = await H.migrateNewsOut(db);
+    check('news migration: moved to per-user rows and emptied in the state', moved && db.news.length === 0 && (await H.newsRead('u8'))[0].id === 'm1' && (await H.newsRead('u7'))[0].id === 'm2');
+    check('news migration: nothing to move -> false', (await H.migrateNewsOut(db)) === false);
+  }
+  { // migration of news still inside the state: old shards removed directly (a state write would exceed D1's 32 MB batch)
+    const em = 'newsmig' + Date.now() + '@x.io';
+    const su = await call('/api/auth/signup', { method: 'POST', body: { name: 'NewsMig', email: em, password: 'secret123' } });
+    const sc = (typeof su.headers.getSetCookie === 'function' ? su.headers.getSetCookie() : [su.headers.get('set-cookie')])[0].split(';')[0];
+    const before = new Set(env.DB._store.keys());
+    await call('/api/tasks', { method: 'POST', cookie: sc, body: { title: 'x', date: '2026-10-17' } });
+    const key = [...env.DB._store.keys()].find(k => !before.has(k) && /^state:v2:u:[^:]+:tasks:\d+$/.test(k)) || [...env.DB._store.keys()].find(k => /^state:v2:u:[^:]+:tasks:\d+$/.test(k) && env.DB._store.get(k).includes('"title":"x"'));
+    const uid = key.split(':')[3], shard = `state:v2:u:${uid}:news:0`;
+    env.DB._store.set(shard, JSON.stringify([{ id: 'old1', userId: uid, title: 'خبر قدیمی', source: 's', category: 'عمومی', url: 'https://o/1', date: '2026-10-16', createdAt: 1 }]));
+    const r = await call('/api/news', { cookie: sc });
+    check('news migration (state shard): GET /api/news still returns the old item', r.status === 200 && r.d.items.some(x => x.id === 'old1'), JSON.stringify(r.d).slice(0, 160));
+    check('news migration (state shard): old shard removed, item in its own rows', !env.DB._store.has(shard) && [...env.DB._store.keys()].some(k => k === `news:${uid}:0`));
+    const r2 = await call('/api/news', { cookie: sc });
+    check('news migration (state shard): next read serves from the new rows', r2.status === 200 && r2.d.items.length === 1 && !env.DB._store.has(shard));
+  }
   { // vocab tutor: 7 modes, learner profile + weak words in the prompt, validation
     const seen = [], realFetch = globalThis.fetch;
     const noKey = await call('/api/vocab/tutor', { method: 'POST', cookie, body: { mode: 'chat', history: [{ r: 'u', t: 'hi' }] } });

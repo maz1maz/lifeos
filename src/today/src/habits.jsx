@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { isoToJ, MONTHS } from './jdate';
 import './habits.css';
+import { saveRow } from './rowsave';
 import { VocabStats } from './vocab';
 
 const api = async (url, options) => {
@@ -53,7 +54,7 @@ export function HabitsPage({ Nav }) {
     if (date === today) setHabits(hs => hs.map(x => x.id === h.id ? { ...x, done: !was, streak: Math.max(0, (x.streak || 0) + (was ? -1 : 1)) } : x));
     if (date > today || !inPeriod(h, date)) return;
     pending.current++; clearTimeout(reloadTimer.current);
-    try { await api(`/api/habits/${h.id}/toggle`, { method: 'POST', body: JSON.stringify({ date, done: !was }) }); } catch (e) { setMsg(e.message); }
+    try { await saveRow('hab' + h.id + '|' + date, `/api/habits/${h.id}/toggle`, { date, done: !was }, 'POST'); } catch (e) { setMsg('ذخیره نشد: ' + e.message); }
     // one quiet reload (streaks) once the clicking stops — never between two quick clicks
     if (--pending.current === 0) reloadTimer.current = setTimeout(load, 1200);
   };

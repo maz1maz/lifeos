@@ -7,9 +7,10 @@ export function validTaskDate(value) {
 }
 
 export function taskInputError(data, { creating = false, reminder = false } = {}) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return 'اطلاعات معتبر نیست.';
   if ((creating || data.title !== undefined) && (typeof data.title !== 'string' || !data.title.trim())) return 'عنوان را وارد کنید.';
   if (data.done !== undefined && typeof data.done !== 'boolean') return 'وضعیت انجام باید درست یا نادرست باشد.';
-  if (data.recurrence && !['daily', 'weekly', 'monthly'].includes(data.recurrence)) return 'تکرار نامعتبر است.';
+  if (data.recurrence !== undefined && data.recurrence !== null && data.recurrence !== '' && !['daily', 'weekly', 'monthly'].includes(data.recurrence)) return 'تکرار نامعتبر است.';
   if (data.date !== undefined && !(!reminder && data.date === '') && !validTaskDate(data.date)) return 'تاریخ معتبر نیست.';
   if (data.deadline && !validTaskDate(data.deadline)) return 'مهلت معتبر نیست.';
   if ((data.startTime || data.time) && !/^([01]\d|2[0-3]):[0-5]\d$/.test(data.startTime || data.time)) return 'ساعت معتبر نیست.';
@@ -37,7 +38,7 @@ function advance(db, collection, row, options, nextTask = null) {
     (x.recurrenceSourceId === row.id || (x.recurrenceSeriesId === series) ||
       (!row.recurrenceSeriesId && !x.recurrenceSeriesId && x.title === row.title && x.recurrence === row.recurrence &&
         (x.projectId || null) === (row.projectId || null) && (collection !== 'reminders' || (x.taskId || null) === (nextTask?.id || null)))));
-  const existing = candidates.length === 1 ? candidates[0] : null;
+  const existing = candidates.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0) || String(a.id).localeCompare(String(b.id)))[0];
   row.recurrenceSeriesId = series;
   row.recurrenceNextId = existing?.id || `${collection}-next:${series}:${date}`;
   if (existing) return;

@@ -1,5 +1,5 @@
 import { createTaskRequestState } from './task-request-state.mjs';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell, CalendarDays, Check, ChevronDown, CircleAlert, CircleDot, ClipboardList,
   Clock, Hash, Inbox, ListChecks, Pencil, Plus, Repeat, Search, Sun, Trash2, X
@@ -7,6 +7,7 @@ import {
 import './planner.css';
 import { JalaliDateInput } from './jdate';
 import { useProjectDue, cardHref, PChip } from './pcards';
+import { saveRow } from './rowsave';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
@@ -64,8 +65,8 @@ function TaskCard({ task, index, reminder, onToggle, onEdit, onDelete }) {
         {tags.map(tag => <Chip key={tag} icon={Hash}>{tag}</Chip>)}
       </div>
       <div className="plnr-card-actions">
-        <button type="button" onClick={() => onEdit(task)} aria-label="ویرایش کار"><Pencil size={15} /></button>
-        <button type="button" onClick={() => onDelete(task)} aria-label="حذف کار"><Trash2 size={15} /></button>
+        <button type="button" onClick={() => onEdit(task)} aria-label={task._reminder ? 'ویرایش یادآوری' : 'ویرایش کار'}><Pencil size={15} /></button>
+        <button type="button" onClick={() => onDelete(task)} aria-label={task._reminder ? 'حذف یادآوری' : 'حذف کار'}><Trash2 size={15} /></button>
       </div>
     </li>
   );
@@ -185,18 +186,18 @@ export async function createPlannerItem(kind, body) {
   const today = isoToday();
   let recordSaved = false;
   try {
-  if (kind === 'reminder') {
-    const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+    if (kind === 'reminder') {
+      const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+      recordSaved = true;
+      if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
+      return r;
+    }
+    const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
+    const saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
     recordSaved = true;
-    if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
-    return r;
-  }
-  const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
-  const saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
-  recordSaved = true;
-  if (body.reminderOn && body.reminderDate) await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 }) });
-  if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
-  return saved;
+    if (body.reminderOn && body.reminderDate) await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 }) });
+    if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
+    return saved;
   } catch (error) {
     if (recordSaved) { error.recordSaved = true; error.message = 'کار یا یادآوری ذخیره شد، اما بخشی از جزئیات ذخیره نشد: ' + error.message; }
     throw error;
@@ -208,28 +209,28 @@ export async function savePlannerItem(kind, body, editing) {
   const today = isoToday();
   let recordSaved = false;
   try {
-  if (kind === 'reminder' && !editing) {
-    const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
-    recordSaved = true;
-    if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
-  } else if (kind === 'reminder' && editing?.task?._reminder) {
-    await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
-    recordSaved = true;
-    if (body.files?.length) await uploadAttachments('reminder', editing.task.id, body.files);
-  } else {
-    const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
-    let saved;
-    if (editing) saved = await api(`/api/tasks/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
-    else saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
-    recordSaved = true;
-    const existingReminder = editing?.reminder;
-    if (body.reminderOn && body.reminderDate) {
-      const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 };
-      if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'PATCH', body: JSON.stringify(rBody) });
-      else await api('/api/reminders', { method: 'POST', body: JSON.stringify(rBody) });
-    } else if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'DELETE' });
-    if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
-  }
+    if (kind === 'reminder' && !editing) {
+      const r = await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || body.reminderTime || null, whenLabel: body.date || today, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+      recordSaved = true;
+      if (body.files?.length && r?.id) await uploadAttachments('reminder', r.id, body.files);
+    } else if (kind === 'reminder' && editing?.task?._reminder) {
+      await api(`/api/reminders/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify({ title: body.title, date: body.date || today, time: body.startTime || null, recurrence: body.recurrence, leadMinutes: body.leadMinutes || 0 }) });
+      recordSaved = true;
+      if (body.files?.length) await uploadAttachments('reminder', editing.task.id, body.files);
+    } else {
+      const payload = { title: body.title, notes: body.notes, date: body.loose ? '' : body.date, startTime: body.startTime, priority: body.priority, recurrence: body.recurrence, tags: body.tags, loose: body.loose };
+      let saved;
+      if (editing) saved = await api(`/api/tasks/${editing.task.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      else saved = await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+      recordSaved = true;
+      const existingReminder = editing?.reminder;
+      if (body.reminderOn && body.reminderDate) {
+        const rBody = { title: saved.title, date: body.reminderDate, time: body.reminderTime || null, whenLabel: body.reminderDate, recurrence: body.recurrence, taskId: saved.id, leadMinutes: body.leadMinutes || 0 };
+        if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'PATCH', body: JSON.stringify(rBody) });
+        else await api('/api/reminders', { method: 'POST', body: JSON.stringify(rBody) });
+      } else if (existingReminder) await api(`/api/reminders/${existingReminder.id}`, { method: 'DELETE' });
+      if (body.files?.length && saved?.id) await uploadAttachments('task', saved.id, body.files);
+    }
   } catch (error) {
     if (recordSaved) { error.recordSaved = true; error.message = 'کار یا یادآوری ذخیره شد، اما بخشی از جزئیات ذخیره نشد: ' + error.message; }
     throw error;
@@ -252,12 +253,12 @@ export function PlannerReact({ Nav }) {
 
   const flash = msg => { setToast(msg); setTimeout(() => setToast(''), 2600); };
   const [taskRequests] = useState(createTaskRequestState);
-  const load = () => {
-    const request = taskRequests.beginRead();
-    return Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')])
-    .then(([taskData, reminderData]) => { if (!taskRequests.isCurrent(request)) return; setTasks(taskData.items || []); setReminders(reminderData.items || []); })
-    .catch(error => { if (taskRequests.isCurrent(request)) setNotice(error.message); }).finally(() => { if (taskRequests.isCurrent(request)) setLoading(false); });
-  };
+  const justTicked = useRef(new Set());   // ids ticked in this visit: they keep their row until the page is reopened
+  const stillDone = x => x.done && !justTicked.current.has((x._reminder ? 'r' : 't') + x.id);
+  const saving = useRef(0), loadSeq = useRef(0);   // a reload landing during a save (or superseded) is dropped: quick ticks never flicker back
+  const load = () => { const seq = ++loadSeq.current; return Promise.all([api('/api/tasks'), api('/api/reminders?from=0000-01-01&to=9999-12-31')])
+    .then(([taskData, reminderData]) => { if (seq !== loadSeq.current || saving.current) return; setTasks(taskData.items || []); setReminders(reminderData.items || []); })
+    .catch(error => setNotice(error.message)).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);
 
   const reminderByTask = useMemo(() => Object.fromEntries(reminders.filter(r => r.taskId).map(r => [r.taskId, r])), [reminders]);
@@ -285,10 +286,11 @@ export function PlannerReact({ Nav }) {
 
   const visible = useMemo(() => {
     let list = source;
-    if (filter === 'open') list = list.filter(x => !x.done);
-    else if (filter === 'today') list = list.filter(x => !x.done && (x.date === today || (x.date && x.date < today)));
-    else if (filter === 'upcoming') list = list.filter(x => !x.done && x.date > today && x.date <= weekAhead);
-    else if (filter === 'reminders') list = kind === 'reminder' ? list.filter(x => !x.done) : list.filter(x => !x.done && reminderByTask[x.id]);
+    // a row ticked in this visit stays in the open/today/upcoming lists (struck through) until the page is reopened
+    if (filter === 'open') list = list.filter(x => !stillDone(x));
+    else if (filter === 'today') list = list.filter(x => !stillDone(x) && (x.date === today || (x.date && x.date < today)));
+    else if (filter === 'upcoming') list = list.filter(x => !stillDone(x) && x.date > today && x.date <= weekAhead);
+    else if (filter === 'reminders') list = kind === 'reminder' ? list.filter(x => !stillDone(x)) : list.filter(x => !stillDone(x) && reminderByTask[x.id]);
     else if (filter === 'done') list = list.filter(x => x.done);
     const q = query.trim();
     if (q) list = list.filter(x => x.title.includes(q) || (x.notes || '').includes(q) || (x.tags || []).some(tag => tag.includes(q)));
@@ -297,7 +299,7 @@ export function PlannerReact({ Nav }) {
     const sorted = [...list];
     if (sort === 'created') sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     else if (sort === 'priority') sorted.sort((a, b) => (rank[a.priority] ?? 9) - (rank[b.priority] ?? 9) || (dueVal(a) - dueVal(b)));
-    else sorted.sort((a, b) => (Number(a.done) - Number(b.done)) || (dueVal(a) - dueVal(b)));
+    else sorted.sort((a, b) => (Number(stillDone(a)) - Number(stillDone(b))) || (dueVal(a) - dueVal(b)));   // a row ticked in this visit keeps its place
     return sorted;
   }, [source, filter, sort, query, reminderByTask, kind]);
 
@@ -308,16 +310,20 @@ export function PlannerReact({ Nav }) {
     } catch (error) { if (error.recordSaved) { setDrawerOpen(false); setEditing(null); await load(); } flash(error.message); }
   });
 
-  const toggle = task => taskRequests.run(`tick:${task.id}`, async () => {
-    try {
-      if (task._reminder) await api(`/api/reminders/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
-      else {
-        await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ done: !task.done }) });
-      }
-      flash(!task.done && task.recurrence ? 'انجام شد؛ تکرار فعال است ✓' : !task.done ? 'انجام شد ✓' : 'دوباره باز شد');
-      await load();
-    } catch (error) { flash(error.message); }
-  });
+  const toggle = async task => {
+    const key = (task._reminder ? 'r' : 't') + task.id, nextDone = !task.done;
+    justTicked.current.add(key);
+    // show the change at once; the server call and the reload follow in the background
+    if (task._reminder) setReminders(list => list.map(r => r.id === task.id ? { ...r, done: nextDone } : r));
+    else setTasks(list => list.map(t => t.id === task.id ? { ...t, done: nextDone } : t));
+    // saveRow: same row in tap order, rows in parallel, retried, a sent save survives a refresh
+    saving.current++;
+    const request = task._reminder
+      ? saveRow('r' + task.id, `/api/reminders/${task.id}`, { done: nextDone })
+      : saveRow('t' + task.id, `/api/tasks/${task.id}`, { done: nextDone });
+    request.then(() => flash(nextDone && task.recurrence ? 'انجام شد؛ تکرار فعال است ✓' : nextDone ? 'انجام شد ✓' : 'دوباره باز شد'), error => flash('ذخیره نشد: ' + error.message))
+      .finally(() => { saving.current--; if (!saving.current) load(); });
+  };
 
   const remove = task => taskRequests.run(`tick:${task.id}`, async () => {
     try {
