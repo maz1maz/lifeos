@@ -486,11 +486,12 @@ let VIEW = "study";
 function render() {
   $$(".tab").forEach(t => t.classList.toggle("on", t.dataset.v === VIEW));
   $$(".view").forEach(v => v.classList.toggle("hide", v.id !== "v-" + VIEW));
-  const fc = $("#filterCard"); if (fc) fc.classList.toggle("hide", VIEW === "notes" || VIEW === "tutor" || VIEW === "ielts");   // level/topic filters do not apply to these standalone views
+  const fc = $("#filterCard"); if (fc) fc.classList.toggle("hide", VIEW === "notes" || VIEW === "arch" || VIEW === "tutor" || VIEW === "ielts");   // level/topic filters do not apply to these standalone views
   if (VIEW === "study") renderStudy();
   if (VIEW === "quiz") renderQuizHome();
   if (VIEW === "browse") renderBrowse();
   if (VIEW === "notes") renderNotes();
+  if (VIEW === "arch") renderNotes("arch");
   if (VIEW === "tutor") renderTutor();
   if (VIEW === "ielts") renderIeltsListening();
   if (VIEW === "stats") renderStats();
@@ -620,6 +621,11 @@ function renderIeltsSpeaking() {
    «جزوه»: the private-class notes in notes.md (topic → vocabulary tables + grammar),
    collapsible by topic, searchable in English and Persian, with 🔊 on English words. */
 let NOTES = null, notesQ = "";
+// «معماری»: architecture / facade terms (arch.md), same format and renderer as the notes
+let ARCH = null, archQ = "";
+const NT_BOOK = v => v === "arch"
+  ? { main: "#archMain", get: () => ARCH, load: loadArch, q: () => archQ, setQ: x => { archQ = x; }, ph: "جستجو در واژگان معماری (انگلیسی یا فارسی)…", what: "واژگان معماری" }
+  : { main: "#notesMain", get: () => NOTES, load: loadNotes, q: () => notesQ, setQ: x => { notesQ = x; }, ph: "جستجو در جزوه (انگلیسی یا فارسی)…", what: "جزوه" };
 const ntInline = t => esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
 // "colleague / co-worker (n.)" → "colleague"; "boss = manager" → "boss"
 const ntSay = t => String(t).replace(/\([^)]*\)/g, "").split(/\s[\/=]\s|\s*\/\s*|\s=\s/)[0].replace(/[*`]/g, "").trim();
@@ -667,21 +673,21 @@ function ntParse(md) {
   out.sections.forEach(x => { x.html = ntBlocks(x.lines); x.words = x.lines.filter(l => /^\|/.test(l.trim()) && !/^\|[\s:|-]+\|?$/.test(l.trim())).length; });
   return out;
 }
-async function renderNotes() {
-  const box = $("#notesMain");
-  if (!NOTES) {
-    box.innerHTML = `<p class="muted pad">در حال بارگذاری جزوه…</p>`;
-    try { await loadNotes(); }
-    catch (e) { box.innerHTML = `<p class="muted pad">جزوه بارگذاری نشد.</p>`; return; }
-    if (VIEW !== "notes") return;
+async function renderNotes(v = "notes") {
+  const B = NT_BOOK(v), box = $(B.main);
+  if (!B.get()) {
+    box.innerHTML = `<p class="muted pad">در حال بارگذاری ${B.what}…</p>`;
+    try { await B.load(); }
+    catch (e) { box.innerHTML = `<p class="muted pad">${B.what} بارگذاری نشد.</p>`; return; }
+    if (VIEW !== v) return;
   }
-  box.innerHTML = `<div class="nt-top"><input id="ntQ" type="search" placeholder="جستجو در جزوه (انگلیسی یا فارسی)…" value="${esc(notesQ)}" autocomplete="off"><span class="muted" id="ntN"></span><button type="button" class="btn sm" id="ntPdf" title="نسخهٔ چاپی / PDF">PDF ⬇</button></div>` +
-    NOTES.sections.map((x, k) => `<details class="nt-sec"${k === 0 ? " open" : ""}><summary>${ntInline(x.title)}${x.words > 2 ? `<em>${x.words.toLocaleString("fa-IR")} ردیف</em>` : ""}</summary><div class="nt-body">${x.html}</div></details>`).join("");
-  const q = $("#ntQ");
-  q.oninput = () => { notesQ = q.value; ntFilter(); };
-  $("#ntPdf").onclick = ntPdf;
+  box.innerHTML = `<div class="nt-top"><input class="nt-q" type="search" placeholder="${B.ph}" value="${esc(B.q())}" autocomplete="off"><span class="muted nt-n"></span><button type="button" class="btn sm nt-pdf" title="نسخهٔ چاپی / PDF">PDF ⬇</button></div>` +
+    B.get().sections.map((x, k) => `<details class="nt-sec"${k === 0 ? " open" : ""}><summary>${ntInline(x.title)}${x.words > 2 ? `<em>${x.words.toLocaleString("fa-IR")} ردیف</em>` : ""}</summary><div class="nt-body">${x.html}</div></details>`).join("");
+  const q = box.querySelector(".nt-q");
+  q.oninput = () => { B.setQ(q.value); ntFilter(v); };
+  box.querySelector(".nt-pdf").onclick = () => (v === "arch" ? archPdf() : ntPdf());
   box.onclick = e => { const b = e.target.closest("button[data-say]"); if (b) { e.preventDefault(); sayNote(b.dataset.say); } };
-  ntFilter();
+  ntFilter(v);
 }
 /* Printable booklets (notes / starred words) → the browser's «Save as PDF». Always white for printing. */
 const NT_PARTS = [
@@ -767,6 +773,13 @@ function ntPdf() {
   }
   printBook({ title: "جزوه زبان — واژگان و گرامر", kicker: "جزوه خصوصی زبان انگلیسی · آماده‌سازی آیلتس", heading: "واژگان و گرامر<br>مرتب‌شده", sub: "بازنویسی و دسته‌بندی موضوعی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان", owner: "ملینا صیفی‌خانی", toc, body });
 }
+function archPdf() {
+  if (!ARCH) return;
+  const secs = ARCH.sections.filter(x => x.words);
+  const toc = `<div class="tp">واژگان تخصصی</div>` + secs.map((x, k) => `<div class="tr"><b>${String(k + 1).padStart(2, "0")}</b><span>${ntInline(x.title)}</span></div>`).join("");
+  const body = ARCH.sections.map(x => `<section class="pg">${x.words ? `<div class="kick">زبان تخصصی معماری</div>` : ""}<h2>${ntInline(x.title)}</h2>${x.html}</section>`).join("");
+  printBook({ title: "زبان تخصصی معماری — نما", kicker: "زبان تخصصی معماری", heading: "واژگان نما و<br>نمای شیشه‌ای", sub: "انگلیسی · تلفظ · معادل رایج فارسی", toc, body });
+}
 function starsPdf() {
   const words = DECK.filter(x => S.stars.includes(x.w));
   if (!words.length) { toast("هنوز واژهٔ ستاره‌داری نداری."); return; }
@@ -776,8 +789,8 @@ function starsPdf() {
     <table><thead><tr><th>English</th><th>معنی</th><th>مثال</th></tr></thead><tbody>${byLv[lv].sort((a, b) => a.w.localeCompare(b.w)).map(x => `<tr><td class="en">${esc(x.w)}${x.ipa ? ` <span dir="ltr" style="font-weight:400;color:#666">/${esc(x.ipa)}/</span>` : ""}${x.p ? `<br><small style="font-weight:400">${esc(x.p)}</small>` : ""}</td><td>${esc(meaningsOf(x).slice(0, 3).join("، "))}</td><td class="ex">${esc(x.e || "")}${x.ef ? `<div dir="rtl" style="text-align:right">${esc(x.ef)}</div>` : ""}</td></tr>`).join("")}</tbody></table></section>`).join("");
   printBook({ title: "واژه‌های ستاره‌دار", kicker: "۷۰۰۰ واژهٔ آیلتس", heading: "واژه‌های<br>ستاره‌دار من", sub: `${fa(words.length)} واژه · مرتب بر اساس سطح`, toc: "", body: `<div style="page-break-before:auto">${body}</div>` });
 }
-function ntFilter() {
-  const q = notesQ.trim().toLowerCase(), secs = $$("#notesMain .nt-sec");
+function ntFilter(v = "notes") {
+  const B = NT_BOOK(v), q = B.q().trim().toLowerCase(), secs = $$(B.main + " .nt-sec");
   let hits = 0;
   secs.forEach(sec => {
     if (!q) { sec.style.display = ""; sec.querySelectorAll("tr,p,li,h4,.nt-tw").forEach(e => e.style.display = ""); return; }
@@ -789,7 +802,7 @@ function ntFilter() {
     if (n) sec.open = true;
     hits += n;
   });
-  const N = $("#ntN"); if (N) N.textContent = q ? `${hits.toLocaleString("fa-IR")} مورد` : "";
+  const N = $(B.main + " .nt-n"); if (N) N.textContent = q ? `${hits.toLocaleString("fa-IR")} مورد` : "";
 }
 
 /* ---------------------------------------------------------------- study */
@@ -1161,6 +1174,10 @@ let sortMode = "freq";
 async function loadNotes() {
   if (!NOTES) { const r = await fetch("notes.md", { cache: "no-cache" }); if (!r.ok) throw 0; NOTES = ntParse(await r.text()); }
   return NOTES;
+}
+async function loadArch() {
+  if (!ARCH) { const r = await fetch("arch.md", { cache: "no-cache" }); if (!r.ok) throw 0; ARCH = ntParse(await r.text()); }
+  return ARCH;
 }
 async function browseNotes(q) {
   let N; try { N = await loadNotes(); } catch (e) { return; }
