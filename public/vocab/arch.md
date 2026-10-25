@@ -45,6 +45,31 @@
 | Texture | /ˈtekstʃər/ | بافت | زبری یا نرمی ظاهری سطح مصالح |
 | Maintenance | /ˈmeɪntənəns/ | نگهداری | تمیزکاری، تعمیر و تعویض در طول عمر نما |
 
+## ضوابط، معبر و عناصر الحاقی
+
+| English | تلفظ | معادل رایج | توضیح |
+| --- | --- | --- | --- |
+| Regulations / Codes | /ˌreɡjəˈleɪʃnz/, /koʊdz/ | ضوابط | مقررات شهرداری و مقررات ملی ساختمان |
+| Window sill height (OKB) | /ˈwɪndoʊ sɪl haɪt/ | دست‌انداز پنجره | ارتفاع لبهٔ پایین پنجره از کف؛ OKB مخفف آلمانی Oberkante Brüstung است |
+| Guardrail / Parapet | /ˈɡɑːrdreɪl/, /ˈpærəpɪt/ | جان‌پناه | دیوارک یا نردهٔ محافظ لبهٔ بام، بالکن یا پنجرهٔ کوتاه |
+| Continuous glazed facade | /kənˈtɪnjuəs ɡleɪzd fəˈsɑːd/ | نمای شیشه‌ای پیوسته | نمای شیشه‌ای که از جلوی چند طبقه بدون قطع رد می‌شود |
+| Setback | /ˈsetbæk/ | عقب‌نشینی | فاصله‌ای که ساختمان باید از بر معبر یا حد زمین عقب بنشیند |
+| Plot boundary | /plɒt ˈbaʊndri/ | حد زمین | مرز ملک |
+| Seismic (expansion) joint | /ˈsaɪzmɪk dʒɔɪnt/ | درز انقطاع | فاصلهٔ خالی بین دو ساختمان یا دو بلوک برای حرکت در زلزله |
+| Canopy | /ˈkænəpi/ | سایبان | سقف کوچک بالای ورودی |
+| Roof eave / Rain canopy | /ruːf iːv/ | باران‌گیر بام | لبهٔ بیرون‌زدهٔ بام که آب باران را از نما دور می‌کند |
+| Covered passage over street (Sabat) | /ˈkʌvərd ˈpæsɪdʒ/ | ساباط | گذر سرپوشیده‌ای که ساختمان روی معبر ساخته |
+| Skybridge | /ˈskaɪbrɪdʒ/ | پل هوایی | راهروی سرپوشیده بین دو ساختمان در طبقات بالا |
+| Signboard | /ˈsaɪnbɔːrd/ | تابلو | |
+| Attached elements / Appendages | /əˈtætʃt/, /əˈpendɪdʒɪz/ | عناصر الحاقی | هر چیزی که به نما اضافه می‌شود (تابلو، کولر، سایبان…) |
+| Roadway / Carriageway | /ˈroʊdweɪ/, /ˈkærɪdʒweɪ/ | سواره‌رو | بخش خیابان برای خودرو |
+| Sidewalk / Pavement | /ˈsaɪdwɔːk/, /ˈpeɪvmənt/ | پیاده‌رو | sidewalk آمریکایی، pavement بریتانیایی |
+| Curb edge | /kɜːrb edʒ/ | لبهٔ جدول | مرز پیاده‌رو و سواره‌رو؛ بریتانیایی kerb |
+| Upper-floor projection / Overhang | /ˈoʊvərhæŋ/ | پیش‌آمدگی طبقات | بخش طبقات بالا که روی معبر جلو آمده |
+| Building footprint (coverage) | /ˈbɪldɪŋ ˈfʊtprɪnt/ | سطح اشغال | درصد زمین که ساختمان روی آن ساخته شده |
+| Light well / Patio | /laɪt wel/, /ˈpætioʊ/ | پاسیو | حیاط کوچک داخلی برای نور و تهویه |
+| Power-line clearance zone | /ˈpaʊər laɪn ˈklɪərəns zoʊn/ | حریم برق | فاصلهٔ مجاز ساختمان و نما از کابل‌های برق |
+
 ## اجرا، زیرسازی و مصالح نما
 
 | English | تلفظ | معادل رایج | توضیح |
@@ -60,10 +85,42 @@
 | Solid aluminium panel | /ˈsɒlɪd ˌæljəˈmɪniəm ˈpænl/ | سالید پنل | ورق آلومینیوم یکپارچه و بدون هسته |
 | Concrete beam | /ˈkɒŋkriːt biːm/ | تیر بتنی | |
 | Steel frame | /stiːl freɪm/ | قاب فلزی | |
-| Wall post / Vertical stiffener | /wɔːl poʊst/, /ˈstɪfnər/ | وادار | عضو قائم که دیوار یا نما را در برابر باد نگه می‌دارد |
+| Wall post / Vertical stiffener | /wɔːl poʊst/, /ˈstɪfnər/ | وادار / وال پست | عضو قائم که دیوار یا نما را در برابر باد نگه می‌دارد |
 | Sub-frame | /ˈsʌbfreɪm/ | فریم انتظار | قاب اولیه‌ای که پیش از نصب پنجره در دیوار کار گذاشته می‌شود |
 | Suspended ceiling | /səˈspendɪd ˈsiːlɪŋ/ | سقف کاذب | |
 | Floor level | /flɔːr ˈlevl/ | تراز کف | |
+
+## نمای سنگین و ضوابط لرزه‌ای (پیوست ششم ۲۸۰۰)
+
+| English | تلفظ | معادل رایج | توضیح |
+| --- | --- | --- | --- |
+| Annex 6, Iranian Seismic Code 2800 | /ˈæneks sɪks/ | پیوست ششم ۲۸۰۰ | ضوابط اجزای غیرسازه‌ای و نما در آیین‌نامهٔ زلزلهٔ ایران |
+| Non-structural components | /nɒn ˈstrʌktʃərəl kəmˈpoʊnənts/ | اجزای غیرسازه‌ای | نما، دیوار، سقف کاذب و تأسیسات؛ بار سازه را نمی‌برند ولی در زلزله باید مهار شوند |
+| Adhered cladding | /ədˈhɪərd ˈklædɪŋ/ | نمای چسبانده‌شده | سنگ یا آجر با ملات یا چسب به دیوار |
+| Anchored cladding | /ˈæŋkərd ˈklædɪŋ/ | نمای مهارشده | نماکار با بست مکانیکی به زیرسازی یا سازه وصل می‌شود |
+| Steel framing | /stiːl ˈfreɪmɪŋ/ | آهن‌کشی / شاسی‌کشی | اسکلت فلزی پشت نما |
+| Bed-joint reinforcement | /bed dʒɔɪnt ˌriːɪnˈfɔːrsmənt/ | میلگرد بستر | میلگرد یا خرپای فلزی داخل ملات بین رج‌ها |
+| Perimeter (infill) wall | /pəˈrɪmɪtər wɔːl/ | دیوار پیرامونی | دیوار بیرونی بین ستون‌ها و تیرها |
+| Expanded metal lath | /ɪkˈspændɪd ˈmetl læθ/ | رابیتس | توری فلزی که ملات را نگه می‌دارد |
+| Grout | /ɡraʊt/ | دوغاب | ملات روان برای پرکردن پشت سنگ یا درزها |
+
+## پروفیل فولادی، بست و خوردگی
+
+| English | تلفظ | معادل رایج | توضیح |
+| --- | --- | --- | --- |
+| Angle (L-section) | /ˈæŋɡl/ | نبشی | |
+| T-section | /ˈtiː sekʃn/ | سپری | |
+| Box section (RHS / SHS) | /bɒks ˈsekʃn/ | قوطی | RHS = قوطی مستطیلی، SHS = قوطی مربعی |
+| Channel (U-section) | /ˈtʃænl/ | ناودانی | |
+| Perforated channel | /ˈpɜːrfəreɪtɪd ˈtʃænl/ | ناودانی مشبک | ناودانی سوراخ‌دار برای اتصال قابل‌تنظیم |
+| Steel section tables (Stahl) | /stiːl ˈsekʃn ˈteɪblz/ | جدول اشتال | جدول مشخصات پروفیل‌ها؛ Stahl به آلمانی یعنی فولاد |
+| Hot rolling | /hɒt ˈroʊlɪŋ/ | نورد گرم | |
+| Hot-dip galvanizing | /hɒt dɪp ˈɡælvənaɪzɪŋ/ | گالوانیزهٔ گرم | غوطه‌وری فولاد در روی مذاب برای ضدزنگ کردن |
+| Zinc-rich paint | /zɪŋk rɪtʃ peɪnt/ | رنگ غنی از روی | رنگ ضدزنگ برای ترمیم جوش و برش |
+| Galvanic corrosion | /ɡælˈvænɪk kəˈroʊʒn/ | خوردگی گالوانیک | خوردگی در تماس دو فلز متفاوت (مثلاً آلومینیوم و فولاد) |
+| Isolating washer | /ˈaɪsəleɪtɪŋ ˈwɒʃər/ | واشر جداکننده | واشر عایق بین دو فلز برای جلوگیری از خوردگی گالوانیک |
+| Slotted hole | /ˈslɒtɪd hoʊl/ | سوراخ لوبیایی | سوراخ کشیده برای تنظیم و حرکت |
+| Anchor | /ˈæŋkər/ | انکر (مهار) | پیچ یا بستی که قطعه را به بتن یا سازه مهار می‌کند |
 
 ## نقشه‌ها و مستندات
 
@@ -125,6 +182,8 @@
 | Annealed glass | /əˈniːld ɡlæs/ | شیشهٔ آنیل | شیشهٔ معمولی؛ تکه‌های بزرگ و تیز می‌شکند |
 | Heat-strengthened glass | /hiːt ˈstreŋθənd ɡlæs/ | نیمه‌سکوریت | حدوداً دو برابر آنیل مقاوم؛ تکه‌های درشت می‌شکند |
 | Tempered (toughened) glass | /ˈtempərd/, /ˈtʌfənd/ | سکوریت | حدوداً چهار تا پنج برابر آنیل مقاوم؛ به دانه‌های ریز و کم‌خطر خرد می‌شود |
+| Safety glass | /ˈseɪfti ɡlæs/ | شیشهٔ ایمن | شیشه‌ای که شکستنش خطر جانی ندارد (سکوریت یا لمینت) |
+| Non-shattering | /nɒn ˈʃætərɪŋ/ | غیرریزنده | بعد از شکستن از قاب نمی‌ریزد (مثل لمینت) |
 | Laminated glass | /ˈlæmɪneɪtɪd ɡlæs/ | لمینت | دو شیشه با لایهٔ میانی؛ بعد از شکستن نمی‌ریزد |
 | PVB interlayer | /ˌpiː viː ˈbiː ˈɪntərleɪər/ | لایهٔ PVB | لایهٔ پلیمری بین دو شیشهٔ لمینت |
 
