@@ -1180,21 +1180,29 @@ async function loadArch() {
   return ARCH;
 }
 /* arch.md ↔ cards: every term of «زبان تخصصی معماری» becomes a card in the «نما و ساختمان» topic (unless the deck
-   already has it), and the deck's own «نما و ساختمان» words are listed as the last section of the arch tab. */
+   already has it there). A deck word that is the same term in another topic (capital, dome, texture…) moves to
+   «نما و ساختمان» with the architectural meaning first. The deck's own «نما و ساختمان» words are listed as the
+   last section of the arch tab. */
 const ARCH_TOPIC = "نما و ساختمان";
 function archMerge(md) {
-  const have = new Set(DECK.map(x => x.w.toLowerCase())), plain = t => t.replace(/[*`]/g, "").trim();
+  const byW = new Map(DECK.map(x => [x.w.toLowerCase(), x])), plain = t => t.replace(/[*`]/g, "").trim();
   for (const l of md.split("\n")) {
     if (!/^\|/.test(l.trim()) || /^\|[\s:|-]+\|?$/.test(l.trim())) continue;
     const c = l.trim().replace(/^\||\|$/g, "").split("|").map(x => x.trim());
     if (c.length < 3 || /^english$/i.test(c[0])) continue;
-    const w = plain(c[0]);
-    if (have.has(w.toLowerCase()) || have.has(ntSay(w).toLowerCase())) continue;
-    have.add(w.toLowerCase());
-    DECK.push({ w, fa: [plain(c[2])], t: ARCH_TOPIC, lv: "C1", p: "اصطلاح تخصصی", d: "", e: "", s: [], z: 0, ef: "", df: plain(c[3] || ""), x: [], ipa: c[1].replace(/^\/|\/$/g, ""), arch: true });
+    const w = plain(c[0]), same = byW.get(w.toLowerCase()), near = byW.get(ntSay(w).toLowerCase());
+    if (same) {
+      if (same.t !== ARCH_TOPIC) {
+        const m = plain(c[2]);
+        Object.assign(same, { t: ARCH_TOPIC, moved: true, fa: [m, ...same.fa.filter(f => f !== m)], df: same.df || plain(c[3] || "") });
+      }
+      continue;
+    }
+    if (near && near.t === ARCH_TOPIC) continue;
+    byW.set(w.toLowerCase(), DECK[DECK.push({ w, fa: [plain(c[2])], t: ARCH_TOPIC, lv: "C1", p: "اصطلاح تخصصی", d: "", e: "", s: [], z: 0, ef: "", df: plain(c[3] || ""), x: [], ipa: c[1].replace(/^\/|\/$/g, ""), arch: true }) - 1]);
   }
   const cell = t => String(t || "").replace(/\|/g, "/").replace(/\s+/g, " ").trim();
-  const own = DECK.filter(x => x.t === ARCH_TOPIC && !x.arch).sort((a, b) => a.w.localeCompare(b.w));
+  const own = DECK.filter(x => x.t === ARCH_TOPIC && !x.arch && !x.moved).sort((a, b) => a.w.localeCompare(b.w));
   const extra = own.length ? `\n\n## واژه‌های نما و ساختمان در کارت‌ها\n\nواژه‌های موضوع «${ARCH_TOPIC}» در بخش کارت‌ها (با تعریف و مثال).\n\n| English | تلفظ | معنی فارسی | مثال |\n| --- | --- | --- | --- |\n` +
     own.map(x => `| ${cell(x.w)} | ${x.ipa ? "/" + cell(x.ipa) + "/" : ""} | ${cell((x.fa || []).slice(0, 3).join("، "))} | ${cell(x.e)} |`).join("\n") + "\n" : "";
   ARCH = ntParse(md + extra);
