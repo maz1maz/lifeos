@@ -862,7 +862,7 @@ function renderStudy() {
         ${ipaHtml(cur)}
         <div class="meaning">${meaningsOf(cur).map(esc).join(" • ") || "—"}</div>
       </div>
-      ${cur.d ? `<div class="def def-c"><span class="defen en">${esc(cur.d)}</span>${cur.df ? `<span class="deffa">${esc(cur.df)}</span>` : ""}</div>` : ""}
+      ${cur.d || cur.df ? `<div class="def def-c">${cur.d ? `<span class="defen en">${esc(cur.d)}</span>` : ""}${cur.df ? `<span class="deffa">${esc(cur.df)}</span>` : ""}</div>` : ""}
       ${cur.e ? `<div class="exbox"><div class="ex">“${esc(String(cur.e).replace(/^[“”"']+|[“”"']+$/g, ""))}”</div>${cur.ef ? `<div class="exfa">${esc(cur.ef)}</div>` : ""}</div>` : ""}
       ${sensesHtml(cur)}
       ${(cur.s && cur.s.length) ? `<div class="syn"><span class="muted syn-l">هم‌معنی:</span>${cur.s.map(x => `<span class="pill en">${esc(x)}</span>`).join("")}</div>` : ""}
@@ -1115,7 +1115,7 @@ let shown = 60, query = "";
 function renderBrowse() {
   const q = query.trim().toLowerCase();
   let list = filtered();
-  if (q) list = list.filter(x => x.w.includes(q) || meaningsOf(x).some(m => m.includes(q)));
+  if (q) list = list.filter(x => x.w.toLowerCase().includes(q) || meaningsOf(x).some(m => m.includes(q)));
   list = list.slice();
   if (sortMode === "az") list.sort((a, b) => a.w.localeCompare(b.w));
   else if (sortMode === "dur") list.sort((a, b) => {
@@ -1176,8 +1176,29 @@ async function loadNotes() {
   return NOTES;
 }
 async function loadArch() {
-  if (!ARCH) { const r = await fetch("arch.md", { cache: "no-cache" }); if (!r.ok) throw 0; ARCH = ntParse(await r.text()); }
+  if (!ARCH) { const r = await fetch("arch.md", { cache: "no-cache" }); if (!r.ok) throw 0; archMerge(await r.text()); }
   return ARCH;
+}
+/* arch.md ↔ cards: every term of «زبان تخصصی معماری» becomes a card in the «نما و ساختمان» topic (unless the deck
+   already has it), and the deck's own «نما و ساختمان» words are listed as the last section of the arch tab. */
+const ARCH_TOPIC = "نما و ساختمان";
+function archMerge(md) {
+  const have = new Set(DECK.map(x => x.w.toLowerCase())), plain = t => t.replace(/[*`]/g, "").trim();
+  for (const l of md.split("\n")) {
+    if (!/^\|/.test(l.trim()) || /^\|[\s:|-]+\|?$/.test(l.trim())) continue;
+    const c = l.trim().replace(/^\||\|$/g, "").split("|").map(x => x.trim());
+    if (c.length < 3 || /^english$/i.test(c[0])) continue;
+    const w = plain(c[0]);
+    if (have.has(w.toLowerCase()) || have.has(ntSay(w).toLowerCase())) continue;
+    have.add(w.toLowerCase());
+    DECK.push({ w, fa: [plain(c[2])], t: ARCH_TOPIC, lv: "C1", p: "اصطلاح تخصصی", d: "", e: "", s: [], z: 0, ef: "", df: plain(c[3] || ""), x: [], ipa: c[1].replace(/^\/|\/$/g, ""), arch: true });
+  }
+  const cell = t => String(t || "").replace(/\|/g, "/").replace(/\s+/g, " ").trim();
+  const own = DECK.filter(x => x.t === ARCH_TOPIC && !x.arch).sort((a, b) => a.w.localeCompare(b.w));
+  const extra = own.length ? `\n\n## واژه‌های نما و ساختمان در کارت‌ها\n\nواژه‌های موضوع «${ARCH_TOPIC}» در بخش کارت‌ها (با تعریف و مثال).\n\n| English | تلفظ | معنی فارسی | مثال |\n| --- | --- | --- | --- |\n` +
+    own.map(x => `| ${cell(x.w)} | ${x.ipa ? "/" + cell(x.ipa) + "/" : ""} | ${cell((x.fa || []).slice(0, 3).join("، "))} | ${cell(x.e)} |`).join("\n") + "\n" : "";
+  ARCH = ntParse(md + extra);
+  const n = $("#deckSize"); if (n) n.textContent = fa(DECK.length);
 }
 async function browseNotes(q) {
   let N; try { N = await loadNotes(); } catch (e) { return; }
@@ -1780,9 +1801,11 @@ function boot() {
   $("#appShell").classList.remove("hide");
   Promise.all([
     fetch("words.json").then(r => r.json()),
-    fetch("/api/vocab", { credentials: "same-origin" }).then(r => r.ok ? r.json() : { state: null })
-  ]).then(([rows, remote]) => {
+    fetch("/api/vocab", { credentials: "same-origin" }).then(r => r.ok ? r.json() : { state: null }),
+    fetch("arch.md", { cache: "no-cache" }).then(r => r.ok ? r.text() : "").catch(() => "")
+  ]).then(([rows, remote, archMd]) => {
     DECK = rows.map(r => ({ w: r[0], fa: r[1], t: r[2], lv: r[3], p: r[4], d: r[5], e: r[6], s: r[7], z: r[8], ef: r[9], df: r[10] || '', x: r[11] || [], ipa: r[12] || '' }));
+    if (archMd) archMerge(archMd);
     USER = "lifeos";
     const o = remote && remote.state;
     const d = DEF();
