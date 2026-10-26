@@ -871,6 +871,12 @@ async function main() {
     check('old deposit «transfers» fixed once: out → expense, in → income on the real account, real transfers untouched', a.kind === 'expense' && !a.toAccount && a.account === 'بلو بانک' && b.kind === 'income' && b.account === 'بلو بانک' && b.notIncome && c.kind === 'transfer' && db._meta.depositXferFixed && H.fixDepositTransfers(db) === false, JSON.stringify(db));
   }
   { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
+    {
+      const { makeHelpers: mkL } = await require('./load-worker').loadWorkerModule(); const HL = mkL(env), ago = h => new Date(Date.now() - h * 3600e3).toISOString();
+      const settled = HL.settleStaleLive([{ status: 'live', date: ago(4), score: '2 - 1' }, { status: 'live', date: ago(1) }, { status: 'upcoming', date: ago(5) }, { status: 'live', date: null }]);
+      check('a match still flagged live 4 h after kick-off is shown as finished', settled[0].status === 'finished' && settled[0].score === '2 - 1');
+      check('a match 1 h in stays live; other statuses and undated rows are untouched', settled[1].status === 'live' && settled[2].status === 'upcoming' && settled[3].status === 'live');
+    }
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
     check('TSE hours: Sunday 10:00 Tehran open, 14:00 closed, Thursday closed', H.tseMarketOpen(at('2026-10-11T06:30:00Z')) && !H.tseMarketOpen(at('2026-10-11T10:30:00Z')) && !H.tseMarketOpen(at('2026-10-08T06:30:00Z')));
   }
