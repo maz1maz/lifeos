@@ -18,14 +18,19 @@ const SNAP_EVERY = 30 * 60e3;
 const CHARTS = [['BTC', 'بیت‌کوین', 'BINANCE:BTCUSD'], ['ETH', 'اتریوم', 'BINANCE:ETHUSD'], ['BNB', 'بی‌ان‌بی', 'BINANCE:BNBUSD'], ['SOL', 'سولانا', 'BINANCE:SOLUSD'], ['ARB', 'آربیتروم', 'BINANCE:ARBUSDT']];
 const STUDIES = ['PivotPointsHighLow@tv-basicstudies', 'RSI@tv-basicstudies', 'StochasticRSI@tv-basicstudies', 'Volume@tv-basicstudies'];
 const tvSrc = symbol => 'https://s.tradingview.com/widgetembed/?' + new URLSearchParams({ frameElementId: 'cw_tv', symbol, interval: 'W', hidesidetoolbar: '0', symboledit: '1', saveimage: '1', toolbarbg: 'f1f3f6', studies: STUDIES.join('\x1f') /* tv.js joins study ids with U+001F */, theme: 'dark', style: '1', timezone: 'Asia/Tehran', withdateranges: '1', locale: 'en' });
-const chartHref = c => `/?page=crypto&chart=${c}`;
+const chartHref = c => `/?page=crypto&chart=${encodeURIComponent(c)}`;
+// Every other coin: Binance <COIN>USDT, except tickers Binance renamed. The widget keeps its symbol box, so a wrong guess can be fixed on the page.
+const TV_OVERRIDE = { BTT: 'BINANCE:BTTCUSDT', EOS: 'BINANCE:AUSDT' };
+const NO_CHART = new Set(['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FDUSD']); // stablecoins: a flat line at $1
+const tvSymbol = coin => (CHARTS.find(c => c[0] === coin) || [])[2] || TV_OVERRIDE[coin] || `BINANCE:${coin}USDT`;
+const chartable = h => !h.flag && /^[A-Z0-9]{2,10}$/.test(sym(h)) && !NO_CHART.has(sym(h));
 
 function ChartView({ Nav, coin }) {
-  const c = CHARTS.find(x => x[0] === coin) || CHARTS[0];
-  return <Page Nav={Nav} className="cw cw-chartpage" kicker="کیف‌پول کریپتو" title={`${c[1]} (${c[0]}/USD)`} sub="نمودار هفتگی Binance با Pivots، RSI، Stoch RSI و حجم معاملات"
+  const main = CHARTS.find(x => x[0] === coin), name = main ? main[1] : coin;
+  return <Page Nav={Nav} className="cw cw-chartpage" kicker="کیف‌پول کریپتو" title={`${name} (${main ? coin : coin + '/USDT'})`} sub="نمودار هفتگی Binance با Pivots، RSI، Stoch RSI و حجم معاملات. نماد را از بالای نمودار می‌شود عوض کرد."
     actions={<a className="lf-btn ghost" href="/?page=crypto"><ArrowRight size={15} /> بازگشت به کیف‌پول‌ها</a>}>
-    <nav className="cw-coins" aria-label="ارزها">{CHARTS.map(([k, n]) => <a key={k} href={chartHref(k)} className="cw-sort" aria-current={k === c[0] ? 'page' : undefined}>{k} · {n}</a>)}</nav>
-    <div className="cw-tv"><iframe key={c[0]} src={tvSrc(c[2])} title={`نمودار ${c[1]}`} allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /></div>
+    <nav className="cw-coins" aria-label="ارزها">{[...CHARTS.map(([k, n]) => [k, n]), ...(main ? [] : [[coin, coin]])].map(([k, n]) => <a key={k} href={chartHref(k)} className="cw-sort" aria-current={k === coin ? 'page' : undefined}>{k === n ? k : `${k} · ${n}`}</a>)}</nav>
+    <div className="cw-tv"><iframe key={coin} src={tvSrc(tvSymbol(coin))} title={`نمودار ${name}`} allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /></div>
   </Page>;
 }
 
@@ -161,7 +166,7 @@ function WalletCard({ w, calc, on, sortBy, sortBtn, history, onSave, onRemove })
         {['coin', 'chain', 'amount', 'price'].map(k => <td key={k}><input className="cw-in" value={r[k] ?? ''} onChange={e => set(i, k, e.target.value)} dir={k === 'amount' || k === 'price' ? 'ltr' : undefined} inputMode={k === 'amount' || k === 'price' ? 'decimal' : undefined} aria-label={k} /></td>)}
         <td><button type="button" className="cw-icon" onClick={() => setEdit(e => ({ ...e, rows: e.rows.filter((_, j) => j !== i) }))} aria-label="حذف ردیف"><Trash2 size={15} /></button></td>
       </tr>) : sortBy(hs, calc).map((h, i) => <tr key={i}>
-        <td><b>{h.coin || '?'}</b>{h.flag ? <span className="cw-chip warn">{h.flag}</span> : calc.live(h) == null ? <span className="cw-chip">قیمت دستی</span> : null}</td>
+        <td>{chartable(h) ? <a className="cw-coinlink" href={chartHref(sym(h))} title={`نمودار ${sym(h)}`}><b>{h.coin}</b></a> : <b>{h.coin || '?'}</b>}{h.flag ? <span className="cw-chip warn">{h.flag}</span> : calc.live(h) == null ? <span className="cw-chip">قیمت دستی</span> : null}</td>
         <td>{h.chain || '—'}</td><td className="r cw-num">{amt(h.amount)}</td><td className="r cw-num">{amt(calc.priceOf(h))}</td>
         <td className="r cw-num">{usd(calc.val(h))}</td><td className="r"><Chg d={calc.chg(h)} base={calc.val(h)} compact on={on} /></td>
       </tr>)}</tbody>
@@ -290,14 +295,16 @@ function WalletsPage({ Nav }) {
         {totalPts.length >= 2 ? <p className="cw-muted cw-small">از {usd(totalPts[0].v)} به {usd(totalPts[totalPts.length - 1].v)} ({pctTxt(totalPts[totalPts.length - 1].v - totalPts[0].v, totalPts[totalPts.length - 1].v)}){est.length ? ` · روزهای قبل از ${new Date(est[est.length - 1].t + 864e5).toLocaleDateString('fa-IR')} تخمینی است: مقدار فعلی ارزها × قیمت پایانی آن روز (Binance). خرید و فروش‌های گذشته در آن حساب نشده.` : ''}</p> : null}
       </section>
 
-      {all.length ? <section className="lf-card"><h3>بر اساس شبکه</h3><HBars rows={foldSmall(sumRows(all, net, calc.val))} total={grand} /></section> : null}
-      {ws.length > 1 ? <section className="lf-card"><h3>مقایسهٔ کیف‌پول‌ها</h3><HBars rows={ws.map(w => [w.name || 'بدون نام', (w.holdings || []).reduce((s, h) => s + calc.val(h), 0)]).sort((a, b) => b[1] - a[1])} total={grand} /></section> : null}
+      <div className="cw-pair">
+        {all.length ? <section className="lf-card"><h3>بر اساس شبکه</h3><HBars rows={foldSmall(sumRows(all, net, calc.val))} total={grand} /></section> : null}
+        {ws.length > 1 ? <section className="lf-card"><h3>مقایسهٔ کیف‌پول‌ها</h3><HBars rows={ws.map(w => [w.name || 'بدون نام', (w.holdings || []).reduce((s, h) => s + calc.val(h), 0)]).sort((a, b) => b[1] - a[1])} total={grand} /></section> : null}
+      </div>
 
       {combined.length ? <section className="lf-card"><h3>مجموع همهٔ کیف‌پول‌ها</h3>
         <div className="cw-tablebox"><table className="cw-table">
           <thead><tr>{sortBtn('coin', 'ارز')}{sortBtn('amount', 'مقدار کل', 'r')}{sortBtn('price', 'قیمت (دلار)', 'r')}{sortBtn('value', 'ارزش', 'r')}{sortBtn('chg', '۲۴ ساعت', 'r')}{sortBtn('value', 'سهم', 'r')}{sortBtn('wallets', 'کیف‌پول')}</tr></thead>
           <tbody>{combined.map(r => <tr key={r.coin}>
-            <td><b>{r.coin}</b>{r.flag ? <span className="cw-chip warn">{r.flag}</span> : !r.live ? <span className="cw-chip">قیمت دستی</span> : null}</td>
+            <td>{chartable({ coin: r.coin, flag: r.flag }) ? <a className="cw-coinlink" href={chartHref(r.coin.toUpperCase())} title={`نمودار ${r.coin}`}><b>{r.coin}</b></a> : <b>{r.coin}</b>}{r.flag ? <span className="cw-chip warn">{r.flag}</span> : !r.live ? <span className="cw-chip">قیمت دستی</span> : null}</td>
             <td className="r cw-num">{amt(r.amount)}</td><td className="r cw-num">{amt(r.price)}</td><td className="r cw-num">{usd(r.value)}</td>
             <td className="r"><Chg d={r.d} base={r.value} compact on={on} /></td><td className="r cw-num">{grand ? (r.value / grand * 100).toFixed(1) + '%' : '—'}</td>
             <td className="cw-nowrap">{[...r.wallets].join('، ')}</td>

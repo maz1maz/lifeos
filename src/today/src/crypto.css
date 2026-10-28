@@ -95,3 +95,10 @@
   .cw-line text{font-size:19px}
   .cw-line .cw-mid{display:none}
 }
+
+/* network split and wallet comparison share one row, each at half width; stacked on a phone */
+.cw-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;align-items:start}
+.cw-pair:empty{display:none}
+/* coin symbol → its chart page */
+.cw-coinlink{color:inherit;text-decoration:none;border-bottom:1px dotted var(--g-muted)}
+.cw-coinlink:hover,.cw-coinlink:focus-visible{color:var(--g-accent);border-bottom-color:var(--g-accent)}
