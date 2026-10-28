@@ -243,6 +243,10 @@ async function main() {
     const ck45 = String((typeof lg45.headers.getSetCookie === 'function' ? lg45.headers.getSetCookie()[0] : lg45.headers.get('set-cookie')) || '').split(';')[0];
     check('a later account is not admin -> 403', (await call('/api/admin/overview', { cookie: ck45 })).status === 403);
     check('me.isAdmin false for later account', (await call('/api/me', { cookie: ck45 })).d.user.isAdmin === false);
+    // crypto wallets are the admin's only: a later account can neither read nor write them, the admin still can
+    const cw403 = await Promise.all([call('/api/col/cryptoWallets', { cookie: ck45 }), call('/api/col/cryptoWallets', { method: 'POST', cookie: ck45, body: { name: 'x', holdings: [] } }), call('/api/col/cryptoHistory', { cookie: ck45 })]);
+    check('crypto collections -> 403 for a non-admin account', cw403.every(r => r.status === 403), cw403.map(r => r.status));
+    check('crypto collections still open for the admin', (await call('/api/col/cryptoWallets', { cookie })).status === 200);
     check('anonymous admin -> 401', (await call('/api/admin/overview')).status === 401);
     if (ad1.status === 200) {
       const sec = (await call('/api/admin/overview', { cookie })).d.users.find(u => u.email === em45);

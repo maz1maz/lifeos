@@ -140,7 +140,7 @@ function TopNav({ active, right }) {
   const mods = useModules();
   const [admin, setAdmin] = useState(() => readLs('lifeos-is-admin', false));
   useEffect(() => { meOnce().then(u => { const a = !!u?.isAdmin; setAdmin(a); writeLs('lifeos-is-admin', a); }); }, []);
-  const groups = NAV_GROUPS.map(([t, items]) => [t, items.filter(([pg]) => navOn(mods, pg))]).filter(([, items]) => items.length);
+  const groups = NAV_GROUPS.map(([t, items]) => [t, items.filter(([pg]) => navOn(mods, pg) && (!ADMIN_ONLY.has(pg) || admin))]).filter(([, items]) => items.length);
   useEffect(() => {
     document.body.classList.toggle('nav-lock', open);
     const onKey = e => { if (e.key === 'Escape') setOpen(false); };
@@ -179,7 +179,7 @@ function TopNav({ active, right }) {
       <FocusChip />
       <ThemeToggle />
       {right}
-      <CommandPalette pages={[...NAV_PAGES.filter(x => x[0] !== 'admin' || admin), ['habits', 'عادت‌ها'], ['exercise', 'ورزش'], ['time', 'زمان کار و تایمر'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['ielts', 'آیلتس'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['bookmarks', 'لینک‌ها (بعداً بخوانم)'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
+      <CommandPalette pages={[...NAV_PAGES.filter(x => !ADMIN_ONLY.has(x[0]) || admin),['habits', 'عادت‌ها'], ['exercise', 'ورزش'], ['time', 'زمان کار و تایمر'], ['week', 'مرور هفته'], ['goals', 'اهداف سالانه'], ['focus', 'تایمر تمرکز'], ['stats', 'آمار زندگی'], ['vocab', 'زبان'], ['ielts', 'آیلتس'], ['journal', 'روزنگار'], ['logbook', 'دفتر و مرور (پیروزی‌ها، تصمیم‌ها)'], ['shopping', 'لیست خرید'], ['bookmarks', 'لینک‌ها (بعداً بخوانم)'], ['finance&tab=bills', 'قبض‌ها و اشتراک‌ها'], ['upcoming', 'تقویم پخش سریال‌ها'], ['discover', 'پیشنهاد تماشا']].filter(([pg]) => navOn(mods, pg))} />
       {open ? <button type="button" className="nav-scrim" aria-label="بستن منو" onClick={() => setOpen(false)} /> : null}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head"><i className="brand-logo" aria-hidden="true" /><b>LifeOS</b></div>
@@ -244,6 +244,15 @@ function App() {
   return <Routes key={tick} />;
 }
 
+// Pages only the site admin sees (server answers 403 to everyone else); /api/me decides, the cached flag only avoids a flash.
+const ADMIN_ONLY = new Set(['admin', 'crypto']);
+function AdminOnly({ children }) {
+  const [admin, setAdmin] = useState(() => readLs('lifeos-is-admin', false) || null);
+  useEffect(() => { meOnce().then(u => setAdmin(!!u?.isAdmin)); }, []);
+  if (admin === null) return <PageLoading />;
+  return admin ? children : <><TopNav /><main className="locked-page" dir="rtl"><h1>🔒 این بخش بسته است</h1><p>این بخش فقط برای مدیر سایت است.</p><a href="/">بازگشت به امروز</a></main></>;
+}
+
 // Router first: other pages must not pay for the Today page's data fetching.
 function Routes() {
   const page = new URLSearchParams(location.search).get('page');
@@ -259,7 +268,7 @@ function Routes() {
   if (LIFE[page]) { const P = LIFE[page]; return <P Nav={() => <TopNav active={page} />} />; }
   if (page === 'finance') return <FinanceReact Nav={TopNav} />;
   if (page === 'market') return <MarketReact Nav={TopNav} />;
-  if (page === 'crypto') return <CryptoPage Nav={() => <TopNav active="crypto" />} />;
+  if (page === 'crypto') return <AdminOnly><CryptoPage Nav={() => <TopNav active="crypto" />} /></AdminOnly>;
   if (page === 'football') return <FootballPage />;
   if (['movies', 'series', 'upcoming', 'discover'].includes(page)) return <WatchHub initial={page} />;
   if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;

@@ -38,7 +38,7 @@ function sumRows(hs, key, val) {
 function foldSmall(rows, max = Infinity) {
   const total = rows.reduce((s, [, v]) => s + v, 0), keep = rows.filter(([, v]) => v >= total * 0.01).slice(0, max);
   const rest = total - keep.reduce((s, [, v]) => s + v, 0);
-  return rest >= total * 0.01 ? [...keep, ['سایر', rest]] : keep;
+  return rest > 0 && rest >= total * 0.01 ? [...keep, ['سایر', rest]] : keep; // no wallets yet: nothing, not «سایر NaN%»
 }
 
 async function fetchPrices(symbols, extraIds) {
@@ -254,7 +254,7 @@ export function CryptoPage({ Nav }) {
         <div className="cw-bar">{alloc.map(([k, v], i) => <span key={k} title={k} style={{ width: `${v / grand * 100}%`, background: COLORS[i % 8] }} />)}</div>
         <ul className="cw-legend">{alloc.map(([k, v], i) => <li key={k}><i style={{ background: COLORS[i % 8] }} />{k} <span className="cw-num">{(v / grand * 100).toFixed(1)}%</span></li>)}</ul>
       </section> : null}
-      <p className="cw-muted cw-small">{on ? `قیمت لحظه‌ای از CoinGecko · آخرین به‌روزرسانی ${new Date(prices.at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })} (هر ۵ دقیقه)` : 'در حال گرفتن قیمت لحظه‌ای…'}</p>
+      {symbols ? <p className="cw-muted cw-small">{on ? `قیمت لحظه‌ای از CoinGecko · آخرین به‌روزرسانی ${new Date(prices.at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })} (هر ۵ دقیقه)` : 'در حال گرفتن قیمت لحظه‌ای…'}</p> : null}
 
       <section className="lf-card">
         <div className="cw-head"><h3>ارزش کل در طول زمان</h3>
