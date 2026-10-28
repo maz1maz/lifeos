@@ -871,6 +871,12 @@ async function main() {
     check('old deposit «transfers» fixed once: out → expense, in → income on the real account, real transfers untouched', a.kind === 'expense' && !a.toAccount && a.account === 'بلو بانک' && b.kind === 'income' && b.account === 'بلو بانک' && b.notIncome && c.kind === 'transfer' && db._meta.depositXferFixed && H.fixDepositTransfers(db) === false, JSON.stringify(db));
   }
   { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
+    {
+      const { makeHelpers: mkL } = await require('./load-worker').loadWorkerModule(); const HL = mkL(env), ago = h => new Date(Date.now() - h * 3600e3).toISOString();
+      const settled = HL.settleStaleLive([{ status: 'live', date: ago(4), score: '2 - 1' }, { status: 'live', date: ago(1) }, { status: 'upcoming', date: ago(5) }, { status: 'live', date: null }]);
+      check('a match still flagged live 4 h after kick-off is shown as finished', settled[0].status === 'finished' && settled[0].score === '2 - 1');
+      check('a match 1 h in stays live; other statuses and undated rows are untouched', settled[1].status === 'live' && settled[2].status === 'upcoming' && settled[3].status === 'live');
+    }
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
     check('TSE hours: Sunday 10:00 Tehran open, 14:00 closed, Thursday closed', H.tseMarketOpen(at('2026-10-11T06:30:00Z')) && !H.tseMarketOpen(at('2026-10-11T10:30:00Z')) && !H.tseMarketOpen(at('2026-10-08T06:30:00Z')));
   }
@@ -1081,6 +1087,16 @@ async function main() {
       '1405/06/21,خرید نان,0,"500,000",9002',
       '1405/06/25,واریز حقوق,"12,000,000",0,9003'].join('\n');
     const w10preview = async (csv) => (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'csv', filename: 'bank.csv', fileBase64: Buffer.from('\ufeff' + csv, 'utf8').toString('base64') } })).d;
+
+    // Bank Melli export: one «مبلغ» column, direction in «نوع», counterparty inside «توضیحات», names doubled
+    const melli = (await w10preview(['نام و نام خانوادگی:,مزلقانی حمیدرضا', 'از تاریخ:,1404/08/07,تا تاریخ:,1405/08/06', '',
+      'ردیف,تاریخ,زمان,شعبه,نوع,مبلغ,شماره پیگیری,اطلاعات تکمیلی,شرح,توضیحات,مانده',
+      '1,1405/08/05,18:19:46,تمرکز اسناد,برداشت,"120,000",BCG1,x,كارمزد پايا,,"72,702,681,480"',
+      '2,1405/08/05,18:19:45,تمرکز اسناد,برداشت,"2,000,000,000",BCG1,x,حواله پايا اينترنتي,"بانک طرف مقابل : بانک سامان،  نام کامل طرف مقابل : سحر ميثاقي سحر ميثاقي،  کد رهگیری : 1",',
+      '3,1405/08/04,13:16:38,پايا,واریز,"1,000,000,000",ACH2,x,حواله پايا,"نام کامل طرف مقابل : فردين حصارفولادي، شماره شبا : IR1",'].join('\n'))) || {};
+    const mi = melli.items || [];
+    check('worker: Bank Melli statement (single «مبلغ» column + «نوع») is read', mi.length === 3 && mi[0].kind === 'expense' && mi[0].amount === 120_000 && mi[1].amount === 2_000_000_000 && mi[2].kind === 'income' && mi[2].amount === 1_000_000_000, JSON.stringify(melli).slice(0, 400));
+    check('worker: Melli rows are titled by «شرح» + counterparty (doubled name once, Persian ی/ک)', mi[1] && mi[1].title === 'حواله پایا اینترنتی (سحر میثاقی)' && mi[2].title === 'حواله پایا (فردین حصارفولادی)' && mi[0].title === 'کارمزد پایا', mi.map(x => x.title).join(' | '));
 
     const w10first = await w10check('2026-09-23');
     check('worker: 1st of the month -> bank-statement reminder for the previous month', w10first.created === 1 && w10first.month === 'شهریور' && !!w10first.reminder && w10first.reminder.auto === 'bank-import:1405-06', JSON.stringify(w10first));
