@@ -1096,6 +1096,8 @@ async function main() {
       '3,1405/08/04,13:16:38,پايا,واریز,"1,000,000,000",ACH2,x,حواله پايا,"نام کامل طرف مقابل : فردين حصارفولادي، شماره شبا : IR1",',
       '4,1405/08/04,12:00:00,پايا,برداشت,"500,000,000",ACH3,x,حواله پايا اينترنتي,"نام کامل طرف مقابل : حميدرضا مزلقاني حميدرضا مزلقاني، شماره شبا : IR2",'].join('\n'))) || {};
     const mi = melli.items || [];
+    const viaRows = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', filename: 'm.xls', rows: [['نام و نام خانوادگی:', 'مزلقانی حمیدرضا'], [], ['ردیف', 'تاریخ', 'نوع', 'مبلغ', 'شرح', 'توضیحات'], ['1', '1405/08/05', 'برداشت', '120,000', 'كارمزد پايا', '']] } })).d || {};
+    check('worker: bank preview accepts the sheet rows read in the browser (no file upload)', (viaRows.items || []).length === 1 && viaRows.items[0].amount === 120_000 && viaRows.items[0].kind === 'expense', JSON.stringify(viaRows).slice(0, 300));
     check('worker: Bank Melli statement (single «مبلغ» column + «نوع») is read', mi.length === 4 && mi[0].kind === 'expense' && mi[0].amount === 120_000 && mi[1].amount === 2_000_000_000 && mi[2].kind === 'income' && mi[2].amount === 1_000_000_000, JSON.stringify(melli).slice(0, 400));
     check('worker: Melli rows are titled by «شرح» + counterparty (doubled name once, Persian ی/ک)', mi[1] && mi[1].title === 'حواله پایا اینترنتی (سحر میثاقی)' && mi[2].title === 'حواله پایا (فردین حصارفولادی)' && mi[0].title === 'کارمزد پایا', mi.map(x => x.title).join(' | '));
     check('worker: a Melli transfer to the account holder\'s own name is «انتقال», not spending', mi[3] && mi[3].category === 'انتقال' && mi[1].category !== 'انتقال', JSON.stringify(mi[3]));

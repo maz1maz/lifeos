@@ -605,15 +605,29 @@ export function FinanceReact({ Nav }) {
     const file = e.target.files?.[0]
     if (!file) return
     try {
-      const base64 = await new Promise((resolve, reject) => {
-        const r = new FileReader()
-        r.onload = () => resolve(String(r.result).split(',')[1])
-        r.onerror = reject
-        r.readAsDataURL(file)
-      })
-      const preview = await api('/api/transactions/import-bank/preview', { method: 'POST', body: JSON.stringify({ fileBase64: base64, filename: file.name, fileType: file.name.toLowerCase().endsWith('.csv') ? 'csv' : 'xlsx', amountUnit: 'IRR' }) })
+      let payload
+      if (/\.csv$/i.test(file.name)) {
+        const base64 = await new Promise((resolve, reject) => {
+          const r = new FileReader()
+          r.onload = () => resolve(String(r.result).split(',')[1])
+          r.onerror = reject
+          r.readAsDataURL(file)
+        })
+        payload = { fileBase64: base64, filename: file.name, fileType: 'csv', amountUnit: 'IRR' }
+      } else {
+        // Excel is read here and only its rows go up: about a third of the base64 file (a 140 KB Melli .xls
+        // upload kept dying with «Failed to fetch» before reaching the server)
+        const XLSX = await import('xlsx')
+        const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array' })
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' })
+          .map((r) => { const a = r.map((c) => String(c ?? '')); while (a.length && !a[a.length - 1].trim()) a.pop(); return a })
+        payload = { rows, filename: file.name, fileType: 'xlsx', amountUnit: 'IRR' }
+      }
+      const body = JSON.stringify(payload), post = () => api('/api/transactions/import-bank/preview', { method: 'POST', body })
+      // one quiet retry when the request never reached the server (flaky connection / VPN)
+      const preview = await post().catch((err) => (err instanceof TypeError ? new Promise((ok) => setTimeout(ok, 1500)).then(post) : Promise.reject(err)))
       setImportPreview({ ...preview, forAccount })
-    } catch (err) { setNotice(err.message) }
+    } catch (err) { setNotice(err instanceof TypeError ? 'فایل به سرور نرسید (اتصال اینترنت یا VPN قطع شد). دوباره امتحان کن.' : err.message) }
     e.target.value = ''
   }
 
