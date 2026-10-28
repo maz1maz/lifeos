@@ -25,7 +25,7 @@ import {
   House, CalendarDays, ListChecks, Wallet, LineChart, Trophy, Clapperboard, Film,
   Music, StickyNote, FolderOpen, Users, Settings, Bell, CheckSquare2, MapPin, Sparkles,
   Search, Star, X, Check, Moon, LayoutGrid, GripVertical, RotateCcw, Cake, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, ChevronsLeft, ChevronsRight, Trash2, Plus, Menu,
-  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Newspaper, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck, LogOut, Dumbbell, Bookmark
+  Pencil, Repeat, CircleAlert, Hash, Clock, Sun, CircleDot, Flame, Compass, ClipboardCheck, Command, Download, Upload, Sparkle, Briefcase, HeartPulse, Car, Plane, BookOpen, GraduationCap, Languages, Library, Target, BookMarked, Newspaper, Timer, BarChart3, ShoppingCart, Receipt, ShieldCheck, LogOut, Dumbbell, Bookmark, Bitcoin
 } from 'lucide-react';
 import { JalaliDateInput } from './jdate';
 import './numgroup';
@@ -36,6 +36,7 @@ import './logbook.css';
 import './reading.css';
 import './assistant.css';
 import './exercise.css';
+import './crypto.css';
 import './timelog.css';
 import './admin.css';
 import './courses.css';
@@ -59,11 +60,11 @@ import './mobile.css'; // phone/iPhone pass — keep last so it overrides page C
 const PAGE_CHUNKS = {
   notes: () => import('./notes'), contacts: () => import('./contacts'), documents: () => import('./documents'),
   media: () => import('./media'), market: () => import('./market'), calendar: () => import('./calendar'),
-  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), watch: () => import('./watch-pages'), exercise: () => import('./exercise'), timelog: () => import('./timelog'), admin: () => import('./admin'), courses: () => import('./courses'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook'), reading: () => import('./reading'), ielts: () => import('./ielts'), speech: () => import('./speech')
+  finance: () => import('./finance'), habits: () => import('./habits'), watchx: () => import('./watchx'), watch: () => import('./watch-pages'), exercise: () => import('./exercise'), crypto: () => import('./crypto'), timelog: () => import('./timelog'), admin: () => import('./admin'), courses: () => import('./courses'), insights: () => import('./insights'), life: () => import('./life'), logbook: () => import('./logbook'), reading: () => import('./reading'), ielts: () => import('./ielts'), speech: () => import('./speech')
 };
 const lazyPage = (chunk, name) => React.lazy(() => PAGE_CHUNKS[chunk]().then(m => ({ default: m[name] })));
 const AdminPage = lazyPage('admin', 'AdminPage'), CoursesPage = lazyPage('courses', 'CoursesPage'), ClassTodayCardLazy = lazyPage('courses', 'ClassTodayCard');
-const ExercisePage = lazyPage('exercise', 'ExercisePage'), TimeLogPage = lazyPage('timelog', 'TimeLogPage');
+const ExercisePage = lazyPage('exercise', 'ExercisePage'), CryptoPage = lazyPage('crypto', 'CryptoPage'), TimeLogPage = lazyPage('timelog', 'TimeLogPage');
 const SeriesReact = lazyPage('watch', 'SeriesReact'), MoviesReact = lazyPage('watch', 'MoviesReact');
 const NotesReact = lazyPage('notes', 'NotesReact'), ContactsReact = lazyPage('contacts', 'ContactsReact'), DocumentsReact = lazyPage('documents', 'DocumentsReact');
 const MediaReact = lazyPage('media', 'MediaReact'), MarketReact = lazyPage('market', 'MarketReact'), CalendarReact = lazyPage('calendar', 'CalendarReact');
@@ -124,7 +125,7 @@ function Sparkline({ data, up, width = 72, height = 28, uid = 'sp', color: force
 const NAV_GROUPS = [
   ['روزانه', [['', 'امروز', House], ['planner', 'برنامه‌ریز و تقویم', CalendarDays], ['insights', 'بینش', Sparkles], ['review', 'مرور و اهداف', Target]]],
   ['کار', [['projects', 'پروژه‌ها', LayoutGrid], ['courses', 'دوره‌ها و دانشجوها', GraduationCap], ['crm', 'مشتری و فروش', Briefcase]]],
-  ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart]]],
+  ['مالی', [['finance', 'مالی', Wallet], ['market', 'بازار', LineChart], ['crypto', 'کیف‌پول کریپتو', Bitcoin]]],
   ['زندگی', [['health', 'سلامت', HeartPulse], ['car', 'خودرو', Car], ['travel', 'سفر', Plane]]],
   ['سرگرمی', [['series', 'فیلم و سریال', Clapperboard], ['media', 'موسیقی و یوتیوب', Music], ['football', 'فوتبال', Trophy]]],
   ['یادگیری و آرشیو', [['learning', 'یادگیری و زبان', Library], ['notes', 'یادداشت و روزنگار', StickyNote], ['reading', 'خبر و خواندنی', Newspaper], ['documents', 'مدارک', FolderOpen], ['contacts', 'مخاطبین', Users], ['speech', 'استودیوی گفتار', Sparkles]]]
@@ -258,6 +259,7 @@ function Routes() {
   if (LIFE[page]) { const P = LIFE[page]; return <P Nav={() => <TopNav active={page} />} />; }
   if (page === 'finance') return <FinanceReact Nav={TopNav} />;
   if (page === 'market') return <MarketReact Nav={TopNav} />;
+  if (page === 'crypto') return <CryptoPage Nav={() => <TopNav active="crypto" />} />;
   if (page === 'football') return <FootballPage />;
   if (['movies', 'series', 'upcoming', 'discover'].includes(page)) return <WatchHub initial={page} />;
   if (page === 'media' || page === 'music' || page === 'youtube') return <MediaReact Nav={TopNav} initialTab={page === 'youtube' ? 'youtube' : page === 'music' ? 'spotify' : 'desk'} />;
@@ -993,7 +995,7 @@ const writeLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } 
 
 // ── per-user sections ("بخش‌های من"): hide what a user doesn't use, everywhere ──
 const MODULES = [['projects', 'پروژه‌ها', '🗂', 'تابلوی کانبان برای پروژه‌ها'], ['courses', 'دوره‌ها و دانشجوها', '🎓', 'شهریه، پرداخت‌ها و حضور و غیاب'], ['vocab', 'زبان', '📘', '۷۰۰۰ واژهٔ آیلتس با مرور فاصله‌دار'], ['crmOn', 'مشتری و فروش', '💼', 'مشتری، پیش‌فاکتور و پیگیری (پیش‌فرض خاموش)'], ['health', 'سلامت', '💪', 'وزن، خواب، ورزش و آب'], ['car', 'خودرو', '🚗', 'بیمه، معاینه، سرویس و هزینه‌ها'], ['travel', 'سفر', '✈️', 'برنامه، بودجه و لیست وسایل'], ['journal', 'روزنگار', '📔', 'نوشته و عکس روزانه'], ['habits', 'عادت‌ها', '🔥', 'عادت روزانه و زنجیرهٔ روزها'], ['learning', 'یادگیری', '🎓', 'کتاب‌ها و دوره‌ها'], ['finance', 'مالی', '💰', 'تراکنش، بودجه، بدهی و سرمایه'], ['market', 'بازار ارز و طلا', '📈', 'دلار، سکه، طلا و رمزارز'], ['football', 'فوتبال', '⚽', 'بازی‌ها، جدول و تیم‌های محبوب'], ['watch', 'فیلم و سریال', '🎬', 'ردیاب سریال، تقویم پخش و پیشنهاد'], ['media', 'رسانه', '🎵', 'موسیقی و یوتیوب'], ['notes', 'یادداشت‌ها', '📝', 'یادداشت و چک‌لیست'], ['documents', 'مدارک', '📄', 'آرشیو مدارک با تاریخ انقضا'], ['contacts', 'مخاطبین', '👥', 'مخاطب، تولد و پیگیری']];
-const PAGE_MODULE = { projects: 'projects', courses: 'courses', vocab: 'vocab', ielts: 'vocab', crm: 'crmOn', health: 'health', exercise: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', habits: 'habits', shopping: 'notes', finance: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
+const PAGE_MODULE = { projects: 'projects', courses: 'courses', vocab: 'vocab', ielts: 'vocab', crm: 'crmOn', health: 'health', exercise: 'health', car: 'car', travel: 'travel', journal: 'journal', learning: 'learning', habits: 'habits', shopping: 'notes', finance: 'finance', crypto: 'finance', market: 'market', football: 'football', series: 'watch', movies: 'watch', upcoming: 'watch', discover: 'watch', media: 'media', notes: 'notes', documents: 'documents', contacts: 'contacts' };
 let MODS_CACHE = readLs('lifeos-modules', null);
 let LOCKS_CACHE = readLs('lifeos-locks', []); // sections the site admin closed for this account (server answers 403 too)
 const pageLocked = page => !!PAGE_MODULE[page] && LOCKS_CACHE.includes(PAGE_MODULE[page]);

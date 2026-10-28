@@ -166,6 +166,15 @@ async function main() {
     const c2 = await call(`/api/col/health/${c1.d.id}`, { method: 'PATCH', cookie, body: { weight: 80 } });
     check('collection patch', c2.status === 200 && c2.d.weight === 80);
     {
+      // crypto wallets page: wallets with holdings, and a 2-year history doc (~730 points) must store whole
+      const w = await call('/api/col/cryptoWallets', { method: 'POST', cookie, body: { name: 'Ledger', holdings: [{ coin: 'ETH', chain: 'Ethereum', amount: 1.5, price: 2400 }] } });
+      const wl = await call('/api/col/cryptoWallets', { cookie });
+      check('crypto wallet stored with holdings', w.status === 201 && wl.d.items.some(x => x.id === w.d.id && x.holdings[0].coin === 'ETH' && x.holdings[0].amount === 1.5));
+      const points = Array.from({ length: 730 }, (_, i) => ({ t: new Date(Date.UTC(2024, 9, 28) + i * 864e5).toISOString(), total: 90000 + i, wallets: { [w.d.id]: 90000 + i, other1: 1234.56, other2: 98765.43 }, est: true }));
+      const hb = await call('/api/col/cryptoHistory', { method: 'POST', cookie, body: { day: 'backfill', points } });
+      check('crypto history keeps 730 points', hb.status === 201 && hb.d.points.length === 730 && hb.d.points[729].total === 90729);
+    }
+    {
       // a contract's bill of quantities + measurement sheet + cover logos must survive whole (old limit cut JSON at 20k → 500)
       const boq = Array.from({ length: 120 }, (_, i) => ({ id: 'b' + i, desc: 'آیتم قرارداد شمارهٔ ' + i + ' — تهیه و نصب', qty: 100 + i, unit: 'مترمربع', price: 299818766 }));
       const measures = Array.from({ length: 300 }, (_, i) => ({ id: 'm' + i, statementNo: 1 + (i % 5), itemId: 'b' + (i % 120), date: '2026-06-16', qty: 1.5, note: 'ریزمتره' }));

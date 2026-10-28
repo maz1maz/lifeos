@@ -23,7 +23,7 @@ const MODULE_API = [
   [/^\/api\/col\/journal(\/|$)/, 'journal'],
   [/^\/api\/habits(\/|$)/, 'habits'],
   [/^\/api\/(learning|col\/learning)(\/|$)/, 'learning'],
-  [/^\/api\/(transactions|accounts|budgets|debts|finance|transfers|subscriptions|savings-goals|investments|portfolio)(\/|$)/, 'finance'],
+  [/^\/api\/(transactions|accounts|budgets|debts|finance|transfers|subscriptions|savings-goals|investments|portfolio|col\/crypto\w*)(\/|$)/, 'finance'],
   [/^\/api\/market(\/|$)/, 'market'],
   [/^\/api\/football(\/|$)/, 'football'],
   [/^\/api\/movies(\/|$)/, 'watch'],
