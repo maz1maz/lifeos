@@ -130,7 +130,11 @@ function Drawer({ label, title, children }) {
     </>
   )
 }
+// the user's list = defaults minus the hidden ones + their own, «متفرقه» always last (set from the component on every render, like UNIT)
+const catList = (cfg) => { const hid = new Set(cfg?.hidden || []); return [...CATS.filter((c) => c !== 'متفرقه' && !hid.has(c)), ...(cfg?.added || []).filter((c) => !CATS.includes(c)), 'متفرقه'] }
+let USER_CATS = null
 const CATS = ['خوراک', 'حمل‌ونقل', 'قبض', 'مسکن', 'سلامت', 'تفریح', 'آموزش', 'پوشاک', 'حقوق', 'سرمایه‌گذاری', 'هدیه', 'سفر', 'متفرقه']
+USER_CATS = CATS
 const ICONS = { 'خوراک': '🍔', 'حمل‌ونقل': '🚕', 'قبض': '🧾', 'مسکن': '🏠', 'سلامت': '💊', 'تفریح': '🎮', 'آموزش': '📚', 'پوشاک': '👕', 'حقوق': '💼', 'سرمایه‌گذاری': '📈', 'هدیه': '🎁', 'سفر': '✈️', 'متفرقه': '📦', 'انتقال': '🔄' }
 const COLORS = ['#22d3ee', '#a78bfa', '#fbbf24', '#34d399', '#f472b6', '#60a5fa', '#fb7185', '#4ade80', '#f97316']
 const usd = (n) => `$${fa(Math.round(Math.abs(Number(n) || 0)))}` // whole dollars
@@ -382,6 +386,14 @@ export function FinanceReact({ Nav }) {
   const [editing, setEditing] = useState(null)
   const [holdAssetType, setHoldAssetType] = useState('crypto')
   const [importPreview, setImportPreview] = useState(null)
+  const [acctFilter, setAcctFilter] = useState('all')
+  const [catCfg, setCatCfg] = useState({ added: [], hidden: [] })
+  const [newCat, setNewCat] = useState('')
+  useEffect(() => { api('/api/me').then((r) => r.user?.financeCats && setCatCfg(r.user.financeCats)).catch(() => {}) }, [])
+  USER_CATS = catList(catCfg)
+  const saveCats = (next) => { setCatCfg(next); api('/api/me', { method: 'PATCH', body: JSON.stringify({ financeCats: next }) }).catch((e) => setNotice(e.message)) }
+  const addCat = () => { const c = newCat.trim(); if (!c) return; setNewCat(''); if (CATS.includes(c)) saveCats({ ...catCfg, hidden: catCfg.hidden.filter((x) => x !== c) }); else if (!catCfg.added.includes(c)) saveCats({ ...catCfg, added: [...catCfg.added, c] }) }
+  const dropCat = (c) => saveCats(CATS.includes(c) ? { ...catCfg, hidden: [...catCfg.hidden, c] } : { ...catCfg, added: catCfg.added.filter((x) => x !== c) })
   const [poker, setPoker] = useState([])
   const [pokerAll, setPokerAll] = useState([])
   const [pfSnaps, setPfSnaps] = useState(null)
@@ -478,7 +490,7 @@ export function FinanceReact({ Nav }) {
   const netWorth = accounts.reduce((s, a) => s + Number(a.balance ?? a.openingBalance ?? 0), 0)
   const receivable = debts.filter((d) => d.type !== 'payable').reduce((s, d) => s + d.amount, 0)
   const payable = debts.filter((d) => d.type === 'payable').reduce((s, d) => s + d.amount, 0)
-  const shown = txs.filter((t) => (filter === 'all' || (filter === 'misc' ? isMisc(t) : t.kind === filter)) && (!q.trim() || `${t.title} ${t.category} ${t.account || ''}`.includes(q.trim())))
+  const shown = txs.filter((t) => (filter === 'all' || (filter === 'misc' ? isMisc(t) : filter === 'transfer' ? t.kind === 'transfer' || t.category === 'انتقال' : t.kind === filter && t.category !== 'انتقال')) && (acctFilter === 'all' || t.account === acctFilter || t.toAccount === acctFilter) && (!q.trim() || `${t.title} ${t.category} ${t.account || ''}`.includes(q.trim())))
   const face = holdAssetType === 'dollar' || holdAssetType === 'euro'
   const mRange = jRange(month)
   const betMonthItems = (bet.items || []).filter((d) => d.date >= mRange.from && d.date <= mRange.to)
@@ -613,7 +625,7 @@ export function FinanceReact({ Nav }) {
           r.onerror = reject
           r.readAsDataURL(file)
         })
-        payload = { fileBase64: base64, filename: file.name, fileType: 'csv', amountUnit: 'IRR' }
+        payload = { fileBase64: base64, filename: file.name, fileType: 'csv', amountUnit: 'IRR', account: forAccount }
       } else {
         // Excel is read here and only its rows go up: about a third of the base64 file (a 140 KB Melli .xls
         // upload kept dying with «Failed to fetch» before reaching the server)
@@ -621,7 +633,7 @@ export function FinanceReact({ Nav }) {
         const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array' })
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' })
           .map((r) => { const a = r.map((c) => String(c ?? '')); while (a.length && !a[a.length - 1].trim()) a.pop(); return a })
-        payload = { rows, filename: file.name, fileType: 'xlsx', amountUnit: 'IRR' }
+        payload = { rows, filename: file.name, fileType: 'xlsx', amountUnit: 'IRR', account: forAccount }
       }
       const body = JSON.stringify(payload), post = () => api('/api/transactions/import-bank/preview', { method: 'POST', body })
       // one quiet retry when the request never reached the server (flaky connection / VPN)
@@ -640,7 +652,7 @@ export function FinanceReact({ Nav }) {
       const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas')
       c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
       const r = await api('/api/transactions/receipt-scan', { method: 'POST', body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85) }) })
-      setDraft((d) => ({ key: d.key + 1, title: r.title, amount: r.amount ? Number(r.amount).toLocaleString('en-US') : '', category: CATS.includes(r.category) ? r.category : '', kind: r.kind, date: r.date || isoToday(), scanned: true }))
+      setDraft((d) => ({ key: d.key + 1, title: r.title, amount: r.amount ? Number(r.amount).toLocaleString('en-US') : '', category: USER_CATS.includes(r.category) ? r.category : '', kind: r.kind, date: r.date || isoToday(), scanned: true }))
     } catch (err) { setNotice(err.message) }
     setScanning(false)
   }
@@ -729,7 +741,7 @@ export function FinanceReact({ Nav }) {
               <button type="button" className="fn-link" style={{ marginTop: 8 }} onClick={() => setTab('ledger')}>{fa(txs.length)} تراکنش ←</button>
             </div>
           </div>
-          <div className="fn-cats">
+          <div className="fn-catmgr">
             {cats.slice(0, 5).map(([name, value], i) => (
               <div key={name} className="fn-soft fn-cat">
                 <b>{ICONS[name] || '•'} {name}</b>
@@ -813,7 +825,7 @@ export function FinanceReact({ Nav }) {
         {tab === 'ledger' ? (
           <div className="fn-ledger" id="ledger">
             <section className="fn-glass fn-list">
-              <div className="fn-head"><h2>دفتر {monthFa(month)}</h2><Drawer label="تراکنش تازه">
+              <div className="fn-head"><h2>تراکنش‌های {monthFa(month)}</h2><Drawer label="تراکنش تازه">
 <form className="fn-form" onSubmit={submitTx} key={draft.key}>
               <label className={`fn-file fn-scan ${scanning ? 'busy' : ''}`}>{scanning ? '⏳ در حال خواندن رسید…' : '📷 پر کردن از روی عکس رسید / پیامک'}<input type="file" accept="image/*" capture="environment" hidden onChange={scanReceipt} disabled={scanning} /></label>
               {draft.scanned ? <p className="fn-note">✓ از روی تصویر پر شد — قبل از ثبت چک کن.</p> : null}
@@ -821,7 +833,7 @@ export function FinanceReact({ Nav }) {
               <input name="amount" required inputMode="numeric" placeholder="مبلغ (ریال)" defaultValue={draft.amount || ''} />
               <div>
                 <select name="kind" defaultValue={draft.kind || 'expense'}><option value="expense">هزینه</option><option value="income">درآمد</option></select>
-                <select name="category" defaultValue={draft.category || ''}><option value="">دسته: خودکار از روی شرح</option>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
+                <select name="category" defaultValue={draft.category || ''}><option value="">دسته: خودکار از روی شرح</option>{USER_CATS.map((c) => <option key={c}>{c}</option>)}</select>
               </div>
               <select name="recurrence" defaultValue=""><option value="">بدون تکرار</option><option value="jmonthly">🔁 هر ماه (همان روز ماه شمسی)</option><option value="weekly">🔁 هر هفته</option><option value="yearly">🔁 هر سال</option></select>
               <select name="account">
@@ -834,6 +846,14 @@ export function FinanceReact({ Nav }) {
             </form>
               </Drawer></div>
               <div className="fn-recat">
+                <Drawer label="🏷 دسته‌ها" title="دسته‌های هزینه و درآمد">
+                  <div className="fn-catmgr">
+                    <p className="sub">دستهٔ تازه بساز یا دسته‌ای را که لازم نداری بردار. تراکنش‌های قبلی دستهٔ خودشان را نگه می‌دارند.</p>
+                    <div className="fn-cat-chips">{USER_CATS.filter((c) => c !== 'متفرقه').map((c) => <span key={c} className="fn-cat-chip">{c}<button type="button" onClick={() => dropCat(c)} aria-label={`حذف دستهٔ ${c}`}>×</button></span>)}<span className="fn-cat-chip fixed">متفرقه</span></div>
+                    {/* not a <form>: the Drawer closes itself on submit */}<div className="fn-form" style={{ padding: 0 }}><div><input value={newCat} onChange={(e) => setNewCat(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCat() } }} placeholder="نام دستهٔ تازه، مثلاً «اینترنت»" maxLength={30} /><button className="fn-save" type="button" onClick={addCat}>＋ افزودن</button></div></div>
+                    {catCfg.hidden.length ? <p className="sub">برداشته‌شده‌ها: {catCfg.hidden.map((c) => <button key={c} type="button" className="fn-link" onClick={() => saveCats({ ...catCfg, hidden: catCfg.hidden.filter((x) => x !== c) })}>↺ {c}</button>)}</p> : null}
+                  </div>
+                </Drawer>
                 <button type="button" className="fn-action" onClick={previewRecat} disabled={recatBusy}>🧹 دسته‌بندی متفرقه‌ها</button>
                 <button type="button" className="fn-action" onClick={revertRecat} disabled={recatBusy}>↩ بازگردانی آخرین اعمال</button>
                 <button type="button" className="fn-action" onClick={() => recategorize({ revert: true, genericLearned: true }, (r) => r.message || 'برگشت.')} disabled={recatBusy} title="دسته‌هایی که از روی عنوان‌های عمومی مثل «خرید از فروشگاه» روی همه پخش شده بود">↩ برگرداندن دسته‌بندی گروهی اشتباه</button>
@@ -855,12 +875,16 @@ export function FinanceReact({ Nav }) {
               <div className="fn-filters">
                 {FILTERS.map(([k, l]) => <button key={k} type="button" className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{l}</button>)}
               </div>
+              {accounts.length ? <div className="fn-filters fn-acct-filter" aria-label="حساب">
+                <button type="button" className={acctFilter === 'all' ? 'on' : ''} onClick={() => setAcctFilter('all')}>همهٔ حساب‌ها</button>
+                {accounts.filter((a) => !a.archived).map((a) => <button key={a.id} type="button" className={acctFilter === a.name ? 'on' : ''} onClick={() => setAcctFilter(a.name)}>{a.name}</button>)}
+              </div> : null}
               <input className="fn-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در شرح و دسته…" />
               {shown.length ? shown.map((item) => (
                 <article key={item.id} className="fn-row">
                   <div>
                     <b>{item.title}</b>
-                    <small>{jalaliShort(item.date)} · {isMisc(item) ? <select className="fn-catpick" value="" onChange={(e) => setCat(item, e.target.value)} aria-label="انتخاب دسته"><option value="">متفرقه — دسته؟</option>{CATS.filter((c) => c !== 'متفرقه' && c !== 'حقوق').map((c) => <option key={c} value={c}>{c}</option>)}<option value="انتقال">انتقال (هزینه نیست)</option></select> : item.category} · {item.account}{item.tags?.length ? ` · ${item.tags.map((t) => `#${t}`).join(' ')}` : ''}</small>
+                    <small>{jalaliShort(item.date)} · {isMisc(item) ? <select className="fn-catpick" value="" onChange={(e) => setCat(item, e.target.value)} aria-label="انتخاب دسته"><option value="">متفرقه — دسته؟</option>{USER_CATS.filter((c) => c !== 'متفرقه' && c !== 'حقوق').map((c) => <option key={c} value={c}>{c}</option>)}<option value="انتقال">انتقال (هزینه نیست)</option></select> : item.category} · {item.account}{item.tags?.length ? ` · ${item.tags.map((t) => `#${t}`).join(' ')}` : ''}</small>
                   </div>
                   <span className={`amt ${item.kind === 'income' ? 'pos' : item.kind === 'transfer' ? 'xfer' : 'neg'}`} title={item.kind === 'transfer' ? 'انتقال بین حساب‌ها' : undefined}>{amt(item.amount)}</span>
                   <div className="fn-ops">
@@ -913,6 +937,7 @@ export function FinanceReact({ Nav }) {
                   <div className="xc-row"><button type="button" className="xc-pill" onClick={() => setEditing({ type: 'account', item: a })}>ویرایش و شماره کارت</button>
                     <button type="button" className="xc-pill" onClick={() => send(`/api/accounts/${a.id}`, { sms: !a.sms }, a.sms ? 'پیامک بانک دیگر به این حساب نمی‌نشیند.' : 'پیامک‌های بانک از این به بعد به این حساب می‌نشینند.', 'PATCH')}>{a.sms ? '📩 حساب پیامک ✓' : '📩 حساب پیامک کن'}</button>
                     {Math.abs(a.smsDiff || 0) >= 1 ? <button type="button" className="xc-pill" onClick={() => send(`/api/accounts/${a.id}/reconcile`, {}, 'اختلاف ثبت شد.')}>همسان‌سازی</button> : null}
+                    <button type="button" className="xc-pill" onClick={() => { setAcctFilter(a.name); setFilter('all'); setTab('ledger') }}>📋 همهٔ تراکنش‌ها</button>
                     <label className="xc-pill">📄 درون‌ریزی صورت‌حساب<input type="file" accept=".csv,.xls,.xlsx" onChange={(e) => previewImport(e, a.name)} hidden /></label></div>
                   {importPreview && importPreview.forAccount === a.name ? <div className="xc-import">
                     <p>{fa(importPreview.newCount || 0)} تراکنش تازه · {fa(importPreview.duplicateCount || 0)} تکراری — به حساب «{a.name}»</p>
@@ -968,22 +993,9 @@ export function FinanceReact({ Nav }) {
                 ))}
                 {!bud.rows.length ? <p className="fn-empty">هنوز هزینه‌ای برای این ماه نیست.</p> : null}
                 <div className="fn-brow-add">
-                  <select value="" onChange={(e) => e.target.value && setBudEdit(e.target.value)} aria-label="سقف برای دستهٔ دیگر"><option value="">＋ سقف برای دستهٔ دیگر…</option>{CATS.filter((c) => c !== 'حقوق' && !bud.rows.some((r) => r.cat === c)).map((c) => <option key={c} value={c}>{c}</option>)}</select>
+                  <select value="" onChange={(e) => e.target.value && setBudEdit(e.target.value)} aria-label="سقف برای دستهٔ دیگر"><option value="">＋ سقف برای دستهٔ دیگر…</option>{USER_CATS.filter((c) => c !== 'حقوق' && !bud.rows.some((r) => r.cat === c)).map((c) => <option key={c} value={c}>{c}</option>)}</select>
                   {budEdit && budEdit !== '__total__' && !bud.rows.some((r) => r.cat === budEdit) ? <BudgetInline cat={budEdit} value={0} onSave={saveBudget} onCancel={() => setBudEdit(null)} /> : null}
                 </div>
-              </div>
-              <div style={{ marginTop: 18 }}>
-                <h2>درون‌ریزی صورت‌حساب</h2>
-                <p className="sub">CSV / XLS / XLSX — فقط پیش‌نمایش، بعد تأیید</p>
-                <label className="fn-file">📄 انتخاب فایل صورت‌حساب<input type="file" accept=".csv,.xls,.xlsx" onChange={previewImport} hidden /></label>
-                {importPreview && !importPreview.forAccount ? (
-                  <form className="fn-form" style={{ padding: 0, marginTop: 10 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const items = (importPreview.items || []).filter((x) => !x.duplicate); send('/api/transactions/import-bank/commit', { items, account: f.get('account') }, `${fa(items.length)} تراکنش ارسال شد.`); setImportPreview(null) }}>
-                    <p>{fa(importPreview.newCount || 0)} تازه · {fa(importPreview.duplicateCount || 0)} تکراری</p>
-                    <select name="account" defaultValue={(accounts.find((a) => a.sms) || accounts.find((a) => /بلو|blu/i.test(a.name)) || accounts[0] || {}).name || 'بدون حساب'}>{accounts.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}<option value="بدون حساب">بدون حساب</option></select>
-                    <button className="fn-save">ورود تراکنش‌های تازه</button>
-                    <button type="button" onClick={() => setImportPreview(null)}>لغو</button>
-                  </form>
-                ) : null}
               </div>
             </section>
           </div>

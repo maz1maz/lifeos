@@ -1097,6 +1097,20 @@ async function main() {
       '4,1405/08/04,12:00:00,پايا,برداشت,"500,000,000",ACH3,x,حواله پايا اينترنتي,"نام کامل طرف مقابل : حميدرضا مزلقاني حميدرضا مزلقاني، شماره شبا : IR2",'].join('\n'))) || {};
     const mi = melli.items || [];
     const viaRows = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', filename: 'm.xls', rows: [['نام و نام خانوادگی:', 'مزلقانی حمیدرضا'], [], ['ردیف', 'تاریخ', 'نوع', 'مبلغ', 'شرح', 'توضیحات'], ['1', '1405/08/05', 'برداشت', '120,000', 'كارمزد پايا', '']] } })).d || {};
+    {
+      const blu = (await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'دریافت پایا', amount: 777_000_000, kind: 'income', account: 'بلو بانک', date: '2026-02-05' } })).d;
+      const rowsT = [['ردیف', 'تاریخ', 'نوع', 'مبلغ', 'شرح'], ['1', '1404/11/16', 'برداشت', '777,000,000', 'حواله پايا اينترنتي']];
+      const forMelli = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', rows: rowsT, account: 'ملی' } })).d || {};
+      check('worker: a same-day same-amount row in ANOTHER account is not a duplicate (other leg of a transfer)', !!blu && forMelli.items?.length === 1 && !forMelli.items[0].duplicate, JSON.stringify(forMelli.items));
+      const forBlu = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', rows: rowsT, account: 'بلو بانک' } })).d || {};
+      check('worker: the same row in the SAME account is still caught as a duplicate', forBlu.items?.[0]?.duplicate === true, JSON.stringify(forBlu.items));
+      await call('/api/transactions/' + blu.id, { method: 'DELETE', cookie: c10 });
+    }
+    {
+      const set = (await call('/api/me', { method: 'PATCH', cookie: c10, body: { financeCats: { added: ['اینترنت', 'اینترنت', ' <b>'], hidden: ['پوشاک', 'متفرقه'] } } })).d;
+      const got = (await call('/api/me', { cookie: c10 })).d.user.financeCats;
+      check('worker: own finance categories are saved (deduped, cleaned; «متفرقه» cannot be hidden)', JSON.stringify(got.added) === JSON.stringify(['اینترنت', 'b']) && JSON.stringify(got.hidden) === JSON.stringify(['پوشاک']), JSON.stringify([set, got]));
+    }
     check('worker: bank preview accepts the sheet rows read in the browser (no file upload)', (viaRows.items || []).length === 1 && viaRows.items[0].amount === 120_000 && viaRows.items[0].kind === 'expense', JSON.stringify(viaRows).slice(0, 300));
     check('worker: Bank Melli statement (single «مبلغ» column + «نوع») is read', mi.length === 4 && mi[0].kind === 'expense' && mi[0].amount === 120_000 && mi[1].amount === 2_000_000_000 && mi[2].kind === 'income' && mi[2].amount === 1_000_000_000, JSON.stringify(melli).slice(0, 400));
     check('worker: Melli rows are titled by «شرح» + counterparty (doubled name once, Persian ی/ک)', mi[1] && mi[1].title === 'حواله پایا اینترنتی (سحر میثاقی)' && mi[2].title === 'حواله پایا (فردین حصارفولادی)' && mi[0].title === 'کارمزد پایا', mi.map(x => x.title).join(' | '));
