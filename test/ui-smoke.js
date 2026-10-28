@@ -105,6 +105,8 @@ check('React finance keeps the existing finance APIs for budgets, transfers, deb
 check('React finance supports transaction editing and bank-import preview before commit',
   financeSource.includes("'/api/transactions/import-bank/preview'") &&
   financeSource.includes("'/api/transactions/import-bank/commit'") && financeSource.includes("setEditing({ type: 'transaction', item })"));
+check('each account card can import a bank statement straight into that account',
+  financeSource.includes('previewImport(e, a.name)') && financeSource.includes('importPreview.forAccount === a.name') && financeSource.includes("{ items, account: a.name }"));
 check('React today route no longer embeds the legacy today iframe',
   !todaySource.includes('title="LifeOS امروز" src="/legacy-today.html"'));
 check('React market page fetches Tehran market and US stock prices',
