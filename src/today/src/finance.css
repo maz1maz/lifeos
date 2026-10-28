@@ -391,3 +391,4 @@
 .fn-cat-chip button:hover { opacity: 1; color: #f87171; }
 .fn-cat-chip.fixed { opacity: .6; padding-left: 12px; }
 .fn-acct-filter { margin-top: -4px; }
+.fn-2.fn-solo { grid-template-columns: 1fr; }

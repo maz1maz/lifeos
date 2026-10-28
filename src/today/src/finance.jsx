@@ -143,7 +143,8 @@ const ALERT_COND = { price_above: 'قیمت بالاتر از', price_below: 'ق
 const TABS = [
   { id: 'dash', label: 'داشبورد' },
   { id: 'ledger', label: 'تراکنش‌ها' },
-  { id: 'budget', label: 'بودجه و حساب‌ها' },
+  { id: 'accounts', label: 'حساب‌ها' },
+  { id: 'budget', label: 'بودجه' },
   { id: 'bills', label: 'قبض و اشتراک' },
   { id: 'wealth', label: 'بدهی و اهداف' },
   { id: 'invest', label: 'سبد سرمایه' },
@@ -766,7 +767,7 @@ export function FinanceReact({ Nav }) {
           {accounts.length && !accounts.some((a) => a.sms || /بلو|blu/i.test(a.name)) && txs.some((t) => t.source === 'sms') ? (
             <div className="fn-banner">
               <span>📩 پیامک‌های بانک به هیچ حسابی وصل نیستند و موجودی حساب‌ها به‌روز نمی‌شود.</span>
-              <button type="button" className="fn-save" onClick={() => setTab('budget')}>انتخاب حساب پیامک</button>
+              <button type="button" className="fn-save" onClick={() => setTab('accounts')}>انتخاب حساب پیامک</button>
             </div>
           ) : null}
           {summary.transferCount ? <p className="fn-note">🔄 {fa(summary.transferCount)} انتقال ({short(summary.transferOut)}) جزو هزینه حساب نشده.</p> : null}
@@ -897,9 +898,9 @@ export function FinanceReact({ Nav }) {
           </div>
         ) : null}
 
-        {tab === 'budget' ? (
-          <div className="fn-2" id="budget">
-            <section className="fn-glass fn-list">
+        {tab === 'budget' || tab === 'accounts' ? (
+          <div className="fn-2 fn-solo" id={tab}>
+            {tab === 'accounts' ? <section className="fn-glass fn-list">
               <div className="fn-head"><h2>حساب‌ها</h2><Drawer label="حساب" title="حساب تازه">
 <form className="fn-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send('/api/accounts', { name: f.get('name'), type: f.get('type'), openingBalance: Number(f.get('openingBalance') || 0) }, 'حساب ثبت شد.'); e.currentTarget.reset() }}>
                 <input name="name" required placeholder="نام حساب" />
@@ -958,8 +959,8 @@ export function FinanceReact({ Nav }) {
                 )
               }) : <p className="fn-empty">تراکنش تکراری نداری. در «تراکنش تازه»، گزینهٔ «تکرار» را انتخاب کن تا اجاره، قسط یا حقوق هر ماه خودکار ثبت شود و قبلش در پیام صبح یادآوری بیاید.</p>}
               {recurring.length ? <p className="fn-note">جمع تکراری ماهانه: هزینه {short(recurring.filter((r) => r.kind !== 'income').reduce((a, r) => a + (r.recurrence === 'weekly' ? r.amount * 4.3 : r.recurrence === 'yearly' ? r.amount / 12 : r.amount), 0))} · درآمد {short(recurring.filter((r) => r.kind === 'income').reduce((a, r) => a + (r.recurrence === 'weekly' ? r.amount * 4.3 : r.recurrence === 'yearly' ? r.amount / 12 : r.amount), 0))}</p> : null}
-            </section>
-            <section className="fn-glass fn-list">
+            </section> : null}
+            {tab === 'budget' ? <section className="fn-glass fn-list">
               <div className="fn-head"><h2>بودجهٔ {monthFa(month)}</h2></div>
               <div className={`fn-btotal ${bud.total ? bud.state : ''}`}>
                 <div className="fn-btotal-top">
@@ -997,7 +998,7 @@ export function FinanceReact({ Nav }) {
                   {budEdit && budEdit !== '__total__' && !bud.rows.some((r) => r.cat === budEdit) ? <BudgetInline cat={budEdit} value={0} onSave={saveBudget} onCancel={() => setBudEdit(null)} /> : null}
                 </div>
               </div>
-            </section>
+            </section> : null}
           </div>
         ) : null}
 
