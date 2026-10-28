@@ -1093,10 +1093,12 @@ async function main() {
       'ردیف,تاریخ,زمان,شعبه,نوع,مبلغ,شماره پیگیری,اطلاعات تکمیلی,شرح,توضیحات,مانده',
       '1,1405/08/05,18:19:46,تمرکز اسناد,برداشت,"120,000",BCG1,x,كارمزد پايا,,"72,702,681,480"',
       '2,1405/08/05,18:19:45,تمرکز اسناد,برداشت,"2,000,000,000",BCG1,x,حواله پايا اينترنتي,"بانک طرف مقابل : بانک سامان،  نام کامل طرف مقابل : سحر ميثاقي سحر ميثاقي،  کد رهگیری : 1",',
-      '3,1405/08/04,13:16:38,پايا,واریز,"1,000,000,000",ACH2,x,حواله پايا,"نام کامل طرف مقابل : فردين حصارفولادي، شماره شبا : IR1",'].join('\n'))) || {};
+      '3,1405/08/04,13:16:38,پايا,واریز,"1,000,000,000",ACH2,x,حواله پايا,"نام کامل طرف مقابل : فردين حصارفولادي، شماره شبا : IR1",',
+      '4,1405/08/04,12:00:00,پايا,برداشت,"500,000,000",ACH3,x,حواله پايا اينترنتي,"نام کامل طرف مقابل : حميدرضا مزلقاني حميدرضا مزلقاني، شماره شبا : IR2",'].join('\n'))) || {};
     const mi = melli.items || [];
-    check('worker: Bank Melli statement (single «مبلغ» column + «نوع») is read', mi.length === 3 && mi[0].kind === 'expense' && mi[0].amount === 120_000 && mi[1].amount === 2_000_000_000 && mi[2].kind === 'income' && mi[2].amount === 1_000_000_000, JSON.stringify(melli).slice(0, 400));
+    check('worker: Bank Melli statement (single «مبلغ» column + «نوع») is read', mi.length === 4 && mi[0].kind === 'expense' && mi[0].amount === 120_000 && mi[1].amount === 2_000_000_000 && mi[2].kind === 'income' && mi[2].amount === 1_000_000_000, JSON.stringify(melli).slice(0, 400));
     check('worker: Melli rows are titled by «شرح» + counterparty (doubled name once, Persian ی/ک)', mi[1] && mi[1].title === 'حواله پایا اینترنتی (سحر میثاقی)' && mi[2].title === 'حواله پایا (فردین حصارفولادی)' && mi[0].title === 'کارمزد پایا', mi.map(x => x.title).join(' | '));
+    check('worker: a Melli transfer to the account holder\'s own name is «انتقال», not spending', mi[3] && mi[3].category === 'انتقال' && mi[1].category !== 'انتقال', JSON.stringify(mi[3]));
 
     const w10first = await w10check('2026-09-23');
     check('worker: 1st of the month -> bank-statement reminder for the previous month', w10first.created === 1 && w10first.month === 'شهریور' && !!w10first.reminder && w10first.reminder.auto === 'bank-import:1405-06', JSON.stringify(w10first));
@@ -1374,6 +1376,10 @@ async function main() {
       check('non-transaction text -> 422, nothing else applied', (await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'کار خرید نان' } })).status === 422 && !(await call('/api/tasks', { cookie })).d.items?.some?.(t => t.title === 'خرید نان'));
       const login = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nحمیدرضا عزیز خوش آمدید.\n13:35:57\n1405.07.12' } });
       check('login/welcome SMS is ignored quietly (200, nothing recorded)', login.status === 200 && login.d.ignored === true, JSON.stringify(login.d));
+      const before = (await call('/api/transactions', { cookie })).d.items.length;
+      const otp = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nبفرمایید رمز پویا\nرمز: 482913\nمبلغ: 6,123,000 ریال\nپذیرنده: فروشگاه\n۱۴۰۵.۰۸.۰۲' } });
+      const ad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو روی رفیقت دو برابر حساب کن ، هدیه دعوت از دوستان به بلو یا بلوجونیور 300,000 ریال https://blubank.com/services/referral/' } });
+      check('OTP («رمز پویا») and ad-with-link SMS record nothing', otp.status < 300 && ad.status < 300 && (await call('/api/transactions', { cookie })).d.items.length === before, JSON.stringify([otp.status, otp.d, ad.status, ad.d]));
       const sms2 = 'بلو\nبرداشت پول\nحمیدرضا عزیز، 313,131 ریال از حساب شما پرید.\nموجودی: 2,440,911,747 ریال\n۱۳:۴۴\n۱۴۰۵.۰۷.۱۲';
       const q = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms + '\n###\n' + sms2 + '\n###\nبلو\nحمیدرضا عزیز خوش آمدید.\n###\n' } });
       const qtx = (await call('/api/transactions', { cookie })).d.items.filter(t => t.date === '2026-10-04' && t.kind === 'expense' && /برداشت/.test(t.title || ''));

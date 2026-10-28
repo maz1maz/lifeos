@@ -72,7 +72,7 @@ const effectiveModules = user => { let locks = user.lockedModules || []; if (!lo
 
 export async function handleApi(request, env) {
   const H = makeHelpers(env);
-  const { read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances, bankSmsAccount,
+  const { read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances, bankSmsAccount, isNonTxSms,
     jalaliToGregorianIso, jalaliDateLabel, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel, seasonStatsFromEpisodes, seasonTotAired, fetchTvMazeShowFull, progressFromShow, ensureSeriesTvMazeData, clampEpisodeAgainstSeason,
     officeDayWarning, IRAN_WEEK_NOTE, parseSleepHours, suggestCategoryKeyword, catKey, catKeyGeneric, learnedCategory, isIncomeTx, stripBalanceNotes, stripRefNumbers, matchBankStatementItems, ensureStatementReminder, betRollup, betAutoStart, betLatest, betDaysOf, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, pruneNews, newsRead, newsWrite, migrateNewsOut, syncAllNewsSources, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, cachedLeagueRange, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
@@ -304,8 +304,9 @@ export async function handleApi(request, env) {
      for(const text of items){
        let sh=(await extSha256(user.id+'\n'+text)).slice(0,24);
        if(db.bankSmsSeen.includes(sh)){dup++;continue}
+       if(isNonTxSms(text)){ign++;continue}   // «رمز پویا» / ad with a link: names an amount, moves no money
        let actions=parseLifeText(text);
-       if(!actions.length&&AI_PROVIDER_API_KEY){try{actions=(await aiExtractActions(text)).map(a=>a&&a.type==='transaction'?{...a,bank:true}:a)}catch(e){}}
+       if(!actions.length&&AI_PROVIDER_API_KEY&&!isNonTxSms(text)){try{actions=(await aiExtractActions(text)).map(a=>a&&a.type==='transaction'?{...a,bank:true}:a)}catch(e){}}
        actions=actions.filter(a=>a&&a.type==='transaction');
        let a0=actions[0]||{};
        // The same SMS can arrive twice with slightly different text (Shortcut Input vs Content, edited queue file):

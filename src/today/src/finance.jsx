@@ -600,7 +600,8 @@ export function FinanceReact({ Nav }) {
     e.currentTarget.reset(); setDraft((d) => ({ key: d.key + 1 }))
   }
 
-  const previewImport = async (e) => {
+  // forAccount: picked from an account card → the preview and its confirm show inside that card, into that account
+  const previewImport = async (e, forAccount = null) => {
     const file = e.target.files?.[0]
     if (!file) return
     try {
@@ -611,7 +612,7 @@ export function FinanceReact({ Nav }) {
         r.readAsDataURL(file)
       })
       const preview = await api('/api/transactions/import-bank/preview', { method: 'POST', body: JSON.stringify({ fileBase64: base64, filename: file.name, fileType: file.name.toLowerCase().endsWith('.csv') ? 'csv' : 'xlsx', amountUnit: 'IRR' }) })
-      setImportPreview(preview)
+      setImportPreview({ ...preview, forAccount })
     } catch (err) { setNotice(err.message) }
     e.target.value = ''
   }
@@ -897,7 +898,13 @@ export function FinanceReact({ Nav }) {
                   {a.smsBalance != null ? <div className="xc-kv"><div><small>آخرین موجودی پیامک</small><b>{faMoney(a.smsBalance)}</b></div><div><small>اختلاف</small><b className={Math.abs(a.smsDiff || 0) >= 1 ? 'xc-out' : 'xc-in'}>{Math.abs(a.smsDiff || 0) >= 1 ? faMoney(a.smsDiff) : 'هماهنگ ✓'}</b></div></div> : null}
                   <div className="xc-row"><button type="button" className="xc-pill" onClick={() => setEditing({ type: 'account', item: a })}>ویرایش و شماره کارت</button>
                     <button type="button" className="xc-pill" onClick={() => send(`/api/accounts/${a.id}`, { sms: !a.sms }, a.sms ? 'پیامک بانک دیگر به این حساب نمی‌نشیند.' : 'پیامک‌های بانک از این به بعد به این حساب می‌نشینند.', 'PATCH')}>{a.sms ? '📩 حساب پیامک ✓' : '📩 حساب پیامک کن'}</button>
-                    {Math.abs(a.smsDiff || 0) >= 1 ? <button type="button" className="xc-pill" onClick={() => send(`/api/accounts/${a.id}/reconcile`, {}, 'اختلاف ثبت شد.')}>همسان‌سازی</button> : null}</div>
+                    {Math.abs(a.smsDiff || 0) >= 1 ? <button type="button" className="xc-pill" onClick={() => send(`/api/accounts/${a.id}/reconcile`, {}, 'اختلاف ثبت شد.')}>همسان‌سازی</button> : null}
+                    <label className="xc-pill">📄 درون‌ریزی صورت‌حساب<input type="file" accept=".csv,.xls,.xlsx" onChange={(e) => previewImport(e, a.name)} hidden /></label></div>
+                  {importPreview && importPreview.forAccount === a.name ? <div className="xc-import">
+                    <p>{fa(importPreview.newCount || 0)} تراکنش تازه · {fa(importPreview.duplicateCount || 0)} تکراری — به حساب «{a.name}»</p>
+                    <div className="xc-row"><button type="button" className="xc-pill" disabled={!importPreview.newCount} onClick={() => { const items = (importPreview.items || []).filter((x) => !x.duplicate); send('/api/transactions/import-bank/commit', { items, account: a.name }, `${fa(items.length)} تراکنش به «${a.name}» وارد شد.`); setImportPreview(null) }}>✓ ورود تراکنش‌های تازه</button>
+                      <button type="button" className="xc-pill" onClick={() => setImportPreview(null)}>لغو</button></div>
+                  </div> : null}
                 </> }} />
               <div className="fn-head" style={{ marginTop: 18 }}><h2>🔁 پرداخت‌ها و دریافت‌های تکراری</h2></div>
               {recurring.length ? recurring.map((r) => {
@@ -955,7 +962,7 @@ export function FinanceReact({ Nav }) {
                 <h2>درون‌ریزی صورت‌حساب</h2>
                 <p className="sub">CSV / XLS / XLSX — فقط پیش‌نمایش، بعد تأیید</p>
                 <label className="fn-file">📄 انتخاب فایل صورت‌حساب<input type="file" accept=".csv,.xls,.xlsx" onChange={previewImport} hidden /></label>
-                {importPreview ? (
+                {importPreview && !importPreview.forAccount ? (
                   <form className="fn-form" style={{ padding: 0, marginTop: 10 }} onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const items = (importPreview.items || []).filter((x) => !x.duplicate); send('/api/transactions/import-bank/commit', { items, account: f.get('account') }, `${fa(items.length)} تراکنش ارسال شد.`); setImportPreview(null) }}>
                     <p>{fa(importPreview.newCount || 0)} تازه · {fa(importPreview.duplicateCount || 0)} تکراری</p>
                     <select name="account" defaultValue={(accounts.find((a) => a.sms) || accounts.find((a) => /بلو|blu/i.test(a.name)) || accounts[0] || {}).name || 'بدون حساب'}>{accounts.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}<option value="بدون حساب">بدون حساب</option></select>
