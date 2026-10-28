@@ -91,6 +91,8 @@ async function main() {
     const scriptSrc = (csp.split(';').find(x => x.trim().startsWith('script-src')) || '').trim();
     check('HTML CSP allows inline scripts only by their sha256', scriptSrc === `script-src 'self' 'sha256-${want}'` && /frame-ancestors 'self'/.test(csp) && /object-src 'none'/.test(csp), scriptSrc);
     check('HTML body survives the CSP pass unchanged', (await page.text()).includes(inline));
+    // crypto chart page frames TradingView's widget; its script still may not run on our pages
+    check('CSP frames TradingView charts but loads no TradingView script', /frame-src[^;]*https:\/\/s\.tradingview\.com/.test(csp) && !/tradingview/.test(scriptSrc), csp);
   }
   check('security headers on every response (nosniff, frame, HSTS, referrer)', signup.headers.get('x-content-type-options') === 'nosniff' && signup.headers.get('x-frame-options') === 'SAMEORIGIN' && /max-age=\d+/.test(signup.headers.get('strict-transport-security') || '') && !!signup.headers.get('referrer-policy'));
   const v2Rows = [...env.DB._store.entries()].filter(([key]) => key.startsWith('state:v2:'));

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Upload, Plus, Trash2 } from 'lucide-react';
+import { Download, Upload, Plus, Trash2, ArrowRight, LineChart as LineIcon } from 'lucide-react';
 import { Page, useCol, num } from './life-core';
 import { Loader } from './loader';
 
@@ -8,11 +8,26 @@ import { Loader } from './loader';
 //          /api/col/cryptoHistory {day:'YYYY-MM-DD'|'backfill', points:[{t, total, wallets:{walletId:value}, est?}]}
 // The browser reads prices straight from CoinGecko (allowed in connect-src) and appends a snapshot at most every 30 minutes
 // while the page is open; `holdings[].price` is the manual fallback for coins CoinGecko does not price.
-const CG_IDS = { USDT: 'tether', USDC: 'usd-coin', BTC: 'bitcoin', XRP: 'ripple', CAKE: 'pancakeswap-token', TWT: 'trust-wallet-token', AVAX: 'avalanche-2', TRX: 'tron', ONE: 'harmony', FLOW: 'flow', LTC: 'litecoin', LINK: 'chainlink', AAVE: 'aave', UNI: 'uniswap', MKR: 'maker', BNB: 'binancecoin', ZRX: '0x', EOS: 'eos', NEO: 'neo', COMP: 'compound-governance-token', ONT: 'ontology', SHIB: 'shiba-inu', MANA: 'decentraland', BTT: 'bittorrent', WIN: 'wink', KSM: 'kusama', QTUM: 'qtum', ATOM: 'cosmos', BNT: 'bancor', UMA: 'uma', CELR: 'celer-network', IOTA: 'iota', CHZ: 'chiliz', RSR: 'reserve-rights-token', EGLD: 'elrond-erd-2', SUSHI: 'sushi', KAVA: 'kava', BAND: 'band-protocol', COTI: 'coti', SNX: 'havven', ETH: 'ethereum', FTT: 'ftx-token', IOST: 'iostoken', BCH: 'bitcoin-cash', ADA: 'cardano', ETC: 'ethereum-classic', DOT: 'polkadot', ALGO: 'algorand', DASH: 'dash', POL: 'polygon-ecosystem-token', FIL: 'filecoin', CELO: 'celo', SOL: 'solana', DOGE: 'dogecoin', TON: 'the-open-network', XLM: 'stellar', NEAR: 'near', XMR: 'monero' };
+const CG_IDS = { USDT: 'tether', USDC: 'usd-coin', BTC: 'bitcoin', XRP: 'ripple', CAKE: 'pancakeswap-token', TWT: 'trust-wallet-token', AVAX: 'avalanche-2', TRX: 'tron', ONE: 'harmony', FLOW: 'flow', LTC: 'litecoin', LINK: 'chainlink', AAVE: 'aave', UNI: 'uniswap', MKR: 'maker', BNB: 'binancecoin', ZRX: '0x', EOS: 'eos', NEO: 'neo', COMP: 'compound-governance-token', ONT: 'ontology', SHIB: 'shiba-inu', MANA: 'decentraland', BTT: 'bittorrent', WIN: 'wink', KSM: 'kusama', QTUM: 'qtum', ATOM: 'cosmos', BNT: 'bancor', UMA: 'uma', CELR: 'celer-network', IOTA: 'iota', CHZ: 'chiliz', RSR: 'reserve-rights-token', EGLD: 'elrond-erd-2', SUSHI: 'sushi', KAVA: 'kava', BAND: 'band-protocol', COTI: 'coti', SNX: 'havven', ETH: 'ethereum', FTT: 'ftx-token', IOST: 'iostoken', BCH: 'bitcoin-cash', ADA: 'cardano', ETC: 'ethereum-classic', DOT: 'polkadot', ALGO: 'algorand', DASH: 'dash', POL: 'polygon-ecosystem-token', FIL: 'filecoin', CELO: 'celo', SOL: 'solana', ARB: 'arbitrum', DOGE: 'dogecoin', TON: 'the-open-network', XLM: 'stellar', NEAR: 'near', XMR: 'monero' };
 const NET = { TRC20: 'Tron', 'C-Chain': 'Avalanche', ERC20: 'Ethereum', BEP20: 'BNB Chain', BEP2: 'BNB Beacon (BEP2)', Ripple: 'XRP Ledger' };
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
 const RANGES = [[7, '۷ روز'], [30, '۱ ماه'], [90, '۳ ماه'], [365, '۱ سال'], [0, '۲ سال']];
 const SNAP_EVERY = 30 * 60e3;
+// market charts: same setup as IDouble/Customizable-Crypto-Currency-Dashboard-with-Chart (MIT) — TradingView, weekly, Binance,
+// Pivots HL + RSI + Stoch RSI + Volume. Embedded as TradingView's own iframe (frame-src only; no third-party script on this page).
+const CHARTS = [['BTC', 'بیت‌کوین', 'BINANCE:BTCUSD'], ['ETH', 'اتریوم', 'BINANCE:ETHUSD'], ['BNB', 'بی‌ان‌بی', 'BINANCE:BNBUSD'], ['SOL', 'سولانا', 'BINANCE:SOLUSD'], ['ARB', 'آربیتروم', 'BINANCE:ARBUSDT']];
+const STUDIES = ['PivotPointsHighLow@tv-basicstudies', 'RSI@tv-basicstudies', 'StochasticRSI@tv-basicstudies', 'Volume@tv-basicstudies'];
+const tvSrc = symbol => 'https://s.tradingview.com/widgetembed/?' + new URLSearchParams({ frameElementId: 'cw_tv', symbol, interval: 'W', hidesidetoolbar: '0', symboledit: '1', saveimage: '1', toolbarbg: 'f1f3f6', studies: STUDIES.join('\x1f') /* tv.js joins study ids with U+001F */, theme: 'dark', style: '1', timezone: 'Asia/Tehran', withdateranges: '1', locale: 'en' });
+const chartHref = c => `/?page=crypto&chart=${c}`;
+
+function ChartView({ Nav, coin }) {
+  const c = CHARTS.find(x => x[0] === coin) || CHARTS[0];
+  return <Page Nav={Nav} className="cw cw-chartpage" kicker="کیف‌پول کریپتو" title={`${c[1]} (${c[0]}/USD)`} sub="نمودار هفتگی Binance با Pivots، RSI، Stoch RSI و حجم معاملات"
+    actions={<a className="lf-btn ghost" href="/?page=crypto"><ArrowRight size={15} /> بازگشت به کیف‌پول‌ها</a>}>
+    <nav className="cw-coins" aria-label="ارزها">{CHARTS.map(([k, n]) => <a key={k} href={chartHref(k)} className="cw-sort" aria-current={k === c[0] ? 'page' : undefined}>{k} · {n}</a>)}</nav>
+    <div className="cw-tv"><iframe key={c[0]} src={tvSrc(c[2])} title={`نمودار ${c[1]}`} allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /></div>
+  </Page>;
+}
 
 const usd = v => '$' + (Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const amt = v => (Number(v) || 0).toLocaleString('en-US', { maximumFractionDigits: 8 });
@@ -169,12 +184,17 @@ function WalletCard({ w, calc, on, sortBy, sortBtn, history, onSave, onRemove })
 }
 
 export function CryptoPage({ Nav }) {
+  const chart = new URLSearchParams(location.search).get('chart');
+  return chart ? <ChartView Nav={Nav} coin={chart.toUpperCase()} /> : <WalletsPage Nav={Nav} />;
+}
+
+function WalletsPage({ Nav }) {
   const wallets = useCol('cryptoWallets'), hist = useCol('cryptoHistory');
   const [prices, setPrices] = useState({ usd: {}, change24: {}, at: 0 }), [perr, setPerr] = useState('');
   const [range, setRange] = useState(0), [sort, setSort] = useState({ k: 'value', dir: -1 }), [newName, setNewName] = useState(''), [msg, setMsg] = useState('');
   const extraIds = useRef({}), snapping = useRef(false), fileRef = useRef(null);
   const ws = wallets.items || [], all = ws.flatMap(w => w.holdings || []);
-  const symbols = useMemo(() => [...new Set(all.filter(h => !h.flag).map(sym))].sort().join(','), [wallets.items]);
+  const symbols = useMemo(() => [...new Set([...all.filter(h => !h.flag).map(sym), ...CHARTS.map(c => c[0])])].sort().join(','), [wallets.items]);
   const calc = useMemo(() => makeCalc(prices), [prices]), on = prices.at > 0;
 
   useEffect(() => {
@@ -254,6 +274,13 @@ export function CryptoPage({ Nav }) {
         <div className="cw-bar">{alloc.map(([k, v], i) => <span key={k} title={k} style={{ width: `${v / grand * 100}%`, background: COLORS[i % 8] }} />)}</div>
         <ul className="cw-legend">{alloc.map(([k, v], i) => <li key={k}><i style={{ background: COLORS[i % 8] }} />{k} <span className="cw-num">{(v / grand * 100).toFixed(1)}%</span></li>)}</ul>
       </section> : null}
+      <section className="cw-market" aria-label="نمودار بازار">
+        {CHARTS.map(([k, n]) => { const p = prices.usd[k], c = prices.change24[k]; return <a key={k} href={chartHref(k)} className="lf-card cw-coin">
+          <span className="cw-coin-h"><b>{k}</b><small className="cw-muted">{n}</small><LineIcon size={15} aria-hidden="true" /></span>
+          <b className="cw-num">{p != null ? usd(p) : '—'}</b>
+          {c != null ? <span className={`cw-num ${c >= 0 ? 'up' : 'down'}`}>{c >= 0 ? '+' : '−'}{Math.abs(c).toFixed(2)}%</span> : <span className="cw-muted">—</span>}
+        </a>; })}
+      </section>
       {symbols ? <p className="cw-muted cw-small">{on ? `قیمت لحظه‌ای از CoinGecko · آخرین به‌روزرسانی ${new Date(prices.at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })} (هر ۵ دقیقه)` : 'در حال گرفتن قیمت لحظه‌ای…'}</p> : null}
 
       <section className="lf-card">

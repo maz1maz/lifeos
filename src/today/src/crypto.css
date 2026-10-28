@@ -74,6 +74,19 @@
 .cw-add .lf-btn,.cw .lf-hero-ops .lf-btn{display:inline-flex;align-items:center;gap:6px}
 .cw-card+.cw-card{margin-top:14px}
 
+/* market chart cards → full TradingView chart page */
+.cw-market{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0 8px}
+.cw-coin{display:grid;gap:4px;text-decoration:none;color:var(--g-text);padding:12px 14px}
+.cw-coin:hover,.cw-coin:focus-visible{border-color:var(--g-accent)}
+.cw-coin-h{display:flex;align-items:center;gap:8px}
+.cw-coin-h svg{margin-inline-start:auto;color:var(--g-muted)}
+.cw-coin>b{font-size:18px}
+.cw-coins{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.cw-coins a{text-decoration:none;padding:4px 12px}
+.cw-coins a[aria-current="page"]{color:var(--g-accent);border-color:var(--g-accent);font-weight:700}
+.cw-tv{height:calc(100vh - 260px);min-height:480px;border:1px solid var(--g-border-2);border-radius:12px;overflow:hidden;background:#131722}
+.cw-tv iframe{display:block;width:100%;height:100%;border:0}
+
 @media (max-width:700px){
   .cw-charts{grid-template-columns:minmax(0,1fr)}
   .cw-summary .cw-total{font-size:28px}
