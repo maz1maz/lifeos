@@ -321,7 +321,12 @@ function betRollup(all,month){let items=[],prev=null,st={month:month||null,days:
     let tm=t.match(/(?:^|[^\d:])(\d{1,2}):(\d{2})(?::\d{2})?(?!\d)/),time=tm&&Number(tm[1])<24?String(tm[1]).padStart(2,'0')+':'+tm[2]:null;
     return{balance:isFinite(balance)?balance:null,time};
   }
+  // Not a transaction even though it names an amount: one-time-password SMS («بفرمایید رمز پویا … مبلغ: 6,123,000
+  // ریال», sent before the purchase it unlocks — the purchase SMS follows) and bank ads with a link («بلو روی
+  // رفیقت دو برابر حساب کن … https://blubank.com/…»). Both were landing in the ledger as expenses.
+  function isNonTxSms(t){t=String(t||'');return /رمز\s*(?:پویا|یک\s*بار|یکبار|دوم|اینترنتی)|کد\s*(?:تایید|تأیید|یک\s*بار|یکبار|ورود|امنیتی)|\bOTP\b/i.test(t)||(/https?:\/\/|www\./i.test(t)&&!/مانده|موجودی/.test(t))}
   function parseBankMessage(t,base){
+    if(isNonTxSms(t))return null;
     const orig=t,meta=bankSmsMeta(orig);
     t=stripRefNumbers(stripBalanceNotes(t)); // «موجودی: …» و شمارهٔ پیگیری مبلغ نیستند
     const mFor=t.match(/بابت:?\s*([^\n]+?)(?:\s+(?:از|به)\s*(?:حساب|قلک|کارت|کیف\s*پول)\s*شما[^\n]*)?$/m); // «بابت X از حساب شما پرید» → X
@@ -1224,7 +1229,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
       return tgSend(chatId,'فرمان‌ها:\n/امروز /کارها /یادآوری‌ها /موجودی /پرتفوی /گزارش_ماه /انجام\n\nمتن آزاد بفرست، مثلاً:\n• خرید عینک ۲/۵ م\n• سه‌شنبه هفته بعد قرار دکتر ساعت ۳\n• ۵۰ هزار ناهار\n• حالم ۸، ۷ ساعت خوابیدم\n• کار خرید نان\n\nگزارش خودکار: صبح ۹ و شب ۲۳ (تهران)\nدستی: /گزارش_صبح /گزارش_شب',{reply_markup:tgMainKeyboard()});
     }
     let actions=parseLifeText(text);
-    if(!actions.length&&AI_PROVIDER_API_KEY){try{actions=await aiExtractActions(text)}catch(e){}}
+    if(!actions.length&&AI_PROVIDER_API_KEY&&!isNonTxSms(text)){try{actions=await aiExtractActions(text)}catch(e){}}
     let hasTxAction=actions.some(a=>a.type==='transaction');
     let done=await applyParsedActions(db,user,actions,d,photoFileId);
     await write(db);
@@ -1547,7 +1552,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
 
   async function refreshPricesAndAlerts(db){let changed=await refreshAllCryptoPrices(db).catch(()=>false);if(await refreshTsePrices(db).catch(()=>false))changed=true;let now=Date.now();for(const user of db.users){let holdings=computeHoldings(db,user.id);for(const t of evaluateAlerts(db,user.id,holdings)){let a=t.alert;if(!a.lastNotifiedAt||now-a.lastNotifiedAt>6*3600*1000){a.lastNotifiedAt=now;changed=true;if(TELEGRAM_BOT_TOKEN&&user.telegramUserId)await tgSend(user.telegramUserId,'🔔 '+t.text)}}}return changed}
 
-  return { read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances, bankSmsAccount,
+  return { read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances, bankSmsAccount, isNonTxSms,
     jalaliToGregorianIso, jalaliDateLabel, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel, seasonStatsFromEpisodes, seasonTotAired, fetchTvMazeShowFull, progressFromShow, ensureSeriesTvMazeData, clampEpisodeAgainstSeason,
     officeDayWarning, IRAN_WEEK_NOTE, parseSleepHours, suggestCategoryKeyword, catKey, catKeyGeneric, learnedCategory, isIncomeTx, stripBalanceNotes, stripRefNumbers, matchBankStatementItems, ensureStatementReminder, betRollup, betAutoStart, betLatest, betDaysOf, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, pruneNews, newsRead, newsWrite, migrateNewsOut, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, cachedLeagueRange, settleStaleLive, withAiNote, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,

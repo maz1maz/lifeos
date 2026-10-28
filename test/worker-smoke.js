@@ -1376,6 +1376,10 @@ async function main() {
       check('non-transaction text -> 422, nothing else applied', (await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'کار خرید نان' } })).status === 422 && !(await call('/api/tasks', { cookie })).d.items?.some?.(t => t.title === 'خرید نان'));
       const login = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nحمیدرضا عزیز خوش آمدید.\n13:35:57\n1405.07.12' } });
       check('login/welcome SMS is ignored quietly (200, nothing recorded)', login.status === 200 && login.d.ignored === true, JSON.stringify(login.d));
+      const before = (await call('/api/transactions', { cookie })).d.items.length;
+      const otp = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nبفرمایید رمز پویا\nرمز: 482913\nمبلغ: 6,123,000 ریال\nپذیرنده: فروشگاه\n۱۴۰۵.۰۸.۰۲' } });
+      const ad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو روی رفیقت دو برابر حساب کن ، هدیه دعوت از دوستان به بلو یا بلوجونیور 300,000 ریال https://blubank.com/services/referral/' } });
+      check('OTP («رمز پویا») and ad-with-link SMS record nothing', otp.status < 300 && ad.status < 300 && (await call('/api/transactions', { cookie })).d.items.length === before, JSON.stringify([otp.status, otp.d, ad.status, ad.d]));
       const sms2 = 'بلو\nبرداشت پول\nحمیدرضا عزیز، 313,131 ریال از حساب شما پرید.\nموجودی: 2,440,911,747 ریال\n۱۳:۴۴\n۱۴۰۵.۰۷.۱۲';
       const q = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms + '\n###\n' + sms2 + '\n###\nبلو\nحمیدرضا عزیز خوش آمدید.\n###\n' } });
       const qtx = (await call('/api/transactions', { cookie })).d.items.filter(t => t.date === '2026-10-04' && t.kind === 'expense' && /برداشت/.test(t.title || ''));
