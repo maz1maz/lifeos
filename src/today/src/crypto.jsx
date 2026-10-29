@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Upload, Plus, Trash2, ArrowRight, LineChart as LineIcon } from 'lucide-react';
-import { Page, useCol, num } from './life-core';
+import { Page, useCol, num, api } from './life-core';
 import { Loader } from './loader';
 
 // «کیف‌پول کریپتو»: balances of several wallets with live CoinGecko prices, 24h change, value over time and charts.
 // Storage: /api/col/cryptoWallets {name, note?, holdings:[{coin, chain, amount, price, flag?}]}
 //          /api/col/cryptoHistory {day:'YYYY-MM-DD'|'backfill', points:[{t, total, wallets:{walletId:value}, est?}]}
 // The browser reads prices straight from CoinGecko (allowed in connect-src) and appends a snapshot at most every 30 minutes
-// while the page is open; `holdings[].price` is the manual fallback for coins CoinGecko does not price.
+// while the page is open (the Worker's cron adds one every 6h and sends a Telegram alert on a big 24h move: /api/crypto/alert);
+// `holdings[].price` is the manual fallback for coins CoinGecko does not price.
 const CG_IDS = { USDT: 'tether', USDC: 'usd-coin', BTC: 'bitcoin', XRP: 'ripple', CAKE: 'pancakeswap-token', TWT: 'trust-wallet-token', AVAX: 'avalanche-2', TRX: 'tron', ONE: 'harmony', FLOW: 'flow', LTC: 'litecoin', LINK: 'chainlink', AAVE: 'aave', UNI: 'uniswap', MKR: 'maker', BNB: 'binancecoin', ZRX: '0x', EOS: 'eos', NEO: 'neo', COMP: 'compound-governance-token', ONT: 'ontology', SHIB: 'shiba-inu', MANA: 'decentraland', BTT: 'bittorrent', WIN: 'wink', KSM: 'kusama', QTUM: 'qtum', ATOM: 'cosmos', BNT: 'bancor', UMA: 'uma', CELR: 'celer-network', IOTA: 'iota', CHZ: 'chiliz', RSR: 'reserve-rights-token', EGLD: 'elrond-erd-2', SUSHI: 'sushi', KAVA: 'kava', BAND: 'band-protocol', COTI: 'coti', SNX: 'havven', ETH: 'ethereum', FTT: 'ftx-token', IOST: 'iostoken', BCH: 'bitcoin-cash', ADA: 'cardano', ETC: 'ethereum-classic', DOT: 'polkadot', ALGO: 'algorand', DASH: 'dash', POL: 'polygon-ecosystem-token', FIL: 'filecoin', CELO: 'celo', SOL: 'solana', ARB: 'arbitrum', DOGE: 'dogecoin', TON: 'the-open-network', XLM: 'stellar', NEAR: 'near', XMR: 'monero' };
 const NET = { TRC20: 'Tron', 'C-Chain': 'Avalanche', ERC20: 'Ethereum', BEP20: 'BNB Chain', BEP2: 'BNB Beacon (BEP2)', Ripple: 'XRP Ledger' };
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
@@ -22,8 +23,11 @@ const chartHref = c => `/?page=crypto&chart=${encodeURIComponent(c)}`;
 // Every other coin: Binance <COIN>USDT, except tickers Binance renamed. The widget keeps its symbol box, so a wrong guess can be fixed on the page.
 const TV_OVERRIDE = { BTT: 'BINANCE:BTTCUSDT', EOS: 'BINANCE:AUSDT' };
 const NO_CHART = new Set(['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FDUSD']); // stablecoins: a flat line at $1
+const NO_PAIR = new Set(['MKR']); // Binance stopped trading these pairs: the chart would end in the past
+const ALERTS = [[0, 'خاموش'], [5, '۵٪'], [10, '۱۰٪'], [15, '۱۵٪'], [20, '۲۰٪']];
 const tvSymbol = coin => (CHARTS.find(c => c[0] === coin) || [])[2] || TV_OVERRIDE[coin] || `BINANCE:${coin}USDT`;
-const chartable = h => !h.flag && /^[A-Z0-9]{2,10}$/.test(sym(h)) && !NO_CHART.has(sym(h));
+const chartable = h => !h.flag && /^[A-Z0-9]{2,10}$/.test(sym(h)) && !NO_CHART.has(sym(h)) && !NO_PAIR.has(sym(h));
+const coinChip = (h, live) => h.flag ? <span className="cw-chip warn">{h.flag}</span> : <>{!live ? <span className="cw-chip">قیمت دستی</span> : null}{NO_PAIR.has(sym(h)) ? <span className="cw-chip" title="جفت‌ارز این ارز در Binance دیگر معامله نمی‌شود">بدون نمودار</span> : null}</>;
 
 function ChartView({ Nav, coin }) {
   const main = CHARTS.find(x => x[0] === coin), name = main ? main[1] : coin;
@@ -156,7 +160,10 @@ function WalletCard({ w, calc, on, sortBy, sortBtn, history, onSave, onRemove })
       {edit ? <input className="cw-in cw-name" value={edit.name} maxLength={60} onChange={e => setEdit(x => ({ ...x, name: e.target.value }))} aria-label="نام کیف‌پول" /> : <h3>{w.name || 'بدون نام'}</h3>}
       <span className="cw-headv"><Chg d={hs.reduce((s, h) => s + calc.chg(h), 0)} base={total} on={on} /><b className="cw-num">{usd(total)}</b></span>
     </div>
-    {!edit && pts.length >= 2 ? <LineChart pts={pts} h={180} label={`ارزش ${w.name} در طول زمان`} /> : null}
+    {!edit && pts.length >= 2 ? <>
+      <LineChart pts={pts} h={180} label={`ارزش ${w.name} در طول زمان`} />
+      <p className="cw-muted cw-small">در این بازه: از {usd(pts[0].v)} به {usd(pts[pts.length - 1].v)} <span className={`cw-num ${pts[pts.length - 1].v >= pts[0].v ? 'up' : 'down'}`} dir="ltr">({pctTxt(pts[pts.length - 1].v - pts[0].v, pts[pts.length - 1].v)}, {pts[pts.length - 1].v >= pts[0].v ? '+' : '−'}{usd(Math.abs(pts[pts.length - 1].v - pts[0].v))})</span></p>
+    </> : null}
     {w.note ? <p className="cw-muted cw-note">{w.note}</p> : null}
     {!edit && rows.length ? <div className="cw-charts"><Donut rows={rows} total={total} /><HBars rows={rows} total={total} /></div> : null}
     <div className="cw-tablebox"><table className="cw-table">
@@ -166,7 +173,7 @@ function WalletCard({ w, calc, on, sortBy, sortBtn, history, onSave, onRemove })
         {['coin', 'chain', 'amount', 'price'].map(k => <td key={k}><input className="cw-in" value={r[k] ?? ''} onChange={e => set(i, k, e.target.value)} dir={k === 'amount' || k === 'price' ? 'ltr' : undefined} inputMode={k === 'amount' || k === 'price' ? 'decimal' : undefined} aria-label={k} /></td>)}
         <td><button type="button" className="cw-icon" onClick={() => setEdit(e => ({ ...e, rows: e.rows.filter((_, j) => j !== i) }))} aria-label="حذف ردیف"><Trash2 size={15} /></button></td>
       </tr>) : sortBy(hs, calc).map((h, i) => <tr key={i}>
-        <td>{chartable(h) ? <a className="cw-coinlink" href={chartHref(sym(h))} title={`نمودار ${sym(h)}`}><b>{h.coin}</b></a> : <b>{h.coin || '?'}</b>}{h.flag ? <span className="cw-chip warn">{h.flag}</span> : calc.live(h) == null ? <span className="cw-chip">قیمت دستی</span> : null}</td>
+        <td>{chartable(h) ? <a className="cw-coinlink" href={chartHref(sym(h))} title={`نمودار ${sym(h)}`}><b>{h.coin}</b></a> : <b>{h.coin || '?'}</b>}{coinChip(h, calc.live(h) != null)}</td>
         <td>{h.chain || '—'}</td><td className="r cw-num">{amt(h.amount)}</td><td className="r cw-num">{amt(calc.priceOf(h))}</td>
         <td className="r cw-num">{usd(calc.val(h))}</td><td className="r"><Chg d={calc.chg(h)} base={calc.val(h)} compact on={on} /></td>
       </tr>)}</tbody>
@@ -197,6 +204,7 @@ function WalletsPage({ Nav }) {
   const wallets = useCol('cryptoWallets'), hist = useCol('cryptoHistory');
   const [prices, setPrices] = useState({ usd: {}, change24: {}, at: 0 }), [perr, setPerr] = useState('');
   const [range, setRange] = useState(0), [sort, setSort] = useState({ k: 'value', dir: -1 }), [newName, setNewName] = useState(''), [msg, setMsg] = useState('');
+  const [alert, setAlert] = useState(null);
   const extraIds = useRef({}), snapping = useRef(false), fileRef = useRef(null);
   const ws = wallets.items || [], all = ws.flatMap(w => w.holdings || []);
   const symbols = useMemo(() => [...new Set([...all.filter(h => !h.flag).map(sym), ...CHARTS.map(c => c[0])])].sort().join(','), [wallets.items]);
@@ -209,6 +217,9 @@ function WalletsPage({ Nav }) {
     go(); const t = setInterval(go, 5 * 60e3);
     return () => { stop = true; clearInterval(t); };
   }, [symbols]);
+
+  useEffect(() => { api('/api/crypto/alert').then(setAlert).catch(() => {}); }, []);
+  const saveAlert = pct => api('/api/crypto/alert', { method: 'PATCH', body: JSON.stringify({ pct }) }).then(setAlert).catch(e => setMsg(e.message));
 
   // keep a value snapshot at most every 30 minutes, in one document per Tehran day
   useEffect(() => {
@@ -291,9 +302,15 @@ function WalletsPage({ Nav }) {
       <section className="lf-card">
         <div className="cw-head"><h3>ارزش کل در طول زمان</h3>
           <div className="cw-ranges" role="group" aria-label="بازهٔ زمانی">{RANGES.map(([d, l]) => <button type="button" key={d} className="cw-sort" aria-pressed={range === d} onClick={() => setRange(d)}>{l}</button>)}</div></div>
-        {totalPts.length >= 2 ? <LineChart pts={totalPts} label="ارزش کل در طول زمان" /> : <p className="cw-muted">این نمودار با هر بار باز شدن صفحه (حداکثر هر ۳۰ دقیقه) یک نقطه می‌گیرد و از نقطهٔ دوم نمایش داده می‌شود.</p>}
+        {totalPts.length >= 2 ? <LineChart pts={totalPts} label="ارزش کل در طول زمان" /> : <p className="cw-muted">این نمودار وقتی صفحه باز است هر ۳۰ دقیقه، و از طرف سرور هر ۶ ساعت، یک نقطه می‌گیرد و از نقطهٔ دوم نمایش داده می‌شود.</p>}
         {totalPts.length >= 2 ? <p className="cw-muted cw-small">از {usd(totalPts[0].v)} به {usd(totalPts[totalPts.length - 1].v)} ({pctTxt(totalPts[totalPts.length - 1].v - totalPts[0].v, totalPts[totalPts.length - 1].v)}){est.length ? ` · روزهای قبل از ${new Date(est[est.length - 1].t + 864e5).toLocaleDateString('fa-IR')} تخمینی است: مقدار فعلی ارزها × قیمت پایانی آن روز (Binance). خرید و فروش‌های گذشته در آن حساب نشده.` : ''}</p> : null}
       </section>
+
+      {alert ? <section className="lf-card cw-alert">
+        <div className="cw-head"><h3>هشدار تلگرام</h3>
+          <div className="cw-ranges" role="group" aria-label="آستانهٔ هشدار">{ALERTS.map(([v, l]) => <button type="button" key={v} className="cw-sort" aria-pressed={alert.pct === v} onClick={() => saveAlert(v)}>{l}</button>)}</div></div>
+        <p className="cw-muted cw-small">{alert.pct ? `وقتی ارزش کل در ۲۴ ساعت ${alert.pct.toLocaleString('fa-IR')}٪ یا بیشتر بالا یا پایین برود، به تلگرام پیام می‌آید (حداکثر هر ۱۲ ساعت یک بار؛ سرور هر ساعت قیمت‌ها را چک می‌کند).` : 'هشدار خاموش است.'}{alert.telegram ? '' : ' تلگرام هنوز وصل نیست؛ از «تنظیمات» وصلش کن.'}{alert.lastAlertAt ? ` آخرین هشدار: ${new Date(alert.lastAlertAt).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' })}` : ''}</p>
+      </section> : null}
 
       <div className="cw-pair">
         {all.length ? <section className="lf-card"><h3>بر اساس شبکه</h3><HBars rows={foldSmall(sumRows(all, net, calc.val))} total={grand} /></section> : null}
@@ -304,7 +321,7 @@ function WalletsPage({ Nav }) {
         <div className="cw-tablebox"><table className="cw-table">
           <thead><tr>{sortBtn('coin', 'ارز')}{sortBtn('amount', 'مقدار کل', 'r')}{sortBtn('price', 'قیمت (دلار)', 'r')}{sortBtn('value', 'ارزش', 'r')}{sortBtn('chg', '۲۴ ساعت', 'r')}{sortBtn('value', 'سهم', 'r')}{sortBtn('wallets', 'کیف‌پول')}</tr></thead>
           <tbody>{combined.map(r => <tr key={r.coin}>
-            <td>{chartable({ coin: r.coin, flag: r.flag }) ? <a className="cw-coinlink" href={chartHref(r.coin.toUpperCase())} title={`نمودار ${r.coin}`}><b>{r.coin}</b></a> : <b>{r.coin}</b>}{r.flag ? <span className="cw-chip warn">{r.flag}</span> : !r.live ? <span className="cw-chip">قیمت دستی</span> : null}</td>
+            <td>{chartable({ coin: r.coin, flag: r.flag }) ? <a className="cw-coinlink" href={chartHref(r.coin.toUpperCase())} title={`نمودار ${r.coin}`}><b>{r.coin}</b></a> : <b>{r.coin}</b>}{coinChip({ coin: r.coin, flag: r.flag }, r.live)}</td>
             <td className="r cw-num">{amt(r.amount)}</td><td className="r cw-num">{amt(r.price)}</td><td className="r cw-num">{usd(r.value)}</td>
             <td className="r"><Chg d={r.d} base={r.value} compact on={on} /></td><td className="r cw-num">{grand ? (r.value / grand * 100).toFixed(1) + '%' : '—'}</td>
             <td className="cw-nowrap">{[...r.wallets].join('، ')}</td>

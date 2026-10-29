@@ -249,6 +249,10 @@ async function main() {
     const cw403 = await Promise.all([call('/api/col/cryptoWallets', { cookie: ck45 }), call('/api/col/cryptoWallets', { method: 'POST', cookie: ck45, body: { name: 'x', holdings: [] } }), call('/api/col/cryptoHistory', { cookie: ck45 })]);
     check('crypto collections -> 403 for a non-admin account', cw403.every(r => r.status === 403), cw403.map(r => r.status));
     check('crypto collections still open for the admin', (await call('/api/col/cryptoWallets', { cookie })).status === 200);
+    check('crypto alert setting -> 403 for a non-admin account', (await call('/api/crypto/alert', { cookie: ck45 })).status === 403);
+    check('crypto alert defaults to 10%', (await call('/api/crypto/alert', { cookie })).d.pct === 10);
+    check('crypto alert rejects an out-of-range percent', (await call('/api/crypto/alert', { method: 'PATCH', cookie, body: { pct: 150 } })).status === 400);
+    check('crypto alert saves a new percent', (await call('/api/crypto/alert', { method: 'PATCH', cookie, body: { pct: 15 } })).d.pct === 15);
     check('anonymous admin -> 401', (await call('/api/admin/overview')).status === 401);
     if (ad1.status === 200) {
       const sec = (await call('/api/admin/overview', { cookie })).d.users.find(u => u.email === em45);
@@ -1332,6 +1336,26 @@ async function main() {
     const raced = (await ext('/api/ext/col/projectProcesses', { token })).d.items;
     check('concurrent stage saves all survive (rows + fields merged)', many.every(x => raced.find(y => y.id === x.id)?.status === 'done') && raced.find(y => y.id === many[0].id)?.note === 'هم‌زمان' && raced.some(y => y.title === 'race new'), JSON.stringify(raced.filter(y => String(y.title).startsWith('race')).map(y => [y.title, y.status, y.note])));
 
+    {
+      // crypto: the hourly cron prices the admin's wallets, adds a history point and sends a Telegram alert on a big 24h move
+      for (const d of (await call('/api/col/cryptoHistory', { cookie })).d.items) await call('/api/col/cryptoHistory/' + d.id, { method: 'DELETE', cookie });
+      await call('/api/col/cryptoHistory', { method: 'POST', cookie, body: { day: 'test', points: [{ t: new Date(Date.now() - 30 * 3600e3).toISOString(), total: 1000, wallets: {} }] } });
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777003' } });
+      const sent = [], realFetch = globalThis.fetch; env.TELEGRAM_BOT_TOKEN = 'TEST';
+      globalThis.fetch = async (url, init) => {
+        if (String(url).includes('api.coingecko.com/api/v3/simple/price')) return new Response(JSON.stringify({ ethereum: { usd: 4000 } }), { headers: { 'content-type': 'application/json' } });
+        if (String(url).includes('api.telegram.org')) { if (typeof init.body === 'string') sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { headers: { 'content-type': 'application/json' } }); }
+        return new Response('{}', { status: 404 });
+      };
+      try { const waits = []; await worker.scheduled({ cron: '*/5 * * * *', scheduledTime: Date.now() }, env, { waitUntil: p => waits.push(p) }); await Promise.allSettled(waits); }
+      finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; }
+      const pts = (await call('/api/col/cryptoHistory', { cookie })).d.items.flatMap(d => d.points || []), fresh = pts.find(p => Date.now() - Date.parse(p.t) < 60e3);
+      check('crypto cron adds a priced history point', !!fresh && fresh.total >= 6000 && !fresh.est, JSON.stringify(fresh));
+      const msg = sent.find(m => /کیف‌پول‌های کریپتو/.test(m.text || ''));
+      check('crypto cron sends a Telegram alert on a big 24h move', !!msg && msg.chat_id === '777003' && /📈/.test(msg.text) && /\$1,000/.test(msg.text), JSON.stringify(sent.map(m => m.text)).slice(0, 300));
+      check('crypto alert reports when it last fired', !!(await call('/api/crypto/alert', { cookie })).d.lastAlertAt);
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } });
+    }
     // free reminder tied to a project, then delivered by the real cron → Telegram path
     check('reminder tied to an unknown project is refused', (await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: 'nope', title: 'x', date: today(), time: '10:00' } })).status === 400);
     const tz = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(Date.now() - 2 * 60e3));
