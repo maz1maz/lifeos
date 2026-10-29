@@ -171,30 +171,25 @@ export function CoursesPage({ Nav }) {
   const inst = v => (v.plan || 'installment') === 'installment';
   const sFields = [{ k: 'name', l: 'نام و نام خانوادگی', req: true }, { k: 'phone', l: 'شماره تماس', half: true, ph: '۰۹۱۲…' }, { k: 'fee', l: 'شهریه (ریال)', t: 'money', half: true, hint: 'برای تخفیف تغییر بده' }, { k: 'plan', l: 'نوع پرداخت', t: 'sel', o: PLAN, def: 'installment', half: true }, ...(sEdit && !sEdit.id ? [{ k: 'deposit', l: 'بیعانه (ریال)', t: 'money', half: true, hint: 'اختیاری', show: inst }] : []), { k: 'dueDate', l: 'سررسید باقی‌مانده', t: 'date', half: true, show: inst }, { k: 'status', l: 'وضعیت', t: 'sel', o: [['active', 'فعال'], ['withdrawn', 'انصراف']], def: 'active', half: true }, { k: 'notes', l: 'توضیحات', t: 'area' }];
 
-  const finTx = async (st, p) => {
-    if (!p.toFinance) return null;
-    try { const r = await api('/api/transactions', { method: 'POST', body: JSON.stringify({ title: `${p.kind === 'refund' ? 'بازپرداخت' : KIND[p.kind]} شهریه · ${st.name} · ${cur.name}`, amount: p.amount, kind: p.kind === 'refund' ? 'expense' : 'income', category: 'آموزش', account: 'بدون حساب', date: p.date }) }); return r.id || null; } catch { return null; }
-  };
+  // one server call changes the student's payment list and its finance row together (add is idempotent by payment id)
+  const payTitle = (st, p) => `${p.kind === 'refund' ? 'بازپرداخت' : KIND[p.kind]} شهریه · ${st.name} · ${cur.name}`;
+  const payCall = (op, st, payment, p) => api('/api/courses/payment', { method: 'POST', body: JSON.stringify({ op, studentId: st.id, payment, financeTitle: p ? payTitle(st, p) : '' }) });
   const addPayment = async (st, p) => {
-    const txId = await finTx(st, p);
-    const payment = { id: rid(), kind: p.kind, amount: p.amount, date: p.date, method: p.method || '', note: p.note || '', txId };
-    await students.patch(st.id, { payments: [...(st.payments || []), payment] });
-    setReceipt({ st: { ...st, payments: [...(st.payments || []), payment] }, p: payment });
-    flash(`${KIND[p.kind]} ${rial(p.amount)} برای ${st.name} ثبت شد${txId ? ' و در مالی هم آمد' : ''}.`);
+    const payment = { id: rid(), kind: p.kind, amount: p.amount, date: p.date, method: p.method || '', note: p.note || '', toFinance: !!p.toFinance };
+    let r;
+    try { r = await payCall('add', st, payment, p); } catch (e) { try { r = await payCall('add', st, payment, p); } catch (e2) { throw new Error('پرداخت ذخیره نشد: ' + (e2.message || 'خطای شبکه')); } }
+    await students.reload();
+    setReceipt({ st: r.student, p: r.payment });
+    flash(`${KIND[p.kind]} ${rial(p.amount)} برای ${st.name} ثبت شد${r.payment.txId ? ' و در مالی هم آمد' : ''}.`);
   };
   const editPayment = async (st, old, p) => {
-    let txId = old.txId || null;
-    const title = `${p.kind === 'refund' ? 'بازپرداخت' : KIND[p.kind]} شهریه · ${st.name} · ${cur.name}`;
-    if (txId && !p.toFinance) { try { await api(`/api/transactions/${txId}`, { method: 'DELETE' }); } catch {} txId = null; }
-    else if (txId) { try { await api(`/api/transactions/${txId}`, { method: 'PATCH', body: JSON.stringify({ title, amount: p.amount, kind: p.kind === 'refund' ? 'expense' : 'income', date: p.date }) }); } catch {} }
-    else if (p.toFinance) txId = await finTx(st, p);
-    await students.patch(st.id, { payments: (st.payments || []).map(x => x.id === old.id ? { ...x, kind: p.kind, amount: p.amount, date: p.date, method: p.method || '', note: p.note || '', txId } : x) });
+    await payCall('edit', st, { id: old.id, kind: p.kind, amount: p.amount, date: p.date, method: p.method || '', note: p.note || '', toFinance: !!p.toFinance }, p);
+    await students.reload();
     flash('پرداخت ویرایش شد.');
   };
   const delPayment = async (st, p) => {
     if (!window.confirm(`این ${KIND[p.kind]} (${rial(p.amount)}) حذف شود؟${p.txId ? '\nتراکنش مربوط در مالی هم حذف می‌شود.' : ''}`)) return;
-    if (p.txId) { try { await api(`/api/transactions/${p.txId}`, { method: 'DELETE' }); } catch {} }
-    await students.patch(st.id, { payments: (st.payments || []).filter(x => x.id !== p.id) });
+    try { await payCall('delete', st, { id: p.id }); await students.reload(); } catch (e) { flash('حذف انجام نشد: ' + (e.message || 'خطای شبکه')); }
   };
   const saveStudent = async b => {
     const { deposit, ...body } = b, full = body.plan === 'full';
@@ -222,7 +217,6 @@ export function CoursesPage({ Nav }) {
   const sesList = cur ? courseSessions(cur) : [];
   const nextSes = sesList.find(x => x.date >= todayIso());
   return <Page Nav={Nav} className="wide" kicker="کار" title="دوره‌ها و دانشجوها" sub="شهریه، پرداخت‌ها، سررسیدها و حضور و غیاب هر دوره" actions={<button className="lf-btn" onClick={() => setCEdit({})}>＋ دورهٔ تازه</button>}>
-    <SaveErrorBar />
     {courses.items === null ? <p className="lf-empty">در حال دریافت…</p> : !list.length ? <p className="lf-empty">هنوز دوره‌ای نساختی. با «＋ دورهٔ تازه» شروع کن؛ هر دوره لیست دانشجوها و حساب شهریهٔ خودش را دارد.</p> : <>
       <SideLayout storageKey="lifeos-course-side" title="دوره‌ها" selected={cur?.id} onPick={pick} tabs={[['active', 'فعال'], ['done', 'تمام‌شده']]}
         items={list.map(c => { const sm = courseSum(c), pct = sm.fee ? Math.round(sm.paid / sm.fee * 100) : 0, col = c.color || xcAuto(c.id); return { id: c.id, name: c.name, color: CS_HEX[col] || CS_HEX.graphite, dim: !sm.n, group: c.status === 'done' ? 'done' : 'active', bar: [{ flex: Math.max(pct, 0.001), color: '#34d399' }, { flex: Math.max(100 - pct, 0.001), color: 'transparent' }], sub: `${fa(pct)}٪ وصول · ${fa(sm.n)} نفر${c.startDate ? ` · ${jShort(c.startDate)}` : ''}` }; })}>

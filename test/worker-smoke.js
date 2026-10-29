@@ -91,6 +91,8 @@ async function main() {
     const scriptSrc = (csp.split(';').find(x => x.trim().startsWith('script-src')) || '').trim();
     check('HTML CSP allows inline scripts only by their sha256', scriptSrc === `script-src 'self' 'sha256-${want}'` && /frame-ancestors 'self'/.test(csp) && /object-src 'none'/.test(csp), scriptSrc);
     check('HTML body survives the CSP pass unchanged', (await page.text()).includes(inline));
+    // crypto chart page frames TradingView's widget; its script still may not run on our pages
+    check('CSP frames TradingView charts but loads no TradingView script', /frame-src[^;]*https:\/\/s\.tradingview\.com/.test(csp) && !/tradingview/.test(scriptSrc), csp);
   }
   check('security headers on every response (nosniff, frame, HSTS, referrer)', signup.headers.get('x-content-type-options') === 'nosniff' && signup.headers.get('x-frame-options') === 'SAMEORIGIN' && /max-age=\d+/.test(signup.headers.get('strict-transport-security') || '') && !!signup.headers.get('referrer-policy'));
   const v2Rows = [...env.DB._store.entries()].filter(([key]) => key.startsWith('state:v2:'));
@@ -166,6 +168,15 @@ async function main() {
     const c2 = await call(`/api/col/health/${c1.d.id}`, { method: 'PATCH', cookie, body: { weight: 80 } });
     check('collection patch', c2.status === 200 && c2.d.weight === 80);
     {
+      // crypto wallets page: wallets with holdings, and a 2-year history doc (~730 points) must store whole
+      const w = await call('/api/col/cryptoWallets', { method: 'POST', cookie, body: { name: 'Ledger', holdings: [{ coin: 'ETH', chain: 'Ethereum', amount: 1.5, price: 2400 }] } });
+      const wl = await call('/api/col/cryptoWallets', { cookie });
+      check('crypto wallet stored with holdings', w.status === 201 && wl.d.items.some(x => x.id === w.d.id && x.holdings[0].coin === 'ETH' && x.holdings[0].amount === 1.5));
+      const points = Array.from({ length: 730 }, (_, i) => ({ t: new Date(Date.UTC(2024, 9, 28) + i * 864e5).toISOString(), total: 90000 + i, wallets: { [w.d.id]: 90000 + i, other1: 1234.56, other2: 98765.43 }, est: true }));
+      const hb = await call('/api/col/cryptoHistory', { method: 'POST', cookie, body: { day: 'backfill', points } });
+      check('crypto history keeps 730 points', hb.status === 201 && hb.d.points.length === 730 && hb.d.points[729].total === 90729);
+    }
+    {
       // a contract's bill of quantities + measurement sheet + cover logos must survive whole (old limit cut JSON at 20k → 500)
       const boq = Array.from({ length: 120 }, (_, i) => ({ id: 'b' + i, desc: 'آیتم قرارداد شمارهٔ ' + i + ' — تهیه و نصب', qty: 100 + i, unit: 'مترمربع', price: 299818766 }));
       const measures = Array.from({ length: 300 }, (_, i) => ({ id: 'm' + i, statementNo: 1 + (i % 5), itemId: 'b' + (i % 120), date: '2026-06-16', qty: 1.5, note: 'ریزمتره' }));
@@ -234,6 +245,14 @@ async function main() {
     const ck45 = String((typeof lg45.headers.getSetCookie === 'function' ? lg45.headers.getSetCookie()[0] : lg45.headers.get('set-cookie')) || '').split(';')[0];
     check('a later account is not admin -> 403', (await call('/api/admin/overview', { cookie: ck45 })).status === 403);
     check('me.isAdmin false for later account', (await call('/api/me', { cookie: ck45 })).d.user.isAdmin === false);
+    // crypto wallets are the admin's only: a later account can neither read nor write them, the admin still can
+    const cw403 = await Promise.all([call('/api/col/cryptoWallets', { cookie: ck45 }), call('/api/col/cryptoWallets', { method: 'POST', cookie: ck45, body: { name: 'x', holdings: [] } }), call('/api/col/cryptoHistory', { cookie: ck45 })]);
+    check('crypto collections -> 403 for a non-admin account', cw403.every(r => r.status === 403), cw403.map(r => r.status));
+    check('crypto collections still open for the admin', (await call('/api/col/cryptoWallets', { cookie })).status === 200);
+    check('crypto alert setting -> 403 for a non-admin account', (await call('/api/crypto/alert', { cookie: ck45 })).status === 403);
+    check('crypto alert defaults to 10%', (await call('/api/crypto/alert', { cookie })).d.pct === 10);
+    check('crypto alert rejects an out-of-range percent', (await call('/api/crypto/alert', { method: 'PATCH', cookie, body: { pct: 150 } })).status === 400);
+    check('crypto alert saves a new percent', (await call('/api/crypto/alert', { method: 'PATCH', cookie, body: { pct: 15 } })).d.pct === 15);
     check('anonymous admin -> 401', (await call('/api/admin/overview')).status === 401);
     if (ad1.status === 200) {
       const sec = (await call('/api/admin/overview', { cookie })).d.users.find(u => u.email === em45);
@@ -409,6 +428,40 @@ async function main() {
   check('inbox -> 201 then convert -> 200', !!inbox.id && (await call(`/api/inbox/${inbox.id}/convert`, { method: 'POST', cookie, body: { type: 'task' } })).status === 200);
   check('daily PUT/GET round-trip', (await call('/api/daily', { method: 'PUT', cookie, body: { date: today(), mood: 8, water: 500 } })).status === 200
     && (await call(`/api/daily?date=${today()}`, { cookie })).d.item.mood === 8);
+  {
+    const dd = '2026-01-05';
+    await call('/api/daily', { method: 'PUT', cookie, body: { date: dd, mood: 6, userId: 'evil', id: 'evil-id', hacked: 'x' } });
+    const it = (await call(`/api/daily?date=${dd}`, { cookie })).d.item;
+    check('daily PUT ignores userId/id/unknown fields', it && it.userId !== 'evil' && it.id !== 'evil-id' && it.hacked === undefined && it.mood === 6);
+    await call('/api/daily', { method: 'PUT', cookie, body: { date: dd, userId: 'evil', id: 'evil-id' } });
+    const it2 = (await call(`/api/daily?date=${dd}`, { cookie })).d.item;
+    check('daily PUT update keeps owner and id', it2 && it2.userId === it.userId && it2.id === it.id);
+    check('daily PUT rejects a bad date -> 400', (await call('/api/daily', { method: 'PUT', cookie, body: { date: 'zzz', mood: 1 } })).status === 400);
+  }
+  {
+    const acN = 'حساب-تغییرنام-' + Date.now();
+    const acc = (await call('/api/accounts', { method: 'POST', cookie, body: { name: acN, openingBalance: 1000 } })).d;
+    await call('/api/transactions', { method: 'POST', cookie, body: { title: 'x', amount: 200, kind: 'expense', account: acN } });
+    const bal = async n => ((await call('/api/accounts', { cookie })).d.accounts.find(a => a.name === n) || {}).balance;
+    check('account balance before rename', await bal(acN) === 800);
+    await call(`/api/accounts/${acc.id}`, { method: 'PATCH', cookie, body: { name: acN + '-نو' } });
+    check('rename keeps the balance (transactions follow the new name)', await bal(acN + '-نو') === 800);
+    check('rename to empty -> 400', (await call(`/api/accounts/${acc.id}`, { method: 'PATCH', cookie, body: { name: '  ' } })).status === 400);
+    check('negative expense amount -> 400', (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'neg', amount: -50, kind: 'expense' } })).status === 400);
+    check('bad date -> 400', (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'd', amount: 5, date: 'abc' } })).status === 400);
+    const rm = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'rn', date: today(), notes: 'توضیح ۱' } })).d;
+    check('reminder keeps notes on create', rm.notes === 'توضیح ۱');
+    await call(`/api/reminders/${rm.id}`, { method: 'PATCH', cookie, body: { notes: 'توضیح ۲' } });
+    check('reminder notes update', (await call(`/api/reminders?date=${today()}`, { cookie })).d.items.find(x => x.id === rm.id).notes === 'توضیح ۲');
+    const cu = (await call('/api/col/customers', { method: 'POST', cookie, body: { name: 'مشتری' } })).d;
+    await call('/api/col/deals', { method: 'POST', cookie, body: { title: 'معامله', customerId: cu.id } });
+    check('customer with deals cannot be deleted -> 409', (await call(`/api/col/customers/${cu.id}`, { method: 'DELETE', cookie })).status === 409);
+    const ve = (await call('/api/col/vehicles', { method: 'POST', cookie, body: { name: 'خودرو' } })).d;
+    await call('/api/col/carlogs', { method: 'POST', cookie, body: { vehicleId: ve.id, type: 'fuel', amount: 10 } });
+    check('vehicle with logs cannot be deleted -> 409', (await call(`/api/col/vehicles/${ve.id}`, { method: 'DELETE', cookie })).status === 409);
+    const ve2 = (await call('/api/col/vehicles', { method: 'POST', cookie, body: { name: 'خودرو۲' } })).d;
+    check('vehicle without logs deletes fine', (await call(`/api/col/vehicles/${ve2.id}`, { method: 'DELETE', cookie })).status === 200);
+  }
   const t0 = await call('/api/timer/start', { method: 'POST', cookie, body: { title: 'w' } });
   check('timer start/stop', t0.status === 201 && (await call('/api/timer/stop', { method: 'POST', cookie, body: {} })).status === 200);
   const ex = (await call('/api/exercise', { method: 'POST', cookie, body: { type: 'run', minutes: 20 } })).d;
@@ -837,6 +890,12 @@ async function main() {
     check('old deposit «transfers» fixed once: out → expense, in → income on the real account, real transfers untouched', a.kind === 'expense' && !a.toAccount && a.account === 'بلو بانک' && b.kind === 'income' && b.account === 'بلو بانک' && b.notIncome && c.kind === 'transfer' && db._meta.depositXferFixed && H.fixDepositTransfers(db) === false, JSON.stringify(db));
   }
   { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
+    {
+      const { makeHelpers: mkL } = await require('./load-worker').loadWorkerModule(); const HL = mkL(env), ago = h => new Date(Date.now() - h * 3600e3).toISOString();
+      const settled = HL.settleStaleLive([{ status: 'live', date: ago(4), score: '2 - 1' }, { status: 'live', date: ago(1) }, { status: 'upcoming', date: ago(5) }, { status: 'live', date: null }]);
+      check('a match still flagged live 4 h after kick-off is shown as finished', settled[0].status === 'finished' && settled[0].score === '2 - 1');
+      check('a match 1 h in stays live; other statuses and undated rows are untouched', settled[1].status === 'live' && settled[2].status === 'upcoming' && settled[3].status === 'live');
+    }
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env), at = s => new Date(s);
     check('TSE hours: Sunday 10:00 Tehran open, 14:00 closed, Thursday closed', H.tseMarketOpen(at('2026-10-11T06:30:00Z')) && !H.tseMarketOpen(at('2026-10-11T10:30:00Z')) && !H.tseMarketOpen(at('2026-10-08T06:30:00Z')));
   }
@@ -853,6 +912,14 @@ async function main() {
   const integ = await call('/api/integrations', { cookie });
   check('integrations shows telegram connected', integ.d.telegram.connected === true && integ.d.telegram.userId === '123456789');
   check('project report PDF -> 503 without bot token (no network)', (await call('/api/projects/report-pdf', { method: 'POST', cookie, body: { filename: 'r.pdf', data: 'data:application/pdf;base64,JVBERi0=' } })).status === 503);
+  {
+    const em2 = 'tg-steal-' + Date.now() + '@example.com';
+    const su2 = await call('/api/auth/signup', { method: 'POST', body: { name: 'Thief', email: em2, password: 'secret123' } });
+    const ck2 = (typeof su2.headers.getSetCookie === 'function' ? su2.headers.getSetCookie() : [su2.headers.get('set-cookie')])[0].split(';')[0];
+    const steal = await call('/api/me', { method: 'PATCH', cookie: ck2, body: { telegramUserId: '123456789' } });
+    check('telegram id of another account cannot be taken over -> 409', steal.status === 409);
+    check('victim stays linked after takeover attempt', (await call('/api/me', { cookie })).d.user.telegramUserId === '123456789');
+  }
   check('unlink telegram -> 200', (await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } })).status === 200);
   check('spotify connect -> 503 (no creds, pre-network)', (await call('/api/integrations/spotify/connect', { cookie })).status === 503);
   check('youtube connect -> 503 (no creds, pre-network)', (await call('/api/integrations/youtube/connect', { cookie })).status === 503);
@@ -1039,6 +1106,34 @@ async function main() {
       '1405/06/21,خرید نان,0,"500,000",9002',
       '1405/06/25,واریز حقوق,"12,000,000",0,9003'].join('\n');
     const w10preview = async (csv) => (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'csv', filename: 'bank.csv', fileBase64: Buffer.from('\ufeff' + csv, 'utf8').toString('base64') } })).d;
+
+    // Bank Melli export: one «مبلغ» column, direction in «نوع», counterparty inside «توضیحات», names doubled
+    const melli = (await w10preview(['نام و نام خانوادگی:,مزلقانی حمیدرضا', 'از تاریخ:,1404/08/07,تا تاریخ:,1405/08/06', '',
+      'ردیف,تاریخ,زمان,شعبه,نوع,مبلغ,شماره پیگیری,اطلاعات تکمیلی,شرح,توضیحات,مانده',
+      '1,1405/08/05,18:19:46,تمرکز اسناد,برداشت,"120,000",BCG1,x,كارمزد پايا,,"72,702,681,480"',
+      '2,1405/08/05,18:19:45,تمرکز اسناد,برداشت,"2,000,000,000",BCG1,x,حواله پايا اينترنتي,"بانک طرف مقابل : بانک سامان،  نام کامل طرف مقابل : سحر ميثاقي سحر ميثاقي،  کد رهگیری : 1",',
+      '3,1405/08/04,13:16:38,پايا,واریز,"1,000,000,000",ACH2,x,حواله پايا,"نام کامل طرف مقابل : فردين حصارفولادي، شماره شبا : IR1",',
+      '4,1405/08/04,12:00:00,پايا,برداشت,"500,000,000",ACH3,x,حواله پايا اينترنتي,"نام کامل طرف مقابل : حميدرضا مزلقاني حميدرضا مزلقاني، شماره شبا : IR2",'].join('\n'))) || {};
+    const mi = melli.items || [];
+    const viaRows = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', filename: 'm.xls', rows: [['نام و نام خانوادگی:', 'مزلقانی حمیدرضا'], [], ['ردیف', 'تاریخ', 'نوع', 'مبلغ', 'شرح', 'توضیحات'], ['1', '1405/08/05', 'برداشت', '120,000', 'كارمزد پايا', '']] } })).d || {};
+    {
+      const blu = (await call('/api/transactions', { method: 'POST', cookie: c10, body: { title: 'دریافت پایا', amount: 777_000_000, kind: 'income', account: 'بلو بانک', date: '2026-02-05' } })).d;
+      const rowsT = [['ردیف', 'تاریخ', 'نوع', 'مبلغ', 'شرح'], ['1', '1404/11/16', 'برداشت', '777,000,000', 'حواله پايا اينترنتي']];
+      const forMelli = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', rows: rowsT, account: 'ملی' } })).d || {};
+      check('worker: a same-day same-amount row in ANOTHER account is not a duplicate (other leg of a transfer)', !!blu && forMelli.items?.length === 1 && !forMelli.items[0].duplicate, JSON.stringify(forMelli.items));
+      const forBlu = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', rows: rowsT, account: 'بلو بانک' } })).d || {};
+      check('worker: the same row in the SAME account is still caught as a duplicate', forBlu.items?.[0]?.duplicate === true, JSON.stringify(forBlu.items));
+      await call('/api/transactions/' + blu.id, { method: 'DELETE', cookie: c10 });
+    }
+    {
+      const set = (await call('/api/me', { method: 'PATCH', cookie: c10, body: { financeCats: { added: ['اینترنت', 'اینترنت', ' <b>'], hidden: ['پوشاک', 'متفرقه'] } } })).d;
+      const got = (await call('/api/me', { cookie: c10 })).d.user.financeCats;
+      check('worker: own finance categories are saved (deduped, cleaned; «متفرقه» cannot be hidden)', JSON.stringify(got.added) === JSON.stringify(['اینترنت', 'b']) && JSON.stringify(got.hidden) === JSON.stringify(['پوشاک']), JSON.stringify([set, got]));
+    }
+    check('worker: bank preview accepts the sheet rows read in the browser (no file upload)', (viaRows.items || []).length === 1 && viaRows.items[0].amount === 120_000 && viaRows.items[0].kind === 'expense', JSON.stringify(viaRows).slice(0, 300));
+    check('worker: Bank Melli statement (single «مبلغ» column + «نوع») is read', mi.length === 4 && mi[0].kind === 'expense' && mi[0].amount === 120_000 && mi[1].amount === 2_000_000_000 && mi[2].kind === 'income' && mi[2].amount === 1_000_000_000, JSON.stringify(melli).slice(0, 400));
+    check('worker: Melli rows are titled by «شرح» + counterparty (doubled name once, Persian ی/ک)', mi[1] && mi[1].title === 'حواله پایا اینترنتی (سحر میثاقی)' && mi[2].title === 'حواله پایا (فردین حصارفولادی)' && mi[0].title === 'کارمزد پایا', mi.map(x => x.title).join(' | '));
+    check('worker: a Melli transfer to the account holder\'s own name is «انتقال», not spending', mi[3] && mi[3].category === 'انتقال' && mi[1].category !== 'انتقال', JSON.stringify(mi[3]));
 
     const w10first = await w10check('2026-09-23');
     check('worker: 1st of the month -> bank-statement reminder for the previous month', w10first.created === 1 && w10first.month === 'شهریور' && !!w10first.reminder && w10first.reminder.auto === 'bank-import:1405-06', JSON.stringify(w10first));
@@ -1241,6 +1336,26 @@ async function main() {
     const raced = (await ext('/api/ext/col/projectProcesses', { token })).d.items;
     check('concurrent stage saves all survive (rows + fields merged)', many.every(x => raced.find(y => y.id === x.id)?.status === 'done') && raced.find(y => y.id === many[0].id)?.note === 'هم‌زمان' && raced.some(y => y.title === 'race new'), JSON.stringify(raced.filter(y => String(y.title).startsWith('race')).map(y => [y.title, y.status, y.note])));
 
+    {
+      // crypto: the hourly cron prices the admin's wallets, adds a history point and sends a Telegram alert on a big 24h move
+      for (const d of (await call('/api/col/cryptoHistory', { cookie })).d.items) await call('/api/col/cryptoHistory/' + d.id, { method: 'DELETE', cookie });
+      await call('/api/col/cryptoHistory', { method: 'POST', cookie, body: { day: 'test', points: [{ t: new Date(Date.now() - 30 * 3600e3).toISOString(), total: 1000, wallets: {} }] } });
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777003' } });
+      const sent = [], realFetch = globalThis.fetch; env.TELEGRAM_BOT_TOKEN = 'TEST';
+      globalThis.fetch = async (url, init) => {
+        if (String(url).includes('api.coingecko.com/api/v3/simple/price')) return new Response(JSON.stringify({ ethereum: { usd: 4000 } }), { headers: { 'content-type': 'application/json' } });
+        if (String(url).includes('api.telegram.org')) { if (typeof init.body === 'string') sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { headers: { 'content-type': 'application/json' } }); }
+        return new Response('{}', { status: 404 });
+      };
+      try { const waits = []; await worker.scheduled({ cron: '*/5 * * * *', scheduledTime: Date.now() }, env, { waitUntil: p => waits.push(p) }); await Promise.allSettled(waits); }
+      finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; }
+      const pts = (await call('/api/col/cryptoHistory', { cookie })).d.items.flatMap(d => d.points || []), fresh = pts.find(p => Date.now() - Date.parse(p.t) < 60e3);
+      check('crypto cron adds a priced history point', !!fresh && fresh.total >= 6000 && !fresh.est, JSON.stringify(fresh));
+      const msg = sent.find(m => /کیف‌پول‌های کریپتو/.test(m.text || ''));
+      check('crypto cron sends a Telegram alert on a big 24h move', !!msg && msg.chat_id === '777003' && /📈/.test(msg.text) && /\$1,000/.test(msg.text), JSON.stringify(sent.map(m => m.text)).slice(0, 300));
+      check('crypto alert reports when it last fired', !!(await call('/api/crypto/alert', { cookie })).d.lastAlertAt);
+      await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } });
+    }
     // free reminder tied to a project, then delivered by the real cron → Telegram path
     check('reminder tied to an unknown project is refused', (await ext('/api/ext/reminders', { method: 'POST', token, body: { projectId: 'nope', title: 'x', date: today(), time: '10:00' } })).status === 400);
     const tz = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(Date.now() - 2 * 60e3));
@@ -1316,6 +1431,10 @@ async function main() {
       check('non-transaction text -> 422, nothing else applied', (await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'کار خرید نان' } })).status === 422 && !(await call('/api/tasks', { cookie })).d.items?.some?.(t => t.title === 'خرید نان'));
       const login = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nحمیدرضا عزیز خوش آمدید.\n13:35:57\n1405.07.12' } });
       check('login/welcome SMS is ignored quietly (200, nothing recorded)', login.status === 200 && login.d.ignored === true, JSON.stringify(login.d));
+      const before = (await call('/api/transactions', { cookie })).d.items.length;
+      const otp = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nبفرمایید رمز پویا\nرمز: 482913\nمبلغ: 6,123,000 ریال\nپذیرنده: فروشگاه\n۱۴۰۵.۰۸.۰۲' } });
+      const ad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو روی رفیقت دو برابر حساب کن ، هدیه دعوت از دوستان به بلو یا بلوجونیور 300,000 ریال https://blubank.com/services/referral/' } });
+      check('OTP («رمز پویا») and ad-with-link SMS record nothing', otp.status < 300 && ad.status < 300 && (await call('/api/transactions', { cookie })).d.items.length === before, JSON.stringify([otp.status, otp.d, ad.status, ad.d]));
       const sms2 = 'بلو\nبرداشت پول\nحمیدرضا عزیز، 313,131 ریال از حساب شما پرید.\nموجودی: 2,440,911,747 ریال\n۱۳:۴۴\n۱۴۰۵.۰۷.۱۲';
       const q = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms + '\n###\n' + sms2 + '\n###\nبلو\nحمیدرضا عزیز خوش آمدید.\n###\n' } });
       const qtx = (await call('/api/transactions', { cookie })).d.items.filter(t => t.date === '2026-10-04' && t.kind === 'expense' && /برداشت/.test(t.title || ''));

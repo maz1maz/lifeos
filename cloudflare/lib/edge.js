@@ -172,7 +172,8 @@ export async function runScheduled(env) {
   const changed4 = await H.backupDbToTelegram(db).catch(() => false);
   const changed5 = heavy ? (await H.ensureStatementReminder(db).catch(() => ({ created: 0 }))).created > 0 : false;
   const changed6 = heavy ? (await H.syncAllGoogleCalendars(db).catch(() => ({ changed: false }))).changed : false;
-  if (changed0 || changed1 || changed2 || changed3 || changed4 || changed5 || changed6) await H.write(db);
+  const changed7 = await H.cryptoTick(db).catch(e => { console.error('crypto', e); return false; }); // self-paced: once an hour per admin
+  if (changed0 || changed1 || changed2 || changed3 || changed4 || changed5 || changed6 || changed7) await H.write(db);
 }
 
 let TGJU_CACHE = null;

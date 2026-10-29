@@ -4,7 +4,7 @@ Sep 26, 2026 · @Hamid reza
 
 ## مقدمه
 
-این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۲۲ و بعد از آن، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
+این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۲۶، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
 
 ساختار سند:
 
@@ -1003,3 +1003,82 @@ son/sun — dog/dug — feel/fill
 | reliable (adj.) | /rɪˈlaɪəbl/ | قابل اتکا | He is a reliable colleague. |
 
 **پاسخ نمونه (Speaking):** "We have to trust people because we can't do everything alone. To make people trust us, we should be honest with them, listen to them and keep our promises." — در این پاسخ از have to، should و حروف اضافه‌ی جلسه ۲۵ استفاده شده است.
+
+## واژگان جلسه ۲۶: میوه، سبزیجات، طعم‌ها و collocation مهمانی
+
+### میوه‌ها (Voc 25 — Fruit)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| peach (n.) | /piːtʃ/ | هلو | Peach juice is my favourite. |
+| pear (n.) | /peər/ | گلابی | She ate a ripe pear. |
+| lemon (n.) | /ˈlemən/ | لیمو | Add some lemon to the tea. |
+| mango (n.) | /ˈmæŋɡoʊ/ | انبه | I love fresh mango in summer. |
+| tropical fruit | /ˈtrɒpɪkl fruːt/ | میوه استوایی (مثل انبه و آناناس) | Mango is a tropical fruit. |
+| strawberry (n.) | /ˈstrɔːberi/ | توت‌فرنگی | We had strawberries and cream. |
+| cherry (n.) | /ˈtʃeri/ | گیلاس | Cherries are in season now. |
+| melon (n.) | /ˈmelən/ | خربزه، طالبی | A cold melon is perfect on a hot day. |
+| grapes (n.) | /ɡreɪps/ | انگور | He bought a bunch of grapes. |
+| pineapple (n.) | /ˈpaɪnæpl/ | آناناس | I don't like pineapple on pizza. |
+| avocado (n.) | /ˌævəˈkɑːdoʊ/ | آووکادو | She made avocado toast for breakfast. |
+
+### طعم و مزه (Taste)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| sweet (adj.) | /swiːt/ | شیرین — دارای طعم شکر (containing or having a taste like sugar) | This cake is too sweet. |
+| bitter (adj.) | /ˈbɪtər/ | تلخ | Black coffee tastes bitter. |
+| sour (adj.) | /ˈsaʊər/ | ترش | The milk has gone sour. |
+| salty (adj.) | /ˈsɔːlti/ | شور | These chips are very salty. |
+| spicy (adj.) = hot | /ˈspaɪsi/ | تند | I like spicy food. / This curry is too hot for me. |
+| greasy (adj.) | /ˈɡriːsi/ | چرب، روغنی | I don't like greasy fast food. |
+| tasty (adj.) | /ˈteɪsti/ | خوش‌طعم | The soup was really tasty. |
+| sweet and sour | /swiːt ənd ˈsaʊər/ | ترش و شیرین (ملس) | We ordered sweet and sour chicken. |
+| yummy (adj.) {informal} | /ˈjʌmi/ | خوشمزه | This pizza is yummy! |
+| yucky (adj.) {informal} | /ˈjʌki/ | بدمزه، چندش‌آور | The medicine tastes yucky. |
+| tin (n.) {Br.} | /tɪn/ | قوطی (کنسرو)؛ **قلع** | She opened a tin of tomatoes. |
+| fresh (adj.) | /freʃ/ | تازه | Fresh bread smells wonderful. |
+
+**نکته آیلتس:** در Speaking Part 1 (موضوع Food) به‌جای good / bad از واژه‌های دقیق‌تر استفاده کن: "I prefer spicy food, but I don't like greasy food." این کار نمره Lexical Resource را بالا می‌برد. yummy / yucky غیررسمی‌اند؛ در Writing نیایند.
+
+### سبزیجات (Vegetables)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| potato (n.) | /pəˈteɪtoʊ/ | سیب‌زمینی | I like roast potatoes. |
+| beans (n.) | /biːnz/ | لوبیا | She cooked green beans. |
+| onion (n.) | /ˈʌnjən/ | پیاز | Onions make me cry. |
+| cauliflower (n.) | /ˈkɒlɪflaʊər/ | گل‌کلم | Cauliflower soup is healthy. |
+| cabbage (n.) | /ˈkæbɪdʒ/ | کلم | We make salad with red cabbage. |
+| pea (n.) | /piː/ | نخودفرنگی | Peas are rich in protein. |
+| aubergine {Br.} = eggplant {Am.} | /ˈoʊbərʒiːn/ | بادمجان | Fried aubergine is delicious. |
+| courgette {Br.} = zucchini {Am.} | /kʊərˈʒet/, /zuˈkiːni/ | کدو سبز — سبزی بلند با پوست سبز تیره (a long vegetable with dark green skin) | Grilled courgette goes well with fish. |
+| mushroom (n.) | /ˈmʌʃruːm/ | قارچ | She added mushrooms to the omelette. |
+| garlic (n.) | /ˈɡɑːrlɪk/ | سیر | Add two cloves of garlic. |
+| chilli (n.) | /ˈtʃɪli/ | فلفل (تند) | This sauce has a lot of chilli. |
+| lettuce (n.) | /ˈletɪs/ | کاهو | I'd like a lettuce and tomato sandwich. |
+| cucumber (n.) | /ˈkjuːkʌmbər/ | خیار | Cucumber is great in summer salads. |
+| cooked (adj.) | /kʊkt/ | پخته | The rice is not cooked yet. |
+| raw (adj.) | /rɔː/ | خام | You can eat carrots raw. |
+| frozen (adj.) | /ˈfroʊzn/ | منجمد، یخ‌زده | I bought frozen peas. |
+
+**انگلیسی بریتانیایی و آمریکایی:** aubergine (Br.) = eggplant (Am.) و courgette (Br.) = zucchini (Am.) — هر دو درست‌اند؛ در آیلتس هر کدام را که انتخاب کردی ثابت نگه دار.
+
+### Collocation: party (جشن و مهمانی)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| arrive at a party | /əˈraɪv æt ə ˈpɑːrti/ | رسیدن به جشن | We arrived at the party at eight. |
+| go to a party | /ɡoʊ tuː ə ˈpɑːrti/ | به یک جشن رفتن | Are you going to Sara's party? |
+| invite (you) to a party | /ɪnˈvaɪt/ | دعوت کردن به یک جشن | She invited me to her birthday party. |
+| plan a party | /plæn ə ˈpɑːrti/ | برنامه‌ریزی کردن یک جشن | They are planning a party for Friday. |
+| throw a party (threw, thrown) | /θroʊ/, /θruː/ | مهمانی گرفتن (جشن برگزار کردن) | He threw a party for his friends. |
+| an all-night party | /ˌɔːl ˈnaɪt ˈpɑːrti/ | یک مهمانی شبانه (تا صبح) | It was an all-night party. |
+| a fantastic party | /fænˈtæstɪk/ | یک جشن محشر | It was a fantastic party! |
+| a noisy party | /ˈnɔɪzi/ | یک جشن شلوغ و پرسروصدا | The neighbours complained about the noisy party. |
+| a surprise party | /sərˈpraɪz/ | سورپرایز پارتی | We organised a surprise party for her. |
+| a dinner party | /ˈdɪnər ˈpɑːrti/ | جشن شام (مهمانی شام) | They had a dinner party last night. |
+| a farewell / leaving party | /ˌfeərˈwel/ | جشن خداحافظی (برای مهمان یا همکاری که می‌رود) | We're having a farewell party for Ali. |
+| a house-warming party | /ˈhaʊs wɔːrmɪŋ/ | جشن خانه نو (ولیمه خانه تازه) | They invited us to their house-warming party. |
+
+**نکته آیلتس:** collocation یعنی ترکیب‌های طبیعی کلمات: می‌گوییم throw / have a party (نه make a party) و go to a party. مثال Speaking: "Last month I threw a surprise party for my sister. It was a fantastic party, but a bit noisy!"

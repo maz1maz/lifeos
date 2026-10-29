@@ -38,6 +38,7 @@ const queueColMutation = work => {
 // <SaveErrorBar> with a retry button, instead of silently reverting to the old value.
 const saveFailures = new Map(), saveListeners = new Set();
 const notifySave = () => saveListeners.forEach(f => f());
+let saveFailCount = 0;
 export function SaveErrorBar() {
   const [, force] = useState(0);
   useEffect(() => { const f = () => force(x => x + 1); saveListeners.add(f); return () => { saveListeners.delete(f); }; }, []);
@@ -66,7 +67,7 @@ export function useCol(name) {
   // a server reply only replaces the row when no newer patch for it is in flight; otherwise quick
   // successive clicks flicker (reply #1 briefly undoes the optimistic state of click #2)
   const patchSeq = useRef({});
-  const patch = async (id, body) => { const seq = patchSeq.current[id] = (patchSeq.current[id] || 0) + 1; unsaved.current.set(id, { ...(unsaved.current.get(id) || {}), ...body }); setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const json = JSON.stringify(body), r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: json, keepalive: json.length < 60000 })); if (patchSeq.current[id] === seq) { unsaved.current.delete(id); setItems(xs => (xs || []).map(x => x.id === id ? r : x)); if (saveFailures.delete(`${name}|${id}`)) notifySave(); } return r; } catch (e) { setErr(e.message); if (patchSeq.current[id] === seq) { const key = `${name}|${id}`; saveFailures.set(key, { message: e.message, retry: () => { saveFailures.delete(key); notifySave(); return patch(id, unsaved.current.get(id) || body); } }); notifySave(); } } };
+  const patch = async (id, body) => { const seq = patchSeq.current[id] = (patchSeq.current[id] || 0) + 1; unsaved.current.set(id, { ...(unsaved.current.get(id) || {}), ...body }); setItems(xs => (xs || []).map(x => x.id === id ? { ...x, ...body } : x)); try { const json = JSON.stringify(body), r = await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'PATCH', body: json, keepalive: json.length < 60000 })); if (patchSeq.current[id] === seq) { unsaved.current.delete(id); setItems(xs => (xs || []).map(x => x.id === id ? r : x)); if (saveFailures.delete(`${name}|${id}`)) notifySave(); } return r; } catch (e) { setErr(e.message); saveFailCount++; if (patchSeq.current[id] === seq) { const key = `${name}|${id}`; saveFailures.set(key, { message: e.message, retry: () => { saveFailures.delete(key); notifySave(); return patch(id, unsaved.current.get(id) || body); } }); notifySave(); } } };
   const remove = async id => { setItems(xs => (xs || []).filter(x => x.id !== id)); try { await queueColMutation(() => api(`/api/col/${name}/${id}`, { method: 'DELETE' })); } catch (e) { setErr(e.message); load(); } };
   return { items, add, addMany, patch, remove, reload: load, err, setErr };
 }
@@ -76,6 +77,7 @@ export function Page({ Nav, kicker, title, sub, actions, children, className = '
     <Nav />
     <div className="lf-page">
       <header className="lf-hero"><div><p>{kicker}</p><h1>{title}</h1>{sub ? <small>{sub}</small> : null}</div>{actions ? <div className="lf-hero-ops">{actions}</div> : null}</header>
+      <SaveErrorBar />
       {children}
     </div>
   </main>;
@@ -97,7 +99,7 @@ export function FormDrawer({ open, title, fields, initial, onClose, onSubmit, su
     const miss = fields.find(f => vis(f) && f.req && (v[f.k] === undefined || v[f.k] === ''));
     if (miss) { setErr(`«${miss.l}» لازم است.`); return; }
     const out = { ...v }; fields.forEach(f => { if (f.calc) out[f.k] = f.calc(v); else if (f.t === 'num' || f.t === 'money') out[f.k] = v[f.k] === '' || v[f.k] === undefined ? null : num(v[f.k]); });
-    setBusy(true); try { await onSubmit(out); onClose(); } catch (x) { setErr(x.message); } setBusy(false);
+    setBusy(true); const failsBefore = saveFailCount; try { await onSubmit(out); if (saveFailCount !== failsBefore) setErr('ذخیره نشد؛ اتصال را بررسی کن و دوباره بزن.'); else onClose(); } catch (x) { setErr(x.message); } setBusy(false);
   };
   return <div className="lf-drawer-bg" onClick={onClose}>
     <form className="lf-drawer" onClick={e => e.stopPropagation()} onSubmit={submit}>

@@ -1,0 +1,104 @@
+/* «کیف‌پول کریپتو» page */
+.cw .lf-card{display:grid;gap:12px;min-width:0}
+.cw .lf-card h3{margin:0;font-size:16px}
+.cw-num{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.cw .up{color:#34d399}.cw .down{color:#f87171}
+.cw-muted{color:var(--g-muted)}
+.cw-small{font-size:12.5px;margin:0}
+.cw-msg{margin:0 0 10px;color:var(--g-accent);font-size:13.5px}
+.cw-err{margin:0 0 10px;color:#f87171;font-size:13.5px}
+.cw-h2{margin:8px 0 0;font-size:17px}
+
+.cw-summary{display:flex;flex-wrap:wrap;gap:12px 32px;align-items:end;margin-bottom:14px}
+.cw-summary>div{display:grid;gap:2px}
+.cw-summary small{color:var(--g-muted);font-size:12px}
+.cw-summary b{font-size:20px}
+.cw-summary .cw-total{font-size:34px;line-height:1.1}
+
+.cw-alloc{display:grid;gap:8px;margin-bottom:6px}
+.cw-bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--g-border-2)}
+.cw-bar span{display:block;height:100%}
+.cw-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0;padding:0;list-style:none;font-size:13px;color:var(--g-muted)}
+.cw-legend.col{flex-direction:column;flex-wrap:nowrap;gap:4px}
+.cw-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:6px;vertical-align:middle}
+
+.cw-head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+.cw-head h3{margin:0}
+.cw-headv{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.cw-headv b{font-size:18px}
+.cw-note{font-size:12.5px;margin:0}
+.cw-ranges{display:flex;flex-wrap:wrap;gap:6px}
+
+.cw-sort{border:1px solid var(--g-border-2);background:transparent;color:inherit;border-radius:999px;padding:2px 10px;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.cw-sort:hover{border-color:var(--g-accent)}
+.cw-sort[aria-pressed="true"]{color:var(--g-accent);border-color:var(--g-accent);font-weight:700}
+.cw-sort:focus-visible,.cw-scrub:focus-visible{outline:2px solid var(--g-accent);outline-offset:3px}
+
+/* horizontal bars: label / track / value as one grid so every label gets its full width */
+.cw-hbars{display:grid;grid-template-columns:max-content minmax(60px,1fr) max-content;gap:8px 10px;align-items:center;min-width:0}
+.cw-hrow{display:contents;font-size:13px}
+.cw-hrow b,.cw-hrow span{font-size:13px}
+.cw-track{height:10px;border-radius:5px;background:var(--g-border-2);overflow:hidden}
+.cw-track i{display:block;height:100%;border-radius:5px}
+
+.cw-charts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:20px;align-items:center}
+.cw-donutbox{display:flex;gap:16px;align-items:center;min-width:0}
+.cw-donut{width:42%;max-width:150px;flex:0 0 auto}
+
+/* value-over-time chart; the readout strip above keeps the date/value off the line */
+.cw-scrub{position:relative;touch-action:pan-y;cursor:crosshair;border-radius:8px;display:grid;gap:4px}
+.cw-readout{min-height:58px;display:grid;align-content:start;gap:1px;font-size:13px}
+.cw-readout b{font-size:17px}
+.cw-readout small{font-size:12px}
+.cw-line{display:block;width:100%;height:auto;color:var(--g-muted)}
+.cw-line text{fill:var(--g-muted);font-size:11px;font-family:inherit}
+
+.cw-tablebox{overflow-x:auto}
+.cw-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.cw-table th{text-align:start;color:var(--g-muted);font-weight:500;font-size:12px;padding:6px 8px;border-bottom:1px solid var(--g-border-2)}
+.cw-table td{padding:8px;border-bottom:1px solid var(--g-border-2);vertical-align:middle}
+.cw-table tbody tr:last-child td{border-bottom:0}
+.cw-table tfoot td{border-top:2px solid var(--g-border-2);border-bottom:0;font-weight:700}
+.cw-table .r{text-align:left}
+.cw-nowrap{white-space:nowrap}
+.cw-chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid var(--g-border-2);color:var(--g-muted);margin-inline-start:6px}
+.cw-chip.warn{color:#f59e0b;border-color:currentColor}
+
+.cw-in{border:1px solid var(--g-border-2);background:transparent;color:var(--g-text);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;width:100%;min-width:70px;box-sizing:border-box}
+.cw-name{max-width:320px;font-weight:700}
+.cw-icon{border:0;background:transparent;color:#f87171;cursor:pointer;padding:4px}
+.cw-ops{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cw-ops .lf-btn{display:inline-flex;align-items:center;gap:6px}
+.cw-add{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
+.cw-add .cw-in{flex:1 1 220px;width:auto}
+.cw-add .lf-btn,.cw .lf-hero-ops .lf-btn{display:inline-flex;align-items:center;gap:6px}
+.cw-card+.cw-card{margin-top:14px}
+
+/* market chart cards → full TradingView chart page */
+.cw-market{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0 8px}
+.cw-coin{display:grid;gap:4px;text-decoration:none;color:var(--g-text);padding:12px 14px}
+.cw-coin:hover,.cw-coin:focus-visible{border-color:var(--g-accent)}
+.cw-coin-h{display:flex;align-items:center;gap:8px}
+.cw-coin-h svg{margin-inline-start:auto;color:var(--g-muted)}
+.cw-coin>b{font-size:18px}
+.cw-coins{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.cw-coins a{text-decoration:none;padding:4px 12px}
+.cw-coins a[aria-current="page"]{color:var(--g-accent);border-color:var(--g-accent);font-weight:700}
+.cw-tv{height:calc(100vh - 260px);min-height:480px;border:1px solid var(--g-border-2);border-radius:12px;overflow:hidden;background:#131722}
+.cw-tv iframe{display:block;width:100%;height:100%;border:0}
+
+@media (max-width:700px){
+  .cw-charts{grid-template-columns:minmax(0,1fr)}
+  .cw-summary .cw-total{font-size:28px}
+  .cw-hbars{grid-template-columns:max-content minmax(40px,1fr) max-content}
+  /* the chart scales its 600-unit viewBox down to the phone: larger text units, and only 3 date labels so they do not collide */
+  .cw-line text{font-size:19px}
+  .cw-line .cw-mid{display:none}
+}
+
+/* network split and wallet comparison share one row, each at half width; stacked on a phone */
+.cw-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;align-items:start}
+.cw-pair:empty{display:none}
+/* coin symbol → its chart page */
+.cw-coinlink{color:inherit;text-decoration:none;border-bottom:1px dotted var(--g-muted)}
+.cw-coinlink:hover,.cw-coinlink:focus-visible{color:var(--g-accent);border-bottom-color:var(--g-accent)}

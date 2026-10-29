@@ -19,7 +19,7 @@ const Wait = ({ v }) => v === null ? <Loader /> : v?.error ? <p className="ins-m
 function ReportCard() {
   const [period, setPeriod] = useState('weekly');
   const [r, setR] = useState(null);
-  useEffect(() => { setR(null); load(`/api/ai/report?period=${period}`, setR); }, [period]);
+  useEffect(() => { let live = true; setR(null); load(`/api/ai/report?period=${period}`, v => live && setR(v)); return () => { live = false; }; }, [period]);
   const d = r?.data;
   const tiles = d ? [
     ['💸', 'خرج', toman(d.expense)], ['💰', 'درآمد', toman(d.income)], ['✅', 'کار انجام‌شده', fa(d.tasksDone)],
@@ -36,15 +36,16 @@ function ReportCard() {
 }
 
 function PrioritiesCard() {
-  const [p, setP] = useState(null), [busy, setBusy] = useState('');
+  const [p, setP] = useState(null), [busy, setBusy] = useState(''), [actErr, setActErr] = useState('');
   const refresh = () => load('/api/ai/tomorrow-priorities', setP);
   useEffect(refresh, []);
-  const act = async (task, body) => { setBusy(task.id); try { await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify(body) }); await refresh(); } catch {} setBusy(''); };
+  const act = async (task, body) => { setBusy(task.id); setActErr(''); try { await api(`/api/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify(body) }); await refresh(); } catch (e) { setActErr((e && e.message) || 'ذخیره نشد؛ دوباره تلاش کن.'); } setBusy(''); };
   const Row = ({ t, late }) => <li><span><b>{t.title}</b><small>{late ? `ددلاین گذشته · ${jDay(t.deadline)}` : 'ددلاین فردا'}</small></span>
     <span className="ins-ops"><button type="button" disabled={busy === t.id} onClick={() => act(t, { done: true })}>انجام شد</button>{late ? <button type="button" disabled={busy === t.id} onClick={() => act(t, { date: tomorrowIso(), deadline: tomorrowIso() })}>بگذار برای فردا</button> : null}</span></li>;
   const empty = p && !p.error && !p.overdueTasks.length && !p.dueTomorrowTasks.length && !p.pendingHabits.length;
   return <Section title="اولویت‌های فردا" sub="از روی ددلاین‌ها و عادت‌های امروز">
     <Wait v={p} />
+    {actErr ? <p className="ins-muted" role="alert">⚠ {actErr}</p> : null}
     {p?.narrative ? <p className="ins-ai">✨ {p.narrative}</p> : null}
     {empty ? <p className="ins-muted">چیز عقب‌افتاده‌ای نیست. فردا را آزاد شروع می‌کنی 🌿</p> : null}
     {p && !p.error ? <ul className="ins-list">

@@ -1829,6 +1829,65 @@
         }
       }
     },
+    "/api/courses/payment": {
+      "post": {
+        "operationId": "post_api_courses_payment",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "text": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 10000
+                  },
+                  "date": {
+                    "type": "string",
+                    "example": "2026-10-06"
+                  },
+                  "note": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "example": "expense"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "خوراک"
+                  },
+                  "status": {
+                    "type": "string",
+                    "example": "active"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/courses/report": {
       "get": {
         "operationId": "get_api_courses_report",
@@ -1840,6 +1899,73 @@
       },
       "post": {
         "operationId": "post_api_courses_report",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "text": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 10000
+                  },
+                  "date": {
+                    "type": "string",
+                    "example": "2026-10-06"
+                  },
+                  "note": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "example": "expense"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "خوراک"
+                  },
+                  "status": {
+                    "type": "string",
+                    "example": "active"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crypto/alert": {
+      "get": {
+        "operationId": "get_api_crypto_alert",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_api_crypto_alert",
         "responses": {
           "200": {
             "description": "OK"
@@ -6254,6 +6380,75 @@
         }
       }
     },
+    "/api/news/live-monitor": {
+      "get": {
+        "operationId": "get_api_news_live_monitor",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/news/live-monitor/translate": {
+      "post": {
+        "operationId": "post_api_news_live_monitor_translate",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "text": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 10000
+                  },
+                  "date": {
+                    "type": "string",
+                    "example": "2026-10-06"
+                  },
+                  "note": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "example": "expense"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "خوراک"
+                  },
+                  "status": {
+                    "type": "string",
+                    "example": "active"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/news/sources": {
       "get": {
         "operationId": "get_api_news_sources",
@@ -10438,6 +10633,65 @@
       },
       "put": {
         "operationId": "put_api_vocab_tutor_log",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "text": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 10000
+                  },
+                  "date": {
+                    "type": "string",
+                    "example": "2026-10-06"
+                  },
+                  "note": {
+                    "type": "string",
+                    "example": "test"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "example": "expense"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "خوراک"
+                  },
+                  "status": {
+                    "type": "string",
+                    "example": "active"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vocab/tutor-pdf": {
+      "post": {
+        "operationId": "post_api_vocab_tutor_pdf",
         "responses": {
           "200": {
             "description": "OK"

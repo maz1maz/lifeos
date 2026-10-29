@@ -448,10 +448,11 @@ export function MediaReact({ Nav, initialTab }) {
   async function disconnect(kind) {
     setBusy(kind)
     try {
-      await fetch(`/api/integrations/${kind}/disconnect`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      const r = await fetch(`/api/integrations/${kind}/disconnect`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}' })
       await loadInteg()
-      note('info', `${kind === 'spotify' ? 'اسپاتیفای' : 'یوتیوب'} قطع شد`)
-    } finally { setBusy('') }
+      if (!r.ok) setNotice('قطع اتصال انجام نشد؛ دوباره تلاش کن.')
+      else note('info', `${kind === 'spotify' ? 'اسپاتیفای' : 'یوتیوب'} قطع شد`)
+    } catch { setNotice('قطع اتصال انجام نشد؛ اتصال اینترنت را بررسی کن.') } finally { setBusy('') }
   }
 
   async function search(e) {

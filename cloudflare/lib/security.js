@@ -7,7 +7,7 @@
 const CSP_REST = [
   "default-src 'self'", "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:", "media-src 'self' data: blob:", "font-src 'self' data:",
-  "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://air-quality-api.open-meteo.com https://api.coingecko.com", "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com",
+  "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://air-quality-api.open-meteo.com https://api.coingecko.com", "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com https://s.tradingview.com",
   "worker-src 'self'", "manifest-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'self'",
 ].join('; ');
 const INLINE_SCRIPT_RE = /<script(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;

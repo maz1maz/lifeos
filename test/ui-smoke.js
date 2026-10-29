@@ -105,6 +105,8 @@ check('React finance keeps the existing finance APIs for budgets, transfers, deb
 check('React finance supports transaction editing and bank-import preview before commit',
   financeSource.includes("'/api/transactions/import-bank/preview'") &&
   financeSource.includes("'/api/transactions/import-bank/commit'") && financeSource.includes("setEditing({ type: 'transaction', item })"));
+check('each account card can import a bank statement straight into that account',
+  financeSource.includes('previewImport(e, a.name)') && financeSource.includes('importPreview.forAccount === a.name') && financeSource.includes("{ items, account: a.name }"));
 check('React today route no longer embeds the legacy today iframe',
   !todaySource.includes('title="LifeOS امروز" src="/legacy-today.html"'));
 check('React market page fetches Tehran market and US stock prices',
@@ -128,6 +130,8 @@ check('published calendar route opens the React calendar host',
   calendarRedirect.includes("/?page=calendar") && calendarRedirect.includes('location.replace'));
 check('vocabulary app has the «جزوه» tab backed by notes.md (topics as ## sections)',
   read('public/vocab/index.html').includes('data-v="notes"') && read('public/vocab/app.js').includes('function renderNotes') && (read('public/vocab/notes.md').match(/^## /gm) || []).length >= 10);
+check('vocabulary app has the «زبان تخصصی معماری» tab backed by arch.md (same notes renderer)',
+  read('public/vocab/index.html').includes('data-v="arch"') && read('public/vocab/index.html').includes('id="archMain"') && read('public/vocab/app.js').includes('renderNotes("arch")') && read('public/vocab/app.js').includes('archMerge(archMd)') && (read('public/vocab/arch.md').match(/^\| [A-Z]/gm) || []).length >= 100);
 check('vocabulary page loads its bundled Vazirmatn font instead of relying on a device fallback',
   read('public/vocab/index.html').includes("font-family:'Vazirmatn'") && read('public/vocab/index.html').includes("/assets/fonts/vazirmatn-arabic.woff2"));
 check('React settings exposes a real Google Calendar OAuth/sync/disconnect card',

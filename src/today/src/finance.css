@@ -383,3 +383,12 @@
 .xc-tx.t-buy .xc-side { color: #34d399; } .xc-tx.t-sell .xc-side { color: #fb7185; }
 /* a transfer between own accounts is neither in nor out: neutral, no arrow */
 .amt.xfer { color: var(--g-muted, #94a3b8); }
+/* category manager (🏷 دسته‌ها) */
+.fn-catmgr { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.fn-cat-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fn-cat-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 12px; border-radius: 999px; border: 1px solid var(--g-line, rgba(255,255,255,.14)); font-size: 13px; }
+.fn-cat-chip button { border: 0; background: transparent; color: inherit; opacity: .6; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+.fn-cat-chip button:hover { opacity: 1; color: #f87171; }
+.fn-cat-chip.fixed { opacity: .6; padding-left: 12px; }
+.fn-acct-filter { margin-top: -4px; }
+.fn-2.fn-solo { grid-template-columns: 1fr; }

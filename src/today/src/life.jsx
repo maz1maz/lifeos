@@ -43,11 +43,15 @@ export function HealthPage({ Nav }) {
   const byDate = useMemo(() => { const m = {}; for (const x of col.items || []) m[x.date] = x; return m; }, [col.items]);
   const cur = byDate[today] || { date: today };
   const [f, setF] = useState(null);
+  const creating = useRef(null);
   useEffect(() => { if (col.items) setF({ weight: cur.weight ?? '', sleepH: cur.sleepH ?? '', steps: cur.steps ?? '', water: cur.water ?? 0, workoutMin: cur.workoutMin ?? '', workout: cur.workout || '' }); }, [col.items === null]);
   const save = async patch => {
     const next = { ...(f || {}), ...patch }; setF(next);
     const body = { date: today, weight: next.weight === '' ? null : num(next.weight), sleepH: next.sleepH === '' ? null : num(next.sleepH), steps: next.steps === '' ? null : num(next.steps), water: num(next.water), workoutMin: next.workoutMin === '' ? null : num(next.workoutMin), workout: next.workout || '' };
-    if (byDate[today]?.id) await col.patch(byDate[today].id, body); else await col.add(body);
+    // one create per day: a second quick tap waits for the first POST and then patches that row
+    if (byDate[today]?.id) await col.patch(byDate[today].id, body);
+    else if (creating.current) { const row = await creating.current; if (row?.id) await col.patch(row.id, body); }
+    else { creating.current = col.add(body); try { await creating.current; } finally { creating.current = null; } }
   };
   const last = n => { const out = []; for (let i = n - 1; i >= 0; i--) { const d = addDays(today, -i); out.push({ d, e: byDate[d] }); } return out; };
   const w90 = last(90).filter(x => x.e && x.e.weight).map(x => ({ x: x.d, y: x.e.weight }));
@@ -93,7 +97,7 @@ export function CarPage({ Nav }) {
         const my = (logs.items || []).filter(l => l.vehicleId === v.id).sort((a, b) => String(b.date).localeCompare(String(a.date)));
         const mStart = addDays(todayIso(), -30), month = my.filter(l => l.date >= mStart).reduce((a, l) => a + (l.amount || 0), 0), year = my.filter(l => l.date >= addDays(todayIso(), -365)).reduce((a, l) => a + (l.amount || 0), 0);
         const fuel = my.filter(l => l.type === 'fuel' && l.liters && l.odometer).sort((a, b) => a.odometer - b.odometer);
-        const cons = fuel.length >= 2 ? (fuel.slice(1).reduce((a, l) => a + l.liters, 0) / (fuel[fuel.length - 1].odometer - fuel[0].odometer)) * 100 : null;
+        const kmSpan = fuel.length >= 2 ? fuel[fuel.length - 1].odometer - fuel[0].odometer : 0, cons = kmSpan > 0 ? (fuel.slice(1).reduce((a, l) => a + l.liters, 0) / kmSpan) * 100 : null;
         const kmLeft = v.nextServiceKm && v.odometer ? v.nextServiceKm - v.odometer : null;
         return <section key={v.id} className="lf-card lf-car">
           <div className="lf-row-head"><div><h2>🚗 {v.name}</h2><small>{[v.plate, v.odometer ? `${fa(v.odometer, 0)} کیلومتر` : ''].filter(Boolean).join(' · ')}</small></div>
@@ -127,7 +131,7 @@ export function TravelPage({ Nav }) {
         const spent = (x.expenses || []).reduce((a, e) => a + (e.amount || 0), 0), done = (x.checklist || []).filter(c => c.done).length, d = x.from ? daysTo(x.from) : null;
         return <button key={x.id} className={`lf-card lf-trip ${openId === x.id ? 'on' : ''}`} onClick={() => setOpenId(openId === x.id ? null : x.id)}>
           <b>✈️ {x.title}</b><small>{[x.dest, x.from ? `${jShort(x.from)}${x.to ? ' تا ' + jShort(x.to) : ''}` : ''].filter(Boolean).join(' · ')}</small>
-          <div className="lf-chips">{d != null && d >= 0 ? <span className="lf-due soon">{d === 0 ? 'امروز' : `${fa(d)} روز مانده`}</span> : d != null ? <span className="lf-due">انجام شده</span> : null}<span className="lf-chip">وسایل {fa(done)}/{fa((x.checklist || []).length)}</span>{x.budget ? <span className={`lf-chip ${spent > x.budget ? 'bad' : ''}`}>{money(spent)} از {money(x.budget)}</span> : null}</div>
+          <div className="lf-chips">{d != null && d >= 0 ? <span className="lf-due soon">{d === 0 ? 'امروز' : `${fa(d)} روز مانده`}</span> : d != null ? (x.to && daysTo(x.to) >= 0 ? <span className="lf-due soon">در حال سفر</span> : <span className="lf-due">انجام شده</span>) : null}<span className="lf-chip">وسایل {fa(done)}/{fa((x.checklist || []).length)}</span>{x.budget ? <span className={`lf-chip ${spent > x.budget ? 'bad' : ''}`}>{money(spent)} از {money(x.budget)}</span> : null}</div>
         </button>;
       })}</div>}
     {t ? <section className="lf-card lf-trip-detail">
@@ -919,6 +923,7 @@ export function ProjectsPage({ Nav }) {
   const cFields = [{ k: 'title', l: 'عنوان', req: true }, { k: 'col', l: 'ستون', t: 'sel', o: COLS_K, def: 'todo', half: true }, { k: 'due', l: 'مهلت', t: 'date', half: true }, { k: 'owner', l: 'مسئول', half: true }, { k: 'prio', l: 'اولویت', t: 'sel', o: [['n', 'عادی'], ['h', 'بالا'], ['l', 'پایین']], def: 'n', half: true }, { k: 'note', l: 'جزئیات', t: 'area', rows: 4 }];
   const move = (c, col) => cards.patch(c.id, { col, doneAt: col === 'done' ? Date.now() : null });
   const toggleProcess = item => processes.patch(item.id, { status: item.status === 'done' ? 'todo' : 'done' });
+  const [syncErr, setSyncErr] = useState('');
   const patchProcess = async (id, body) => {
     const item = (processes.items || []).find(x => x.id === id);
     // the saved row is returned: the checklist waits for it before re-evaluating the project's done/active status
@@ -940,7 +945,7 @@ export function ProjectsPage({ Nav }) {
         await api(`/api/reminders/${next.reminderId}`, { method: 'DELETE' });
         await processes.patch(id, { reminderId: null });
       }
-    } catch { /* the date remains visible locally even if notification sync is temporarily unavailable */ }
+    } catch (e) { setSyncErr('تاریخ مرحله ذخیره شد، ولی یادآوری آن همگام نشد: ' + ((e && e.message) || 'خطای شبکه')); }
     return saved;
   };
   useEffect(() => {
@@ -1001,7 +1006,7 @@ export function ProjectsPage({ Nav }) {
     same.slice(1).forEach((p, i) => projects.patch(p.id, { color: PCOLORS[(i + 1) % PCOLORS.length] }));
   }, [projects.items === null]);
   return <Page Nav={Nav} className="wide" kicker="کار" title="پروژه‌ها" actions={<>{list.length > 1 ? <button className={`lf-btn ${compare ? '' : 'ghost'}`} onClick={() => setCompare(c => !c)}>{compare ? 'بازگشت به پروژه' : '⚖ مقایسهٔ پروژه‌ها'}</button> : null}{compare && list.length > 1 ? <CompareBrandBar /> : null}{compare && list.length > 1 ? <button className="lf-btn ghost" disabled={printBusy} onClick={async () => { setPrintBusy(true); try { await comparePrint.current?.(); } catch (e) { window.alert(`ساخت PDF انجام نشد: ${e.message}`); } finally { setPrintBusy(false); } }}>{printBusy ? '⏳ در حال آماده‌سازی…' : '🖨 چاپ / PDF'}</button> : null}{!compare ? <button className="lf-btn" onClick={() => setEdit({})}>＋ پروژه</button> : null}</>}>
-    <SaveErrorBar />
+    {syncErr ? <div className="lf-save-error" role="alert"><span>⚠ {syncErr}</span><button type="button" onClick={() => setSyncErr('')}>بستن</button></div> : null}
     {projects.items === null ? <p className="lf-empty">در حال دریافت…</p> : !(projects.items || []).length ? <p className="lf-empty">هنوز پروژه‌ای نساختی. با «＋ پروژه» فقط نامش را وارد کن؛ سپس اطلاعات پروژه و قرارداد را کامل می‌کنی.</p> : <>
       {compare && list.length > 1 ? <ProjectsCompare printRef={comparePrint} projects={ordered.filter(p => !isArchived(p))} contracts={contracts.items || []} financials={financials.items || []} processes={processes.items || []} onOpen={id => { setPid(id); setCompare(false); }} /> : <SideLayout storageKey="lifeos-proj-side" title="پروژه‌ها" selected={cur?.id} onPick={setPid} tabs={[['active', 'فعال'], ['done', 'تمام‌شده'], ['archived', 'آرشیو']]}
         onReorder={reorderProjects}

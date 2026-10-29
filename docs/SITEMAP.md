@@ -11,6 +11,7 @@
 | `/?page=planner` | `planner.jsx` | tasks, reminders |
 | `/?page=finance` | `finance.jsx` (تب‌ها: تراکنش، حساب، بودجه، بدهی، پورتفو، هشدار، بت/پوکر، واردکردن بانک) | transactions(+import-bank, recategorize), accounts, transfers, budgets, debts, finance, portfolio, investments/tx, investments/alerts, bet, poker |
 | `/?page=market` | `market.jsx` | tgju, tgju/history (فقط Worker)، market/stocks |
+| `/?page=crypto` کیف‌پول کریپتو (فقط مدیر) | `crypto.jsx` + `crypto.css` (lazy؛ `ADMIN_ONLY` در main.jsx). قیمت از CoinGecko در مرورگر هر ۵ دقیقه؛ `&chart=<COIN>` = نمودار TradingView (iframe، Binance `<COIN>USDT`؛ BTT→BTTCUSDT، EOS→AUSDT) | col/cryptoWallets, col/cryptoHistory, crypto/alert (۴۰۳ برای غیرمدیر) |
 | `/?page=football` | `football.jsx` | football/remote/free/{leagues,matches,standings} |
 | `/?page=series` | `SeriesReact` در `watch-pages.jsx` (lazy؛ helperها در `main-util.jsx`) | movies, movies/tvmaze/*, movies/from-tvmaze, import-bingers |
 | `/?page=movies` | `MoviesReact` در `watch-pages.jsx` | movies, movies/tmdb/search, movies/from-tmdb |
@@ -36,6 +37,7 @@
 ### قابلیت‌های سراسری (۲۰۲۶-۱۰)
 - قفل بخش‌ها توسط مدیر: `user.lockedModules` (کلیدهای «بخش‌های من») → در `/api/me` ماژول خاموش و API آن بخش ۴۰۳ (`MODULE_API` + `auth` سایه‌شده در `runRoutes`). صفحهٔ قفل: `pageLocked` در main.jsx.
 - حالت تمرکز: `lifeos-focus-mode` در localStorage (off/auto/on، ساعت و روز، بخش‌های پنهان) → `withFocus` روی `useModules()`؛ تنظیمات با `useModules(true)` (خام) کار می‌کند.
+- کیف‌پول کریپتو (۲۰۲۶-۱۰-۲۸): `cryptoWallets {name, note?, holdings:[{coin, chain, amount, price, flag?}]}` و `cryptoHistory {day:'YYYY-MM-DD'|'backfill', points:[{t, total, wallets, est?}]}` در COLS (ماژول finance در `MODULE_API`). نقطهٔ تاریخچه فقط وقتی صفحه باز است (حداکثر هر ۳۰ دقیقه)؛ `est:true` = تخمین گذشته (مقدار فعلی × قیمت پایانی روز). CSP: فقط `frame-src https://s.tradingview.com`. cron (`cryptoTick` در helpers، ساعتی برای مدیر): قیمت از CoinGecko، نقطهٔ تاریخچه هر ۶ ساعت، هشدار تلگرام وقتی ارزش کل در ۲۴ ساعت `cryptoAlertPct`٪ (پیش‌فرض ۱۰، ۰ = خاموش) جابه‌جا شود، حداکثر هر ۱۲ ساعت. MKR (جفت Binance حذف‌شده) = «بدون نمودار». فایل ورود JSON موجودی دارد؛ هرگز commit نشود.
 - ورودی صوتی Ctrl+K (Web Speech، fa-IR). صف آفلاین ثبت سریع: `postOrQueue`/`flushOutbox` در palette.jsx. خروج از حساب در کشوی منو (`signOut`، پاک‌کردن کش داده‌ها).
 
 ### هاب‌های منو (`TabHub` در main.jsx) — ۲۰۲۶-۱۰-۰۶
