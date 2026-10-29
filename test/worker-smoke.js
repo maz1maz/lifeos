@@ -889,6 +889,31 @@ async function main() {
     const [a, b, c] = db.transactions;
     check('old deposit «transfers» fixed once: out → expense, in → income on the real account, real transfers untouched', a.kind === 'expense' && !a.toAccount && a.account === 'بلو بانک' && b.kind === 'income' && b.account === 'بلو بانک' && b.notIncome && c.kind === 'transfer' && db._meta.depositXferFixed && H.fixDepositTransfers(db) === false, JSON.stringify(db));
   }
+  { // bank statement Excel sent to the Telegram bot → transactions in finance; the same file again only reports duplicates
+    const XLSX = require('xlsx'), ws = XLSX.utils.aoa_to_sheet([['تاریخ', 'شرح', 'نوع تراکنش', 'برداشت', 'واریز', 'شماره سند'], ['1405/07/14', 'خرید فروشگاه تست تلگرام', 'خرید', '1,250,000', '', 'TGX1'], ['1405/07/15', 'واریز حقوق تست تلگرام', 'واریز', '', '9,000,000', 'TGX2']]);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'S1');
+    const xbuf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777004' } });
+    const sent = [], realFetch = globalThis.fetch; env.TELEGRAM_BOT_TOKEN = 'TEST';
+    globalThis.fetch = async (url, init) => {
+      const u = String(url);
+      if (u.includes('/getFile')) return new Response(JSON.stringify({ ok: true, result: { file_path: 'documents/s.xlsx' } }), { headers: { 'content-type': 'application/json' } });
+      if (u.includes('/file/botTEST/documents/s.xlsx')) return new Response(xbuf);
+      if (u.includes('api.telegram.org')) { if (init && typeof init.body === 'string') sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { headers: { 'content-type': 'application/json' } }); }
+      return new Response('{}', { status: 404 });
+    };
+    const send = (n, document) => worker.fetch(new Request('https://worker-smoke.local/api/telegram/webhook', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ update_id: 900 + n, message: { message_id: n, date: 1, chat: { id: 777004, type: 'private' }, from: { id: 777004 }, document } }) }), env, { waitUntil() {} });
+    try {
+      await send(1, { file_id: 'F1', file_name: 'statement.xlsx', file_size: xbuf.length });
+      await send(2, { file_id: 'F1', file_name: 'statement.xlsx', file_size: xbuf.length });
+      await send(3, { file_id: 'F2', file_name: 'note.pdf', file_size: 100 });
+    } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } }); }
+    const tx = (await call('/api/transactions?from=2000-01-01&to=2100-12-31', { cookie })).d, list = (tx.items || []).filter(x => /^TGX/.test(x.bankRef || ''));
+    check('telegram Excel statement → 2 transactions (expense + income)', list.length === 2 && list.some(x => x.kind === 'expense' && x.amount === 1250000) && list.some(x => x.kind === 'income' && x.amount === 9000000), JSON.stringify(list).slice(0, 300));
+    const texts = sent.map(m => m.text || '');
+    check('telegram Excel import replies with counts, the repeat finds only duplicates', /تراکنش تازه: ۲/.test(texts[0]) && /تراکنش تازه: ۰/.test(texts[1]), JSON.stringify(texts).slice(0, 400));
+    check('telegram non-Excel document gets a «send Excel» hint', /فایل Excel/.test(texts[2] || ''), texts[2]);
+  }
   { // TSE prices only during market hours (Sat–Wed 08:55–13:00 Tehran)
     {
       const { makeHelpers: mkL } = await require('./load-worker').loadWorkerModule(); const HL = mkL(env), ago = h => new Date(Date.now() - h * 3600e3).toISOString();
