@@ -9,7 +9,8 @@ import { Loader } from './loader';
 // The browser reads prices straight from CoinGecko (allowed in connect-src) and appends a snapshot at most every 30 minutes
 // while the page is open (the Worker's cron adds one every 6h and sends a Telegram alert on a big 24h move: /api/crypto/alert);
 // `holdings[].price` is the manual fallback for coins CoinGecko does not price.
-const CG_IDS = { USDT: 'tether', USDC: 'usd-coin', BTC: 'bitcoin', XRP: 'ripple', CAKE: 'pancakeswap-token', TWT: 'trust-wallet-token', AVAX: 'avalanche-2', TRX: 'tron', ONE: 'harmony', FLOW: 'flow', LTC: 'litecoin', LINK: 'chainlink', AAVE: 'aave', UNI: 'uniswap', MKR: 'maker', BNB: 'binancecoin', ZRX: '0x', EOS: 'eos', NEO: 'neo', COMP: 'compound-governance-token', ONT: 'ontology', SHIB: 'shiba-inu', MANA: 'decentraland', BTT: 'bittorrent', WIN: 'wink', KSM: 'kusama', QTUM: 'qtum', ATOM: 'cosmos', BNT: 'bancor', UMA: 'uma', CELR: 'celer-network', IOTA: 'iota', CHZ: 'chiliz', RSR: 'reserve-rights-token', EGLD: 'elrond-erd-2', SUSHI: 'sushi', KAVA: 'kava', BAND: 'band-protocol', COTI: 'coti', SNX: 'havven', ETH: 'ethereum', FTT: 'ftx-token', IOST: 'iostoken', BCH: 'bitcoin-cash', ADA: 'cardano', ETC: 'ethereum-classic', DOT: 'polkadot', ALGO: 'algorand', DASH: 'dash', POL: 'polygon-ecosystem-token', FIL: 'filecoin', CELO: 'celo', SOL: 'solana', ARB: 'arbitrum', DOGE: 'dogecoin', TON: 'the-open-network', XLM: 'stellar', NEAR: 'near', XMR: 'monero' };
+const CG_IDS = { USDT: 'tether', USDC: 'usd-coin', BTC: 'bitcoin', XRP: 'ripple', CAKE: 'pancakeswap-token', TWT: 'trust-wallet-token', AVAX: 'avalanche-2', TRX: 'tron', ONE: 'harmony', FLOW: 'flow', LTC: 'litecoin', LINK: 'chainlink', AAVE: 'aave', UNI: 'uniswap', MKR: 'maker', BNB: 'binancecoin', ZRX: '0x', EOS: 'eos', NEO: 'neo', COMP: 'compound-governance-token', ONT: 'ontology', SHIB: 'shiba-inu', MANA: 'decentraland', BTT: 'bittorrent', WIN: 'wink', KSM: 'kusama', QTUM: 'qtum', ATOM: 'cosmos', BNT: 'bancor', UMA: 'uma', CELR: 'celer-network', IOTA: 'iota', CHZ: 'chiliz', RSR: 'reserve-rights-token', EGLD: 'elrond-erd-2', SUSHI: 'sushi', KAVA: 'kava', BAND: 'band-protocol', COTI: 'coti', SNX: 'havven', ETH: 'ethereum', FTT: 'ftx-token', IOST: 'iostoken', BCH: 'bitcoin-cash', ADA: 'cardano', ETC: 'ethereum-classic', DOT: 'polkadot', ALGO: 'algorand', DASH: 'dash', POL: 'polygon-ecosystem-token', FIL: 'filecoin', CELO: 'celo', SOL: 'solana', ARB: 'arbitrum', DOGE: 'dogecoin', TON: 'the-open-network', XLM: 'stellar', NEAR: 'near', XMR: 'monero',
+  SC: 'siacoin', VIC: 'tomochain', SXP: 'swipe', KMD: 'komodo', GRT: 'the-graph', ICP: 'internet-computer', RUNE: 'thorchain', XEM: 'nem', BTS: 'bitshares', BAL: 'balancer', SRM: 'serum', ORN: 'orion-protocol', BAKE: 'bakerytoken', ALPHA: 'alpha-finance', FTM: 'fantom', MIR: 'mirror-protocol', WAN: 'wanchain', DEGO: 'dego-finance', SCRT: 'secret', REEF: 'reef', BEAM: 'beam', DOGE: 'dogecoin' };
 const NET = { TRC20: 'Tron', 'C-Chain': 'Avalanche', ERC20: 'Ethereum', BEP20: 'BNB Chain', BEP2: 'BNB Beacon (BEP2)', Ripple: 'XRP Ledger' };
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
 const RANGES = [[7, '۷ روز'], [30, '۱ ماه'], [90, '۳ ماه'], [365, '۱ سال'], [0, '۲ سال']];
@@ -24,6 +25,28 @@ const chartHref = c => `/?page=crypto&chart=${encodeURIComponent(c)}`;
 const TV_OVERRIDE = { BTT: 'BINANCE:BTTCUSDT', EOS: 'BINANCE:AUSDT' };
 const NO_CHART = new Set(['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FDUSD']); // stablecoins: a flat line at $1
 const NO_PAIR = new Set(['MKR']); // Binance stopped trading these pairs: the chart would end in the past
+// «خرید در برابر موجودی»: /api/col/cryptoTrades {date, type:'buy'|'sell', coin, amount, usd} from the exchange's CSV export
+const ALIAS = { MATIC: 'POL' };
+const DEAD = new Set(['ORK', 'NRV', 'JULD']); // projects that no longer trade anywhere: no price lookup
+const scale = (coin, iso) => coin === 'BTT' && iso < '2022-02-11' ? 1000 : 1; // Binance redenominated BTT 1:1000 (BTT → BTTC)
+const TSTATUS = { missing: ['گم‌شده', 'bad'], less: ['کمتر از خرید', 'warn'], more: ['بیشتر از خرید', 'info'], extra: ['خرید ثبت‌نشده', ''], ok: ['درست', 'ok'] };
+const tradeKey = t => [t.date, t.type, t.coin, Number(t.amount)].join('|');
+// Date,Type,Buy Amount,Currency,Sell Amount,Currency,… — the side paid in USD/USDT is the money; the other side is the coin
+function parseTradesCsv(text) {
+  const cells = l => { const out = []; let cur = '', q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === ',' && !q) { out.push(cur.trim()); cur = ''; } else cur += ch; } out.push(cur.trim()); return out; };
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+  const head = cells(lines[0] || '').map(x => x.toLowerCase());
+  if (head[0] !== 'date' || !/buy amount/.test(head[2] || '')) throw new Error('ستون‌های Date, Type, Buy Amount, … پیدا نشد.');
+  const money = c => ['USD', 'USDT', 'USDC'].includes(c);
+  return lines.slice(1).map(cells).map(([d, , ba, bc, sa, sc]) => {
+    const m = String(d).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (!m) return null;
+    bc = String(bc || '').trim().toUpperCase(); sc = String(sc || '').trim().toUpperCase();
+    const buy = money(sc) && !money(bc), sell = money(bc) && !money(sc);
+    if (!buy && !sell) return null;
+    const t = { date: `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`, type: buy ? 'buy' : 'sell', coin: buy ? bc : sc, amount: num(buy ? ba : sa), usd: num(buy ? sa : ba) };
+    return t.amount > 0 ? t : null;
+  }).filter(Boolean);
+}
 const ALERTS = [[0, 'خاموش'], [5, '۵٪'], [10, '۱۰٪'], [15, '۱۵٪'], [20, '۲۰٪']];
 const tvSymbol = coin => (CHARTS.find(c => c[0] === coin) || [])[2] || TV_OVERRIDE[coin] || `BINANCE:${coin}USDT`;
 const chartable = h => !h.flag && /^[A-Z0-9]{2,10}$/.test(sym(h)) && !NO_CHART.has(sym(h)) && !NO_PAIR.has(sym(h));
@@ -195,19 +218,93 @@ function WalletCard({ w, calc, on, sortBy, sortBtn, history, onSave, onRemove })
   </article>;
 }
 
+// purchases from the exchange's export against what the wallets hold now: what matches, what is missing, profit/loss per coin
+function TradesCard({ trades, ws, calc }) {
+  const [skip, setSkip] = useState(() => { try { return JSON.parse(localStorage.getItem('lifeos-cw-trade-skip') || '[]'); } catch { return []; } });
+  const [show, setShow] = useState('all'), [sort, setSort] = useState({ k: 'cost', dir: -1 }), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [confirm, setConfirm] = useState(false), [all, setAll] = useState(false);
+  const fileRef = useRef(null), items = trades.items || [];
+  const toggle = id => setSkip(s => { const n = s.includes(id) ? s.filter(x => x !== id) : [...s, id]; try { localStorage.setItem('lifeos-cw-trade-skip', JSON.stringify(n)); } catch {} return n; });
+  const rows = useMemo(() => {
+    const by = {}, row = c => by[c] ||= { coin: c, bought: 0, cost: 0, have: 0, value: 0 };
+    for (const t of items) { const c = ALIAS[t.coin] || t.coin, r = row(c), q = (Number(t.amount) || 0) * scale(c, t.date), sign = t.type === 'sell' ? -1 : 1; r.bought += sign * q; r.cost += sign * (Number(t.usd) || 0); }
+    for (const w of ws) if (!skip.includes(w.id)) for (const h of w.holdings || []) if (!h.flag) { const r = row(ALIAS[sym(h)] || sym(h)); r.have += Number(h.amount) || 0; r.value += calc.val(h); }
+    return Object.values(by).filter(r => r.bought > 1e-9 || r.have > 0).map(r => {
+      const live = DEAD.has(r.coin) ? 0 : (r.have ? r.value / r.have : calc.live({ coin: r.coin })), traded = r.bought > 1e-9, diff = r.have - (traded ? r.bought : 0);
+      const st = !traded ? 'extra' : !r.have ? 'missing' : Math.abs(diff) <= r.bought * 0.02 ? 'ok' : diff < 0 ? 'less' : 'more';
+      return { ...r, st, diff, diffValue: live != null ? diff * live : null, pl: traded ? r.value - r.cost : null, plPct: traded && r.cost > 0 ? (r.value - r.cost) / r.cost * 100 : null };
+    });
+  }, [items, ws, calc, skip]);
+  const traded = rows.filter(r => r.st !== 'extra'), cost = traded.reduce((s, r) => s + r.cost, 0), value = traded.reduce((s, r) => s + r.value, 0);
+  const lost = rows.filter(r => r.st === 'missing').reduce((s, r) => s + (r.diffValue ? -r.diffValue : 0), 0);
+  const count = k => rows.filter(r => r.st === k).length;
+  const key = { coin: r => r.coin, st: r => Object.keys(TSTATUS).indexOf(r.st), cost: r => r.cost, value: r => r.value, pl: r => r.pl ?? -Infinity, plPct: r => r.plPct ?? -Infinity, diff: r => r.diffValue ?? 0 };
+  const list = rows.filter(r => show === 'all' || r.st === show).sort((a, b) => { const x = key[sort.k](a), y = key[sort.k](b); return (typeof x === 'string' ? x.localeCompare(y) : x - y) * sort.dir; });
+  const th = (k, label, cls = '') => <th className={cls}><button type="button" className="cw-sort" aria-pressed={sort.k === k} onClick={() => setSort(s => s.k === k ? { k, dir: -s.dir } : { k, dir: ['coin', 'st'].includes(k) ? 1 : -1 })}>{label}{sort.k === k ? (sort.dir > 0 ? ' ▲' : ' ▼') : ''}</button></th>;
+  const signed = v => v == null ? '—' : `${v >= 0 ? '+' : '−'}${usd(Math.abs(v))}`;
+
+  const importCsv = async file => {
+    setBusy(true); setMsg('');
+    try {
+      const parsed = parseTradesCsv(await file.text()), have = new Set(items.map(tradeKey)), fresh = parsed.filter(t => !have.has(tradeKey(t)));
+      for (let i = 0; i < fresh.length; i += 200) await trades.addMany(fresh.slice(i, i + 200).map(t => ({ ...t, source: file.name.slice(0, 80) })));
+      setMsg(`${fresh.length.toLocaleString('fa-IR')} معاملهٔ تازه وارد شد${parsed.length > fresh.length ? ` (${(parsed.length - fresh.length).toLocaleString('fa-IR')} تکراری کنار گذاشته شد)` : ''}.`);
+    } catch (e) { setMsg('فایل وارد نشد: ' + e.message); }
+    setBusy(false);
+  };
+  const clearAll = async () => { setBusy(true); setConfirm(false); for (const t of items) await trades.remove(t.id); setBusy(false); setMsg('همهٔ خریدها پاک شد.'); };
+
+  return <section className="lf-card cw-trades">
+    <div className="cw-head"><h3>خرید در برابر موجودی</h3>
+      <div className="cw-ops">
+        <button type="button" className="lf-btn ghost" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={15} /> {items.length ? 'افزودن CSV خرید' : 'ورود CSV خریدها'}</button>
+        <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={e => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = ''; }} />
+        {items.length ? confirm ? <><span>همهٔ {items.length.toLocaleString('fa-IR')} معامله پاک شود؟</span><button type="button" className="lf-btn danger" onClick={clearAll}>بله</button><button type="button" className="lf-btn ghost" onClick={() => setConfirm(false)}>نه</button></>
+          : <button type="button" className="lf-btn ghost danger" disabled={busy} onClick={() => setConfirm(true)}><Trash2 size={15} /> پاک کردن خریدها</button> : null}
+      </div></div>
+    {msg ? <p className="cw-msg" role="status">{msg}</p> : null}
+    {!items.length ? <p className="cw-muted">فایل CSV تاریخچهٔ خرید صرافی (ستون‌های Date, Type, Buy Amount, Currency, Sell Amount, Currency) را وارد کن تا برای هر ارز ببینی چقدر خریدی، چقدر در کیف‌ها مانده و سود و زیانش چقدر است.</p> : <>
+      <div className="cw-ranges" role="group" aria-label="کیف‌پول‌های حساب‌شده">{ws.map(w => <button type="button" key={w.id} className="cw-sort" aria-pressed={!skip.includes(w.id)} onClick={() => toggle(w.id)}>{w.name || 'بدون نام'}</button>)}</div>
+      <section className="cw-summary">
+        <div><small>هزینهٔ خرید</small><b className="cw-num">{usd(cost)}</b></div>
+        <div><small>ارزش الان</small><b className="cw-num">{usd(value)}</b></div>
+        <div><small>سود / زیان</small><b className={`cw-num ${value >= cost ? 'up' : 'down'}`}>{signed(value - cost)} ({cost ? `${value >= cost ? '+' : '−'}${Math.abs((value - cost) / cost * 100).toFixed(1)}%` : '—'})</b></div>
+        {lost > 0 ? <div><small>ارزش گم‌شده‌ها اگر پیدا شوند</small><b className="cw-num">{usd(lost)}</b></div> : null}
+      </section>
+      <div className="cw-ranges" role="group" aria-label="وضعیت">
+        <button type="button" className="cw-sort" aria-pressed={show === 'all'} onClick={() => setShow('all')}>همه {rows.length.toLocaleString('fa-IR')}</button>
+        {Object.entries(TSTATUS).map(([k, [l]]) => count(k) ? <button type="button" key={k} className="cw-sort" aria-pressed={show === k} onClick={() => setShow(k)}>{l} {count(k).toLocaleString('fa-IR')}</button> : null)}
+      </div>
+      <div className="cw-tablebox"><table className="cw-table">
+        <thead><tr>{th('coin', 'ارز')}{th('st', 'وضعیت')}<th className="r">خرید</th><th className="r">موجودی</th>{th('diff', 'اختلاف', 'r')}{th('cost', 'هزینه', 'r')}{th('value', 'ارزش الان', 'r')}{th('pl', 'سود/زیان', 'r')}{th('plPct', '٪', 'r')}</tr></thead>
+        <tbody>{(all ? list : list.slice(0, 15)).map(r => <tr key={r.coin}>
+          <td><b>{r.coin}</b></td>
+          <td><span className={`cw-chip ${TSTATUS[r.st][1]}`}>{TSTATUS[r.st][0]}</span></td>
+          <td className="r cw-num">{r.st === 'extra' ? '—' : amt(r.bought)}</td><td className="r cw-num">{amt(r.have)}</td>
+          <td className="r cw-num">{r.st === 'ok' ? '—' : <>{r.diff >= 0 ? '+' : '−'}{amt(Math.abs(r.diff))}{r.diffValue != null && Math.abs(r.diffValue) >= 0.01 ? <small className="cw-muted"> ({usd(Math.abs(r.diffValue))})</small> : null}</>}</td>
+          <td className="r cw-num">{r.st === 'extra' ? '—' : usd(r.cost)}</td><td className="r cw-num">{usd(r.value)}</td>
+          <td className={`r cw-num ${r.pl == null ? '' : r.pl >= 0 ? 'up' : 'down'}`}>{signed(r.pl)}</td>
+          <td className={`r cw-num ${r.plPct == null ? '' : r.plPct >= 0 ? 'up' : 'down'}`}>{r.plPct == null ? '—' : `${r.plPct >= 0 ? '+' : '−'}${Math.abs(r.plPct).toFixed(0)}%`}</td>
+        </tr>)}</tbody>
+      </table></div>
+      {list.length > 15 ? <button type="button" className="lf-btn ghost" onClick={() => setAll(x => !x)}>{all ? 'نمایش ۱۵ ردیف اول' : `نمایش همهٔ ${list.length.toLocaleString('fa-IR')} ردیف`}</button> : null}
+      <p className="cw-muted cw-small">«درست» یعنی موجودی تا ۲٪ با خرید فرق دارد. «کمتر» معمولاً کارمزد برداشت است و «بیشتر» سود staking یا خریدی که در فایل نیست. MATIC به POL و BTT قبل از ۲۰۲۲ ضربدر ۱۰۰۰ حساب شده. خریدهای «ثبت‌نشده» در جمع سود و زیان نیستند.</p>
+    </>}
+  </section>;
+}
+
 export function CryptoPage({ Nav }) {
   const chart = new URLSearchParams(location.search).get('chart');
   return chart ? <ChartView Nav={Nav} coin={chart.toUpperCase()} /> : <WalletsPage Nav={Nav} />;
 }
 
 function WalletsPage({ Nav }) {
-  const wallets = useCol('cryptoWallets'), hist = useCol('cryptoHistory');
+  const wallets = useCol('cryptoWallets'), hist = useCol('cryptoHistory'), trades = useCol('cryptoTrades');
   const [prices, setPrices] = useState({ usd: {}, change24: {}, at: 0 }), [perr, setPerr] = useState('');
   const [range, setRange] = useState(0), [sort, setSort] = useState({ k: 'value', dir: -1 }), [newName, setNewName] = useState(''), [msg, setMsg] = useState('');
   const [alert, setAlert] = useState(null);
   const extraIds = useRef({}), snapping = useRef(false), fileRef = useRef(null);
   const ws = wallets.items || [], all = ws.flatMap(w => w.holdings || []);
-  const symbols = useMemo(() => [...new Set([...all.filter(h => !h.flag).map(sym), ...CHARTS.map(c => c[0])])].sort().join(','), [wallets.items]);
+  const symbols = useMemo(() => [...new Set([...all.filter(h => !h.flag).map(sym), ...CHARTS.map(c => c[0]), ...(trades.items || []).map(t => ALIAS[t.coin] || t.coin).filter(c => !DEAD.has(c))])].sort().join(','), [wallets.items, trades.items]);
   const calc = useMemo(() => makeCalc(prices), [prices]), on = prices.at > 0;
 
   useEffect(() => {
@@ -328,6 +425,8 @@ function WalletsPage({ Nav }) {
           </tr>)}</tbody>
           <tfoot><tr><td>جمع</td><td /><td /><td className="r cw-num">{usd(grand)}</td><td className="r"><Chg d={combined.reduce((s, r) => s + r.d, 0)} base={grand} compact on={on} /></td><td className="r cw-num">100%</td><td /></tr></tfoot>
         </table></div></section> : null}
+
+      {ws.length ? <TradesCard trades={trades} ws={ws} calc={calc} /> : null}
 
       <h2 className="cw-h2">هر کیف‌پول جدا</h2>
       <form className="cw-add" onSubmit={addWallet}>

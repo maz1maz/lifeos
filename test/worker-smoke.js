@@ -175,6 +175,8 @@ async function main() {
       const points = Array.from({ length: 730 }, (_, i) => ({ t: new Date(Date.UTC(2024, 9, 28) + i * 864e5).toISOString(), total: 90000 + i, wallets: { [w.d.id]: 90000 + i, other1: 1234.56, other2: 98765.43 }, est: true }));
       const hb = await call('/api/col/cryptoHistory', { method: 'POST', cookie, body: { day: 'backfill', points } });
       check('crypto history keeps 730 points', hb.status === 201 && hb.d.points.length === 730 && hb.d.points[729].total === 90729);
+      const tr = await call('/api/col/cryptoTrades', { method: 'POST', cookie, body: { items: Array.from({ length: 90 }, (_, k) => ({ date: '2021-04-15', type: k % 9 ? 'buy' : 'sell', coin: 'C' + k, amount: 10 + k, usd: 100 + k })) } });
+      check('crypto trades stored in one batch', tr.status === 201 && tr.d.items.length === 90 && (await call('/api/col/cryptoTrades', { cookie })).d.items.length === 90);
     }
     {
       // a contract's bill of quantities + measurement sheet + cover logos must survive whole (old limit cut JSON at 20k → 500)
@@ -246,7 +248,7 @@ async function main() {
     check('a later account is not admin -> 403', (await call('/api/admin/overview', { cookie: ck45 })).status === 403);
     check('me.isAdmin false for later account', (await call('/api/me', { cookie: ck45 })).d.user.isAdmin === false);
     // crypto wallets are the admin's only: a later account can neither read nor write them, the admin still can
-    const cw403 = await Promise.all([call('/api/col/cryptoWallets', { cookie: ck45 }), call('/api/col/cryptoWallets', { method: 'POST', cookie: ck45, body: { name: 'x', holdings: [] } }), call('/api/col/cryptoHistory', { cookie: ck45 })]);
+    const cw403 = await Promise.all([call('/api/col/cryptoWallets', { cookie: ck45 }), call('/api/col/cryptoWallets', { method: 'POST', cookie: ck45, body: { name: 'x', holdings: [] } }), call('/api/col/cryptoHistory', { cookie: ck45 }), call('/api/col/cryptoTrades', { cookie: ck45 })]);
     check('crypto collections -> 403 for a non-admin account', cw403.every(r => r.status === 403), cw403.map(r => r.status));
     check('crypto collections still open for the admin', (await call('/api/col/cryptoWallets', { cookie })).status === 200);
     check('crypto alert setting -> 403 for a non-admin account', (await call('/api/crypto/alert', { cookie: ck45 })).status === 403);
