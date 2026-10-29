@@ -1167,9 +1167,9 @@ async function main() {
       const commit = await commitItems(preview.items);
       check('commit imports only the missing rows and reports the skipped one', commit.imported === 2 && commit.skippedExisting === 1, JSON.stringify(commit));
       const after = await fetch(`${BASE}/api/transactions?from=2026-01-01&to=2026-12-31`, { headers: auth3 }).then(r => r.json());
-      const mine = (after.items || []).filter(x => ['نظافت منزل', 'برداشت بانکی', 'واریز بانکی'].includes(x.title));
+      const mine = (after.items || []).filter(x => ['نظافت منزل', 'خرید نان', 'واریز حقوق'].includes(x.title)); // title = «شرح»
       check('the manual row survives exactly once (no duplicate of the already-entered row)', mine.filter(x => x.title === 'نظافت منزل').length === 1, JSON.stringify(mine.map(x => [x.title, x.amount])));
-      check('the two missing rows are added alongside the manual one', mine.length === 3 && mine.find(x => x.title === 'واریز بانکی')?.amount === 12_000_000, JSON.stringify(mine.map(x => [x.title, x.amount])));
+      check('the two missing rows are added alongside the manual one', mine.length === 3 && mine.find(x => x.title === 'واریز حقوق')?.amount === 12_000_000, JSON.stringify(mine.map(x => [x.title, x.amount])));
 
       // کاربر همان فایل را ماه بعد هم آپلود می‌کند → این بار هیچ‌چیز نباید اضافه شود
       const second = await importCsv(csv);

@@ -909,7 +909,7 @@ async function main() {
       await send(3, { file_id: 'F2', file_name: 'note.pdf', file_size: 100 });
     } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } }); }
     const tx = (await call('/api/transactions?from=2000-01-01&to=2100-12-31', { cookie })).d, list = (tx.items || []).filter(x => /^TGX/.test(x.bankRef || ''));
-    check('telegram Excel statement → 2 transactions (expense + income)', list.length === 2 && list.some(x => x.kind === 'expense' && x.amount === 1250000) && list.some(x => x.kind === 'income' && x.amount === 9000000), JSON.stringify(list).slice(0, 300));
+    check('telegram Excel statement → 2 transactions (expense + income), titled by «شرح»', list.length === 2 && list.some(x => x.title === 'خرید فروشگاه تست تلگرام') && list.some(x => x.kind === 'expense' && x.amount === 1250000) && list.some(x => x.kind === 'income' && x.amount === 9000000), JSON.stringify(list).slice(0, 300));
     const texts = sent.map(m => m.text || '');
     check('telegram Excel import replies with counts, the repeat finds only duplicates', /تراکنش تازه: ۲/.test(texts[0]) && /تراکنش تازه: ۰/.test(texts[1]), JSON.stringify(texts).slice(0, 400));
     check('telegram non-Excel document gets a «send Excel» hint', /فایل Excel/.test(texts[2] || ''), texts[2]);
