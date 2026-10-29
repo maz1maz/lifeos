@@ -1,6 +1,49 @@
 // Routes handled outside handleApi (Response building, session lookup, private uploads, the shared shopping
 // list, the Telegram webhook, cron, tgju prices/history). Split out of worker.js in 2026-10; code unchanged.
 import { makeHelpers } from './helpers.js';
+import * as XLSX from 'xlsx';
+
+async function importTelegramBankWorkbook(db, env, msg, H) {
+  const chatId = msg.chat.id, file = msg.document;
+  const name = String(file.file_name || '').trim();
+  if (!/\.xlsx?$/i.test(name)) return H.tgSend(chatId, 'برای ورود صورت‌حساب، فایل Excel با پسوند .xlsx یا .xls بفرست.');
+  if (Number(file.file_size) > 10 * 1024 * 1024) return H.tgSend(chatId, 'حجم فایل بیشتر از ۱۰ مگابایت است. فایل کوچک‌تری بفرست.');
+  const user = db.users.find(u => u.telegramUserId === String(msg.from?.id));
+  if (!user) return H.tgSend(chatId, 'این تلگرام به هیچ حسابی وصل نیست.\nاز تنظیمات LifeOS برای اتصال حساب کد بساز و با /start بفرست.');
+  if (user.lockedModules?.includes('finance') || user.modules?.finance === false) return H.tgSend(chatId, 'بخش مالی برای این حساب فعال نیست.');
+  if (!env.TELEGRAM_BOT_TOKEN) return H.tgSend(chatId, 'اتصال بات تلگرام روی سرور آماده نیست.');
+  try {
+    const meta = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getFile?file_id=${encodeURIComponent(file.file_id)}`).then(r => r.json());
+    if (!meta?.ok || !meta.result?.file_path) throw new Error('دریافت فایل از تلگرام ناموفق بود.');
+    const response = await fetch(`https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${meta.result.file_path}`);
+    if (!response.ok) throw new Error('دانلود فایل از تلگرام ناموفق بود.');
+    const bytes = await response.arrayBuffer();
+    const workbook = XLSX.read(bytes, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!sheet) throw new Error('برگه‌ای برای خواندن در فایل پیدا نشد.');
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+    const parsed = H.parseBankStatementRows(rows, 'IRR');
+    if (!parsed.length) throw new Error('تراکنشی در فایل پیدا نشد.');
+    const own = db.transactions.filter(x => x.userId === user.id);
+    const refs = new Set(own.filter(x => x.bankRef).map(x => x.bankRef));
+    const candidates = parsed.map(x => ({ ...x, duplicate: !!(x.bankRef && refs.has(x.bankRef)) }));
+    const matched = H.matchBankStatementItems(candidates, own);
+    const fresh = matched.items.filter(x => !x.duplicate);
+    const account = (H.bankSmsAccount(db, user.id) || {}).name || 'بدون حساب';
+    db.transactions ??= [];
+    let imported = 0;
+    for (const item of fresh) {
+      if (!item.date || !item.title || !Number(item.amount) || !item.kind) continue;
+      db.transactions.push({ id: H.id(), userId: user.id, title: String(item.title).trim(), amount: Number(item.amount), category: item.category || 'متفرقه', kind: item.kind, account, date: item.date, recurrence: null, recurrenceId: null, receipt: null, tripId: null, bankRef: item.bankRef || null, rialFixed: true, tags: [], createdAt: Date.now(), ...(item.notIncome ? { notIncome: true } : {}) });
+      imported++;
+    }
+    await H.write(db);
+    const duplicateCount = parsed.length - imported;
+    return H.tgSend(chatId, `✅ صورت‌حساب «${name}» در مالی ثبت شد.\nتراکنش تازه: ${imported.toLocaleString('fa-IR')} · تکراری/قبلاً ثبت‌شده: ${duplicateCount.toLocaleString('fa-IR')}\nحساب: ${account}`);
+  } catch (e) {
+    return H.tgSend(chatId, `فایل دریافت شد اما صورت‌حساب قابل ورود نبود: ${String(e?.message || 'خطای نامشخص').slice(0, 500)}`);
+  }
+}
 
 export function buildResponse(res) {
   const headers = new Headers();
@@ -104,6 +147,9 @@ export async function handleTelegramWebhook(request, env) {
     if (update.callback_query) {
       const db = await H.read();
       await H.handleTelegramCallback(db, update.callback_query);
+    } else if (update.message?.document) {
+      const db = await H.read();
+      await importTelegramBankWorkbook(db, env, update.message, H);
     } else if (update.message && (update.message.text !== undefined || update.message.photo)) {
       const db = await H.read();
       await H.handleTelegramMessage(db, update.message);
