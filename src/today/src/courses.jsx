@@ -252,7 +252,7 @@ export function CoursesPage({ Nav }) {
               <span className="pos">{fa(m.paid, 0)}</span>
               <span className={m.remaining ? 'neg' : ''}>{m.remaining ? fa(m.remaining, 0) : '—'}</span>
               <span>{s.dueDate && m.remaining ? dueChip(s.dueDate) : '—'}</span>
-              <span className="nt" title={s.notes || ''}>{s.notes || '—'}</span>
+              <span className={`nt${s.notes ? '' : ' empty'}`} title={s.notes || ''}>{s.notes || '—'}</span>
               <span className="ops" onClick={e => e.stopPropagation()}>{!off && m.remaining > 0 ? <button className="cs-b pay" onClick={() => setPay(s)}>＋ پرداخت</button> : null}<button className="cs-b" onClick={() => setSEdit(s)}>ویرایش</button></span>
             </div>
             {open === s.id ? <div className="cs-detail">

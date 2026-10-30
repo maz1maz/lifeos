@@ -536,6 +536,13 @@ async function main() {
       const ov = seen[2].messages[0].content, j = JSON.parse(ov.slice(ov.indexOf('DATA: ') + 6));
       check('assistant: overview has bet / poker / portfolio / projects from any page', j.overview && j.overview.bet && j.overview.bet.days >= 1 && j.overview.bet.recent.some(x => x.resultUsd === 75) && j.overview.poker && Array.isArray(j.overview.portfolio) && Array.isArray(j.overview.projects), JSON.stringify(j.overview || {}).slice(0, 300));
       check('assistant: overview leaks no ids', !/"userId"|"id":/.test(JSON.stringify(j.overview)));
+      // courses page: every student with paid / remaining computed from the payments inside the row
+      const crs = await call('/api/col/courses', { method: 'POST', cookie, body: { name: 'دورهٔ تست دستیار', price: 80000000 } });
+      await call('/api/col/students', { method: 'POST', cookie, body: { courseId: crs.d.id, name: 'دانشجوی تست دستیار', fee: 80000000, plan: 'installment', payments: [{ id: 'p1', kind: 'deposit', amount: 10000000 }, { id: 'p2', kind: 'installment', amount: 20000000 }] } });
+      await call('/api/ai/chat', { method: 'POST', cookie, body: { message: 'چند نفر بالای ۴ میلیون تومان مونده؟', page: 'courses' } });
+      const cs = seen[seen.length - 1].messages[0].content, cj = JSON.parse(cs.slice(cs.indexOf('DATA: ') + 6)), stu = (cj.currentPage.items.students || []).find(x => x.name === 'دانشجوی تست دستیار');
+      check('assistant (courses): student has paid + remaining in rial and the course name', !!stu && stu.paid === 30000000 && stu.remaining === 50000000 && stu.course === 'دورهٔ تست دستیار' && /تومان = ۱۰ ریال/.test(cj.currentPage.items.unit), JSON.stringify(stu));
+      check('assistant prompt: toman → rial and no Markdown', /ضربدر ۱۰/.test(cs) && /Markdown/.test(cs));
     } finally { globalThis.fetch = realFetch; delete env.AI_PROVIDER_API_KEY; delete env.AI_PROVIDER_BASE_URL; delete env.AI_MODEL; }
   }
   { // AI without keys (or keys refused): Cloudflare's own model through the AI binding answers
