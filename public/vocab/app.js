@@ -695,6 +695,8 @@ const NT_PARTS = [
   [/^تمرین گفتاری:\s*/, "بخش سوم — تمرین گفتاری"],
   [/^(گرامر:\s*|(?=جمع‌بندی))/, "بخش دوم — گرامر کامل"],
   [/^(واژگان:\s*|(?=تلفظ))/, "بخش اول — واژگان"],
+  // later class sessions («گرامر (جلسه ۲۴): …», «واژگان جلسه ۲۶: …», «جلسه ۲۷: …») — whole title kept
+  [/^(?=[^:]*جلسه\s*[۰-۹\d])/, "بخش پنجم — جلسه‌های ۲۴ به بعد"],
 ];
 function printBook({ title, kicker, heading, sub, owner, toc, body }) {
   // Booklet palette taken from the reference handout: cream paper, dark-teal headings, teal table heads, orange accents.
