@@ -4,7 +4,7 @@ Sep 26, 2026 · @Hamid reza
 
 ## مقدمه
 
-این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۲۶، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
+این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۲۷، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
 
 ساختار سند:
 
@@ -1082,3 +1082,104 @@ son/sun — dog/dug — feel/fill
 | a house-warming party | /ˈhaʊs wɔːrmɪŋ/ | جشن خانه نو (ولیمه خانه تازه) | They invited us to their house-warming party. |
 
 **نکته آیلتس:** collocation یعنی ترکیب‌های طبیعی کلمات: می‌گوییم throw / have a party (نه make a party) و go to a party. مثال Speaking: "Last month I threw a surprise party for my sister. It was a fantastic party, but a bit noisy!"
+
+## جلسه ۲۷: many / much، فروشگاه، کافه و collocation جوک
+
+### گرامر: many / much / a lot of
+
+many = زیاد (قابل شمارش، جمع) — much = زیاد (غیرقابل شمارش، مفرد). این دو بیشتر در سؤال و منفی می‌آیند؛ در جمله مثبت به‌جایشان a lot of / lots of می‌گوییم.
+
+| حالت | ساختار | مثال | معنی | پاسخ / نکته |
+| --- | --- | --- | --- | --- |
+| many (?) | Are there many + plural noun? | Are there many students in the class? | آیا دانش‌آموزان زیادی در کلاس هست؟ | Yes, there are. / No, there aren't. |
+| many (−) | There aren't many + plural noun | There aren't many students in the class. | دانش‌آموزان زیادی در کلاس نیست | قابل شمارش |
+| how many | How many + plural noun + are there…? | How many students are there in the class? | چند دانش‌آموز در کلاس هست؟ | سؤال تعداد |
+| much (?) | Is there much + uncountable noun? | Is there much sugar in the glass? | آیا شکر زیادی در لیوان هست؟ | Yes, there is. / No, there isn't. |
+| much (−) | There isn't much + uncountable noun | There isn't much sugar in the glass. | شکر زیادی در لیوان نیست | غیرقابل شمارش |
+| how much | How much + uncountable noun + do you have? | How much money do you have? | چقدر پول داری؟ | سؤال مقدار |
+| جمله مثبت (+) | a lot of / lots of | There are a lot of students. / There is a lot of sugar. | دانش‌آموزان زیادی هستند / شکر زیادی هست | با هر دو نوع اسم |
+
+**نکته آیلتس:** در Speaking به‌جای تکرار very و many از a lot of و lots of استفاده کن: "There are lots of cafes in my city, but there isn't much parking." سؤال‌های «How many…?» و «How much…?» هم در Part 1 رایج‌اند.
+
+### در فروشگاه — Voc 26 (A): مواد غذایی
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| in a shop | /ɪn ə ʃɒp/ | در فروشگاه | I'm in a shop buying some food. |
+| butter (n.) | /ˈbʌtər/ | کره | Spread some butter on the bread. |
+| a piece of cheese | /ə piːs əv tʃiːz/ | یک تکه پنیر | I'd like a piece of cheese, please. |
+| jam (n.) | /dʒæm/ | مربا؛ (v.) گیر کردن | She likes toast and strawberry jam. / The door jammed. |
+| biscuit (n.) (C) = cookie {Am.} | /ˈbɪskɪt/ | بیسکویت | Would you like a biscuit with your tea? |
+| olive oil (n.) | /ˈɒlɪv ɔɪl/ | روغن زیتون | Fry the onions in olive oil. |
+| pasta (n.) (U) | /ˈpæstə/ , /ˈpɑːstə/ | پاستا (ماکارونی) | We had pasta for dinner. |
+| noodle (n.) | /ˈnuːdl/ | رشته (رشته‌فرنگی) | I like noodles with vegetables. |
+| a bar of chocolate | /ə bɑːr əv ˈtʃɒklət/ | یک شکلات تخته‌ای | He bought a bar of chocolate. |
+
+### Voc 26 (B): ظرف، بسته‌بندی و مقدار
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| container (n.) | /kənˈteɪnər/ | ظرف، محفظه؛ کانتینر | Keep the rice in a plastic container. |
+| quantity (n.) | /ˈkwɒntəti/ | مقدار، کمیت | Buy a large quantity of rice. |
+| quality (n.) | /ˈkwɒləti/ | کیفیت | This shop sells good quality meat. |
+| carton (n.) | /ˈkɑːrtn/ | کارتن، جعبه مقوایی (شیر، آب‌میوه) | She bought a carton of milk. |
+| cardboard (n.) | /ˈkɑːrdbɔːrd/ | مقوا | The box is made of cardboard. |
+| packet (n.) | /ˈpækɪt/ | بسته (چای، چیپس) | I need a packet of tea. |
+| jar (n.) — a jar of jam | /dʒɑːr/ | شیشه (مربا، عسل) | There's a jar of jam in the fridge. |
+| tin (n.) — for food | /tɪn/ | قوطی (غذا و کنسرو) | I opened a tin of beans. |
+| can (n.) — for drink | /kæn/ | قوطی (نوشیدنی) | He drank a can of cola. |
+| bottle (n.) | /ˈbɒtl/ | بطری | A bottle of water, please. |
+| match (n.) | /mætʃ/ | کبریت؛ مسابقه | Do you have a match? / We watched the football match. |
+| kilo (n.) | /ˈkiːloʊ/ | کیلو | Two kilos of apples, please. |
+| kilogram {Am.} / kilogramme {Br.} | /ˈkɪləɡræm/ | کیلوگرم | The bag weighs five kilograms. |
+| millilitre (ml) | /ˈmɪlɪliːtər/ | میلی‌لیتر (1000 ml = one litre) | Add 250 ml of milk. |
+
+### عبارات خرید و فروش
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| shop assistant (n.) | /ʃɒp əˈsɪstənt/ | فروشنده | The shop assistant was very helpful. |
+| shopkeeper (n.) | /ˈʃɒpkiːpər/ | مغازه‌دار | The shopkeeper knows all his customers. |
+| customer (n.) | /ˈkʌstəmər/ | مشتری، خریدار | The customer asked for a discount. |
+| ripe (adj.) ≠ green | /raɪp/ | رسیده ≠ کال | These peaches are ripe. |
+| Anything else? | /ˈeniθɪŋ els/ | چیز دیگری؟ | "Anything else?" "No, that's all, thanks." |
+| That's all. | /ðæts ɔːl/ | همین است، همین کافی است. | A kilo of peaches. That's all. |
+| just over ≠ just under | /dʒʌst ˈoʊvər/ | کمی بیشتر ≠ کمی کمتر | It costs just over ten dollars. / It weighs just under a kilo. |
+
+**مکالمه نمونه:** "Can I help you?" — "Yes, a kilo of peaches, please. Are they ripe?" — "Yes, they are." — "Anything else?" — "No, that's all. How much is that?" — "It's just over ten dollars."
+
+### در کافه — Voc 27
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| in a cafe | /ɪn ə ˈkæfeɪ/ | در کافه | We met in a cafe near the station. |
+| white coffee (with milk) | /waɪt ˈkɒfi/ | قهوه با شیر | One white coffee, please. |
+| black coffee (without milk) | /blæk ˈkɒfi/ | قهوه بدون شیر | I take my coffee black. |
+| cappuccino (n.) | /ˌkæpəˈtʃiːnoʊ/ | کاپوچینو | A cappuccino and a croissant, please. |
+| espresso (n.) | /eˈspresoʊ/ | اسپرسو | She ordered a double espresso. |
+| baguette (n.) | /bæˈɡet/ | باگت — نان بلند و باریک | A baguette with cheese, please. |
+| roll (n.) | /roʊl/ | نان گرد کوچک؛ (v.) غلتیدن | I'd like a cheese roll. / The ball rolled away. |
+| waiter (n.) | /ˈweɪtər/ | گارسون، پیشخدمت | The waiter brought the menu. |
+| I'd like = I would like = I want | /aɪd laɪk/ | می‌خواهم (مؤدبانه‌تر از I want) | I'd like a cheese sandwich on brown bread. |
+| take away {Br.} = take out {Am.} | /ˈteɪk əweɪ/ | بیرون‌بر | Is that for here or take away? |
+| Have a seat. = Sit down. | /hæv ə siːt/ | بفرمایید بنشینید. | Please have a seat. |
+| a couple of minutes = two or three minutes | /ə ˈkʌpl əv ˈmɪnɪts/ | دو سه دقیقه | I'll be back in a couple of minutes. |
+
+**مکالمه نمونه:** "Have a seat. I'll be back in a couple of minutes." — "I'd like a white coffee and a cheese roll on brown bread, please." — "Is that for here or take away?"
+
+### Collocation: joke (جوک و شوخی)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| tell a joke | /tel ə dʒoʊk/ | جوک گفتن | He loves telling jokes. |
+| hear a joke | /hɪər ə dʒoʊk/ | شنیدن یک جوک | Have you heard the joke about the cat? |
+| laugh at a joke | /læf æt ə dʒoʊk/ | خندیدن به یک جوک | Everyone laughed at his joke. |
+| a corny joke | /ˈkɔːrni/ | یک جوک احمقانه و کلیشه‌ای (مبتذل) | That's a really corny joke! |
+| a dirty joke | /ˈdɜːrti/ | یک جوک کثیف (بی‌ادبانه) | He told a dirty joke at the party. |
+| a hilarious joke | /hɪˈleəriəs/ | یک جوک بسیار خنده‌دار | It was a hilarious joke. |
+| a private joke | /ˈpraɪvət/ | یک جوک خودمانی (فقط برای افراد خاص) | It's a private joke between us. |
+| play a joke on someone | /pleɪ ə dʒoʊk ɒn/ | سر کسی را کلاه گذاشتن، شوخی عملی کردن | The children played a joke on their teacher. |
+| get the joke | /ɡet ðə dʒoʊk/ | جوک را فهمیدن | I don't get the joke. |
+| a flat joke | /flæt/ | یک جوک بی‌مزه | His joke fell flat. |
+
+**نکته آیلتس:** می‌گوییم tell a joke (نه say a joke). مثال Speaking: "My brother always tells hilarious jokes, but sometimes they're a bit corny."
