@@ -1458,20 +1458,20 @@ async function main() {
       check('bank-sms GET -> 405', (await ext('/api/ext/bank-sms', { token: smsTok })).status === 405);
       check('bank-sms empty -> 400', (await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: '  ' } })).status === 400);
       const r1 = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms } });
-      const tx = (await call('/api/transactions', { cookie })).d.items.filter(t => /پرید|برداشت|بلو/.test(t.title || '') || t.amount === 1056000 || t.amount === 10560000);
+      const tx = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter(t => /پرید|برداشت|بلو/.test(t.title || '') || t.amount === 1056000 || t.amount === 10560000);
       check('bank-sms records one expense (balance ignored, date from SMS)', r1.status === 201 && tx.length === 1 && tx[0].kind === 'expense' && tx[0].date === '2026-10-01', JSON.stringify([r1.d, tx]));
       const r2 = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms } });
-      check('same SMS twice is ignored', r2.status === 200 && r2.d.duplicate === true && (await call('/api/transactions', { cookie })).d.items.filter(t => t.id === (tx[0] || {}).id || (t.amount === (tx[0] || {}).amount && t.date === '2026-10-01')).length === 1, JSON.stringify(r2.d));
+      check('same SMS twice is ignored', r2.status === 200 && r2.d.duplicate === true && (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter(t => t.id === (tx[0] || {}).id || (t.amount === (tx[0] || {}).amount && t.date === '2026-10-01')).length === 1, JSON.stringify(r2.d));
       check('non-transaction text -> 422, nothing else applied', (await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'کار خرید نان' } })).status === 422 && !(await call('/api/tasks', { cookie })).d.items?.some?.(t => t.title === 'خرید نان'));
       const login = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nحمیدرضا عزیز خوش آمدید.\n13:35:57\n1405.07.12' } });
       check('login/welcome SMS is ignored quietly (200, nothing recorded)', login.status === 200 && login.d.ignored === true, JSON.stringify(login.d));
-      const before = (await call('/api/transactions', { cookie })).d.items.length;
+      const before = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.length;
       const otp = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nبفرمایید رمز پویا\nرمز: 482913\nمبلغ: 6,123,000 ریال\nپذیرنده: فروشگاه\n۱۴۰۵.۰۸.۰۲' } });
       const ad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو روی رفیقت دو برابر حساب کن ، هدیه دعوت از دوستان به بلو یا بلوجونیور 300,000 ریال https://blubank.com/services/referral/' } });
-      check('OTP («رمز پویا») and ad-with-link SMS record nothing', otp.status < 300 && ad.status < 300 && (await call('/api/transactions', { cookie })).d.items.length === before, JSON.stringify([otp.status, otp.d, ad.status, ad.d]));
+      check('OTP («رمز پویا») and ad-with-link SMS record nothing', otp.status < 300 && ad.status < 300 && (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.length === before, JSON.stringify([otp.status, otp.d, ad.status, ad.d]));
       const sms2 = 'بلو\nبرداشت پول\nحمیدرضا عزیز، 313,131 ریال از حساب شما پرید.\nموجودی: 2,440,911,747 ریال\n۱۳:۴۴\n۱۴۰۵.۰۷.۱۲';
       const q = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms + '\n###\n' + sms2 + '\n###\nبلو\nحمیدرضا عزیز خوش آمدید.\n###\n' } });
-      const qtx = (await call('/api/transactions', { cookie })).d.items.filter(t => t.date === '2026-10-04' && t.kind === 'expense' && /برداشت/.test(t.title || ''));
+      const qtx = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter(t => t.date === '2026-10-04' && t.kind === 'expense' && /برداشت/.test(t.title || ''));
       check('queue file: new SMS recorded, old one skipped as duplicate, welcome ignored', q.status === 200 && q.d.ok && q.d.recorded === 1 && q.d.duplicates === 1 && q.d.ignored === 1 && qtx.length === 1, JSON.stringify([q.d, qtx]));
       for (const t of [...qtx, tx[0]].filter(Boolean)) await call('/api/transactions/' + t.id, { method: 'DELETE', cookie });
     }
@@ -1484,7 +1484,7 @@ async function main() {
       const s1 = 'بلو\nخرید\nحمیدرضا عزیز، 1,000,000 ریال از حساب شما پرید.\nموجودی: 9,000,000 ریال\n۱۰:۰۰\n۱۴۰۵.۰۷.۱۴';
       const s3 = 'بلو\nسود\nحمیدرضا عزیز، 50,000 ریال سود به حساب شما نشست.\nموجودی: 7,050,000 ریال\n۱۲:۰۰\n۱۴۰۵.۰۷.۱۵';
       const r = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: s3 + '\n###\n' + s1 } });
-      const mine = (await call('/api/transactions', { cookie })).d.items.filter((t) => t.account === acc.name);
+      const mine = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter((t) => t.account === acc.name);
       const sud = mine.find((t) => t.amount === 50000);
       check('interest SMS is income on the SMS account', !!sud && sud.kind === 'income' && sud.title === 'سود' && sud.date === '2026-10-07', JSON.stringify([r.d, mine]));
       let a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
@@ -1495,25 +1495,25 @@ async function main() {
       check('reconcile books the gap as an expense', rc.status === 201 && rc.d.transaction.amount === 2000000 && rc.d.transaction.kind === 'expense' && a1.smsDiff === 0 && a1.balance === 7050000, JSON.stringify([rc.d, a1]));
       const pig = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nحمیدرضا عزیز، 3,000,000 ریال از قلک شما به حساب شما منتقل شد.\nموجودی: 10,050,000 ریال\n۱۳:۰۰\n۱۴۰۵.۰۷.۱۵' } });
       a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
-      const pt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.toAccount === acc.name && t.amount === 3000000);
+      const pt = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.find((t) => t.toAccount === acc.name && t.amount === 3000000);
       check('piggy-bank SMS is a transfer into the account, balance stays in sync', pig.status === 201 && pt && pt.kind === 'transfer' && a1.smsDiff === 0, JSON.stringify([pig.d, pt, a1]));
       const bill = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: '###\nبلو\nپرداخت قبض\nحمیدرضا عزیز، 1,325,000 ریال بابت پرداخت قبض تلفن همراه از حساب شما پرید.\nموجودی: 8,725,000 ریال\n۱۴:۰۶\n۱۴۰۵.۰۷.۱۶' } });
-      const bt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.amount === 1325000);
+      const bt = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.find((t) => t.amount === 1325000);
       a1 = (await call('/api/accounts', { cookie })).d.accounts.find((x) => x.id === acc.id);
       check('Blu bill SMS («ریال بابت … از حساب شما پرید»): SMS account, clean title, date, balance in sync', bill.status === 201 && bt && bt.account === acc.name && bt.kind === 'expense' && bt.title === 'پرداخت قبض تلفن همراه' && bt.date === '2026-10-08' && a1.smsDiff === 0, JSON.stringify([bill.d, bt, a1]));
       const again = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بلو\nپرداخت قبض\nحمیدرضا عزیز،  1,325,000 ریال بابت پرداخت قبض تلفن همراه از حساب شما پرید.\nموجودی: 8,725,000 ریال\n۱۴:۰۶\n۱۴۰۵.۰۷.۱۶\n' } });
-      check('same SMS with slightly different text is a duplicate (amount+date+time+balance)', again.d.duplicate === true && (await call('/api/transactions', { cookie })).d.items.filter((t) => t.amount === 1325000).length === 1, JSON.stringify(again.d));
+      check('same SMS with slightly different text is a duplicate (amount+date+time+balance)', again.d.duplicate === true && (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter((t) => t.amount === 1325000).length === 1, JSON.stringify(again.d));
       // Refah: «حساب۲۱۴۸۷۱۶۲۹ / کارت-۱٬۰۱۱٬۱۰۰ / مانده…» — the account number is not the amount; goes to a «رفاه» account when there is one
       const refahAcc = (await call('/api/accounts', { method: 'POST', cookie, body: { name: 'بانک رفاه', type: 'bank', openingBalance: 0 } })).d;
       const refah = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بانک رفاه\nحساب214871629\nکارت-1,011,100\nمانده75,356,163\n1405/07/17\n17:18' } });
-      const rt = (await call('/api/transactions', { cookie })).d.items.find((t) => t.amount === 1011100);
-      check('Refah SMS: signed card line is the amount (not the account number), lands on the «رفاه» account', refah.status === 201 && rt && rt.kind === 'expense' && rt.account === 'بانک رفاه' && rt.date === '2026-10-09' && !(await call('/api/transactions', { cookie })).d.items.some((t) => t.amount === 214871629), JSON.stringify([refah.d, rt]));
+      const rt = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.find((t) => t.amount === 1011100);
+      check('Refah SMS: signed card line is the amount (not the account number), lands on the «رفاه» account', refah.status === 201 && rt && rt.kind === 'expense' && rt.account === 'بانک رفاه' && rt.date === '2026-10-09' && !(await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.some((t) => t.amount === 214871629), JSON.stringify([refah.d, rt]));
       if (rt) await call('/api/transactions/' + rt.id, { method: 'DELETE', cookie });
       await call('/api/accounts/' + refahAcc.id, { method: 'PATCH', cookie, body: { archived: true } });
       const bad = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'بانک\nبرداشت وجه انجام شد' } });
       const inb = (await call('/api/inbox', { cookie })).d;
       check('unreadable bank SMS lands in Inbox', bad.status === 422 && JSON.stringify(inb).includes('برداشت وجه انجام شد'), JSON.stringify([bad.d]));
-      for (const t of (await call('/api/transactions', { cookie })).d.items.filter((t) => t.account === acc.name || t.toAccount === acc.name)) await call('/api/transactions/' + t.id, { method: 'DELETE', cookie });
+      for (const t of (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter((t) => t.account === acc.name || t.toAccount === acc.name)) await call('/api/transactions/' + t.id, { method: 'DELETE', cookie });
       await call('/api/accounts/' + acc.id, { method: 'PATCH', cookie, body: { archived: true, sms: false } });
     }
 
@@ -1522,13 +1522,13 @@ async function main() {
       const mk = async (title) => (await call('/api/transactions', { method: 'POST', cookie, body: { title, amount: 1000, category: 'متفرقه', date: '2026-10-02' } })).d;
       const a = await mk('خرید از فروشگاه 111222'), b = await mk('خرید از فروشگاه 333444');
       const r = (await call('/api/transactions/' + a.id, { method: 'PATCH', cookie, body: { category: 'هدیه', learn: true } })).d;
-      const bb = (await call('/api/transactions', { cookie })).d.items.find(t => t.id === b.id);
+      const bb = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.find(t => t.id === b.id);
       check('generic title: only the edited one changes', r.learnSkipped === true && !r.learned && bb.category === 'متفرقه', JSON.stringify([r, bb]));
       const c = await mk('اسنپ 12'), e = await mk('اسنپ 98');
       const r2 = (await call('/api/transactions/' + c.id, { method: 'PATCH', cookie, body: { category: 'حمل و نقل', learn: true } })).d;
       check('specific title still learns its look-alikes', r2.learned === 1 && !!r2.learnBatch, JSON.stringify(r2));
       const u = (await call('/api/transactions/recategorize', { method: 'POST', cookie, body: { revert: true, learnBatch: r2.learnBatch } })).d;
-      const ee = (await call('/api/transactions', { cookie })).d.items.find(t => t.id === e.id), cc = (await call('/api/transactions', { cookie })).d.items.find(t => t.id === c.id);
+      const ee = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.find(t => t.id === e.id), cc = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.find(t => t.id === c.id);
       check('undo of a learn batch restores look-alikes only', u.reverted === 1 && ee.category === 'متفرقه' && cc.category === 'حمل و نقل', JSON.stringify([u, ee, cc]));
       check('genericLearned revert -> 200', (await call('/api/transactions/recategorize', { method: 'POST', cookie, body: { revert: true, genericLearned: true } })).status === 200);
       for (const t of [a, b, c, e]) await call('/api/transactions/' + t.id, { method: 'DELETE', cookie });
@@ -1540,7 +1540,7 @@ async function main() {
     check('site adds course + student', course.status === 201 && stu.status === 201);
     const pay = await ext('/api/ext/students/' + stu.d.id + '/payments', { method: 'POST', token, body: { kind: 'deposit', amount: 10000000, toFinance: true } });
     const txId = pay.d && pay.d.payments && pay.d.payments[0] && pay.d.payments[0].txId;
-    const txs = (await call('/api/transactions', { cookie })).d.items;
+    const txs = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items;
     check('payment with toFinance mirrors an «آموزش» income in LifeOS', pay.status === 201 && txs.some(t => t.id === txId && t.category === 'آموزش' && t.kind === 'income' && t.amount === 10000000), JSON.stringify(pay.d));
     await ext('/api/ext/students/' + stu.d.id + '/payments/' + pay.d.payments[0].id, { method: 'DELETE', token });
     // CoursesPage path: /api/transactions → only «آموزش» rows are reachable
@@ -1549,7 +1549,7 @@ async function main() {
     const food = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'نان', amount: 1000, category: 'خوراک' } })).d;
     check('ext cannot edit a non-education transaction', (await ext('/api/ext/transactions/' + food.id, { method: 'PATCH', token, body: { amount: 1 } })).status === 404);
     check('ext deletes its education transaction', (await ext('/api/ext/transactions/' + tx2.d.id, { method: 'DELETE', token })).status === 200);
-    check('deleting the payment removes its transaction', !(await call('/api/transactions', { cookie })).d.items.some(t => t.id === txId));
+    check('deleting the payment removes its transaction', !(await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.some(t => t.id === txId));
     await call('/api/col/students/' + stu.d.id, { method: 'PATCH', cookie, body: { attendance: [1, 2] } });
     check('LifeOS attendance edit shows on the site', ((await ext('/api/ext/col/students', { token })).d.items.find(s => s.id === stu.d.id) || {}).attendance.join() === '1,2');
 
