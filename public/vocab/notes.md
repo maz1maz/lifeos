@@ -4,7 +4,7 @@ Sep 26, 2026 · @Hamid reza
 
 ## مقدمه
 
-این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۲۷، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
+این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۲۸، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
 
 ساختار سند:
 
@@ -1183,3 +1183,125 @@ many = زیاد (قابل شمارش، جمع) — much = زیاد (غیرقاب
 | a flat joke | /flæt/ | یک جوک بی‌مزه | His joke fell flat. |
 
 **نکته آیلتس:** می‌گوییم tell a joke (نه say a joke). مثال Speaking: "My brother always tells hilarious jokes, but sometimes they're a bit corny."
+
+## جلسه ۲۸: دستور پخت، آشپزی، رستوران، shall و collocation تلویزیون
+
+### دستور پخت و آشپزی — Unit 6 (Student's Book)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| series (n.) — a series of… | /ˈsɪriːz/ | سری، مجموعه؛ یک مجموعه از… | Follow a series of simple steps. |
+| instruction (n.) | /ɪnˈstrʌkʃn/ | دستورالعمل | Read the instructions before you start. |
+| remind (v.) | /rɪˈmaɪnd/ | یادآوری کردن | Remind me to buy garlic. |
+| grill (v.) | /ɡrɪl/ | کباب کردن (روی سیخ یا منقل) | Grill the bread for two minutes. |
+| rub (v.) | /rʌb/ | مالیدن | Rub the bread with garlic. |
+| garlic (n.) | /ˈɡɑːrlɪk/ | سیر | Add a clove of garlic. |
+| pour (v.) | /pɔːr/ | ریختن | Pour some olive oil on the bread. |
+| chopped (adj.) | /tʃɒpt/ | خردشده، ریزریزشده | Add some chopped tomatoes. |
+| add (v.) | /æd/ | اضافه کردن | Add salt and pepper. |
+| pepper (n.) | /ˈpepər/ | فلفل | A little black pepper, please. |
+| basil leaf | /ˈbeɪzl liːf/ , /ˈbæzl/ | برگ ریحان | Put a basil leaf on top. |
+| make sure (v.) | /meɪk ʃʊər/ | مطمئن شدن | Make sure the oven is hot. |
+| be sure | /bi ʃʊər/ | مطمئن بودن | Be sure to wash your hands. |
+| both sides | /boʊθ saɪdz/ | هر دو طرف | Grill both sides of the bread. |
+| fresh (adj.) | /freʃ/ | تازه | Use fresh tomatoes. |
+| forget (v.) | /fərˈɡet/ | فراموش کردن | Don't forget the salt! |
+| bake (v.) | /beɪk/ | پختن (در فر) | Bake me a cake! / She bakes bread every week. |
+| fry (v.) | /fraɪ/ | سرخ کردن | Fry the onions in a little oil. |
+| steam (v.) | /stiːm/ | بخارپز کردن | Steam the vegetables for five minutes. |
+| boil (v.) | /bɔɪl/ | آب‌پز کردن، جوشاندن | Boil the eggs for ten minutes. |
+| microwave (v.) | /ˈmaɪkrəweɪv/ | در مایکروویو گرم کردن | Microwave the soup for two minutes. |
+| frozen (adj.) | /ˈfroʊzn/ | یخ‌زده، منجمد | I bought frozen peas. |
+| bruschetta (n.) | /bruˈsketə/ | بروسکتا — یک نوع پیش‌غذای ایتالیایی | Bruschetta is grilled bread with tomatoes. |
+| right away = immediately | /raɪt əˈweɪ/ | فوراً | Serve it right away. |
+| pot (n.) | /pɒt/ | قابلمه | Put the pasta in a big pot. |
+| frying pan / frypan (n.) | /ˈfraɪɪŋ pæn/ | ماهیتابه | Heat the oil in a frying pan. |
+| kettle (n.) | /ˈketl/ | کتری | Put the kettle on. |
+| plate (n.) | /pleɪt/ | بشقاب | Put the bruschetta on a plate. |
+| set a timer | /set ə ˈtaɪmər/ | زمان‌سنج را تنظیم کردن | Set a timer for ten minutes. |
+| do not skip pages | /skɪp ˈpeɪdʒɪz/ | صفحه جا نینداز | Do not skip pages in the recipe book. |
+| paper (n.) | /ˈpeɪpər/ | کاغذ | Write the recipe on a piece of paper. |
+| spice (n.) | /spaɪs/ | ادویه | Indian food uses a lot of spices. |
+| snack (n.) | /snæk/ | غذای سبک، میان‌وعده | Bruschetta is a good snack. |
+| slice (n./v.) | /slaɪs/ | برش، تکه؛ برش زدن | Cut the bread into slices. |
+| at least | /æt liːst/ | حداقل | Wait at least five minutes. |
+| item (n.) | /ˈaɪtəm/ | مورد، قلم | There are five items on the list. |
+| own (adj.) | /oʊn/ | مال خود | Write your own recipe. |
+| step (n.) | /step/ | قدم، مرحله | Step one: wash the tomatoes. |
+| take turns | /teɪk tɜːrnz/ | به نوبت انجام دادن | We take turns cooking dinner. |
+
+### در رستوران — Voc 28
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| order (v.) | /ˈɔːrdər/ | سفارش دادن | Are you ready to order? |
+| restaurant (n.) | /ˈrestrɒnt/ | رستوران | Let's go to an Italian restaurant. |
+| menu (n.) | /ˈmenjuː/ | منو | Can I see the menu, please? |
+| starter = appetizer | /ˈstɑːrtər/ | پیش‌غذا | For a starter, I'd like soup. |
+| main course | /meɪn kɔːrs/ | غذای اصلی | For the main course, I'll have fish. |
+| dessert (n.) | /dɪˈzɜːrt/ | دسر | What's for dessert? |
+| red wine | /red waɪn/ | شراب قرمز | A glass of red wine, please. |
+| salt and pepper | /sɔːlt ənd ˈpepər/ | نمک و فلفل | Could you pass the salt and pepper? |
+| mineral water | /ˈmɪnərəl ˈwɔːtər/ | آب معدنی | A bottle of mineral water, please. |
+| still water | /stɪl ˈwɔːtər/ | آب بدون گاز | Still or sparkling? — Still, please. |
+| sparkling water = fizzy water | /ˈspɑːrklɪŋ/ | آب گازدار | I'd like sparkling water. |
+| vinegar (n.) | /ˈvɪnɪɡər/ | سرکه | Oil and vinegar for the salad. |
+| soy sauce {Am.} / soya sauce {Br.} | /ˈsɔɪ sɔːs/ | سس سویا | Sushi with soy sauce. |
+| napkin (n.) | /ˈnæpkɪn/ | دستمال سفره | Can I have a napkin? |
+| bowl (n.) | /boʊl/ | کاسه | A bowl of soup. |
+| plate (n.) | /pleɪt/ | بشقاب | This plate is dirty. |
+| fork (n.) | /fɔːrk/ | چنگال | I need a fork. |
+| knife (n.) | /naɪf/ | چاقو | Could I have another knife? |
+| spoon (n.) | /spuːn/ | قاشق | A spoon for the soup, please. |
+| boiled rice | /bɔɪld raɪs/ | برنج پخته (آب‌پز) | Chicken with boiled rice. |
+| fried eggs | /fraɪd eɡz/ | تخم‌مرغ سرخ‌کرده (نیمرو) | I had fried eggs for breakfast. |
+| grilled fish | /ɡrɪld fɪʃ/ | ماهی کبابی | I'll have the grilled fish. |
+| grilled = barbecued | /ɡrɪld/ | کبابی (سیخی یا منقلی) | Grilled chicken with salad. |
+| roast chicken | /roʊst ˈtʃɪkɪn/ | مرغ بریان (کبابی در فر) | Roast chicken and chips. |
+| pan-fried (adj.) | /ˈpæn fraɪd/ | سرخ‌شده در تابه | Pan-fried salmon. |
+| rare (adj.) | /reər/ | خام، کم‌پخته (استیک) | I'd like my steak rare. |
+| medium (adj.) | /ˈmiːdiəm/ | متوسط، نیم‌پز | Medium, please. |
+| well done (adj.) | /wel dʌn/ | کاملاً پخته، خوب‌پخته | I like my steak well done. |
+| prawn {Br.} = shrimp {Am.} | /prɔːn/ | میگو | Prawn salad, please. |
+| mussel (n.) | /ˈmʌsl/ | صدف خوراکی (صدف دوکفه‌ای) | Mussels in white wine. |
+| tuna (n.) | /ˈtjuːnə/ | ماهی تن | A tuna sandwich. |
+| green beans | /ɡriːn biːnz/ | لوبیا سبز | Steak with green beans. |
+| fillet steak | /ˈfɪlɪt/ {Br.} , /fɪˈleɪ/ {Am.} | فیله استیک | The fillet steak is very good. |
+| chips {Br.} = fries {Am.} | /tʃɪps/ | سیب‌زمینی سرخ‌کرده | Fish and chips. |
+| duck (n.) | /dʌk/ | اردک | Roast duck with orange sauce. |
+| pea (n.) | /piː/ | نخودفرنگی | Fish, chips and peas. |
+| mixed salad | /mɪkst ˈsæləd/ | سالاد مخلوط | A mixed salad, please. |
+| bill {Br.} = check {Am.} | /bɪl/ | صورت‌حساب | Could we have the bill, please? |
+| Certainly. | /ˈsɜːrtnli/ | حتماً، مطمئناً | "Can I have some water?" "Certainly." |
+| Sure. | /ʃʊər/ | حتماً، باشه | "Another coffee?" "Sure." |
+
+**another / some more:** another با اسم قابل‌شمارش مفرد: "Can I have another fork?" — some more با اسم غیرقابل‌شمارش (یا جمع): "Can I have some more water?"
+
+**مکالمه نمونه:** "Are you ready to order?" — "Yes. For a starter, I'd like the prawns, and for the main course the fillet steak, medium, please." — "Certainly. Anything to drink?" — "Sparkling water, please." … "Could we have the bill, please?"
+
+### گرامر: shall (برای آینده)
+
+shall برای بیان پیشنهاد، دعوت، درخواست توصیه، یا دستورالعمل و الزام در آینده به کار می‌رود. ساختار: **shall + فعل ساده (بدون to)**.
+
+| کاربرد | ساختار / نکته | مثال | معنی |
+| --- | --- | --- | --- |
+| ۱) پیشنهاد دادن | Shall I / we …? (فقط با I و we) | Shall we watch a movie tonight? | امشب فیلم ببینیم؟ |
+| ۲) اتفاق قطعی در آینده (رسمی) | subject + shall + verb | The train shall depart from the station at 9:00 AM. | قطار ساعت ۹ صبح از ایستگاه حرکت می‌کند. |
+| ۳) دستورالعمل و الزام (قوانین، قراردادها) | subject + shall + verb | The employees shall report any workplace injury to their supervisor immediately. | کارکنان باید هرگونه آسیب در محل کار را فوراً به سرپرست خود گزارش دهند. |
+
+**نکته آیلتس:** در Speaking، shall فقط در پیشنهاد طبیعی است ("Shall we start?"). کاربردهای ۲ و ۳ رسمی‌اند و در متن‌های قرارداد و آیین‌نامه دیده می‌شوند؛ در Writing Task 2 به‌جایش will یا should بنویس.
+
+### Collocation: television (تلویزیون)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| switch / turn the television on / off | /swɪtʃ/, /tɜːrn/ | تلویزیون را روشن / خاموش کردن | Please turn the television off. |
+| turn the television up / down | /tɜːrn ʌp/, /daʊn/ | صدای تلویزیون را زیاد / کم کردن | Can you turn the TV down? |
+| show on television | /ʃoʊ ɒn ˈtelɪvɪʒn/ | در تلویزیون نشان دادن | The match will be shown on television. |
+| a flat-screen TV | /flæt skriːn ˌtiː ˈviː/ | تلویزیون صفحه‌تخت | We bought a flat-screen TV. |
+| a television licence | /ˈlaɪsns/ | مجوز (پروانهٔ) استفاده از تلویزیون | In the UK you need a television licence. |
+| a television presenter / reporter / journalist | /prɪˈzentər/ | مجری / گزارشگر تلویزیون | She is a famous television presenter. |
+| a television series | /ˈsɪriːz/ | مجموعه (سریال) تلویزیونی | It's my favourite television series. |
+| watch television | /wɒtʃ ˈtelɪvɪʒn/ | تلویزیون تماشا کردن | I watch television in the evening. |
+
+**نکته آیلتس:** در Speaking Part 1 (موضوع TV) از این ترکیب‌ها استفاده کن: "I don't watch much television, but I love a good television series."
