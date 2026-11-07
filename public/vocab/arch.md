@@ -282,251 +282,251 @@
 
 | English | تلفظ | معادل رایج | توضیح |
 | --- | --- | --- | --- |
-| uPVC (unplasticised PVC) | /ˌjuː piː viː ˈsiː/ | یو پی وی سی | |
-| Frame | /freɪm/ | قاب ثابت | |
-| Sash | /sæʃ/ | لنگه | |
-| Glazing bead | /ˈɡleɪzɪŋ bid/ | زهوار | |
-| Gasket | /ˈɡæskət/ | نوار آب‌بند | |
-| Steel reinforcement | /stil ˌriɪnˈfɔrsmənt/ | تقویت فولادی | |
-| Argon | /ˈɑrˌɡɑn/ | آرگون | |
-| Side-hung / casement | /saɪd hʌŋ/ | تک‌حالته | |
-| Tilt and turn | /tɪlt ənd tɜrn/ | دوحالته | |
-| Sliding | /ˈslaɪdɪŋ/ | کشویی | |
-| Bi-fold | /baɪ foʊld/ | آکاردئونی | |
-| Parallel-sliding (PSK) | /ˈpɛrəˌlɛl ˈslaɪdɪŋ/ | فولکس واگنی | |
-| French window | /frɛntʃ ˈwɪndoʊ/ | فرانسوی | |
-| Awning (top-hung) | /ˈɑnɪŋ/ | سایبانی | |
-| Hopper / bottom-hung | /ˈhɑpər/ | کلنگی | |
-| Pivot | /ˈpɪvət/ | محوری | |
-| Anodising | /ˈænədaɪzɪŋ/ | آنادایز | |
-| Powder coating | /ˈpaʊdər ˈkoʊtɪŋ/ | رنگ کوره‌ای | |
-| Vapour-tight tape | /ˈveɪpər taɪt teɪp/ | نوار بخاربند | |
-| Vapour-open membrane | /ˈveɪpər ˈoʊpən ˈmɛmˌbreɪn/ | نوار بخارگذر | |
-| External window sill | /ɪkˈstɜrnəl ˈwɪndoʊ sɪl/ | آب‌چکان | |
-| Drip | /drɪp/ | قطره‌گیر | |
-| Louvre / brise-soleil | /ˈluvrə/ | لوور | |
-| Blade / slat | /bleɪd/ | تیغه | |
-| Mullion support | /ˈmʌliən səˈpɔːrt/ | ساپورت | |
-| Waste factor | /weɪst ˈfæktər/ | ضریب پرت | |
-| Quantity take-off | /ˈkwɑntəti teɪk ɔf/ | متره | |
+| uPVC (unplasticised PVC) | /ˌjuː piː viː ˈsiː/ | یو پی وی سی | پی‌وی‌سی سخت بدون نرم‌کننده؛ رایج‌ترین جنس پروفیل پنجره |
+| Frame | /freɪm/ | قاب ثابت | بخش ثابت پنجره که در دیوار نصب می‌شود |
+| Sash | /sæʃ/ | لنگه | بخش بازشوی پنجره که شیشه را نگه می‌دارد |
+| Glazing bead | /ˈɡleɪzɪŋ bid/ | زهوار | نوار باریکی که شیشه را از داخل در قاب نگه می‌دارد |
+| Gasket | /ˈɡæskət/ | نوار آب‌بند | نوار لاستیکی آب‌بندی دور شیشه و لنگه |
+| Steel reinforcement | /stil ˌriɪnˈfɔrsmənt/ | تقویت فولادی | پروفیل فولادی داخل پروفیل uPVC برای سختی بیشتر |
+| Argon | /ˈɑrˌɡɑn/ | آرگون | گاز بی‌اثر بین دو جدارهٔ شیشه برای عایق حرارتی بهتر |
+| Side-hung / casement | /saɪd hʌŋ/ | تک‌حالته | لنگه از کنار لولا شده و فقط به یک حالت باز می‌شود |
+| Tilt and turn | /tɪlt ənd tɜrn/ | دوحالته | هم از کنار باز می‌شود، هم از بالا به داخل خم می‌شود (حالت تهویه) |
+| Sliding | /ˈslaɪdɪŋ/ | کشویی | لنگه روی ریل به کنار می‌لغزد |
+| Bi-fold | /baɪ foʊld/ | آکاردئونی | لنگه‌ها مثل آکاردئون روی هم تا می‌شوند |
+| Parallel-sliding (PSK) | /ˈpɛrəˌlɛl ˈslaɪdɪŋ/ | فولکس واگنی | لنگه کمی بیرون می‌آید و بعد موازی قاب کنار می‌رود |
+| French window | /frɛntʃ ˈwɪndoʊ/ | فرانسوی | در-پنجرهٔ دولنگهٔ تا کف که به بالکن باز می‌شود |
+| Awning (top-hung) | /ˈɑnɪŋ/ | سایبانی | لولا در بالا؛ پایین لنگه به بیرون باز می‌شود |
+| Hopper / bottom-hung | /ˈhɑpər/ | کلنگی | لولا در پایین؛ بالای لنگه به داخل خم می‌شود |
+| Pivot | /ˈpɪvət/ | محوری | لنگه حول محور وسط (افقی یا عمودی) می‌چرخد |
+| Anodising | /ˈænədaɪzɪŋ/ | آنادایز | لایهٔ اکسیدی محافظ و رنگی روی آلومینیوم به روش الکتروشیمیایی |
+| Powder coating | /ˈpaʊdər ˈkoʊtɪŋ/ | رنگ کوره‌ای | رنگ پودری که در کوره روی فلز پخته و سخت می‌شود |
+| Vapour-tight tape | /ˈveɪpər taɪt teɪp/ | نوار بخاربند | نوار سمت داخل درز پنجره که جلوی ورود بخار را می‌گیرد |
+| Vapour-open membrane | /ˈveɪpər ˈoʊpən ˈmɛmˌbreɪn/ | نوار بخارگذر | نوار سمت بیرون که آب را نگه می‌دارد ولی بخار را عبور می‌دهد |
+| External window sill | /ɪkˈstɜrnəl ˈwɪndoʊ sɪl/ | آب‌چکان | سنگ یا ورق شیب‌دار زیر پنجره که آب باران را دور می‌کند |
+| Drip | /drɪp/ | قطره‌گیر | شیار یا لبهٔ زیر آب‌چکان که آب را از دیوار جدا می‌کند |
+| Louvre / brise-soleil | /ˈluvrə/ | لوور | تیغه‌های سایه‌بان جلوی نما برای کنترل نور و گرما |
+| Blade / slat | /bleɪd/ | تیغه | هر یک از تیغه‌های لوور |
+| Mullion support | /ˈmʌliən səˈpɔːrt/ | ساپورت | قطعهٔ نگهدارندهٔ مولیون یا تیغه که به سازه وصل می‌شود |
+| Waste factor | /weɪst ˈfæktər/ | ضریب پرت | درصدی که برای دورریز مصالح به مقدار متره اضافه می‌شود |
+| Quantity take-off | /ˈkwɑntəti teɪk ɔf/ | متره | محاسبهٔ مقدار مصالح و کار از روی نقشه‌ها |
 
 ## واژه‌نامهٔ کلاس نما — جلسه ۳
 
 | English | تلفظ | معادل رایج | توضیح |
 | --- | --- | --- | --- |
-| Facade material | /fəˈsɑd məˈtɪriəl/ | متریال نما | |
-| Traditional facade | /trəˈdɪʃənəl fəˈsɑd/ | نمای سنتی | |
-| Modern facade | /ˈmɑdərn fəˈsɑd/ | نمای مدرن | |
-| Wet (mortar) installation | /wɛt ˌɪnstəˈleɪʃən/ | اجرای ملاتی | |
-| Adhesive installation | /ædˈhisɪv ˌɪnstəˈleɪʃən/ | اجرای چسبی | |
-| Dry (mechanical) installation | /draɪ ˌɪnstəˈleɪʃən/ | اجرای خشک | |
-| Cast / built in situ | /kæst/ | ساخت در محل | |
-| Pressed facing brick | /prɛst ˈfeɪsɪŋ brɪk/ | آجر قزاقی | |
-| Fire (refractory) brick | /ˈfaɪər brɪk/ | آجر نسوز | |
-| Glazed brick | /ɡleɪzd brɪk/ | آجر لعابی | |
-| Louvred / slotted brick | /ˈluːvərd brɪk/ | آجر کرکره‌ای | |
-| Brick slip | /brɪk slɪp/ | آجر پلاک | |
-| Wall tie | /wɔl taɪ/ | بست دیوار | |
-| Joint | /dʒɔɪnt/ | درز | |
-| Pointing / grouting | /ˈpɔɪntɪŋ/ | بندکشی | |
-| Rail | /reɪl/ | ریل | |
-| Omega rail | /oʊˈmɛɡə reɪl/ | ریل امگا | |
-| Pin / dowel | /pɪn/ | پین | |
-| Terracotta | /ˌtɜrəˈkɑtə/ | تراکوتا | |
-| Porcelain stoneware | /ˈpɔrsələn ˈstoʊnˌwɛr/ | پرسلان | |
-| Frost resistance | /frɔst rɪˈzɪstəns/ | یخ‌زدگی | |
-| Fire-retardant (FR) core | /ˈfaɪər riˈtɑrdənt kɔr/ | هسته‌ی کندسوز | |
-| Mineral (A2) core | /ˈmɪnərəl kɔr/ | هسته‌ی معدنی | |
-| Cassette | /kəˈsɛt/ | کاست | |
-| Reinforcing mesh | /ˌriɪnˈfɔrsɪŋ mɛʃ/ | مش | |
-| Glass-fibre reinforced concrete | /ɡlæs ˈfaɪbər ˌriɪnˈfɔrst kənˈkrit/ | GFRC | |
-| Steel stud frame | /stil stʌd freɪm/ | قاب استاد | |
-| Cement board | /səˈmɛnt bɔrd/ | سمنت بورد | |
-| Batten | /ˈbætən/ | لاته | |
-| Selection matrix | /səˈlɛkʃən ˈmeɪtrɪks/ | ماتریس انتخاب | |
-| Visual weight | /ˈvɪʒəwəl weɪt/ | وزن بصری | |
-| Locally sourced material | /ˈloʊkəli sɔːrst məˈtɪriəl/ | بوم‌آورد | |
-| Ventilated (rainscreen) facade | /ˈvɛntəˌleɪtɪd fəˈsɑd/ | نمای تهویه‌شونده | |
-| Microcement | /ˈmaɪkroʊ sɪˈment/ | میکروسمنت | |
-| Sealer | /ˈsilər/ | سیلر | |
-| Primer | /ˈpraɪmər/ | پرایمر | |
-| Human scale | /ˈhjumən skeɪl/ | مردم‌واری | |
-| Avoiding the superfluous | /əˈvɔɪdɪŋ ðə ˈsupərflˌwʌs/ | پرهیز از بیهودگی | |
-| Structural logic / statics | /ˈstrʌktʃərəl ˈlɑdʒɪk/ | نیارش | |
-| Self-sufficiency (local materials) | /sɛlf səˈfɪʃənsi/ | خودبسندگی | |
-| Introversion | /ˌɪntrəˈvɜːrʒn/ | درون‌گرایی | |
-| Modular dimension system | /ˈmɑdʒələr dɪˈmɛnʃən ˈsɪstəm/ | پیمون | |
-| Persian golden rectangle (√3) | /ˈpɜrʒən ˈɡoʊldən ˈrɛktæŋɡəl/ | مستطیل طلایی ایرانی | |
-| Regular hexagon | /ˈrɛɡjələr ˈhɛksəˌɡɑn/ | شش‌ضلعی منتظم | |
-| Compass | /ˈkʌmpəs/ | پرگار | |
-| Diagonal | /daɪˈæɡənəl/ | قطر | |
-| Entrance portal | /ˈɛntrəns ˈpɔrtəl/ | سردر | |
-| Octagonal vestibule | /ɑkˈtæɡənəl ˈvɛstɪˌbjul/ | هشتی | |
-| Corridor / passage | /ˈkɔrədər/ | دالان | |
-| Courtyard | /ˈkɔrtˌjɑrd/ | میان‌سرا | |
-| Iwan / porch | /ˈiwɑn/ | ایوان | |
-| Arcade / portico | /ɑrˈkeɪd/ | رواق | |
-| Transverse arch / rib | /trænzˈvɜrs ɑrtʃ/ | تویزه | |
-| Springing line | /ˈsprɪŋɪŋ laɪn/ | خط پاکار | |
-| Arch apex / crown | /ɑrtʃ ˈeɪˌpɛks/ | تیزه | |
-| Rise | /raɪz/ | خیز | |
-| Barrel vault | /ˈbærəl vɔlt/ | طاق رومی | |
-| Jack arch | /dʒæk ɑrtʃ/ | طاق ضربی | |
-| Muqarnas | /muˈkɑːrnəs/ | مقرنس | |
-| Mosaic tile (moarraq) | /moʊˈzeɪɪk taɪl/ | کاشی معرق | |
-| Geometric (girih) pattern | /ˌdʒiəˈmɛtrɪk ˈpætərn/ | گره | |
-| Rasmi-bandi vaulting | /ˈræsmi ˈbændi ˈvɔːltɪŋ/ | کاربندی | |
-| Brick header | /brɪk ˈhɛdər/ | کله‌ی آجر | |
-| Course | /kɔrs/ | رج | |
-| Base, body, crown | /beɪs ˈbɑdi kraʊn/ | پایه، بدنه، تاج | |
-| Rhythm | /ˈrɪðəm/ | ریتم | |
-| Symmetry | /ˈsɪmətri/ | تقارن | |
-| Focal point | /ˈfoʊkəl pɔɪnt/ | نقطه‌ی تأکید | |
-| Real depth | /ril dɛpθ/ | عمق واقعی | |
-| Inspiration | /ˌɪnspərˈeɪʃən/ | الهام | |
-| Pastiche | /ˌpæˈstiʃ/ | سنتی‌نما | |
+| Facade material | /fəˈsɑd məˈtɪriəl/ | متریال نما | مصالحی که سطح بیرونی نما را می‌سازد |
+| Traditional facade | /trəˈdɪʃənəl fəˈsɑd/ | نمای سنتی | نمایی با مصالح و الگوهای معماری سنتی |
+| Modern facade | /ˈmɑdərn fəˈsɑd/ | نمای مدرن | نمایی با مصالح و زبان معماری امروزی |
+| Wet (mortar) installation | /wɛt ˌɪnstəˈleɪʃən/ | اجرای ملاتی | چسباندن نماکار با ملات سیمانی به دیوار |
+| Adhesive installation | /ædˈhisɪv ˌɪnstəˈleɪʃən/ | اجرای چسبی | چسباندن نماکار با چسب مخصوص به جای ملات |
+| Dry (mechanical) installation | /draɪ ˌɪnstəˈleɪʃən/ | اجرای خشک | نصب نماکار با بست فلزی روی زیرسازی، بدون ملات |
+| Cast / built in situ | /kæst/ | ساخت در محل | ساخته‌شده در خود محل پروژه، نه در کارخانه |
+| Pressed facing brick | /prɛst ˈfeɪsɪŋ brɪk/ | آجر قزاقی | آجر نمای ماشینی با لبه‌های صاف و ابعاد دقیق |
+| Fire (refractory) brick | /ˈfaɪər brɪk/ | آجر نسوز | آجر مقاوم در برابر حرارت بالا |
+| Glazed brick | /ɡleɪzd brɪk/ | آجر لعابی | آجر با رویهٔ لعاب براق و رنگی |
+| Louvred / slotted brick | /ˈluːvərd brɪk/ | آجر کرکره‌ای | آجر سوراخ‌دار یا شیاردار برای نماهای مشبک |
+| Brick slip | /brɪk slɪp/ | آجر پلاک | لایهٔ نازک آجر که مثل کاشی روی دیوار چسبانده می‌شود |
+| Wall tie | /wɔl taɪ/ | بست دیوار | بست فلزی که لایهٔ نما را به دیوار پشت متصل می‌کند |
+| Joint | /dʒɔɪnt/ | درز | فاصلهٔ بین دو قطعهٔ نماکار |
+| Pointing / grouting | /ˈpɔɪntɪŋ/ | بندکشی | پر کردن درز بین آجرها یا کاشی‌ها با ملات یا دوغاب |
+| Rail | /reɪl/ | ریل | پروفیل خطی زیرسازی که نماکار روی آن نصب می‌شود |
+| Omega rail | /oʊˈmɛɡə reɪl/ | ریل امگا | پروفیل با مقطع شبیه حرف Ω برای زیرسازی |
+| Pin / dowel | /pɪn/ | پین | میلهٔ کوتاه فلزی که در سوراخ لبهٔ سنگ یا کاشی می‌رود |
+| Terracotta | /ˌtɜrəˈkɑtə/ | تراکوتا | سفال پخته؛ نماکار رسی معمولاً قرمز یا نخودی |
+| Porcelain stoneware | /ˈpɔrsələn ˈstoʊnˌwɛr/ | پرسلان | سرامیک بسیار متراکم با جذب آب نزدیک صفر |
+| Frost resistance | /frɔst rɪˈzɪstəns/ | یخ‌زدگی | مقاومت مصالح در برابر یخ‌زدن و آب‌شدن پی‌درپی |
+| Fire-retardant (FR) core | /ˈfaɪər riˈtɑrdənt kɔr/ | هسته‌ی کندسوز | هستهٔ کامپوزیت پنل با مواد معدنی که دیرتر می‌سوزد |
+| Mineral (A2) core | /ˈmɪnərəl kɔr/ | هسته‌ی معدنی | هستهٔ تقریباً نسوز با درصد بالای مواد معدنی (ردهٔ A2) |
+| Cassette | /kəˈsɛt/ | کاست | پنل فلزی که لبه‌هایش خم شده و روی زیرسازی آویزان می‌شود |
+| Reinforcing mesh | /ˌriɪnˈfɔrsɪŋ mɛʃ/ | مش | توری الیاف یا فلزی داخل اندود یا بتن برای جلوگیری از ترک |
+| Glass-fibre reinforced concrete | /ɡlæs ˈfaɪbər ˌriɪnˈfɔrst kənˈkrit/ | GFRC | بتن مسلح با الیاف شیشه؛ سبک و قابل قالب‌گیری برای نما |
+| Steel stud frame | /stil stʌd freɪm/ | قاب استاد | قاب سبک از پروفیل‌های فولادی گالوانیزه |
+| Cement board | /səˈmɛnt bɔrd/ | سمنت بورد | تختهٔ سیمانی مقاوم در برابر رطوبت برای زیرکار نما |
+| Batten | /ˈbætən/ | لاته | تیرک یا پروفیل باریک افقی/عمودی زیرسازی |
+| Selection matrix | /səˈlɛkʃən ˈmeɪtrɪks/ | ماتریس انتخاب | جدول مقایسهٔ گزینه‌های مصالح بر اساس معیارها |
+| Visual weight | /ˈvɪʒəwəl weɪt/ | وزن بصری | میزان سنگینی‌ای که یک عنصر در چشم بیننده دارد |
+| Locally sourced material | /ˈloʊkəli sɔːrst məˈtɪriəl/ | بوم‌آورد | مصالحی که از همان منطقه تهیه می‌شود |
+| Ventilated (rainscreen) facade | /ˈvɛntəˌleɪtɪd fəˈsɑd/ | نمای تهویه‌شونده | نمای خشک با فاصلهٔ هوای تهویه‌شده پشت پوسته |
+| Microcement | /ˈmaɪkroʊ sɪˈment/ | میکروسمنت | پوشش نازک سیمانی یکپارچه بدون درز |
+| Sealer | /ˈsilər/ | سیلر | مایع محافظ که روی سطح زده می‌شود تا آب و لک جذب نکند |
+| Primer | /ˈpraɪmər/ | پرایمر | آستری که پیش از رنگ یا چسب زده می‌شود |
+| Human scale | /ˈhjumən skeɪl/ | مردم‌واری | اندازه‌ها و تناسبات هماهنگ با بدن انسان (اصل معماری ایرانی) |
+| Avoiding the superfluous | /əˈvɔɪdɪŋ ðə ˈsupərflˌwʌs/ | پرهیز از بیهودگی | پرهیز از عنصر بی‌کاربرد و تزئین بی‌جا (اصل معماری ایرانی) |
+| Structural logic / statics | /ˈstrʌktʃərəl ˈlɑdʒɪk/ | نیارش | دانش ایستایی و سازه در معماری سنتی |
+| Self-sufficiency (local materials) | /sɛlf səˈfɪʃənsi/ | خودبسندگی | ساختن با مصالح بوم‌آورد و بی‌نیاز از بیرون (اصل معماری ایرانی) |
+| Introversion | /ˌɪntrəˈvɜːrʒn/ | درون‌گرایی | رو به درون بودن فضاها، معمولاً گرد یک حیاط مرکزی |
+| Modular dimension system | /ˈmɑdʒələr dɪˈmɛnʃən ˈsɪstəm/ | پیمون | واحد اندازهٔ ثابت در معماری ایرانی که همهٔ ابعاد از آن گرفته می‌شود |
+| Persian golden rectangle (√3) | /ˈpɜrʒən ˈɡoʊldən ˈrɛktæŋɡəl/ | مستطیل طلایی ایرانی | مستطیلی با نسبت اضلاع ۱ به √۳، برگرفته از شش‌ضلعی منتظم |
+| Regular hexagon | /ˈrɛɡjələr ˈhɛksəˌɡɑn/ | شش‌ضلعی منتظم | شش‌ضلعی با اضلاع و زوایای برابر |
+| Compass | /ˈkʌmpəs/ | پرگار | ابزار رسم دایره و کمان |
+| Diagonal | /daɪˈæɡənəl/ | قطر | خطی که دو گوشهٔ مقابل یک شکل را به هم وصل می‌کند |
+| Entrance portal | /ˈɛntrəns ˈpɔrtəl/ | سردر | بخش برجستهٔ تزئینی بالای ورودی بنا |
+| Octagonal vestibule | /ɑkˈtæɡənəl ˈvɛstɪˌbjul/ | هشتی | فضای هشت‌ضلعی بعد از ورودی که مسیر را می‌شکند |
+| Corridor / passage | /ˈkɔrədər/ | دالان | راهروی باریک بین هشتی و حیاط |
+| Courtyard | /ˈkɔrtˌjɑrd/ | میان‌سرا | حیاط مرکزی |
+| Iwan / porch | /ˈiwɑn/ | ایوان | فضای سرپوشیدهٔ سه‌طرف بسته که رو به حیاط باز است |
+| Arcade / portico | /ɑrˈkeɪd/ | رواق | ردیف طاق‌ها یا ستون‌ها در کنار حیاط یا نما |
+| Transverse arch / rib | /trænzˈvɜrs ɑrtʃ/ | تویزه | قوس‌های باربر عرضی زیر سقف |
+| Springing line | /ˈsprɪŋɪŋ laɪn/ | خط پاکار | خطی که قوس از آن شروع می‌شود |
+| Arch apex / crown | /ɑrtʃ ˈeɪˌpɛks/ | تیزه | بالاترین نقطهٔ قوس |
+| Rise | /raɪz/ | خیز | ارتفاع قوس از خط پاکار تا تیزه |
+| Barrel vault | /ˈbærəl vɔlt/ | طاق رومی | طاق نیم‌استوانه‌ای |
+| Jack arch | /dʒæk ɑrtʃ/ | طاق ضربی | طاق کم‌خیز آجری بین تیرآهن‌ها |
+| Muqarnas | /muˈkɑːrnəs/ | مقرنس | تزئین لانه‌زنبوری طبقه‌طبقه زیر طاق و سردر |
+| Mosaic tile (moarraq) | /moʊˈzeɪɪk taɪl/ | کاشی معرق | کاشی‌کاری با قطعه‌های بریده‌شدهٔ رنگی کنار هم |
+| Geometric (girih) pattern | /ˌdʒiəˈmɛtrɪk ˈpætərn/ | گره | نقش هندسی درهم‌تنیده در کاشی و آجرکاری |
+| Rasmi-bandi vaulting | /ˈræsmi ˈbændi ˈvɔːltɪŋ/ | کاربندی | شبکهٔ قوس‌های متقاطع برای پوشاندن سقف |
+| Brick header | /brɪk ˈhɛdər/ | کله‌ی آجر | سر کوچک آجر که در نما دیده می‌شود |
+| Course | /kɔrs/ | رج | یک ردیف افقی آجر یا سنگ |
+| Base, body, crown | /beɪs ˈbɑdi kraʊn/ | پایه، بدنه، تاج | تقسیم سه‌بخشی نما از پایین به بالا |
+| Rhythm | /ˈrɪðəm/ | ریتم | تکرار منظم عناصر در نما |
+| Symmetry | /ˈsɪmətri/ | تقارن | قرینگی دو طرف یک محور |
+| Focal point | /ˈfoʊkəl pɔɪnt/ | نقطه‌ی تأکید | عنصری که چشم اول به آن جذب می‌شود |
+| Real depth | /ril dɛpθ/ | عمق واقعی | عمق واقعی پیش‌آمدگی و فرورفتگی، نه نقش و رنگ |
+| Inspiration | /ˌɪnspərˈeɪʃən/ | الهام | گرفتن ایده از نمونهٔ دیگر بدون کپی مستقیم |
+| Pastiche | /ˌpæˈstiʃ/ | سنتی‌نما | تقلید سطحی از سبک گذشته (معمولاً منفی) |
 
 ## واژه‌نامهٔ کلاس نما — جلسه ۴
 
 | English | تلفظ | معادل رایج | توضیح |
 | --- | --- | --- | --- |
-| Residential | /ˌrɛzɪˈdɛnʃəl/ | مسکونی | |
-| Office | /ˈɔfɪs/ | اداری | |
-| Retail / Commercial | /ˈriˌteɪl/ | تجاری | |
-| Privacy | /ˈpraɪvəsi/ | محرمیت | |
-| Proportion | /prəˈpɔrʃən/ | تناسب | |
-| Square | /skwɛr/ | مربع | |
-| Rectangle | /ˈrɛktæŋɡəl/ | مستطیل | |
-| Regulating lines (tracés régulateurs) | /ˈrɛɡjəˌleɪtɪŋ laɪnz/ | خطوط تنظیم‌کننده | |
-| Half square | /hæf skwɛr/ | نصف مربع | |
-| Golden ratio | /ˈɡoʊldən ˈreɪʃiˌoʊ/ | تناسب طلایی | |
-| Modular | /ˈmɑdʒələr/ | مدولار | |
-| Opening | /ˈoʊpənɪŋ/ | بازشو | |
-| Aperture / Opening | /ˈæpərtʃər/ | روزنه | |
-| Slender building | /ˈslɛndər ˈbɪldɪŋ/ | ساختمان لاغر | |
-| Squat building | /skwɑt ˈbɪldɪŋ/ | ساختمان خپل | |
-| Repetition | /ˌrɛpəˈtɪʃən/ | تکرار | |
-| Proximity | /prɑkˈsɪməti/ | مجاورت | |
-| Similarity | /ˌsɪməˈlɛrəti/ | مشابهت | |
-| Transparent area (glazing) | /trænˈspɛrənt ˈɛriə/ | سطح شفاف | |
-| Opaque area | /oʊˈpeɪk ˈɛriə/ | سطح کدر | |
-| Ribbon window | /ˈrɪbən ˈwɪndoʊ/ | پنجره‌ی نواری | |
-| Facade review committee | /fəˈsɑd ˌriˈvju kəˈmɪti/ | کمیته‌ی نما | |
-| Brick course | /brɪk kɔrs/ | رج آجر | |
+| Residential | /ˌrɛzɪˈdɛnʃəl/ | مسکونی | ساختمان مسکونی |
+| Office | /ˈɔfɪs/ | اداری | ساختمان اداری |
+| Retail / Commercial | /ˈriˌteɪl/ | تجاری | ساختمان تجاری |
+| Privacy | /ˈpraɪvəsi/ | محرمیت | دید نداشتن غریبه به فضای خصوصی |
+| Proportion | /prəˈpɔrʃən/ | تناسب | نسبت اندازهٔ اجزا به هم و به کل |
+| Square | /skwɛr/ | مربع | مربع |
+| Rectangle | /ˈrɛktæŋɡəl/ | مستطیل | مستطیل |
+| Regulating lines (tracés régulateurs) | /ˈrɛɡjəˌleɪtɪŋ laɪnz/ | خطوط تنظیم‌کننده | خطوط هندسی کمکی برای تنظیم تناسبات نما (لوکوربوزیه) |
+| Half square | /hæf skwɛr/ | نصف مربع | مستطیل با نسبت ۱ به ۲ |
+| Golden ratio | /ˈɡoʊldən ˈreɪʃiˌoʊ/ | تناسب طلایی | نسبت تقریباً ۱ به ۱٫۶۱۸ |
+| Modular | /ˈmɑdʒələr/ | مدولار | ساخته‌شده از واحدهای اندازهٔ تکرارشونده |
+| Opening | /ˈoʊpənɪŋ/ | بازشو | هر دهانه در نما مثل پنجره یا در |
+| Aperture / Opening | /ˈæpərtʃər/ | روزنه | دهانهٔ کوچک برای نور یا دید |
+| Slender building | /ˈslɛndər ˈbɪldɪŋ/ | ساختمان لاغر | ساختمانی که ارتفاعش نسبت به عرض زیاد است |
+| Squat building | /skwɑt ˈbɪldɪŋ/ | ساختمان خپل | ساختمانی کوتاه و پهن |
+| Repetition | /ˌrɛpəˈtɪʃən/ | تکرار | تکرار یک عنصر در نما |
+| Proximity | /prɑkˈsɪməti/ | مجاورت | نزدیکی عناصر به هم که آن‌ها را گروه نشان می‌دهد (گشتالت) |
+| Similarity | /ˌsɪməˈlɛrəti/ | مشابهت | شباهت عناصر که آن‌ها را هم‌گروه نشان می‌دهد (گشتالت) |
+| Transparent area (glazing) | /trænˈspɛrənt ˈɛriə/ | سطح شفاف | بخش شیشه‌ای نما |
+| Opaque area | /oʊˈpeɪk ˈɛriə/ | سطح کدر | بخش غیرشیشه‌ای و بستهٔ نما |
+| Ribbon window | /ˈrɪbən ˈwɪndoʊ/ | پنجره‌ی نواری | پنجرهٔ افقی پیوسته در طول نما |
+| Facade review committee | /fəˈsɑd ˌriˈvju kəˈmɪti/ | کمیته‌ی نما | کمیتهٔ شهرداری که طرح نما را تأیید می‌کند |
+| Brick course | /brɪk kɔrs/ | رج آجر | یک ردیف افقی آجر |
 
 ## واژه‌نامهٔ کلاس نما — جلسه ۵
 
 | English | تلفظ | معادل رایج | توضیح |
 | --- | --- | --- | --- |
-| Plate panel | /pleɪt ˈpænəl/ | پلیت پنل | |
-| Hung panel | /hʌŋ ˈpænəl/ | هنگ پنل | |
-| Side panel (plank) | /saɪd ˈpænəl/ | ساید پنل | |
-| Cassette panel | /kəˈsɛt ˈpænəl/ | کاست پنل | |
-| Perforated (punched) metal | /ˈpɜrfərˌeɪtɪd ˈmɛtəl/ | پانچ متال | |
-| Expanded (stretch) metal | /ɪkˈspændəd ˈmɛtəl/ | استرچ متال | |
-| Distortion (oil-canning) | /dɪˈstɔrʃən/ | اعوجاج | |
-| Thermal expansion | /ˈθɜrməl ɪkˈspænʃən/ | انبساط حرارتی | |
-| Fixed point | /fɪkst pɔɪnt/ | نقطه‌ی ثابت | |
-| Rivet | /ˈrɪvət/ | پرچ | |
-| Seat angle | /sit ˈæŋɡəl/ | نبشی نشیمن | |
-| Rock wool | /rɑk wʊl/ | پشم سنگ | |
-| Open area | /ˈoʊpən ˈɛriə/ | سطح باز | |
-| Laser cutting | /ˈleɪzər ˈkʌtɪŋ/ | برش لیزر | |
-| RAL colour | /ˌɑːr eɪ ˈel ˈkʌlər/ | رال | |
-| Core | /kɔr/ | مغزه | |
-| Developed (flat) size | /dɪˈvɛləpt saɪz/ | گسترده | |
-| Mesh | /mɛʃ/ | توری | |
-| Fire class A1 (non-combustible) | /ˈfaɪər klæs ə/ | رده‌ی آتش A1 | |
-| Vertical profile | /ˈvɜrtɪkəl ˈproʊˌfaɪl/ | پروفیل قائم | |
+| Plate panel | /pleɪt ˈpænəl/ | پلیت پنل | پنل تخت فلزی بدون خم لبه |
+| Hung panel | /hʌŋ ˈpænəl/ | هنگ پنل | پنلی که روی زیرسازی آویزان می‌شود |
+| Side panel (plank) | /saɪd ˈpænəl/ | ساید پنل | پنل باریک و بلند که لبه‌به‌لبه کنار هم نصب می‌شود |
+| Cassette panel | /kəˈsɛt ˈpænəl/ | کاست پنل | پنل با لبه‌های خم‌شده که روی پین آویزان می‌شود |
+| Perforated (punched) metal | /ˈpɜrfərˌeɪtɪd ˈmɛtəl/ | پانچ متال | ورق فلزی سوراخ‌کاری‌شده |
+| Expanded (stretch) metal | /ɪkˈspændəd ˈmɛtəl/ | استرچ متال | ورق فلزی که برش خورده و کشیده شده تا مشبک شود |
+| Distortion (oil-canning) | /dɪˈstɔrʃən/ | اعوجاج | موج‌دار شدن ورق فلزی تخت |
+| Thermal expansion | /ˈθɜrməl ɪkˈspænʃən/ | انبساط حرارتی | افزایش طول یا حجم مصالح با گرم شدن |
+| Fixed point | /fɪkst pɔɪnt/ | نقطه‌ی ثابت | نقطه‌ای از پنل که ثابت بسته می‌شود؛ بقیه برای انبساط آزادند |
+| Rivet | /ˈrɪvət/ | پرچ | میخ پرچ برای اتصال ورق‌های فلزی |
+| Seat angle | /sit ˈæŋɡəl/ | نبشی نشیمن | نبشی زیر پنل یا سنگ که وزن آن را می‌گیرد |
+| Rock wool | /rɑk wʊl/ | پشم سنگ | عایق الیافی از سنگ مذاب؛ نسوز |
+| Open area | /ˈoʊpən ˈɛriə/ | سطح باز | درصد سوراخ‌ها نسبت به کل سطح ورق |
+| Laser cutting | /ˈleɪzər ˈkʌtɪŋ/ | برش لیزر | برش دقیق ورق با پرتو لیزر |
+| RAL colour | /ˌɑːr eɪ ˈel ˈkʌlər/ | رال | سیستم استاندارد کد رنگ (مثلاً RAL 7016) |
+| Core | /kɔr/ | مغزه | لایهٔ میانی پنل کامپوزیت |
+| Developed (flat) size | /dɪˈvɛləpt saɪz/ | گسترده | اندازهٔ ورق پیش از خم‌کاری |
+| Mesh | /mɛʃ/ | توری | توری فلزی یا الیافی |
+| Fire class A1 (non-combustible) | /ˈfaɪər klæs ə/ | رده‌ی آتش A1 | بالاترین ردهٔ آتش: کاملاً نسوز |
+| Vertical profile | /ˈvɜrtɪkəl ˈproʊˌfaɪl/ | پروفیل قائم | پروفیل عمودی زیرسازی |
 
 ## واژه‌نامهٔ کلاس نما — جلسه ۶
 
 | English | تلفظ | معادل رایج | توضیح |
 | --- | --- | --- | --- |
-| Axial organisation | /ˈæksiəl ˌɔrɡənɪˈzeɪʃən/ | محوربندی | |
-| Base, shaft and crown (tripartite division) | /beɪs ʃæft ənd kraʊn/ | پایه، بدنه و تاج | |
-| Scale | /skeɪl/ | مقیاس | |
-| Neoclassical | /ˌnioʊˈklæsɪkəl/ | نئوکلاسیک | |
-| Order, form, decoration | /ˈɔrdər fɔrm ˌdɛkərˈeɪʃən/ | نظم، فرم، تزئینات | |
+| Axial organisation | /ˈæksiəl ˌɔrɡənɪˈzeɪʃən/ | محوربندی | چیدمان عناصر نما حول یک یا چند محور |
+| Base, shaft and crown (tripartite division) | /beɪs ʃæft ənd kraʊn/ | پایه، بدنه و تاج | تقسیم سه‌بخشی کلاسیک نما: پایه، بدنه و تاج |
+| Scale | /skeɪl/ | مقیاس | اندازهٔ نسبی عنصر نسبت به انسان یا کل بنا |
+| Neoclassical | /ˌnioʊˈklæsɪkəl/ | نئوکلاسیک | سبکی که از معماری یونان و روم الهام می‌گیرد |
+| Order, form, decoration | /ˈɔrdər fɔrm ˌdɛkərˈeɪʃən/ | نظم، فرم، تزئینات | سه لایهٔ تحلیل نمای کلاسیک |
 
 ## واژه‌نامهٔ کلاس نما — جلسه ۷
 
 | English | تلفظ | معادل رایج | توضیح |
 | --- | --- | --- | --- |
-| Minimalist | /ˈmɪnəməlɪst/ | مینیمال | |
-| Functionalism | /ˈfʌŋkʃənəlɪzəm/ | عملکردگرایی | |
-| Framing | /ˈfreɪmɪŋ/ | قاب بندی | |
-| Linking floors | /ˈlɪŋkɪŋ flɔrz/ | اتصال طبقات | |
-| Facade slit / Cut | /fəˈsɑd slɪt/ | شکاف در نما | |
-| Horizontal planes / bands | /ˌhɔrəˈzɑntəl pleɪnz/ | صفحات افقی | |
-| Vertical fins / planes | /ˈvɜrtɪkəl fɪnz/ | صفحات عمودی | |
-| Element-led design | /ˈɛləmənt lɛd dɪˈzaɪn/ | المان محور | |
-| Massing / Volumetric design | /ˈmæsɪŋ/ | حجم سازی | |
-| Double-skin facade | /ˈdʌbəl skɪn fəˈsɑd/ | دو پوسته | |
-| Kinetic facade | /kəˈnɛtɪk fəˈsɑd/ | متحرک | |
-| Random pattern | /ˈrændəm ˈpætərn/ | رندوم | |
-| Concept | /ˈkɑnsɛpt/ | کانسپت | |
-| Exposed (fair-faced) concrete | /ɪkˈspoʊzd kənˈkrit/ | بتن اکسپوز | |
-| Cast in situ | /kæst ɪn ˈsɪtʃuː/ | اجرا در محل | |
-| Fibre cement | /ˈfaɪbər səˈmɛnt/ | فایبر سمنت | |
-| Cellulose fibres | /ˈsɛljəˌloʊs ˈfaɪbərz/ | الیاف سلولزی | |
-| Silica | /ˈsɪləkə/ | سیلیس | |
-| Aquapanel (cement board) | /ˈækwəˌpænl/ | آکوآپنل | |
-| Expanded perlite | /ɪkˈspændəd ˈpɜrlaɪt/ | پرلیت منبسط | |
-| Bending radius | /ˈbɛndɪŋ ˈreɪdiəs/ | شعاع خم | |
-| Pre-drilled | /pri drɪld/ | پیش‌سوراخ | |
-| Flex anchor | /flɛks ˈæŋkər/ | انکر انعطاف‌پذیر | |
-| Gravity anchor | /ˈɡrævəti ˈæŋkər/ | انکر ثقلی | |
-| Elastic sealant | /ɪˈlæstɪk ˈsilənt/ | درزگیر الاستیک | |
-| Anchor clip | /ˈæŋkər klɪp/ | اسکوپ | |
+| Minimalist | /ˈmɪnəməlɪst/ | مینیمال | سبک ساده با حداقل عناصر و تزئین |
+| Functionalism | /ˈfʌŋkʃənəlɪzəm/ | عملکردگرایی | اصلی که می‌گوید فرم از عملکرد پیروی کند |
+| Framing | /ˈfreɪmɪŋ/ | قاب بندی | قاب گرفتن بخشی از نما برای تأکید |
+| Linking floors | /ˈlɪŋkɪŋ flɔrz/ | اتصال طبقات | یکپارچه کردن چند طبقه در یک عنصر نما |
+| Facade slit / Cut | /fəˈsɑd slɪt/ | شکاف در نما | شکاف یا برش عمودی/افقی در حجم نما |
+| Horizontal planes / bands | /ˌhɔrəˈzɑntəl pleɪnz/ | صفحات افقی | نوارها و صفحه‌های افقی که نما را لایه‌بندی می‌کنند |
+| Vertical fins / planes | /ˈvɜrtɪkəl fɪnz/ | صفحات عمودی | تیغه‌های عمودی بیرون‌زده از نما |
+| Element-led design | /ˈɛləmənt lɛd dɪˈzaɪn/ | المان محور | طراحی نما با یک عنصر غالب (مثلاً تیغه یا قاب) |
+| Massing / Volumetric design | /ˈmæsɪŋ/ | حجم سازی | طراحی با پس و پیش کردن حجم‌ها |
+| Double-skin facade | /ˈdʌbəl skɪn fəˈsɑd/ | دو پوسته | نما با دو پوستهٔ شیشه‌ای و فاصلهٔ هوا بینشان |
+| Kinetic facade | /kəˈnɛtɪk fəˈsɑd/ | متحرک | نما با اجزای متحرک که با نور یا باد تغییر می‌کند |
+| Random pattern | /ˈrændəm ˈpætərn/ | رندوم | چیدمان بی‌نظم (و ظاهراً تصادفی) عناصر |
+| Concept | /ˈkɑnsɛpt/ | کانسپت | ایدهٔ اصلی طرح |
+| Exposed (fair-faced) concrete | /ɪkˈspoʊzd kənˈkrit/ | بتن اکسپوز | بتنی که بدون پوشش و با سطح تمیز دیده می‌شود |
+| Cast in situ | /kæst ɪn ˈsɪtʃuː/ | اجرا در محل | در محل پروژه قالب‌بندی و ریخته‌شده |
+| Fibre cement | /ˈfaɪbər səˈmɛnt/ | فایبر سمنت | صفحهٔ سیمانی مسلح به الیاف |
+| Cellulose fibres | /ˈsɛljəˌloʊs ˈfaɪbərz/ | الیاف سلولزی | الیاف گیاهی در فایبر سمنت |
+| Silica | /ˈsɪləkə/ | سیلیس | سیلیس؛ از مواد اصلی سیمان و شیشه |
+| Aquapanel (cement board) | /ˈækwəˌpænl/ | آکوآپنل | نام تجاری تختهٔ سیمانی مقاوم به آب (Knauf) |
+| Expanded perlite | /ɪkˈspændəd ˈpɜrlaɪt/ | پرلیت منبسط | دانهٔ سبک معدنی پف‌کرده برای سبک‌سازی و عایق |
+| Bending radius | /ˈbɛndɪŋ ˈreɪdiəs/ | شعاع خم | کمترین شعاعی که ورق بدون ترک خم می‌شود |
+| Pre-drilled | /pri drɪld/ | پیش‌سوراخ | سوراخ‌کاری‌شده در کارخانه |
+| Flex anchor | /flɛks ˈæŋkər/ | انکر انعطاف‌پذیر | انکری که حرکت جزئی را می‌پذیرد |
+| Gravity anchor | /ˈɡrævəti ˈæŋkər/ | انکر ثقلی | انکری که وزن نماکار را می‌گیرد |
+| Elastic sealant | /ɪˈlæstɪk ˈsilənt/ | درزگیر الاستیک | درزگیری که پس از خشک شدن کشسان می‌ماند |
+| Anchor clip | /ˈæŋkər klɪp/ | اسکوپ | بست فلزی (اسکوپ) که سنگ را به دیوار یا زیرسازی مهار می‌کند |
 
 ## واژه‌نامهٔ کلاس نما — جلسه ۸
 
 | English | تلفظ | معادل رایج | توضیح |
 | --- | --- | --- | --- |
-| Dry-fixed ceramic cladding | /draɪ fɪkst səˈræmɪk ˈklædɪŋ/ | سرامیک خشک | |
-| Full-body tile | /fʊl ˈbɑdi taɪl/ | فول بادی | |
-| Hollow (extruded) ceramic | /ˈhɑloʊ sərˈæmɪk/ | مجوف | |
-| Visible (exposed) fixing | /ˈvɪzəbəl ˈfɪksɪŋ/ | نصب نمایان | |
-| Concealed fixing | /kənˈsild ˈfɪksɪŋ/ | نصب غیرنمایان | |
-| Runner / Rail | /ˈrʌnər/ | رانر | |
-| Angle bracket | /ˈæŋɡəl ˈbrækɪt/ | براکت نبشی | |
-| T-profile | /ti ˈproʊˌfaɪl/ | پروفیل T | |
-| Outrigger / Stand-off | /ˈaʊˌtrɪɡər/ | دستک | |
-| Levelling / Alignment | /ˈlevəlɪŋ/, /əˈlaɪnmənt/ | رگلاژ | |
-| Ventilated cavity | /ˈvɛntəˌleɪtɪd ˈkævəti/ | حفره‌ی هوای تهویه | |
-| Dead load | /dɛd loʊd/ | بار مرده | |
-| Cost estimate | /kɑst ˈɛstəmət/ | برآورد هزینه | |
-| Facade lighting | /fəˈsɑd ˈlaɪtɪŋ/ | نورپردازی نما | |
-| Spot / accent lighting | /spɑt/ | نورپردازی نقطه‌ای | |
-| Linear lighting / grazing | /ˈlɪniər ˈlaɪtɪŋ/ | نورپردازی خطی | |
-| Floodlighting | /ˈflʌdlaɪtɪŋ/ | نورپردازی سطحی گسترده | |
-| Floodlight / Projector | /ˈflʌdˌlaɪt/ | پروژکتور | |
-| Narrow-beam linear projector | /ˈnɛroʊ bim ˈlɪniər prəˈdʒɛktər/ | جت لایت | |
-| Wall washer | /wɔl ˈwɑʃər/ | وال واشر | |
-| LED strip | /lɛd strɪp/ | استریپ لایت / ریسه | |
-| LED neon flex | /lɛd ˈniɑn flɛks/ | نئون فلکس | |
-| In-ground uplight | /ɪn ɡraʊnd ˈʌplaɪt/ | چراغ دفنی | |
-| Wall-mounted luminaire | /wɔːl ˈmaʊntɪd ˌluːmɪˈner/ | چراغ دیوارکوب | |
-| Ingress Protection (IP) rating | /ˈɪnɡres prəˈtekʃn ˈreɪtɪŋ/ | درجه حفاظت IP | |
-| Beam angle | /bim ˈæŋɡəl/ | زاویه تابش | |
-| Green wall / Living wall | /ɡrin wɔl/ | دیوار سبز | |
-| Shop drawing | /ʃɑp ˈdrɔɪŋ/ | شاپ دراوینگ | |
-| Interim payment statement | /ˈɪntərəm ˈpeɪmənt ˈsteɪtmənt/ | صورت‌وضعیت | |
-| Estimate | /ˈɛstəmət/ | برآورد | |
-| Substructure framing | /ˈsʌbstrʌktʃər ˈfreɪmɪŋ/ | شاسی‌کشی | |
-| Flashing | /ˈflæʃɪŋ/ | فلاشینگ | |
-| Material waste | /məˈtɪriəl weɪst/ | پرت مصالح | |
-| Deductions | /dɪˈdʌkʃənz/ | کسورات | |
-| Scope of work | /skoʊp ʌv wɜrk/ | محدوده‌ی کار | |
-| Variation / Change order | /ˌvɛriˈeɪʃən/ | تغییرات (دستورکار تغییر) | |
-| Contract sum | /ˈkɑnˌtrækt sʌm/ | مبلغ قرارداد | |
-| Contractor | /ˈkɑnˌtræktər/ | پیمانکار | |
-| Client / Employer | /ˈklaɪənt/ | کارفرما | |
-| Supervisor | /ˈsupərˌvaɪzər/ | ناظر | |
-| Documentation | /ˌdɑkjəmɛnˈteɪʃən/ | مستندات | |
-| Unit rate | /ˈjunət reɪt/ | بهای واحد | |
-| Tolerance | /ˈtɑlərəns/ | تلرانس | |
-| Meeting minutes | /ˈmitɪŋ ˈmɪnəts/ | صورت‌جلسه | |
-| Technical specification | /ˈtɛknɪkəl ˌspɛsɪfɪˈkeɪʃən/ | مشخصات فنی | |
-| Advance payment | /ədˈvæns ˈpeɪmənt/ | پیش‌پرداخت | |
+| Dry-fixed ceramic cladding | /draɪ fɪkst səˈræmɪk ˈklædɪŋ/ | سرامیک خشک | سرامیک نما با بست مکانیکی روی زیرسازی |
+| Full-body tile | /fʊl ˈbɑdi taɪl/ | فول بادی | کاشی که رنگ و جنسش در تمام ضخامت یکی است |
+| Hollow (extruded) ceramic | /ˈhɑloʊ sərˈæmɪk/ | مجوف | سرامیک اکسترود با حفره‌های داخلی؛ سبک‌تر |
+| Visible (exposed) fixing | /ˈvɪzəbəl ˈfɪksɪŋ/ | نصب نمایان | بستی که از روی نما دیده می‌شود |
+| Concealed fixing | /kənˈsild ˈfɪksɪŋ/ | نصب غیرنمایان | بستی که پشت نماکار پنهان است |
+| Runner / Rail | /ˈrʌnər/ | رانر | پروفیل افقی که بست‌ها روی آن حرکت و تنظیم می‌شوند |
+| Angle bracket | /ˈæŋɡəl ˈbrækɪt/ | براکت نبشی | براکت L شکل اتصال زیرسازی به دیوار |
+| T-profile | /ti ˈproʊˌfaɪl/ | پروفیل T | پروفیل با مقطع T |
+| Outrigger / Stand-off | /ˈaʊˌtrɪɡər/ | دستک | بازوی بیرون‌زده که نماکار را با فاصله از دیوار نگه می‌دارد |
+| Levelling / Alignment | /ˈlevəlɪŋ/, /əˈlaɪnmənt/ | رگلاژ | تنظیم تراز و هم‌راستایی زیرسازی و پنل‌ها |
+| Ventilated cavity | /ˈvɛntəˌleɪtɪd ˈkævəti/ | حفره‌ی هوای تهویه | فاصلهٔ هوای پشت نما که تهویه می‌شود |
+| Dead load | /dɛd loʊd/ | بار مرده | وزن ثابت خود سازه و نماکار |
+| Cost estimate | /kɑst ˈɛstəmət/ | برآورد هزینه | پیش‌بینی هزینهٔ اجرای کار |
+| Facade lighting | /fəˈsɑd ˈlaɪtɪŋ/ | نورپردازی نما | نورپردازی نمای ساختمان |
+| Spot / accent lighting | /spɑt/ | نورپردازی نقطه‌ای | نور متمرکز برای برجسته کردن یک عنصر |
+| Linear lighting / grazing | /ˈlɪniər ˈlaɪtɪŋ/ | نورپردازی خطی | نور خطی کنار سطح که بافت را برجسته می‌کند |
+| Floodlighting | /ˈflʌdlaɪtɪŋ/ | نورپردازی سطحی گسترده | نور یکنواخت روی سطح بزرگ |
+| Floodlight / Projector | /ˈflʌdˌlaɪt/ | پروژکتور | چراغ پرنور برای روشن کردن سطح وسیع |
+| Narrow-beam linear projector | /ˈnɛroʊ bim ˈlɪniər prəˈdʒɛktər/ | جت لایت | چراغ خطی با زاویهٔ تابش بسیار باریک |
+| Wall washer | /wɔl ˈwɑʃər/ | وال واشر | چراغی که سطح دیوار را یکنواخت روشن می‌کند |
+| LED strip | /lɛd strɪp/ | استریپ لایت / ریسه | نوار LED انعطاف‌پذیر |
+| LED neon flex | /lɛd ˈniɑn flɛks/ | نئون فلکس | شیلنگ LED با نور یکنواخت شبیه نئون |
+| In-ground uplight | /ɪn ɡraʊnd ˈʌplaɪt/ | چراغ دفنی | چراغی که در کف کار می‌شود و رو به بالا می‌تاباند |
+| Wall-mounted luminaire | /wɔːl ˈmaʊntɪd ˌluːmɪˈner/ | چراغ دیوارکوب | چراغ نصب‌شده روی دیوار |
+| Ingress Protection (IP) rating | /ˈɪnɡres prəˈtekʃn ˈreɪtɪŋ/ | درجه حفاظت IP | کد مقاومت در برابر گرد و آب (مثلاً IP65 برای فضای باز) |
+| Beam angle | /bim ˈæŋɡəl/ | زاویه تابش | زاویهٔ پخش نور چراغ |
+| Green wall / Living wall | /ɡrin wɔl/ | دیوار سبز | دیوار پوشیده از گیاه زنده |
+| Shop drawing | /ʃɑp ˈdrɔɪŋ/ | شاپ دراوینگ | نقشهٔ اجرایی دقیق که پیمانکار برای ساخت تهیه می‌کند |
+| Interim payment statement | /ˈɪntərəm ˈpeɪmənt ˈsteɪtmənt/ | صورت‌وضعیت | صورت مالی دوره‌ای کار انجام‌شده برای دریافت پول |
+| Estimate | /ˈɛstəmət/ | برآورد | برآورد مقدار یا هزینه |
+| Substructure framing | /ˈsʌbstrʌktʃər ˈfreɪmɪŋ/ | شاسی‌کشی | اجرای اسکلت فلزی زیر نما |
+| Flashing | /ˈflæʃɪŋ/ | فلاشینگ | ورق فلزی آب‌بندی در محل اتصال‌ها و لبه‌ها |
+| Material waste | /məˈtɪriəl weɪst/ | پرت مصالح | مصالحی که در برش و اجرا دور ریخته می‌شود |
+| Deductions | /dɪˈdʌkʃənz/ | کسورات | مبالغی که از صورت‌وضعیت کم می‌شود (بیمه، مالیات، سپرده) |
+| Scope of work | /skoʊp ʌv wɜrk/ | محدوده‌ی کار | شرح دقیق کارهایی که در قرارداد آمده |
+| Variation / Change order | /ˌvɛriˈeɪʃən/ | تغییرات (دستورکار تغییر) | دستور کتبی تغییر در کار نسبت به قرارداد |
+| Contract sum | /ˈkɑnˌtrækt sʌm/ | مبلغ قرارداد | مبلغ کل توافق‌شده در قرارداد |
+| Contractor | /ˈkɑnˌtræktər/ | پیمانکار | کسی که اجرای کار را برعهده دارد |
+| Client / Employer | /ˈklaɪənt/ | کارفرما | صاحب پروژه که هزینه را می‌پردازد |
+| Supervisor | /ˈsupərˌvaɪzər/ | ناظر | مهندس ناظر بر کیفیت اجرا |
+| Documentation | /ˌdɑkjəmɛnˈteɪʃən/ | مستندات | مدارک و سوابق پروژه |
+| Unit rate | /ˈjunət reɪt/ | بهای واحد | قیمت هر واحد کار، مثلاً هر مترمربع |
+| Tolerance | /ˈtɑlərəns/ | تلرانس | حد مجاز خطا در اندازه یا اجرا |
+| Meeting minutes | /ˈmitɪŋ ˈmɪnəts/ | صورت‌جلسه | گزارش رسمی تصمیم‌های یک جلسه |
+| Technical specification | /ˈtɛknɪkəl ˌspɛsɪfɪˈkeɪʃən/ | مشخصات فنی | سند مشخصات فنی مصالح و روش اجرا |
+| Advance payment | /ədˈvæns ˈpeɪmənt/ | پیش‌پرداخت | مبلغی که پیش از شروع کار پرداخت می‌شود |
