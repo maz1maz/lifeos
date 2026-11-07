@@ -1274,6 +1274,7 @@ many = زیاد (قابل شمارش، جمع) — much = زیاد (غیرقاب
 | bill {Br.} = check {Am.} | /bɪl/ | صورت‌حساب | Could we have the bill, please? |
 | Certainly. | /ˈsɜːrtnli/ | حتماً، مطمئناً | "Can I have some water?" "Certainly." |
 | Sure. | /ʃʊər/ | حتماً، باشه | "Another coffee?" "Sure." |
+| later (adv.) | /ˈleɪtər/ | بعداً | I'll pay the bill later. / See you later! |
 
 **another / some more:** another با اسم قابل‌شمارش مفرد: "Can I have another fork?" — some more با اسم غیرقابل‌شمارش (یا جمع): "Can I have some more water?"
 
