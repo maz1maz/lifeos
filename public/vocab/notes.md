@@ -4,7 +4,7 @@ Sep 26, 2026 · @Hamid reza
 
 ## مقدمه
 
-این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۲۸، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
+این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۲۹، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
 
 ساختار سند:
 
@@ -1306,3 +1306,81 @@ shall برای بیان پیشنهاد، دعوت، درخواست توصیه، 
 | watch television | /wɒtʃ ˈtelɪvɪʒn/ | تلویزیون تماشا کردن | I watch television in the evening. |
 
 **نکته آیلتس:** در Speaking Part 1 (موضوع TV) از این ترکیب‌ها استفاده کن: "I don't watch much television, but I love a good television series."
+
+## جلسه ۲۹: اتوبوس و قطار، معانی last و collocation برنامه
+
+### با اتوبوس — Voc 29
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| get around (v.) = go or travel to different places | /ɡet əˈraʊnd/ | رفت‌وآمد کردن، جابه‌جا شدن | It's easy to get around the city on buses. |
+| stop to stop | /stɒp tə stɒp/ | از یک ایستگاه به ایستگاه بعدی | The bus goes stop to stop. |
+| Excuse me. | /ɪkˈskjuːz miː/ | ببخشید | Excuse me, does this bus go to the station? |
+| get (v.) | /ɡet/ | سوار شدن | Which bus should I get? |
+| get on ≠ get off (bus, train, plane) | /ɡet ɒn/, /ɡet ɒf/ | سوار شدن ≠ پیاده شدن (اتوبوس، قطار، هواپیما) | Get off at the next stop. |
+| get in ≠ get out (car, taxi) | /ɡet ɪn/, /ɡet aʊt/ | سوار شدن ≠ پیاده شدن (ماشین، تاکسی) | She got in the taxi. |
+| near (prep.) | /nɪər/ | نزدیک | Is there a bus stop near here? |
+| outside (prep./adv.) | /ˌaʊtˈsaɪd/ | بیرون، جلوی | The bus stops outside the hotel. |
+| run (v.) = take people from one place to another at fixed times | /rʌn/ | (اتوبوس/قطار) طبق برنامه حرکت کردن، کار کردن | The buses run every ten minutes. |
+| stop (n.) | /stɒp/ | ایستگاه | Where is the bus stop? |
+| the last stop | /lɑːst stɒp/ | آخرین ایستگاه | Get off at the last stop. |
+| the next stop | /nekst stɒp/ | ایستگاه بعدی | The next stop is Central Square. |
+| take (v.) | /teɪk/ | طول کشیدن | The journey takes twenty minutes. |
+
+**get on / get in:** برای وسیلهٔ بزرگ که در آن راه می‌روی یا می‌ایستی (bus, train, plane) **get on / off**؛ برای ماشین و تاکسی **get in / out**.
+
+### با قطار — Voc 30
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| carriage (n.) — part of a train where passengers sit | /ˈkærɪdʒ/ | واگن | Our seats are in carriage C. |
+| seat (n.) | /siːt/ | صندلی، جا | Is this seat free? |
+| sit (v.) | /sɪt/ | نشستن | Can I sit here? |
+| wait for a train | /weɪt fər ə treɪn/ | منتظر قطار بودن | We waited for the train for an hour. |
+| miss a train | /mɪs ə treɪn/ | از قطار جا ماندن | Hurry, or we'll miss the train! |
+| catch a train | /kætʃ ə treɪn/ | به قطار رسیدن | I caught the 8 o'clock train. |
+| journey (n.) — a long distance | /ˈdʒɜːrni/ | سفر (طولانی، از جایی به جای دیگر) | The journey to Mashhad takes ten hours. |
+| trip (n.) — visit a place for pleasure | /trɪp/ | گردش، سفر کوتاه | We went on a trip to the mountains. |
+| voyage (n.) — a long journey in a ship or spacecraft | /ˈvɔɪɪdʒ/ | سفر دریایی یا فضایی | The voyage across the ocean took weeks. |
+| fare (n.) | /feər/ | کرایه | The bus fare is cheap. |
+| fast train ≠ slow train | /fɑːst treɪn/ | قطار سریع‌السیر ≠ قطار کُند | Take the fast train; it doesn't stop everywhere. |
+| railway station | /ˈreɪlweɪ ˈsteɪʃn/ | ایستگاه قطار | Meet me at the railway station. |
+| ticket (n.) | /ˈtɪkɪt/ | بلیط | I need a ticket to Tabriz. |
+| passenger (n.) | /ˈpæsɪndʒər/ | مسافر | The train was full of passengers. |
+| ticket office | /ˈtɪkɪt ˈɒfɪs/ | باجهٔ بلیط | Buy your ticket at the ticket office. |
+| single ticket {Br.} = one-way {Am.} | /ˈsɪŋɡl ˈtɪkɪt/ | بلیط یک‌طرفه | A single ticket to Isfahan, please. |
+| return ticket {Br.} = round-trip {Am.} | /rɪˈtɜːrn ˈtɪkɪt/ | بلیط دوطرفه (رفت‌وبرگشت) | A return ticket is cheaper. |
+| direct ≠ indirect (adj.) — from one place to another | /dəˈrekt/ | مستقیم ≠ غیرمستقیم | Is there a direct train to Shiraz? |
+| platform (n.) | /ˈplætfɔːrm/ | سکو | The train leaves from platform 3. |
+| get to = arrive ≠ leave | /ɡet tuː/, /əˈraɪv/ | رسیدن ≠ ترک کردن، حرکت کردن | What time does the train get to Tehran? |
+| book (v.) = reserve | /bʊk/ | رزرو کردن | Book your seats online. |
+| in advance | /ɪn ədˈvɑːns/ | از پیش، زودتر | Book your tickets in advance. |
+
+**arrive at / in:** arrive **at** برای مکان‌های کوچک‌تر (school, work, the airport) و arrive **in** برای شهر و کشور (arrive in Tehran, arrive in Iran)؛ arrive **home** بدون حرف اضافه.
+
+### سه معنی last
+
+| کاربرد | معنی | مثال | معنی مثال |
+| --- | --- | --- | --- |
+| ۱) last (adj.) = final ≠ first | آخرین | The last train leaves at midnight. | آخرین قطار نیمه‌شب حرکت می‌کند. |
+| ۲) last (adv.) = most recently — most recent (adj.) | اخیراً، به‌تازگی — تازه‌ترین | When did you last see him? | آخرین بار کی او را دیدی؟ |
+| ۳) last (v.) = continue | طول کشیدن، ادامه داشتن | My class lasts two hours. | کلاسم دو ساعت طول می‌کشد. |
+
+**نکته آیلتس:** journey / trip / voyage را با هم قاطی نکن: journey برای مسیر رفت (اغلب طولانی)، trip برای کل سفر تفریحی (رفت، اقامت و برگشت)، voyage فقط برای کشتی و فضاپیما. مثال Speaking: "The journey was long, but the trip was amazing."
+
+### Collocation: programme (برنامه)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| interrupt a programme | /ˌɪntəˈrʌpt/ | قطع کردن یک برنامه | They interrupted the programme for the news. |
+| record a programme | /rɪˈkɔːrd/ | ضبط کردن یک برنامه | I recorded the programme to watch later. |
+| broadcast / show a programme | /ˈbrɔːdkɑːst/ | پخش کردن / نشان دادن یک برنامه | The programme is broadcast every Friday. |
+| programmes attract viewers | /əˈtrækt ˈvjuːərz/ | برنامه‌ها بیننده جذب می‌کنند | Cooking programmes attract a lot of viewers. |
+| your favourite programme | /ˈfeɪvərɪt/ | برنامهٔ مورد علاقه‌ات | What's your favourite programme? |
+| the following programme | /ˈfɒləʊɪŋ/ | برنامهٔ بعدی | The following programme is not suitable for children. |
+| have a large following | /ə lɑːrdʒ ˈfɒləʊɪŋ/ | طرفداران زیادی داشتن | This television programme has a large following. |
+| a live programme | /laɪv/ | برنامهٔ زنده | It's a live programme, so anything can happen. |
+| a violent programme | /ˈvaɪələnt/ | برنامهٔ خشن | Children shouldn't watch violent programmes. |
+| programme {Br.} = program {Am.} | /ˈproʊɡræm/ | برنامه | a TV programme / a TV program |
+
+**following:** به‌عنوان صفت یعنی «بعدی، زیر» (the following programme)، و به‌عنوان اسم یعنی «طرفداران» (a large following).
