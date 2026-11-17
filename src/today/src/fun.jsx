@@ -62,12 +62,19 @@ function CumChart({ days, hasBet, mode = 'all' }) {
       <circle cx={x(days.length - 1)} cy={y(last[main])} r="4.5" className={`fu-dot ${main}`} style={{ fill: last[main] >= 0 ? '#34d399' : '#f87171' }} />
       {h ? <g><line x1={x(hi)} x2={x(hi)} y1={T} y2={H - B} className="fu-cross" /><circle cx={x(hi)} cy={y(h[main])} r="4" className={`fu-dot ${main}`} /></g> : null}
     </svg>
+    {/* ▼ withdrawal / ▲ deposit days on the bet line (HTML, so the stretched SVG does not squash them) — money moved, not won or lost */}
+    {mode !== 'poker' ? days.map((d, i) => d.wd || d.dep ? <span key={'m' + i} className="fu-mks" style={{ left: `${(x(i) / W) * 100}%`, top: `${y(d.bet)}px` }}>
+      {d.wd ? <i className="fu-mk wd" title={`برداشت ${usdR(d.wd)}`}>▼</i> : null}
+      {d.dep ? <i className="fu-mk dep" title={`واریز ${usdR(d.dep)}`}>▲</i> : null}
+    </span> : null) : null}
     <div className="fu-ticks">{ticks.map(i => <span key={i} style={{ left: `${(x(i) / W) * 100}%` }} className={i === 0 ? 'first' : i === days.length - 1 ? 'last' : ''}>{jLbl(days[i].date)}</span>)}</div>
     {h ? <div className="fu-tip" style={{ insetInlineStart: `${Math.min(78, Math.max(2, 100 - (x(hi) / W) * 100 - 10))}%` }}>
       <b>{jLbl(h.date)}</b>
       {mode === 'all' ? <span><i className="total" />جمع {signed(h.total)}</span> : null}
       {mode !== 'bet' ? <span><i className="poker" />پوکر {signed(h.poker)}</span> : null}
       {hasBet && mode !== 'poker' ? <span><i className="bet" />بت {signed(h.bet)}</span> : null}
+      {mode !== 'poker' && h.wd ? <span className="fu-tip-wd">▼ برداشت {usdR(h.wd)}</span> : null}
+      {mode !== 'poker' && h.dep ? <span className="fu-tip-dep">▲ واریز {usdR(h.dep)}</span> : null}
     </div> : null}
   </div>;
 }
@@ -169,18 +176,21 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
     const rateOn = makeRateOn(hist, rate);
     const byDate = {};
     poker.forEach(p => { const d = (byDate[p.date] ||= { poker: 0, bet: 0, betUsd: 0, n: 0 }); d.poker += (Number(p.cashOut) || 0) - (Number(p.buyIn) || 0); d.n = (d.n || 0) + 1; });
-    bet.forEach(b => { const d = (byDate[b.date] ||= { poker: 0, bet: 0, betUsd: 0 }); d.betUsd += Number(b.result) || 0; d.bet += (Number(b.result) || 0) * rateOn(b.date, Number(b.usdRate)); });
+    bet.forEach(b => { const d = (byDate[b.date] ||= { poker: 0, bet: 0, betUsd: 0 }); d.betUsd += Number(b.result) || 0; d.dep = (d.dep || 0) + (Number(b.deposit) || 0); d.wd = (d.wd || 0) + (Number(b.withdraw) || 0); d.bet += (Number(b.result) || 0) * rateOn(b.date, Number(b.usdRate)); });
     const betRial = list => list.reduce((s, b) => s + (Number(b.result) || 0) * rateOn(b.date, Number(b.usdRate)), 0);
     const dates = Object.keys(byDate).sort(), inR = dates.filter(d => d >= from && d <= today);
     const net = d => byDate[d].poker + (hasBet ? byDate[d].bet : 0);
     // running sum inside the chosen range, starting from zero at the range start
-    let cp = 0, cb = 0; const days = inR.map(date => { cp += byDate[date].poker; cb += hasBet ? byDate[date].bet : 0; return { date, poker: cp, bet: cb, total: cp + cb }; });
-    if (days.length && range !== 'all' && days[0].date > from) days.unshift({ date: from, poker: 0, bet: 0, total: 0 });
-    if (days.length && days[days.length - 1].date < today) days.push({ ...days[days.length - 1], date: today });
+    let cp = 0, cb = 0; const days = inR.map(date => { cp += byDate[date].poker; cb += hasBet ? byDate[date].bet : 0; return { date, poker: cp, bet: cb, total: cp + cb, dep: byDate[date].dep || 0, wd: byDate[date].wd || 0 }; });
+    if (days.length && range !== 'all' && days[0].date > from) days.unshift({ date: from, poker: 0, bet: 0, total: 0, dep: 0, wd: 0 });
+    if (days.length && days[days.length - 1].date < today) days.push({ ...days[days.length - 1], date: today, dep: 0, wd: 0 });
     const upTo = x => x.date <= today, pokerUp = poker.filter(upTo), betUp = bet.filter(upTo);
     const pokerAll = pokerUp.reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdAll = betUp.reduce((s, b) => s + (Number(b.result) || 0), 0);
     const pR = poker.filter(p => p.date >= from && p.date <= today), bR = bet.filter(b => b.date >= from && b.date <= today);
     const pokerR = pR.reduce((s, p) => s + p.cashOut - p.buyIn, 0), betUsdR = bR.reduce((s, b) => s + (Number(b.result) || 0), 0);
+    // «نقدشده» = withdrawals − deposits in the range: real money that came back from the bet site (not part of P/L)
+    const cashUsdR = bR.reduce((s, b) => s + (Number(b.withdraw) || 0) - (Number(b.deposit) || 0), 0), cashRialR = bR.reduce((s, b) => s + ((Number(b.withdraw) || 0) - (Number(b.deposit) || 0)) * rateOn(b.date, Number(b.usdRate)), 0);
+    const wdUsdR = bR.reduce((s, b) => s + (Number(b.withdraw) || 0), 0), depUsdR = bR.reduce((s, b) => s + (Number(b.deposit) || 0), 0);
     // win/loss streaks over every session up to the picked month's end; separately for poker, bet and both
     const pSeq = pokerUp.map(p => ({ d: p.date, c: p.createdAt || 0, v: p.cashOut - p.buyIn })), bSeq = betUp.map(b => ({ d: b.date, c: 0, v: Number(b.result) || 0 }));
     const order = xs => xs.sort((a, b) => a.d.localeCompare(b.d) || a.c - b.c);
@@ -195,7 +205,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
       inR.forEach(d => { const i = ix[jKey(d)], x = byDate[d]; if (i != null) { const r = list[i]; r.net += net(d); r.poker += x.poker; r.bet += hasBet ? x.bet : 0; r.betUsd += x.betUsd; r.sessions += x.n || 0; } });
       bars = list.slice(-24);
     }
-    return { stByMode, days, hasBet, rate, from, pokerAll, betUsdAll, pokerR, betUsdR, totalAll: pokerAll + (hasBet ? betRial(betUp) : 0), totalR: pokerR + (hasBet ? betRial(bR) : 0), betRialAll: betRial(betUp), betRialR: betRial(bR), histOk: hist.length > 0, winsR: rUnits.filter(v => v > 0).length, lossesR: rUnits.filter(v => v < 0).length, countR: rUnits.length, count: poker.length + bet.length, bars, st, pR };
+    return { stByMode, days, hasBet, rate, from, pokerAll, betUsdAll, pokerR, betUsdR, totalAll: pokerAll + (hasBet ? betRial(betUp) : 0), totalR: pokerR + (hasBet ? betRial(bR) : 0), betRialAll: betRial(betUp), betRialR: betRial(bR), histOk: hist.length > 0, winsR: rUnits.filter(v => v > 0).length, lossesR: rUnits.filter(v => v < 0).length, countR: rUnits.length, count: poker.length + bet.length, bars, st, pR, cashUsdR, cashRialR, wdUsdR, depUsdR };
   }, [poker, bet, usdRate, range, hist, anchor]);
   const [status, setStatus] = useState(null);
   useEffect(() => { api(`/api/fun/status${usdRate ? `?usdRate=${Math.round(usdRate)}` : ''}`).then(setStatus).catch(() => {}); }, [usdRate, poker.length, bet.length]);
@@ -222,6 +232,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
       </> : <>
       <div className={`fu-kpi main ${tone(data.betUsdR)}`}><small>بت · {rLabel}</small><b>{data.hasBet ? bare(data.betRialR) : usdR(data.betUsdR)}</b><em>{data.hasBet ? `(${usdR(data.betUsdR)})` : 'بدون نرخ دلار'}</em></div>
       <div className={`fu-kpi ${tone(data.betUsdAll)}`}><small>{past ? `بت تا آخر ${mName}` : 'بت از ابتدا'}</small><b>{data.hasBet ? bare(data.betRialAll) : usdR(data.betUsdAll)}</b><em>{data.hasBet ? `(${usdR(data.betUsdAll)}) · ` : ''}{faN(bet.filter(x => x.date <= anchor).length)} روز</em></div>
+      {data.wdUsdR || data.depUsdR ? <div className={`fu-kpi cash ${tone(data.cashUsdR)}`} title="برداشت منهای واریز در این بازه (منفی = بیشتر واریز کرده‌ای)؛ جزو سود و زیان نیست"><small>نقدشده · {rLabel}</small><b>{data.hasBet ? signed(data.cashRialR) : `${data.cashUsdR < 0 ? '−' : ''}${usdR(data.cashUsdR)}`}</b><em>{data.hasBet ? `(${data.cashUsdR < 0 ? '−' : ''}${usdR(data.cashUsdR)}) · ` : ''}برداشت {usdR(data.wdUsdR)} · واریز {usdR(data.depUsdR)}</em></div> : null}
       </>}
     </div>
     {mode === 'all' ? <LossLimit status={status} onSave={saveLimit} /> : null}
@@ -233,7 +244,7 @@ export function FunOverview({ poker = [], bet = [], usdRate = 0, monthTo, mode: 
     </div>
     <div className="fu-grid">
       <div className="fu-modebar">{modeProp ? null : <div className="fu-seg">{[['all', 'جمع'], ['poker', 'پوکر'], ['bet', 'بت']].map(([k, l]) => <button type="button" key={k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}</div>}{mode === 'bet' && !data.hasBet ? <small>بدون نرخ دلار، بت به ریال قابل‌نمایش نیست.</small> : null}</div>
-      <div className="fu-panel"><div className="fu-ph"><h3>روند · {rLabel}</h3><div className="fu-legend">{mode === 'all' ? <span><i className="total" />جمع</span> : null}{mode !== 'bet' ? <span><i className="poker" />پوکر</span> : null}{data.hasBet && mode !== 'poker' ? <span><i className="bet" />بت</span> : null}</div></div><CumChart days={data.days} hasBet={data.hasBet} mode={mode} /><p className="fu-how">هر نقطه = جمع سود و زیان از ابتدای بازه تا آن روز (پوکر به {UF()}، بت × نرخ دلار همان روز).</p></div>
+      <div className="fu-panel"><div className="fu-ph"><h3>روند · {rLabel}</h3><div className="fu-legend">{mode === 'all' ? <span><i className="total" />جمع</span> : null}{mode !== 'bet' ? <span><i className="poker" />پوکر</span> : null}{data.hasBet && mode !== 'poker' ? <span><i className="bet" />بت</span> : null}{mode !== 'poker' && data.days.some(d => d.wd) ? <span className="fu-lg-wd">▼ برداشت</span> : null}{mode !== 'poker' && data.days.some(d => d.dep) ? <span className="fu-lg-dep">▲ واریز</span> : null}</div></div><CumChart days={data.days} hasBet={data.hasBet} mode={mode} /><p className="fu-how">هر نقطه = جمع سود و زیان از ابتدای بازه تا آن روز (پوکر به {UF()}، بت × نرخ دلار همان روز).</p></div>
       <div className="fu-panel"><div className="fu-ph"><h3>{range === 'm' || range === 'm2' ? 'خالص هر روز بازی' : 'خالص هر ماه'}{mode === 'all' ? '' : mode === 'poker' ? ' · پوکر' : ' · بت'}</h3><div className="fu-legend">{mode !== 'bet' ? <span><i className="poker" />پوکر</span> : null}{data.hasBet && mode !== 'poker' ? <span><i className="bet" />بت</span> : null}{mode === 'all' ? <span>عدد بالای ستون = جمع روز</span> : null}</div></div><NetBars items={data.bars} mode={mode} hasBet={data.hasBet} /></div>
     </div>
     {mode !== 'bet' ? <Locations poker={data.pR} title={`پوکر بر اساس مکان · ${rLabel}`} /> : null}
