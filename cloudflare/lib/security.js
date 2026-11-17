@@ -1,4 +1,4 @@
-// Security headers on every response (HawkScan DAST findings, 2026-10). HTML also gets a CSP: no third-party
+// Security headers on every response (DAST findings, 2026-10). HTML also gets a CSP: no third-party
 // scripts, plugins, <base> hijacking or framing by other sites. Inline <script> blocks are allowed only by their
 // exact sha256 — computed here from the page being served, so editing an inline script can never be blocked by
 // a stale hash. Inline styles stay allowed (React and the vocab app set style attributes). The browser only calls

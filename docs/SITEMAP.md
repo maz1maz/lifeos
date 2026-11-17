@@ -82,7 +82,7 @@
 - خارج از `npm test`: `vocab-quality-smoke.js` (کیفیت دادهٔ `words.json`).
 
 ## ۵) اسکریپت‌ها و مستندات
-- `scripts/` — build: `prune-stale-bundles.js`، `prune-studio-assets.js` (پنل ملینا)؛ API: `gen-openapi.js` (برای HawkScan)؛ آیلتس: `ielts-check.mjs`، `ielts-convert-bandready.mjs`، `ielts-chart-svg.mjs`، `ielts-pdf.py`، `import-ielts.js`؛ واژگان: `add-ipa.mjs`، `cefr-levels.py`، `repair-vocab-quality.js`، `apply-vocab-fixes.py`؛ دیگر: `gen-statement-template.py`، `get-season-photos.mjs`، `md2html.js`، `serve-docs.js`؛ یک‌بارمصرف قدیمی: `apply-all-improvements.js`، `slim-movies-page.js`، `slim-series-page.js`.
+- `scripts/` — build: `prune-stale-bundles.js`، `prune-studio-assets.js` (پنل ملینا)؛ آیلتس: `ielts-check.mjs`، `ielts-convert-bandready.mjs`، `ielts-chart-svg.mjs`، `ielts-pdf.py`، `import-ielts.js`؛ واژگان: `add-ipa.mjs`، `cefr-levels.py`، `repair-vocab-quality.js`، `apply-vocab-fixes.py`؛ دیگر: `gen-statement-template.py`، `get-season-photos.mjs`، `md2html.js`، `serve-docs.js`؛ یک‌بارمصرف قدیمی: `apply-all-improvements.js`، `slim-movies-page.js`، `slim-series-page.js`.
 - `docs/`: WORK-SUMMARY, LIFEOS-WORKLOG (تاریخچه)، SIDEBAR-TECHNICAL-AUDIT + SIDEBAR-CONTINUATION-AUDIT + TASK-REMINDER-AUDIT (ممیزی‌ها، همه اصلاح‌شده)، IELTS-CONTENT، SERIES-SPEC، SERIES-CODE-COPY، DOCUMENTS-UPLOAD، IPHONE-SHORTCUT، DASTYAR-BENCHMARK، `verify-live.console.js`. منسوخ: DB-VERSION-PATCH (دربارهٔ server.js حذف‌شده).
 - `public/downloads/`: نسخه‌های قابل دانلود صفحهٔ سریال (قدیمی).
 
