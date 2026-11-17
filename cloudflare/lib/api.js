@@ -28,14 +28,14 @@ const MODULE_API = [
   [/^\/api\/football(\/|$)/, 'football'],
   [/^\/api\/movies(\/|$)/, 'watch'],
   [/^\/api\/(media-log|integrations\/(spotify|youtube))(\/|$)/, 'media'],
-  [/^\/api\/(shopping|col\/shopping)(\/|$)/, 'notes'],
+  [/^\/api\/(inbox|shopping|col\/shopping)(\/|$)/, 'notes'], // inbox = the notes page itself (and its convert route)
   [/^\/api\/documents(\/|$)/, 'documents'],
   [/^\/api\/contacts(\/|$)/, 'contacts'],
 ];
 // The assistant panel sends the page it was opened on; this adds that page's own recent rows to the AI context
 // (trimmed: no ids/userIds, no long text or file data, newest 25 rows, ~6k chars). Locked sections give nothing.
 const PAGE_DATA = { finance: ['transactions'], planner: ['tasks'], calendar: ['tasks'], habits: ['habits'], notes: ['inbox'], contacts: ['contacts'], documents: ['documents'], goals: ['goals'], review: ['goals', 'wins'], logbook: ['wins', 'decisions'], travel: ['trips'], reading: ['bookmarks'], projects: ['col:projects'], courses: ['col:courses', 'col:students'], health: ['col:health'], car: ['col:vehicles', 'col:carlogs'], learning: ['col:learning'], journal: ['col:journal'], crm: ['col:customers', 'col:deals'], series: ['movies'], movies: ['movies'] };
-const PAGE_LOCK = { finance: 'finance', projects: 'projects', courses: 'courses', health: 'health', car: 'car', travel: 'travel', learning: 'learning', journal: 'journal', crm: 'crmOn', series: 'watch', movies: 'watch', habits: 'habits', contacts: 'contacts', documents: 'documents' };
+const PAGE_LOCK = { finance: 'finance', projects: 'projects', courses: 'courses', health: 'health', car: 'car', travel: 'travel', learning: 'learning', journal: 'journal', crm: 'crmOn', series: 'watch', movies: 'watch', habits: 'habits', contacts: 'contacts', documents: 'documents', notes: 'notes' };
 // The assistant's always-on overview of every section (compact totals + a few recent rows), so a question about bet,
 // projects, goals… is answerable from any page. Sections locked for this user are left out.
 function lifeOverview(db, user, holdings) {

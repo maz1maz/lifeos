@@ -522,7 +522,7 @@ function HomePage() {
           })}
         </Card>),
         ...(modOn(mods, 'football') ? { football: (<Football />) } : (!modOn(mods, 'market') && !modOn(mods, 'finance')) ? {} : modOn(mods, 'habits') ? { habits: (<HabitsMini />) } : {}),
-        ...(modOn(mods, 'watch') ? { series: (<SeriesCard />) } : modOn(mods, 'notes') ? { notes: (<NotesMini />) } : {}),
+        ...(modOn(mods, 'watch') ? { series: (<SeriesCard />) } : modOn(mods, 'notes') && !LOCKS_CACHE.includes('notes') ? { notes: (<NotesMini />) } : {}),
         focus: (<FocusCard Card={Card} Icon={Timer} />),
         ...(modOn(mods, 'vocab') ? { vocab: (<VocabHomeCard Card={Card} Icon={Languages} />) } : {}),
         ...(modOn(mods, 'finance') ? { bills: (<BillsWeekCard Card={Card} Icon={Receipt} />) } : {}),

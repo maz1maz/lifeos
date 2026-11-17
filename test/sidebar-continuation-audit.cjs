@@ -39,14 +39,7 @@ const between = (s, a, b) => { const i = s.indexOf(a); assert.ok(i >= 0, a); con
   const news = await post('news', { title: 'audit article', summary: 'sample' });
   ok((await call('news/' + news.id, 'PATCH', { saved: true }, 'sb')).status === 404, 'CONTROL: news refuses foreign mutation');
   ok((await call('news/' + news.id, 'PATCH', { saved: true })).data.saved, 'CONTROL: news save persists');
-  const lock = await call('admin/users/b/locks', 'POST', { locked: ['notes'] }, 'sad');
-  ok(lock.status === 200, 'CONTROL: admin can apply notes lock');
-  ok((await call('shopping', 'GET', undefined, 'sb')).status === 403, 'CONTROL: locked notes user is refused shopping API');
-  ok((await call('inbox', 'GET', undefined, 'sb')).status === 200, 'BUG: locked notes user still reads the notes API');
-  ok((await call('inbox', 'POST', { title: 'locked but writable' }, 'sb')).status === 201, 'BUG: locked notes user still writes the notes API');
-  const hijack = await call('me', 'PATCH', { telegramUserId: '123456789' });
-  const db = await makeHelpers(env).read();
-  ok(hijack.status === 200 && db.users.find(x => x.id === 'a').telegramUserId === '123456789' && !db.users.find(x => x.id === 'b').telegramUserId, 'BUG: profile PATCH moves Telegram link from another user without link-code proof');
+  // B10 and B11 are fixed: see test/sidebar-continuation-accept.cjs.
   const football = fs.readFileSync('src/today/src/football.jsx', 'utf8');
   const dateLabel = new Function(between(football, 'const matchDateLabel =', 'const asTeam =') + ';return matchDateLabel;')();
   const kickoff = '2026-10-20T22:00:00Z';
