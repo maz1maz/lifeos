@@ -7,6 +7,9 @@ import './notes.css';
 import { describe } from './palette';
 import { saveRow } from './rowsave';
 
+// notes whose convert request is in flight (B03)
+const CONVERTING = new Set();
+
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } });
   const body = await response.json().catch(() => ({}));
@@ -447,8 +450,11 @@ export function NotesReact({ Nav }) {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const handleConvert = async (note, type) => {
-    try { await api(`/api/inbox/${note.id}/convert`, { method: 'POST', body: JSON.stringify({ type, date: isoToday() }) }); setNotice('یادداشت تبدیل و بایگانی شد.'); setSelectedId(null); load(); }
+    if (CONVERTING.has(note.id)) return; // B03: a double tap must not send a second convert
+    CONVERTING.add(note.id);
+    try { const r = await api(`/api/inbox/${note.id}/convert`, { method: 'POST', body: JSON.stringify({ type, date: isoToday() }) }); setNotice(r && r.already ? 'این یادداشت قبلاً تبدیل شده بود.' : 'یادداشت تبدیل و بایگانی شد.'); setSelectedId(null); load(); }
     catch (error) { setNotice(error.message); }
+    finally { CONVERTING.delete(note.id); }
   };
 
   const filtersOn = Boolean(colorFilter || tagFilter || query.trim());

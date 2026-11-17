@@ -10,7 +10,7 @@
 
   let sel = null;       // job id
   let segs = [];        // سگمنت‌های دریافت‌شده
-  let timer = null;
+  let timer = null, pollFails = 0;
 
   async function api(url, opts) {
     const r = await fetch(url, opts);
@@ -53,7 +53,7 @@
     segs = [];
     $('segs').textContent = '';
     $('result').hidden = false;
-    clearTimeout(timer);
+    clearTimeout(timer); pollFails = 0;
     poll();
     refreshJobs();
   }
@@ -62,7 +62,9 @@
     if (!sel) return;
     const id = sel;
     let j;
-    try { j = await api(`/api/jobs/${id}?after=${segs.length}`); } catch { return; }
+    // B08: a failed status read retries with growing delay (segments already shown are kept); select() clears it
+    try { j = await api(`/api/jobs/${id}?after=${segs.length}`); pollFails = 0; }
+    catch { if (id === sel) { pollFails++; timer = setTimeout(poll, Math.min(15000, 1500 * 2 ** Math.min(pollFails, 4))); } return; }
     if (id !== sel) return;
     segs.push(...j.segments);
     render(j);

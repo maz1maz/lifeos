@@ -151,7 +151,17 @@ function News() {
     catch (x) { setMsg(x.message); }
   };
   const sync = async () => { setBusy('sync'); setMsg(''); try { const r = await api('/api/news/sync', { method: 'POST' }); setMsg(r.added ? `${fa(r.added)} خبر تازه آمد.` : 'خبر تازه‌ای نبود.'); await load(); } catch (e) { setMsg(e.message); } setBusy(''); };
-  const patch = async (x, body) => { setItems(xs => xs.map(y => y.id === x.id ? { ...y, ...body } : y)); await api(`/api/news/${x.id}`, { method: 'PATCH', body: JSON.stringify(body) }).catch(() => load()); };
+  // B04: on failure the list reloads AND the open reader goes back to the saved values, with a message
+  const patch = async (x, body) => {
+    setItems(xs => xs.map(y => y.id === x.id ? { ...y, ...body } : y));
+    try { await api(`/api/news/${x.id}`, { method: 'PATCH', body: JSON.stringify(body) }); }
+    catch (e) {
+      const back = Object.fromEntries(Object.keys(body).map(k => [k, x[k]]));
+      setReading(r => r && r.id === x.id ? { ...r, ...back } : r);
+      setMsg('ذخیره نشد: ' + (e.message || 'خطای شبکه'));
+      load();
+    }
+  };
   const del = async x => { setItems(xs => xs.filter(y => y.id !== x.id)); await api(`/api/news/${x.id}`, { method: 'DELETE' }).catch(() => load()); };
   const ai = async (x, kind) => { setBusy(kind + x.id); try { const r = await api(`/api/news/${x.id}/${kind}`, { method: 'POST' }); setItems(xs => xs.map(y => y.id !== x.id ? y : kind === 'summarize' ? { ...y, aiSummary: r.summary } : { ...y, title: r.title || y.title, summary: r.summary || y.summary })); } catch (e) { setMsg(e.message); } setBusy(''); };
   const addFrom = async (body, done) => {

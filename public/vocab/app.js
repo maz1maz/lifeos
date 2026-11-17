@@ -1816,10 +1816,12 @@ function boot() {
   ]).then(([rows, remote, archMd]) => {
     DECK = rows.map(r => ({ w: r[0], fa: r[1], t: r[2], lv: r[3], p: r[4], d: r[5], e: r[6], s: r[7], z: r[8], ef: r[9], df: r[10] || '', x: r[11] || [], ipa: r[12] || '' }));
     if (archMd) archMerge(archMd);
-    USER = "lifeos";
+    // B02: the browser copy belongs to one account. Without a known owner nothing cached is reused or uploaded.
+    USER = remote && remote.owner ? "lifeos:" + remote.owner : null;
     const o = remote && remote.state;
     const d = DEF();
-    S = o && o.cards ? { ...d, ...o, settings: { ...d.settings, ...(o.settings || {}) }, quiz: { ...d.quiz, ...(o.quiz || {}) } } : load("lifeos");
+    S = o && o.cards ? { ...d, ...o, settings: { ...d.settings, ...(o.settings || {}) }, quiz: { ...d.quiz, ...(o.quiz || {}) } } : USER ? load(USER) : DEF();
+    if (!USER) USER = "lifeos";   // still saves to the server; the cache is only read back when the owner is known
     VIEW = "study"; cur = null; shown = 60; query = ""; FILTER = { topic: "all", lv: "all", starsOnly: false };
     $("#deckSize").textContent = fa(DECK.length);
     renderFilters(); render();
