@@ -48,6 +48,19 @@ async function main() {
   assert.doesNotMatch(html, /پیشرفت مالی نسبت به قرارداد|سپرده حسن انجام کار|سپرده بیمه/);
   const legacy = { ...contract, svRates: { discount: 10, retention: 0, insurance: 0, advance: 0, vat: 0 } };
   assert.equal(statement.svRatesOf(legacy).discountAmount, 100);
+  // Finance transactions → Excel: rows in date order, toman = rial ÷ 10, transfers kept out of income/expense.
+  const fx = await load('src/today/src/financeExport.js');
+  const txs = [
+    { date: '2026-11-02', title: 'حقوق', category: 'درآمد', kind: 'income', account: 'بلو', amount: 50000000 },
+    { date: '2026-11-01', title: 'نان', category: 'خوراک', kind: 'expense', account: 'بلو', amount: 1200000, tags: ['خانه'] },
+    { date: '2026-11-03', title: 'به پس‌انداز', category: 'انتقال', kind: 'expense', account: 'بلو', amount: 9000000 },
+  ];
+  const rows = fx.transactionRows(txs);
+  assert.deepEqual(rows.map(r => r[1]), ['2026-11-01', '2026-11-02', '2026-11-03']);
+  assert.deepEqual(rows[0].slice(2), ['نان', 'خوراک', 'هزینه', 'بلو', 120000, 1200000, 'خانه']);
+  assert.equal(rows[2][4], 'انتقال');
+  const sum = fx.transactionSummary(txs);
+  assert.deepEqual([sum.income, sum.expense, sum.cats], [5000000, 120000, [['خوراک', 120000]]]);
   console.log('statement finance smoke: passed');
 }
 

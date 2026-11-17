@@ -15,7 +15,7 @@
 | `/?page=vocab` `ielts` (هاب یادگیری: `ielts\|vocab\|learning`) | `vocab.jsx` + اپ مستقل `public/vocab/` (iframe)، `ielts*.jsx` (بخش آیلتس پایین) | vocab(+learned, summary, star)، ielts/* |
 | `/?page=upcoming` `discover` (هاب تماشا) | `watchx.jsx` (`UpcomingPage`, `DiscoverPage`) | movies/upcoming, movies/recommendations, movies/from-tmdb, movies/from-tvmaze |
 | `/?page=speech` استودیوی گفتار | `speech.jsx` → سرویس محلی `speech-studio/` (Python، روی سیستم کاربر با `run.bat`؛ صوت از سیستم بیرون نمی‌رود) | API همان سرویس محلی (`/api/jobs/*`)، نه Worker |
-| `/?page=finance` | `finance.jsx` (تب‌ها: تراکنش، حساب، بودجه، بدهی، پورتفو، هشدار، بت/پوکر، واردکردن بانک) | transactions(+import-bank, recategorize), accounts, transfers, budgets, debts, finance, portfolio, investments/tx, investments/alerts, bet, poker |
+| `/?page=finance` | `finance.jsx` (تب‌ها: تراکنش، حساب، بودجه، بدهی، پورتفو، هشدار، بت/پوکر، واردکردن بانک؛ خروجی Excel فهرست تراکنش‌ها در `financeExport.js`، lazy) | transactions(+import-bank, recategorize), accounts, transfers, budgets, debts, finance, portfolio, investments/tx, investments/alerts, bet, poker |
 | `/?page=market` | `market.jsx` | tgju, tgju/history (فقط Worker)، market/stocks |
 | `/?page=crypto` کیف‌پول کریپتو (فقط مدیر) | `crypto.jsx` + `crypto.css` (lazy؛ `ADMIN_ONLY` در main.jsx). قیمت از CoinGecko در مرورگر هر ۵ دقیقه؛ `&chart=<COIN>` = نمودار TradingView (iframe، Binance `<COIN>USDT`؛ BTT→BTTCUSDT، EOS→AUSDT) | col/cryptoWallets, col/cryptoHistory, crypto/alert (۴۰۳ برای غیرمدیر) |
 | `/?page=football` | `football.jsx` | football/remote/free/{leagues,matches,standings} |
@@ -76,7 +76,7 @@
 - `task-reminder-smoke.js`: چرخهٔ تسک/یادآور و ذخیرهٔ ترتیبی — ۲۳.
 - `verify-script-smoke.js`: `docs/verify-live.console.js` (چک سلامت دیپلوی لایو) — ۲۶، نیاز به build.
 - `ui-smoke.js`: باندل React در Chromium (شامل جهت فلش‌های RTL) — ۴۹، نیاز به build.
-- `statement-finance-smoke.js`: محاسبهٔ صورت وضعیت پروژه و مانده‌طلب (`statement.jsx` + `life.jsx`).
+- `statement-finance-smoke.js`: محاسبهٔ صورت وضعیت پروژه و مانده‌طلب (`statement.jsx` + `life.jsx`) و ردیف/خلاصهٔ خروجی Excel مالی (`financeExport.js`).
 - `render-smoke.js`: رندر کامپوننت‌ها با داده (خطای صفحهٔ سیاه) — ۱۲.
 - `sidebar-audit-accept.cjs` (A01–A19، ۵۶) و `sidebar-continuation-accept.cjs` (B01–B13، ۳۴): تست پذیرش دو ممیزی منو (`docs/SIDEBAR-*-AUDIT.md`).
 - خارج از `npm test`: `vocab-quality-smoke.js` (کیفیت دادهٔ `words.json`).
