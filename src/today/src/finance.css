@@ -392,3 +392,8 @@
 .fn-cat-chip.fixed { opacity: .6; padding-left: 12px; }
 .fn-acct-filter { margin-top: -4px; }
 .fn-2.fn-solo { grid-template-columns: 1fr; }
+
+/* transactions: search + Excel export on one row */
+.fn-search-row { display: flex; gap: 8px; align-items: flex-start; }
+.fn-search-row .fn-search { flex: 1; min-width: 0; }
+.fn-xlsx { white-space: nowrap; margin-bottom: 10px; }

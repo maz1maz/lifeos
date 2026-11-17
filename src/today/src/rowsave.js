@@ -45,3 +45,9 @@ export function recoverRowSaves() {
   return recovery;
 }
 export function clearPendingRowSaves() { writePending([]); recovery = undefined; }
+// B13: before signing out, wait (bounded) for queued row saves; returns how many are still unsent.
+export async function flushRowSaves(ms = 6000) {
+  const all = Promise.allSettled([...chains.values(), recoverRowSaves()]);
+  await Promise.race([all, new Promise(r => setTimeout(r, ms))]);
+  return readPending().length;
+}

@@ -141,9 +141,12 @@ function Composer({ editing, onCloseEdit, onSaved, toast }) {
   const [error, setError] = useState('');
   const fileRef = useRef(null);
   const titleRef = useRef(null);
+  // B05: a document saved whose file upload failed; the next «ذخیره» only retries the file instead of creating a copy
+  const pendingRef = useRef(null);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   useEffect(() => {
+    pendingRef.current = null;
     if (!editing) { setForm(emptyForm); setFile(null); setError(''); return; }
     setForm({
       title: editing.title, type: DOC_TYPES.includes(editing.type) ? editing.type : 'سایر',
@@ -166,8 +169,9 @@ function Composer({ editing, onCloseEdit, onSaved, toast }) {
     setBusy(true); setError('');
     try {
       const body = payloadOf(form);
-      let saved;
-      if (editing) saved = await api(`/api/documents/${editing.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+      const targetId = editing?.id || pendingRef.current;
+      let saved, attachError = '';
+      if (targetId) saved = await api(`/api/documents/${targetId}`, { method: 'PATCH', body: JSON.stringify(body) });
       else saved = await api('/api/documents', { method: 'POST', body: JSON.stringify(body) });
       if (file) {
         if (!canAttach(file)) toast('پیوست فعلی فقط تصویر یا PDF تا ۱۲ مگابایت است؛ مدرک بدون فایل ذخیره شد.', false);
@@ -175,11 +179,18 @@ function Composer({ editing, onCloseEdit, onSaved, toast }) {
           try {
             const dataUrl = await readDataUrl(file);
             await api(`/api/documents/${saved.id}/attach`, { method: 'POST', body: JSON.stringify({ file: dataUrl, fileName: file.name }) });
-          } catch (err) { toast(err.message || 'پیوست ذخیره نشد؛ مدرک ثبت شد.', false); }
+          } catch (err) { attachError = err.message || 'خطای شبکه'; }
         }
       }
       const fresh = await api('/api/documents');
       onSaved((fresh.items || []).map(fromApi));
+      if (attachError) {
+        // keep the form and the chosen file; the error stays on screen (a toast would be replaced)
+        if (!editing) pendingRef.current = saved.id;
+        setError(`مدرک ثبت شد ولی فایل آپلود نشد (${attachError}). دوباره «ذخیره» بزن تا فقط فایل فرستاده شود.`);
+        return;
+      }
+      pendingRef.current = null;
       setForm(emptyForm); setFile(null);
       if (fileRef.current) fileRef.current.value = '';
       toast(editing ? 'تغییرات ذخیره شد.' : `«${body.title}» ثبت شد.`);
@@ -237,7 +248,7 @@ function Composer({ editing, onCloseEdit, onSaved, toast }) {
         </button>
         {error && <p className="dm-error">{error}</p>}
         <button type="submit" className="dm-save" disabled={busy}>{busy && <Loader2 size={16} className="spin" />}{busy ? 'در حال ذخیره…' : editing ? 'ذخیرهٔ تغییرات' : 'ذخیره'}</button>
-        {editing ? <button type="button" className="dm-ghost" onClick={onCloseEdit}>انصراف</button> : <button type="button" className="dm-ghost" onClick={() => { setForm(emptyForm); setFile(null); }}>پاک کردن فرم</button>}
+        {editing ? <button type="button" className="dm-ghost" onClick={onCloseEdit}>انصراف</button> : <button type="button" className="dm-ghost" onClick={() => { pendingRef.current = null; setForm(emptyForm); setFile(null); setError(''); }}>پاک کردن فرم</button>}
       </div>
     </form>
   );

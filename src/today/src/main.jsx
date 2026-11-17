@@ -45,7 +45,7 @@ import { InsightsHomeCard } from './insights-card';
 import { CommandPalette, flushOutbox } from './palette';
 import { api, isoToday, fa, faDigits, JALALI_MONTHS, WEEKDAYS, iso, fromIso, jdiv, jmod, jalCal, g2d, d2g, j2d, d2j, toJalali, toGregorian, jalaliMonthLength, addDays, sameDate, weekdayIndex, eventOnDate, eventLabel, seasonAiredCount, seasonTotalCount, seriesHasFresh, nextToWatch, watchLabel, waitingNewSeason, episodesWatchedCount, seriesAiredTotal, SERIES_TABS, seriesInTab, SHOW_STATUS_FA, readDataUrl, jalaliDayLabel } from './main-util';
 import { MsgBar } from './msgbar';
-import { saveRow, recoverRowSaves, clearPendingRowSaves } from './rowsave';
+import { saveRow, recoverRowSaves, clearPendingRowSaves, flushRowSaves } from './rowsave';
 import { VocabPage, VocabHomeCard } from './vocab';
 import { useProjectDue, cardHref, PChip } from './pcards';
 import './life.css';
@@ -522,7 +522,7 @@ function HomePage() {
           })}
         </Card>),
         ...(modOn(mods, 'football') ? { football: (<Football />) } : (!modOn(mods, 'market') && !modOn(mods, 'finance')) ? {} : modOn(mods, 'habits') ? { habits: (<HabitsMini />) } : {}),
-        ...(modOn(mods, 'watch') ? { series: (<SeriesCard />) } : modOn(mods, 'notes') ? { notes: (<NotesMini />) } : {}),
+        ...(modOn(mods, 'watch') ? { series: (<SeriesCard />) } : modOn(mods, 'notes') && !LOCKS_CACHE.includes('notes') ? { notes: (<NotesMini />) } : {}),
         focus: (<FocusCard Card={Card} Icon={Timer} />),
         ...(modOn(mods, 'vocab') ? { vocab: (<VocabHomeCard Card={Card} Icon={Languages} />) } : {}),
         ...(modOn(mods, 'finance') ? { bills: (<BillsWeekCard Card={Card} Icon={Receipt} />) } : {}),
@@ -557,7 +557,8 @@ function RecordsReact({ kind }) {
   useEffect(() => { load(); }, [kind, showArchived]);
   const save = async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { const body = config.create(form); const path = editing ? `${config.endpoint}/${editing.id}` : config.endpoint; await api(path, { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(body) }); event.currentTarget.reset(); setEditing(null); setNotice(editing ? 'ویرایش ذخیره شد.' : 'ثبت شد.'); load(); } catch (error) { setNotice(error.message); } };
   const remove = async item => { if (!window.confirm(`«${item.title || item.name}» حذف شود؟`)) return; try { await api(`${config.endpoint}/${item.id}`, { method: 'DELETE' }); setNotice('حذف شد.'); load(); } catch (error) { setNotice(error.message); } };
-  const convert = async (item, type) => { try { await api(`/api/inbox/${item.id}/convert`, { method: 'POST', body: JSON.stringify({ type, date: isoToday() }) }); setNotice('یادداشت تبدیل و بایگانی شد.'); load(); } catch (error) { setNotice(error.message); } };
+  const convert = async (item, type) => { if (convertingRef.current.has(item.id)) return; convertingRef.current.add(item.id); try { const r = await api(`/api/inbox/${item.id}/convert`, { method: 'POST', body: JSON.stringify({ type, date: isoToday() }) }); setNotice(r && r.already ? 'این یادداشت قبلاً تبدیل شده بود.' : 'یادداشت تبدیل و بایگانی شد.'); load(); } catch (error) { setNotice(error.message); } finally { convertingRef.current.delete(item.id); } };
+  const convertingRef = useRef(new Set()); // B03: no second convert while one is in flight
   const titleValue = item => item.title || item.name || '—';
   return <main className="planner-react records-react" dir="rtl"><TopNav active={kind} /><div className="planner-page"><header><div><p>داده‌های واقعی LifeOS</p><h1>{config.title}</h1></div>{kind === 'notes' && <button className="finance-action" onClick={() => setShowArchived(x => !x)}>{showArchived ? 'فقط فعال‌ها' : 'نمایش بایگانی'}</button>}</header>{notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}<div className="planner-layout"><form className="planner-form" onSubmit={save}><h2>{editing ? 'ویرایش' : 'افزودن'}</h2><input name="title" required placeholder={kind === 'contacts' ? 'نام مخاطب' : 'عنوان'} defaultValue={editing ? titleValue(editing) : ''} key={`title-${editing?.id || 'new'}`} />{kind === 'contacts' && <><div><select name="relationship" defaultValue={editing?.relationship || 'friend'}><option value="family">خانواده</option><option value="friend">دوست</option><option value="work">کاری</option><option value="other">سایر</option></select><input name="phone" placeholder="تلفن" defaultValue={editing?.phone || ''} /></div><input name="email" type="email" placeholder="ایمیل" defaultValue={editing?.email || ''} /><div><JalaliDateInput name="birthday" defaultValue={editing?.birthday || ''} /><JalaliDateInput name="followUpDate" defaultValue={editing?.followUpDate || ''} /></div></>}{kind === 'documents' && <><input name="type" placeholder="نوع سند" defaultValue={editing?.type || ''} /><JalaliDateInput name="expiryDate" defaultValue={editing?.expiryDate || ''} /></>}{kind === 'notes' && <><input name="tags" placeholder="تگ‌ها، با ویرگول جدا" defaultValue={(editing?.tags || []).join(', ')} /><select name="color" defaultValue={editing?.color || 'cyan'}><option value="cyan">آبی</option><option value="violet">بنفش</option><option value="rose">صورتی</option><option value="amber">کهربایی</option><option value="green">سبز</option></select><label><input name="pinned" type="checkbox" defaultChecked={editing?.pinned} /> سنجاق شود</label></>}<textarea name="text" placeholder="توضیحات" defaultValue={editing?.text || editing?.notes || ''} key={`text-${editing?.id || 'new'}`} /><button className="save">{editing ? 'ذخیرهٔ تغییرات' : 'ذخیره'}</button>{editing && <button type="button" className="finance-action" onClick={() => setEditing(null)}>انصراف</button>}</form><section className="planner-list"><h2>فهرست</h2>{items.length ? items.map(item => <article key={item.id}><div><b>{titleValue(item)}</b><small>{kind === 'contacts' ? [item.relationship, item.phone, item.email, item.followUpDate && `پیگیری ${item.followUpDate}`].filter(Boolean).join(' · ') : kind === 'documents' ? [item.type, item.expiryDate && `انقضا ${item.expiryDate}`].filter(Boolean).join(' · ') : [item.noteDate?.slice(0, 10), ...(item.tags || []).map(tag => `#${tag}`)].filter(Boolean).join(' · ')}</small>{(item.text || item.notes) && <p>{item.text || item.notes}</p>}{kind === 'documents' && item.fileUrl && <a href={item.fileUrl} target="_blank" rel="noreferrer">بازکردن پیوست</a>}</div><div className="record-actions"><button className="finance-action" onClick={() => setEditing(item)}>ویرایش</button>{kind === 'notes' && <><button className="finance-action" onClick={() => convert(item, 'task')}>کار</button><button className="finance-action" onClick={() => convert(item, 'reminder')}>یادآور</button></>}<button className="planner-delete" onClick={() => remove(item)} aria-label={`حذف ${titleValue(item)}`}>×</button></div></article>) : <p className="empty">موردی برای نمایش نیست.</p>}</section></div></div></main>;
 }
@@ -754,9 +755,20 @@ function SettingsReact() {
     finally { setTgBackupBusy(false); }
   };
 
+  // B12: optimistic, but a failed save puts the switch back to its confirmed value — unless a newer change of
+  // the same setting was made meanwhile (then that newer request decides).
+  const digestSeq = useRef({});
   const saveDigest = async patch => {
+    const keys = Object.keys(patch), confirmed = digest, mine = {};
+    for (const k of keys) mine[k] = digestSeq.current[k] = (digestSeq.current[k] || 0) + 1;
     setDigest(prev => ({ ...prev, ...patch }));
-    try { await api('/api/me', { method: 'PATCH', body: JSON.stringify(patch) }); } catch (error) { setNotice(error.message); }
+    try {
+      await api('/api/me', { method: 'PATCH', body: JSON.stringify(patch) });
+    } catch (error) {
+      const back = Object.fromEntries(keys.filter(k => digestSeq.current[k] === mine[k]).map(k => [k, confirmed[k]]));
+      setDigest(prev => ({ ...prev, ...back }));
+      setNotice('ذخیره نشد: ' + error.message);
+    }
   };
 
   const sendChat = async () => {
@@ -1820,11 +1832,24 @@ function OfflineBar() {
 setTimeout(() => flushOutbox(), 1500); // captures queued offline in an earlier visit
 
 // Sign out: end the session, then drop this device's cached API data and per-account preferences.
+// Account-private browser data removed on sign-out so the next account on this browser never sees it (B02):
+// IELTS drafts, the language tutor history and the vocabulary cache.
+const PRIVATE_LS = k => /^lifeos-ielts-/.test(k) || k === 'lifeos-vocab-tutor' || /^ielts7000\.v1::/.test(k);
 async function signOut() {
+  // B13: queued saves are sent (or the user agrees to drop them) before anything is cleared, and the server
+  // must confirm the session is revoked; on failure nothing is cleared and the user stays signed in.
+  const unsent = await flushRowSaves();
+  if (unsent && !confirm(`${unsent.toLocaleString('fa-IR')} تغییر هنوز به سرور نرسیده و با خروج از بین می‌رود. باز هم خارج می‌شوی؟`)) return;
+  let ok = false;
+  try { const r = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); ok = r.ok || r.status === 401; } catch {} // 401 = session already gone
+  if (!ok) { alert('خروج انجام نشد (اتصال به سرور برقرار نیست). دوباره امتحان کن.'); return; }
   clearPendingRowSaves();
-  try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
   try { const keys = await caches.keys(); await Promise.all(keys.filter(k => k.endsWith('-data')).map(k => caches.delete(k))); } catch {}
-  try { ['lifeos-modules', 'lifeos-locks', 'lifeos-is-admin', 'lifeos-outbox'].forEach(k => localStorage.removeItem(k)); sessionStorage.clear(); } catch {}
+  try {
+    ['lifeos-modules', 'lifeos-locks', 'lifeos-is-admin', 'lifeos-outbox'].forEach(k => localStorage.removeItem(k));
+    for (const k of Object.keys(localStorage)) if (PRIVATE_LS(k)) localStorage.removeItem(k);
+    sessionStorage.clear();
+  } catch {}
   location.href = '/design/login-page.html';
 }
 

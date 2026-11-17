@@ -23,13 +23,13 @@
   - منو: `NAV_GROUPS` (۶ گروه) + `TopNav` + نوار پایین موبایل `BOTTOM_TABS` در main.jsx. `public/design/*-page.html` فقط ریدایرکت به `/?page=` هستند (به‌جز login-page.html که صفحهٔ واقعی ورود است). قفل PIN = `public/app-lock.js` (در `src/today/index.html` لود می‌شود).
   - مشترک: `public/shared-ui.js` (تم `lifeos-mode`)، `shared-shell.css`، `shared-theme.css`، `assets/css/core.css`، `assets/js/core.js`. آیکون: `lucide-react`. لوگو: `public/assets/img/logo.png` (طلایی).
   - legacy (دست نزن مگر لازم): `public/newtab.html` + `newtab-extension/` (چک لایو و تست‌ها به newtab.html وابسته‌اند).
-- **امنیت (`cloudflare/lib/security.js`):** همهٔ پاسخ‌ها هدر امنیتی می‌گیرند؛ HTML یک CSP که اسکریپت inline را فقط با sha256 همان صفحه اجازه می‌دهد (خودکار حساب می‌شود). پس **هیچ handler inline (`onclick=` و…) ننویس**. مرورگر فقط به open-meteo و CoinGecko مستقیم وصل می‌شود (iframe نمودار: فقط `frame-src https://s.tradingview.com`): سرویس بیرونی تازه‌ای که از فرانت `fetch` شود باید به `connect-src` اضافه شود. اسکن DAST: `stackhawk.yml` + `node scripts/gen-openapi.js` (کلید HawkScan هرگز در ریپو نه).
+- **امنیت (`cloudflare/lib/security.js`):** همهٔ پاسخ‌ها هدر امنیتی می‌گیرند؛ HTML یک CSP که اسکریپت inline را فقط با sha256 همان صفحه اجازه می‌دهد (خودکار حساب می‌شود). پس **هیچ handler inline (`onclick=` و…) ننویس**. مرورگر فقط به open-meteo و CoinGecko مستقیم وصل می‌شود (iframe نمودار: فقط `frame-src https://s.tradingview.com`): سرویس بیرونی تازه‌ای که از فرانت `fetch` شود باید به `connect-src` اضافه شود.
 
 ## دستورات
 ```bash
 npm ci
 npm run build:today      # حتماً قبل از تست؛ بدون build، ui/verify تست‌ها قرمز می‌شوند
-npm test                 # smoke(۴۸۹، روی worker از طریق test/worker-host.js) + worker-smoke(~۳۰۳) + verify-script(۲۶) + ui-smoke(۴۷) + render-smoke(۱۲، رندر کامپوننت‌های React با داده؛ خطای صفحهٔ سیاه را قبل از deploy می‌گیرد) — همه سبز
+npm test                 # smoke(۵۰۰، روی worker از طریق test/worker-host.js) + worker-smoke(۴۹۴) + task-reminder(۲۳) + verify-script(۲۶) + ui-smoke(۴۹) + statement-finance + render-smoke(۱۲، رندر کامپوننت‌های React با داده؛ خطای صفحهٔ سیاه را قبل از deploy می‌گیرد) + پذیرش ممیزی منو (۵۶ + ۳۴) — همه سبز؛ فهرست کامل: docs/SITEMAP.md §۴
                          # تست‌ها Worker را با test/load-worker.js لود می‌کنند (کپی cloudflare/ در پوشهٔ موقت)
 npm start                # Worker واقعی محلی روی :3000 (wrangler dev --local + جدول kv در D1 محلی؛ کلیدها از .dev.vars)
 PORT=3000 DB_PATH=/tmp/db.json node test/worker-host.js   # همان Worker بدون wrangler (D1 جعلی، state در DB_PATH؛ با TLS_CERT/TLS_KEY روی https)
@@ -39,7 +39,7 @@ npm run build:studio     # پنل seyfikhani.ir (ProjectsPage+CoursesPage) → i
 ```
 
 ## قواعد کار
-- هر تغییر API: `cloudflare/lib/api.js` (+ helper در `lib/helpers.js`) + تست در `test/worker-smoke.js` یا `test/smoke.js` → `npm test`. بعد از افزودن مسیر: `node scripts/gen-openapi.js`.
+- هر تغییر API: `cloudflare/lib/api.js` (+ helper در `lib/helpers.js`) + تست در `test/worker-smoke.js` یا `test/smoke.js` → `npm test`.
 - تغییر UI را با مرورگر (Playwright، `test/worker-host.js` + کوکی sid) و اسکرین‌شات هم ببین، نه فقط تست.
 - اسکیل `uiverse` (`.claude/skills/uiverse/`): کامپوننت‌های Uiverse.io (MIT) را از ریپوی `uiverse-io/galaxy` پیدا و به پروژه پورت می‌کند (namespace، توکن تم، RTL، CSP). دکمه/لودر/سوییچ/چک‌باکس تازه → اول این اسکیل.
 - آیلتس: تب `ielts.jsx` (ریدینگ/لیسنینگ/رایتینگ/اسپیکینگ) + `/api/ielts/exams` و `/api/ielts/writing`. بانک ریدینگ (۲۴۲ پسیج تبدیل‌شده از IELTS Atlas، که در ۲۰۲۶-۱۰ حذف شد) در کتابخانهٔ مشترک kv است، نه در ریپو؛ مدیر با «افزودن آزمون» وارد می‌کند. قالب فایل‌ها: `docs/IELTS-CONTENT.md`؛ بررسی قبل از ورود: `node scripts/ielts-check.mjs <پوشه>`.

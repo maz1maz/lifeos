@@ -42,10 +42,12 @@ const matchTime = (item) => {
   if (item.time) return item.time
   const d = item.date ? new Date(item.date) : null
   if (!d || Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tehran' })
 }
+// B01: day and time come from the same instant in Tehran time (the list groups by Tehran day), not the UTC prefix
 const matchDateLabel = (item) => {
-  const raw = String(item.date || '').slice(0, 10)
+  const full = String(item.date || ''), at = full.length > 10 ? new Date(full) : null
+  const raw = at && !Number.isNaN(at.getTime()) ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(at) : full.slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return item.date || '—'
   return new Date(`${raw}T12:00:00`).toLocaleDateString('fa-IR')
 }

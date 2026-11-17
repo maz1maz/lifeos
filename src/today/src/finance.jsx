@@ -368,6 +368,7 @@ function EmptyTx({ hint, onJump }) {
 
 export function FinanceReact({ Nav }) {
   const [month, setMonth] = useState(() => jKeyOf(isoToday()))
+  const [xlsxBusy, setXlsxBusy] = useState(false)
   const [unit, setUnit] = useState(() => { try { return localStorage.getItem('lifeos-fin-unit') || 'rial' } catch { return 'rial' } })
   UNIT = unit
   setFunUnit(unit)
@@ -880,7 +881,15 @@ export function FinanceReact({ Nav }) {
                 <button type="button" className={acctFilter === 'all' ? 'on' : ''} onClick={() => setAcctFilter('all')}>همهٔ حساب‌ها</button>
                 {accounts.filter((a) => !a.archived).map((a) => <button key={a.id} type="button" className={acctFilter === a.name ? 'on' : ''} onClick={() => setAcctFilter(a.name)}>{a.name}</button>)}
               </div> : null}
-              <input className="fn-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در شرح و دسته…" />
+              <div className="fn-search-row">
+                <input className="fn-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در شرح و دسته…" />
+                <button type="button" className="fn-action fn-xlsx" disabled={!shown.length || xlsxBusy} title="همین فهرست (ماه و فیلترهای فعلی) به‌صورت فایل Excel" onClick={async () => {
+                  setXlsxBusy(true)
+                  try { const { exportTransactionsExcel } = await import('./financeExport'); await exportTransactionsExcel(shown, monthFa(month), month) }
+                  catch (e) { setNotice('خروجی Excel ساخته نشد: ' + e.message) }
+                  finally { setXlsxBusy(false) }
+                }}>{xlsxBusy ? '…' : '⬇ خروجی Excel'}</button>
+              </div>
               {shown.length ? shown.map((item) => (
                 <article key={item.id} className="fn-row">
                   <div>

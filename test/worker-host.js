@@ -9,7 +9,7 @@
 //
 // Usage: PORT=3000 DB_PATH=/tmp/db.json node test/worker-host.js   — env vars are passed to the Worker as `env`.
 // TLS_CERT=cert.pem TLS_KEY=key.pem serves https instead (the sid cookie is `Secure`, so a browser or scanner
-// on plain http never sends it back — e.g. the HawkScan run in stackhawk.yml).
+// on plain http never sends it back).
 const fs = require('fs');
 const path = require('path');
 const http = require('http');

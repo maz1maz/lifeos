@@ -198,8 +198,9 @@ def delete(jid: str):
 
 
 def fmt_ts(t, srt=False):
-    ms = int(round((t - int(t)) * 1000))
-    t = int(t)
+    # B09: round the whole time to milliseconds first (1.9996 -> 00:00:02,000, never ",1000")
+    total_ms = int(round(max(0.0, float(t)) * 1000))
+    t, ms = divmod(total_ms, 1000)
     base = f"{t // 3600:02d}:{(t % 3600) // 60:02d}:{t % 60:02d}"
     return f"{base},{ms:03d}" if srt else base
 

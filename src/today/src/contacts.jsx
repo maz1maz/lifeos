@@ -69,14 +69,16 @@ const LOG_TYPES = [
 const PHONE_SPLIT_RE = /[·|,;/]/;
 const splitPhones = phone => String(phone || '').split(PHONE_SPLIT_RE).map(x => x.trim()).filter(Boolean);
 const joinPhones = list => (list || []).map(x => String(x || '').trim()).filter(Boolean).join(' · ');
+// B06: Persian (۰-۹) and Arabic (٠-٩) digits become Latin before cleaning, or a Persian-typed number gets no link
+const latinDigits = s => String(s || '').replace(/[۰-۹]/g, c => '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)).replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c));
 const telHref = phone => {
   const first = splitPhones(phone)[0] || '';
-  const d = first.replace(/[^\d+]/g, '');
+  const d = latinDigits(first).replace(/[^\d+]/g, '');
   return d ? `tel:${d}` : null;
 };
 const smsHref = phone => {
   const first = splitPhones(phone)[0] || '';
-  const d = first.replace(/[^\d+]/g, '');
+  const d = latinDigits(first).replace(/[^\d+]/g, '');
   return d ? `sms:${d}` : null;
 };
 const daysUntil = iso => {
