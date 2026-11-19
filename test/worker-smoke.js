@@ -423,6 +423,51 @@ async function main() {
     check('debt date editable', (await call(`/api/debts/${g.d.id}`, { method: 'PATCH', cookie, body: { date: '2026-08-15' } })).d.date === '2026-08-15'); }
   const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
   check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
+  { // market prices: when TGJU is down, the last good prices are served (marked stale, with their time)
+    const realFetch = globalThis.fetch, realNow = Date.now; let down = false;
+    globalThis.fetch = async (url, init) => { const u = String(url); if (u.includes('call.tgju.org')) { if (down) throw new Error('down'); return new Response(JSON.stringify({ current: { price_dollar_rl: { p: '1,000,000', d: '0', dp: 0 } } }), { headers: { 'content-type': 'application/json' } }); } return realFetch(url, init); };
+    try {
+      const ok1 = await call('/api/tgju', { cookie });
+      down = true; Date.now = () => realNow() + 10 * 60 * 1000; // cache (5 min) has expired
+      const ok2 = await call('/api/tgju', { cookie });
+      check('market prices: a TGJU outage keeps the last good prices (stale + time), no error', ok1.status === 200 && ok2.status === 200 && ok2.d.stale === true && ok2.d.items.price_dollar_rl.p === 1000000 && ok2.d.ts === ok1.d.ts, JSON.stringify([ok1.status, ok2.status, ok2.d]).slice(0, 200));
+    } finally { globalThis.fetch = realFetch; Date.now = realNow; }
+  }
+  { // installments with a varying amount: matched by ±6% and a window around the due date, from any account
+    const loan = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'وام تست', amount: 1000000, type: 'payable' } })).d;
+    const plan = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'قسط تست', amount: 77000, cycle: 'monthly', kind: 'install', nextDate: daysAgo(-2), count: 3, paidCount: 1, debtId: loan.id } })).d;
+    check('installment plan keeps kind, count, paidCount and the linked debt', plan.kind === 'install' && plan.count === 3 && plan.paidCount === 1 && plan.debtId === loan.id, JSON.stringify(plan));
+    const near = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'پرداخت تست قسط', amount: 77500, kind: 'expense', account: 'WB', date: daysAgo(0) } })).d;
+    const subs = async () => (await call('/api/subscriptions', { cookie })).d.items.find(x => x.id === plan.id), debtNow = async () => (await call('/api/debts', { cookie })).d.items.find(x => x.id === loan.id);
+    let s = await subs(), dbt = await debtNow();
+    check('a bank/user expense within ±6% near the due date pays the installment (any account, amount differs a little)', near.installmentId === plan.id && near.instNo === 2 && near.category === 'قسط وام' && s.paidCount === 2 && s.nextDate > daysAgo(-2) && s.paidSum === 77500 && dbt.amount === 1000000 - 77500 && s.debtLeft === dbt.amount, JSON.stringify([near, s.paidCount, s.nextDate, dbt && dbt.amount]));
+    const far = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'خرید', amount: 90000, kind: 'expense', date: daysAgo(0) } })).d;
+    check('an amount outside ±6% is not an installment', !far.installmentId);
+    await call(`/api/transactions/${near.id}`, { method: 'DELETE', cookie });
+    s = await subs(); dbt = await debtNow();
+    check('deleting the paying row undoes it: count, due date and the debt come back', s.paidCount === 1 && s.nextDate === daysAgo(-2) && dbt.amount === 1000000 && !(s.payments || []).length, JSON.stringify([s.paidCount, s.nextDate, dbt && dbt.amount]));
+    // «پرداخت شد» by hand links a bank row that is already there
+    await call(`/api/subscriptions/${plan.id}`, { method: 'DELETE', cookie });
+    const bankRow = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'انتقالی (بانک ملی)', amount: 76800, kind: 'expense', date: daysAgo(1) } })).d;
+    const plan2 = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'قسط دو', amount: 77000, cycle: 'monthly', kind: 'install', nextDate: daysAgo(-1), count: 1 } })).d;
+    const pay = await call(`/api/subscriptions/${plan2.id}/pay`, { method: 'POST', cookie, body: {} });
+    const linked = (await call(`/api/transactions?from=${daysAgo(3)}&to=${daysAgo(-3)}`, { cookie })).d.items.find(x => x.id === bankRow.id);
+    check('«پرداخت شد» on an installment links the bank row already there; the last one finishes the plan', pay.status === 200 && pay.d.linkedTx === bankRow.id && linked.installmentId === plan2.id && pay.d.finished === true && /قسط/.test(pay.d.line), JSON.stringify(pay.d).slice(0, 300));
+    check('a finished plan no longer catches payments', !(await call('/api/transactions', { method: 'POST', cookie, body: { title: 'خرید تست قسط', amount: 77000, kind: 'expense', date: daysAgo(0) } })).d.installmentId);
+  }
+  { // one door for every transaction: cloudflare/lib/ledger.js (recordTx)
+    const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'cloudflare', 'lib');
+    const pushers = fs.readdirSync(dir).filter(f => f.endsWith('.js') && f !== 'ledger.js').filter(f => /transactions\.push\(/.test(fs.readFileSync(path.join(dir, f), 'utf8'))).concat(/transactions\.push\(/.test(fs.readFileSync(path.join(__dirname, '..', 'cloudflare', 'worker.js'), 'utf8')) ? ['worker.js'] : []);
+    check('ledger: no route pushes a transaction itself — everything goes through recordTx', pushers.length === 0, pushers.join(', '));
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+    const db = { users: [{ id: 'L1', autoPassThrough: true }], transactions: [], catRules: [] }, u = db.users[0];
+    const r1 = H.recordTx(db, u, { title: '  نان   تازه ', amount: '12500.6', kind: 'expense' });
+    check('ledger: fills id/user/date/account, integer amount, trims title, guesses the category', r1 && r1.id && r1.userId === 'L1' && r1.amount === 12501 && r1.title === 'نان تازه' && r1.account === 'بدون حساب' && /^\d{4}-\d{2}-\d{2}$/.test(r1.date) && r1.category === 'خوراک' && Array.isArray(r1.tags) && db.transactions.length === 1, JSON.stringify(r1));
+    check('ledger: a non-positive amount is refused (nothing stored)', H.recordTx(db, u, { title: 'x', amount: 0 }) === null && H.recordTx(db, u, { title: 'x', amount: 'abc' }) === null && db.transactions.length === 1);
+    const p1 = H.recordTx(db, u, { title: 'حواله ساتنا (علی)', amount: 10, kind: 'income' }, { autoRules: true }), p2 = H.recordTx(db, u, { title: 'حواله ساتنا (علی)', amount: 10, kind: 'income' }), p3 = H.recordTx(db, u, { title: 'حواله ساتنا (علی)', amount: 10, kind: 'income', passThrough: false }, { autoRules: true });
+    check('ledger: the pass-through rule runs only for user/bank rows (autoRules) and an explicit choice wins', p1.passThrough === true && p1.passBy === 'rule' && !p2.passThrough && !('passThrough' in p3));
+    check('ledger: a given category is kept; the user id string form works', H.recordTx(db, 'L1', { title: 'قسط', amount: 5, category: 'قسط وام' }).category === 'قسط وام');
+  }
   { // «عبوری» (pass-through): out of income/expense, rule preview/apply/undo, bulk edit, note, title guard, matcher
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
     const mkTx = async (o) => (await call('/api/transactions', { method: 'POST', cookie, body: { date: '2031-03-10', account: 'WA', ...o } })).d;
@@ -467,6 +512,7 @@ async function main() {
     const row = { date: '2026-11-17', amount: 1000, kind: 'expense', title: 'x' };
     check('matcher: same-day same-amount row of the OTHER direction is not a duplicate; same kind / transfer is', mt([{ date: '2026-11-17', amount: 1000, kind: 'income' }], row) === false && mt([{ date: '2026-11-17', amount: 1000, kind: 'expense' }], row) === true && mt([{ date: '2026-11-17', amount: 1000, kind: 'transfer' }], row) === true);
     check('category: «خرید اینترنتی» is not a bill; internet bundles / bare «اینترنت» are', H.suggestCategoryKeyword('خرید اینترنتی') == null && H.suggestCategoryKeyword('خرید بسته اینترنت') === 'قبض' && H.suggestCategoryKeyword('اینترنت') === 'قبض');
+    check('pass-through rule: «انتقالی (بانک ملی)» (to the bank itself, e.g. a loan installment) and «قسط/وام» are real spending; an interbank «حواله پایا (بانک X)» still is pass-through', !H.isPassThroughTitle('انتقالی (بانک ملی)') && !H.isPassThroughTitle('پرداخت قسط وام') && H.isPassThroughTitle('حواله پایا (بانک پاسارگاد)') && H.isPassThroughTitle('انتقالی (علی)'));
     check('category rules: «کارمزد»/«انتقال پل»/«حواله ساتنا» titles are generic (never learned)', ['کارمزد', 'انتقال پل', 'حواله ساتنا'].every(k => H.catKeyGeneric(H.catKey(k))));
     const oi = await mkTx({ title: 'خرید اینترنتی', amount: 3300, kind: 'expense', category: 'قبض' });
     await call(`/api/transactions/${oi.id}`, { method: 'PATCH', cookie, body: {} });

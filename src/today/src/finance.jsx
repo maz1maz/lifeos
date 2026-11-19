@@ -7,6 +7,8 @@ import { BillsPanel } from './life';
 import { FunOverview, PfTrend, useUsdHistory, makeRateOn, setFunUnit } from './fun';
 import { XCards, CopyBtn, Spark, xcAuto } from './xcards';
 import { LedgerView, PassThroughTool } from './finance-ledger';
+import { LoanCalc } from './loan';
+import { WhatIfPanel } from './whatif';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -429,7 +431,7 @@ export function FinanceReact({ Nav }) {
   const [alerts, setAlerts] = useState([])
   const [recatPreview, setRecatPreview] = useState(null)
   const [recatBusy, setRecatBusy] = useState(false)
-  const [rates, setRates] = useState({})
+  const [rates, setRates] = useState({}), [ratesAt, setRatesAt] = useState(null), [ratesStale, setRatesStale] = useState(false)
   const [paying, setPaying] = useState(null)
   const [budEdit, setBudEdit] = useState(null)
   const [report, setReport] = useState(null)
@@ -493,7 +495,7 @@ export function FinanceReact({ Nav }) {
     api('/api/tgju').then((d) => {
       const raw = d.items || d.data || {}, out = {}
       for (const [k, v] of Object.entries(raw)) { const n = Number(String(v?.p ?? v?.price ?? '').replace(/[^\d.]/g, '')); if (n) out[k] = n }
-      setRates(out)
+      setRates(out); setRatesAt(d.ts || null); setRatesStale(!!d.stale)
     }).catch(() => {})
   }, [])
 
@@ -965,7 +967,7 @@ export function FinanceReact({ Nav }) {
           </div>
         ) : null}
 
-        {tab === 'bills' ? <div style={{ marginTop: 12 }}><BillsPanel onChanged={load} /></div> : null}
+        {tab === 'bills' ? <div style={{ marginTop: 12, display: 'grid', gap: 12 }}><BillsPanel onChanged={load} /><LoanCalc unitFa={UNIT_FA()} toRial={(v) => (UNIT === 'toman' ? v * 10 : v)} fromRial={conv} /></div> : null}
 
         {tab === 'wealth' ? (
           <>
@@ -1097,10 +1099,11 @@ export function FinanceReact({ Nav }) {
                     <div className="fn-mix-bar" role="img" aria-label={pf.mix.map((m) => `${m.label} ${fa(m.pct)}٪`).join('، ')}>{pf.mix.map((m) => <i key={m.type} className={`t-${m.type}`} style={{ flexGrow: m.value }} title={`${m.label}: ${short(m.value)}`} />)}</div>
                     <ul>{pf.mix.map((m) => <li key={m.type}><i className={`t-${m.type}`} aria-hidden="true" /><span>{m.label}</span><b>{short(m.value)}</b><em>{fa(m.pct)}٪</em></li>)}</ul>
                   </div> : null}
-                  <p className="fn-note">نرخ‌ها از بازار: {rates.price_dollar_rl ? `دلار ${short(rates.price_dollar_rl, false)}` : 'دلار —'}{rates.price_eur ? ` · یورو ${short(rates.price_eur, false)}` : ''}</p>
+                  <p className="fn-note">نرخ‌ها از بازار: {rates.price_dollar_rl ? `دلار ${short(rates.price_dollar_rl, false)}` : 'دلار —'}{rates.price_eur ? ` · یورو ${short(rates.price_eur, false)}` : ''}{ratesAt ? ` · به‌روزرسانی ${new Date(ratesAt).toLocaleString('fa-IR', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}` : ''}{ratesStale ? ' ⚠️ منبع قیمت الان در دسترس نیست؛ آخرین قیمت سالم نشان داده می‌شود.' : ''}</p>
                 </div>
               ) : null}
               {portfolio.items?.length ? <PfTrend snaps={pfSeries} to={pastMonth ? mRange.to : undefined} /> : null}
+              {portfolio.items?.length && !pastMonth && pf.mix.length ? <WhatIfPanel mix={pf.mix} short={short} /> : null}
               {portfolio.items?.length ? <XCards className="fn-xpf" cols={3} items={pf.rows.filter((r) => Number(r.item.quantity) > 0)} getKey={(r) => `${r.item.assetType}-${r.item.symbol}`}
                 surface={(r) => r.item.assetType === 'gold' ? 'gold' : r.item.assetType === 'dollar' ? 'green' : r.item.assetType === 'euro' ? 'blue' : r.item.assetType === 'crypto' ? 'violet' : r.item.assetType === 'stock' ? 'cyan' : 'graphite'}
                 renderBody={(row) => <>

@@ -61,6 +61,20 @@ async function main() {
   assert.equal(rows[2][4], 'انتقال');
   const sum = fx.transactionSummary(txs);
   assert.deepEqual([sum.income, sum.expense, sum.cats], [5000000, 120000, [['خوراک', 120000]]]);
+  // loan calculator: equal installments, whole rial
+  const loan = await load('src/today/src/loan.jsx');
+  const lp = loan.loanPlan(100000000, 24, 12);
+  assert.equal(lp.payment, 9455960); assert.equal(lp.total, lp.payment * 12); assert.equal(lp.interest, lp.total - 100000000);
+  assert.deepEqual(loan.loanPlan(1200, 0, 12), { payment: 100, total: 1200, interest: 0, months: 12 });
+  assert.equal(loan.loanPlan(0, 10, 12), null); assert.equal(loan.loanPlan(1000, 10, 0), null);
+  // «اگر…»: whole rial, totals, presets move the dollar-priced groups together
+  const wi = await load('src/today/src/whatif.jsx');
+  const mix = [{ type: 'stock', label: 'سهام', value: 1000000 }, { type: 'gold', label: 'طلا', value: 500000 }, { type: 'crypto', label: 'رمزارز', value: 333333 }];
+  const sc = wi.whatIfScenario(mix, { gold: 20, crypto: -10 });
+  assert.equal(sc.before, 1833333); assert.equal(sc.rows[1].after, 600000); assert.equal(sc.rows[2].after, 300000); assert.equal(sc.after, 1900000); assert.equal(sc.delta, 66667); assert.equal(sc.pct, 3.6);
+  const dollarUp = Object.fromEntries(wi.WHATIF_PRESETS)['دلار +۲۰٪'];
+  assert.equal(dollarUp.gold, 20); assert.equal(dollarUp.crypto, 20); assert.equal(dollarUp.stock, undefined);
+  assert.equal(wi.whatIfScenario(mix, {}).delta, 0);
   console.log('statement finance smoke: passed');
 }
 
