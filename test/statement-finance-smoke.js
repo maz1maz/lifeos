@@ -61,6 +61,12 @@ async function main() {
   assert.equal(rows[2][4], 'انتقال');
   const sum = fx.transactionSummary(txs);
   assert.deepEqual([sum.income, sum.expense, sum.cats], [5000000, 120000, [['خوراک', 120000]]]);
+  // loan calculator: equal installments, whole rial
+  const loan = await load('src/today/src/loan.jsx');
+  const lp = loan.loanPlan(100000000, 24, 12);
+  assert.equal(lp.payment, 9455960); assert.equal(lp.total, lp.payment * 12); assert.equal(lp.interest, lp.total - 100000000);
+  assert.deepEqual(loan.loanPlan(1200, 0, 12), { payment: 100, total: 1200, interest: 0, months: 12 });
+  assert.equal(loan.loanPlan(0, 10, 12), null); assert.equal(loan.loanPlan(1000, 10, 0), null);
   console.log('statement finance smoke: passed');
 }
 

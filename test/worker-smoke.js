@@ -423,6 +423,28 @@ async function main() {
     check('debt date editable', (await call(`/api/debts/${g.d.id}`, { method: 'PATCH', cookie, body: { date: '2026-08-15' } })).d.date === '2026-08-15'); }
   const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
   check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
+  { // installments with a varying amount: matched by ±6% and a window around the due date, from any account
+    const loan = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'وام تست', amount: 1000000, type: 'payable' } })).d;
+    const plan = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'قسط تست', amount: 77000, cycle: 'monthly', kind: 'install', nextDate: daysAgo(-2), count: 3, paidCount: 1, debtId: loan.id } })).d;
+    check('installment plan keeps kind, count, paidCount and the linked debt', plan.kind === 'install' && plan.count === 3 && plan.paidCount === 1 && plan.debtId === loan.id, JSON.stringify(plan));
+    const near = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'پرداخت تست قسط', amount: 77500, kind: 'expense', account: 'WB', date: daysAgo(0) } })).d;
+    const subs = async () => (await call('/api/subscriptions', { cookie })).d.items.find(x => x.id === plan.id), debtNow = async () => (await call('/api/debts', { cookie })).d.items.find(x => x.id === loan.id);
+    let s = await subs(), dbt = await debtNow();
+    check('a bank/user expense within ±6% near the due date pays the installment (any account, amount differs a little)', near.installmentId === plan.id && near.instNo === 2 && near.category === 'قسط وام' && s.paidCount === 2 && s.nextDate > daysAgo(-2) && s.paidSum === 77500 && dbt.amount === 1000000 - 77500 && s.debtLeft === dbt.amount, JSON.stringify([near, s.paidCount, s.nextDate, dbt && dbt.amount]));
+    const far = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'خرید', amount: 90000, kind: 'expense', date: daysAgo(0) } })).d;
+    check('an amount outside ±6% is not an installment', !far.installmentId);
+    await call(`/api/transactions/${near.id}`, { method: 'DELETE', cookie });
+    s = await subs(); dbt = await debtNow();
+    check('deleting the paying row undoes it: count, due date and the debt come back', s.paidCount === 1 && s.nextDate === daysAgo(-2) && dbt.amount === 1000000 && !(s.payments || []).length, JSON.stringify([s.paidCount, s.nextDate, dbt && dbt.amount]));
+    // «پرداخت شد» by hand links a bank row that is already there
+    await call(`/api/subscriptions/${plan.id}`, { method: 'DELETE', cookie });
+    const bankRow = (await call('/api/transactions', { method: 'POST', cookie, body: { title: 'انتقالی (بانک ملی)', amount: 76800, kind: 'expense', date: daysAgo(1) } })).d;
+    const plan2 = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'قسط دو', amount: 77000, cycle: 'monthly', kind: 'install', nextDate: daysAgo(-1), count: 1 } })).d;
+    const pay = await call(`/api/subscriptions/${plan2.id}/pay`, { method: 'POST', cookie, body: {} });
+    const linked = (await call(`/api/transactions?from=${daysAgo(3)}&to=${daysAgo(-3)}`, { cookie })).d.items.find(x => x.id === bankRow.id);
+    check('«پرداخت شد» on an installment links the bank row already there; the last one finishes the plan', pay.status === 200 && pay.d.linkedTx === bankRow.id && linked.installmentId === plan2.id && pay.d.finished === true && /قسط/.test(pay.d.line), JSON.stringify(pay.d).slice(0, 300));
+    check('a finished plan no longer catches payments', !(await call('/api/transactions', { method: 'POST', cookie, body: { title: 'خرید تست قسط', amount: 77000, kind: 'expense', date: daysAgo(0) } })).d.installmentId);
+  }
   { // one door for every transaction: cloudflare/lib/ledger.js (recordTx)
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'cloudflare', 'lib');
     const pushers = fs.readdirSync(dir).filter(f => f.endsWith('.js') && f !== 'ledger.js').filter(f => /transactions\.push\(/.test(fs.readFileSync(path.join(dir, f), 'utf8'))).concat(/transactions\.push\(/.test(fs.readFileSync(path.join(__dirname, '..', 'cloudflare', 'worker.js'), 'utf8')) ? ['worker.js'] : []);

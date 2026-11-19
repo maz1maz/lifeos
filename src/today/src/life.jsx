@@ -1219,12 +1219,18 @@ export function FocusPage({ Nav }) {
 /* ───────────────────────── Bills & subscriptions (finance tab) ───────────────────────── */
 const CYC = [['monthly', 'ماهانه'], ['yearly', 'سالانه'], ['weekly', 'هفتگی']];
 export function BillsPanel({ onChanged }) {
-  const [items, setItems] = useState(null), [edit, setEdit] = useState(null), [msg, setMsg] = useState('');
+  const [items, setItems] = useState(null), [edit, setEdit] = useState(null), [msg, setMsg] = useState(''), [loans, setLoans] = useState([]);
   const load = () => api('/api/subscriptions').then(d => setItems(d.items || [])).catch(() => setItems([]));
+  useEffect(() => { api('/api/debts').then(d => setLoans((d.items || []).filter(x => x.type === 'payable' && (x.currency || 'IRR') === 'IRR'))).catch(() => {}); }, []);
   useEffect(() => { load(); }, []);
-  const fields = [{ k: 'name', l: 'نام', req: true, ph: 'قبض برق، اینترنت، نتفلیکس…' }, { k: 'kind', l: 'نوع', t: 'sel', o: [['bill', '🧾 قبض'], ['sub', '🔁 اشتراک'], ['install', '🏦 قسط'], ['other', '• سایر']], def: 'bill', half: true }, { k: 'cycle', l: 'دوره', t: 'sel', o: CYC, def: 'monthly', half: true }, { k: 'amount', l: 'مبلغ تقریبی (ریال)', t: 'money', req: true, half: true }, { k: 'nextDate', l: 'موعد بعدی', t: 'date', req: true, half: true }, { k: 'note', l: 'یادداشت', ph: 'شناسهٔ قبض، حساب…' }];
+  const fields = [{ k: 'name', l: 'نام', req: true, ph: 'قبض برق، اینترنت، نتفلیکس…' }, { k: 'kind', l: 'نوع', t: 'sel', o: [['bill', '🧾 قبض'], ['sub', '🔁 اشتراک'], ['install', '🏦 قسط'], ['other', '• سایر']], def: 'bill', half: true }, { k: 'cycle', l: 'دوره', t: 'sel', o: CYC, def: 'monthly', half: true }, { k: 'amount', l: 'مبلغ تقریبی (ریال)', t: 'money', req: true, half: true }, { k: 'nextDate', l: 'موعد بعدی', t: 'date', req: true, half: true },
+    // installments: the amount may vary a little; a bank row within ±6% around the due date is recognised as the payment
+    { k: 'count', l: 'تعداد کل اقساط', t: 'num', half: true, show: v => v.kind === 'install', hint: 'خالی = نامعلوم' }, { k: 'paidCount', l: 'پرداخت‌شده تا حالا', t: 'num', half: true, show: v => v.kind === 'install' },
+    { k: 'debtId', l: 'وام / بدهی مرتبط', t: 'sel', o: [['', '— هیچ —'], ...loans.map(x => [x.id, `${x.person} · ${money(x.amount)}`])], show: v => v.kind === 'install', hint: 'با هر قسط، ماندهٔ این بدهی کم می‌شود' },
+    { k: 'note', l: 'یادداشت', ph: 'شناسهٔ قبض، حساب…' }];
   const save = async b => { if (edit.id) await api(`/api/subscriptions/${edit.id}`, { method: 'PATCH', body: JSON.stringify(b) }); else await api('/api/subscriptions', { method: 'POST', body: JSON.stringify(b) }); load(); };
-  const pay = async x => { const amt = window.prompt(`مبلغ پرداخت‌شدهٔ «${x.name}» (ریال):`, String(x.amount)); if (amt === null) return; if (num(amt) && num(amt) !== x.amount) await api(`/api/subscriptions/${x.id}`, { method: 'PATCH', body: JSON.stringify({ amount: num(amt) }) }); await api(`/api/subscriptions/${x.id}/pay`, { method: 'POST' }); setMsg(`«${x.name}» پرداخت شد ✓ موعد بعدی جلو رفت؛ خودِ پرداخت از پیامک یا صورت‌حساب بانک ثبت می‌شود (تا دوبار شمرده نشود).`); load(); onChanged?.(); };
+  const pay = async x => {
+    if (x.kind === 'install') { const r = await api(`/api/subscriptions/${x.id}/pay`, { method: 'POST', body: '{}' }); setMsg(r.linkedTx ? `«${x.name}» ✓ به ردیف بانکی وصل شد. ${r.line || ''}` : `«${x.name}» پرداخت ثبت شد ✓ ردیف بانکی‌اش پیدا نشد؛ اگر بعداً رسید، در تراکنش‌ها دسته‌اش را «قسط وام» کن.`); load(); return; } const amt = window.prompt(`مبلغ پرداخت‌شدهٔ «${x.name}» (ریال):`, String(x.amount)); if (amt === null) return; if (num(amt) && num(amt) !== x.amount) await api(`/api/subscriptions/${x.id}`, { method: 'PATCH', body: JSON.stringify({ amount: num(amt) }) }); await api(`/api/subscriptions/${x.id}/pay`, { method: 'POST' }); setMsg(`«${x.name}» پرداخت شد ✓ موعد بعدی جلو رفت؛ خودِ پرداخت از پیامک یا صورت‌حساب بانک ثبت می‌شود (تا دوبار شمرده نشود).`); load(); onChanged?.(); };
   const monthly = (items || []).reduce((a, x) => a + (x.cycle === 'yearly' ? x.amount / 12 : x.cycle === 'weekly' ? x.amount * 4.3 : x.amount), 0);
   const KIND = { bill: '🧾', sub: '🔁', install: '🏦', other: '•' };
   return <section className="fn-glass fn-list" dir="rtl">
@@ -1232,7 +1238,7 @@ export function BillsPanel({ onChanged }) {
     <p className="sub">جمع ماهانهٔ تقریبی: <b>{money(monthly)}</b> · موعدها در پیام صبح تلگرام و صفحهٔ اصلی یادآوری می‌شوند.</p>
     {msg ? <p className="lf-note">{msg}</p> : null}
     {items === null ? <p className="fn-empty">در حال دریافت…</p> : !items.length ? <p className="fn-empty">موردی ثبت نشده.</p> : items.map(x => <article key={x.id} className="fn-rec">
-      <div><b>{KIND[x.kind] || '🧾'} {x.name}</b><small>{(CYC.find(c => c[0] === x.cycle) || CYC[0])[1]}{x.note ? ` · ${x.note}` : ''}</small></div>
+      <div><b>{KIND[x.kind] || '🧾'} {x.name}</b><small>{(CYC.find(c => c[0] === x.cycle) || CYC[0])[1]}{x.note ? ` · ${x.note}` : ''}</small>{x.kind === 'install' ? <small className="lf-inst">قسط {fa(x.paidCount || 0)}{x.count ? ` از ${fa(x.count)}` : ''}{x.paidSum ? ` · پرداخت‌شده ${money(x.paidSum)}` : ''}{x.debtLeft != null ? ` · ماندهٔ «${x.debtName}» ${money(x.debtLeft)}` : ''}{x.finished ? ' · ✅ تمام شد' : ''}</small> : null}</div>
       {dueChip(x.nextDate)}
       <span className="amt neg">{money(x.amount)}</span>
       <span className="lf-ops"><button className="fn-add" onClick={() => pay(x)}>پرداخت شد</button><button className="lf-link" onClick={() => setEdit(x)}>ویرایش</button><button className="lf-link del" onClick={async () => { if (window.confirm('حذف شود؟')) { await api(`/api/subscriptions/${x.id}`, { method: 'DELETE' }); load(); } }}>حذف</button></span>

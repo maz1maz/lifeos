@@ -131,3 +131,14 @@ html[data-mode="light"] .fl-quick input,html[data-mode="light"] .fl-quick select
   .fl-f.wide{grid-column:1/-1}
   .fl-selbar{top:0}
 }
+
+/* installments + loan calculator (bills sub-view) */
+.lf-inst{display:block;color:var(--g-accent-strong);font-size:12px;margin-top:2px}
+.fl-loan-in{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 12px;margin:8px 0}
+.fl-loan-in label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--g-muted)}
+.fl-loan-in input{background:rgba(0,0,0,.25);border:1px solid var(--g-border);color:var(--g-text);border-radius:9px;padding:8px 10px;font:inherit}
+html[data-mode="light"] .fl-loan-in input{background:#fff}
+.fl-loan-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.fl-loan-out div{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--g-border);border-radius:12px;background:var(--g-panel-2)}
+.fl-loan-out small{color:var(--g-muted);font-size:12px}
+.fl-loan-out b{font-size:17px}

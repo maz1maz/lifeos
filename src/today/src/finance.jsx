@@ -7,6 +7,7 @@ import { BillsPanel } from './life';
 import { FunOverview, PfTrend, useUsdHistory, makeRateOn, setFunUnit } from './fun';
 import { XCards, CopyBtn, Spark, xcAuto } from './xcards';
 import { LedgerView, PassThroughTool } from './finance-ledger';
+import { LoanCalc } from './loan';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -965,7 +966,7 @@ export function FinanceReact({ Nav }) {
           </div>
         ) : null}
 
-        {tab === 'bills' ? <div style={{ marginTop: 12 }}><BillsPanel onChanged={load} /></div> : null}
+        {tab === 'bills' ? <div style={{ marginTop: 12, display: 'grid', gap: 12 }}><BillsPanel onChanged={load} /><LoanCalc unitFa={UNIT_FA()} toRial={(v) => (UNIT === 'toman' ? v * 10 : v)} fromRial={conv} /></div> : null}
 
         {tab === 'wealth' ? (
           <>
