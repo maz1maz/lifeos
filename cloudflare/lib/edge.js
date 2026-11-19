@@ -206,7 +206,12 @@ export async function handleTgju(request, env) {
     const r = await fetch('https://call.tgju.org/ajax.json', { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36', 'Accept': 'application/json' } });
     const d = await r.json(); const cur = d.current || {};
     KEYS.split(',').forEach(k => { const v = cur[k]; if (v) items[k] = { p: parseFloat(String(v.p).replace(/,/g, '')) || 0, d: parseFloat(String(v.d).replace(/,/g, '')) || 0, dp: parseFloat(v.dp) || 0 }; });
-  } catch (e) { return new Response(JSON.stringify({ error: 'دریافت از TGJU ناموفق بود.' }), { status: 502, headers: J }); }
+  } catch (e) { items = {}; }
+  // source down or answered with nothing usable: keep showing the last good prices (marked stale, with their time)
+  if (!Object.keys(items).length) {
+    if (TGJU_CACHE) return new Response(TGJU_CACHE.body.replace(/^\{/, '{"stale":true,'), { headers: J });
+    return new Response(JSON.stringify({ error: 'دریافت از TGJU ناموفق بود.' }), { status: 502, headers: J });
+  }
   const body = JSON.stringify({ ts: Date.now(), items });
   TGJU_CACHE = { at: Date.now(), body };
   return new Response(body, { headers: Object.assign({}, J, { 'Cache-Control': 'public,max-age=300' }) });

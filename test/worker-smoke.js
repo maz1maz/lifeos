@@ -423,6 +423,16 @@ async function main() {
     check('debt date editable', (await call(`/api/debts/${g.d.id}`, { method: 'PATCH', cookie, body: { date: '2026-08-15' } })).d.date === '2026-08-15'); }
   const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
   check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
+  { // market prices: when TGJU is down, the last good prices are served (marked stale, with their time)
+    const realFetch = globalThis.fetch, realNow = Date.now; let down = false;
+    globalThis.fetch = async (url, init) => { const u = String(url); if (u.includes('call.tgju.org')) { if (down) throw new Error('down'); return new Response(JSON.stringify({ current: { price_dollar_rl: { p: '1,000,000', d: '0', dp: 0 } } }), { headers: { 'content-type': 'application/json' } }); } return realFetch(url, init); };
+    try {
+      const ok1 = await call('/api/tgju', { cookie });
+      down = true; Date.now = () => realNow() + 10 * 60 * 1000; // cache (5 min) has expired
+      const ok2 = await call('/api/tgju', { cookie });
+      check('market prices: a TGJU outage keeps the last good prices (stale + time), no error', ok1.status === 200 && ok2.status === 200 && ok2.d.stale === true && ok2.d.items.price_dollar_rl.p === 1000000 && ok2.d.ts === ok1.d.ts, JSON.stringify([ok1.status, ok2.status, ok2.d]).slice(0, 200));
+    } finally { globalThis.fetch = realFetch; Date.now = realNow; }
+  }
   { // installments with a varying amount: matched by ±6% and a window around the due date, from any account
     const loan = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'وام تست', amount: 1000000, type: 'payable' } })).d;
     const plan = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'قسط تست', amount: 77000, cycle: 'monthly', kind: 'install', nextDate: daysAgo(-2), count: 3, paidCount: 1, debtId: loan.id } })).d;

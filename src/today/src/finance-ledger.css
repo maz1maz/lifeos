@@ -142,3 +142,16 @@ html[data-mode="light"] .fl-loan-in input{background:#fff}
 .fl-loan-out div{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--g-border);border-radius:12px;background:var(--g-panel-2)}
 .fl-loan-out small{color:var(--g-muted);font-size:12px}
 .fl-loan-out b{font-size:17px}
+
+/* «اگر…» panel (portfolio) */
+.fl-whatif .fl-chips{margin:6px 0 10px}
+.fl-wi-rows{display:grid;gap:4px}
+.fl-wi-row{display:grid;grid-template-columns:minmax(90px,1fr) minmax(90px,1fr) 110px minmax(110px,1fr);gap:8px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--g-border)}
+.fl-wi-row small{color:var(--g-muted)}
+.fl-wi-row label{display:flex;align-items:center;gap:4px;color:var(--g-muted)}
+.fl-wi-row input{width:70px;background:rgba(0,0,0,.25);border:1px solid var(--g-border);color:var(--g-text);border-radius:8px;padding:5px 8px;font:inherit;direction:ltr;text-align:center}
+html[data-mode="light"] .fl-wi-row input{background:#fff}
+.fl-wi-row b{text-align:left}
+.fl-wi-total{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--g-panel-2);font-size:14px}
+.fl-wi-total.pos b{color:var(--g-good,#34d399)}.fl-wi-total.neg b{color:var(--g-bad,#f87171)}
+@media (max-width:640px){.fl-wi-row{grid-template-columns:1fr 1fr;row-gap:2px}.fl-wi-row b{text-align:start}}
