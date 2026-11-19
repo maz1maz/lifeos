@@ -384,9 +384,29 @@ function betRollup(all,month){let items=[],prev=null,st={month:month||null,days:
   // Not a transaction even though it names an amount: one-time-password SMS («بفرمایید رمز پویا … مبلغ: 6,123,000
   // ریال», sent before the purchase it unlocks — the purchase SMS follows) and bank ads with a link («بلو روی
   // رفیقت دو برابر حساب کن … https://blubank.com/…»). Both were landing in the ledger as expenses.
-  function isNonTxSms(t){t=String(t||'');return /رمز\s*(?:پویا|یک\s*بار|یکبار|دوم|اینترنتی)|کد\s*(?:تایید|تأیید|یک\s*بار|یکبار|ورود|امنیتی)|\bOTP\b/i.test(t)||(/https?:\/\/|www\./i.test(t)&&!/مانده|موجودی/.test(t))}
+  function isNonTxSms(t){t=String(t||'');return /رمز\s*(?:پویا|یک\s*بار|یکبار|دوم|اینترنتی)|کد\s*(?:تایید|تأیید|یک\s*بار|یکبار|ورود|امنیتی)|\bOTP\b|کد\s*[\d۰-۹]{3,8}\s*(?:را\s*)?(?:جهت|برای)\s*ورود|ورود\s*به\s*بام|@baambank/i.test(t)||(/https?:\/\/|www\./i.test(t)&&!/مانده|موجودی/.test(t))}
+  // Melli (sms from 7007 17): «بانك ملي ايران / ساتنا:-3,000,000,000 / حساب:14001 / مانده:4,456,202,613 / 0826-12:15».
+  // The label before «:» says what it was (ساتنا، برگشت ساتنا، انتقالی، سود…); a bare «-540,000» is a fee/withdrawal.
+  // The date is Jalali MMDD without a year: this year, or last year when that month is still ahead of today.
+  function parseMelliSms(t,base){
+    const s=enNum(String(t||'')).replace(/ي/g,'ی').replace(/ك/g,'ک');
+    const lines=s.split('\n').map(x=>x.trim()).filter(Boolean),hi=lines.findIndex(l=>/^بانک\s*ملی\s*ایران/.test(l));
+    if(hi<0||hi>1)return null; // header on the first line (or the second, after a line a Shortcut adds)
+    let amount=null,sign='',label='';
+    for(const ln of lines.slice(hi+1)){if(/^(?:حساب|مانده|موجودی)\s*:/.test(ln))continue;const m=/^(?:([^\d:+\-]{1,40}?)\s*:\s*)?([+-])?\s*(\d[\d,٬]*)\s*([+-])?$/.exec(ln);if(m){amount=Number(m[3].replace(/[,٬]/g,''));sign=m[2]||m[4]||'';label=(m[1]||'').trim();break}}
+    if(!(amount>0))return null;
+    const kind=sign==='+'||(!sign&&/سود|واریز|برگشت|دریافت|انتقالی/.test(label))?'income':'expense';
+    const title=label||(kind==='income'?'واریز':'برداشت');
+    const bal=(s.match(/مانده\s*:\s*(-?[\d,٬]+)/)||[])[1],acct=(s.match(/حساب\s*:\s*(\d{3,})/)||[])[1];
+    let date=base,time=null;const md=/(?:^|\s)(\d{2})(\d{2})-(\d{2}):(\d{2})\s*$/.exec(s);
+    if(md){const jm=Number(md[1]),jd=Number(md[2]),cur=tehranJalaliParts(base)||{};let jy=cur.y;if(jy&&jm>=1&&jm<=12&&jd>=1&&jd<=31){if(jm>cur.m)jy--;try{date=jalaliToGregorianIso(jy,jm,jd)}catch(e){}}time=md[3]==='24'?'23:59':md[3]+':'+md[4]}
+    const r={type:'transaction',amount,title,category:suggestCategoryKeyword(title)||'متفرقه',kind,date,bank:true,bankName:'ملی'};
+    if(time)r.time=time;if(bal)r.balance=Number(bal.replace(/[,٬]/g,''));if(acct)r.acctTail=acct;
+    return r;
+  }
   function parseBankMessage(t,base){
     if(isNonTxSms(t))return null;
+    {const melli=parseMelliSms(t,base);if(melli)return melli}
     const orig=t,meta=bankSmsMeta(orig);
     t=stripRefNumbers(stripBalanceNotes(t)); // «موجودی: …» و شمارهٔ پیگیری مبلغ نیستند
     const mFor=t.match(/بابت:?\s*([^\n]+?)(?:\s+(?:از|به)\s*(?:حساب|قلک|کارت|کیف\s*پول)\s*شما[^\n]*)?$/m); // «بابت X از حساب شما پرید» → X
@@ -1640,7 +1660,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
   }return changed}
   async function refreshPricesAndAlerts(db){let changed=await refreshAllCryptoPrices(db).catch(()=>false);if(await refreshTsePrices(db).catch(()=>false))changed=true;let now=Date.now();for(const user of db.users){let holdings=computeHoldings(db,user.id);for(const t of evaluateAlerts(db,user.id,holdings)){let a=t.alert;if(!a.lastNotifiedAt||now-a.lastNotifiedAt>6*3600*1000){a.lastNotifiedAt=now;changed=true;if(TELEGRAM_BOT_TOKEN&&user.telegramUserId)await tgSend(user.telegramUserId,'🔔 '+t.text)}}}return changed}
 
-  return { statementAccount, statementLatestBalance, read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances, bankSmsAccount, isNonTxSms, sameAccountPool,
+  return { statementAccount, statementLatestBalance, tehranJalaliParts, read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances, bankSmsAccount, isNonTxSms, sameAccountPool,
     jalaliToGregorianIso, jalaliDateLabel, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel, seasonStatsFromEpisodes, seasonTotAired, fetchTvMazeShowFull, progressFromShow, ensureSeriesTvMazeData, clampEpisodeAgainstSeason,
     officeDayWarning, IRAN_WEEK_NOTE, parseSleepHours, isExpenseTx, isPassThroughTitle, suggestCategoryKeyword, catKey, catKeyGeneric, learnedCategory, isIncomeTx, stripBalanceNotes, stripRefNumbers, matchBankStatementItems, ensureStatementReminder, betRollup, betAutoStart, betLatest, betDaysOf, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, pruneNews, newsRead, newsWrite, migrateNewsOut, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, cachedLeagueRange, settleStaleLive, withAiNote, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,
