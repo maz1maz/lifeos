@@ -422,6 +422,52 @@ async function main() {
     check('debt date editable', (await call(`/api/debts/${g.d.id}`, { method: 'PATCH', cookie, body: { date: '2026-08-15' } })).d.date === '2026-08-15'); }
   const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
   check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
+  { // «عبوری» (pass-through): out of income/expense, rule preview/apply/undo, bulk edit, note, title guard, matcher
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+    const mkTx = async (o) => (await call('/api/transactions', { method: 'POST', cookie, body: { date: '2031-03-10', account: 'WA', ...o } })).d;
+    const real = await mkTx({ title: 'نان تازه', amount: 1000, kind: 'expense' }), inc = await mkTx({ title: 'حقوق ماه', amount: 9000, kind: 'income' });
+    const p1 = await mkTx({ title: 'حواله ساتنا (علی)', amount: 500000, kind: 'income' }), p2 = await mkTx({ title: 'انتقال پل (بنام رضا)', amount: 300000, kind: 'expense' }), fee = await mkTx({ title: 'کارمزد ساتنا (علی)', amount: 100, kind: 'expense' });
+    const fin = async () => (await call('/api/finance?from=2031-03-01&to=2031-03-31', { cookie })).d;
+    let f = await fin();
+    check('before the rule: transfers count as income/expense', f.income === 509000 && f.expense === 301100 && !f.passCount, JSON.stringify(f));
+    const pv = await call('/api/transactions/passthrough', { method: 'POST', cookie, body: {} });
+    check('pass-through preview lists person-to-person transfers (not the fee, not real spending)', pv.d.count >= 2 && pv.d.inSum >= 500000 && pv.d.outSum >= 300000 && pv.d.auto === false && pv.d.sample.length > 0, JSON.stringify(pv.d));
+    const ap = await call('/api/transactions/passthrough', { method: 'POST', cookie, body: { apply: true } });
+    f = await fin();
+    check('applying the rule moves them out of income/expense and reports them separately', ap.d.applied >= 2 && f.income === 9000 && f.expense === 1100 && f.passIn === 500000 && f.passOut === 300000 && f.passCount === 2 && f.categories['نان'] === undefined, JSON.stringify(f));
+    const bud = (await call('/api/budgets?month=2031-03', { cookie })).d;
+    check('budget spent ignores pass-through', bud.totalSpent === 1100, JSON.stringify(bud).slice(0, 200));
+    const auto = await mkTx({ title: 'دریافت ساتنا (بنام ز)', amount: 777000, kind: 'income' });
+    check('after applying, new matching rows are flagged automatically (rule marker kept)', auto.passThrough === true && auto.passBy === 'rule');
+    const un = await call(`/api/transactions/${p1.id}`, { method: 'PATCH', cookie, body: { passThrough: false } });
+    const pv2 = await call('/api/transactions/passthrough', { method: 'POST', cookie, body: {} });
+    check('un-flagging one row sticks (the rule does not flag it again)', un.d.passThrough === undefined && un.d.passManual === true && pv2.d.count === 0 && (await fin()).passIn === 777000);
+    const rv = await call('/api/transactions/passthrough', { method: 'POST', cookie, body: { revert: true } });
+    check('undo removes the rule-made flags', rv.d.reverted >= 2 && (await fin()).passCount === 0);
+    // bulk
+    const bk = await call('/api/transactions/bulk', { method: 'POST', cookie, body: { ids: [real.id, inc.id, 'nope'], patch: { category: 'خوراک', passThrough: true } } });
+    const afterBk = (await call('/api/transactions?from=2031-03-01&to=2031-03-31', { cookie })).d.items.find(x => x.id === real.id);
+    check('bulk: category + pass-through on the selected rows only', bk.d.changed === 2 && bk.d.selected === 2 && afterBk.category === 'خوراک' && afterBk.catManual && afterBk.passThrough === true, JSON.stringify(bk.d));
+    check('bulk: unknown account → 400, empty selection → 400', (await call('/api/transactions/bulk', { method: 'POST', cookie, body: { ids: [real.id], patch: { account: 'ناموجود' } } })).status === 400 && (await call('/api/transactions/bulk', { method: 'POST', cookie, body: { ids: [] } })).status === 400);
+    const del = await call('/api/transactions/bulk', { method: 'POST', cookie, body: { ids: [p2.id, fee.id, auto.id], delete: true } });
+    check('bulk delete removes only the selected rows', del.d.deleted === 3 && !(await call('/api/transactions?from=2031-03-01&to=2031-03-31', { cookie })).d.items.some(x => [p2.id, fee.id, auto.id].includes(x.id)));
+    // single edit: note + title edited flag
+    const ed = await call(`/api/transactions/${real.id}`, { method: 'PATCH', cookie, body: { title: 'نان و پنیر', note: '  با کارت  ' } });
+    check('edit keeps a note and remembers the title was edited by hand', ed.d.title === 'نان و پنیر' && ed.d.note === '  با کارت  '.slice(0, 500) && ed.d.titleEdited === true, JSON.stringify(ed.d));
+    // statement re-import must not overwrite an edited title
+    const ref = 'GUARD-' + Date.now();
+    await call('/api/transactions/import-bank/commit', { method: 'POST', cookie, body: { account: 'WA', items: [{ date: '2031-04-02', title: 'خرید فروشگاه الف', amount: 4200, kind: 'expense', bankRef: ref }] } });
+    const imp = (await call('/api/transactions?from=2031-04-01&to=2031-04-30', { cookie })).d.items.find(x => x.bankRef === ref);
+    await call(`/api/transactions/${imp.id}`, { method: 'PATCH', cookie, body: { title: 'خرید نان (ویرایش من)' } });
+    const re = await call('/api/transactions/import-bank/commit', { method: 'POST', cookie, body: { account: 'WA', items: [{ date: '2031-04-02', title: 'خرید فروشگاه الف', amount: 4200, kind: 'expense', bankRef: ref }] } });
+    check('re-importing the statement keeps a hand-edited title', re.d.updated === 0 && (await call('/api/transactions?from=2031-04-01&to=2031-04-30', { cookie })).d.items.find(x => x.bankRef === ref).title === 'خرید نان (ویرایش من)', JSON.stringify(re.d));
+    // statement matcher: opposite direction is not a duplicate; categories
+    const mt = (have, row) => H.matchBankStatementItems([row], have).items[0].duplicate || false;
+    const row = { date: '2026-11-17', amount: 1000, kind: 'expense', title: 'x' };
+    check('matcher: same-day same-amount row of the OTHER direction is not a duplicate; same kind / transfer is', mt([{ date: '2026-11-17', amount: 1000, kind: 'income' }], row) === false && mt([{ date: '2026-11-17', amount: 1000, kind: 'expense' }], row) === true && mt([{ date: '2026-11-17', amount: 1000, kind: 'transfer' }], row) === true);
+    check('category: «خرید اینترنتی» is not a bill; internet bundles / bare «اینترنت» are', H.suggestCategoryKeyword('خرید اینترنتی') == null && H.suggestCategoryKeyword('خرید بسته اینترنت') === 'قبض' && H.suggestCategoryKeyword('اینترنت') === 'قبض');
+    check('category rules: «کارمزد»/«انتقال پل»/«حواله ساتنا» titles are generic (never learned)', ['کارمزد', 'انتقال پل', 'حواله ساتنا'].every(k => H.catKeyGeneric(H.catKey(k))));
+  }
   { // the finance page settles with no account: marked settled, no bank transaction (real money comes from the statement)
     const r = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'بی‌حساب-تسویه', amount: 70, type: 'receivable' } })).d;
     const st = await call(`/api/debts/${r.id}/settle`, { method: 'POST', cookie, body: {} });
@@ -1177,8 +1223,11 @@ async function main() {
       const rowsT = [['ردیف', 'تاریخ', 'نوع', 'مبلغ', 'شرح'], ['1', '1404/11/16', 'برداشت', '777,000,000', 'حواله پايا اينترنتي']];
       const forMelli = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', rows: rowsT, account: 'ملی' } })).d || {};
       check('worker: a same-day same-amount row in ANOTHER account is not a duplicate (other leg of a transfer)', !!blu && forMelli.items?.length === 1 && !forMelli.items[0].duplicate, JSON.stringify(forMelli.items));
-      const forBlu = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', rows: rowsT, account: 'بلو بانک' } })).d || {};
+      const rowsSame = [['ردیف', 'تاریخ', 'نوع', 'مبلغ', 'شرح'], ['1', '1404/11/16', 'واریز', '777,000,000', 'دریافت پایا']];
+      const forBlu = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', rows: rowsSame, account: 'بلو بانک' } })).d || {};
       check('worker: the same row in the SAME account is still caught as a duplicate', forBlu.items?.[0]?.duplicate === true, JSON.stringify(forBlu.items));
+      const forBluOpp = (await call('/api/transactions/import-bank/preview', { method: 'POST', cookie: c10, body: { fileType: 'xlsx', rows: rowsT, account: 'بلو بانک' } })).d || {};
+      check('worker: an opposite-direction row (same day, same amount) in the same account is a different transaction, not a duplicate', forBluOpp.items?.[0]?.duplicate === false, JSON.stringify(forBluOpp.items));
       await call('/api/transactions/' + blu.id, { method: 'DELETE', cookie: c10 });
     }
     {

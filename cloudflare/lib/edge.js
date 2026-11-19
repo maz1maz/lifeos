@@ -37,7 +37,7 @@ async function importTelegramBankWorkbook(db, env, msg, H) {
     let imported = 0;
     for (const item of fresh) {
       if (!item.date || !item.title || !Number(item.amount) || !item.kind) continue;
-      db.transactions.push({ id: H.id(), userId: user.id, title: String(item.title).trim(), amount: Number(item.amount), category: item.category || 'متفرقه', kind: item.kind, account, date: item.date, recurrence: null, recurrenceId: null, receipt: null, tripId: null, bankRef: item.bankRef || null, rialFixed: true, tags: [], createdAt: Date.now(), ...(item.notIncome ? { notIncome: true } : {}) });
+      db.transactions.push({ id: H.id(), userId: user.id, title: String(item.title).trim(), amount: Number(item.amount), category: item.category || 'متفرقه', kind: item.kind, account, date: item.date, recurrence: null, recurrenceId: null, receipt: null, tripId: null, bankRef: item.bankRef || null, rialFixed: true, tags: [], createdAt: Date.now(), ...(item.notIncome ? { notIncome: true } : {}), ...(user.autoPassThrough && (item.kind === 'income' || item.kind === 'expense') && H.isPassThroughTitle(item.title) ? { passThrough: true, passBy: 'rule' } : {}) });
       imported++;
     }
     await H.write(db);
