@@ -123,6 +123,7 @@ async function main() {
     const rep = await call(`/api/finance/monthly-report?jy=${parseInt(jp.year)}&jm=${parseInt(jp.month)}`, { cookie });
     check('monthly report -> 200 with income/expense lines', rep.status === 200 && /گزارش ماهانه/.test(rep.d?.text || '') && /هزینه/.test(rep.d.text), (rep.d?.text || rep.text).slice(0, 200));
     check('monthly report lists the due debt', /بدهی به تست/.test(rep.d?.text || ''));
+    check('monthly report: Jalali month, «خالص ماه» (not the ambiguous «مانده»), «(تا امروز)» for the running month', /خالص ماه \(درآمد − هزینه\)/.test(rep.d.text) && !/⚖️ مانده/.test(rep.d.text) && /\(تا امروز\)/.test(rep.d.text) && /ریال/.test(rep.d.text), rep.d.text.slice(0, 400));
     const bad = await call('/api/finance/monthly-report?jy=1405&jm=13', { cookie });
     check('monthly report rejects bad month -> 400', bad.status === 400);
     const deb = (await call('/api/debts', { cookie })).d.items.find((x) => x.person === 'تست');

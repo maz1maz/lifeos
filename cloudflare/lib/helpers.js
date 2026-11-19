@@ -1301,8 +1301,9 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
         return tgSend(chatId,lines.length?lines.join('\n'):'هنوز دارایی‌ای ثبت نشده.');
       }
       if(cmd==='/گزارش_ماه'){
-        let month=d.slice(0,7),t=db.transactions.filter(x=>x.userId===user.id&&x.date.startsWith(month)),expense=t.filter(x=>isExpenseTx(x)).reduce((n,x)=>n+x.amount,0),income=t.filter(isIncomeTx).reduce((n,x)=>n+x.amount,0);
-        return tgSend(chatId,`گزارش ${month}:\nدرآمد: ${income.toLocaleString('fa-IR')}\nهزینه: ${expense.toLocaleString('fa-IR')}\nمانده: ${(income-expense).toLocaleString('fa-IR')}`);
+        // Jalali month (the rest of the app is Jalali); «/گزارش_ماه قبل» = last month
+        let jp=tehranJalaliParts(d)||{},jy=jp.y,jm=jp.m;if(/قبل|پیش|گذشته/.test(arg)){jm--;if(jm<1){jm=12;jy--}}
+        return tgSend(chatId,buildMonthlyReport(db,user,jy,jm));
       }
 
       if(cmd==='/گزارش_صبح'||cmd==='/صبح'){
@@ -1383,16 +1384,18 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
   function jParts(iso){try{let p=Object.fromEntries(new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn',{timeZone:'UTC',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(new Date(String(iso).slice(0,10)+'T12:00:00Z')).map(x=>[x.type,x.value]));return{jy:parseInt(p.year),jm:parseInt(p.month),jd:parseInt(p.day)}}catch(e){return null}}
   const J_MONTHS=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
   function fmtShortRial(n){let a=Math.abs(n),f=v=>v.toLocaleString('fa-IR',{maximumFractionDigits:v>=100?0:v>=10?1:2});return (n<0?'−':'')+(a>=1e9?f(a/1e9)+' میلیارد':a>=1e6?f(a/1e6)+' میلیون':a.toLocaleString('fa-IR'))+' ریال'}
-  function monthStats(db,userId,from,to){let all=db.transactions.filter(x=>x.userId===userId&&x.date>=from&&x.date<=to),exp=all.filter(isExpenseTx),income=all.filter(isIncomeTx).reduce((n,x)=>n+x.amount,0),expense=exp.reduce((n,x)=>n+x.amount,0),cats={};exp.forEach(x=>{let c=x.category||'متفرقه';cats[c]=(cats[c]||0)+x.amount});return{income,expense,cats,count:all.length,misc:exp.filter(x=>(normalizeCategoryName(x.category)||'متفرقه')==='متفرقه').length}}
+  function monthStats(db,userId,from,to){let all=db.transactions.filter(x=>x.userId===userId&&x.date>=from&&x.date<=to),exp=all.filter(isExpenseTx),income=all.filter(isIncomeTx).reduce((n,x)=>n+x.amount,0),expense=exp.reduce((n,x)=>n+x.amount,0),cats={};exp.forEach(x=>{let c=x.category||'متفرقه';cats[c]=(cats[c]||0)+x.amount});let pass=all.filter(x=>x.passThrough&&(x.kind==='income'||x.kind==='expense'));return{income,expense,cats,count:all.length,passCount:pass.length,passIn:pass.filter(x=>x.kind==='income').reduce((n,x)=>n+x.amount,0),passOut:pass.filter(x=>x.kind==='expense').reduce((n,x)=>n+x.amount,0),misc:exp.filter(x=>(normalizeCategoryName(x.category)||'متفرقه')==='متفرقه').length}}
   function buildMonthlyReport(db,user,jy,jm){
     let from=jalaliToGregorianIso(jy,jm,1),nm=jm===12?[jy+1,1]:[jy,jm+1],to=addDaysIso(jalaliToGregorianIso(nm[0],nm[1],1),-1);
     let pm=jm===1?[jy-1,12]:[jy,jm-1],pfrom=jalaliToGregorianIso(pm[0],pm[1],1),pto=addDaysIso(from,-1);
     let st=monthStats(db,user.id,from,to),prev=monthStats(db,user.id,pfrom,pto),bal=st.income-st.expense;
-    let L=['📊 گزارش ماهانه · '+J_MONTHS[jm-1]+' '+jy.toLocaleString('fa-IR',{useGrouping:false}),''];
+    let cur=today()<=to&&today()>=from,L=['📊 گزارش ماهانه · '+J_MONTHS[jm-1]+' '+jy.toLocaleString('fa-IR',{useGrouping:false})+(cur?' (تا امروز)':''),''];
     L.push('💰 درآمد: '+fmtShortRial(st.income));
     let chg=prev.expense?Math.round((st.expense-prev.expense)/prev.expense*100):null;
     L.push('💸 هزینه: '+fmtShortRial(st.expense)+(chg!=null?(' ('+(chg>=0?'▲ ':'▼ ')+Math.abs(chg).toLocaleString('fa-IR')+'٪ نسبت به '+J_MONTHS[pm[1]-1]+')'):''));
-    L.push('⚖️ مانده: '+fmtShortRial(bal)+(st.income?(' · پس‌انداز '+Math.round(bal/st.income*100).toLocaleString('fa-IR')+'٪'):''));
+    L.push('⚖️ خالص ماه (درآمد − هزینه): '+fmtShortRial(bal)+(st.income?(' · پس‌انداز '+Math.round(bal/st.income*100).toLocaleString('fa-IR')+'٪'):''));
+    if(st.passCount)L.push('🔁 عبوری (جزو درآمد/هزینه نیست): '+st.passCount.toLocaleString('fa-IR')+' حواله · ورودی '+fmtShortRial(st.passIn)+' · خروجی '+fmtShortRial(st.passOut));
+    let accs=accountBalances(db,user.id);if(accs.length){L.push('');L.push('🏦 موجودی حساب‌ها (الان):');accs.forEach(a=>L.push('• '+a.name+': '+fmtShortRial(a.balance)+(a.smsBalance!=null&&Math.abs(Number(a.smsDiff)||0)>=1?' (بانک: '+fmtShortRial(a.smsBalance)+')':'')))}
     let top=Object.entries(st.cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
     if(top.length){L.push('');L.push('🏷 بیشترین هزینه‌ها:');top.forEach(([c,a])=>L.push('• '+c+' — '+fmtShortRial(a)+' ('+Math.round(a/Math.max(1,st.expense)*100).toLocaleString('fa-IR')+'٪)'))}
     let key=jy+'-'+String(jm).padStart(2,'0'),bs=(db.budgets||[]).filter(x=>x.userId===user.id&&x.month===key);
