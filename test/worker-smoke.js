@@ -422,6 +422,14 @@ async function main() {
     check('debt date editable', (await call(`/api/debts/${g.d.id}`, { method: 'PATCH', cookie, body: { date: '2026-08-15' } })).d.date === '2026-08-15'); }
   const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
   check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
+  { // the finance page settles with no account: marked settled, no bank transaction (real money comes from the statement)
+    const r = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'بی‌حساب-تسویه', amount: 70, type: 'receivable' } })).d;
+    const st = await call(`/api/debts/${r.id}/settle`, { method: 'POST', cookie, body: {} });
+    const txs = (await call('/api/transactions?from=2000-01-01&to=2100-12-31', { cookie })).d.items || [];
+    check('debt settle without account → settled, no transaction', st.status === 200 && st.d.settled && !st.d.transaction && !txs.some(x => /بی‌حساب-تسویه/.test(x.title)));
+    const fin = require('fs').readFileSync('src/today/src/finance.jsx', 'utf8');
+    check('finance page «تسویه» sends no account', /settle`, \{\}, 'تسویه شد\.'\)/.test(fin));
+  }
   const sub = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'Wsub', amount: 50, nextDate: daysAgo(-3) } })).d;
   check('subscription pay -> 200', (await call(`/api/subscriptions/${sub.id}/pay`, { method: 'POST', cookie, body: {} })).status === 200);
   const rem = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'w-rem', date: today() } })).d;
@@ -887,6 +895,16 @@ async function main() {
       check('on-this-day translated without AI (Google refused → MyMemory)', r.status === 200 && r.d.lang === 'fa' && r.d.events.length === 2 && /متیو/.test(r.d.events[0].text) && !r.d.events.some(e => e.en), JSON.stringify(r.d).slice(0, 300));
     } finally { globalThis.fetch = realFetch; }
   }
+  { // Telegram Excel import picks the statement's own account (a بانک ملی file must not land in بلو)
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+    const db = { accounts: [{ userId: 'u', name: 'بلو' }, { userId: 'u', name: 'بانک ملی' }, { userId: 'u', name: 'ملت حقوق' }, { userId: 'u', name: 'قدیمی', archived: true }] };
+    const pick = o => { const r = H.statementAccount(db, 'u', o); return r.account ? r.account.name : 'ERR'; };
+    check('statement account: file name «…ملی…» / melli_ → بانک ملی', pick({ fileName: 'صورتحساب ملی آبان.xlsx' }) === 'بانک ملی' && pick({ fileName: 'melli_1405.xlsx' }) === 'بانک ملی');
+    check('statement account: sheet header «بانک ملی ایران» → بانک ملی; «کد ملی» alone is not a bank', pick({ fileName: 's.xlsx', rows: [['بانک ملی ایران'], ['کد ملی', '1']] }) === 'بانک ملی' && pick({ fileName: 's.xlsx', rows: [['کد ملی', '1']] }) === 'ERR');
+    check('statement account: caption wins; unknown caption refuses', pick({ fileName: 'blu.xlsx', caption: 'ملی' }) === 'بانک ملی' && pick({ fileName: 'x.xlsx', caption: 'پاسارگاد' }) === 'ERR');
+    check('statement account: «بانک سامان» → بلو; months (شهریور/دی ماه) are not banks', pick({ fileName: 'x.xlsx', rows: [['بانک سامان']] }) === 'بلو' && pick({ fileName: 'shahrivar.xlsx' }) === 'ERR' && pick({ fileName: 'دی ماه.xlsx' }) === 'ERR');
+    check('statement account: bank without an account / unknown file with several accounts → asks instead of guessing', pick({ fileName: 'tejarat.xlsx' }) === 'ERR' && pick({ fileName: 'a.xlsx' }) === 'ERR' && H.statementAccount({ accounts: [{ userId: 'u', name: 'بلو' }] }, 'u', { fileName: 'a.xlsx' }).account?.name === 'بلو');
+  }
   { // Blu «انتقال به سپرده (بنام …)» = money to a person, not a transfer between own accounts
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
     const rows = [['تاریخ', 'شرح', 'نوع تراکنش', 'برداشت', 'واریز', 'شماره سند'], ['1405/07/14', 'انتقال به سپرده (بنام فاطمه صیفی خانی)', 'انتقال به سپرده', '500,000', '', 'D1'], ['1405/07/14', 'دریافت از سپرده (بنام شمسی ساکی)', 'دریافت از سپرده', '', '200,000', 'D2']];
@@ -911,15 +929,19 @@ async function main() {
       if (u.includes('api.telegram.org')) { if (init && typeof init.body === 'string') sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { headers: { 'content-type': 'application/json' } }); }
       return new Response('{}', { status: 404 });
     };
-    const send = (n, document) => worker.fetch(new Request('https://worker-smoke.local/api/telegram/webhook', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ update_id: 900 + n, message: { message_id: n, date: 1, chat: { id: 777004, type: 'private' }, from: { id: 777004 }, document } }) }), env, { waitUntil() {} });
+    const send = (n, document, caption) => worker.fetch(new Request('https://worker-smoke.local/api/telegram/webhook', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ update_id: 900 + n, message: { message_id: n, date: 1, chat: { id: 777004, type: 'private' }, from: { id: 777004 }, document, ...(caption ? { caption } : {}) } }) }), env, { waitUntil() {} });
     try {
-      await send(1, { file_id: 'F1', file_name: 'statement.xlsx', file_size: xbuf.length });
-      await send(2, { file_id: 'F1', file_name: 'statement.xlsx', file_size: xbuf.length });
+      await send(0, { file_id: 'F1', file_name: 'statement.xlsx', file_size: xbuf.length }); // several accounts, no bank named → asks
+      await send(1, { file_id: 'F1', file_name: 'statement.xlsx', file_size: xbuf.length }, 'WB');
+      await send(2, { file_id: 'F1', file_name: 'statement.xlsx', file_size: xbuf.length }, 'WB');
       await send(3, { file_id: 'F2', file_name: 'note.pdf', file_size: 100 });
     } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } }); }
     const tx = (await call('/api/transactions?from=2000-01-01&to=2100-12-31', { cookie })).d, list = (tx.items || []).filter(x => /^TGX/.test(x.bankRef || ''));
     check('telegram Excel statement → 2 transactions (expense + income), titled by «شرح»', list.length === 2 && list.some(x => x.title === 'خرید فروشگاه تست تلگرام') && list.some(x => x.kind === 'expense' && x.amount === 1250000) && list.some(x => x.kind === 'income' && x.amount === 9000000), JSON.stringify(list).slice(0, 300));
     const texts = sent.map(m => m.text || '');
+    check('telegram Excel without caption/bank (several accounts) imports nothing and asks for the account', /چیزی ثبت نشد/.test(texts[0]) && /کپشن/.test(texts[0]), texts[0]);
+    check('telegram Excel goes to the account named in the caption', list.length === 2 && list.every(x => x.account === 'WB') && /حساب: WB/.test(texts[1]), JSON.stringify(list.map(x => x.account)));
+    texts.shift();
     check('telegram Excel import replies with counts, the repeat finds only duplicates', /تراکنش تازه: ۲/.test(texts[0]) && /تراکنش تازه: ۰/.test(texts[1]), JSON.stringify(texts).slice(0, 400));
     check('telegram non-Excel document gets a «send Excel» hint', /فایل Excel/.test(texts[2] || ''), texts[2]);
   }
