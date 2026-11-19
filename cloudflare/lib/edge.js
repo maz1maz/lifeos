@@ -24,12 +24,15 @@ async function importTelegramBankWorkbook(db, env, msg, H) {
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
     const parsed = H.parseBankStatementRows(rows, 'IRR');
     if (!parsed.length) throw new Error('تراکنشی در فایل پیدا نشد.');
+    // The account comes from the caption / the bank in the file, never silently from the SMS (بلو) default.
+    const picked = H.statementAccount(db, user.id, { caption: msg.caption, fileName: name, rows });
+    if (picked.error) return H.tgSend(chatId, '⚠️ چیزی ثبت نشد.\n' + picked.error);
     const own = db.transactions.filter(x => x.userId === user.id);
     const refs = new Set(own.filter(x => x.bankRef).map(x => x.bankRef));
     const candidates = parsed.map(x => ({ ...x, duplicate: !!(x.bankRef && refs.has(x.bankRef)) }));
     const matched = H.matchBankStatementItems(candidates, own);
     const fresh = matched.items.filter(x => !x.duplicate);
-    const account = (H.bankSmsAccount(db, user.id) || {}).name || 'بدون حساب';
+    const account = picked.account.name;
     db.transactions ??= [];
     let imported = 0;
     for (const item of fresh) {
