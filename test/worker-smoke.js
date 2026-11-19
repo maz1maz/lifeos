@@ -1482,6 +1482,42 @@ async function main() {
       const r1 = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms } });
       const tx = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter(t => /پرید|برداشت|بلو/.test(t.title || '') || t.amount === 1056000 || t.amount === 10560000);
       check('bank-sms records one expense (balance ignored, date from SMS)', r1.status === 201 && tx.length === 1 && tx[0].kind === 'expense' && tx[0].date === '2026-10-01', JSON.stringify([r1.d, tx]));
+      { // reply to the «📩 پیامک بانک ثبت شد» Telegram message → what the transaction was for (title, #tags, category)
+        await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: '777006' } });
+        const sentMsgs = [], realFetch = globalThis.fetch; let mid = 500; env.TELEGRAM_BOT_TOKEN = 'TEST';
+        globalThis.fetch = async (url, init) => { if (String(url).includes('sendMessage')) { const b = JSON.parse(init.body); sentMsgs.push({ ...b, message_id: ++mid }); return new Response(JSON.stringify({ ok: true, result: { message_id: mid } }), { headers: { 'content-type': 'application/json' } }); } return new Response('{}', { status: 404 }); };
+        const hook = (n, text, replyTo) => worker.fetch(new Request('https://worker-smoke.local/api/telegram/webhook', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ update_id: 7000 + n, message: { message_id: 9000 + n, date: 1, chat: { id: 777006, type: 'private' }, from: { id: 777006 }, text, ...(replyTo ? { reply_to_message: { message_id: replyTo } } : {}) } }) }), env, {});
+        const byAmt = amt => async () => (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.find(t => t.amount === amt);
+        try {
+          const smsA = 'بلو\nبرداشت پول\nحمیدرضا عزیز، 31,000 ریال از حساب شما پرید.\nموجودی: 5,000,000 ریال\n۱۰:۱۱\n۱۴۰۵.۰۸.۲۸', smsB = 'بلو\nبرداشت پول\nحمیدرضا عزیز، 42,000 ریال از حساب شما پرید.\nموجودی: 4,958,000 ریال\n۱۰:۲۲\n۱۴۰۵.۰۸.۲۸';
+          const ra = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: smsA } });
+          const mA = sentMsgs.find(m => /ریپلای/.test(m.text || '') && /۳۱٬?۰۰۰/.test(m.text || ''));
+          check('each new bank SMS is sent to Telegram as its own message that asks «بابت چی بود؟» (reply)', ra.status === 201 && !!mA, JSON.stringify(sentMsgs.map(m => m.text)).slice(0, 300));
+          const txA = await byAmt(31000)();
+          check('the Telegram message id is stored on the transaction', txA && txA.tgMsgId === mA.message_id, JSON.stringify(txA));
+          await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: smsB } });
+          const mB = sentMsgs.filter(m => /ریپلای/.test(m.text || '')).pop(), txB0 = await byAmt(42000)();
+          check('a second SMS gets a different Telegram message id', txB0 && mB.message_id !== mA.message_id && txB0.tgMsgId === mB.message_id);
+          const n0 = sentMsgs.length;
+          await hook(1, 'بابت سفر کیش #قضا #سفر_کیش', mA.message_id);
+          const labA = await byAmt(31000)(), ack = sentMsgs.slice(n0).find(m => /ثبت شد: «بابت سفر کیش»/.test(m.text || ''));
+          check('reply → title = the text without #tags, #words become tags, bank wording kept in smsTitle', labA.title === 'بابت سفر کیش' && JSON.stringify(labA.tags) === JSON.stringify(['قضا', 'سفر کیش']) && labA.smsTitle && labA.smsTitle !== labA.title && labA.labeledAt, JSON.stringify(labA));
+          check('the bot confirms in the chat as a reply to the user message', !!ack && ack.reply_to_message_id === 9001, JSON.stringify(sentMsgs.slice(n0).map(m => m.text)));
+          check('only the replied-to transaction changed', (await byAmt(42000)()).title === txB0.title && !(await byAmt(42000)()).labeledAt);
+          await hook(2, 'نان و شیر', mB.message_id);
+          const labB = await byAmt(42000)();
+          check('reply with plain text → title; a keyword guesses the category (خوراک)', labB.title === 'نان و شیر' && labB.category !== 'متفرقه', JSON.stringify(labB));
+          await hook(3, 'اصلاح: ناهار', mB.message_id);
+          check('replying again relabels', (await byAmt(42000)()).title === 'اصلاح: ناهار');
+          await hook(4, 'یک پیام معمولی', 123456789);
+          check('a reply to some other message is not treated as a label', (await byAmt(31000)()).title === 'بابت سفر کیش' && (await byAmt(42000)()).title === 'اصلاح: ناهار');
+          // a big queue (> 5) stays one summary message: nothing to reply to individually
+          const many = Array.from({ length: 7 }, (_, i) => `بلو\nبرداشت پول\nحمیدرضا عزیز، ${1000 + i * 111} ریال از حساب شما پرید.\nموجودی: ${3000000 - i} ریال\n۱۱:۰${i}\n۱۴۰۵.۰۸.۲۹`).join('\n###\n');
+          const n1 = sentMsgs.length;
+          await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: many } });
+          check('more than 5 SMS in one go → a single summary message, no per-transaction reply links', sentMsgs.slice(n1).length === 1 && !/ریپلای/.test(sentMsgs[n1].text || '') && !(await byAmt(1111)()).tgMsgId, JSON.stringify(sentMsgs.slice(n1).map(m => (m.text || '').slice(0, 80))));
+        } finally { globalThis.fetch = realFetch; delete env.TELEGRAM_BOT_TOKEN; await call('/api/me', { method: 'PATCH', cookie, body: { telegramUserId: null } }); }
+      }
       const r2 = await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: sms } });
       check('same SMS twice is ignored', r2.status === 200 && r2.d.duplicate === true && (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter(t => t.id === (tx[0] || {}).id || (t.amount === (tx[0] || {}).amount && t.date === '2026-10-01')).length === 1, JSON.stringify(r2.d));
       check('non-transaction text -> 422, nothing else applied', (await ext('/api/ext/bank-sms', { method: 'POST', token: smsTok, body: { text: 'کار خرید نان' } })).status === 422 && !(await call('/api/tasks', { cookie })).d.items?.some?.(t => t.title === 'خرید نان'));

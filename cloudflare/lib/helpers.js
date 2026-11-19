@@ -211,6 +211,17 @@ export function makeHelpers(env) {
   function auth(req, res, db) { let u = me(req, db); if (!u) { json(res, 401, { error: 'ابتدا وارد حساب شوید.' }); throw new AuthError() } return u }
   function accountBalances(db,userId){let balances={};db.transactions.filter(x=>x.userId===userId).forEach(x=>{let a=x.account||'بدون حساب';if(x.kind==='transfer'){balances[a]=(balances[a]||0)-x.amount;let b=x.toAccount||'بدون حساب';balances[b]=(balances[b]||0)+x.amount}else balances[a]=(balances[a]||0)+(x.kind==='income'?x.amount:-x.amount)});return db.accounts.filter(x=>x.userId===userId&&!x.archived).map(x=>{let balance=(x.openingBalance||0)+(balances[x.name]||0),r={...x,balance};if(x.smsBalance!=null)r.smsDiff=Number(x.smsBalance)-balance;return r})}
   // حسابی که پیامک‌های بانک به آن می‌نشینند: اگر پیامک نام بانک دارد (بلو، «بانک رفاه»…) حسابی با همان نام، وگرنه حساب علامت‌خورده با sms، وگرنه «بدون حساب»؛ بی‌نام: علامت‌خورده با sms، وگرنه حسابی به اسم «بلو».
+  // The user's reply to a bank-SMS Telegram message ("بابت سفر کیش #قضا") labels that transaction: the text becomes the
+  // title shown in the transactions list (the bank's own wording is kept in smsTitle), #words become tags, and a category
+  // is guessed from the text only while it is still «متفرقه». Returns the text actually applied or '' when empty.
+  function applyTxLabel(db,userId,tx,raw){
+    let text=String(raw||'').replace(/\s+/g,' ').trim().slice(0,200),tags=[];
+    text=text.replace(/#([^\s#]+)/g,(m,t)=>{tags.push(t.replace(/_/g,' ').slice(0,30));return ' '}).replace(/\s+/g,' ').trim().replace(/^بابت\s+(?=\S)/,'بابت ');
+    if(!text&&!tags.length)return '';
+    if(text){if(!tx.smsTitle)tx.smsTitle=tx.title;tx.title=text.slice(0,120);if(!tx.catManual&&(normalizeCategoryName(tx.category)||'متفرقه')==='متفرقه'){let c=learnedCategory(db,userId,text)||suggestCategoryKeyword(text);if(c)tx.category=c}}
+    if(tags.length)tx.tags=[...new Set([...(tx.tags||[]),...tags])].slice(0,12);
+    tx.labeledAt=Date.now();return text||tags.map(t=>'#'+t).join(' ');
+  }
   // Which account a bank statement file belongs to (Telegram Excel import). Order: the message caption (an account
   // name), then the bank named in the file name or in the sheet's header rows ("بانک ملی"…), else — only when the user
   // has a single account — that one. Returns {account} or {error} (never guesses between several accounts).
@@ -1178,6 +1189,16 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
 
     db.reminders??=[];db.tasks??=[];
     let d=today();
+    // Reply to a «📩 پیامک بانک ثبت شد» message: the text says what the transaction was for.
+    if(msg.reply_to_message&&text&&!text.startsWith('/')){
+      let rid=msg.reply_to_message.message_id,hit=rid==null?[]:(db.transactions||[]).filter(t=>t.userId===user.id&&t.tgMsgId===rid);
+      if(hit.length){
+        let applied='';for(const t of hit)applied=applyTxLabel(db,user.id,t,text)||applied;
+        if(!applied)return tgSend(chatId,'متنی برای برچسب پیدا نکردم. بنویس بابت چی بود، مثلاً: سفر کیش');
+        await write(db);let t0=hit[0];
+        return tgSend(chatId,'✅ ثبت شد: «'+applied+'»\n'+(t0.kind==='income'?'درآمد ':'هزینه ')+Number(t0.amount).toLocaleString('fa-IR')+' ریال'+(t0.account&&t0.account!=='بدون حساب'?' · '+t0.account:'')+(t0.category&&t0.category!=='متفرقه'?' · '+t0.category:'')+'\nدر مالی ← تراکنش‌ها با همین عنوان دیده می‌شود.',{reply_to_message_id:msg.message_id});
+      }
+    }
     if(text.startsWith('/')){
       let cmd=tgCmdName(text),arg=text.slice(cmd.length).trim();
       if(cmd==='/start'||cmd==='/help'||cmd==='/کمک'||cmd==='/راهنما'){
