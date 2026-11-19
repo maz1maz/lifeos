@@ -24,6 +24,19 @@ export function parseMoney(text) {
   const k = { 'میلیارد': 1e9, 'میلیون': 1e6, 'ملیون': 1e6, 'هزار': 1e3, 'ه': 1e3, 'م': 1e6 }[m[2]] || 1
   return Math.round(Number(m[1]) * k)
 }
+// A signed short amount: the minus stays glued to the left of the digits (an LTR island inside the RTL line),
+// the unit word («میلیارد») follows in normal RTL order. Without this the bidi rules float «−» to the far right.
+function Signed({ n, fmt, unit = false }) {
+  const neg = n < 0, txt = fmt.short(Math.abs(n), unit), m = /^(\S+)(\s[\s\S]*)?$/.exec(txt) || [null, txt, '']
+  return <><bdi dir="ltr">{neg ? '−' : ''}{m[1]}</bdi>{m[2] || ''}</>
+}
+const NEW_CAT = '__new__'
+// asks for a name, saves it to the user's categories (addCat) and returns it; null when cancelled
+async function askNewCat(addCat, notify) {
+  const name = String(window.prompt('نام دستهٔ تازه (مثلاً «هوش مصنوعی»، «ماشین»، «مامان»):') || '').replace(/\s+/g, ' ').trim().slice(0, 40)
+  if (!name) return null
+  try { await addCat(name); return name } catch (e) { notify(e.message || 'دسته ذخیره نشد.'); return null }
+}
 const dayLabel = (iso) => { try { return new Date(iso + 'T12:00:00').toLocaleDateString('fa-IR-u-ca-persian', { weekday: 'long', day: 'numeric', month: 'long' }) } catch { return iso } }
 const FILTERS = [['all', 'همه'], ['expense', 'هزینه'], ['income', 'درآمد'], ['pass', 'عبوری'], ['misc', 'بدون دسته'], ['transfer', 'انتقال']]
 const isTransfer = (t) => t.kind === 'transfer' || t.category === 'انتقال'
@@ -63,7 +76,7 @@ function QuickAdd({ accounts, unitFa, toRial, onAdded, notify }) {
   </form>
 }
 
-function Editor({ item, accounts, cats, unit, conv, toRial, onSaved, onClose, notify }) {
+function Editor({ item, accounts, cats, unit, conv, toRial, onSaved, onClose, notify, addCat }) {
   const [f, setF] = useState(() => ({ title: item.title || '', amount: String(conv(item.amount)), kind: item.kind === 'income' ? 'income' : 'expense', date: item.date, category: item.category || 'متفرقه', account: item.account || 'بدون حساب', tags: (item.tags || []).join('، '), note: item.note || '', passThrough: !!item.passThrough, learn: false }))
   const [busy, setBusy] = useState(false)
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }))
@@ -92,7 +105,7 @@ function Editor({ item, accounts, cats, unit, conv, toRial, onSaved, onClose, no
     <label className="fl-f"><span>مبلغ ({unit})</span><input inputMode="decimal" value={f.amount} onChange={(e) => set('amount', e.target.value)} /></label>
     {transfer ? null : <label className="fl-f"><span>نوع</span><select value={f.kind} onChange={(e) => set('kind', e.target.value)}><option value="expense">هزینه</option><option value="income">درآمد</option></select></label>}
     <label className="fl-f"><span>تاریخ</span><JalaliDateInput name="date" defaultValue={f.date} onChange={(v) => set('date', v?.target ? v.target.value : v)} /></label>
-    <label className="fl-f"><span>دسته</span><select value={f.category} onChange={(e) => set('category', e.target.value)}>{[...new Set([f.category, ...cats, 'انتقال'])].map((c) => <option key={c}>{c}</option>)}</select></label>
+    <label className="fl-f"><span>دسته</span><select value={f.category} onChange={async (e) => { const v = e.target.value; if (v !== NEW_CAT) return set('category', v); const n = await askNewCat(addCat, notify); if (n) set('category', n) }}>{[...new Set([f.category, ...cats, 'انتقال'])].map((c) => <option key={c}>{c}</option>)}<option value={NEW_CAT}>＋ دستهٔ تازه…</option></select></label>
     <label className="fl-f"><span>حساب</span><select value={f.account} onChange={(e) => set('account', e.target.value)}><option value="بدون حساب">بدون حساب</option>{acc.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}{f.account !== 'بدون حساب' && !acc.some((a) => a.name === f.account) ? <option>{f.account}</option> : null}</select></label>
     <label className="fl-f"><span>تگ‌ها</span><input value={f.tags} onChange={(e) => set('tags', e.target.value)} placeholder="با ویرگول" /></label>
     <label className="fl-f wide"><span>یادداشت</span><input value={f.note} onChange={(e) => set('note', e.target.value)} placeholder="هر توضیحی که بعداً لازم داری" /></label>
@@ -132,7 +145,7 @@ export function PassThroughTool({ fmt, onChanged, notify }) {
   </div>
 }
 
-export function LedgerView({ txs, accounts, cats, summary, monthLabel, fmt, toolsSlot, analysisSlot, bannersSlot, netChips, filter, setFilter, acctFilter, setAcctFilter, onChanged, notify, emptySlot }) {
+export function LedgerView({ addCat, txs, accounts, cats, summary, monthLabel, fmt, toolsSlot, analysisSlot, bannersSlot, netChips, filter, setFilter, acctFilter, setAcctFilter, onChanged, notify, emptySlot }) {
   const [q, setQ] = useState(''), [catF, setCatF] = useState(''), [sort, setSort] = useState('date'), [open, setOpen] = useState(null)
   const [sel, setSel] = useState(() => new Set()), [limit, setLimit] = useState(120), [bulkBusy, setBulkBusy] = useState(false)
   const [analysisOn, setAnalysisOn] = useState(() => { try { return localStorage.getItem('lifeos-fin-analysis') === '1' } catch { return false } })
@@ -158,7 +171,7 @@ export function LedgerView({ txs, accounts, cats, summary, monthLabel, fmt, tool
     setBulkBusy(true)
     try { const r = await api('/api/transactions/bulk', { method: 'POST', body: JSON.stringify({ ids: [...sel], ...body }) }); setSel(new Set()); notify(msg(r)); onChanged() } catch (e) { notify(e.message) } finally { setBulkBusy(false) }
   }
-  const quickCat = async (t, category) => { if (!category) return; try { await api(`/api/transactions/${t.id}`, { method: 'PATCH', body: JSON.stringify({ category }) }); onChanged() } catch (e) { notify(e.message) } }
+  const quickCat = async (t, picked) => { const category = picked === NEW_CAT ? await askNewCat(addCat, notify) : picked; if (!category) return; try { await api(`/api/transactions/${t.id}`, { method: 'PATCH', body: JSON.stringify({ category }) }); onChanged() } catch (e) { notify(e.message) } }
   const groups = useMemo(() => {
     if (sort !== 'date') return [['', shown.slice(0, limit)]]
     const g = []; let cur = null
@@ -173,7 +186,7 @@ export function LedgerView({ txs, accounts, cats, summary, monthLabel, fmt, tool
     <section className="fl-sum" aria-label="خلاصهٔ ماه">
       <button type="button" className={`fl-stat inc ${filter === 'income' ? 'on' : ''}`} onClick={() => setFilter(filter === 'income' ? 'all' : 'income')} title={fmt.faMoney(summary.income)}><small>درآمد</small><b>{summary.income ? fmt.short(summary.income, false) : '—'}</b></button>
       <button type="button" className={`fl-stat exp ${filter === 'expense' ? 'on' : ''}`} onClick={() => setFilter(filter === 'expense' ? 'all' : 'expense')} title={fmt.faMoney(summary.expense)}><small>هزینه</small><b>{summary.expense ? fmt.short(summary.expense, false) : '—'}</b></button>
-      <div className={`fl-stat net ${net >= 0 ? 'pos' : 'neg'}`} title={fmt.faMoney(net)}><small>خالص</small><b>{net ? `${net < 0 ? '−' : ''}${fmt.short(Math.abs(net), false)}` : '—'}</b></div>
+      <div className={`fl-stat net ${net >= 0 ? 'pos' : 'neg'}`} title={fmt.faMoney(net)}><small>خالص</small><b>{net ? <Signed n={net} fmt={fmt} /> : '—'}</b></div>
       {summary.passCount ? <button type="button" className={`fl-stat pass ${filter === 'pass' ? 'on' : ''}`} onClick={() => setFilter(filter === 'pass' ? 'all' : 'pass')} title="حواله‌هایی که فقط از حساب رد شده‌اند؛ در درآمد و هزینه نیستند"><small>عبوری · {faN(summary.passCount)}</small><b>{fmt.short((summary.passIn || 0) + (summary.passOut || 0), false)}</b></button> : null}
       <span className="fl-unit-note">{fmt.unitFa} · {monthLabel} · {faN(txs.length)} تراکنش</span>
       <button type="button" className={`fl-ghost fl-an ${analysisOn ? 'on' : ''}`} onClick={toggleAnalysis} aria-expanded={analysisOn}>📊 تحلیل</button>
@@ -193,8 +206,8 @@ export function LedgerView({ txs, accounts, cats, summary, monthLabel, fmt, tool
 
     {sel.size ? <div className="fl-selbar" role="region" aria-label="انتخاب‌شده‌ها">
       <b>{faN(sel.size)} انتخاب</b>
-      <span className="fl-calc" title="درآمد منهای هزینه‌ی ردیف‌های انتخاب‌شده">خالص <b className={selSum >= 0 ? 'pos' : 'neg'}>{selSum < 0 ? '−' : ''}{fmt.short(Math.abs(selSum), false)}</b> · جمع مبلغ <b>{fmt.short(selAbs, false)}</b>{selStats.exp ? <> · هزینه <b className="neg">{fmt.short(selStats.exp, false)}</b></> : null}{selStats.inc ? <> · درآمد <b className="pos">{fmt.short(selStats.inc, false)}</b></> : null} · میانگین <b>{fmt.short(selAbs / (sel.size || 1), false)}</b></span>
-      <select defaultValue="" onChange={(e) => { const c = e.target.value; e.target.value = ''; if (c) bulk({ patch: { category: c } }, (r) => `دستهٔ ${faN(r.changed)} تراکنش «${c}» شد.`) }} disabled={bulkBusy} aria-label="دسته برای انتخاب‌شده‌ها"><option value="">دسته…</option>{cats.map((c) => <option key={c}>{c}</option>)}</select>
+      <span className="fl-calc" title="درآمد منهای هزینه‌ی ردیف‌های انتخاب‌شده">خالص <b className={selSum >= 0 ? 'pos' : 'neg'}><Signed n={selSum} fmt={fmt} /></b> · جمع مبلغ <b>{fmt.short(selAbs, false)}</b>{selStats.exp ? <> · هزینه <b className="neg">{fmt.short(selStats.exp, false)}</b></> : null}{selStats.inc ? <> · درآمد <b className="pos">{fmt.short(selStats.inc, false)}</b></> : null} · میانگین <b>{fmt.short(selAbs / (sel.size || 1), false)}</b></span>
+      <select defaultValue="" onChange={async (e) => { const v = e.target.value; e.target.value = ''; const c = v === NEW_CAT ? await askNewCat(addCat, notify) : v; if (c) bulk({ patch: { category: c } }, (r) => `دستهٔ ${faN(r.changed)} تراکنش «${c}» شد.`) }} disabled={bulkBusy} aria-label="دسته برای انتخاب‌شده‌ها"><option value="">دسته…</option>{cats.map((c) => <option key={c}>{c}</option>)}<option value={NEW_CAT}>＋ دستهٔ تازه…</option></select>
       <select defaultValue="" onChange={(e) => { const a = e.target.value; e.target.value = ''; if (a) bulk({ patch: { account: a } }, (r) => `حساب ${faN(r.changed)} تراکنش عوض شد.`) }} disabled={bulkBusy} aria-label="حساب برای انتخاب‌شده‌ها"><option value="">حساب…</option><option value="بدون حساب">بدون حساب</option>{accNames.map((n) => <option key={n}>{n}</option>)}</select>
       <button type="button" className="fl-ghost" disabled={bulkBusy} onClick={() => bulk({ patch: { passThrough: true } }, (r) => `${faN(r.changed)} تراکنش عبوری شد.`)}>عبوری</button>
       <button type="button" className="fl-ghost" disabled={bulkBusy} onClick={() => bulk({ patch: { passThrough: false } }, (r) => `${faN(r.changed)} تراکنش از عبوری درآمد.`)}>غیرعبوری</button>
@@ -210,7 +223,7 @@ export function LedgerView({ txs, accounts, cats, summary, monthLabel, fmt, tool
       {shown.length ? groups.map(([date, rows]) => {
         const ds = stats(rows), dayNet = ds.inc - ds.exp
         return <div key={date || 'all'} className="fl-day">
-          {date ? <div className="fl-day-h"><b>{dayLabel(date)}</b><small>{ds.exp ? `هزینه ${fmt.short(ds.exp, false)}` : ''}{ds.exp && ds.inc ? ' · ' : ''}{ds.inc ? `درآمد ${fmt.short(ds.inc, false)}` : ''}{!ds.exp && !ds.inc ? 'عبوری/انتقال' : ''}</small>{ds.exp && ds.inc ? <small className={dayNet >= 0 ? 'pos' : 'neg'}>{dayNet < 0 ? '−' : ''}{fmt.short(Math.abs(dayNet), false)}</small> : null}</div> : null}
+          {date ? <div className="fl-day-h"><b>{dayLabel(date)}</b><small>{ds.exp ? `هزینه ${fmt.short(ds.exp, false)}` : ''}{ds.exp && ds.inc ? ' · ' : ''}{ds.inc ? `درآمد ${fmt.short(ds.inc, false)}` : ''}{!ds.exp && !ds.inc ? 'عبوری/انتقال' : ''}</small>{ds.exp && ds.inc ? <small className={dayNet >= 0 ? 'pos' : 'neg'}><Signed n={dayNet} fmt={fmt} /></small> : null}</div> : null}
           {rows.map((t) => {
             const isOpen = open === t.id, misc = isMiscRow(t), pass = !!t.passThrough
             return <div key={t.id} className={`fl-item ${isOpen ? 'open' : ''} ${pass ? 'pass' : ''} ${sel.has(t.id) ? 'sel' : ''}`}>
@@ -221,12 +234,12 @@ export function LedgerView({ txs, accounts, cats, summary, monthLabel, fmt, tool
                   <small>{t.source === 'sms' ? '📩 ' : ''}{t.labeledAt ? '💬 ' : ''}{sort !== 'date' ? `${jalaliShort(t.date)} · ` : ''}{(t.tags || []).map((g) => `#${g}`).join(' ')}{t.note ? ` ${(t.tags || []).length ? '· ' : ''}${t.note}` : ''}{pass ? ' · عبوری' : ''}</small>
                 </div>
                 <select className={`fl-cat ${misc ? 'misc' : ''}`} value={t.category || 'متفرقه'} onChange={(e) => quickCat(t, e.target.value)} aria-label="دسته" onClick={(e) => e.stopPropagation()}>
-                  {[...new Set([t.category || 'متفرقه', ...cats, 'انتقال'])].map((c) => <option key={c}>{c}</option>)}
+                  {[...new Set([t.category || 'متفرقه', ...cats, 'انتقال'])].map((c) => <option key={c}>{c}</option>)}<option value={NEW_CAT}>＋ دستهٔ تازه…</option>
                 </select>
                 <span className="fl-acct" title={t.account}>{t.account && t.account !== 'بدون حساب' ? t.account : '—'}</span>
                 <span className={`fl-amt ${pass ? 'pass' : t.kind === 'income' ? 'pos' : t.kind === 'transfer' || isTransfer(t) ? 'xfer' : 'neg'}`}>{t.kind === 'income' ? '+' : t.kind === 'expense' ? '−' : ''}{fmt.amt(t.amount)}</span>
               </div>
-              {isOpen ? <Editor item={t} accounts={accounts} cats={cats} unit={fmt.unitFa} conv={fmt.conv} toRial={fmt.toRial} notify={notify} onClose={() => setOpen(null)} onSaved={(m) => { notify(m); setOpen(null); onChanged() }} /> : null}
+              {isOpen ? <Editor addCat={addCat} item={t} accounts={accounts} cats={cats} unit={fmt.unitFa} conv={fmt.conv} toRial={fmt.toRial} notify={notify} onClose={() => setOpen(null)} onSaved={(m) => { notify(m); setOpen(null); onChanged() }} /> : null}
             </div>
           })}
         </div>
@@ -236,7 +249,7 @@ export function LedgerView({ txs, accounts, cats, summary, monthLabel, fmt, tool
         <span>{faN(shown.length)} از {faN(txs.length)} تراکنش</span>
         {shownStats.exp ? <span>هزینه <b className="neg">{fmt.short(shownStats.exp)}</b></span> : null}
         {shownStats.inc ? <span>درآمد <b className="pos">{fmt.short(shownStats.inc)}</b></span> : null}
-        {shownStats.exp || shownStats.inc ? <span>خالص <b className={shownStats.inc - shownStats.exp >= 0 ? 'pos' : 'neg'}>{shownStats.inc - shownStats.exp < 0 ? '−' : ''}{fmt.short(Math.abs(shownStats.inc - shownStats.exp))}</b></span> : null}
+        {shownStats.exp || shownStats.inc ? <span>خالص <b className={shownStats.inc - shownStats.exp >= 0 ? 'pos' : 'neg'}><Signed n={shownStats.inc - shownStats.exp} fmt={fmt} unit /></b></span> : null}
         {shownStats.pass ? <span>عبوری {faN(shownStats.pass)} مورد</span> : null}
       </div>
     </section>

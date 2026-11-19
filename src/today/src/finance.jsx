@@ -404,6 +404,15 @@ export function FinanceReact({ Nav }) {
   USER_CATS = catList(catCfg)
   const saveCats = (next) => { setCatCfg(next); api('/api/me', { method: 'PATCH', body: JSON.stringify({ financeCats: next }) }).catch((e) => setNotice(e.message)) }
   const addCat = () => { const c = newCat.trim(); if (!c) return; setNewCat(''); if (CATS.includes(c)) saveCats({ ...catCfg, hidden: catCfg.hidden.filter((x) => x !== c) }); else if (!catCfg.added.includes(c)) saveCats({ ...catCfg, added: [...catCfg.added, c] }) }
+  // «＋ دستهٔ تازه…» from any category menu of the ledger: saved like the categories drawer does, then usable at once
+  const addCategory = async (name) => {
+    const c = String(name || '').trim(); if (!c) return
+    const next = CATS.includes(c) ? { ...catCfg, hidden: catCfg.hidden.filter((x) => x !== c) } : catCfg.added.includes(c) ? catCfg : { ...catCfg, added: [...catCfg.added, c] }
+    if (next === catCfg) return
+    setCatCfg(next); USER_CATS = catList(next)
+    await api('/api/me', { method: 'PATCH', body: JSON.stringify({ financeCats: next }) })
+    setNotice(`دستهٔ «${c}» اضافه شد.`)
+  }
   const dropCat = (c) => saveCats(CATS.includes(c) ? { ...catCfg, hidden: [...catCfg.hidden, c] } : { ...catCfg, added: catCfg.added.filter((x) => x !== c) })
   const [poker, setPoker] = useState([])
   const [pokerAll, setPokerAll] = useState([])
@@ -742,7 +751,7 @@ export function FinanceReact({ Nav }) {
 
         {tab === 'ledger' ? (
           <div className="fn-ledger" id="ledger">
-            <LedgerView
+            <LedgerView addCat={addCategory}
               txs={txs} accounts={accounts} cats={USER_CATS} summary={summary} monthLabel={monthFa(month)}
               fmt={{ amt, short, faMoney, conv, unitFa: UNIT_FA(), toRial: (v) => (UNIT === 'toman' ? Math.round(v * 10) : Math.round(v)) }}
               filter={filter} setFilter={setFilter} acctFilter={acctFilter} setAcctFilter={setAcctFilter}
