@@ -960,6 +960,18 @@ async function main() {
     check('statement account: caption wins; unknown caption refuses', pick({ fileName: 'blu.xlsx', caption: 'ملی' }) === 'بانک ملی' && pick({ fileName: 'x.xlsx', caption: 'پاسارگاد' }) === 'ERR');
     check('statement account: «بانک سامان» → بلو; months (شهریور/دی ماه) are not banks', pick({ fileName: 'x.xlsx', rows: [['بانک سامان']] }) === 'بلو' && pick({ fileName: 'shahrivar.xlsx' }) === 'ERR' && pick({ fileName: 'دی ماه.xlsx' }) === 'ERR');
     check('statement account: bank without an account / unknown file with several accounts → asks instead of guessing', pick({ fileName: 'tejarat.xlsx' }) === 'ERR' && pick({ fileName: 'a.xlsx' }) === 'ERR' && H.statementAccount({ accounts: [{ userId: 'u', name: 'بلو' }] }, 'u', { fileName: 'a.xlsx' }).account?.name === 'بلو');
+    // the export's own layout, with no bank name anywhere (Melli/sadad export named by account number only)
+    const melliRows = [[], ['', 'نام و نام خانوادگی:', 'نمونه'], ['', 'شماره حساب:', '0100000000001', 'تاریخ و ساعت دانلود:', '1405/08/28 12:00'], ['', 'از تاریخ:', '1404/08/28'], [],
+      ['ردیف', 'تاریخ', 'زمان', 'شعبه', 'نوع', 'مبلغ', 'شماره پیگیری', 'اطلاعات تکمیلی', 'شرح', 'توضیحات', 'مانده', 'کانال تراکنش'], ['1', '1405/08/26', '12:00:00', 'شعبه (1)', 'برداشت', '1,000', 'X1', '', 'حواله ساتنا', '', '5,000', 'TELLER']];
+    const mp = H.statementAccount(db, 'u', { fileName: '0100000000001-14040828-14050828.xlsx', rows: melliRows });
+    check('statement account: a Melli export with no bank name is recognised by its layout, and its account number is read', mp.account?.name === 'بانک ملی' && mp.how === 'format' && mp.acctNo === '0100000000001', JSON.stringify(mp));
+    const bluRows = [['تاریخ', 'شرح', 'نوع تراکنش', 'برداشت', 'واریز', 'شماره سند'], ['1405/07/14', 'خرید', 'خرید', '1,000', '', 'D1']];
+    const lb = H.statementLatestBalance([...melliRows, ['2', '1405/08/26', '11:59:00', 'شعبه (1)', 'واریز', '2,000', 'X2', '', 'واریز', '', '6,000', 'TELLER'], ['3', '1405/08/20', '09:00:00', 'شعبه (1)', 'واریز', '1', 'X3', '', 'x', '', '9,999', 'TELLER']]);
+    check('statement balance: the «مانده» of the newest row (date + time) is read as the bank balance', lb && lb.balance === 5000 && lb.date === '2026-11-17' && lb.time === '12:00', JSON.stringify(lb));
+    check('statement balance: a file without a «مانده» column gives none', H.statementLatestBalance(bluRows) === null);
+    check('statement account: the Blu layout (نوع تراکنش + شماره سند) → بلو', pick({ fileName: 'export.xlsx', rows: bluRows }) === 'بلو');
+    const dbNo = { accounts: [{ userId: 'u', name: 'حساب اصلی', statementNo: '0100000000001' }, { userId: 'u', name: 'دوم' }] };
+    check('statement account: a remembered account number wins (any bank, any account name)', H.statementAccount(dbNo, 'u', { fileName: 'x.xlsx', rows: melliRows }).account?.name === 'حساب اصلی' && H.statementAccount(dbNo, 'u', { fileName: 'x.xlsx', rows: melliRows }).how === 'number');
   }
   { // Blu «انتقال به سپرده (بنام …)» = money to a person, not a transfer between own accounts
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);

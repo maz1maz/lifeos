@@ -228,19 +228,43 @@ export function makeHelpers(env) {
   // Bare words are trusted only in the file name: inside the sheet «ملی» also appears in «کد ملی», so the sheet
   // must say «بانک <name>».
   const STATEMENT_BANKS=[['ملی','melli|bmi'],['ملت','mellat'],['صادرات','saderat|bsi'],['تجارت','tejarat'],['سپه','sepah'],['پاسارگاد','pasargad|bpi'],['سامان','saman'],['پارسیان','parsian'],['رسالت','resalat'],['کشاورزی','keshavarzi|bki'],['مسکن','maskan'],['رفاه','refah'],['آینده','ayandeh'],['شهر','shahr'],['اقتصاد نوین','eghtesad|enbank'],['سینا','sina'],['دی','dey'],['بلو','blu']];
+  // The bank's own balance on the newest row of a statement that has a «مانده» column (Melli exports do):
+  // {balance, date (ISO), time} or null. Used like an SMS balance, so the finance page can show the gap.
+  function statementLatestBalance(rows){
+    rows=(rows||[]).map(r=>(r||[]).map(c=>String(c??'').replace(/ي/g,'ی').replace(/ك/g,'ک').trim()));
+    let h=rows.findIndex(r=>r.some(c=>/^مانده/.test(c))&&r.some(c=>/^تاریخ/.test(c)));if(h<0)return null;
+    let H=rows[h],bi=H.findIndex(c=>/^مانده/.test(c)),di=H.findIndex(c=>/^تاریخ/.test(c)),ti=H.findIndex(c=>/^(زمان|ساعت)/.test(c)),best=null;
+    for(const r of rows.slice(h+1)){let d=enNum(r[di]||'').replace(/[-.]/g,'/'),m=/^(\d{4})\/(\d{1,2})\/(\d{1,2})/.exec(d),b=parseBankAmount?parseBankAmount(r[bi]):Number(enNum(r[bi]||'').replace(/[^\d.-]/g,''));if(!m||!isFinite(b)||String(r[bi]||'').trim()==='')continue;let iso=Number(m[1])>1700?`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`:jalaliToGregorianIso(Number(m[1]),Number(m[2]),Number(m[3])),tf=ti>=0?enNum(r[ti]||'').trim():'',t=tf.slice(0,5),key=iso+' '+(tf||'00:00:00');if(!best||key>best.key)best={key,balance:b,date:iso,time:t}}
+    return best?{balance:best.balance,date:best.date,time:best.time}:null;
+  }
   function statementAccount(db,userId,{caption,fileName,rows}={}){
     const norm=v=>String(v||'').replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[\s‌]+/g,'').toLowerCase();
     const acc=(db.accounts||[]).filter(x=>x.userId===userId&&!x.archived),names=acc.map(x=>x.name).join('، ')||'—';
     const byWord=w=>acc.filter(x=>norm(x.name).includes(norm(w)));
-    if(String(caption||'').trim()){let c=norm(caption),hit=acc.filter(x=>norm(x.name)===c);if(!hit.length)hit=acc.filter(x=>norm(x.name).includes(c)||c.includes(norm(x.name)));if(hit.length===1)return{account:hit[0],how:'caption'};return{error:`حسابی با نام «${String(caption).trim()}» پیدا نشد${hit.length>1?' (چند حساب جور درآمد)':''}.\nحساب‌ها: ${names}`}}
-    const head=(rows||[]).slice(0,15).map(r=>(r||[]).join(' ')).join(' ').replace(/ي/g,'ی').replace(/ك/g,'ک'),fname=String(fileName||'').replace(/ي/g,'ی').replace(/ك/g,'ک');
+    const top=(rows||[]).slice(0,15).map(r=>(r||[]).map(c=>String(c??'').replace(/ي/g,'ی').replace(/ك/g,'ک').trim()));
+    // account number printed in the file («شماره حساب: 0117875014001») or leading the file name
+    let acctNo=null;for(const r of top){let i=r.findIndex(c=>/^شماره\s*حساب/.test(c));if(i>=0){for(const c of r.slice(i+1)){let m=/(\d{8,26})/.exec(c.replace(/[-\s]/g,''));if(m){acctNo=m[1];break}}}if(acctNo)break}
+    if(!acctNo){let m=/^(\d{8,26})(?:\D|$)/.exec(String(fileName||''));if(m)acctNo=m[1]}
+    const out=(account,how,bank)=>({account,how,bank,acctNo});
+    if(String(caption||'').trim()){let c=norm(caption),hit=acc.filter(x=>norm(x.name)===c);if(!hit.length)hit=acc.filter(x=>norm(x.name).includes(c)||c.includes(norm(x.name)));if(hit.length===1)return out(hit[0],'caption');return{error:`حسابی با نام «${String(caption).trim()}» پیدا نشد${hit.length>1?' (چند حساب جور درآمد)':''}.\nحساب‌ها: ${names}`}}
+    // an account this file's number was imported into before
+    if(acctNo){let hit=acc.filter(x=>String(x.statementNo||'')===acctNo);if(hit.length===1)return out(hit[0],'number')}
+    const head=top.map(r=>r.join(' ')).join(' '),fname=String(fileName||'').replace(/ي/g,'ی').replace(/ك/g,'ک');
     const W='[\\u0600-\\u06FF]',word=fa=>new RegExp('(?<!'+W+')'+fa+'(?!'+W+')'),bankIn=fa=>new RegExp('بانک\\s*'+fa+'(?!'+W+')');
     const latin=en=>new RegExp('(?<![a-z])('+en+')(?![a-z])','i'); // «melli_1405.xlsx» yes, «shahrivar» no
     // «دی» alone in a file name is usually the month, so that bank needs «بانک دی» (or «dey») there too
-    const found=STATEMENT_BANKS.filter(([fa,en])=>(fa!=='دی'&&word(fa).test(fname))||bankIn(fa).test(fname)||latin(en).test(fname)||bankIn(fa).test(head)).map(([fa])=>fa);
+    let found=STATEMENT_BANKS.filter(([fa,en])=>(fa!=='دی'&&word(fa).test(fname))||bankIn(fa).test(fname)||latin(en).test(fname)||bankIn(fa).test(head)).map(([fa])=>fa);
+    let how='bank';
+    if(!found.length){
+      // the layout of the export itself: Melli (sadad) has «شعبه» + «شماره پیگیری»/«کانال تراکنش»; Blu has «نوع تراکنش» + «شماره سند»
+      const hdr=top.find(r=>r.some(c=>/^تاریخ/.test(c))&&r.some(c=>/مبلغ|برداشت|واریز/.test(c)))||[],has=re=>hdr.some(c=>re.test(c));
+      if(has(/^شعبه$/)&&(has(/شماره\s*پیگیری/)||has(/کانال\s*تراکنش/)))found=['ملی'];
+      else if(has(/نوع\s*تراکنش/)&&has(/شماره\s*سند/)&&!has(/^شعبه$/))found=['بلو'];
+      if(found.length)how='format';
+    }
     const banks=found.filter(b=>!(b==='سامان'&&found.includes('بلو')));
-    if(banks.length===1){const b=banks[0];let hit=byWord(b);if(!hit.length&&b==='سامان')hit=byWord('بلو');if(!hit.length&&b==='بلو')hit=byWord('سامان');if(hit.length===1)return{account:hit[0],how:'bank',bank:b};return{error:hit.length?`چند حساب با «${b}» در نامشان هست. فایل را دوباره با کپشن نام دقیق حساب بفرست.\nحساب‌ها: ${names}`:`فایل مال بانک ${b} است ولی در LifeOS حسابی با «${b}» در نامش نیست.\nاول حسابش را در مالی بساز، یا فایل را با کپشن نام حساب بفرست.\nحساب‌ها: ${names}`}}
-    if(acc.length===1)return{account:acc[0],how:'only'};
+    if(banks.length===1){const b=banks[0];let hit=byWord(b);if(!hit.length&&b==='سامان')hit=byWord('بلو');if(!hit.length&&b==='بلو')hit=byWord('سامان');if(hit.length===1)return out(hit[0],how,b);return{error:hit.length?`چند حساب با «${b}» در نامشان هست. فایل را دوباره با کپشن نام دقیق حساب بفرست.\nحساب‌ها: ${names}`:`فایل مال بانک ${b} است ولی در LifeOS حسابی با «${b}» در نامش نیست.\nاول حسابش را در مالی بساز، یا فایل را با کپشن نام حساب بفرست.\nحساب‌ها: ${names}`}}
+    if(acc.length===1)return out(acc[0],'only');
     return{error:`نتوانستم بفهمم این صورت‌حساب مال کدام حساب است.\nفایل را دوباره بفرست و در کپشن نام حساب را بنویس (مثلاً «ملی»).\nحساب‌ها: ${names}`};
   }
   function bankSmsAccount(db,userId,bankName){let acc=(db.accounts||[]).filter(x=>x.userId===userId&&!x.archived);if(bankName){let k=String(bankName).replace(/\s+/g,'');return acc.find(x=>String(x.name).replace(/\s+/g,'').includes(k))||acc.find(x=>x.sms)||null}return acc.find(x=>x.sms)||acc.find(x=>/بلو|blu/i.test(x.name))||null}
@@ -1614,7 +1638,7 @@ function learnedCategory(db,userId,title){let key=catKey(title);if(!key||catKeyG
   }return changed}
   async function refreshPricesAndAlerts(db){let changed=await refreshAllCryptoPrices(db).catch(()=>false);if(await refreshTsePrices(db).catch(()=>false))changed=true;let now=Date.now();for(const user of db.users){let holdings=computeHoldings(db,user.id);for(const t of evaluateAlerts(db,user.id,holdings)){let a=t.alert;if(!a.lastNotifiedAt||now-a.lastNotifiedAt>6*3600*1000){a.lastNotifiedAt=now;changed=true;if(TELEGRAM_BOT_TOKEN&&user.telegramUserId)await tgSend(user.telegramUserId,'🔔 '+t.text)}}}return changed}
 
-  return { statementAccount, read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances, bankSmsAccount, isNonTxSms, sameAccountPool,
+  return { statementAccount, statementLatestBalance, read, write, json, body, cookie, sidCookie, hash, id, randHex, timingSafeEqualHex, b64, bytesFromBase64, textFromBase64, today, AuthError, auth, me, accountBalances, bankSmsAccount, isNonTxSms, sameAccountPool,
     jalaliToGregorianIso, jalaliDateLabel, parseCsvRows, findBankHeaderRow, bankColIndex, parseBankAmount, parseBankStatementRows,
     filterTransactions, csvEscape, advanceRecurringTransactions, enNum, addDaysIso, parsePersianAmount, extractAmountFromText, extractDateFromText, extractTimeFromText, parseLifeText, applyParsedActions, normTitle, applySeriesAction, parseBingersLibrary, parseBingersWatches, fetchTvMazeNextEpisode, mapConcurrent, aiComplete, aiExtractActions, pearson, correlationLabel, seasonStatsFromEpisodes, seasonTotAired, fetchTvMazeShowFull, progressFromShow, ensureSeriesTvMazeData, clampEpisodeAgainstSeason,
     officeDayWarning, IRAN_WEEK_NOTE, parseSleepHours, isExpenseTx, isPassThroughTitle, suggestCategoryKeyword, catKey, catKeyGeneric, learnedCategory, isIncomeTx, stripBalanceNotes, stripRefNumbers, matchBankStatementItems, ensureStatementReminder, betRollup, betAutoStart, betLatest, betDaysOf, normalizeCategoryName, categorizeTransaction, decodeXmlEntities, extractTag, extractAttr, parseFeed, isMostlyLatin, textSimilarityScore, syncOneNewsSource, syncAllNewsSources, pruneNews, newsRead, newsWrite, migrateNewsOut, periodRange, computeGoalProgress, nextAnnualOccurrence, rapidApiGet, apiFootballFetch, FREE_LEAGUES, ESPN_LEAGUE_IDS, fetchEspnScoreboard, fetchTheSportsDb, fetchFreeLeagueDay, mapEspnEvent, mapTheSportsDbEvent, fetchVarzesh3Livescore, mapEspnStandings, mapTsdbStandings, fetchVarzesh3LeaguePage, parseVarzesh3Standings, fetchFreeLeagueStandings, fetchFreeLeagueRange, cachedLeagueRange, settleStaleLive, withAiNote, xbetGet, sofaGet, assetCurrency, fetchCryptoPriceUsd, fetchStockPriceUsd, fetchUsStocksQuote,

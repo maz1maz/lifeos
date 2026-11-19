@@ -33,6 +33,9 @@ async function importTelegramBankWorkbook(db, env, msg, H) {
     const matched = H.matchBankStatementItems(candidates, own);
     const fresh = matched.items.filter(x => !x.duplicate);
     const account = picked.account.name;
+    // remember the statement's account number on that account, so the next file goes there by number alone
+    if (picked.acctNo && !picked.account.statementNo && !(db.accounts || []).some(x => x.userId === user.id && x.statementNo === picked.acctNo)) picked.account.statementNo = picked.acctNo;
+    const how = { caption: 'از کپشن', number: 'از شمارهٔ حساب', bank: 'از نام بانک', format: 'از قالب فایل', only: 'تنها حساب' }[picked.how] || '';
     db.transactions ??= [];
     let imported = 0;
     for (const item of fresh) {
@@ -40,9 +43,17 @@ async function importTelegramBankWorkbook(db, env, msg, H) {
       db.transactions.push({ id: H.id(), userId: user.id, title: String(item.title).trim(), amount: Number(item.amount), category: item.category || 'متفرقه', kind: item.kind, account, date: item.date, recurrence: null, recurrenceId: null, receipt: null, tripId: null, bankRef: item.bankRef || null, rialFixed: true, tags: [], createdAt: Date.now(), ...(item.notIncome ? { notIncome: true } : {}), ...(user.autoPassThrough && (item.kind === 'income' || item.kind === 'expense') && H.isPassThroughTitle(item.title) ? { passThrough: true, passBy: 'rule' } : {}) });
       imported++;
     }
+    // the bank's balance printed in the file (newest row) is kept like an SMS balance → the finance page shows any gap
+    const sb = H.statementLatestBalance(rows), acc = picked.account; let balLine = '';
+    if (sb && Number.isFinite(sb.balance)) {
+      const at = sb.date + ' ' + (sb.time || '00:00');
+      if (!acc.smsBalanceAt || at >= acc.smsBalanceAt) { acc.smsBalance = sb.balance; acc.smsBalanceAt = at; }
+      const cur = H.accountBalances(db, user.id).find((x) => x.id === acc.id), gap = cur ? Math.round(Number(cur.smsDiff) || 0) : 0;
+      balLine = `\nموجودی بانک: ${sb.balance.toLocaleString('fa-IR')} ریال` + (gap ? `\n⚠️ موجودی «${acc.name}» در LifeOS ${Math.abs(gap).toLocaleString('fa-IR')} ریال ${gap > 0 ? 'کمتر' : 'بیشتر'} از بانک است (معمولاً ماندهٔ اولِ حساب). در مالی ← حساب‌ها درستش کن.` : ' ✓ با LifeOS یکی است.');
+    }
     await H.write(db);
     const duplicateCount = parsed.length - imported;
-    return H.tgSend(chatId, `✅ صورت‌حساب «${name}» در مالی ثبت شد.\nتراکنش تازه: ${imported.toLocaleString('fa-IR')} · تکراری/قبلاً ثبت‌شده: ${duplicateCount.toLocaleString('fa-IR')}\nحساب: ${account}`);
+    return H.tgSend(chatId, `✅ صورت‌حساب «${name}» در مالی ثبت شد.\nتراکنش تازه: ${imported.toLocaleString('fa-IR')} · تکراری/قبلاً ثبت‌شده: ${duplicateCount.toLocaleString('fa-IR')}\nحساب: ${account}${how ? ` (${how})` : ''}${balLine}`);
   } catch (e) {
     return H.tgSend(chatId, `فایل دریافت شد اما صورت‌حساب قابل ورود نبود: ${String(e?.message || 'خطای نامشخص').slice(0, 500)}`);
   }
