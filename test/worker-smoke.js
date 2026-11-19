@@ -422,6 +422,14 @@ async function main() {
     check('debt date editable', (await call(`/api/debts/${g.d.id}`, { method: 'PATCH', cookie, body: { date: '2026-08-15' } })).d.date === '2026-08-15'); }
   const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
   check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
+  { // the finance page settles with no account: marked settled, no bank transaction (real money comes from the statement)
+    const r = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'بی‌حساب-تسویه', amount: 70, type: 'receivable' } })).d;
+    const st = await call(`/api/debts/${r.id}/settle`, { method: 'POST', cookie, body: {} });
+    const txs = (await call('/api/transactions?from=2000-01-01&to=2100-12-31', { cookie })).d.items || [];
+    check('debt settle without account → settled, no transaction', st.status === 200 && st.d.settled && !st.d.transaction && !txs.some(x => /بی‌حساب-تسویه/.test(x.title)));
+    const fin = require('fs').readFileSync('src/today/src/finance.jsx', 'utf8');
+    check('finance page «تسویه» sends no account', /settle`, \{\}, 'تسویه شد\.'\)/.test(fin));
+  }
   const sub = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'Wsub', amount: 50, nextDate: daysAgo(-3) } })).d;
   check('subscription pay -> 200', (await call(`/api/subscriptions/${sub.id}/pay`, { method: 'POST', cookie, body: {} })).status === 200);
   const rem = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'w-rem', date: today() } })).d;

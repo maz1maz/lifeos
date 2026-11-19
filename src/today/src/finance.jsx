@@ -1086,7 +1086,7 @@ export function FinanceReact({ Nav }) {
                         <div className="fn-ops">
                           <button type="button" onClick={() => setPaying(paying === item.id ? null : item.id)}>{k === 'receivable' ? 'دریافت بخشی' : 'پرداخت بخشی'}</button>
                           <button type="button" onClick={() => setEditing({ type: 'debt', item })}>ویرایش</button>
-                          <button type="button" className="ok" onClick={() => { if (window.confirm(`${k === 'receivable' ? 'طلب از' : 'بدهی به'} ${item.person} کامل تسویه شد؟`)) send(`/api/debts/${item.id}/settle`, { account: item.currency === 'IRR' ? (accounts.find((a) => !a.archived)?.name || '') : '' }, 'تسویه شد.') }}>تسویه</button>
+                          <button type="button" className="ok" onClick={() => { if (window.confirm(`${k === 'receivable' ? 'طلب از' : 'بدهی به'} ${item.person} کامل تسویه شد؟\n(فقط علامت تسویه می‌خورد؛ تراکنشی در هیچ حساب بانکی ثبت نمی‌شود — پول واقعی از صورت‌حساب بانک می‌آید)`)) send(`/api/debts/${item.id}/settle`, {}, 'تسویه شد.') }}>تسویه</button>
                         </div>
                         {paying === item.id ? (
                           <form className="fn-pay" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); send(`/api/debts/${item.id}/pay`, { amount: Number(f.get('amount')), date: f.get('date') || isoToday(), account: item.currency === 'IRR' && f.get('account') !== '' ? f.get('account') : '' }, 'ثبت شد.'); setPaying(null) }}>
