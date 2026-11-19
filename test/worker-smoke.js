@@ -423,6 +423,19 @@ async function main() {
     check('debt date editable', (await call(`/api/debts/${g.d.id}`, { method: 'PATCH', cookie, body: { date: '2026-08-15' } })).d.date === '2026-08-15'); }
   const debt = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'W', amount: 100, type: 'payable' } })).d;
   check('debt settle -> 200 + expense tx', (await call(`/api/debts/${debt.id}/settle`, { method: 'POST', cookie, body: { account: 'WA' } })).d.transaction.kind === 'expense');
+  { // one door for every transaction: cloudflare/lib/ledger.js (recordTx)
+    const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'cloudflare', 'lib');
+    const pushers = fs.readdirSync(dir).filter(f => f.endsWith('.js') && f !== 'ledger.js').filter(f => /transactions\.push\(/.test(fs.readFileSync(path.join(dir, f), 'utf8'))).concat(/transactions\.push\(/.test(fs.readFileSync(path.join(__dirname, '..', 'cloudflare', 'worker.js'), 'utf8')) ? ['worker.js'] : []);
+    check('ledger: no route pushes a transaction itself — everything goes through recordTx', pushers.length === 0, pushers.join(', '));
+    const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
+    const db = { users: [{ id: 'L1', autoPassThrough: true }], transactions: [], catRules: [] }, u = db.users[0];
+    const r1 = H.recordTx(db, u, { title: '  نان   تازه ', amount: '12500.6', kind: 'expense' });
+    check('ledger: fills id/user/date/account, integer amount, trims title, guesses the category', r1 && r1.id && r1.userId === 'L1' && r1.amount === 12501 && r1.title === 'نان تازه' && r1.account === 'بدون حساب' && /^\d{4}-\d{2}-\d{2}$/.test(r1.date) && r1.category === 'خوراک' && Array.isArray(r1.tags) && db.transactions.length === 1, JSON.stringify(r1));
+    check('ledger: a non-positive amount is refused (nothing stored)', H.recordTx(db, u, { title: 'x', amount: 0 }) === null && H.recordTx(db, u, { title: 'x', amount: 'abc' }) === null && db.transactions.length === 1);
+    const p1 = H.recordTx(db, u, { title: 'حواله ساتنا (علی)', amount: 10, kind: 'income' }, { autoRules: true }), p2 = H.recordTx(db, u, { title: 'حواله ساتنا (علی)', amount: 10, kind: 'income' }), p3 = H.recordTx(db, u, { title: 'حواله ساتنا (علی)', amount: 10, kind: 'income', passThrough: false }, { autoRules: true });
+    check('ledger: the pass-through rule runs only for user/bank rows (autoRules) and an explicit choice wins', p1.passThrough === true && p1.passBy === 'rule' && !p2.passThrough && !('passThrough' in p3));
+    check('ledger: a given category is kept; the user id string form works', H.recordTx(db, 'L1', { title: 'قسط', amount: 5, category: 'قسط وام' }).category === 'قسط وام');
+  }
   { // «عبوری» (pass-through): out of income/expense, rule preview/apply/undo, bulk edit, note, title guard, matcher
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
     const mkTx = async (o) => (await call('/api/transactions', { method: 'POST', cookie, body: { date: '2031-03-10', account: 'WA', ...o } })).d;
