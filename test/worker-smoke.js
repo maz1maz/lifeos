@@ -955,6 +955,13 @@ async function main() {
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
     const db = { accounts: [{ userId: 'u', name: 'بلو' }, { userId: 'u', name: 'بانک ملی' }, { userId: 'u', name: 'ملت حقوق' }, { userId: 'u', name: 'قدیمی', archived: true }] };
     const pick = o => { const r = H.statementAccount(db, 'u', o); return r.account ? r.account.name : 'ERR'; };
+    { // bank SMS → the right account: Melli SMS (Persian or Arabic ی/ک, or a «بانک ملی» line the Shortcut prepends) go to «ملی», Blu stays Blu
+      const dbS = { accounts: [{ userId: 'u', name: 'بلو بانک' }, { userId: 'u', name: 'ملی' }] };
+      const accOf = t => { const a = H.parseLifeText(t).find(x => x.type === 'transaction'); return a ? (H.bankSmsAccount(dbS, 'u', a.bankName) || {}).name + '|' + a.kind + '|' + a.amount : 'none'; };
+      check('bank SMS: «بانک ملی ایران» withdrawal → ملی', accOf('بانک ملی ایران\nبرداشت:1,500,000\nحساب:01*****01\nمانده:9,000,000\n1405/08/28-12:30') === 'ملی|expense|1500000');
+      check('bank SMS: Arabic «بانك ملي» deposit → ملی', accOf('بانك ملي ايران\nواريز:2,000,000\nمانده:11,000,000\n1405/08/28-13:10') === 'ملی|income|2000000');
+      check('bank SMS: a prepended «بانک ملی» line → ملی; Blu SMS still → بلو بانک', accOf('بانک ملی\nبرداشت پول\nمبلغ 250,000 ریال از حساب شما کسر شد\n1405/08/28') === 'ملی|expense|250000' && accOf('بلو\nبرداشت پول\nحمیدرضا عزیز، 10,560,000 ریال از حساب شما پرید.\nموجودی: 2,406,466,090 ریال\n۱۹:۵۴\n۱۴۰۵.۰۷.۰۹') === 'بلو بانک|expense|10560000');
+    }
     check('statement account: file name «…ملی…» / melli_ → بانک ملی', pick({ fileName: 'صورتحساب ملی آبان.xlsx' }) === 'بانک ملی' && pick({ fileName: 'melli_1405.xlsx' }) === 'بانک ملی');
     check('statement account: sheet header «بانک ملی ایران» → بانک ملی; «کد ملی» alone is not a bank', pick({ fileName: 's.xlsx', rows: [['بانک ملی ایران'], ['کد ملی', '1']] }) === 'بانک ملی' && pick({ fileName: 's.xlsx', rows: [['کد ملی', '1']] }) === 'ERR');
     check('statement account: caption wins; unknown caption refuses', pick({ fileName: 'blu.xlsx', caption: 'ملی' }) === 'بانک ملی' && pick({ fileName: 'x.xlsx', caption: 'پاسارگاد' }) === 'ERR');

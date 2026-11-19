@@ -267,7 +267,7 @@ export function makeHelpers(env) {
     if(acc.length===1)return out(acc[0],'only');
     return{error:`نتوانستم بفهمم این صورت‌حساب مال کدام حساب است.\nفایل را دوباره بفرست و در کپشن نام حساب را بنویس (مثلاً «ملی»).\nحساب‌ها: ${names}`};
   }
-  function bankSmsAccount(db,userId,bankName){let acc=(db.accounts||[]).filter(x=>x.userId===userId&&!x.archived);if(bankName){let k=String(bankName).replace(/\s+/g,'');return acc.find(x=>String(x.name).replace(/\s+/g,'').includes(k))||acc.find(x=>x.sms)||null}return acc.find(x=>x.sms)||acc.find(x=>/بلو|blu/i.test(x.name))||null}
+  function bankSmsAccount(db,userId,bankName){let acc=(db.accounts||[]).filter(x=>x.userId===userId&&!x.archived),nm=v=>String(v||'').replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/\s+/g,'');if(bankName){let k=nm(bankName);return acc.find(x=>nm(x.name).includes(k))||acc.find(x=>x.sms)||null}return acc.find(x=>x.sms)||acc.find(x=>/بلو|blu/i.test(x.name))||null}
   function jalaliToGregorianIso(jy,jm,jd){let gy;if(jy>979){gy=1600;jy-=979}else{gy=621}let days=(365*jy)+(Math.floor(jy/33)*8)+Math.floor(((jy%33)+3)/4)+78+jd+((jm<7)?(jm-1)*31:((jm-7)*30)+186);gy+=400*Math.floor(days/146097);days%=146097;if(days>36524){gy+=100*Math.floor(--days/36524);days%=36524;if(days>=365)days++}gy+=4*Math.floor(days/1461);days%=1461;if(days>365){gy+=Math.floor((days-1)/365);days=(days-1)%365}let gd=days+1,isLeap=(gy%4===0&&gy%100!==0)||(gy%400===0),sal=[0,31,isLeap?29:28,31,30,31,30,31,31,30,31,30,31],gm;for(gm=1;gm<=12;gm++){if(gd<=sal[gm])break;gd-=sal[gm]}return gy+'-'+String(gm).padStart(2,'0')+'-'+String(gd).padStart(2,'0')}
   function parseCsvRows(text){text=String(text||'');if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);text=text.replace(/^\uFEFF/,'');/* strip UTF-8 BOM leftovers */if(text.charCodeAt(0)===0xEF&&text.length>2){/* binary mistaken as latin1 rare */}let rows=[],row=[],field='',inQuotes=false;for(let i=0;i<text.length;i++){let c=text[i];if(inQuotes){if(c==='"'){if(text[i+1]==='"'){field+='"';i++}else inQuotes=false}else field+=c}else{if(c==='"')inQuotes=true;else if(c===','){row.push(field);field=''}else if(c==='\n'){row.push(field);if(row.length>1||(row[0]&&String(row[0]).trim()))rows.push(row);row=[];field=''}else if(c==='\r'){}else field+=c}}if(field.length||row.length){row.push(field);if(row.length>1||(row[0]&&String(row[0]).trim()))rows.push(row)}/* strip BOM on first cell of first row */if(rows.length&&rows[0].length)rows[0][0]=String(rows[0][0]||'').replace(/^\uFEFF/,'');return rows}
   function findBankHeaderRow(rows){for(let i=0;i<rows.length;i++){let r=rows[i],cells=r.map(c=>String(c||''));if(cells.some(c=>/تاریخ/.test(c))&&cells.some(c=>/شرح/.test(c))&&cells.some(c=>/واریز|برداشت|بدهکار|بستانکار|مبلغ/.test(c)))return i}return -1}
@@ -428,7 +428,9 @@ function betRollup(all,month){let items=[],prev=null,st={month:month||null,days:
     const cat=transfer?'انتقال':suggestCategoryKeyword(title)||suggestCategoryKeyword(t)||"متفرقه";
     let r={type:"transaction",amount,title,category:cat,kind:transfer?'transfer':kind,date,bank:true};
     // نام بانک برای انتخاب حساب: پیامک بلو با «بلو» شروع می‌شود، بقیه «بانک رفاه / بانک ملت …».
-    const bankName=/^\s*(?:بلو|blu)/i.test(orig)?'بلو':((orig.match(/بانک\s*([آ-ی]{2,}(?:\s+نوین)?)/)||[])[1]||null);
+    // Melli SMS: «بانک ملی ایران» / «بانك ملي» / «Bank Melli» (Arabic ي/ك too); a Shortcut can also prepend a «بانک ملی» line.
+    const on=orig.replace(/ي/g,'ی').replace(/ك/g,'ک');
+    const bankName=/^\s*(?:بلو|blu)/i.test(on)?'بلو':/بانک\s*ملی|ملی\s*ایران|bank\s*melli|(?<![a-z])bmi(?![a-z])/i.test(on)?'ملی':((on.match(/بانک\s*([آ-ی]{2,}(?:\s+نوین)?)/)||[])[1]||null);
     if(bankName)r.bankName=bankName;
     if(transfer)r.transfer=transfer;
     if(meta.time)r.time=meta.time;
