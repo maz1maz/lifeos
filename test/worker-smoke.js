@@ -467,6 +467,7 @@ async function main() {
     const row = { date: '2026-11-17', amount: 1000, kind: 'expense', title: 'x' };
     check('matcher: same-day same-amount row of the OTHER direction is not a duplicate; same kind / transfer is', mt([{ date: '2026-11-17', amount: 1000, kind: 'income' }], row) === false && mt([{ date: '2026-11-17', amount: 1000, kind: 'expense' }], row) === true && mt([{ date: '2026-11-17', amount: 1000, kind: 'transfer' }], row) === true);
     check('category: «خرید اینترنتی» is not a bill; internet bundles / bare «اینترنت» are', H.suggestCategoryKeyword('خرید اینترنتی') == null && H.suggestCategoryKeyword('خرید بسته اینترنت') === 'قبض' && H.suggestCategoryKeyword('اینترنت') === 'قبض');
+    check('pass-through rule: «انتقالی (بانک ملی)» (to the bank itself, e.g. a loan installment) and «قسط/وام» are real spending; an interbank «حواله پایا (بانک X)» still is pass-through', !H.isPassThroughTitle('انتقالی (بانک ملی)') && !H.isPassThroughTitle('پرداخت قسط وام') && H.isPassThroughTitle('حواله پایا (بانک پاسارگاد)') && H.isPassThroughTitle('انتقالی (علی)'));
     check('category rules: «کارمزد»/«انتقال پل»/«حواله ساتنا» titles are generic (never learned)', ['کارمزد', 'انتقال پل', 'حواله ساتنا'].every(k => H.catKeyGeneric(H.catKey(k))));
     const oi = await mkTx({ title: 'خرید اینترنتی', amount: 3300, kind: 'expense', category: 'قبض' });
     await call(`/api/transactions/${oi.id}`, { method: 'PATCH', cookie, body: {} });

@@ -621,7 +621,11 @@ function betRollup(all,month){let items=[],prev=null,st={month:month||null,days:
   const CATEGORY_KEYWORDS=[['خوراک',/نان|رستوران|شام|ناهار|صبحانه|غذا|کافه|سوپرمارکت|میوه|قصاب|نانوایی|فست\s?فود/],['حمل‌ونقل',/تاکسی|اسنپ|تپسی|بنزین|پمپ\s?بنزین|مترو|اتوبوس|پارکینگ|تعمیر\s?ماشین|بلیط|مسافرت/],['قبض',/قبض|برق|آب و فاضلاب|گاز|بسته\s?اینترنت|شارژ\s?اینترنت|قبض\s?اینترنت|تلفن|شارژ\s?خط|بیمه/],['سلامت',/دکتر|پزشک|دارو|داروخانه|بیمارستان|درمانگاه|دندانپزشک|آزمایشگاه/],['تفریح',/سینما|کنسرت|بازی|فیلم|پارک|تفریح|بولینگ|بیلیارد/],['پوشاک',/لباس|کفش|پوشاک|مانتو|شلوار|کاپشن|عینک|کیف/],['آموزش',/کتاب|دوره|کلاس|آموزش|شهریه|دانشگاه/],['مسکن',/اجاره|رهن|شارژ\s?ساختمان|مسکن/]];
   // «عبوری»: pulled out of income/expense because the money only moved through the account to or from another
   // person (satna / paya / pol / card-to-card transfers). Fees, interest and refunds of fees stay normal spending.
-  function isPassThroughTitle(title){const t=String(title||'').replace(/ي/g,'ی').replace(/ك/g,'ک');if(!t||/کارمزد|سود|عودت|اصلاح|مالیات|قسط/.test(t))return false;return /(?:^|[\s(])(?:حواله|ساتنا|پایا)(?:[\s(]|$)|(?:انتقال|دریافت)\s*پل(?:[\s(]|$)|(?:انتقال\s*(?:به|از)|دریافت\s*از)\s*(?:کارت|سپرده|حساب)|^انتقالی(?:[\s(]|$)/.test(t)}
+  function isPassThroughTitle(title){const t=String(title||'').replace(/ي/g,'ی').replace(/ك/g,'ک');if(!t||/کارمزد|سود|عودت|اصلاح|مالیات|قسط|وام|تسهیلات/.test(t))return false;
+    // «انتقالی (بانک ملی)» = a transfer to the bank's own account (loan installment) — real money out, not pass-through
+    // (an interbank «حواله … (بانک X)» still is pass-through: only the bank name of a person's account is shown)
+    if(/^انتقالی\s*\(\s*بانک/.test(t))return false;
+    return /(?:^|[\s(])(?:حواله|ساتنا|پایا)(?:[\s(]|$)|(?:انتقال|دریافت)\s*پل(?:[\s(]|$)|(?:انتقال\s*(?:به|از)|دریافت\s*از)\s*(?:کارت|سپرده|حساب)|^انتقالی(?:[\s(]|$)/.test(t)}
   function isIncomeTx(x){return !!x&&x.kind==='income'&&!x.notIncome&&!x.passThrough}
   /* real spending: not an own-account «انتقال» and not a pass-through (money that only moved through the account to/from someone else) */
   function isExpenseTx(x){return !!x&&x.kind==='expense'&&!x.passThrough&&normalizeCategoryName(x.category)!=='انتقال'} /* «درآمد لحاظ نشود»: ماندهٔ حساب دست‌نخورده می‌ماند، آمار درآمد نه */
