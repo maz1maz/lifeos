@@ -13,6 +13,7 @@ import { PlannerReact, TaskDrawer, createPlannerItem, savePlannerItem } from './
 import './media.css';
 import './market.css';
 import './finance.css';
+import './finance-ledger.css';
 import './fun.css';
 import './xcards.css';
 import { photoOfDay } from './season-photos.mjs';

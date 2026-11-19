@@ -85,6 +85,7 @@ const home = read('public/index.html');
 const todaySource = read('src/today/src/main.jsx');
 const calendarSource = read('src/today/src/calendar.jsx');
 const financeSource = read('src/today/src/finance.jsx');
+const ledgerSource = read('src/today/src/finance-ledger.jsx');
 const marketSource = read('src/today/src/market.jsx');
 const footballSource = read('src/today/src/football.jsx');
 check('today page is the Vite React entry point',
@@ -104,7 +105,8 @@ check('React finance keeps the existing finance APIs for budgets, transfers, deb
   financeSource.includes("'/api/debts'") && financeSource.includes("'/api/investments/tx'"));
 check('React finance supports transaction editing and bank-import preview before commit',
   financeSource.includes("'/api/transactions/import-bank/preview'") &&
-  financeSource.includes("'/api/transactions/import-bank/commit'") && financeSource.includes("setEditing({ type: 'transaction', item })"));
+  financeSource.includes("'/api/transactions/import-bank/commit'") && financeSource.includes('<LedgerView') &&
+  ledgerSource.includes("api(`/api/transactions/${item.id}`, { method: 'PATCH'") && ledgerSource.includes("'/api/transactions/bulk'"));
 check('each account card can import a bank statement straight into that account',
   financeSource.includes('previewImport(e, a.name)') && financeSource.includes('importPreview.forAccount === a.name') && financeSource.includes("{ items, account: a.name }"));
 check('React today route no longer embeds the legacy today iframe',

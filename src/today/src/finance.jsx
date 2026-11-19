@@ -6,6 +6,7 @@ import { JalaliDateInput, isoToJ, jToIso, MONTHS as JMONTHS, monthLen } from './
 import { BillsPanel } from './life';
 import { FunOverview, PfTrend, useUsdHistory, makeRateOn, setFunUnit } from './fun';
 import { XCards, CopyBtn, Spark, xcAuto } from './xcards';
+import { LedgerView, PassThroughTool } from './finance-ledger';
 
 const api = async (url, options) => {
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
@@ -140,8 +141,15 @@ const COLORS = ['#22d3ee', '#a78bfa', '#fbbf24', '#34d399', '#f472b6', '#60a5fa'
 const usd = (n) => `$${fa(Math.round(Math.abs(Number(n) || 0)))}` // whole dollars
 const signedUsd = (n) => usd(n) // colour (pos/neg) carries the sign
 const ALERT_COND = { price_above: 'قیمت بالاتر از', price_below: 'قیمت پایین‌تر از', pnl_pct_above: 'سود٪ بالاتر از', pnl_pct_below: 'زیان٪ پایین‌تر از' }
+// Navigation: five groups. Old ids stay valid in links (dash → ledger; bills / fun are sub-views of their group).
+const NAV = [
+  ['ledger', 'تراکنش‌ها', ['ledger']],
+  ['accounts', 'حساب‌ها', ['accounts']],
+  ['budget', 'بودجه و قبض', ['budget', 'bills'], [['budget', 'بودجه'], ['bills', 'قبض و اشتراک']]],
+  ['wealth', 'بدهی و اهداف', ['wealth']],
+  ['invest', 'سرمایه و بت', ['invest', 'fun'], [['invest', 'سبد سرمایه'], ['fun', 'بت و پوکر']]],
+]
 const TABS = [
-  { id: 'dash', label: 'داشبورد' },
   { id: 'ledger', label: 'تراکنش‌ها' },
   { id: 'accounts', label: 'حساب‌ها' },
   { id: 'budget', label: 'بودجه' },
@@ -373,7 +381,8 @@ export function FinanceReact({ Nav }) {
   UNIT = unit
   setFunUnit(unit)
   const switchUnit = (u) => { setUnit(u); try { localStorage.setItem('lifeos-fin-unit', u) } catch {} }
-  const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(location.search).get('tab'); return TABS.some((x) => x.id === t) ? t : 'dash' } catch { return 'dash' } })
+  const [tab, setTabRaw] = useState(() => { try { const t = new URLSearchParams(location.search).get('tab'); return t === 'dash' || t === 'tx' ? 'ledger' : TABS.some((x) => x.id === t) ? t : 'ledger' } catch { return 'ledger' } })
+  const setTab = (t) => setTabRaw(t === 'dash' ? 'ledger' : t)
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, categories: {} })
   const [trend, setTrend] = useState([])
   const [txs, setTxs] = useState([])
@@ -492,7 +501,6 @@ export function FinanceReact({ Nav }) {
   const netWorth = accounts.reduce((s, a) => s + Number(a.balance ?? a.openingBalance ?? 0), 0)
   const receivable = debts.filter((d) => d.type !== 'payable').reduce((s, d) => s + d.amount, 0)
   const payable = debts.filter((d) => d.type === 'payable').reduce((s, d) => s + d.amount, 0)
-  const shown = txs.filter((t) => (filter === 'all' || (filter === 'misc' ? isMisc(t) : filter === 'transfer' ? t.kind === 'transfer' || t.category === 'انتقال' : t.kind === filter && t.category !== 'انتقال')) && (acctFilter === 'all' || t.account === acctFilter || t.toAccount === acctFilter) && (!q.trim() || `${t.title} ${t.category} ${t.account || ''}`.includes(q.trim())))
   const face = holdAssetType === 'dollar' || holdAssetType === 'euro'
   const mRange = jRange(month)
   const betMonthItems = (bet.items || []).filter((d) => d.date >= mRange.from && d.date <= mRange.to)
@@ -700,65 +708,7 @@ export function FinanceReact({ Nav }) {
   const revertRecat = () => recategorize({ revert: true }, (r) => r.message || 'بازگردانی شد.')
   const undoLearn = async () => { const b = undoBatch; setUndoBatch(null); try { const r = await api('/api/transactions/recategorize', { method: 'POST', body: JSON.stringify({ revert: true, learnBatch: b }) }); setNotice(r.message || 'برگشت.'); await load() } catch (e) { setNotice(e.message) } }
 
-  return (
-    <div className="fn finance-react" dir="rtl">
-      {Nav ? <Nav active="finance" /> : null}
-      <div className="fn-page">
-        <header className="fn-glass fn-top">
-          <div className="fn-brand">
-            <div className="fn-mark">💠</div>
-            <div>
-              <p>نمای ماهانه · دادهٔ واقعی LifeOS</p>
-              <h1>مالی</h1>
-            </div>
-          </div>
-          <nav className="fn-tabs">
-            {TABS.map((t) => <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>{t.label}</button>)}
-          </nav>
-        </header>
-
-        {notice ? <div className="notice">{notice}{undoBatch ? <button type="button" className="fn-link" onClick={undoLearn}>↩ برگردان مشابه‌ها</button> : null}<button type="button" onClick={() => { setNotice(''); setUndoBatch(null) }}>×</button></div> : null}
-
-        <section className="fn-glass" style={{ padding: 16 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
-            <div className="fn-mp-row"><MonthPicker value={month} onChange={setMonth} />{tab === 'fun' ? <span className="fn-unit fn-funmode" role="radiogroup" aria-label="نمایش">{[['all', 'جمع'], ['poker', 'پوکر'], ['bet', 'بت']].map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={funMode === k} className={funMode === k ? 'on' : ''} onClick={() => pickFunMode(k)}>{l}</button>)}</span> : null}</div>
-            <div className="fn-chips">
-              <span className="fn-unit" role="radiogroup" aria-label="واحد نمایش">{[['rial', 'ریال'], ['toman', 'تومان']].map(([k, l]) => <button key={k} type="button" className={unit === k ? 'on' : ''} onClick={() => switchUnit(k)}>{l}</button>)}</span>
-              {/* net worth / receivables / debts: dashboard only */}
-              {tab === 'dash' ? <>
-              <span className="fn-chip">دارایی: {compact(netWorth)}</span>
-              <span className="fn-chip">طلب: {compact(debtTot.rec)}</span>
-              <span className="fn-chip">بدهی: {compact(debtTot.pay)}</span>
-              </> : null}
-            </div>
-          </div>
-          {tab === 'dash' ? <>
-          <div className="fn-kpis">
-            <div className="fn-kpi green" title={faMoney(income)}><small>💰 درآمد ماه</small><b>{income ? short(income, false) : '—'}</b><small className="fn-u">{income ? UNIT_FA() : 'بدون تراکنش'}</small></div>
-            <div className="fn-kpi rose" title={faMoney(expense)}><small>💸 هزینه ماه</small><b>{expense ? short(expense, false) : '—'}</b><small className="fn-u">{expense ? UNIT_FA() : 'بدون تراکنش'}</small></div>
-            <div className={`fn-kpi ${balance >= 0 ? 'cyan' : 'amber'}`} title={faMoney(balance)}><small>⚖️ مانده ماه</small><b>{balance ? short(balance, false) : '—'}</b><small className="fn-u">{balance ? UNIT_FA() : 'بدون تراکنش'}</small></div>
-            <div className="fn-kpi cyan">
-              <small>نرخ پس‌انداز {fa(savings)}٪</small>
-              <div className="fn-gauge" style={{ marginTop: 10 }}><i style={{ width: `${Math.max(0, Math.min(100, savings))}%` }} /></div>
-              <button type="button" className="fn-link" style={{ marginTop: 8 }} onClick={() => setTab('ledger')}>{fa(txs.length)} تراکنش ←</button>
-            </div>
-          </div>
-          <div className="fn-catmgr">
-            {cats.slice(0, 5).map(([name, value], i) => (
-              <div key={name} className="fn-soft fn-cat">
-                <b>{ICONS[name] || '•'} {name}</b>
-                <small title={faMoney(value)}>{short(value)} · {fa(Math.round((value / (expense || 1)) * 100))}٪</small>
-                <div className="fn-bar"><i style={{ width: `${Math.min(100, Math.round((value / (expense || 1)) * 100))}%`, background: COLORS[i % COLORS.length] }} /></div>
-              </div>
-            ))}
-            {!cats.length ? <p className="fn-empty" style={{ gridColumn: '1/-1' }}>هنوز هزینه‌ای برای این ماه نیست.</p> : null}
-          </div>
-          {summary.miscCount ? (
-            <div className="fn-banner">
-              <span>📦 <b>{fa(summary.miscCount)}</b> هزینه بدون دسته (متفرقه) — <b>{fa(miscPct)}٪</b> هزینهٔ این ماه. دسته‌بندی‌شان کن تا گزارش واقعی شود؛ هر دسته‌ای بدهی، روی تراکنش‌های هم‌نام هم اعمال و برای بعد یاد گرفته می‌شود.</span>
-              <button type="button" className="fn-save" onClick={() => { setTab('ledger'); setFilter('misc') }}>دسته‌بندی کن</button>
-            </div>
-          ) : null}
+  const bannersNode = <div className="fl-banners">
           {accounts.filter((a) => Math.abs(Number(a.smsDiff) || 0) >= 1).map((a) => (
             <div key={'gap' + a.id} className="fn-banner">
               <span>⚠️ موجودی <b>{a.name}</b> با آخرین پیامک بانک <b>{faMoney(Math.abs(a.smsDiff))}</b> {a.smsDiff < 0 ? 'کمتر' : 'بیشتر'} است — یعنی تراکنشی ثبت نشده.</span>
@@ -772,10 +722,35 @@ export function FinanceReact({ Nav }) {
             </div>
           ) : null}
           {summary.transferCount ? <p className="fn-note">🔄 {fa(summary.transferCount)} انتقال ({short(summary.transferOut)}) جزو هزینه حساب نشده.</p> : null}
-          </> : null}
-        </section>
+  </div>
+  return (
+    <div className="fn finance-react" dir="rtl">
+      {Nav ? <Nav active="finance" /> : null}
+      <div className="fn-page">
+        <header className="fl-bar">
+          <h1>مالی</h1>
+          <MonthPicker value={month} onChange={setMonth} />
+          <span className="fn-unit" role="radiogroup" aria-label="واحد نمایش">{[['rial', 'ریال'], ['toman', 'تومان']].map(([k, l]) => <button key={k} type="button" className={unit === k ? 'on' : ''} onClick={() => switchUnit(k)}>{l}</button>)}</span>
+          {tab === 'fun' ? <span className="fn-unit fn-funmode" role="radiogroup" aria-label="نمایش">{[['all', 'جمع'], ['poker', 'پوکر'], ['bet', 'بت']].map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={funMode === k} className={funMode === k ? 'on' : ''} onClick={() => pickFunMode(k)}>{l}</button>)}</span> : null}
+          <nav className="fl-nav" aria-label="بخش‌های مالی">{NAV.map(([id, label, ids]) => <button key={id} type="button" className={ids.includes(tab) ? 'on' : ''} aria-current={ids.includes(tab) ? 'page' : undefined} onClick={() => { if (!ids.includes(tab)) setTab(id) }}>{label}</button>)}</nav>
+          {(() => { const g = NAV.find(([, , ids]) => ids.includes(tab)); return g && g[3] ? <nav className="fl-sub" aria-label={g[1]}>{g[3].map(([id, l]) => <button key={id} type="button" className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{l}</button>)}</nav> : null })()}
+        </header>
 
-        {tab === 'dash' ? (
+        {notice ? <div className="notice">{notice}{undoBatch ? <button type="button" className="fn-link" onClick={undoLearn}>↩ برگردان مشابه‌ها</button> : null}<button type="button" onClick={() => { setNotice(''); setUndoBatch(null) }}>×</button></div> : null}
+
+
+
+        {tab === 'ledger' ? (
+          <div className="fn-ledger" id="ledger">
+            <LedgerView
+              txs={txs} accounts={accounts} cats={USER_CATS} summary={summary} monthLabel={monthFa(month)}
+              fmt={{ amt, short, faMoney, conv, unitFa: UNIT_FA(), toRial: (v) => (UNIT === 'toman' ? Math.round(v * 10) : Math.round(v)) }}
+              filter={filter} setFilter={setFilter} acctFilter={acctFilter} setAcctFilter={setAcctFilter}
+              onChanged={load} notify={setNotice}
+              bannersSlot={bannersNode}
+              netChips={<span className="fl-netchips"><span>دارایی {compact(netWorth)}</span><span>طلب {compact(debtTot.rec)}</span><span>بدهی {compact(debtTot.pay)}</span></span>}
+              analysisSlot={<>
+        {(
           <div className="fn-grid">
             <section className="fn-glass fn-card">
               <div className="fn-head"><h2>روند ۶ ماهه</h2><button type="button" className="fn-add" onClick={() => openReport()}>📊 گزارش {monthFa(month)}</button></div>
@@ -787,19 +762,10 @@ export function FinanceReact({ Nav }) {
               <p className="sub">سهم دسته از هزینهٔ ماه</p>
               {cats.length ? <Donut slices={cats.slice(0, 7).map(([name, value]) => ({ name, value }))} /> : <p className="fn-empty">داده‌ای نیست.</p>}
             </section>
-            <section className="fn-glass fn-card fn-recent">
-              <div className="fn-head"><h2>تراکنش‌های {monthFa(month)}</h2><button type="button" className="fn-add" onClick={() => setTab('ledger')}>همه ({fa(txs.length)}) ←</button></div>
-              {txs.length ? txs.slice(0, 8).map((t) => (
-                <article key={t.id} className="fn-row">
-                  <div><b>{t.title}</b><small>{jalaliShort(t.date)} · {t.category}{t.account ? ` · ${t.account}` : ''}</small></div>
-                  <span className={`amt ${t.kind === 'income' ? 'pos' : t.kind === 'transfer' ? 'xfer' : 'neg'}`} title={t.kind === 'transfer' ? 'انتقال بین حساب‌ها' : undefined}>{amt(t.amount)}</span>
-                </article>
-              )) : <EmptyTx hint={emptyHint} onJump={(d) => setMonth(jKeyOf(d))} />}
-            </section>
           </div>
-        ) : null}
+        )}
 
-        {tab === 'dash' && year ? (() => {
+        {year ? (() => {
           const cur = year.current || [], prev = year.previous || [], key = yearKind
           const max = Math.max(1, ...cur.map((x) => x[key]), ...prev.map((x) => x[key]))
           const upto = cur.filter((x) => !x.future).length
@@ -823,11 +789,10 @@ export function FinanceReact({ Nav }) {
             </section>
           )
         })() : null}
-
-        {tab === 'ledger' ? (
-          <div className="fn-ledger" id="ledger">
-            <section className="fn-glass fn-list">
-              <div className="fn-head"><h2>تراکنش‌های {monthFa(month)}</h2><Drawer label="تراکنش تازه">
+              </>}
+              emptySlot={<EmptyTx hint={emptyHint} onJump={(d) => setMonth(jKeyOf(d))} />}
+              toolsSlot={<>
+                <div className="fl-tools-row"><Drawer label="تراکنش کامل (تکرار، رسید، تگ)" title="تراکنش تازه">
 <form className="fn-form" onSubmit={submitTx} key={draft.key}>
               <label className={`fn-file fn-scan ${scanning ? 'busy' : ''}`}>{scanning ? '⏳ در حال خواندن رسید…' : '📷 پر کردن از روی عکس رسید / پیامک'}<input type="file" accept="image/*" capture="environment" hidden onChange={scanReceipt} disabled={scanning} /></label>
               {draft.scanned ? <p className="fn-note">✓ از روی تصویر پر شد — قبل از ثبت چک کن.</p> : null}
@@ -846,8 +811,15 @@ export function FinanceReact({ Nav }) {
               <JalaliDateInput name="date" defaultValue={draft.date || isoToday()} />
               <button className="fn-save">ثبت تراکنش</button>
             </form>
-              </Drawer></div>
-              <div className="fn-recat">
+              </Drawer>
+                <button type="button" className="fn-action fn-xlsx" disabled={!txs.length || xlsxBusy} title="همهٔ تراکنش‌های این ماه به‌صورت فایل Excel" onClick={async () => {
+                  setXlsxBusy(true)
+                  try { const { exportTransactionsExcel } = await import('./financeExport'); await exportTransactionsExcel(txs, monthFa(month), month) }
+                  catch (e) { setNotice('خروجی Excel ساخته نشد: ' + e.message) }
+                  finally { setXlsxBusy(false) }
+                }}>{xlsxBusy ? '…' : '⬇ خروجی Excel'}</button></div>
+                <PassThroughTool fmt={{ amt, short }} onChanged={load} notify={setNotice} />
+                <div className="fn-recat">
                 <Drawer label="🏷 دسته‌ها" title="دسته‌های هزینه و درآمد">
                   <div className="fn-catmgr">
                     <p className="sub">دستهٔ تازه بساز یا دسته‌ای را که لازم نداری بردار. تراکنش‌های قبلی دستهٔ خودشان را نگه می‌دارند.</p>
@@ -874,36 +846,9 @@ export function FinanceReact({ Nav }) {
                   </div>
                 </div>
               ) : null}
-              <div className="fn-filters">
-                {FILTERS.map(([k, l]) => <button key={k} type="button" className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{l}</button>)}
-              </div>
-              {accounts.length ? <div className="fn-filters fn-acct-filter" aria-label="حساب">
-                <button type="button" className={acctFilter === 'all' ? 'on' : ''} onClick={() => setAcctFilter('all')}>همهٔ حساب‌ها</button>
-                {accounts.filter((a) => !a.archived).map((a) => <button key={a.id} type="button" className={acctFilter === a.name ? 'on' : ''} onClick={() => setAcctFilter(a.name)}>{a.name}</button>)}
-              </div> : null}
-              <div className="fn-search-row">
-                <input className="fn-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در شرح و دسته…" />
-                <button type="button" className="fn-action fn-xlsx" disabled={!shown.length || xlsxBusy} title="همین فهرست (ماه و فیلترهای فعلی) به‌صورت فایل Excel" onClick={async () => {
-                  setXlsxBusy(true)
-                  try { const { exportTransactionsExcel } = await import('./financeExport'); await exportTransactionsExcel(shown, monthFa(month), month) }
-                  catch (e) { setNotice('خروجی Excel ساخته نشد: ' + e.message) }
-                  finally { setXlsxBusy(false) }
-                }}>{xlsxBusy ? '…' : '⬇ خروجی Excel'}</button>
-              </div>
-              {shown.length ? shown.map((item) => (
-                <article key={item.id} className="fn-row">
-                  <div>
-                    <b>{item.title}</b>
-                    <small>{jalaliShort(item.date)} · {isMisc(item) ? <select className="fn-catpick" value="" onChange={(e) => setCat(item, e.target.value)} aria-label="انتخاب دسته"><option value="">متفرقه — دسته؟</option>{USER_CATS.filter((c) => c !== 'متفرقه' && c !== 'حقوق').map((c) => <option key={c} value={c}>{c}</option>)}<option value="انتقال">انتقال (هزینه نیست)</option></select> : item.category} · {item.account}{item.tags?.length ? ` · ${item.tags.map((t) => `#${t}`).join(' ')}` : ''}</small>
-                  </div>
-                  <span className={`amt ${item.kind === 'income' ? 'pos' : item.kind === 'transfer' ? 'xfer' : 'neg'}`} title={item.kind === 'transfer' ? 'انتقال بین حساب‌ها' : undefined}>{amt(item.amount)}</span>
-                  <div className="fn-ops">
-                    <button type="button" onClick={() => setEditing({ type: 'transaction', item })}>ویرایش</button>
-                    <button type="button" className="del" onClick={() => { if (window.confirm(`«${item.title}» حذف شود؟`)) send(`/api/transactions/${item.id}`, {}, 'حذف شد.', 'DELETE') }}>حذف</button>
-                  </div>
-                </article>
-              )) : <EmptyTx hint={emptyHint} onJump={(d) => setMonth(jKeyOf(d))} />}
-            </section>
+              
+              </>}
+            />
           </div>
         ) : null}
 
