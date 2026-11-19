@@ -308,7 +308,7 @@ export async function handleApi(request, env) {
      const moneyRe=/ریال|ريال|تومان|پرید|برداشت|واریز|خرید|انتقال/;   // login/OTP SMS etc. are dropped silently
      let all=[],dup=0,ign=0,rec=0,miss=[],wrote=false;
      // Parse every SMS first, then apply oldest → newest so the account's bank balance ends on the latest one.
-     let parsed=[];
+     let parsed=[],sent=[];
      for(const text of items){
        let sh=(await extSha256(user.id+'\n'+text)).slice(0,24);
        if(db.bankSmsSeen.includes(sh)){dup++;continue}
@@ -325,8 +325,8 @@ export async function handleApi(request, env) {
      }
      parsed.sort((x,y)=>x.at<y.at?-1:x.at>y.at?1:0);
      for(const {text,sh,ck,actions} of parsed){
-       let did=await applyParsedActions(db,user,actions,today());
-       if(did.length){db.bankSmsSeen.push(sh);if(ck)db.bankSmsSeen.push(ck);wrote=true;rec++;all.push(...did)}
+       let nb=db.transactions.length,did=await applyParsedActions(db,user,actions,today());
+       if(did.length){db.bankSmsSeen.push(sh);if(ck)db.bankSmsSeen.push(ck);wrote=true;rec++;all.push(...did);sent.push({did,txs:db.transactions.slice(nb).filter(t=>t.source==='sms')})}
        // Unreadable bank SMS must not vanish: it goes to Inbox for a manual entry.
        else if(moneyRe.test(text)){miss.push(text);db.inbox??=[];db.inbox.push({id:id(),userId:user.id,text:'📩 پیامک بانک (ثبت نشد): '+text.slice(0,1000),archived:false,createdAt:Date.now()});db.bankSmsSeen.push(sh);wrote=true}
        else ign++;
@@ -337,7 +337,21 @@ export async function handleApi(request, env) {
      if(gap&&Math.abs(Number(gap.smsDiff)||0)>=1)notes.push('⚠️ موجودی «'+gap.name+'» با بانک '+Math.abs(gap.smsDiff).toLocaleString('fa-IR')+' ریال '+(gap.smsDiff<0?'کمتر':'بیشتر')+' است — احتمالاً تراکنشی جا افتاده. در صفحهٔ مالی «همسان‌سازی» را بزن.');
      if(!smsAcc&&all.length)notes.push('ℹ️ هیچ حسابی برای پیامک بانک انتخاب نشده؛ تراکنش‌ها در «بدون حساب» ماندند. در مالی ← حساب‌ها یک حساب را «حساب پیامک» کن.');
      if(wrote||db.__touch){delete db.__touch;await write(db)}
-     if(TELEGRAM_BOT_TOKEN&&user.telegramUserId&&(all.length||miss.length)){try{await tgSend(user.telegramUserId,(all.length?'📩 پیامک بانک ثبت شد:\n• '+all.join('\n• ')+(notes.length?'\n\n'+notes.join('\n'):''):'')+(miss.length?(all.length?'\n\n':'')+'📩 پیامک بانک رسید ولی مبلغی در آن پیدا نشد (در Inbox گذاشتم):\n'+miss.map(x=>x.slice(0,300)).join('\n---\n'):''),{disable_web_page_preview:true})}catch(e){}}
+     if(TELEGRAM_BOT_TOKEN&&user.telegramUserId&&(all.length||miss.length)){try{
+       const missText=miss.length?'📩 پیامک بانک رسید ولی مبلغی در آن پیدا نشد (در Inbox گذاشتم):\n'+miss.map(x=>x.slice(0,300)).join('\n---\n'):'';
+       // A handful of new transactions: one Telegram message each, so a reply to it ("بابت سفر") names exactly that
+       // transaction (stored as tx.tgMsgId; handled in handleTelegramMessage). Bigger queues stay one summary.
+       if(sent.length&&sent.length<=5&&sent.every(x=>x.txs.length)){
+         let linked=false;
+         for(let i=0;i<sent.length;i++){
+           const x=sent[i],last=i===sent.length-1;
+           const r=await tgSend(user.telegramUserId,'📩 پیامک بانک ثبت شد:\n• '+x.did.join('\n• ')+(last&&notes.length?'\n\n'+notes.join('\n'):'')+'\n\n↩️ روی همین پیام ریپلای کن و بنویس بابت چی بود (مثلاً «سفر کیش»، «قسط ماشین»؛ برای تگ: #قضا).',{disable_web_page_preview:true});
+           const mid=r&&r.ok&&r.result&&r.result.message_id;if(mid){for(const t of x.txs)t.tgMsgId=mid;linked=true}
+         }
+         if(missText)await tgSend(user.telegramUserId,missText,{disable_web_page_preview:true});
+         if(linked)await write(db);
+       }else await tgSend(user.telegramUserId,(all.length?'📩 پیامک بانک ثبت شد:\n• '+all.join('\n• ')+(notes.length?'\n\n'+notes.join('\n'):''):'')+(missText?(all.length?'\n\n':'')+missText:''),{disable_web_page_preview:true});
+     }catch(e){}}
      if(items.length>1)return json(res,200,{ok:true,recorded:rec,duplicates:dup,ignored:ign,unreadable:miss.length,done:all,notes});
      if(all.length)return json(res,201,{ok:true,done:all,notes});
      if(dup)return json(res,200,{ok:true,duplicate:true,done:[]});
