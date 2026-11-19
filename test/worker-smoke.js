@@ -123,6 +123,7 @@ async function main() {
     const rep = await call(`/api/finance/monthly-report?jy=${parseInt(jp.year)}&jm=${parseInt(jp.month)}`, { cookie });
     check('monthly report -> 200 with income/expense lines', rep.status === 200 && /گزارش ماهانه/.test(rep.d?.text || '') && /هزینه/.test(rep.d.text), (rep.d?.text || rep.text).slice(0, 200));
     check('monthly report lists the due debt', /بدهی به تست/.test(rep.d?.text || ''));
+    check('monthly report: Jalali month, «خالص ماه» (not the ambiguous «مانده»), «(تا امروز)» for the running month', /خالص ماه \(درآمد − هزینه\)/.test(rep.d.text) && !/⚖️ مانده/.test(rep.d.text) && /\(تا امروز\)/.test(rep.d.text) && /ریال/.test(rep.d.text), rep.d.text.slice(0, 400));
     const bad = await call('/api/finance/monthly-report?jy=1405&jm=13', { cookie });
     check('monthly report rejects bad month -> 400', bad.status === 400);
     const deb = (await call('/api/debts', { cookie })).d.items.find((x) => x.person === 'تست');
@@ -955,6 +956,22 @@ async function main() {
     const { makeHelpers: mk } = await require('./load-worker').loadWorkerModule(); const H = mk(env);
     const db = { accounts: [{ userId: 'u', name: 'بلو' }, { userId: 'u', name: 'بانک ملی' }, { userId: 'u', name: 'ملت حقوق' }, { userId: 'u', name: 'قدیمی', archived: true }] };
     const pick = o => { const r = H.statementAccount(db, 'u', o); return r.account ? r.account.name : 'ERR'; };
+    { // bank SMS → the right account: Melli SMS (Persian or Arabic ی/ک, or a «بانک ملی» line the Shortcut prepends) go to «ملی», Blu stays Blu
+      const dbS = { accounts: [{ userId: 'u', name: 'بلو بانک' }, { userId: 'u', name: 'ملی' }] };
+      const accOf = t => { const a = H.parseLifeText(t).find(x => x.type === 'transaction'); return a ? (H.bankSmsAccount(dbS, 'u', a.bankName) || {}).name + '|' + a.kind + '|' + a.amount : 'none'; };
+      check('bank SMS: «بانک ملی ایران» withdrawal → ملی', accOf('بانک ملی ایران\nبرداشت:1,500,000\nحساب:01*****01\nمانده:9,000,000\n1405/08/28-12:30') === 'ملی|expense|1500000');
+      check('bank SMS: Arabic «بانك ملي» deposit → ملی', accOf('بانك ملي ايران\nواريز:2,000,000\nمانده:11,000,000\n1405/08/28-13:10') === 'ملی|income|2000000');
+      check('bank SMS: a prepended «بانک ملی» line → ملی; Blu SMS still → بلو بانک', accOf('بانک ملی\nبرداشت پول\nمبلغ 250,000 ریال از حساب شما کسر شد\n1405/08/28') === 'ملی|expense|250000' && accOf('بلو\nبرداشت پول\nحمیدرضا عزیز، 10,560,000 ریال از حساب شما پرید.\nموجودی: 2,406,466,090 ریال\n۱۹:۵۴\n۱۴۰۵.۰۷.۰۹') === 'بلو بانک|expense|10560000');
+      // real Melli layout (numbers made up): label:±amount / حساب / مانده / Jalali MMDD-HH:MM without a year
+      const ml = (txt) => H.parseLifeText(txt).find(x => x.type === 'transaction');
+      const jNow = H.tehranJalaliParts(), jd = (m, d) => H.jalaliToGregorianIso(m > jNow.m ? jNow.y - 1 : jNow.y, m, d); // expected date for a «MMDD» SMS received today
+      const m1 = ml('بانك ملي ايران\nساتنا:-3,000,000\nحساب:12345\nمانده:4,000,000\n0826-12:15'), m2 = ml('بانك ملي ايران\n-54,000\nحساب:12345\nمانده:3,946,000\n0826-12:18');
+      const m3 = ml('بانك ملي ايران\nسود:+17,000\nحساب:12345\nمانده:600,000\n0517-24:00'), m4 = ml('بانك ملي ايران\nانتقالي:+5,000,000\nحساب:12345\nمانده:9,000,000\n0720-09:03');
+      check('Melli SMS: «ساتنا:-…» → expense titled «ساتنا» (pass-through), balance, Jalali MMDD date, time', m1 && m1.kind === 'expense' && m1.amount === 3000000 && m1.title === 'ساتنا' && H.isPassThroughTitle(m1.title) && m1.balance === 4000000 && m1.date === jd(8, 26) && m1.time === '12:15' && m1.bankName === 'ملی', JSON.stringify(m1));
+      check('Melli SMS: a bare «-54,000» is a withdrawal; «سود:+» is real income at 23:59; «انتقالی:+» is pass-through income', m2 && m2.kind === 'expense' && m2.title === 'برداشت' && m3 && m3.kind === 'income' && m3.title === 'سود' && !H.isPassThroughTitle(m3.title) && m3.date === jd(5, 17) && m3.time === '23:59' && m4 && m4.kind === 'income' && H.isPassThroughTitle(m4.title) && m4.date === jd(7, 20), JSON.stringify([m2, m3, m4]));
+      check('Melli SMS: a month still ahead of today belongs to last year (Esfand → last year while it is earlier in the year); a Shortcut-added first line is tolerated', ml('بانك ملي ايران\nسود:+1\nحساب:1\nمانده:1\n1225-24:00')?.date === jd(12, 25) && ml('بانک ملی\nبانك ملي ايران\nساتنا:-1,000\nحساب:1\nمانده:1\n0826-12:15')?.title === 'ساتنا');
+      check('Melli SMS: «کد … را جهت ورود به بام» and «ورود به بام» are not transactions', H.isNonTxSms('بانک ملی\nکد 22726 را جهت ورود به بام وارد نمایید.\n@baambank.ir #22726') && H.isNonTxSms('بانک ملی\nورود به بام\n1405/08/25-11:54'));
+    }
     check('statement account: file name «…ملی…» / melli_ → بانک ملی', pick({ fileName: 'صورتحساب ملی آبان.xlsx' }) === 'بانک ملی' && pick({ fileName: 'melli_1405.xlsx' }) === 'بانک ملی');
     check('statement account: sheet header «بانک ملی ایران» → بانک ملی; «کد ملی» alone is not a bank', pick({ fileName: 's.xlsx', rows: [['بانک ملی ایران'], ['کد ملی', '1']] }) === 'بانک ملی' && pick({ fileName: 's.xlsx', rows: [['کد ملی', '1']] }) === 'ERR');
     check('statement account: caption wins; unknown caption refuses', pick({ fileName: 'blu.xlsx', caption: 'ملی' }) === 'بانک ملی' && pick({ fileName: 'x.xlsx', caption: 'پاسارگاد' }) === 'ERR');
