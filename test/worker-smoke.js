@@ -467,6 +467,11 @@ async function main() {
     check('matcher: same-day same-amount row of the OTHER direction is not a duplicate; same kind / transfer is', mt([{ date: '2026-11-17', amount: 1000, kind: 'income' }], row) === false && mt([{ date: '2026-11-17', amount: 1000, kind: 'expense' }], row) === true && mt([{ date: '2026-11-17', amount: 1000, kind: 'transfer' }], row) === true);
     check('category: «خرید اینترنتی» is not a bill; internet bundles / bare «اینترنت» are', H.suggestCategoryKeyword('خرید اینترنتی') == null && H.suggestCategoryKeyword('خرید بسته اینترنت') === 'قبض' && H.suggestCategoryKeyword('اینترنت') === 'قبض');
     check('category rules: «کارمزد»/«انتقال پل»/«حواله ساتنا» titles are generic (never learned)', ['کارمزد', 'انتقال پل', 'حواله ساتنا'].every(k => H.catKeyGeneric(H.catKey(k))));
+    const oi = await mkTx({ title: 'خرید اینترنتی', amount: 3300, kind: 'expense', category: 'قبض' });
+    await call(`/api/transactions/${oi.id}`, { method: 'PATCH', cookie, body: {} });
+    const fixRes = await call('/api/transactions/recategorize', { method: 'POST', cookie, body: { revert: true, genericLearned: true } });
+    const oiAfter = (await call('/api/transactions?from=2031-03-01&to=2031-03-31', { cookie })).d.items.find(x => x.id === oi.id);
+    check('«برگرداندن دسته‌بندی گروهی اشتباه» also takes «خرید اینترنتی» out of «قبض»', fixRes.status === 200 && oiAfter.category === 'متفرقه', JSON.stringify([fixRes.d, oiAfter && oiAfter.category]));
   }
   { // the finance page settles with no account: marked settled, no bank transaction (real money comes from the statement)
     const r = (await call('/api/debts', { method: 'POST', cookie, body: { person: 'بی‌حساب-تسویه', amount: 70, type: 'receivable' } })).d;
@@ -477,7 +482,12 @@ async function main() {
     check('finance page «تسویه» sends no account', /settle`, \{\}, 'تسویه شد\.'\)/.test(fin));
   }
   const sub = (await call('/api/subscriptions', { method: 'POST', cookie, body: { name: 'Wsub', amount: 50, nextDate: daysAgo(-3) } })).d;
-  check('subscription pay -> 200', (await call(`/api/subscriptions/${sub.id}/pay`, { method: 'POST', cookie, body: {} })).status === 200);
+  { const n0 = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter(x => x.title === 'Wsub').length;
+    const pr = await call(`/api/subscriptions/${sub.id}/pay`, { method: 'POST', cookie, body: {} });
+    const n1 = (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter(x => x.title === 'Wsub').length;
+    check('subscription pay -> 200, moves the due date, books no second row (the bank row is the real one)', pr.status === 200 && pr.d.nextDate > daysAgo(-3) && n1 === n0, JSON.stringify(pr.d));
+    await call(`/api/subscriptions/${sub.id}/pay`, { method: 'POST', cookie, body: { record: true } });
+    check('subscription pay with {record:true} still books the expense', (await call('/api/transactions?from=0000-01-01&to=9999-12-31', { cookie })).d.items.filter(x => x.title === 'Wsub').length === n0 + 1); }
   const rem = (await call('/api/reminders', { method: 'POST', cookie, body: { title: 'w-rem', date: today() } })).d;
   check('reminder -> 201 then 200 on patch', !!rem.id && (await call(`/api/reminders/${rem.id}`, { method: 'PATCH', cookie, body: { done: true } })).status === 200);
   const inbox = (await call('/api/inbox', { method: 'POST', cookie, body: { text: 'w-note' } })).d;
