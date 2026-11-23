@@ -4,7 +4,7 @@ Sep 26, 2026 · @Hamid reza
 
 ## مقدمه
 
-این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۲۹، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
+این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۳۰، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
 
 ساختار سند:
 
@@ -1384,3 +1384,90 @@ shall برای بیان پیشنهاد، دعوت، درخواست توصیه، 
 | programme {Br.} = program {Am.} | /ˈproʊɡræm/ | برنامه | a TV programme / a TV program |
 
 **following:** به‌عنوان صفت یعنی «بعدی، زیر» (the following programme)، و به‌عنوان اسم یعنی «طرفداران» (a large following).
+
+## جلسه ۳۰: آدرس دادن، جاده و ترافیک، collocation کنسرت، داستان و موضوع
+
+**برنامهٔ دوره (از این جلسه):** ۱) Collocation (دو جلسه) — ۲) Voc (دو جلسه) — ۳) Story + Topic — ۴) Writing (فصل ۲). جلسهٔ بعد: پنجشنبه ۵ آذر ۱۴۰۵، ساعت ۱۲ تا ۱:۳۰.
+
+### آدرس دادن و پرسیدن — Voc 31
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| get to = arrive at | /ɡet tuː/ | رسیدن به | How do I get to the station? |
+| go straight on = just keep going | /ɡoʊ streɪt ɒn/ | مستقیم ادامه دادن | Go straight on for two hundred metres. |
+| go along | /ɡoʊ əˈlɒŋ/ | در امتداد (خیابان) رفتن | Go along this street until the bank. |
+| turn left ≠ turn right | /tɜːrn left/, /raɪt/ | به چپ بپیچ ≠ به راست بپیچ | Turn right at the traffic lights. |
+| on your right / on your left | /ɒn jɔːr raɪt/ | سمت راست شما / سمت چپ شما | The museum is on your right. |
+| opposite = across from | /ˈɒpəzɪt/ | روبه‌روی، مقابل | The bank is opposite the post office. |
+| take the second turning on the left | /ˈtɜːrnɪŋ/ | دومین پیچ (خیابان) سمت چپ را بگیر | Take the second turning on the left. |
+| on the corner | /ɒn ðə ˈkɔːrnər/ | سر نبش، در گوشه | The café is on the corner. |
+
+**مکالمه نمونه:** "Excuse me, how do I get to the station?" — "Go straight on, then take the second turning on the left. The station is on your right, opposite the bank."
+
+### جاده و ترافیک — Voc 32
+
+traffic غیرقابل‌شمارش (U) است: "There is a lot of traffic." (نه "a lot of traffics").
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| junction (n.) | /ˈdʒʌŋkʃn/ | تقاطع | Turn left at the next junction. |
+| roundabout (n.) | /ˈraʊndəbaʊt/ | میدان (تقاطع دایره‌ای) | Take the first exit at the roundabout. |
+| traffic jam | /ˈtræfɪk dʒæm/ | ترافیک، راه‌بندان | I was stuck in a traffic jam. |
+| car park {Br.} = parking lot {Am.} | /ˈkɑːr pɑːrk/ | پارکینگ | The car park is full. |
+| speed camera | /spiːd ˈkæmərə/ | دوربین کنترل سرعت | Slow down, there's a speed camera. |
+| main road | /meɪn roʊd/ | جادهٔ اصلی | Our house is near the main road. |
+| road sign | /roʊd saɪn/ | تابلوی جاده، علائم راهنمایی | Look at the road signs. |
+| petrol station {Br.} = gas station {Am.} | /ˈpetrəl ˈsteɪʃn/ | پمپ بنزین | We stopped at a petrol station. |
+| traffic light(s) | /ˈtræfɪk laɪts/ | چراغ راهنمایی | Turn right at the traffic lights. |
+| pedestrian crossing | /pəˈdestriən ˈkrɒsɪŋ/ | خط عابر پیاده | Cross the road at the pedestrian crossing. |
+| pavement {Br.} = sidewalk {Am.} | /ˈpeɪvmənt/ | پیاده‌رو | Walk on the pavement. |
+
+### بیرون شهر — Voc 32 (B)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| out of town | /aʊt əv taʊn/ | بیرون شهر | We live out of town. |
+| How far is it from … to …? | /haʊ fɑːr/ | از … تا … چقدر راه است؟ | How far is it from Tehran to Qom? |
+| What's the distance? | /ˈdɪstəns/ | فاصله چقدر است؟ | What's the distance from here to the airport? |
+| motorway {Br.} = freeway / highway {Am.} | /ˈmoʊtərweɪ/ | آزادراه، بزرگراه | Take the motorway to save time. |
+| speed limit | /spiːd ˈlɪmɪt/ | سرعت مجاز | The speed limit is 120 km/h. |
+| 70 miles an hour | /ˈsevnti maɪlz ən ˈaʊər/ | ۷۰ مایل در ساعت | The speed limit is 70 miles an hour. |
+| busy ≠ quiet (adj.) | /ˈbɪzi/, /ˈkwaɪət/ | شلوغ ≠ خلوت | The roads are busy in the morning. |
+| rush hour | /rʌʃ ˈaʊər/ | ساعت اوج ترافیک | Don't drive in the rush hour. |
+| accident (n.) | /ˈæksɪdənt/ | تصادف | There was an accident on the motorway. |
+| lane (n.) | /leɪn/ | خط (لاین) | Stay in the right lane. |
+| overtake (v.) | /ˌoʊvərˈteɪk/ | سبقت گرفتن | Don't overtake on a bend. |
+
+**نکته آیلتس:** برای سؤال Part 1 درباره رفت‌وآمد: "I avoid driving in the rush hour because the main roads are always busy and there's a lot of traffic." — توجه: a lot of traffic (نه traffics).
+
+### Collocation: concert (کنسرت)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| attend a concert | /əˈtend ə ˈkɒnsərt/ | در کنسرت حضور یافتن | Thousands of people attended the concert. |
+| cancel a concert | /ˈkænsl/ | لغو کردن یک کنسرت | They cancelled the concert because of the rain. |
+| give a concert | /ɡɪv/ | کنسرت دادن (اجرا کردن) | The band gave a concert in Tehran. |
+| put on / arrange a concert | /pʊt ɒn/, /əˈreɪndʒ/ | ترتیب دادن، برگزار کردن یک کنسرت | The school put on a concert for parents. |
+| perform a concert | /pərˈfɔːrm/ | اجرا کردن (نواختن) در یک کنسرت | The orchestra performed a concert of Mozart. |
+| a brilliant concert | /ˈbrɪliənt/ | یک کنسرت عالی | It was a brilliant concert! |
+| a farewell concert | /ˌfeərˈwel/ | کنسرت خداحافظی | The singer gave a farewell concert. |
+| a live concert | /laɪv/ | کنسرت زنده | I've never been to a live concert. |
+| a ticket for the concert | /ˈtɪkɪt fər ðə ˈkɒnsərt/ | بلیط کنسرت | I bought two tickets for the concert. |
+| an open-air concert | /ˌoʊpən ˈeər/ | کنسرت در فضای باز (روباز) | We went to an open-air concert in the park. |
+
+**اشتباه رایج:** "a ticket concert" ✗ — درست: **a ticket for the concert** یا **a concert ticket**. live در این ترکیب /laɪv/ تلفظ می‌شود (نه /lɪv/).
+
+### داستان و موضوع (Story + Topic)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| ran outside (run → ran) | /ræn/ | بیرون دوید | The children ran outside to play. |
+| politely (adv.) | /pəˈlaɪtli/ | با ادب، مؤدبانه | He asked politely for the menu. |
+| whether (conj.) | /ˈweðər/ | آیا، اگر (که) | I don't know whether he is coming. |
+| recipe (n.) | /ˈresəpi/ | دستور پخت | Can you give me the recipe? |
+| delicious (adj.) | /dɪˈlɪʃəs/ | خوشمزه | This soup is delicious. |
+| separate (v.) / separated (adj.) | /ˈsepəreɪt/ | جدا کردن / جداشده | Separate the eggs. / Keep the meat and vegetables separated. |
+| needs time | /niːdz taɪm/ | به زمان نیاز دارد | Good cooking needs time. |
+| Practice makes perfect. | /ˈpræktɪs meɪks ˈpɜːrfɪkt/ | کار نیکو کردن از پر کردن است | Don't worry about mistakes — practice makes perfect. |
+
+**تلفظ‌های نزدیک:** **whether** /ˈweðər/ (آیا) و **weather** /ˈweðər/ (آب‌وهوا) هم‌آوا هستند؛ ولی **water** /ˈwɔːtər/ (آب) فرق دارد. مثال: "I don't know whether the weather will be good."
