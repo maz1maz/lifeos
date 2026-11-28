@@ -4,7 +4,7 @@ Sep 26, 2026 · @Hamid reza
 
 ## مقدمه
 
-این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۳۰، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
+این سند از روی ۱۴۴ صفحه یادداشت دست‌نویس کلاس خصوصی زبان (جلسه‌های ۱ تا ۳۱، در دو دفترچه) تهیه شده و به‌جای ترتیب زمانی جلسات، بر اساس **موضوع** دسته‌بندی شده تا مرور و آماده‌سازی برای آیلتس ساده‌تر باشد.
 
 ساختار سند:
 
@@ -1471,3 +1471,115 @@ traffic غیرقابل‌شمارش (U) است: "There is a lot of traffic." (ن
 | Practice makes perfect. | /ˈpræktɪs meɪks ˈpɜːrfɪkt/ | کار نیکو کردن از پر کردن است | Don't worry about mistakes — practice makes perfect. |
 
 **تلفظ‌های نزدیک:** **whether** /ˈweðər/ (آیا) و **weather** /ˈweðər/ (آب‌وهوا) هم‌آوا هستند؛ ولی **water** /ˈwɔːtər/ (آب) فرق دارد. مثال: "I don't know whether the weather will be good."
+
+## جلسه ۳۱ (ترم تازه — جلسهٔ ۱): رستوران‌ها، علائم، کشور و collocation فیلم
+
+**برنامهٔ ترم:** ۱) Collocation — ۲) Voc 33 و 34 — ۳) Topic — ۴) Story. جلسه‌ها: پنجشنبه‌ها ساعت ۱۲ تا ۱:۳۰.
+
+### واژه‌های آزاد و تلفظ
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| hug (v.) | /hʌɡ/ | بغل کردن، در آغوش گرفتن | She hugged her mother. |
+| open-minded (adj.) | /ˌoʊpən ˈmaɪndɪd/ | روشن‌فکر، پذیرای عقاید تازه | My teacher is very open-minded. |
+| resign (v.) | /rɪˈzaɪn/ | استعفا دادن | He resigned from his job. |
+| memorize (v.) | /ˈmeməraɪz/ | به خاطر سپردن، حفظ کردن | Memorize a few lines every day. |
+| record (n.) | /ˈrekɔːrd/ | رکورد؛ سابقه؛ صفحهٔ موسیقی | She broke the world record. |
+| record (v.) | /rɪˈkɔːrd/ | ضبط کردن | I recorded my answer. |
+| a few lines | /ə fjuː laɪnz/ | چند خط | Write a few lines about your weekend. |
+| thirteen ≠ thirty | /ˌθɜːrˈtiːn/ ≠ /ˈθɜːrti/ | سیزده ≠ سی | Thirteen has stress at the end; thirty at the start. |
+| double five (55) | /ˈdʌbl faɪv/ | پنجاه‌وپنج (در خواندن شماره تلفن) | My number is double five, two, eight… |
+| special (adj.) | /ˈspeʃl/ | ویژه، مخصوص | Today's special is fish curry. |
+| vote (v./n.) | /voʊt/ | رأی دادن؛ رأی | Who did you vote for? |
+
+**نکته:** prices جمع است: "The prices are expensive" → بهتر: **"The prices are high"** یا **"It's expensive"**. — "I exciting" ✗ → **"I'm / I got excited"** (صفت با -ed برای احساس ما، با -ing برای چیزی که آن حس را می‌دهد). — "I feel good" یا **"I have a good feeling (about it)"**.
+
+**Topic جلسه:** Who do you like to watch a film with? Why? What kind of films do you watch?
+
+### رستوران‌ها — Unit 7
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| fantastic (adj.) | /fænˈtæstɪk/ | عالی، خارق‌العاده | The food was fantastic! |
+| pretty (adv.) — pretty good | /ˈprɪti/ | نسبتاً، تقریباً — نسبتاً خوب، بد نیست | The service was pretty good. |
+| so-so (adj.) | /ˈsoʊ soʊ/ | معمولی، نه خوب نه بد | "How was the pizza?" "So-so." |
+| fairly (adv.) | /ˈferli/ | نسبتاً | The prices are fairly reasonable. |
+| reasonable (adj.) | /ˈriːznəbl/ | معقول، منطقی (قیمت مناسب) | They serve good food at reasonable prices. |
+| curry (n.) | /ˈkʌri/ {Br.}, /ˈkɜːri/ {Am.} | کاری (خوراک ادویه‌دار هندی) | I'd like a chicken curry. |
+| noodles (n.) | /ˈnuːdlz/ | رشته‌فرنگی | A bowl of noodles, please. |
+| attract (v.) | /əˈtrækt/ | جذب کردن | The restaurant attracts a lot of tourists. |
+| atmosphere (n.) | /ˈætməsfɪr/ | فضا، حال‌وهوا | It has a friendly atmosphere. |
+| café (n.) | /ˈkæfeɪ/ | کافه | Let's meet at the café. |
+| snack bar | /snæk bɑːr/ | ساندویچ‌فروشی، اسنک‌بار | There's a snack bar at the station. |
+| buffet restaurant | /ˈbʊfeɪ/ | رستوران سلف‌سرویس | At a buffet restaurant you serve yourself. |
+| food cart | /fuːd kɑːrt/ | گاری غذا (فروش غذا در خیابان) | We bought tacos from a food cart. |
+| cafeteria (n.) | /ˌkæfəˈtɪriə/ | کافه‌تریا (دانشگاه، اداره، کارخانه) | Students eat in the cafeteria. |
+| food court | /fuːd kɔːrt/ | فودکورت (رستوران‌های فست‌فود مرکز خرید) | The mall has a big food court. |
+| fine dining restaurant | /faɪn ˈdaɪnɪŋ/ | رستوران مجلل و گران | It's a fine dining restaurant, so book in advance. |
+| be in the mood for | /ɪn ðə muːd fər/ | حال (و حوصلهٔ) چیزی را داشتن | I'm in the mood for pizza tonight. |
+| subway {Am.} (n.) | /ˈsʌbweɪ/ | مترو (بریتانیایی: underground) | Take the subway downtown. |
+| mean (v.) | /miːn/ | معنی دادن | What does "so-so" mean? |
+| serve (v.) | /sɜːrv/ | سرو کردن، پذیرایی کردن؛ خدمت کردن | They serve breakfast until 11. |
+| otherwise (adv.) | /ˈʌðərwaɪz/ | وگرنه | Book a table; otherwise you'll wait. |
+| It's worth a try. | /wɜːrθ/ | ارزش یک بار امتحان کردن را دارد | The new café is worth a try. |
+| location (n.) | /loʊˈkeɪʃn/ | محل، موقعیت، جا | The restaurant has a great location. |
+| customer (n.) | /ˈkʌstəmər/ | مشتری | The customers love the desserts. |
+| far (adj./adv.) | /fɑːr/ | دور | Is it far from here? |
+| partner (n.) | /ˈpɑːrtnər/ | شریک | She opened the café with her partner. |
+| owner (n.) | /ˈoʊnər/ | صاحب، مالک | The owner is very friendly. |
+
+**نکته آیلتس:** برای توصیف رستوران در Speaking: "It's a fairly small café with a friendly atmosphere, and the prices are pretty reasonable — it's definitely worth a try."
+
+### علائم و تابلوها — Voc 33
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| sign (n.) | /saɪn/ | تابلو، علامت | Read the signs carefully. |
+| notice (n.) | /ˈnoʊtɪs/ | اعلان، آگهی | There's a notice on the door. |
+| Ladies ≠ Gents | /ˈleɪdiz/, /dʒents/ | خانم‌ها (سرویس بانوان) ≠ آقایان | The Gents is on the left. |
+| entrance = way in | /ˈentrəns/ | ورودی | Use the main entrance. |
+| exit = way out | /ˈeksɪt/ | خروجی | Where is the exit? |
+| No entry | /noʊ ˈentri/ | ورود ممنوع | The sign says "No entry". |
+| No exit | /noʊ ˈeksɪt/ | خروج ممنوع | This door is "No exit". |
+| No smoking | /noʊ ˈsmoʊkɪŋ/ | سیگار کشیدن ممنوع | This is a no-smoking area. |
+| Please do not disturb. | /dɪˈstɜːrb/ | لطفاً مزاحم نشوید | Hang the "Do not disturb" sign on the door. |
+| Nothing to declare | /dɪˈkler/ | کالای مشمول عوارض گمرکی ندارید (گمرک) | Go through "Nothing to declare". |
+| queue (n./v.) | /kjuː/ | صف؛ صف ایستادن | Please queue here. |
+| sale (n.) | /seɪl/ | حراج | Everything is 50% off in the sale. |
+| Out of order | /aʊt əv ˈɔːrdər/ | خراب، از کار افتاده | The lift is out of order. |
+| Ring for attention | /rɪŋ fər əˈtenʃn/ | برای کمک زنگ بزنید | If no one is at the desk, ring for attention. |
+| vacancy (n.) — No vacancies | /ˈveɪkənsi/ | اتاق (یا جای) خالی — جای خالی نداریم | The hotel sign says "No vacancies". |
+
+### کشور — Voc 34
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| country (n.) | /ˈkʌntri/ | کشور | Iran is a big country. |
+| enormous (adj.) = very big | /ɪˈnɔːrməs/ | بسیار بزرگ، عظیم | Brazil is an enormous country. |
+| coast (n.) | /koʊst/ | ساحل، کرانه | They live on the coast. |
+| on the coast | /ɒn ðə koʊst/ | در ساحل، کنار دریا | Bandar Abbas is on the coast. |
+| border (n.) | /ˈbɔːrdər/ | مرز | We crossed the border into Turkey. |
+| the Amazon | /ˈæməzən/ | (رود و جنگل) آمازون در آمریکای جنوبی | The Amazon is the largest rainforest. |
+| capital (n.) | /ˈkæpɪtl/ | پایتخت | Tehran is the capital of Iran. |
+| inland (adj./adv.) | /ˈɪnlənd/ | درون‌مرزی، دور از ساحل | Isfahan is an inland city. |
+| major (adj.) | /ˈmeɪdʒər/ | عمده، بزرگ، اصلی | Tabriz is a major city. |
+| famous (adj.) = well-known | /ˈfeɪməs/ | مشهور | Shiraz is famous for its gardens. |
+| popular with | /ˈpɒpjələr wɪð/ | محبوب در میان | Kish is popular with tourists. |
+| metre {Br.} = meter {Am.} | /ˈmiːtər/ | متر | Damavand is 5,610 metres high. |
+
+### Collocation: film (فیلم)
+
+| English | تلفظ | معنی فارسی | مثال |
+| --- | --- | --- | --- |
+| see / watch a film | /siː/, /wɒtʃ/ | تماشا کردن یک فیلم | We watched a film last night. |
+| shoot a film | /ʃuːt/ | فیلم‌برداری کردن | They shot the film in Kashan. |
+| show a film | /ʃoʊ/ | نشان دادن (اکران کردن) یک فیلم | The cinema is showing a new film. |
+| release a film | /rɪˈliːs/ | منتشر کردن (اکران عمومی) یک فیلم | The film will be released in March. |
+| ban a film | /bæn/ | ممنوع کردن (توقیف) یک فیلم | The government banned the film. |
+| appear in / star in a film | /əˈpɪr/, /stɑːr/ | بازی کردن در یک فیلم | She starred in an award-winning film. |
+| a good film | /ɡʊd/ | یک فیلم خوب | It's a really good film. |
+| a low-budget film | /ˌloʊ ˈbʌdʒɪt/ | فیلم کم‌هزینه (با بودجهٔ کم) | It was a low-budget film, but very popular. |
+| a review of a film | /rɪˈvjuː/ | نقد یک فیلم | I read a review of the film. |
+| an award-winning film | /əˈwɔːrd ˌwɪnɪŋ/ | فیلم برندهٔ جایزه | It's an award-winning film. |
+
+**نکته آیلتس (Topic):** "I usually watch films with my sister because we like the same kind of films — mostly comedies and award-winning dramas. We read a review of the film before we choose."
